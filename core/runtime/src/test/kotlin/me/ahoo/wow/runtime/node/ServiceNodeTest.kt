@@ -454,7 +454,9 @@ class ServiceNodeTest {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun starts(vararg names: String) = fastNodeOptions().let {
             it.copyWith(
-                subscription = it.subscription.copyWith(starts = names.map { SubscriptionId(BANK, it) }.associateWith { SubscriptionStart.Beginning })
+                subscription = it.subscription.copyWith(
+                    starts = names.map { SubscriptionId(BANK, it) }.associateWith { SubscriptionStart.Beginning }
+                )
             )
         }
         // The application's subscriptions and the built-in ones may be configured (decision D154).
@@ -468,7 +470,10 @@ class ServiceNodeTest {
     fun `a parked retry spec configured for a subscription the node does not have is refused`() {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun specs(vararg names: String) = fastNodeOptions().let {
-            val parked = ParkedRetryOptions(specs = names.map { SubscriptionId(BANK, it) }.associateWith { ParkedRetrySpec(maxRetries = 1) })
+            val parked =
+                ParkedRetryOptions(
+                    specs = names.map { SubscriptionId(BANK, it) }.associateWith { ParkedRetrySpec(maxRetries = 1) }
+                )
             it.copyWith(subscription = it.subscription.copyWith(parked = parked))
         }
         val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
@@ -483,7 +488,9 @@ class ServiceNodeTest {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun retries(vararg names: String) = fastNodeOptions().let {
             it.copyWith(
-                subscription = it.subscription.copyWith(retries = names.map { SubscriptionId(BANK, it) }.associateWith { HandlerRetry(maxAttempts = 1) })
+                subscription = it.subscription.copyWith(
+                    retries = names.map { SubscriptionId(BANK, it) }.associateWith { HandlerRetry(maxAttempts = 1) }
+                )
             )
         }
         node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)

@@ -59,7 +59,12 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
 
     /** Publishes that [resolution]'s entry is resolved, as the owning service's ledger does; the entry's id. */
     suspend fun resolve(resolution: ParkedResolution): String {
-        val id = Ledger.parkedId(resolution.service, resolution.context, resolution.subscription, resolution.aggregate.toRef())
+        val id = Ledger.parkedId(
+            resolution.service,
+            resolution.context,
+            resolution.subscription,
+            resolution.aggregate.toRef()
+        )
         record(id, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution))
         return id
     }

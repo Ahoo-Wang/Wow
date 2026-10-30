@@ -248,7 +248,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
         {
           "stage": "handled",
           "context": "bank",
-          "subscription": "snapshot"
+          "subscription": "wow.snapshot"
         }
       ],
       "deadline": 1760950810000
@@ -388,13 +388,13 @@ A hop that completes sends a signal straight to the internal port of the node th
     "hop": {
       "stage": "handled",
       "context": "bank",
-      "subscription": "snapshot"
+      "subscription": "wow.snapshot"
     },
     "function": {
       "kind": "snapshot",
       "context": "bank",
-      "processor": "snapshot",
-      "name": "snapshot"
+      "processor": "wow.snapshot",
+      "name": "wow.snapshot"
     },
     "status": "succeeded",
     "version": 2,

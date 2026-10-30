@@ -170,7 +170,11 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /** Marks [subscription]'s parked [ref] [recoverable]; null when it is not parked. */
-    suspend fun markRecoverable(subscription: SubscriptionId, ref: AggregateRef, recoverable: Recoverable): ParkedView? =
+    suspend fun markRecoverable(
+        subscription: SubscriptionId,
+        ref: AggregateRef,
+        recoverable: Recoverable
+    ): ParkedView? =
         amend(subscription, ref, ParkedAmendment.MarkRecoverable(recoverable))
 
     /** Applies [spec] to [subscription]'s parked [ref], or its subscription's spec again when null. */
@@ -254,7 +258,11 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         val contextOf: (String) -> String?,
     ) {
         /** The subscriptions of the scope, by their contexts and names. */
-        fun ids(): List<SubscriptionId> = names().mapNotNull { name -> contextOf(name)?.let { SubscriptionId(it, name) } }
+        fun ids(): List<SubscriptionId> = names().mapNotNull { name ->
+            contextOf(
+                name
+            )?.let { SubscriptionId(it, name) }
+        }
 
         /** Whether the scope holds [subscription]'s entries: it runs a subscription of that name in that context. */
         fun holds(subscription: SubscriptionId): Boolean =

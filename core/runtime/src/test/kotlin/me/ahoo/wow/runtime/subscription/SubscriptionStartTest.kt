@@ -131,7 +131,9 @@ class SubscriptionStartTest {
                 checkpoints,
                 ledger,
                 listOf(Subscription("reactor", SubscriptionFilter("shop"), StartFrom.END) { again.record(it) }),
-                testOptions().copyWith(starts = mapOf(SubscriptionId("shop", "reactor") to SubscriptionStart.Beginning)),
+                testOptions().copyWith(
+                    starts = mapOf(SubscriptionId("shop", "reactor") to SubscriptionStart.Beginning)
+                ),
             )
             restarted.start(setOf(0))
             eventually { again.size == 2 }

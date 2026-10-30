@@ -115,14 +115,14 @@ class EshopSharedJvmTest {
             )
             product.status.assert().describedAs(product.text).isEqualTo(OK)
             val deadline = System.nanoTime() + TIMEOUT.toNanos()
-            while (spans.finishedSpanItems.none { it.name == "handle snapshot" } && System.nanoTime() < deadline) {
+            while (spans.finishedSpanItems.none { it.name == "handle wow.snapshot" } && System.nanoTime() < deadline) {
                 Thread.sleep(5)
             }
             val traced = spans.finishedSpanItems.filter { it.traceId == trace }
             val admit = traced.single { it.name == "admit eshop-catalog.product" }
             admit.parentSpanId.assert().isEqualTo(caller)
             traced.single { it.name == "execute eshop-catalog.product" }.parentSpanId.assert().isEqualTo(admit.spanId)
-            traced.map { it.name }.assert().contains("append eshop-catalog.product", "handle snapshot")
+            traced.map { it.name }.assert().contains("append eshop-catalog.product", "handle wow.snapshot")
         }
     }
 

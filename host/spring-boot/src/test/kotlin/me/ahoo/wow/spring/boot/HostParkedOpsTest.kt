@@ -97,7 +97,9 @@ class HostParkedOpsTest {
         val parked = host.node.options.subscription.parked
         parked.spec.assert().isEqualTo(ParkedRetrySpec(5, 200.milliseconds, 100.milliseconds))
         parked.scanInterval.assert().isEqualTo(50.milliseconds)
-        parked.specOf(SubscriptionId(BANK, BROKEN)).assert().isEqualTo(ParkedRetrySpec(1, 200.milliseconds, 100.milliseconds))
+        parked.specOf(
+            SubscriptionId(BANK, BROKEN)
+        ).assert().isEqualTo(ParkedRetrySpec(1, 200.milliseconds, 100.milliseconds))
         parked.specOf(SubscriptionId(BANK, FLAKY)).assert().isEqualTo(parked.spec)
         host.context.getBean(WebhookNotifier::class.java).toString().assert().contains("GENERIC")
         WowProperties.ParkedSpec().specOver(ParkedRetrySpec()).assert().isNull()

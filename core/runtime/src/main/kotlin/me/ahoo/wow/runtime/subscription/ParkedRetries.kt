@@ -181,7 +181,9 @@ internal class ParkedRetries(
                 "an operator."
         }
         val context = contextOf(entry.subscription) ?: return
-        notifier.notifyQuietly(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, context, exhausted, spec, clock.millis()))
+        notifier.notifyQuietly(
+            ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, context, exhausted, spec, clock.millis())
+        )
     }
 }
 
