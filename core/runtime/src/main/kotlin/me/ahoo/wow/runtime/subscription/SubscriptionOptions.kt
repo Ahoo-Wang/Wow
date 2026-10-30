@@ -343,6 +343,7 @@ class ParkedRetryOptions @InternalWowApi constructor(
     }
 
     /** The retry spec of [subscription]'s entries that no operator applied one to. */
+    @InternalWowApi
     fun specOf(subscription: SubscriptionId): ParkedRetrySpec = specs[subscription] ?: spec
 
     /** The retry spec [entry], parked by a subscription of [context], is retried by: its own, else its subscription's. */

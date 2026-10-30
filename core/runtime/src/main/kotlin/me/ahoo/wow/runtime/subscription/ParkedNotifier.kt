@@ -59,6 +59,7 @@ class ParkedNotice @InternalWowApi constructor(
     val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
 
     /** The subscription that parked the entry. */
+    @InternalWowApi
     val subscription: SubscriptionId get() = SubscriptionId(context, entry.subscription)
 
     enum class Kind {

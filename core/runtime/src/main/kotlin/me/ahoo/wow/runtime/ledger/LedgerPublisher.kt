@@ -167,6 +167,7 @@ class LedgerPublisher internal constructor(
     }
 
     /** Publishes that [subscription] no longer parks [ref], since [outcome]; [failedAt] the parking's, when known. */
+    @InternalWowApi
     suspend fun resolved(
         subscription: SubscriptionId,
         ref: AggregateRef,
@@ -187,6 +188,7 @@ class LedgerPublisher internal constructor(
      * the scans leave the entry alone: a scan between the action resolving the entry and publishing its outcome would
      * otherwise publish it as [LedgerResolution.RESOLVED] first, and the ops view keeps the first resolution.
      */
+    @InternalWowApi
     suspend fun <T> acting(subscription: SubscriptionId, ref: AggregateRef, action: suspend () -> T): T {
         val key = ParkedKey(subscription, ref)
         acting.merge(key, 1, Int::plus)
