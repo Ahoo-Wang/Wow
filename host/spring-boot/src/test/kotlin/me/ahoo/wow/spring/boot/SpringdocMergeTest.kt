@@ -41,7 +41,8 @@ class SpringdocMergeTest {
         target.tags.map { it.name }.assert().containsExactly("shop.cart")
         target.security.assert().containsExactly(SecurityRequirement().addList("bearer"))
         target.info.title.assert().isEqualTo("shop-service")
-        target.jsonSchemaDialect.assert().isEqualTo(DIALECT)
+        // Neither declares a dialect (UI-63): the merged document reads its schemas in OpenAPI's default.
+        target.jsonSchemaDialect.assert().isNull()
     }
 
     @Test
@@ -130,13 +131,8 @@ class SpringdocMergeTest {
 
     private fun wow(): OpenAPI = OpenAPI(SpecVersion.V31)
         .info(Info().title("shop-service").version("1"))
-        .jsonSchemaDialect(DIALECT)
         .paths(Paths().addPathItem("/shop/cart/{id}/put-item", PathItem().post(Operation().operationId("put"))))
         .components(Components().addSchemas("wow.Problem", problem()))
         .addTagsItem(Tag().name("shop.cart"))
         .addSecurityItem(SecurityRequirement().addList("bearer"))
-
-    private companion object {
-        const val DIALECT = "https://json-schema.org/draft/2020-12/schema"
-    }
 }

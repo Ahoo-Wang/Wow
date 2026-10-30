@@ -31,7 +31,12 @@ import me.ahoo.wow.manifest.withoutClassNames
  * - Errors as RFC 9457 problems, one response per status listing the codes answered with it ([ErrorResponses]): the
  *   framework's table (`wow.storage.unavailable`, `wow.schedule.not-due`, ...) and each context's domain codes.
  * - The security schemes of [OpenApiOptions.securitySchemes], under `components.securitySchemes`, and
- *   the global `security` that accepts any one of them; none when the options have none.
+ *   the global `security`: one requirement naming them all, which a caller presents together; none when the options
+ *   have none.
+ * - No `jsonSchemaDialect`: the schemas are JSON Schema 2020-12 ([JSON_SCHEMA_DIALECT]), which OpenAPI 3.1's default
+ *   dialect, `https://spec.openapis.org/oas/3.1/dialect/base`, extends with OpenAPI's own keywords, so each reads the
+ *   same under it; declaring 2020-12 instead adds nothing a reader uses, and Swagger UI refuses any dialect but the
+ *   default.
  * - `components.schemas`: the Manifest's JSON Schemas ([SchemaComponents]) and the framework's ([WowSchemas]); the
  *   body of a lifecycle command is the Manifest's when its `$defs` holds it under the command's name (.1c).
  *
@@ -42,7 +47,10 @@ object ManifestOpenApi {
     /** The OpenAPI version of the document. */
     const val OPENAPI_VERSION: String = "3.1.0"
 
-    /** The dialect of the document's schemas, the Manifest's. */
+    /**
+     * The dialect the document's schemas are written in, the Manifest's. The document does not declare it: OpenAPI
+     * 3.1's default dialect extends it.
+     */
     const val JSON_SCHEMA_DIALECT: String = "https://json-schema.org/draft/2020-12/schema"
 
     /** The `info.version` of a document whose Manifest names no service version. */
@@ -63,7 +71,6 @@ object ManifestOpenApi {
         val paths = routes.write()
         return Json.obj(
             "openapi" to OPENAPI_VERSION,
-            "jsonSchemaDialect" to JSON_SCHEMA_DIALECT,
             "info" to Json.obj(
                 "title" to (manifest.service?.name ?: options.title),
                 "version" to (manifest.service?.version ?: UNVERSIONED),
@@ -71,7 +78,8 @@ object ManifestOpenApi {
                     "(format ${manifest.format}).",
             ),
             "servers" to options.servers.map { Json.obj("url" to it) }.takeIf { it.isNotEmpty() },
-            "security" to options.securitySchemes.keys.map { mapOf(it to emptyList<String>()) }.takeIf { it.isNotEmpty() },
+            "security" to options.securitySchemes.keys.takeIf { it.isNotEmpty() }
+                ?.let { schemes -> listOf(schemes.associateWith { emptyList<String>() }) },
             "tags" to tags(manifest),
             "paths" to paths,
             "components" to Json.obj(

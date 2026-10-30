@@ -15,7 +15,7 @@ A service's routes come from its Manifest, and so does their OpenAPI document: e
 | `GET /wow/openapi` | At run time, from the service's merged Manifest (`wow.http.openapi.enabled`, on by default) |
 | `build/wow/openapi.json` | At build time, from the Gradle plugin's `generateWowOpenApi`, for tools that need it before the service runs |
 
-The document is OpenAPI 3.1, with JSON Schema 2020-12 schemas. It describes the public port only: the internal port's calls, cluster channel and signals are never in it.
+The document is OpenAPI 3.1, with JSON Schema 2020-12 schemas. It declares no `jsonSchemaDialect`: OpenAPI 3.1's default dialect is JSON Schema 2020-12 with OpenAPI's own keywords added, so the schemas read the same under it, and Swagger UI takes no other dialect. It describes the public port only: the internal port's calls, cluster channel and signals are never in it.
 
 ## With springdoc
 
@@ -30,7 +30,7 @@ When the application has springdoc on its class path, the Wow document joins spr
 
 ## Security schemes
 
-The document declares how a caller presents its identity, so Swagger UI's "Try it out" sends it. The host fills that from its caller resolver: CoSec's resolver takes a bearer token. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
+The document declares how a caller presents its identity, so Swagger UI's "Try it out" sends it. The host fills that from its caller resolver: CoSec's resolver takes a bearer token, and the development callers take the `Wow-*` identity headers, one scheme each. The document's global `security` is one requirement naming them all: they are the parts of one identity, which a request sends together, not alternatives. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
 
 ## Clients from the document
 

@@ -91,6 +91,30 @@ class HostSpringdocTest {
     }
 
     @Test
+    fun `the development callers' headers should be one security requirement, and the document declare no dialect`() {
+        springdocHost("spring.profiles.active" to "dev").use { host ->
+            val documents = listOf(
+                host.get(API_DOCS).body!!,
+                host.get("$API_DOCS/${SpringdocAutoConfiguration.DEFAULT_GROUP}").body!!,
+                host.get("/wow/openapi").body!!,
+            )
+            documents.forEach { document ->
+                // The parts of one identity, sent together, not five alternatives (UI-65).
+                document["security"].size().assert().isEqualTo(1)
+                document["security"][0].propertyNames().toList().assert().containsExactlyInAnyOrder(
+                    "Wow-User",
+                    "Wow-Owner",
+                    "Wow-Roles",
+                    "Wow-Tenant",
+                    "Wow-App",
+                )
+                // OpenAPI 3.1's default dialect, the one Swagger UI takes without a warning (UI-63).
+                document.has("jsonSchemaDialect").assert().isFalse()
+            }
+        }
+    }
+
+    @Test
     fun `a route both define should fail the startup`() {
         val failure = assertThrows<Exception> { springdocHost(sources = listOf(ConflictingController::class.java)) }
         generateSequence<Throwable>(failure) { it.cause }.map { it.message.orEmpty() }.joinToString("\n")
