@@ -462,7 +462,7 @@
         },
         "start" : {
           "type" : "string",
-          "enum" : [ "beginning", "end" ]
+          "enum" : [ "beginning", "end", "join" ]
         },
         "schedules" : {
           "type" : "array",

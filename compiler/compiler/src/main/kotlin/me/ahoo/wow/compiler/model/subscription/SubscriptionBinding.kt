@@ -98,14 +98,14 @@ internal data class HandlerBinding(
         (sourceContext != null && sourceContext != context) || event?.peerEvents.orEmpty().isNotEmpty()
 
     /**
-     * Where its subscription starts, `BEGINNING` or `END`, in a module of [context]: its declared
-     * [start], else the beginning for a projection, the end for a reactor or a saga of its own context's log; null for
-     * a reactor's or a saga's handler of another context's stream, which starts where its service joins the stream
-     * (the runtime's `StartFrom.JOIN`). [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
+     * Where its subscription starts, `BEGINNING`, `END` or `JOIN`, in a module of [context]: its declared
+     * [start], else the beginning for a projection, the end for a reactor or a saga of its own context's log, and
+     * `JOIN` for a reactor's or a saga's handler of another context's stream, which starts where its service joins the
+     * stream (the runtime's `StartFrom.JOIN`). [kind] is its processor's, `PROJECT`, `REACT` or `SAGA`.
      */
-    fun startIn(context: String, kind: String): String? = start ?: when {
+    fun startIn(context: String, kind: String): String = start ?: when {
         kind == "PROJECT" -> "BEGINNING"
-        readsPeer(context) -> null
+        readsPeer(context) -> "JOIN"
         else -> "END"
     }
 }

@@ -555,10 +555,8 @@ class EventManifest @InternalWowApi constructor(
  *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events. A handler of both
  *   receipts, annotated both, has both set.
  * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
- *   else [SubscriptionStart.defaultFor] its kind; the host may configure another. Null on an `@OnRejected` or
- *   `@OnCommitted` handler, which reads no log, and on a reactor's or a saga's handler of another context's stream,
- *   which starts where its service joins the stream: from the beginning when no other subscription of the service
- *   reads it yet, else from the end.
+ *   else [SubscriptionStart.defaultFor] its kind and source; the host may configure another. Null on an `@OnRejected`
+ *   or `@OnCommitted` handler, which reads no log.
  * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
  *   `@Sends(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
@@ -690,19 +688,34 @@ class RetryManifest @InternalWowApi constructor(
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
 
-/** Where a new subscription, one without a checkpoint, starts reading the log. */
+/** Where a new subscription, one without a checkpoint, starts reading the log or the stream. */
 enum class SubscriptionStart {
     /** From the first entry: a projection builds its read model from the whole history. */
     BEGINNING,
 
     /** From the entries committed after it starts: a reactor or a saga does not act on the history again. */
     END,
+
+    /**
+     * Where its service joins another context's stream: from the [BEGINNING] when no other subscription of the
+     * service reads the stream yet, so a service that joins later still gets what was published before, else from
+     * the [END], so a handler added later does not act on it again. A reactor's or a saga's handler of another
+     * context's stream starts so.
+     */
+    JOIN,
     ;
 
     companion object {
-        /** A projection starts from the [BEGINNING], a reactor or a saga from the [END]. */
-        fun defaultFor(kind: SubscriptionKind): SubscriptionStart =
-            if (kind == SubscriptionKind.PROJECTION) BEGINNING else END
+        /**
+         * Where a handler of [kind] starts when it declares nothing: a projection from the [BEGINNING]; a reactor or a
+         * saga from the [END] of its own context's log, and where its service [JOIN]s another context's stream when it
+         * reads one ([peer]).
+         */
+        fun defaultFor(kind: SubscriptionKind, peer: Boolean = false): SubscriptionStart = when {
+            kind == SubscriptionKind.PROJECTION -> BEGINNING
+            peer -> JOIN
+            else -> END
+        }
     }
 }
 

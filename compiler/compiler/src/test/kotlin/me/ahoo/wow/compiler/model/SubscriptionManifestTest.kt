@@ -206,8 +206,8 @@ class SubscriptionManifestTest {
                 source = stock,
                 function = saga("onStock"),
                 derives = listOf("shop.order.Cancel"),
-                // A saga of another context's stream starts where its service joins the stream: the runtime's.
-                start = null,
+                // A saga of another context's stream starts where its service joins the stream.
+                start = SubscriptionStart.JOIN,
             ),
             SubscriptionManifest(
                 name = "StockBoard.onEvent",
@@ -329,7 +329,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to SubscriptionStart.BEGINNING,
                 "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
-                "Replaying.onStockAgain" to null,
+                "Replaying.onStockAgain" to SubscriptionStart.JOIN,
             ),
         )
         val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }

@@ -293,7 +293,7 @@ internal object ManifestFragmentBuilder {
                 source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = references(handler.sends.derives, commands).takeIf { kind == SubscriptionKind.SAGA },
-                start = handler.startIn(context, binding.kind)?.let(SubscriptionStart::valueOf),
+                start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = references(handler.sends.schedules, commands).ifEmpty { null },
                 calls = references(handler.sends.calls, commands).ifEmpty { null },
                 retry = handler.retry?.manifest(),
