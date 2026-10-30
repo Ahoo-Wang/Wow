@@ -109,7 +109,9 @@ import kotlin.time.Duration
  *      the caller and within the default wait timeout ([WaitCoordinator.call]);
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
- * 3. Authorize the action with [authorizer], before the body is decoded, unless it names the aggregate.
+ * 3. Authorize the action with [authorizer], before the body is decoded unless it names the aggregate; without one,
+ *    every action is allowed here ([authorizes]), and the public port refuses the built-in aggregates' system commands
+ *    itself.
  *    An id longer than 256 characters (a request, aggregate, tenant or space id) is [FrameworkCodes.COMMAND_MALFORMED]
  *    ([AdmissionLimits]).
  * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
@@ -144,7 +146,8 @@ import kotlin.time.Duration
 class CommandGateway @InternalWowApi constructor(
     private val registry: ModelRegistry,
     coordinators: Map<String, WaitCoordinator>,
-    private val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
+    /** The node's authorizer, the application's or CoSec's; null when it has none. */
+    authorizer: CommandAuthorizer? = null,
     transformers: List<CommandTransformer> = emptyList(),
     private val validators: List<CommandValidator> = emptyList(),
     /** The node's id generators: command ids from the global one, new aggregate ids per type. */
@@ -166,6 +169,17 @@ class CommandGateway @InternalWowApi constructor(
      */
     private val peers: PeerCommands? = null,
 ) {
+    /**
+     * Whether the node has an authorizer ([CommandGateway]'s `authorizer`): without one, every action is allowed at
+     * step 3, and the public port refuses the system commands of Wow's built-in aggregates, the jobs' and the snapshot
+     * rebuild's, never allowing them by default. Their senders in the process and on the internal port are not
+     * refused.
+     */
+    @InternalWowApi
+    val authorizes: Boolean = authorizer != null
+
+    private val authorizer: CommandAuthorizer = authorizer ?: CommandAuthorizer.ALLOW_ALL
+
     private val creations = CreationIds(ids, committed)
 
     private val coordinators: Map<String, WaitCoordinator> = coordinators.toMap()

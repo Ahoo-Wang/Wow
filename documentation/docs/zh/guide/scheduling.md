@@ -110,7 +110,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 宿主可以不重新构建就覆盖任务的规则：`wow.schedules.<name>.expression`、`zone` 和 `misfire`；`wow.schedules.<name>.enabled: false` 让 `SYSTEM` 任务的实例在启动时保持停用。`TENANT` 任务中租户自己的规则优先于宿主的规则。
 
-任务的实例也接收 HTTP 命令：`POST /<context>/schedule/{id}/wow.schedule.<command>`，命令为 `enable`、`reschedule`、`disable`。
+任务的实例也接收 HTTP 命令：`POST /<context>/wow.schedule/{id}/<command>`，命令为 `enable`、`reschedule`、`disable`，id 为任务名。它们是 Wow 的系统命令，公开端口默认从不放行：没有命令授权器的服务拒绝它们（403 `wow.auth.forbidden`），有授权器时由授权器决定。在 CoSec 下，动作是 `schedule/<job>` 上的 `<context>:wow.schedule.Enable`（以及其他任务命令），由策略授予运维人员（[动作名称](../operate/security#action-names)）。任务自己的命令、Saga 发出的命令以及 ops 在内部端口发送的命令不受影响。
 
 ## 测试 {#test-it}
 

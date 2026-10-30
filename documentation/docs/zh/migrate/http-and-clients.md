@@ -16,7 +16,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`、它们的 `/state` 形式、`…/event/…` | `POST /<context>/<aggregate>/snapshot/query` 和 `…/events/query`，操作写在请求体的 `kind` 中 |
 | `GET …/snapshot/schema` | 对同一个查询路由发 `GET`：能力描述符，带着它的 `ETag` |
 | `GET …/{id}/state/{version}`、`…/state/tracing` | `GET /<context>/<aggregate>/{id}/state`，带 `?version=`、`?at=` 或 `?minVersion=`，以及 `…/state/trace` |
-| `PUT …/{id}/snapshot`（重新生成） | `POST /<context>/snapshot/<aggregate>/wow.snapshot.rebuild`，请求体为 `{"ids": [...]}` |
+| `PUT …/{id}/snapshot`（重新生成） | `POST /<context>/<aggregate>/wow.snapshot.rebuild`，请求体为 `{"ids": [...]}` |
 | 状态事件重发、按版本重新分发 | 10.x 之前都没有；失败的版本是一个停放条目，在 `/wow/ops/parked` 下重试 |
 | `/wow/command/send`、`/wow/command/wait` | 每个命令各自的路由 |
 | `/dataset/…` | `GET /wow/dataset`、`POST /wow/dataset/<context>/<dataset>/query` |
