@@ -243,25 +243,65 @@
     "description" : "Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$SubscriptionSettings"
   }, {
+    "name" : "wow.schedules.<name>.cron",
+    "type" : "java.lang.String",
+    "description" : "The job's cron, six fields, over its annotation's.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Schedule"
+  }, {
     "name" : "wow.schedules.<name>.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Whether a SYSTEM job's instances run; false disables them at startup.",
+    "description" : "Whether a SYSTEM or a SHARDED job's instances run; false disables them at startup.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Schedule",
     "defaultValue" : true
-  }, {
-    "name" : "wow.schedules.<name>.expression",
-    "type" : "java.lang.String",
-    "description" : "The job's cron expression, over its annotation's.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Schedule"
   }, {
     "name" : "wow.schedules.<name>.misfire",
     "type" : "me.ahoo.wow.api.schedule.Misfire",
     "description" : "What a firing missed while no node ran it does, over its annotation's.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Schedule"
   }, {
+    "name" : "wow.schedules.<name>.parked.claim-ttl",
+    "type" : "java.time.Duration",
+    "description" : "How long a retry's claim on the entry holds, over `wow.subscription.parked`'s.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
+  }, {
+    "name" : "wow.schedules.<name>.parked.initial-backoff",
+    "type" : "java.time.Duration",
+    "description" : "The wait before the first automatic retry, over `wow.subscription.parked`'s.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
+  }, {
+    "name" : "wow.schedules.<name>.parked.max-retries",
+    "type" : "java.lang.Integer",
+    "description" : "How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$ParkedSpec"
+  }, {
+    "name" : "wow.schedules.<name>.retry.initial-backoff",
+    "type" : "java.time.Duration",
+    "description" : "The wait after the first failure.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
+  }, {
+    "name" : "wow.schedules.<name>.retry.max-attempts",
+    "type" : "java.lang.Integer",
+    "description" : "The most attempts of the handler in all, before its aggregate parks.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
+  }, {
+    "name" : "wow.schedules.<name>.retry.max-backoff",
+    "type" : "java.time.Duration",
+    "description" : "The longest wait between two attempts.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
+  }, {
+    "name" : "wow.schedules.<name>.retry.multiplier",
+    "type" : "java.lang.Double",
+    "description" : "How many times longer each wait is than the one before; at least 1.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
+  }, {
+    "name" : "wow.schedules.<name>.retry.timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long one attempt may run before it is cancelled and counts as failed.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$RetrySpec"
+  }, {
     "name" : "wow.schedules.<name>.zone",
     "type" : "java.lang.String",
-    "description" : "The time zone its expression is read in, over its annotation's.",
+    "description" : "The time zone its cron is read in, over its annotation's.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Schedule"
   }, {
     "name" : "wow.http.errors.[<code>].status",

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test
 
+import kotlinx.coroutines.delay
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -25,6 +26,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -33,7 +35,9 @@ import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
 import java.net.URLClassLoader
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The processor specifications source an aggregate through its model, check rejection codes against the target's
@@ -262,6 +266,47 @@ class ProcessorDslTest {
                 expectParked(attempt = HandlerRetry.DEFAULT_MAX_ATTEMPTS)
             }
         }
+    }
+
+    @Test
+    fun `a handling that runs past its timeout should be retried, then parked after its last attempt`() {
+        val retry = HandlerRetry(maxAttempts = 2, timeout = 50.milliseconds)
+        // A suspending handler cancelled at its timeout, and a @Blocking one whose thread sleeps past it.
+        val slow = ProcessorBinding.react("Notifier", "onSlow", Order::class.java, retry = retry) { _, _ ->
+            delay(10.seconds)
+        }
+        val blocked = ProcessorBinding.react("Notifier", "onBlocked", Order::class.java, true, retry = retry) { _, _ ->
+            Thread.sleep(300)
+        }
+        listOf(slow, blocked).forEach { handler ->
+            reactorSpec(listOf(handler)) {
+                givenAggregate(orderModel, "order-1", OrderPlaced(10))
+                whenEvent(OrderPaid(1)) {
+                    val timedOut = expectRetried() as HandlerTimeoutException
+                    timedOut.subscription.assert().isEqualTo(handler.name)
+                    timedOut.timeout.assert().isEqualTo(50.milliseconds)
+                    expectParked(attempt = 2)
+                }
+            }
+        }
+        // The time is real: a @Blocking handler runs on a virtual thread, and one that ends within its timeout is not
+        // cancelled, as it would be on virtual time, which moves on while the thread still runs.
+        val threads = ArrayList<Thread>()
+        val quick = ProcessorBinding.react(
+            "Notifier",
+            "onQuick",
+            Order::class.java,
+            true,
+            retry = HandlerRetry(timeout = 2.seconds),
+        ) { _, _ ->
+            Thread.sleep(20)
+            threads += Thread.currentThread()
+        }
+        reactorSpec(listOf(quick)) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) { expectHandledBy("onQuick") }
+        }
+        threads.single().isVirtual.assert().isTrue()
     }
 
     @Test

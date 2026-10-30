@@ -182,7 +182,6 @@
         "cron" : "0 0 6 * * *",
         "zone" : "UTC",
         "scope" : "system",
-        "sharded" : false,
         "misfire" : "coalesce"
       }
     } ],
@@ -419,7 +418,7 @@
     "me.ahoo.wow.api.schedule.JobRule-nullable" : {
       "type" : [ "object", "null" ],
       "properties" : {
-        "expression" : {
+        "cron" : {
           "type" : [ "string", "null" ]
         },
         "misfire" : {

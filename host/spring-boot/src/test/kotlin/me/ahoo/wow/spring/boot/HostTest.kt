@@ -21,6 +21,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.node.Routing
@@ -32,6 +33,7 @@ import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -122,15 +124,27 @@ class HostTest {
     }
 
     @Test
-    fun `a job's schedule properties should override its rule, part by part`() {
-        WowProperties.Schedule().options().assert().isEqualTo(JobOptions())
+    fun `a job's schedule properties should override its rule and its retries, part by part`() {
+        val base = ParkedRetrySpec()
+        WowProperties.Schedule().options(base).assert().isEqualTo(JobOptions())
         val schedule = WowProperties.Schedule().apply {
-            expression = "0 0 4 * * *"
+            cron = "0 0 4 * * *"
             zone = "Asia/Shanghai"
             misfire = Misfire.CATCH_UP
             enabled = false
+            retry.maxAttempts = 1
+            parked.maxRetries = 0
         }
-        schedule.options().assert().isEqualTo(JobOptions("0 0 4 * * *", "Asia/Shanghai", Misfire.CATCH_UP, false))
+        schedule.options(base).assert().isEqualTo(
+            JobOptions(
+                "0 0 4 * * *",
+                "Asia/Shanghai",
+                Misfire.CATCH_UP,
+                false,
+                HandlerRetry(maxAttempts = 1),
+                ParkedRetrySpec(0, base.initialBackoff, base.claimTtl),
+            ),
+        )
         host.node.options.schedules.assert().isEmpty()
     }
 

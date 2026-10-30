@@ -24,7 +24,6 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -43,7 +42,7 @@ import java.time.ZoneId
  * - is a `@Saga`'s, not also `@OnEvent` or `@OnRejected`, and not private;
  * - takes a `ScheduleTick` and, optionally, the `SagaContext`, and returns what a saga's handler returns;
  * - names its job with letters, digits, `_` and `-`, gives six cron fields (or a macro, `@daily`) and a time zone Java
- *   knows, and is sharded only as a SYSTEM job; a processor's jobs of one name are declared alike. The cron fields
+ *   knows; a processor's jobs of one name are declared alike. The cron fields
  *   themselves are checked when the binding is built, by the kernel's parser.
  */
 internal object ScheduleJobResolver {
@@ -52,6 +51,7 @@ internal object ScheduleJobResolver {
     private val ON_REJECTED = OnRejected::class.java.name
     private val TICK = ScheduleTick::class.java.name
     private val SAGA_CONTEXT = SagaContext::class.java.name
+    private val SAGA_CONTEXTS = contextsOf(SagaContext::class.java)
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
@@ -105,7 +105,6 @@ internal object ScheduleJobResolver {
             cron = annotation.cron,
             zone = annotation.zone,
             scope = annotation.scope.name,
-            sharded = annotation.sharded,
             misfire = annotation.misfire.name,
         )
         problems += jobProblems(where, job)
@@ -147,15 +146,18 @@ internal object ScheduleJobResolver {
                 add("$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick")
             }
             val context = parameters.getOrNull(1)
-            if (context != null && context != SAGA_CONTEXT) {
-                add("$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything")
+            if (context != null && context !in SAGA_CONTEXTS) {
+                add(
+                    "$where takes $context: a job's handler takes a $SAGA_CONTEXT, or a context it extends, after " +
+                        "the tick, if anything",
+                )
             }
             if (parameters.size > 2) {
                 add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])")
             }
         }
 
-    /** What is wrong with [job]: its name, its fields, its time zone, or a sharded job that is not SYSTEM. */
+    /** What is wrong with [job]: its name, its fields or its time zone. */
     private fun jobProblems(where: String, job: JobBinding): List<String> = buildList {
         if (!ScheduleJobs.isJobName(job.name)) {
             add("$where names its job \"${job.name}\": a job's name has letters, digits, '_' and '-' only")
@@ -172,9 +174,6 @@ internal object ScheduleJobResolver {
         } catch (_: DateTimeException) {
             add("$where runs in the time zone \"${job.zone}\", which is not one")
         }
-        if (job.sharded && job.scope != JobScope.SYSTEM.name) {
-            add("$where is a sharded ${job.scope} job: only a SYSTEM job is sharded")
-        }
     }
 
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
@@ -187,10 +186,8 @@ internal data class JobBinding(
     val cron: String,
     val zone: String,
     val scope: String,
-    val sharded: Boolean,
     val misfire: String,
 ) {
-    /** The job as the Manifest's subscription records it. */
     /** The job as the Manifest lists it, its scope and misfire by their wire names. */
-    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), sharded, WireNames.of(misfire))
+    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), WireNames.of(misfire))
 }

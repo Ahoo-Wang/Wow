@@ -42,9 +42,13 @@ class QueryRoutesTest {
     }
 
     @Test
-    fun `a projection should start from the beginning, a reactor and a saga from the end`() {
+    fun `a projection should start from the beginning, a reactor and a saga from the end, or join a peer's stream`() {
         SubscriptionStart.defaultFor(SubscriptionKind.PROJECTION).assert().isEqualTo(SubscriptionStart.BEGINNING)
+        SubscriptionStart.defaultFor(SubscriptionKind.PROJECTION, peer = true)
+            .assert().isEqualTo(SubscriptionStart.BEGINNING)
         SubscriptionStart.defaultFor(SubscriptionKind.REACTOR).assert().isEqualTo(SubscriptionStart.END)
         SubscriptionStart.defaultFor(SubscriptionKind.SAGA).assert().isEqualTo(SubscriptionStart.END)
+        SubscriptionStart.defaultFor(SubscriptionKind.REACTOR, peer = true).assert().isEqualTo(SubscriptionStart.JOIN)
+        SubscriptionStart.defaultFor(SubscriptionKind.SAGA, peer = true).assert().isEqualTo(SubscriptionStart.JOIN)
     }
 }

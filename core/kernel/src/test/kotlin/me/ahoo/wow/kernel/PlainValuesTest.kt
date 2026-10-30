@@ -42,8 +42,8 @@ class PlainValuesTest {
     fun `a schedule job is made by of and copied`() {
         val rule = ScheduleRule.Cron("0 0 9 * * MON-FRI", "Asia/Shanghai", Misfire.CATCH_UP)
         val job = ScheduleJob.of("report", rule)
-        job.assert().isEqualTo(job).isEqualTo(ScheduleJob.of("report", rule, JobScope.SYSTEM, false))
-        job.copyWith(sharded = true).assert().isEqualTo(ScheduleJob.of("report", rule, sharded = true))
+        job.assert().isEqualTo(job).isEqualTo(ScheduleJob.of("report", rule, JobScope.SYSTEM))
+        job.copyWith(scope = JobScope.SHARDED).assert().isEqualTo(ScheduleJob.of("report", rule, JobScope.SHARDED))
         job.copyWith(scope = JobScope.TENANT).scope.assert().isEqualTo(JobScope.TENANT)
         job.toString().assert().startsWith("ScheduleJob(name=report")
     }

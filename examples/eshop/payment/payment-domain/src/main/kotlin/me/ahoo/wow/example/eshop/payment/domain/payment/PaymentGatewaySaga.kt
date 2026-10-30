@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.annotation.Sends
@@ -26,7 +25,6 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Charges the [gateway] for each requested payment and records its answer on the payment: [ConfirmPayment] when it
@@ -41,14 +39,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  * its orders ([orders], `StateViewCache<OrderStateView>`, wow-cocache): the ordering service writes each order into it
  * after its commits, and a miss reads the ordering service. That is a trusted read for the saga's own use, the
  * charge's description: the order is never decided by it, and an order the cache cannot give is charged by its id.
+ * The saga keeps no state: the cache says when it cannot serve, once per outage.
  */
 @Saga
 class PaymentGatewaySaga(
     private val gateway: PaymentGateway,
     private val orders: StateViewCache<OrderStateView>,
 ) {
-    private val warned = AtomicBoolean()
-
     @OnEvent
     @Sends(derives = [ConfirmPayment::class, FailPayment::class])
     suspend fun onPaymentRequested(
@@ -69,17 +66,12 @@ class PaymentGatewaySaga(
      * The order [orderId] as the ordering's shared cache gives it; null when the cache cannot serve it now (the
      * ordering does not share its orders here, or a miss cannot reach the ordering service). The charge's description
      * is the saga's own use of the order, so a payment never waits on the ordering for it. Only an unavailable order
-     * falls back: an order that does not decode, or a defect, fails the handling as any error does.
+     * falls back, which the cache itself logs: an order that does not decode, or a defect, fails the handling as any
+     * error does.
      */
     private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
         orders.get(tenantId, orderId)
-    } catch (unavailable: StateViewUnavailableException) {
-        // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
-        if (warned.compareAndSet(false, true)) {
-            logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
-        } else {
-            logger.debug(unavailable) { "The order ${unavailable.key} is unavailable." }
-        }
+    } catch (_: StateViewUnavailableException) {
         null
     }
     // endregion
@@ -87,8 +79,4 @@ class PaymentGatewaySaga(
     /** What the charge is for, as the buyer's statement shows it: `2 × mug, 1 × cap`. */
     private fun describe(order: OrderStateView): String =
         order.items.joinToString { "${it.quantity} × ${it.productId}" }
-
-    private companion object {
-        val logger = KotlinLogging.logger {}
-    }
 }

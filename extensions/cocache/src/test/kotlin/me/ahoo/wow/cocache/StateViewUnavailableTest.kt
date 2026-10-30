@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.cocache
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -47,6 +51,7 @@ import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.time.Duration
 
@@ -80,6 +85,40 @@ class StateViewUnavailableTest {
         failure.key.assert().isEqualTo(key)
         failure.message.assert().contains("unreachable")
         generateSequence(failure.cause) { it.cause }.any { it is ConnectException }.assert().isTrue()
+    }
+
+    @Test
+    fun `a cache should say once that it cannot serve, and again only after it served`() {
+        coEvery { snapshots.state(any<String>()) } throws ConnectException("Connection refused")
+        val cache = caches.of<OrderView>()
+        val events = capture {
+            readFailure { cache.get(key) }
+            readFailure { cache.get(StateKey("t", "o-2")) }
+            // The owner's write puts the order in the cache: it serves it, so the next outage says so again.
+            runBlocking { caches.writerOf(OrderView::class.java).write(key, OrderView("book"), 1) }
+            runBlocking { cache.get(key) }.assert().isEqualTo(OrderView("book"))
+            readFailure { cache.get(StateKey("t", "o-3")) }
+        }
+        events.filter { it.level == Level.WARN }.map { it.formattedMessage }.let { warned ->
+            warned.size.assert().isEqualTo(2)
+            warned.forEach { it.assert().startsWith("The cache wow.") }
+        }
+        events.filter { it.level == Level.DEBUG }.map { it.formattedMessage }.single().assert().contains("o-2")
+    }
+
+    private fun capture(block: () -> Unit): List<ILoggingEvent> {
+        val logger = LoggerFactory.getLogger("me.ahoo.wow.cocache") as Logger
+        val level = logger.level
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.level = Level.DEBUG
+        logger.addAppender(appender)
+        try {
+            block()
+            return appender.list.filter { it.throwableProxy?.className == StateViewUnavailableException::class.java.name }
+        } finally {
+            logger.detachAppender(appender)
+            logger.level = level
+        }
     }
 
     @Test

@@ -692,9 +692,11 @@ public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
 
 public final class me/ahoo/wow/runtime/schedule/JobOptions {
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCron ()Ljava/lang/String;
 	public final fun getEnabled ()Z
-	public final fun getExpression ()Ljava/lang/String;
 	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
+	public final fun getParked ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun getRetry ()Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/JobRule;
 	public final fun getZone ()Ljava/lang/String;
 	public fun hashCode ()I

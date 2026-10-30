@@ -1262,7 +1262,7 @@
   }, {
     "name" : "wow.schedules",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Schedule>",
-    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start.",
+    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's subscription configured under `wow.subscriptions`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.service",

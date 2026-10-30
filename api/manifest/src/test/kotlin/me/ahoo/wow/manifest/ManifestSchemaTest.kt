@@ -47,7 +47,7 @@ class ManifestSchemaTest {
                     derives = emptyList(),
                     rejected = emptyList(),
                     retry = RetryManifest(3, "PT1S", "PT10S", "PT30S", listOf("a"), listOf("b"), 2.0, listOf("c")),
-                    job = JobManifest("daily", "0 0 9 * * *", "UTC", "tenant", true, "catch-up"),
+                    job = JobManifest("daily", "0 0 9 * * *", "UTC", "sharded", "catch-up"),
                 )
             }
         }

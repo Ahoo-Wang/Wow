@@ -37,7 +37,9 @@ internal fun WowProperties.serviceNodeOptions(
     stateCache = configured("wow.state-cache") { stateCache.options() },
     sharedStates = configured("wow.shared-states") { sharedStates.options() },
     timers = configured("wow.timers") { timers.options() },
-    schedules = schedules.mapValues { (name, schedule) -> configured("wow.schedules.$name") { schedule.options() } },
+    schedules = schedules.mapValues { (name, schedule) ->
+        configured("wow.schedules.$name") { schedule.options(subscription.parked.spec()) }
+    },
     topicRouted = topicRouted,
     ledger = ops.publish.options(transport = transport),
     snapshots = configured("wow.snapshot") { snapshot.options() },

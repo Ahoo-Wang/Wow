@@ -206,8 +206,8 @@ class SubscriptionManifestTest {
                 source = stock,
                 function = saga("onStock"),
                 derives = listOf("shop.order.Cancel"),
-                // A saga of another context's stream starts where its service joins the stream: the runtime's.
-                start = null,
+                // A saga of another context's stream starts where its service joins the stream.
+                start = SubscriptionStart.JOIN,
             ),
             SubscriptionManifest(
                 name = "StockBoard.onEvent",
@@ -329,7 +329,7 @@ class SubscriptionManifestTest {
                 "Replaying.onOrder" to SubscriptionStart.BEGINNING,
                 "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
-                "Replaying.onStockAgain" to null,
+                "Replaying.onStockAgain" to SubscriptionStart.JOIN,
             ),
         )
         val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }
@@ -517,7 +517,6 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.CommandReceipt
-            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Projection
@@ -541,7 +540,7 @@ class SubscriptionManifestTest {
                 fun takesEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun wrongContext(rejected: CommandReceipt.Rejected<*>, context: SubscriptionContext) = Unit
+                fun wrongContext(rejected: CommandReceipt.Rejected<*>, context: String) = Unit
 
                 @OnRejected
                 fun returnsText(rejected: CommandReceipt.Rejected<*>): String = ""
@@ -559,7 +558,7 @@ class SubscriptionManifestTest {
             .contains("processor BadSaga has two handlers named onEvent")
             .contains("handler BadSaga.onEvent takes kotlin.String: an @OnRejected handler takes a")
             .contains("handler BadSaga.takesEvent must take a CommandReceipt.Rejected first")
-            .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
+            .contains("handler BadSaga.wrongContext takes kotlin.String")
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")
     }

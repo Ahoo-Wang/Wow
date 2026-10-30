@@ -350,6 +350,14 @@ class ParkedRetryOptions @InternalWowApi constructor(
     fun specOf(entry: ParkedAggregate, context: String): ParkedRetrySpec =
         entry.retrySpec ?: specOf(SubscriptionId(context, entry.subscription))
 
+    /** This ParkedRetryOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        spec: ParkedRetrySpec = this.spec,
+        specs: Map<SubscriptionId, ParkedRetrySpec> = this.specs,
+        scanInterval: Duration = this.scanInterval,
+    ): ParkedRetryOptions = ParkedRetryOptions(spec, specs, scanInterval)
+
     override fun equals(other: Any?): Boolean =
         this === other || other is ParkedRetryOptions && valueFields() == other.valueFields()
 

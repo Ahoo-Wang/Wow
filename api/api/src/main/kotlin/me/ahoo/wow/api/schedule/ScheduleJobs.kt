@@ -21,45 +21,55 @@ enum class JobScope {
     /** One instance for the service, in the default tenant, enabled by the host at startup. */
     SYSTEM,
 
-    /** One instance per tenant, enabled by `wow.schedule.Enable` in that tenant. */
+    /**
+     * One instance per tenant, created by the system command `wow.schedule.Enable` in that tenant, each tenant free to
+     * override the rule and its time zone.
+     */
     TENANT,
+
+    /**
+     * One instance per log partition, in the default tenant, enabled by the host at startup: each partition's owner
+     * runs its own partition's instance, for that partition's aggregates, so each slot ticks exactly once per
+     * partition ([ScheduleTick.partition]).
+     */
+    SHARDED,
 }
 
 /**
  * An instance's own rule of a job: each part that is null follows the job's default (the host's
- * `wow.schedules.<job>.*`, else the annotation), so a tenant may keep the default expression in its own time [zone].
+ * `wow.schedules.<job>.*`, else the annotation), so a tenant may keep the default [cron] in its own time [zone].
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class JobRule @InternalWowApi constructor(
-    val expression: String? = null,
+    val cron: String? = null,
     val zone: String? = null,
     val misfire: Misfire? = null,
 ) {
     init {
-        require(expression == null || expression.isNotBlank()) { "A job rule's expression is not blank." }
+        require(cron == null || cron.isNotBlank()) { "A job rule's cron is not blank." }
         require(zone == null || zone.isNotBlank()) { "A job rule's time zone is not blank." }
     }
 
     /** The rule this one makes of [default]: each part it does not set is the default's. */
     fun over(default: ScheduleRule.Cron): ScheduleRule.Cron =
-        ScheduleRule.Cron(expression ?: default.expression, zone ?: default.zone, misfire ?: default.misfire)
+        ScheduleRule.Cron(cron ?: default.expression, zone ?: default.zone, misfire ?: default.misfire)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is JobRule && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "JobRule(expression=$expression, zone=$zone, misfire=$misfire)"
+    override fun toString(): String = "JobRule(cron=$cron, zone=$zone, misfire=$misfire)"
 
-    private fun valueFields(): List<Any?> = listOf(expression, zone, misfire)
+    private fun valueFields(): List<Any?> = listOf(cron, zone, misfire)
 
     companion object {
         /** A JobRule of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(expression: String? = null, zone: String? = null, misfire: Misfire? = null): JobRule =
-            JobRule(expression, zone, misfire)
+        fun of(cron: String? = null, zone: String? = null, misfire: Misfire? = null): JobRule =
+            JobRule(cron, zone, misfire)
     }
 }
 
@@ -67,7 +77,7 @@ class JobRule @InternalWowApi constructor(
  * The system command `wow.schedule.Enable`: creates, or enables again, the instance of the job [job]
  * it is sent to, the aggregate `<context>.schedule` whose id is the job's name in its tenant. [rule] overrides the
  * job's default rule (null keeps the instance's own override, if any); [partition] is the log partition of an
- * instance of a sharded job, which the host enables.
+ * instance of a [JobScope.SHARDED] job, which the host enables.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -207,9 +217,9 @@ class Ticked @InternalWowApi constructor(val timer: String, val slot: Long, val 
 
 /**
  * What an [me.ahoo.wow.api.annotation.OnSchedule] handler receives: the [tenantId] of the instance
- * (the default tenant for a [JobScope.SYSTEM] job), the [job], the [slot] that was due at [due] (epoch milliseconds),
- * how many slots before it were [skipped] (coalesced), and, for a sharded job, the log [partition] whose aggregates
- * this tick is for.
+ * (the default tenant for a [JobScope.SYSTEM] or a [JobScope.SHARDED] job), the [job], the [slot] that was due at [due]
+ * (epoch milliseconds), how many slots before it were [skipped] (coalesced), and, for a [JobScope.SHARDED] job, the
+ * log [partition] whose aggregates this tick is for.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */

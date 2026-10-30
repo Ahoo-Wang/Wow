@@ -509,18 +509,15 @@ public final class me/ahoo/wow/kernel/schedule/ScheduleJob {
 	public final fun getName ()Ljava/lang/String;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;
 	public final fun getScope ()Lme/ahoo/wow/api/schedule/JobScope;
-	public final fun getSharded ()Z
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/schedule/ScheduleJob$Companion {
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;Z)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
-	public static synthetic fun of$default (Lme/ahoo/wow/kernel/schedule/ScheduleJob$Companion;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;ZILjava/lang/Object;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
+	public static synthetic fun of$default (Lme/ahoo/wow/kernel/schedule/ScheduleJob$Companion;Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule$Cron;Lme/ahoo/wow/api/schedule/JobScope;ILjava/lang/Object;)Lme/ahoo/wow/kernel/schedule/ScheduleJob;
 }
 

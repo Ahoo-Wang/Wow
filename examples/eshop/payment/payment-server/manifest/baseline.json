@@ -199,7 +199,8 @@
         "processor" : "OrderPaymentSaga",
         "name" : "onOrderStockConfirmed"
       },
-      "derives" : [ "eshop-payment.payment.RequestPayment" ]
+      "derives" : [ "eshop-payment.payment.RequestPayment" ],
+      "start" : "join"
     }, {
       "name" : "OrderPaymentSaga.onPayRejected",
       "kind" : "saga",

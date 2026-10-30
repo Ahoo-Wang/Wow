@@ -376,6 +376,7 @@ internal class ModelSymbolProcessor(
             val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES, events)
             subscriptions += binding
             if (mode == Mode.GENERATE) {
+                binding.warnings.forEach { logger.warn("${binding.processor}: $it", processor) }
                 if (binding.problems.isNotEmpty()) {
                     binding.problems.forEach { logger.error("${binding.processor}: $it", processor) }
                 } else {

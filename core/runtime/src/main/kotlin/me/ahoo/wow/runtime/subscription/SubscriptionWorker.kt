@@ -33,6 +33,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter

@@ -212,12 +212,11 @@ object ManifestSchema {
             ),
             JOB to objectOf(
                 "The scheduled job a subscription runs.",
-                listOf("name", "cron", "zone", "scope", "sharded", "misfire"),
+                listOf("name", "cron", "zone", "scope", "misfire"),
                 "name" to string(),
                 "cron" to string(),
                 "zone" to string(),
                 "scope" to values(JobManifest.SCOPES, "Who the job runs for."),
-                "sharded" to boolean(),
                 "misfire" to values(JobManifest.MISFIRES, "What the job does with the slots it missed."),
             ),
         ),

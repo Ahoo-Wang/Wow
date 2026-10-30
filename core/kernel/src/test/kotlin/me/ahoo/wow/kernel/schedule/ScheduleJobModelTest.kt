@@ -51,13 +51,12 @@ class ScheduleJobModelTest {
     private val monthly = ScheduleRule.Cron("0 0 0 1 * *")
     private val nightly = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"))
     private val invoice = ScheduleJob("invoice", monthly, JobScope.TENANT)
-    private val sweep = ScheduleJob("sweep", ScheduleRule.Cron("0 */5 * * * *"), sharded = true)
+    private val sweep = ScheduleJob("sweep", ScheduleRule.Cron("0 */5 * * * *"), JobScope.SHARDED)
     private val model = ScheduleJobModel.model("billing", listOf(nightly, invoice, sweep))
 
     @Test
-    fun `a job is named plainly, and only a SYSTEM job is sharded`() {
+    fun `a job is named plainly, by a rule that runs`() {
         assertThrownBy<IllegalArgumentException> { ScheduleJob("night ly", monthly) }
-        assertThrownBy<IllegalArgumentException> { ScheduleJob("x", monthly, JobScope.TENANT, sharded = true) }
         assertThrownBy<IllegalArgumentException> { ScheduleJob("x", ScheduleRule.Cron("nonsense")) }
         assertThrownBy<IllegalArgumentException> {
             ScheduleJobModel.model(
@@ -200,6 +199,10 @@ class ScheduleJobModelTest {
         val refs = (0 until 4).map { ScheduleJobModel.shardRef("billing", "sweep", it, 4) }
         refs.map { Partitioner.partitionOf(it, 4) }.assert().containsExactly(0, 1, 2, 3)
         refs.forEach { it.id.assert().startsWith("sweep~") }
+        // Its subscription reads these instances alone; another job's, its one instance in each tenant.
+        ScheduleJobModel.instanceIds("billing", sweep, 4).assert().containsExactlyElementsOf(refs.map { it.id })
+        ScheduleJobModel.instanceIds("billing", invoice, 4).assert().containsExactly("invoice")
+        ScheduleJobModel.instanceIds("billing", nightly, 4).assert().containsExactly("nightly")
         assertThrownBy<IllegalArgumentException> { ScheduleJobModel.shardRef("billing", "sweep", 4, 4) }
         val ref = refs[1]
         aggregateSpec(model, id = ref.id, tenantId = ref.tenantId) {

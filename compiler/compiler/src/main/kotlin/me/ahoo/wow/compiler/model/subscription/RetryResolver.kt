@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
+import com.google.devtools.ksp.getAllSuperTypes
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
@@ -106,6 +109,30 @@ internal object RetryResolver {
     private const val SYSTEMIC = "systemic"
     private val SETTINGS =
         setOf(MAX_ATTEMPTS, INITIAL_BACKOFF, MAX_BACKOFF, MULTIPLIER, TIMEOUT, RECOVERABLE, UNRECOVERABLE, SYSTEMIC)
+
+    /**
+     * The budget of the processor [processor], described as [where]: the `@Retry` on its class, else on its nearest
+     * superclass that carries one, taken whole: a class-level `@Retry` is inherited, as a handler inherits its
+     * overridden function's. An interface it implements carries none: its `@Retry` is one of [problems].
+     */
+    fun inherited(processor: KSClassDeclaration, where: String, problems: MutableList<String>): RetryBinding? {
+        processor.getAllSuperTypes().map { it.declaration }.filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.INTERFACE && it.carriesRetry() }.forEach {
+                problems += "$where implements ${it.qualifiedName?.asString()}, which is annotated @Retry: a " +
+                    "processor's budget is its class's or a superclass's, not an interface's"
+            }
+        val carrier = generateSequence(processor) { it.superclass() }.firstOrNull { it.carriesRetry() } ?: return null
+        val described = if (carrier == processor) where else "$where's superclass ${carrier.simpleName.asString()}"
+        return read(carrier, described, problems)
+    }
+
+    private fun KSClassDeclaration.superclass(): KSClassDeclaration? = superTypes
+        .map { it.resolve().declaration }
+        .filterIsInstance<KSClassDeclaration>()
+        .firstOrNull { it.classKind == ClassKind.CLASS }
+
+    private fun KSAnnotated.carriesRetry(): Boolean =
+        annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == RETRY }
 
     /** The settings of the `@Retry` on [annotated], described as [where]; null without one, or when it gives none. */
     fun read(annotated: KSAnnotated, where: String, problems: MutableList<String>): RetryBinding? {

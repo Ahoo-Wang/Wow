@@ -359,7 +359,7 @@ private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
             SubscriptionKind.SAGA,
             SubscriptionSource(context.name, listOf(ScheduleJobs.AGGREGATE)),
             FunctionManifest(ManifestFunctionKind.SAGA, context.name, "Jobs", job.name),
-            job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope.name, job.sharded),
+            job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope.name),
         )
     }
     return copyWith(

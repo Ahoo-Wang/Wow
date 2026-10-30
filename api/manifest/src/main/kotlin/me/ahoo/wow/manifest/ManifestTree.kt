@@ -166,7 +166,6 @@ object ManifestTree {
                 "cron" to it.cron,
                 "zone" to it.zone,
                 "scope" to it.scope,
-                "sharded" to it.sharded,
                 "misfire" to it.misfire,
             )
         },
@@ -383,7 +382,6 @@ object ManifestTree {
                     cron = it.string("cron"),
                     zone = it.stringOrNull("zone") ?: "UTC",
                     scope = it.stringOrNull("scope") ?: JobManifest.SYSTEM,
-                    sharded = it.booleanOrNull("sharded") ?: false,
                     misfire = it.stringOrNull("misfire") ?: JobManifest.COALESCE,
                 )
             },

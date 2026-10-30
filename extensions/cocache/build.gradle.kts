@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":manifest"))
     api("me.ahoo.cocache:cocache-core")
     api("me.ahoo.cocache:cocache-coroutines")
+    // A cache that cannot serve says so once per outage.
+    implementation("io.github.oshai:kotlin-logging-jvm")
     // The configuration the host imports (AutoConfiguration.imports) is plain Spring: only the host imports Spring
     // Boot (decision D118's module rules). CoCache's starter, when the application has it, gives the runtime and
     // applies `cocache.caches.<name>.*` to the caches this module creates.

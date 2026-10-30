@@ -304,7 +304,7 @@ class ManifestTreeTest {
 
     @Test
     fun `a job should come back, its defaults written too, and an absent one left out`() {
-        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant", sharded = false)
+        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant")
         val subscription = SubscriptionManifest(
             "Billing.nightly",
             SubscriptionKind.SAGA,
@@ -329,7 +329,6 @@ class ManifestTreeTest {
                 "cron" to "0 0 3 * * *",
                 "zone" to "Asia/Shanghai",
                 "scope" to "tenant",
-                "sharded" to false,
                 "misfire" to "coalesce",
             ),
         )

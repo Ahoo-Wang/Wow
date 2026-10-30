@@ -43,7 +43,7 @@ import kotlin.time.Duration
  * Specifies a saga's `@OnSchedule` handlers against the real job aggregate: enable an instance of a
  * job, move the time on, and check the ticks the handlers got and the commands they derived. [handlers] are the
  * saga's, from the function the compiler generated for it (`<processor>Handlers`), which names the bounded context
- * their jobs run in; its log has [partitions] partitions (for a sharded job's instances). Their calls are answered
+ * their jobs run in; its log has [partitions] partitions (for a SHARDED job's instances). Their calls are answered
  * ([ScheduleSpec.answerCalls]) and their reads served ([ScheduleSpec.givenQueries]) as a saga specification's are, and
  * a failing handling is retried or parked by its job's `@Retry`.
  *
@@ -133,9 +133,9 @@ class ScheduleSpec internal constructor(
     val now: Instant get() = start.plusMillis(elapsed.inWholeMilliseconds)
 
     /**
-     * Enables the instance of [job] in [tenantId] (the default tenant for a SYSTEM job) by its default rule under
-     * [rule], as `wow.schedule.Enable` does; the instance of [partition] for a sharded job. Fails when the instance
-     * refuses it.
+     * Enables the instance of [job] in [tenantId] (the default tenant for a SYSTEM or a SHARDED job) by its default
+     * rule under [rule], as `wow.schedule.Enable` does; the instance of [partition] for a SHARDED job. Fails when the
+     * instance refuses it.
      */
     fun enable(
         job: String,
@@ -242,10 +242,10 @@ class ScheduleSpec internal constructor(
 
     private fun refOf(job: String, tenantId: String, partition: Int?): AggregateRef {
         val definition = requireNotNull(jobs[job]) { "No handler runs the job $job: the jobs are ${jobs.keys}." }
-        return if (definition.sharded && partition != null) {
+        return if (definition.scope == JobScope.SHARDED && partition != null) {
             ScheduleJobModel.shardRef(context, job, partition, partitions)
         } else {
-            val tenant = if (definition.scope == JobScope.SYSTEM) Caller.DEFAULT_TENANT else tenantId
+            val tenant = if (definition.scope == JobScope.TENANT) tenantId else Caller.DEFAULT_TENANT
             ScheduleJobModel.refOf(context, job, tenant)
         }
     }

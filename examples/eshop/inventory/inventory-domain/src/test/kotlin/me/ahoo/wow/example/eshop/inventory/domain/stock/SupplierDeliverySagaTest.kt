@@ -17,8 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.test.scheduleSpec
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.time.Duration.Companion.days
@@ -47,7 +49,7 @@ class SupplierDeliverySagaTest {
     ) {
         enable("receive-deliveries")
         advanceTime(6.hours) {
-            commands.map { it.ref to it.body }.assert().containsExactly(
+            expectCommands(
                 stock.ref(TENANT, "mug") to ReceiveStock(40),
                 stock.ref(TENANT, "cap") to ReceiveStock(12),
             )
@@ -71,6 +73,21 @@ class SupplierDeliverySagaTest {
             LocalDate.parse("2026-10-20"),
             LocalDate.parse("2026-10-21"),
         )
+    }
+
+    @Test
+    fun `a feed that cannot be read should be retried, then park the job's instance`() = scheduleSpec(
+        supplierDeliverySagaHandlers(
+            deliveries = SupplierDeliveries { _, _ -> throw IOException("The receiving system is unreachable.") },
+        ),
+        start = Instant.parse("2026-10-20T00:00:00Z"),
+    ) {
+        enable("receive-deliveries")
+        advanceTime(6.hours) {
+            // The tick derives nothing from a feed the job could not read: its handling fails, and is handled again.
+            expectRetried().assert().isInstanceOf(IOException::class.java)
+            expectParked(attempt = HandlerRetry.DEFAULT_MAX_ATTEMPTS)
+        }
     }
 
     private companion object {

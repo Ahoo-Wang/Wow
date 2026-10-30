@@ -321,8 +321,9 @@ enum class Routing {
  * - [stateCache]: what each context's state cache keeps between commands ([StateCacheOptions]).
  * - [sharedStates]: the bounds of each context's shared states, shared by its state consumers.
  * - [timers]: the timer runner of each context that has a timer store.
- * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`);
- *   a name no `@OnSchedule` handler of the node runs fails its assembly.
+ * - [schedules]: the host's settings of each job, by job name (`wow.schedules.<job>.*`): its rule, and the retries
+ *   of the subscriptions that run it; a name no `@OnSchedule` handler of the node runs fails its assembly, and so
+ *   does [subscription] configuring a job's subscription by its name.
  * - [snapshots]: the snapshot maintenance of each context: how often it claims the state revisions,
  *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
  * - [topicRouted]: the aggregate types whose commands the topic router takes: an
@@ -456,10 +457,12 @@ fun interface SubscriptionFactory {
     fun committedHandlers(context: String): Set<String> = emptySet()
 
     /**
-     * The jobs of [context]'s `@OnSchedule` handlers, asked before the context is assembled: the node
-     * adds the built-in job aggregate `<context>.schedule` deciding them, and starts the SYSTEM ones. None by default.
+     * The jobs of [context]'s `@OnSchedule` handlers, by the name of the subscription that runs each, asked before the
+     * context is assembled: the node adds the built-in job aggregate `<context>.schedule` deciding them, starts the
+     * SYSTEM and SHARDED ones, and gives each subscription its job's settings ([ServiceNodeOptions.schedules]). None by
+     * default.
      */
-    fun jobs(context: String): List<ScheduleJob> = emptyList()
+    fun jobs(context: String): Map<String, ScheduleJob> = emptyMap()
 
     /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read:
@@ -515,7 +518,7 @@ fun interface SubscriptionFactory {
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
 
-            override fun jobs(context: String): List<ScheduleJob> = first.jobs(context) + other.jobs(context)
+            override fun jobs(context: String): Map<String, ScheduleJob> = first.jobs(context) + other.jobs(context)
 
             override fun stateReaders(
                 context: String,
