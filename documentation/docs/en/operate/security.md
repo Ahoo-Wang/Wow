@@ -24,6 +24,10 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
 
+::: warning wow-cosec is experimental in 10.0
+`wow-cosec` follows CoSec 8.0.0, which is still a pre-release, so it may change within 10.x. Its types (`CoSecCallerResolver`, `CoSecCallerOptions`, `CoSecCommandAuthorizer`, `CoSecServiceRouteAuthorizer`, `CoSecActions`) and the host's `CoSecAutoConfiguration` and `CoSecRouteMapAutoConfiguration` are `@ExperimentalWowApi` ([API Levels](../reference/api-levels)), and the `wow.cosec.*` keys may change with them. A service that turns CoSec on with its dependencies and keys alone needs nothing more; Kotlin code that names one of these types opts in with `@OptIn(ExperimentalWowApi::class)`. Once CoSec 8 is GA, a 10.x minor release drops the marker. A service without CoSec is not affected: the rest of the API keeps its level.
+:::
+
 With `wow-cosec` and CoSec's starter and WebFlux module (`me.ahoo.cosec:cosec-spring-boot`, `me.ahoo.cosec:cosec-webflux`) on the classpath, CoSec's resolver is the host's, unless the application defines a `CallerResolver` of its own. CoSec's pipeline authenticates each request and resolves its scope, the app and space the request is decided in; the resolver turns the security context CoSec built into the caller:
 
 - **Tenant and subject** come from the principal; CoSec's default tenant, `(0)`, is `wow.tenant.default`. A request without an authenticated principal, or whose security context CoSec's pipeline did not build, is answered 401.

@@ -87,7 +87,7 @@ The host wires each part when its module is on the class path, and the part's ow
 | `wow-clickhouse` | The warehouse sink and the datasets' queries |
 | `wow-elasticsearch` | The store type `elasticsearch`, for snapshots and their queries, and the sink that indexes event streams for search |
 | `wow-observability` | Traces and metrics of the node's work |
-| `wow-cosec` | CoSec authentication and authorization of the public routes ([Secure a Deployment](../operate/security)) |
+| `wow-cosec` | CoSec authentication and authorization of the public routes ([Secure a Deployment](../operate/security)); experimental in 10.0, following CoSec 8's pre-release |
 | `wow-cosid` | CosId's id generators |
 | `wow-reactor` | Handlers that return Reactor's `Mono` and `Flux` |
 

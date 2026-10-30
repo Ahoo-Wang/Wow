@@ -109,7 +109,7 @@ On one machine every service, store and the load generator share the CPU: result
 
 ## The industry comparison
 
-Besides itself, V10 is compared once before GA with Axon Framework 4 on PostgreSQL ([`v10-vs-axon.md`](results/reports/v10-vs-axon.md), user 2026-10-25): one node, E1 and E3, the same load generator and harness. `bench.sh --install=test/benchmarks/axon-server/build/install/axon-server` runs the Axon server instead of Wow's; `--server-args="--wow.kafka.bootstrap-servers="` runs Wow with Kafka off, as the Axon server has no bus. The Axon server reads `Wow-Wait` headers not at all: each route waits for its scenario's completion point (E1 the command's unit of work committed, E3 the target's entry committed after the transfer's tracking processor handled `Prepared`).
+Besides itself, V10 is compared once before GA with Axon Framework 4 on PostgreSQL ([`v10-vs-axon.md`](results/reports/v10-vs-axon.md), user 2026-10-25): one node, E1 and E3, the same load generator and harness. `bench.sh --install=test/benchmarks/axon-server/build/install/axon-server` runs the Axon server instead of Wow's; `--server-args="--wow.transport=none"` runs Wow with no topics, as the Axon server has no bus. A blank `--wow.kafka.bootstrap-servers=` is not the same: the benchmark node's internal port is on loopback, so it counts as development and falls back to topics in its JVM, which a long run fills (X-33). The Axon server reads `Wow-Wait` headers not at all: each route waits for its scenario's completion point (E1 the command's unit of work committed, E3 the target's entry committed after the transfer's tracking processor handled `Prepared`).
 
 ## Running it on GitHub Actions
 

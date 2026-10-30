@@ -16,6 +16,7 @@ package me.ahoo.wow.ops.server
 import me.ahoo.cosec.runtime.identity.IdentityCodec
 import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -87,6 +88,7 @@ class OpsCoSecTest {
     )
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `the caller should be CoSec's`() {
         ops.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
     }

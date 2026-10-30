@@ -2,6 +2,7 @@ package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import org.junit.jupiter.api.Test
@@ -28,6 +29,7 @@ class AnalyticsCatalogDefaultsTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `behind the gateway no request should be served on its headers' word`() {
         startCatalog("wow.analytics.catalog.watch.enabled" to false, profiles = listOf("cosec")).use { node ->
             node.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)

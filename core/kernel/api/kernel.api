@@ -435,6 +435,8 @@ public final class me/ahoo/wow/kernel/UnreadableEventException : java/lang/Illeg
 }
 
 public final class me/ahoo/wow/kernel/memory/InMemoryTopics : me/ahoo/wow/spi/transport/PartitionedSource, me/ahoo/wow/spi/transport/TopicAdmin, me/ahoo/wow/spi/transport/TopicProducer {
+	public static final field Companion Lme/ahoo/wow/kernel/memory/InMemoryTopics$Companion;
+	public static final field DEFAULT_RETENTION I
 	public fun <init> ()V
 	public fun <init> (I)V
 	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -442,6 +444,7 @@ public final class me/ahoo/wow/kernel/memory/InMemoryTopics : me/ahoo/wow/spi/tr
 	public fun create (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun create$default (Lme/ahoo/wow/kernel/memory/InMemoryTopics;Ljava/lang/String;IILjava/lang/Object;)V
 	public final fun getFailure ()Ljava/lang/Exception;
+	public final fun getRetention ()I
 	public final fun grow (Ljava/lang/String;I)V
 	public final fun messages (Ljava/lang/String;)Ljava/util/List;
 	public fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -452,6 +455,10 @@ public final class me/ahoo/wow/kernel/memory/InMemoryTopics : me/ahoo/wow/spi/tr
 	public final fun retain (Ljava/lang/String;IJ)V
 	public fun send (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setFailure (Ljava/lang/Exception;)V
+	public final fun setRetention (I)V
+}
+
+public final class me/ahoo/wow/kernel/memory/InMemoryTopics$Companion {
 }
 
 public final class me/ahoo/wow/kernel/route/MalformedRouteRequestException : java/lang/IllegalArgumentException {

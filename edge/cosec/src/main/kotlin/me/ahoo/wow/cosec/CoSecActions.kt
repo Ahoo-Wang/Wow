@@ -15,6 +15,7 @@ package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.runtime.route.Route
 import me.ahoo.cosec.runtime.route.RouteMapDocument
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
@@ -39,6 +40,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  * without an id. The query and state routes
  * are not mapped: CoSec reads them as `http:<METHOD>` on their path.
  */
+@ExperimentalWowApi
 object CoSecActions {
     /** The resource type of a service route. */
     const val ROUTE: String = "route"

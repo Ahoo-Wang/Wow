@@ -86,6 +86,7 @@ outline: deep
 | 读取一个聚合的事件流 | 保留 | `events` 查询模型。 |
 | 恢复或跳过失败的处理 | 替代 | 停放与失败台账，通过 ops 服务操作。 |
 | 定向重放一个版本区间；批量重发状态事件 | 10.x | 在此之前，恢复停放的聚合，或重建整个订阅。 |
+| 把已存储的事件重新投递给某个处理函数（`DomainEventCompensator`），用作回填 | 替代 | 一个新名字、从事件流开头开始的处理函数，把整段历史读一遍。见[重建与重放](../operate/replay)。 |
 | 领域事件总线与状态事件总线 | 替代 | 日志就是总线；其他上下文读取 Kafka 上发布的事件流。见[日志就是总线](../concepts/event-log)。 |
 | 创建集合与索引 | 保留 | 由存储的 DDL 设置管理。 |
 
@@ -100,6 +101,7 @@ outline: deep
 | `@Retry`：次数、退避、超时 | 替代 | V10 的 `@Retry`，可按订阅配置，之后是停放聚合的长周期重试。 |
 | 可恢复与不可恢复的异常类 | 保留 | 在 `@Retry` 上声明，另有可插拔的失败分类器。 |
 | 订阅从哪里开始 | 保留 | V10 新增：在处理函数上声明或通过配置指定。 |
+| 外部调度器中的周期作业（Simba、`@Scheduled`） | 替代 | Saga 的 `@OnSchedule` 作业，按 cron 规则运行，不需要外部锁。要等每条命令的结果再发下一条的作业留在外部，通过命令客户端发送。见[定时命令](../guide/scheduling)。 |
 | 处理器过滤器、拦截器、`@Order` | 放弃 | — |
 | 跳过无法解码的 Kafka 消息 | 10.x | V10 会停放它们。 |
 | 在处理函数里读取其他聚合的状态或查询 | 替代 | 类型化的查询 API，处理函数可以使用。 |
@@ -112,6 +114,9 @@ outline: deep
 | 过滤表达式、相对时间、元数据过滤、聚合窗口 | 保留 | — |
 | `Condition` 协议 | 放弃 | 使用过滤表达式；Skill 会改写条件。 |
 | Kotlin 查询 DSL 与生成的 `<State>Properties` | 保留 | — |
+| 存储在事件或状态中的 Wow 查询类型（`Condition`、`Sort`、`Projection`） | 放弃 | 内核的 JSON 没有查询协议的编解码：改存应用自己的类型，并把 9.x 的 JSON 升级过去。 |
+| 类路径上的查询 schema 覆盖（`META-INF/wow/query-schema`） | 放弃 | schema 来自状态类；把每个覆盖改为状态上的字段注解。 |
+| 实现或继承查询类型（`IPagedList`） | 放弃 | V10 的查询类型是 final 类，用它们的工厂或 DSL 构建。 |
 | 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | — |
 | 在查询和状态读取中脱敏敏感字段 | 保留 | — |
 | ABAC 查询策略、CoSec 的 `abac.` 属性 | 保留 | 默认关闭。 |
@@ -198,9 +203,9 @@ outline: deep
 | 9.x 能力 | V10 中 | 说明 |
 | --- | --- | --- |
 | `wow-models` | 保留 | — |
-| `wow-cocache` | 放弃 | — |
+| `wow-cocache` | 替代 | 每个聚合类型一份共享缓存，由拥有它的上下文写入，读者以 `StateViewCache` 读取；读者自建的索引缓存与关联缓存没有对应物。 |
 | `wow-apiclient` | 替代 | 类型化的命令与查询客户端：对服务自己的上下文在进程内运行，对其他上下文经 HTTP。见[上下文之间](../concepts/cross-context#typed-clients)。 |
-| CosId | 保留 | — |
+| CosId | 保留 | 通过 CosId 5 上的 `wow-cosid`，用于聚合 ID：号段生成器改用 CosId 5 的配置，其状态用 CosId 的迁移工具迁移。 |
 | Spring 集成与 starter 功能 | 替代 | 一个 Spring Boot 宿主模块，按类路径装配各个后端。 |
 
 ## 配置与运维 {#configuration-and-operations}

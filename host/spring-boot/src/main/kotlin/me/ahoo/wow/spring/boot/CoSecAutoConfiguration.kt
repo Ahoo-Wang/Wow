@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.cosec.runtime.AuthorizationChecker
 import me.ahoo.cosec.runtime.route.RouteMap
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecActions
@@ -65,7 +66,10 @@ import org.springframework.core.type.AnnotatedTypeMetadata
  *   application's own authorizers, each of which must allow a command too. On the public port CoSec's pipeline already
  *   decides the command routes. A request-less command (a saga's, a timer's, a scheduled job's) gets no objection
  *   from them.
+ *
+ * Experimental as wow-cosec is, which follows CoSec 8's pre-release: the class and its constant may change within 10.x.
  */
+@ExperimentalWowApi
 @AutoConfiguration(before = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
 @EnableConfigurationProperties(WowProperties::class)
@@ -155,8 +159,9 @@ class CoSecAutoConfiguration {
  * on `<aggregate>/<id>`, a service route `<context>:<route>` on `route/<route>`, the names [CoSecCommandAuthorizer]
  * and [CoSecServiceRouteAuthorizer] decide them by. It comes after the host's configuration, which defines the
  * Manifest, and before CoSec's pipeline, whose route map file it takes the place of; an application that maps routes
- * of its own declares its `RouteMap`.
+ * of its own declares its `RouteMap`. Experimental as wow-cosec is.
  */
+@ExperimentalWowApi
 @AutoConfiguration(after = [WowAutoConfiguration::class], beforeName = [COSEC_PIPELINE_AUTO_CONFIGURATION])
 @ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
 @ConditionalOnProperty(COSEC_ENABLED, havingValue = "true", matchIfMissing = true)

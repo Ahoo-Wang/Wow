@@ -26,6 +26,7 @@ import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
@@ -172,7 +173,10 @@ class WowProperties {
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
 
-    /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
+    /**
+     * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
+     * Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
+     */
     var cosec: CoSec = CoSec()
 
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
@@ -207,10 +211,31 @@ class WowProperties {
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
      * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no
      * stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true).
-     * `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type,
-     * names the transport.
+     * `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any
+     * profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the
+     * transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back
+     * to the topics in the JVM.
      */
     var transport: String = TransportSelection.AUTO
+
+    /** The in-memory provider's settings: the topics it keeps in the JVM. */
+    var memory: Memory = Memory()
+
+    /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
+    @InternalWowApi
+    class Memory {
+        /**
+         * The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in
+         * development without a transport), at least one: past it, a partition drops its oldest, as a broker's
+         * retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay
+         * bounded however long the node runs.
+         */
+        var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
+            set(value) {
+                require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
+                field = value
+            }
+    }
 
     @InternalWowApi
     class Node {

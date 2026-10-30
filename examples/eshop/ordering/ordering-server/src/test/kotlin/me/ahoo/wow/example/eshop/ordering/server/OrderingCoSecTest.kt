@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.ordering.server
 import me.ahoo.cosec.runtime.identity.IdentityCodec
 import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
@@ -64,6 +65,7 @@ class OrderingCoSecTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `the caller should be CoSec's`() {
         server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)
     }

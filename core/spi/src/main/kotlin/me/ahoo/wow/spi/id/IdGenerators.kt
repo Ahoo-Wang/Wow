@@ -24,7 +24,9 @@ import java.util.random.RandomGeneratorFactory
 
 /**
  * Generates the message-level ids of a node: command ids, the request id of a request that names
- * none, wait ids, and [Ids.next] of domain code. UUIDv7 by default; wow-cosid adapts CosId.
+ * none, wait ids, and [Ids.next] of domain code. UUIDv7 by default, or the application's own; wow-cosid gives
+ * aggregate ids alone ([AggregateIdGenerator]), never these, since request ids from several services meet in one
+ * context's idempotency key and a CosId id is unique only within its namespace.
  */
 @WowSpi
 fun interface GlobalIdGenerator {

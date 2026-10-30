@@ -33,8 +33,11 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 在 `limit` 处按分组键截断的聚合 | 加上 `sort` 得到前 N 名；不带排序时，分组多于 `limit` 会以 `TOO_MANY_GROUPS` 失败 |
 | 返回 `Int` 的 `Pagination.offset()` | 返回 `Long` |
 | `wow-test`（`AggregateSpec`） | `wow-test`，带函数式的 `aggregateSpec` 和 `sagaSpec` |
-| `wow-redis`、`wow-bi`、`wow-apiclient`、`wow-cocache`、`wow-compensation-*` | 已移除：没有 Redis 后端，改用 ClickHouse Sink、`CommandClient` 和 `QueryApi` 客户端、每个节点的失败台账 |
+| `wow-redis`、`wow-bi`、`wow-apiclient`、`wow-compensation-*` | 已移除：没有 Redis 后端，改用 ClickHouse Sink、`CommandClient` 和 `QueryApi` 客户端、每个节点的失败台账 |
+| `wow-cocache` | V10 的 `wow-cocache`：由拥有聚合的上下文为每个聚合类型写一份共享缓存，读者注入 `StateViewCache<V>`；读者自建的索引缓存与关联缓存没有对应物 |
 | 返回 `Mono` 或 `Flux` 的处理函数 | `suspend` 函数，或通过 `wow-reactor` 使用 Reactor |
+
+这些插件需要 Gradle 9 或更高版本、Kotlin JVM 插件 2.3 或更高版本：先升级 Gradle 8 的 wrapper。KSP 读取整个源码目录，忽略源码集的 `exclude`，所以每次只编译领域模块一部分的迁移，要把这些文件同步到单独的目录。
 
 [V10 中的 9.x 能力](./capabilities)说明每项 9.x 能力的去向。
 
@@ -45,7 +48,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`；上下文名是每个命令、事件和路由名的一部分，所以要有意地选择 |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand` |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`；挂载的命令是带 `CommandTransformer` 的 `@MountedCommand`，它的类放在其聚合所在的领域模块里，编译器在那里找到它 |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`，只有返回 `Decision` 的函数才需要 |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`；迁移来的 9.x 形状是修订号 1 |
 | `EventUpgrader` | 在从 `ObjectNode` 到 `ObjectNode` 的函数上标注 `@Upgrade(event, from)` |
@@ -118,6 +121,8 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 - **修订号。** V10 形状与 9.x 所存储的不同的事件（去掉了身份字段、删掉了计算属性），要用更高的 `@Revision`，以及一个从修订号 1 升级的 `@Upgrade` 函数，并由一个使用真实 9.x 载荷的测试覆盖。
 - **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
 - **被删除的事件**要退役：删除类和它的溯源函数，在 `retiredEvents` 中列出存储时的名字，并用 `"retire": true` 映射它。
+- **事件与状态中的 Wow 类型。** 存储下来的 `Condition`、`Sort` 或 `Projection`（例如保存的过滤条件）在 V10 中没有对应形式：`Condition` 协议已经没有了，内核的 JSON 没有查询协议的编解码，查询协议的枚举现在也是小写。改存应用自己的类型，用一个 `@Upgrade` 函数把 9.x 的 JSON 升级过去，并写测试覆盖。
+- **事件的信封。** 读取 `DomainEvent.createTime` 或操作人的 9.x 溯源函数，目前在 V10 中没有对应形式：溯源函数只接收事件本身。把这个值放进事件；从 9.x 历史重建的状态缺少它，`compare` 会报告出来。V10 如何向溯源暴露信封，尚待决定。
 
 ## 处理器 {#processors}
 
@@ -133,6 +138,8 @@ fun onOrderSubmitted(
 ```
 
 处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
+
+9.x 服务在 Simba 或 `@Scheduled` 里运行的周期作业，如果是从到期的内容推导命令，就是 Saga 的一个 `@OnSchedule` 处理函数，按 cron 规则运行；要等每条命令的结果再发下一条的作业，留在 Wow 之外，通过 `CommandClient` 发送（[定时命令](../guide/scheduling)）。9.x 把已存储事件重新投递给某个处理函数的回填，在 V10 中是一个新名字的处理函数，带 `@OnEvent(start = OnEvent.Start.BEGINNING)`，从事件流的开头读一遍（[重建与重放](../operate/replay)）。
 
 ## 预留键 {#reserved-keys}
 
@@ -195,8 +202,8 @@ private suspend fun take(name: String, scope: DecideScope) {
 | 9.x | V10 |
 | --- | --- |
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`，一个 `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`，一个测试；`@TestFactory fun x() = aggregateSpecTests(model) { … }`，每个步骤和分叉一个测试 |
-| `aggregateVerifier<A, S>()`，Java 入口 | 已去掉：测试 DSL 只支持 Kotlin |
-| `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`）；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
+| `aggregateVerifier<A, S>()` 及其链式阶段（Kotlin 或 Java 调用） | 一个 `aggregateSpec`：`.whenCommand(c).expect…().verify()` 是 `whenCommand(c) { expect… }`；`.then()` 与 `.then(false)` 是下一个 `whenCommand`，因为 spec 是链接的，拒绝不改变任何东西；`.fork { … }` 是检查中的 `fork(name) { … }`。测试 DSL 只支持 Kotlin |
+| `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`，第一个参数是带默认值的上下文名，只传服务时按参数名传）；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
 | `givenOwnerId(…)`、`givenSpaceId(…)` | `given`、`givenState` 或 `whenCommand` 上的 `scope = Scope(owner, space)` |
 | `givenEvent(event) { … }`、`givenEvent(arrayOf(…)) { … }` | `given(vararg events)`，一个独立的步骤；`givenState(state, version)` 不变 |
 | `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
