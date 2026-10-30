@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | PR 1 台账与运维 | S1～S4 | 已合并 #5194 |
 | 测试 DSL | S19～S24 | 已合并 #5195 |
-| PR 3 身份与运维面 | S5～S9，以及 #5194 带来的两处技能说明 | 进行中 #5198（WIP）：S9 已做；S8 的范围已定；S5、S6、S7 与技能说明待做 |
-| PR 4a Saga 处理器 | S10、S11、S12、S16 | 未开始 |
+| PR 3 身份与运维面 | S5～S9，以及 #5194 带来的两处技能说明 | 已合并 #5198（2026-10-30） |
+| PR 4a Saga 处理器 | S10、S11、S12、S16 | 进行中 #5215 |
 | PR 4b 失败 | S13、S14、S15，以及失败分类规则移到后端 | 未开始 |
 | PR 4c 形状与编译期检查 | S17、S18、S25 的 `JOIN`、S27 | 未开始 |
 
@@ -51,6 +51,7 @@
 - 问题：运维按裸名找订阅并按「覆盖」猜（`ParkedOps.kt:45,190-196`）；`Ledger.parkedId` 是 `service:subscription:ref`（`api/api/…/ledger/Ledger.kt:84-87`），而名字只在上下文内唯一（`ManifestMerger.kt:29`），同一服务两个上下文的同名处理器读同一对端聚合时冲突；按订阅的配置以名字为键（`SubscriptionOptions.kt:166`），`wow.subscriptions.[snapshot].start` 命中每个上下文的 `snapshot`。计量已是 `(wow.group, wow.subscription)`（D360 ①）。
 - 决定：`SubscriptionId(context, name)` 贯穿 `ParkedOps`、路由 `/wow/ops/parked/{context}/{subscription}/…`、HTTP 视图（带上下文与组）、`parkedId`、计量与按订阅的配置键。配置键带上下文、写法唯一、无歧义（上下文名与处理器名都可能含点，键的确切形状在 PR 里给出，与 D361 的写法一致），写进配置参考。
 - 验收：两个上下文同名处理器的停放条目、计量与配置互不干扰；旧写法的键在启动时报未知键（D361 的严格检查）。
+- 实现（#5198）：`SubscriptionId` 的键为 `<context>.<name>`（上下文名不含点，按第一个点切分），配置键 `wow.subscriptions.[<context>.<name>]`；停放路由为 `/wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`，`{subscription}` 取该键；`Ledger.parkedId` 为 `<service>:<context>:<subscription>:<aggregate>:<tenant>:<id>`；计量仍按（组，订阅），组比上下文更细（D360）。
 
 ### S6 改名留下的检查点
 
@@ -62,6 +63,7 @@
 
 - 决定：只读的 `GET /wow/ops/subscriptions`：每个订阅的身份、各分区位置与滞后、自动暂停的分区、停放数、S6 的无主名字；重试设定的请求体只有一种形状（时长按 D361 的写法），节点与 ops 一致。
 - 不做：批量动作（控制台对选中项逐个操作）、节点停放路由的 TS 客户端、回卷（`CheckpointStore.kt:26` 的设计如此；文档写明「换一个名字是唯一的回卷」，见 DG-23）。
+- 实现（#5198，内容与授权由协调者定）：与停放路由同开关（`wow.http.ops.enabled`）。应答为 `node`、`subscriptions`（`subscription` 键、`group`、`source` 为 `log` 或 `topic`、`parked` 取节点采样的计数、`partitions`）与 `orphans`。日志组的订阅列出该组已存检查点的每个分区；本节点运行的分区另带 `runs`、实时水位、`head`、`lag`、`paused`、`throttled`；主题订阅只列本节点运行且暂停或限流的分区。无主检查点与 S6 的启动告警共用 `SubscriptionRuntime.orphans`。授权：须认证；限于一个租户的调用者 403（这是全服务的视图，不属于任何聚合与租户）；再由节点的 `ServiceRouteAuthorizer` 以保留上下文 `wow` 的路由 `ops.subscriptions` 判定（CoSec 为 `wow:ops.subscriptions`），没有授权器时与服务路由一样放行。开发用的调用者解析器不产生跨租户调用者，开发环境下该路由为 403，除非应用自带 `CallerResolver`。
 
 ### S8 词语（范围已定：整套改名）
 
@@ -69,6 +71,7 @@
 - 节点离开待命为 **`activate`**（`POST /wow/node/activate`）。改完后「resume」不再表示任何动作；「暂停」只指自动的系统性暂停（`SubscriptionPauses.kt:19`）。
 - `wow.subscription.parked.timeout`（认领租期，并不取消什么，`WowProperties.kt:813-814`）改为 **`parked.claim-ttl`**，整个字段一起改：`ParkedRetrySpec.claimTtl`、节点与 ops 的重试设定请求体、控制台表单、存储名（Mongo `retry_spec.timeout_millis`、Postgres `retry_timeout_millis`）；账本升为**格式 3**，不回退（格式 2 已在 main，CI 与开发库可能已有）。
 - 改名单独成一个提交，便于与 S5～S7、S9 分开审查。
+- 实现（#5198）：存储名为 Mongo `retry_spec.claim_ttl_millis`、Postgres `retry_claim_ttl_millis`，失败台账格式 3；节点待命的状态写 `activatedAt`、`activatedBy`。「resume」不再指任何运维动作；以下不是运维动作，有意保留（协调者 2026-10-30）：可续读的查询流（`resumable`、`StreamResumeOptions`、`STREAM_NOT_RESUMABLE`）、系统性暂停的自动结束（`ObservedEvent.PartitionResumed`、计量的 `resumed`，D360）、`Observer.resuming(trace)`、`migrate-data` 导入续跑的 `resumeAt`，以及第三方 API（Reactor 的 `onErrorResume` 等）。
 
 ### S9 内置订阅名（已做）
 
@@ -95,12 +98,14 @@
 
 - 问题：`@OnEvent` 的五个属性里 `derives`、`schedules`、`calls` 只对 Saga 有意义，在投影与 Reactor 上是编译错误（`SubscriptionResolver.kt:465,481,508`）；运行时只校验 `calls`（`ProcessorBinding` `:90`），`schedules` 与 `derives` 不校验（`ProcessorContexts.kt:145-165`），未声明的定时类让 Manifest 缺项而不报错。
 - 决定：三者从 `@OnEvent` 移到 `@Sends(derives = […], schedules = […], calls = […])`，四种 Saga 处理器都可标注；Saga 之外编译期拒绝；三者都在运行时强制（发出未声明的命令即失败，分类为不可恢复）。`derives` 仍可由返回类型推导，`@Sends(derives)` 用于返回 `CommandRequest<*>` 等擦除类型的情形。
+- 细化（协调者 2026-10-30，PR 4a 实施中提出）：返回的命令类型无法确定（`CommandRequest<*>`、`Any`、擦除的发布者）又没有 `@Sends(derives)` 的 Saga 处理器是编译错误（取代今天的警告），错误信息给出 `@Sends(derives = […])`；于是返回命令的处理器都按类型或 `@Sends` 声明，运行时检查不会让结构正确的 Saga 在第一次发送时失败。`schedule` 与 `call` 编译期看不到，仍由运行时检查，未声明即不可恢复。
 
 ### S16 回执是密封类型
 
 - 问题：`CommandRejected` 与 `CommandCommitted` 重复八个字段，没有共同类型，`version` 一个是 `Int?` 一个是 `Int`（运行时填 `result.version ?: 0`）。
 - 决定：密封的 `CommandReceipt<C>`，子类型 `Committed`、`Rejected`；一个处理器可以接收 `CommandReceipt<C>` 同时处理两者。`version` 的可空性按语义定（被拒绝的命令可能没有版本）。
 - 随之：测试 DSL 的 `whenRejected`、`whenCommitted` 与 eShop 的回执处理器同步修改。
+- 细化（协调者 2026-10-30，PR 4a 实施中提出）：同时处理两种回执的处理器同时标 `@OnRejected` 与 `@OnCommitted` 并接收 `CommandReceipt<C>`：每个注解声明一条路径及其规则，参数类型本身不选路径；编译器绑定两次（拒绝与提交各一），Manifest 只列一次并同时写 `rejected` 与 `committed`。只标一个注解却接收 `CommandReceipt<C>`，或注解与参数的种类不符（`@OnRejected` 接收 `Committed<C>`，反之亦然），都是编译错误，错误信息指出应补的注解或应接收的类型。在 PR 4b（S14）之前两条路径各用各的重试规则，`CommandReceipt` 的 KDoc 写明。
 
 ## 5. 失败（PR 4b）
 
