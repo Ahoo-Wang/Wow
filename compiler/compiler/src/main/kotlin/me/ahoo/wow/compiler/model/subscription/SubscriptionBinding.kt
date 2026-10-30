@@ -45,11 +45,6 @@ internal data class SubscriptionBinding(
      * too.
      */
     val internal: Boolean = false,
-    /**
-     * What compiles but leaves the Manifest short: a saga's handler whose return type names no command class and that
-     * declares no `@OnEvent(derives)`, so the Manifest cannot list what it derives.
-     */
-    val warnings: List<String> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
@@ -78,31 +73,13 @@ internal data class HandlerBinding(
     val blocking: Boolean = false,
     /** `@OnEvent(aggregates)`: the aggregates it reads, each `context.aggregate`, all of one context. */
     val aggregates: List<String> = emptyList(),
-    /**
-     * `@OnEvent(derives)`: the binary names of the command classes a saga's handler declares it derives, a sealed type
-     * read as its concrete subclasses.
-     */
-    val derives: List<String> = emptyList(),
-    /** `@OnEvent(schedules)`: the binary names of the command classes a saga's handler declares it schedules. */
-    val schedules: List<String> = emptyList(),
-    /**
-     * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with
-     * `SagaContext.call`, a sealed type read as its concrete subclasses.
-     */
-    val calls: List<String> = emptyList(),
-    /** The qualified names of [calls], as the generated binding writes them. */
-    val callSources: List<String> = emptyList(),
+    /** What a saga's handler sends; nothing for a projection's or a reactor's. */
+    val sends: SendsBinding = SendsBinding(),
     /**
      * `@OnEvent(start)`: `BEGINNING` or `END` when the handler declares where its subscription starts;
      * null leaves it to its kind and source ([startIn]).
      */
     val start: String? = null,
-    /**
-     * The binary names of the command classes a saga's handler returns, as its return type says (`Command<X>`, a
-     * list of them, the subclasses of a sealed `X`; none for `Unit`); null when it does not say (`Command<*>`), and for
-     * a projection or a reactor.
-     */
-    val derived: List<String>? = null,
     /**
      * Its in-process retry budget: its own `@Retry`, each setting it does not give its processor's; null
      * when neither gives any.
@@ -134,8 +111,8 @@ internal data class HandlerBinding(
 }
 
 /**
- * The two kinds of a saga's receipt handlers: `@OnRejected`, taking a `CommandRejected<C>`, and
- * `@OnCommitted`, taking a `CommandCommitted<C>`; [binding] is the kernel's class of its binding.
+ * The two kinds of a saga's receipt handlers: `@OnRejected`, taking a `CommandReceipt.Rejected<C>`, and
+ * `@OnCommitted`, taking a `CommandReceipt.Committed<C>`; [binding] is the kernel's class of its binding.
  */
 internal enum class Receipt(
     val annotation: String,
@@ -147,14 +124,14 @@ internal enum class Receipt(
 ) {
     REJECTED(
         "me.ahoo.wow.api.annotation.OnRejected",
-        "me.ahoo.wow.api.subscribe.CommandRejected",
+        "me.ahoo.wow.api.subscribe.CommandReceipt.Rejected",
         "me.ahoo.wow.kernel.RejectionBinding",
         "rejection",
         "rejections",
     ),
     COMMITTED(
         "me.ahoo.wow.api.annotation.OnCommitted",
-        "me.ahoo.wow.api.subscribe.CommandCommitted",
+        "me.ahoo.wow.api.subscribe.CommandReceipt.Committed",
         "me.ahoo.wow.kernel.CommittedBinding",
         "receipt",
         "receipts",
@@ -164,13 +141,13 @@ internal enum class Receipt(
     /** `@OnRejected` or `@OnCommitted`. */
     val label: String get() = "@" + annotation.substringAfterLast('.')
 
-    /** `CommandRejected` or `CommandCommitted`. */
-    val parameterName: String get() = parameter.substringAfterLast('.')
+    /** `CommandReceipt.Rejected` or `CommandReceipt.Committed`. */
+    val parameterName: String get() = parameter.removePrefix("me.ahoo.wow.api.subscribe.")
 }
 
 /**
  * A receipt handler of a saga, of the [receipt] kind: an `@OnRejected` handler, which takes a
- * `CommandRejected<C>`, or an `@OnCommitted` one, which takes a `CommandCommitted<C>`, and optionally
+ * `CommandReceipt.Rejected<C>`, or an `@OnCommitted` one, which takes a `CommandReceipt.Committed<C>`, and optionally
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(
@@ -179,15 +156,33 @@ internal data class ReceiptBinding(
     val subscription: String,
     /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
     val callee: String = function,
-    /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
+    /** The binary name of the command class `C`; null for `CommandReceipt.Rejected<*>`, every command the saga derives. */
     val command: String?,
     val context: Boolean,
     val suspending: Boolean,
     val reactor: Boolean,
     val blocking: Boolean = false,
-    /** The binary names of the command classes it returns, as [HandlerBinding.derived]. */
-    val derived: List<String>? = null,
-    /** The qualified name of `C`, as the generated binding writes it; null for `CommandRejected<*>`. */
+    /** What it sends, as a saga's handler does. */
+    val sends: SendsBinding = SendsBinding(),
+    /** The qualified name of `C`, as the generated binding writes it; null for `CommandReceipt.Rejected<*>`. */
     val commandSource: String? = null,
     val receipt: Receipt = Receipt.REJECTED,
+)
+
+/**
+ * A command class a saga's handler sends: its [binary] name, as the Manifest fragment keys it, and its [source] name,
+ * as the generated binding writes it.
+ */
+internal data class CommandClass(val binary: String, val source: String)
+
+/**
+ * What a saga's handler sends (`@Sends`), each a command class, a sealed type read as its concrete subclasses: the
+ * commands it [derives], those `@Sends(derives)` declares, else those its return type names (none for `Unit`); those
+ * it [schedules] with `SagaContext.schedule`; those it [calls] with `SagaContext.call`. The generated binding holds the
+ * handler to them, and the Manifest lists them.
+ */
+internal data class SendsBinding(
+    val derives: List<CommandClass> = emptyList(),
+    val schedules: List<CommandClass> = emptyList(),
+    val calls: List<CommandClass> = emptyList(),
 )

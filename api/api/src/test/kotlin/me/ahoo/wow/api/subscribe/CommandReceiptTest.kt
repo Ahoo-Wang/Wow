@@ -24,7 +24,8 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import org.junit.jupiter.api.Test
 
-class CommandCommittedTest {
+/** The receipts of a command a saga derived (decision D372 S16): one sealed type, rejected or committed. */
+class CommandReceiptTest {
     private val order = AggregateType("shop", "order").ref("tenant", "o-1")
     private val stock = AggregateType("inventory", "stock").ref("tenant", "s-1")
 
@@ -43,7 +44,16 @@ class CommandCommittedTest {
         signalTime = 1L,
     )
 
-    private fun committed(): CommandCommitted<ReserveStock> = CommandCommitted(
+    private fun rejected(): CommandReceipt.Rejected<ReserveStock> = CommandReceipt.Rejected(
+        commandId = "cmd-2",
+        commandType = "inventory.stock.ReserveStock",
+        ref = stock,
+        error = ErrorInfo("stock.insufficient", "Not enough stock"),
+        causation = Causation("cmd-1", "$order@1"),
+        executionId = ExecutionId("OrderSaga.onOrderCreated", order, 1),
+    )
+
+    private fun committed(): CommandReceipt.Committed<ReserveStock> = CommandReceipt.Committed(
         commandId = "cmd-2",
         commandType = "inventory.stock.ReserveStock",
         ref = stock,
@@ -53,8 +63,26 @@ class CommandCommittedTest {
         executionId = ExecutionId("OrderSaga.onOrderCreated", order, 1),
     )
 
+    /** What a handler of both receipts makes of one: the fields they share, and each one's own. */
+    private fun outcomeOf(receipt: CommandReceipt<ReserveStock>): String = when (receipt) {
+        is CommandReceipt.Rejected -> "${receipt.commandId} rejected at ${receipt.version}: ${receipt.error.code}"
+        is CommandReceipt.Committed -> "${receipt.commandId} committed at ${receipt.version}"
+    }
+
     @Test
-    fun `a receipt names the command, the aggregate it was committed on and its result`() {
+    fun `a rejection names the command, its outcome and the execution that derived it`() {
+        val rejected = rejected()
+        rejected.ref.assert().isEqualTo(stock)
+        rejected.error.code.assert().isEqualTo("stock.insufficient")
+        rejected.causation.correlationId.assert().isEqualTo("cmd-1")
+        rejected.executionId.toString().assert().isEqualTo("OrderSaga.onOrderCreated:shop.order/tenant/o-1@1")
+        rejected.source.assert().isEqualTo(order)
+        // A command refused before any decision answers no version.
+        rejected.version.assert().isNull()
+    }
+
+    @Test
+    fun `a commit names the command, the aggregate it was committed on and its result`() {
         val committed = committed()
         committed.ref.id.assert().isEqualTo("s-1")
         committed.version.assert().isEqualTo(3)
@@ -64,7 +92,16 @@ class CommandCommittedTest {
     }
 
     @Test
-    fun `a receipt names its command, its type, a version and a result that succeeded`() {
+    fun `a handler of both receipts tells them apart and reads what they share`() {
+        outcomeOf(rejected()).assert().isEqualTo("cmd-2 rejected at null: stock.insufficient")
+        outcomeOf(rejected().copyWith(version = 2)).assert().isEqualTo("cmd-2 rejected at 2: stock.insufficient")
+        outcomeOf(committed()).assert().isEqualTo("cmd-2 committed at 3")
+    }
+
+    @Test
+    fun `a receipt names its command and its type, a commit a version and a result that succeeded`() {
+        assertThrownBy<IllegalArgumentException> { rejected().copyWith(commandId = " ") }
+        assertThrownBy<IllegalArgumentException> { rejected().copyWith(commandType = "") }
         assertThrownBy<IllegalArgumentException> { committed().copyWith(commandId = " ") }
         assertThrownBy<IllegalArgumentException> { committed().copyWith(commandType = "") }
         assertThrownBy<IllegalArgumentException> { committed().copyWith(version = -1) }

@@ -25,7 +25,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
@@ -82,7 +82,7 @@ class CrossContextWaitTest {
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
     private val stock = StockItems()
     private val cancelled = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
     private val boarded = CopyOnWriteArrayList<StateEvent<OrderView>>()
     private val signalled = CopyOnWriteArrayList<WaitSignal>()
 
@@ -169,6 +169,7 @@ class CrossContextWaitTest {
         OrderView::class.java,
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
+        derives = listOf(Reserve::class.java),
     ) { event, context ->
         if (event.state.quantity == 0) {
             emptyList()

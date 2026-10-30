@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
@@ -78,7 +78,7 @@ class OrderPaymentSaga {
     // region peer-rejected
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected
-    fun onPayRejected(rejected: CommandRejected<PayOrder>): CommandRequest<RefundPayment> =
+    fun onPayRejected(rejected: CommandReceipt.Rejected<PayOrder>): CommandRequest<RefundPayment> =
         CommandRequest.of(
             RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
             rejected.source.id,

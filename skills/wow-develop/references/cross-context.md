@@ -18,7 +18,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 
 ## Calling another context synchronously
 
-When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@OnEvent(calls = [SubmitOrder::class])`. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when its context has no URL: `wow.peers.<context>.url` (or `wow.peers.<context>.url`). Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
+When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@Sends(calls = [SubmitOrder::class])` on the handler; an undeclared call fails the handling as unrecoverable, and a rejection the handler lets through goes to the saga's `@OnRejected` handler of the called command. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when its context has no URL: `wow.peers.<context>.url` (or `wow.peers.<context>.url`). Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
 
 ## One tenant space
 

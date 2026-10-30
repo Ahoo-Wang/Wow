@@ -161,6 +161,7 @@ fun reminderSaga(afterMillis: Long = 100): ProcessorBinding<OrderState> = Proces
     "ReminderSaga",
     "onOrderPlaced",
     OrderState::class.java,
+    schedules = listOf(CancelOrder::class.java),
 ) { event, context ->
     if (event.events.any { it is OrderPlaced }) {
         context.schedule(

@@ -97,7 +97,9 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  *   `wow.wait.timeout` or `wow.query.busy`, or 429 with a `Retry-After` ([WowProblemException]). The runtime adds the
  *   commands its own executors refused as busy.
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
- *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once.
+ *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
+ *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
+ *   same way every time.
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -120,7 +122,7 @@ internal object BuiltInFailures : FailureClassifier {
             failure.code == FrameworkCodes.PEER_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
-        is StorageRefusedException, is TransportRefusedException -> FailureClass.UNRECOVERABLE
+        is StorageRefusedException, is TransportRefusedException, is UndeclaredSendException -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException,
         is TransportUnavailableException,
         is SocketException,
@@ -138,27 +140,18 @@ internal object BuiltInFailures : FailureClassifier {
 
 /**
  * A handling that failed for a business reason, which no retry changes: a subscription does not retry it but parks
- * the aggregate at once, and a wait at the hop ends REJECTED with [error]. A saga's call whose rejection its
- * handler let through ([parkingCallRejections]), and a derived command whose rejection no `@OnRejected` handler takes,
- * end a handling so.
+ * the aggregate at once, and a wait at the hop ends REJECTED with [error]. A saga's call or derived command whose
+ * rejection no `@OnRejected` handler takes ends a handling so.
  */
 @InternalWowApi
 open class HandlingRejectedException(val error: ErrorInfo, message: String, cause: Throwable? = null) :
     IllegalStateException(message, cause)
 
 /**
- * A saga's handler let through the rejection of a synchronous call it made: a business outcome, so the
- * aggregate parks at once, without a retry, as for a derived command's rejection no `@OnRejected` handler takes,
- * and a wait at the saga's hop ends REJECTED with the target's error.
+ * A saga's handler let through the rejection of a synchronous call it made, which no `@OnRejected` handler of the
+ * saga takes: a business outcome, so the aggregate parks at once, without a retry, as for a derived command's
+ * rejection no handler takes, and a wait at the saga's hop ends REJECTED with the target's error.
  */
 @InternalWowApi
 class CallRejectedHandlingException(val rejected: CommandRejectedException) :
     HandlingRejectedException(rejected.result.error!!, rejected.message!!, rejected)
-
-/** Runs [handling], a saga handler's call, a call's rejection it lets through ending it as [CallRejectedHandlingException]. */
-@InternalWowApi
-inline fun <T> parkingCallRejections(handling: () -> T): T = try {
-    handling()
-} catch (rejected: CommandRejectedException) {
-    throw CallRejectedHandlingException(rejected)
-}

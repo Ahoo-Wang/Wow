@@ -63,7 +63,12 @@ class ProcessorDslTest {
     /** Reserves the unpaid part of an order's total, and cancels the order when the inventory refuses. */
     private fun sagaHandlers(retry: HandlerRetry? = null, fail: (Order) -> Unit = {}): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("OrderSaga", "onRejected", ReserveStock::class.java) { rejected, context ->
+            RejectionBinding.of(
+                "OrderSaga",
+                "onRejected",
+                ReserveStock::class.java,
+                derives = listOf(Cancel::class.java),
+            ) { rejected, context ->
                 listOf(CommandRequest.to(rejected.source, Cancel(rejected.error.code)))
             },
         )
@@ -74,6 +79,8 @@ class ProcessorDslTest {
                 Order::class.java,
                 rejections = rejections,
                 retry = retry,
+                derives = listOf(ReserveStock::class.java),
+                schedules = listOf(Cancel::class.java),
             ) { event: StateEvent<Order>, context ->
                 fail(event.state)
                 val commands =

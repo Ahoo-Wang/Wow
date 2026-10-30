@@ -32,8 +32,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.InFlightLimit
@@ -69,14 +68,14 @@ import kotlin.time.Duration.Companion.seconds
  *    envelope carries, a creation that names no aggregate given its id first by [creations]: the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
  *    sent twice by a saga that retried, is not decided again; the waiting node is signalled as for a saga's command.
  * 2. **Settle** the outcome: committed, a duplicate or no change is done; when the command asks for the receipt of its
- *    commit ([me.ahoo.wow.runtime.cluster.ReplyTo.committed]), the receipt, a [CommandCommitted] with
+ *    commit ([me.ahoo.wow.runtime.cluster.ReplyTo.committed]), the receipt, a [CommandReceipt.Committed] with
  *    the aggregate, its version and the command's result, no state, is sent to `wow.<replyTo.context>.receipts` and
  *    acknowledged by the broker **before** the entry completes, in the same order as a rejection's below. A duplicate
  *    request answers with the original aggregate and version again, the result marked `duplicate`;
  *    the saga drops the copy by the command id. A receipt carries the command's wait context past its commit, so a
  *    chain whose next hop is the saga's `@OnCommitted` handler goes on through it. A rejection is a business outcome:
  * it is not retried nor parked, and nothing is written to the log; when the command says where to reply
- *    ([CommandWire.replyTo]), the receipt, a [CommandRejected], is sent to `wow.<replyTo.context>.receipts` and
+ *    ([CommandWire.replyTo]), the receipt, a [CommandReceipt.Rejected], is sent to `wow.<replyTo.context>.receipts` and
  *    acknowledged by the broker **before** the entry completes, so the checkpoint never passes a rejection whose
  *    receipt is not durable. A crash in between handles the command again from the checkpoint: it is rejected again
  *    and its receipt sent again, which the sender drops by the command id.
@@ -228,11 +227,11 @@ class CommandIntake internal constructor(
      */
     private suspend fun replyCommitted(wire: CommandWire, result: CommandResult, wait: WaitContext?) {
         val replyTo = wire.replyTo?.takeIf { it.committed } ?: return
-        val committed = CommandCommitted<Any>(
+        val committed = CommandReceipt.Committed<Any>(
             commandId = wire.id,
             commandType = wire.type,
             ref = result.ref,
-            version = result.version ?: 0,
+            version = checkNotNull(result.version) { "A committed command's result carries its version." },
             result = result,
             causation = wire.causation ?: Causation(wire.id, wire.id),
             executionId = replyTo.executionId(),
@@ -255,7 +254,7 @@ class CommandIntake internal constructor(
             logger.debug { "Command ${wire.id} on ${wire.ref} was rejected: ${error.code} ${error.message}" }
             return
         }
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             commandId = wire.id,
             commandType = wire.type,
             ref = wire.ref,

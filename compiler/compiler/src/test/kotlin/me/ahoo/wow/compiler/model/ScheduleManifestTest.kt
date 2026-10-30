@@ -27,7 +27,7 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /**
  * Decision D166: the commands an aggregate's decide functions and a saga's handlers schedule, as `@OnCommand(schedules)`
- * and `@OnEvent(schedules)` declare them, are the Manifest's `schedules`. The compiler does not read function bodies,
+ * and `@Sends(schedules)` declare them, are the Manifest's `schedules`. The compiler does not read function bodies,
  * so the calls to `schedule` are declared, not inferred.
  */
 @OptIn(ExperimentalCompilerApi::class)
@@ -88,6 +88,7 @@ class ScheduleManifestTest {
         package sample
 
         import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.Sends
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
@@ -98,13 +99,13 @@ class ScheduleManifestTest {
 
         @Saga
         class Reminder {
-            @OnEvent(schedules = [CancelOrder::class])
+            @OnEvent @Sends(schedules = [CancelOrder::class])
             fun onEvent(event: StateEvent<Order>, context: SagaContext) {
                 context.schedule("remind", ScheduleRule.after(1.hours), CommandRequest.to(event.ref, CancelOrder("reminder")))
             }
 
             @OnEvent
-            fun undeclared(event: StateEvent<Order>, context: SagaContext): List<CommandRequest<*>> = emptyList()
+            fun undeclared(event: StateEvent<Order>, context: SagaContext) = Unit
         }
         """.trimIndent(),
     )
@@ -132,6 +133,7 @@ class ScheduleManifestTest {
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.OnCommand
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
@@ -152,14 +154,14 @@ class ScheduleManifestTest {
 
             @Projection
             class Board {
-                @OnEvent(schedules = [Close::class])
+                @OnEvent @Sends(schedules = [Close::class])
                 fun onEvent(event: StateEvent<Account>) = Unit
             }
 
             @Saga
             class Closer {
-                @OnEvent(schedules = [Closing::class])
-                fun onEvent(event: StateEvent<Account>): List<CommandRequest<*>> = emptyList()
+                @OnEvent @Sends(schedules = [Closing::class])
+                fun onEvent(event: StateEvent<Account>) = Unit
             }
             """.trimIndent(),
         )
@@ -167,8 +169,8 @@ class ScheduleManifestTest {
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
             .contains("schedules kotlin.Any, which is no command class: @OnCommand(schedules) names command classes")
-            .contains("declares @OnEvent(schedules), but a @Projection handler schedules no commands")
-            .contains("schedules sample.Closing, which is no command class")
+            .contains("handler Board.onEvent declares @Sends, but a @Projection handler sends no commands")
+            .contains("sends sample.Closing in @Sends(schedules), which is no command class")
     }
 
     @Test

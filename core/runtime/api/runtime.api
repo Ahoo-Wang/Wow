@@ -385,13 +385,13 @@ public final class me/ahoo/wow/runtime/command/CommandMessages {
 	public final fun command (Lme/ahoo/wow/runtime/cluster/CommandWire;ILme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TopicMessage;
 	public static synthetic fun command$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/runtime/cluster/CommandWire;ILme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
 	public final fun commandOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/runtime/cluster/CommandWire;
-	public final fun committedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandCommitted;
-	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandCommitted;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandRejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandCommitted;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
-	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandRejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun committedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
+	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun receipt (Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public static synthetic fun receipt$default (Lme/ahoo/wow/runtime/command/CommandMessages;Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Ljava/util/Map;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TopicMessage;
 	public final fun receiptOf (Lme/ahoo/wow/spi/transport/Envelope;)Ljava/lang/Object;
-	public final fun rejectedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandRejected;
+	public final fun rejectedOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
 }
 
 public final class me/ahoo/wow/runtime/command/CommandSender {

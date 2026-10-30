@@ -34,13 +34,17 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.AggregateManifest
@@ -95,21 +99,65 @@ class SagaCallBindingTest {
     private var answer: suspend (OutgoingCall) -> CommandResult = { resultOf(it, CommandResult.Status.SUCCEEDED) }
 
     /** Calls the owner's mail box with the ordered items, then adds them to the owner's cart. */
-    private val saga = ProcessorBinding.saga(
-        "MailSaga",
-        "onOrderPlaced",
-        OrderState::class.java,
-        retry = HandlerRetry(maxAttempts = 2),
-        calls = listOf(Deliver::class.java),
-    ) { event, context ->
+    private suspend fun deliver(event: StateEvent<OrderState>, context: SagaContext): List<CommandRequest<*>> {
         val owner = checkNotNull(event.scope.ownerId)
-        event.events.filterIsInstance<Placed>().flatMap {
+        return event.events.filterIsInstance<Placed>().flatMap {
             context.call(CommandRequest.to(BOX.ref(event.ref.tenantId, owner), Deliver(it.items)))
             listOf(CommandRequest.to(CART.ref(event.ref.tenantId, owner), AddItems(it.items)))
         }
     }
 
-    private val node = ServiceNode(
+    private val saga = ProcessorBinding.saga(
+        "MailSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        retry = HandlerRetry(maxAttempts = 2),
+        derives = listOf(AddItems::class.java),
+        calls = listOf(Deliver::class.java),
+        handle = ::deliver,
+    )
+
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
+
+    /** The mail saga with an `@OnRejected` handler of its delivery: a refused delivery leaves a note in the cart. */
+    private val compensating = ProcessorBinding.saga(
+        "MailSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        retry = HandlerRetry(maxAttempts = 2),
+        rejections = listOf(
+            RejectionBinding.of(
+                "MailSaga",
+                "onDeliverRejected",
+                Deliver::class.java,
+                derives = listOf(AddItems::class.java),
+            ) { rejected, _ ->
+                rejections += rejected
+                listOf(
+                    CommandRequest.to(CART.ref(rejected.ref.tenantId, rejected.ref.id), AddItems(listOf("undelivered")))
+                )
+            },
+        ),
+        derives = listOf(AddItems::class.java),
+        calls = listOf(Deliver::class.java),
+        handle = ::deliver,
+    )
+
+    /** Calls the owner's mail box without declaring the call. */
+    private val undeclared = ProcessorBinding.saga(
+        "MailSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        retry = HandlerRetry(maxAttempts = 2),
+        derives = listOf(AddItems::class.java),
+        handle = ::deliver,
+    )
+
+    private var other: ServiceNode? = null
+
+    private val node = nodeOf(saga)
+
+    private fun nodeOf(saga: ProcessorBinding<*>): ServiceNode = ServiceNode(
         SHOP_SERVICE,
         "node-1",
         "node-1.internal:9090",
@@ -127,14 +175,18 @@ class SagaCallBindingTest {
     )
 
     @AfterEach
-    fun stop(): Unit = runBlocking { node.stop() }
+    fun stop(): Unit = runBlocking {
+        node.stop()
+        other?.stop()
+    }
 
     private fun place(
         id: String,
         owner: String,
         wait: WaitPlan,
         headers: Map<String, String> = emptyMap(),
-    ) = node.gateway.send(
+        on: ServiceNode = node,
+    ) = on.gateway.send(
         ServerCommandRequest(
             context = SHOP,
             aggregate = "order",
@@ -223,6 +275,47 @@ class SagaCallBindingTest {
         }
 
     @Test
+    fun `a call's rejection the saga lets through should go to its @OnRejected handler, the handling deriving nothing`():
+        Unit = runBlocking {
+        // D372 S10: as a derived command's rejection does, instead of parking the order.
+        answer = { resultOf(it, CommandResult.Status.REJECTED) }
+        val node = nodeOf(compensating).also { other = it }
+        node.start()
+        val last = place("o-6", "erin", toSaga, on = node).toList().last()
+        last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        last.error!!.code.assert().isEqualTo("mail.box.full")
+        val rejected = rejections.single()
+        rejected.commandType.assert().isEqualTo("mail.box.Deliver")
+        rejected.ref.assert().isEqualTo(BOX.ref(TENANT, "erin"))
+        rejected.source.assert().isEqualTo(ORDER.ref(TENANT, "o-6"))
+        rejected.error.code.assert().isEqualTo("mail.box.full")
+        // The aborted handling added nothing to the cart: only the compensation did.
+        val log = backends.opened.getValue(SHOP).log
+        eventually { log.read(CART.ref(TENANT, "erin")).toList().isNotEmpty() }
+        log.read(CART.ref(TENANT, "erin")).toList().flatMap { it.events }.map { it.payload }
+            .assert().containsExactly("""{"items":["undelivered"]}""")
+        backends.opened.getValue(
+            SHOP
+        ).ledger.isParked(compensating.name, ORDER.ref(TENANT, "o-6")).assert().isFalse()
+        calls.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a call the saga does not declare should park the order at once, never reaching its target`(): Unit =
+        runBlocking {
+            // D372 S12: a bug in the saga, which no retry fixes.
+            val node = nodeOf(undeclared).also { other = it }
+            node.start()
+            val last = place("o-7", "frank", toSaga, on = node).toList().last()
+            last.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            val ledger = backends.opened.getValue(SHOP).ledger
+            eventually { ledger.isParked(undeclared.name, ORDER.ref(TENANT, "o-7")) }
+            ledger.parked(undeclared.name, ORDER.ref(TENANT, "o-7"))!!.reason
+                .assert().contains("which its @Sends(calls) does not declare")
+            calls.assert().isEmpty()
+        }
+
+    @Test
     fun `a call that fails should be retried within the saga's budget, then park the order`(): Unit = runBlocking {
         answer = { throw CommandCalls.failure("The mail service is down.") }
         node.start()
@@ -248,8 +341,6 @@ class SagaCallBindingTest {
             setOf(SHOP),
             names,
             null,
-            listOf(Deliver::class.java, String::class.java, RemoveItems::class.java),
-            "MailSaga.onOrderPlaced",
         )
         // A command of the node's own context is derived, not called.
         assertThrownBy<IllegalArgumentException> {
@@ -266,24 +357,10 @@ class SagaCallBindingTest {
         recorded.single().command.causation.assert().isEqualTo(root)
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
-        val none = SagaCalls(null, setOf(SHOP), names, null, listOf(Deliver::class.java))
+        val none = SagaCalls(null, setOf(SHOP), names, null)
         assertThrownBy<WowProblemException> {
             runBlocking { none.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
         }
-    }
-
-    @Test
-    fun `a call of a command class the handler does not declare should be refused`() {
-        val names = CommandTypes { target, command -> "$target.${command.simpleName}" }
-        val calls = SagaCalls({
-            resultOf(it, CommandResult.Status.SUCCEEDED)
-        }, setOf(SHOP), names, null, emptyList(), "MailSaga.onOrderPlaced")
-        assertThrownBy<IllegalArgumentException> {
-            runBlocking { calls.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
-        }.hasMessageContaining(
-            "MailSaga.onOrderPlaced calls"
-        ).hasMessageContaining("its @OnEvent(calls) does not declare")
-        calls.called.assert().isEmpty()
     }
 
     @Test

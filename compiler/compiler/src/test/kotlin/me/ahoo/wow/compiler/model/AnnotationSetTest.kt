@@ -322,7 +322,7 @@ class AnnotationSetTest {
         @Saga
         class Notifying {
             @OnEvent
-            fun onEvent(event: StateEvent<Summary>, context: SagaContext): List<CommandRequest<*>> =
+            fun onEvent(event: StateEvent<Summary>, context: SagaContext): List<CommandRequest<Notify>> =
                 listOf(CommandRequest.to(AggregateType("mail", "box").ref(event.ref.tenantId, "m"), Notify(event.state.id)))
 
             @OnEvent

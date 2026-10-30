@@ -23,9 +23,8 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -114,7 +113,7 @@ class DomainIdsTest {
             return CommandRequest.to(shipment, CreateShipment(event.ref.id))
         }
 
-        fun onCreateRejected(rejected: CommandRejected<CreateShipment>, context: ReceiptContext): CommandRequest<CreateShipment> =
+        fun onCreateRejected(rejected: CommandReceipt.Rejected<CreateShipment>, context: SagaContext): CommandRequest<CreateShipment> =
             CommandRequest.to(
                 SHIPMENT.ref(rejected.ref.tenantId, context.ids.next(SHIPMENT)),
                 CreateShipment(context.ids.next()),
@@ -128,12 +127,23 @@ class DomainIdsTest {
     private fun shipmentSagaHandlers(): List<ProcessorBinding<*>> {
         val saga = ShipmentSaga()
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("ShipmentSaga", "onCreateRejected", CreateShipment::class.java) { rejected, context ->
+            RejectionBinding.of(
+                "ShipmentSaga",
+                "onCreateRejected",
+                CreateShipment::class.java,
+                derives = listOf(CreateShipment::class.java),
+            ) { rejected, context ->
                 requestsOf(saga.onCreateRejected(rejected, context))
             },
         )
         return listOf(
-            ProcessorBinding.saga("ShipmentSaga", "onPlaced", Order::class.java, rejections = rejections) { e, c ->
+            ProcessorBinding.saga(
+                "ShipmentSaga",
+                "onPlaced",
+                Order::class.java,
+                rejections = rejections,
+                derives = listOf(CreateShipment::class.java),
+            ) { e, c ->
                 requestsOf(saga.onPlaced(e, c))
             },
         )
@@ -164,7 +174,7 @@ class DomainIdsTest {
         ShipmentSaga().onPlaced(event, context)!!.id.assert().isEqualTo("a-shipment")
         UUID.fromString(ExecutionSagaContext(execution, event).ids.next()).version().assert().isEqualTo(7)
         val handler = shipmentSagaHandlers().single().rejectionHandlerOf(CreateShipment::class.java)!!
-        val rejected = CommandRejected<CreateShipment>(
+        val rejected = CommandReceipt.Rejected<CreateShipment>(
             commandId = "c-1",
             commandType = "shop.shipment.CreateShipment",
             ref = ShipmentSaga.SHIPMENT.ref("tenant", "s-1"),

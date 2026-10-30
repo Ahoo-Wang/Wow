@@ -49,11 +49,17 @@ class ProcessorQueriesTest {
             "onOrder",
             Order::class.java,
             commits = listOf(
-                CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
+                CommittedBinding.of(
+                    "OrderSaga",
+                    "onReserved",
+                    Reserve::class.java,
+                    derives = listOf(Confirm::class.java),
+                ) { committed, context ->
                     val available = context.queries.snapshots<Stock>().state(committed.ref.id)!!.state.available
                     listOf(CommandRequest.to(committed.source, Confirm(available)))
                 },
             ),
+            derives = listOf(Reserve::class.java),
         ) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0

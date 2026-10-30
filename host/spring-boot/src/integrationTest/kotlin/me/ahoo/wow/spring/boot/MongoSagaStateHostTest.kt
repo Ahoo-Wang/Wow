@@ -89,7 +89,12 @@ class TransferSagaConfiguration {
     fun transferSaga(transfers: Transfers): SubscriptionFactory = SubscriptionBindings(
         mapOf(
             BANK to listOf(
-                ProcessorBinding.saga("TransferSaga", "onDeposited", Account::class.java) { event, context ->
+                ProcessorBinding.saga(
+                    "TransferSaga",
+                    "onDeposited",
+                    Account::class.java,
+                    derives = listOf(Deposit::class.java),
+                ) { event, context ->
                     transfers.handled += "${event.ref.id}@${event.version}:${event.state.balance}"
                     val target = event.state.owner.removePrefix(TARGET).takeIf { event.state.owner.startsWith(TARGET) }
                         ?: return@saga emptyList()

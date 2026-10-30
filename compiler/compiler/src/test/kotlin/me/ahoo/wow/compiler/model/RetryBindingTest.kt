@@ -145,7 +145,7 @@ class RetryBindingTest {
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
-            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.CommandReceipt
             import me.ahoo.wow.api.subscribe.StateEvent
 
             data class Open(val id: String)
@@ -173,7 +173,7 @@ class RetryBindingTest {
 
                 @OnRejected
                 @Retry(maxAttempts = 2)
-                fun onRejected(rejected: CommandRejected<Open>): CommandRequest<Open>? = null
+                fun onRejected(rejected: CommandReceipt.Rejected<Open>): CommandRequest<Open>? = null
             }
             """.trimIndent(),
         )

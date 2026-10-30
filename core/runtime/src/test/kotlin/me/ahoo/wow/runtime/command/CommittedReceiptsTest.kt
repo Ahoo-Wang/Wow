@@ -23,8 +23,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
@@ -66,8 +65,8 @@ class CommittedReceiptsTest {
     private val salesBackends = InMemoryBackends(PARTITIONS)
     private val cancelled = CopyOnWriteArrayList<String>()
     private val confirmed = CopyOnWriteArrayList<String>()
-    private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val commits = CopyOnWriteArrayList<CommandReceipt.Committed<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
 
     @Volatile
     private var refuseConfirmation = false
@@ -158,7 +157,7 @@ class CommittedReceiptsTest {
             wire.replyTo!!.committed.assert().isTrue()
             val receipt = topics.messages(RECEIPTS).single()
             receipt.key.assert().isEqualTo(ORDER.ref(TENANT, "o-1").toString())
-            val committed = receipts().single() as CommandCommitted<*>
+            val committed = receipts().single() as CommandReceipt.Committed<*>
             committed.commandId.assert().isEqualTo(wire.id)
             committed.commandType.assert().isEqualTo("stock.item.Reserve")
             committed.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-1"))
@@ -234,7 +233,7 @@ class CommittedReceiptsTest {
         val sales = salesNode().also { it.start() }
         sales.place("o-2", AVAILABLE + 1)
         eventually { cancelled.size == 1 }
-        (receipts().single() as CommandRejected<*>).error.code.assert().isEqualTo(INSUFFICIENT)
+        (receipts().single() as CommandReceipt.Rejected<*>).error.code.assert().isEqualTo(INSUFFICIENT)
         rejections.size.assert().isEqualTo(1)
         commits.assert().isEmpty()
         confirmed.assert().isEmpty()
@@ -272,7 +271,7 @@ class CommittedReceiptsTest {
             topics.messages(RECEIPTS).assert().isEmpty()
             held.complete(Unit)
             eventually { checkpoint(command.ref) == 1L }
-            (receipts().single() as CommandCommitted<*>).commandId.assert().isEqualTo("c-d")
+            (receipts().single() as CommandReceipt.Committed<*>).commandId.assert().isEqualTo("c-d")
         }
 
     @Test
@@ -290,7 +289,7 @@ class CommittedReceiptsTest {
             nodes -= first
             stockNode = stockNode("stock-2").also { it.start() }
             eventually { topics.messages(RECEIPTS).size == 2 }
-            val (receipt, copy) = receipts().map { it as CommandCommitted<*> }
+            val (receipt, copy) = receipts().map { it as CommandReceipt.Committed<*> }
             copy.commandId.assert().isEqualTo(receipt.commandId)
             copy.ref.assert().isEqualTo(receipt.ref)
             copy.version.assert().isEqualTo(receipt.version)
@@ -314,7 +313,7 @@ class CommittedReceiptsTest {
         // The same request again (a saga that handled its commit again): the same id, decided once.
         send(creation)
         eventually { checkpoint(lane) == 2L }
-        val (first, again) = receipts().map { it as CommandCommitted<*> }
+        val (first, again) = receipts().map { it as CommandReceipt.Committed<*> }
         first.ref.isAssigned.assert().isTrue()
         again.ref.assert().isEqualTo(first.ref)
         again.ref.id.assert().isEqualTo(first.ref.id)

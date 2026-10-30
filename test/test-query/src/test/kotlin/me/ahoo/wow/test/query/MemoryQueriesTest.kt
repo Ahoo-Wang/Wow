@@ -75,7 +75,12 @@ class MemoryQueriesTest {
 
     /** Reserves what the stock has, read from the read side. */
     private val handlers = listOf(
-        ProcessorBinding.saga("OrderSaga", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
+        ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrder",
+            Order::class.java,
+            derives = listOf(Reserve::class.java),
+        ) { event: StateEvent<Order>, context ->
             val sku = event.state.sku
             val available = context.queries.snapshots<Stock>().state(sku)?.state?.available ?: 0
             listOf(CommandRequest.to(STOCK.ref(context.queries.tenantId, sku), Reserve(sku, available)))

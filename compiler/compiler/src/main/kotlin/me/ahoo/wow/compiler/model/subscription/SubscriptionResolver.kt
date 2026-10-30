@@ -34,9 +34,7 @@ import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.DerivingContext
-import me.ahoo.wow.api.subscribe.JobContext
-import me.ahoo.wow.api.subscribe.ReceiptContext
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -46,9 +44,6 @@ import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
-import me.ahoo.wow.compiler.model.symbol.classOf
-import me.ahoo.wow.compiler.model.symbol.commandClassesOf
-import me.ahoo.wow.compiler.model.symbol.concreteClasses
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 
@@ -62,17 +57,18 @@ import me.ahoo.wow.compiler.model.symbol.javaTypeOf
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a
  *   `CommandRequest`, or an `Iterable`, a `Sequence` or a `Flow` of them), or nothing (`Unit`: it derives none); any
  *   of them may instead return a Reactor publisher;
- * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
- *   declares `@OnEvent(derives)`, each a command class or a sealed type, which stands for its
- *   concrete subclasses; a handler that returns `Unit` declares none. A returned `CommandRequest<S>` of a sealed `S` derives
- *   the concrete subclasses of `S`. Only a saga's handler declares `@OnEvent(calls)`, the commands it sends with
- *   `SagaContext.call`, named as `derives` names them;
- * - an `@OnRejected` handler is a saga's, takes a `CommandRejected` and, optionally, the
- *   `ReceiptContext`, returns what a saga's handler returns (`Unit` to accept the rejection), and is not
+ * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context;
+ * - only a saga's handler, of any kind, declares `@Sends` ([SendsResolver]): what it derives, schedules and calls,
+ *   each a command class or a sealed type, which stands for its concrete subclasses. A handler that returns commands
+ *   of no named class (`CommandRequest<*>`) declares what it derives; one that returns `Unit` declares none. A
+ *   returned `CommandRequest<S>` of a sealed `S` derives the concrete subclasses of `S`;
+ * - an `@OnRejected` handler is a saga's, takes a `CommandReceipt.Rejected` and, optionally, the
+ *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection), and is not
  *   an `@OnEvent` handler too; no two of a saga take
- *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
- * - an `@OnCommitted` handler likewise, taking a `CommandCommitted` instead: no handler is both, nor
- *   two of a saga the receipts of the same command class;
+ *   the rejections of the same command class, or both of every command (`CommandReceipt.Rejected<*>`);
+ * - an `@OnCommitted` handler likewise, taking a `CommandReceipt.Committed` instead, no two of a saga the receipts
+ *   of the same command class; a handler of both receipts is annotated both and takes a `CommandReceipt`, bound on
+ *   both paths;
  * - no annotation outside the annotation set ([AnnotationSet]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`;
@@ -100,9 +96,11 @@ internal object SubscriptionResolver {
     val ON_REJECTED: String = Receipt.REJECTED.annotation
     val ON_COMMITTED: String = Receipt.COMMITTED.annotation
     private const val AGGREGATES = "aggregates"
-    private const val DERIVES = "derives"
-    private const val SCHEDULES = "schedules"
-    private const val CALLS = "calls"
+
+    /** The receipt of either outcome, which a handler of both receipts takes. */
+    private val RECEIPT = CommandReceipt::class.java.name
+    private const val RECEIPT_NAME = "CommandReceipt"
+    private const val BOTH_RECEIPTS = "@OnRejected and @OnCommitted"
 
     /** The prefix of Wow's built-in subscriptions, which no processor's name takes. */
     private const val RESERVED_PREFIX = "wow."
@@ -126,16 +124,12 @@ internal object SubscriptionResolver {
         "kotlin.sequences.Sequence",
         "kotlinx.coroutines.flow.Flow",
     )
-    private val RECEIPT_CONTEXT = ReceiptContext::class.java.name
+
+    /** The context of every handler of a saga: its `@OnEvent`, receipt and job handlers alike. */
+    private val SAGA_CONTEXT = SagaContext::class.java.name
 
     /** Every handler context: none is a handler's first parameter. */
-    private val CONTEXTS = setOf(
-        SubscriptionContext::class.java.name,
-        DerivingContext::class.java.name,
-        SagaContext::class.java.name,
-        RECEIPT_CONTEXT,
-        JobContext::class.java.name,
-    )
+    private val CONTEXTS = setOf(SubscriptionContext::class.java.name, SAGA_CONTEXT)
 
     @OptIn(KspExperimental::class)
     fun resolve(
@@ -166,6 +160,7 @@ internal object SubscriptionResolver {
         processor.getDeclaredFunctions().forEach {
             problems += AnnotationSet.problemsOfFunction(it, "processor $className", processor = true)
         }
+        problems += straySends(processor, className)
         (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
             .filterValues { it.size > 1 }.keys.forEach {
                 problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
@@ -199,23 +194,15 @@ internal object SubscriptionResolver {
             rejections = rejections,
             commits = commits,
             internal = processor.isInternal() || !isObject && constructorOf(processor)?.isInternal() == true,
-            warnings = if (kind == Kind.SAGA) handlers.mapNotNull(::unknownDerives) else emptyList(),
         )
     }
 
-    /**
-     * The warning of a saga's `@OnEvent` [handler] whose return type names no command class (`CommandRequest<*>`, a
-     * list of requests of several classes) and that declares no `@OnEvent(derives)`: the Manifest cannot list what it
-     * derives, so wait chains and contract checks do not see those commands.
-     */
-    private fun unknownDerives(handler: HandlerBinding): String? =
-        if (handler.job == null && handler.derived == null && handler.derives.isEmpty()) {
-            "handler ${handler.subscription} returns command requests of no named class and declares no " +
-                "@OnEvent(derives): name them in @OnEvent(derives) (or a sealed type of them), or return " +
-                "CommandRequest<X>, so the Manifest lists what it derives"
-        } else {
-            null
-        }
+    /** `@Sends` on a function of [processor] that is no handler: it declares what nothing sends. */
+    private fun straySends(processor: KSClassDeclaration, className: String): List<String> =
+        processor.getAllFunctions().filter { it.isHandler(SendsResolver.SENDS) && !isHandlerOfAnyKind(it) }.map {
+            "processor $className's function ${it.simpleName.asString()} declares @Sends but is no handler: " +
+                "@Sends goes on a saga's @OnEvent, @OnRejected, @OnCommitted or @OnSchedule handler"
+        }.toList()
 
     /** A processor of none of the kinds, or of more than one. */
     private fun nameProblems(className: String, name: String): List<String> =
@@ -253,8 +240,7 @@ internal object SubscriptionResolver {
         reactorTypes: Set<String>,
         problems: MutableList<String>,
     ): List<ReceiptBinding> {
-        val bound = functions.filterNot { receipt == Receipt.COMMITTED && it.isHandler(ON_REJECTED) }
-            .mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
+        val bound = functions.mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
         bound.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
             problems += "processor $className has two ${receipt.label} handlers of the ${receipt.nouns} of " +
                 "${command ?: "every command (${receipt.parameterName}<*>)"}: ${same.joinToString { it.function }}"
@@ -278,14 +264,6 @@ internal object SubscriptionResolver {
                 "handler $name.${it.simpleName.asString()} is both @OnEvent and ${receipt.label}: a handler takes " +
                     "either a state event or a ${receipt.noun}",
             )
-        }
-        if (receipt == Receipt.COMMITTED) {
-            functions.filter { it.isHandler(ON_REJECTED) }.forEach {
-                add(
-                    "handler $name.${it.simpleName.asString()} is both @OnRejected and @OnCommitted: a handler takes " +
-                        "either the rejection of a command or the receipt of its commit",
-                )
-            }
         }
         functions.filter { it.isHandler(RETRY) }.forEach {
             add(
@@ -316,6 +294,14 @@ internal object SubscriptionResolver {
         Receipt.entries.none { function.isHandler(it.annotation) } &&
             !function.isHandler(ScheduleJobResolver.ON_SCHEDULE) &&
             function.isHandler(ON_EVENT)
+
+    /** Whether [function] is a handler of any kind: `@OnEvent`, `@OnRejected`, `@OnCommitted` or `@OnSchedule`. */
+    private fun isHandlerOfAnyKind(function: KSFunctionDeclaration): Boolean =
+        (Receipt.entries.map { it.annotation } + ON_EVENT + ScheduleJobResolver.ON_SCHEDULE).any {
+            function.isHandler(
+                it
+            )
+        }
 
     /** Whether this function, or one it overrides, carries [annotation] ([annotatedIn]). */
     private fun KSFunctionDeclaration.isHandler(annotation: String): Boolean = annotatedIn(annotation) != null
@@ -402,13 +388,8 @@ internal object SubscriptionResolver {
         }
         val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
-        val declared = onEvent.classes(DERIVES)
-        val derives = commandClasses(where, "derives", declared, problems).map { it.binaryName() }
-        val schedules = commandClasses(where, SCHEDULES, onEvent.classes(SCHEDULES), problems).map { it.binaryName() }
-        val calls = callsOf(where, onEvent, kind, problems)
+        val sends = SendsResolver.resolve(function, where, kind == Kind.SAGA, kind?.label, returned, reactor, problems)
         problems += sourceProblems(where, aggregates)
-        problems += derivesProblems(where, declared.isNotEmpty(), kind, returned)
-        problems += schedulesProblems(where, schedules, kind)
         val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
         if (problems.size > count) {
             return null
@@ -423,12 +404,8 @@ internal object SubscriptionResolver {
             reactor = reactor,
             blocking = function.isHandler(BLOCKING),
             aggregates = aggregates,
-            derives = derives,
-            schedules = schedules,
-            calls = calls.map { it.binaryName() },
-            callSources = calls.map { it.qualifiedName!!.asString() },
+            sends = sends,
             start = startOf(function),
-            derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
         )
         if (first!!.qualifiedName() != STATE_EVENT) {
@@ -472,82 +449,9 @@ internal object SubscriptionResolver {
         }
     }
 
-    /** `@OnEvent(derives)`: a saga's, whose handler does not return `Unit`. */
-    private fun derivesProblems(where: String, declared: Boolean, kind: Kind?, returned: KSType?): List<String> =
-        buildList {
-            if (declared && kind != null && kind != Kind.SAGA) {
-                add("$where declares @OnEvent(derives), but a ${kind.label} handler derives no commands")
-            }
-            if (declared && returned?.qualifiedName() == UNIT) {
-                add("$where returns Unit, so it derives no commands, but declares @OnEvent(derives)")
-            }
-        }
-
-    /** `@OnEvent(calls)`: the command classes a saga's handler calls with `SagaContext.call`. */
-    private fun callsOf(
-        where: String,
-        onEvent: KSAnnotation?,
-        kind: Kind?,
-        problems: MutableList<String>,
-    ): List<KSClassDeclaration> {
-        val calling = onEvent.classes(CALLS)
-        if (calling.isNotEmpty() && kind != null && kind != Kind.SAGA) {
-            problems += "$where declares @OnEvent(calls), but a ${kind.label} handler calls no other context"
-        }
-        return commandClasses(where, CALLS, calling, problems)
-    }
-
     /**
-     * The command classes [types] name, as `@OnEvent(member)` declares them: a
-     * class names itself, a sealed type its concrete subclasses, transitively. `Any`, and an interface or an abstract
-     * class that is not sealed, name no command class: a problem.
-     */
-    private fun commandClasses(
-        where: String,
-        member: String,
-        types: List<KSType>,
-        problems: MutableList<String>,
-    ): List<KSClassDeclaration> = types.flatMap { type ->
-        val classes = commandClassesOf(type)
-        if (classes.isEmpty()) {
-            problems += "$where $member ${type.render()}, which is no command class: " +
-                "@OnEvent($member) names command classes, or a sealed type whose subclasses they are"
-        }
-        classes
-    }.distinctBy { it.binaryName() }
-
-    /** `@OnEvent(schedules)`: a saga's alone. */
-    private fun schedulesProblems(where: String, schedules: List<String>, kind: Kind?): List<String> = buildList {
-        if (schedules.isNotEmpty() && kind != null && kind != Kind.SAGA) {
-            add("$where declares @OnEvent(schedules), but a ${kind.label} handler schedules no commands")
-        }
-    }
-
-    /**
-     * The binary names of the command classes a saga's handler returns ([returned], or what the Reactor publisher it
-     * returns emits): `X` of a `CommandRequest<X>` or of an `Iterable`, a `Sequence` or a `Flow` of them, the concrete subclasses of `X` when it is sealed;
-     * none for `Unit`; null when the type does not name the class (`CommandRequest<*>`, `CommandRequest<Any>`).
-     */
-    private fun derivedClasses(returned: KSType, reactor: Boolean): List<String>? {
-        if (!reactor && returned.qualifiedName() == UNIT) {
-            return emptyList()
-        }
-        val emitted = if (reactor) returned.arguments.firstOrNull()?.type?.resolve() ?: return null else returned
-        val command = if (emitted.qualifiedName() == REQUEST) {
-            emitted
-        } else {
-            emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == REQUEST } ?: return null
-        }
-        val declaration = command.arguments.firstOrNull()?.type?.resolve()?.declaration?.classOf()
-        if (declaration != null && Modifier.SEALED in declaration.modifiers) {
-            return concreteClasses(declaration).map { it.binaryName() }.ifEmpty { null }
-        }
-        return commandClass(command)?.let(::listOf)
-    }
-
-    /**
-     * The binary name of the class [type], a `CommandRequest<X>`, a `CommandRejected<X>` or a `CommandCommitted<X>`, takes;
-     * null for `*` or `Any`.
+     * The binary name of the class [type], a `CommandReceipt<X>`, a `CommandReceipt.Rejected<X>` or a
+     * `CommandReceipt.Committed<X>`, takes; null for `*` or `Any`.
      */
     private fun commandClass(type: KSType): String? {
         val argument = type.arguments.firstOrNull()?.type?.resolve() ?: return null
@@ -572,24 +476,24 @@ internal object SubscriptionResolver {
         }
         val parameters = function.parameters.map { it.type.resolve() }
         val first = parameters.firstOrNull()
-        if (first == null || first.qualifiedName() != receipt.parameter) {
-            problems += "$where must take a ${receipt.parameter} first, not ${first?.qualifiedName() ?: "nothing"}: " +
-                "an ${receipt.label} handler receives the ${receipt.noun} of a command the saga derived"
-        }
+        // A handler of both receipts is bound on both paths: each describes it alike, so a problem is reported once.
+        val both = Receipt.entries.all { function.isHandler(it.annotation) }
+        val label = if (both) BOTH_RECEIPTS else receipt.label
+        val parameter = if (both) RECEIPT_NAME else receipt.parameterName
+        problems += receiptParameterProblems(where, receipt, both, first?.qualifiedName())
         val context = parameters.getOrNull(1)?.qualifiedName()
-        if (context != null && context != RECEIPT_CONTEXT) {
-            problems += "$where takes $context: an ${receipt.label} handler takes a $RECEIPT_CONTEXT after the " +
-                "${receipt.noun}, if anything"
+        if (context != null && context != SAGA_CONTEXT) {
+            problems += "$where takes $context: an $label handler takes a $SAGA_CONTEXT after the receipt, if anything"
         }
         if (parameters.size > 2) {
-            problems += "$where takes ${parameters.size} parameters: an ${receipt.label} handler takes " +
-                "(${receipt.parameterName}[, ReceiptContext])"
+            problems += "$where takes ${parameters.size} parameters: an $label handler takes ($parameter[, SagaContext])"
         }
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
         if (returned != null && !reactor) {
             returnProblem(Kind.SAGA, returned)?.let { problems += "$where $it" }
         }
+        val sends = SendsResolver.resolve(function, where, true, null, returned, reactor, problems)
         if (problems.size > count) {
             return null
         }
@@ -604,15 +508,48 @@ internal object SubscriptionResolver {
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
             blocking = function.isHandler(BLOCKING),
-            derived = returned?.let { derivedClasses(it, reactor) },
+            sends = sends,
             receipt = receipt,
         )
     }
 
-    /** The class array argument [name] of this annotation, empty without the annotation or the argument. */
-    private fun KSAnnotation?.classes(name: String): List<KSType> =
-        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
-            .filterIsInstance<KSType>()
+    /**
+     * What is wrong with the receipt a [receipt] handler takes, [taken] (its qualified name): a handler of one receipt
+     * takes that receipt (`CommandReceipt.Rejected<C>`, `CommandReceipt.Committed<C>`), and a handler of [both], one
+     * annotated `@OnRejected` and `@OnCommitted`, takes a `CommandReceipt<C>`: each annotation declares one path, and
+     * the parameter's type alone picks none.
+     */
+    private fun receiptParameterProblems(
+        where: String,
+        receipt: Receipt,
+        both: Boolean,
+        taken: String?,
+    ): List<String> {
+        val other = Receipt.entries.single { it != receipt }
+        val problem = when {
+            both && taken != RECEIPT ->
+                "$where is $BOTH_RECEIPTS, so it takes a $RECEIPT_NAME<C> first, not " +
+                    "${taken ?: "nothing"}: a handler of both receipts tells them apart itself"
+
+            both -> null
+
+            taken == RECEIPT ->
+                "$where takes a $RECEIPT_NAME<C>, the receipt of either outcome, but is only " +
+                    "${receipt.label}: annotate it ${other.label} too, or take a ${receipt.parameterName}<C>"
+
+            taken == other.parameter ->
+                "$where is ${receipt.label} but takes a ${other.parameterName}<C>: annotate it " +
+                    "${other.label} instead, or take a ${receipt.parameterName}<C>"
+
+            taken != receipt.parameter ->
+                "$where must take a ${receipt.parameterName} first, not " +
+                    "${taken ?: "nothing"}: an ${receipt.label} handler receives the ${receipt.noun} of a command the saga " +
+                    "sent"
+
+            else -> null
+        }
+        return listOfNotNull(problem)
+    }
 
     /** The string array argument [name] of this annotation, empty without the annotation or the argument. */
     private fun KSAnnotation?.strings(name: String): List<String> =

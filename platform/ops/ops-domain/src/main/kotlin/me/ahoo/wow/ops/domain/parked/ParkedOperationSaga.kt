@@ -23,7 +23,7 @@ import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
@@ -86,7 +86,7 @@ class ParkedOperationSaga {
 
     /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
     @OnRejected
-    fun onActionRejected(rejected: CommandRejected<*>): CommandRequest<RecordActionRefused> =
+    fun onActionRejected(rejected: CommandReceipt.Rejected<*>): CommandRequest<RecordActionRefused> =
         CommandRequest.to(
             rejected.source,
             RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message),

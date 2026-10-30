@@ -27,6 +27,7 @@ import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
+import me.ahoo.wow.kernel.UndeclaredSendException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 
@@ -50,12 +51,22 @@ class ProcessorForkTest {
 
     private fun sagaHandlers(quantities: Quantities): List<ProcessorBinding<*>> {
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("OrderSaga", "onRejected", Reserve::class.java) { rejected, context ->
+            RejectionBinding.of(
+                "OrderSaga",
+                "onRejected",
+                Reserve::class.java,
+                derives = listOf(Cancel::class.java),
+            ) { rejected, context ->
                 listOf(CommandRequest.to(rejected.source, Cancel(rejected.error.message)))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
-            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
+            CommittedBinding.of(
+                "OrderSaga",
+                "onReserved",
+                Reserve::class.java,
+                derives = listOf(Confirm::class.java),
+            ) { committed, context ->
                 listOf(CommandRequest.to(committed.source, Confirm(committed.version)))
             },
         )
@@ -66,6 +77,7 @@ class ProcessorForkTest {
                 Order::class.java,
                 rejections = rejections,
                 commits = commits,
+                derives = listOf(Reserve::class.java),
             ) { event: StateEvent<Order>, context ->
                 val placed = event.events.filterIsInstance<OrderPlaced>().single()
                 listOf(CommandRequest.to(stock, Reserve(event.ref.id, quantities.of(placed.total))))
@@ -156,7 +168,7 @@ class ProcessorForkTest {
         )
         sagaSpec(undeclared) {
             answerCalls { committedResult(it) }
-            whenEvent(placed(1)) { expectError<IllegalArgumentException>() }
+            whenEvent(placed(1)) { expectError<UndeclaredSendException>() }
         }
     }
 
@@ -181,11 +193,11 @@ class ProcessorForkTest {
                 fork { }
             }
             whenRejected(
-                commandRejected(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"),
+                rejectedReceipt(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"),
                 Reserve::class
             ) { }
             whenCommitted(
-                commandCommitted(Command("c", "r", stock, Reserve("o", 1)), executionOf()),
+                committedReceipt(Command("c", "r", stock, Reserve("o", 1)), executionOf()),
                 Reserve::class
             ) { }
             whenEvent(stateEvent(order, Order("order-1"), Cancel("no"))) { }

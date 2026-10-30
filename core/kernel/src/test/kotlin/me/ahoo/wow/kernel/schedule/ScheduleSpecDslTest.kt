@@ -60,7 +60,13 @@ class ScheduleSpecDslTest {
     private val nightly = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"))
 
     private val handlers = listOf(
-        ProcessorBinding.schedule("BillingSaga", "onInvoice", invoice, context = "billing") { tick, context ->
+        ProcessorBinding.schedule(
+            "BillingSaga",
+            "onInvoice",
+            invoice,
+            context = "billing",
+            derives = listOf(IssueInvoices::class.java),
+        ) { tick, context ->
             listOf(
                 CommandRequest.to(
                     account.ref(tick.tenantId, "all"),
@@ -68,7 +74,13 @@ class ScheduleSpecDslTest {
                 )
             )
         },
-        ProcessorBinding.schedule("BillingSaga", "onSweep", sweep, context = "billing") { tick, context ->
+        ProcessorBinding.schedule(
+            "BillingSaga",
+            "onSweep",
+            sweep,
+            context = "billing",
+            derives = listOf(Sweep::class.java),
+        ) { tick, context ->
             listOf(CommandRequest.to(account.ref(tick.tenantId, "sweep"), Sweep(tick.partition, tick.slot)))
         },
         ProcessorBinding.schedule("BillingSaga", "onNightly", nightly, context = "billing") { _, _ -> emptyList() },
@@ -188,7 +200,8 @@ class ScheduleSpecDslTest {
             "BillingSaga",
             "onInvoice",
             invoice,
-            context = "billing"
+            context = "billing",
+            derives = listOf(Charge::class.java),
         ) { tick, context ->
             val limit = context.queries.snapshots<Account>().state("all")!!.state.limit
             listOf(CommandRequest.to(account.ref(tick.tenantId, "all"), Charge(limit)))

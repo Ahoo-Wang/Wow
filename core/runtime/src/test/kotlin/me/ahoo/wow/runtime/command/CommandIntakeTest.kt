@@ -27,7 +27,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.ExecutorOptions
@@ -72,7 +72,7 @@ class CommandIntakeTest {
     private val stockBackends = InMemoryBackends(PARTITIONS)
     private val salesBackends = InMemoryBackends(PARTITIONS)
     private val cancelled = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
 
     @AfterEach
     fun stop(): Unit = runBlocking {

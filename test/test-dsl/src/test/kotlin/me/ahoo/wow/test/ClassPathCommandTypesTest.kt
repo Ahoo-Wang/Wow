@@ -89,7 +89,12 @@ class ClassPathCommandTypesTest {
         val previous = Thread.currentThread().contextClassLoader
         Thread.currentThread().contextClassLoader = loaderOf("local", "peer")
         try {
-            val saga = ProcessorBinding.saga<String>("OrderSaga", "onPlaced", String::class.java) { event, context ->
+            val saga = ProcessorBinding.saga<String>(
+                "OrderSaga",
+                "onPlaced",
+                String::class.java,
+                derives = listOf(Reserve::class.java, Place::class.java),
+            ) { event, context ->
                 listOf(CommandRequest.of(Reserve(event.ref.id), "product-1"), CommandRequest.of(Place("next")))
             }
             val placed = StateEvent(order.ref("acme", "o-1"), 1, "c-1", "r-1", "shop.order.Place", 1L, listOf("p"), "s")

@@ -17,8 +17,8 @@ import java.lang.annotation.Inherited
 
 /**
  * A handler of a [Saga] for the success receipt of a command the saga derived, the counterpart
- * of [OnRejected]: it takes a [me.ahoo.wow.api.subscribe.CommandCommitted] of the command's type (or of `*`, for every
- * command the saga derives) and, optionally, the `ReceiptContext`, and returns the commands it derives in turn, as an
+ * of [OnRejected]: it takes a [me.ahoo.wow.api.subscribe.CommandReceipt.Committed] of the command's type (or of `*`, for every
+ * command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an
  * [OnEvent] handler of a saga does.
  *
  * Only the commands it takes ask for a receipt: the compiler writes the handler into the Manifest, and a command the
@@ -26,6 +26,9 @@ import java.lang.annotation.Inherited
  * is committed, before it moves past the command. A command of the saga's own context is committed
  * within the saga's handling, which hands its receipt here right after. The receipt is not a hop of a wait chain:
  * `Wow-Wait` follows the derived command as before. Each handler is its own subscription, named `processor.function`.
+ *
+ * A handler of both receipts of a command is annotated [OnRejected] too and takes a
+ * [me.ahoo.wow.api.subscribe.CommandReceipt] of the command's type; each annotation declares its own path.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

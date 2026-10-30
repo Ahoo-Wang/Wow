@@ -27,7 +27,7 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.net.URLClassLoader
 
 /**
- * Decision D259 (DX-1 ③ and ⑥, DX gaps G26 and G29): `@OnEvent(derives)` names command classes, a sealed type standing
+ * Decision D259 (DX-1 ③ and ⑥, DX gaps G26 and G29): `@Sends(derives)` names command classes, a sealed type standing
  * for its concrete subclasses, of the module or of a peer's api (a library); a returned `Command<S>` of a sealed `S`
  * derives the subclasses of `S`; a saga's handler, and its `@OnRejected` and `@OnCommitted` handlers, may return `Unit`,
  * deriving none.
@@ -105,13 +105,12 @@ class DerivedCommandsTest {
         import kotlinx.coroutines.flow.emptyFlow
         import me.ahoo.wow.api.annotation.OnCommitted
         import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.Sends
         import me.ahoo.wow.api.annotation.OnRejected
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.CommandCommitted
-        import me.ahoo.wow.api.subscribe.ReceiptContext
-        import me.ahoo.wow.api.subscribe.CommandRejected
+        import me.ahoo.wow.api.subscribe.CommandReceipt
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import peer.ConfirmPayment
@@ -129,13 +128,13 @@ class DerivedCommandsTest {
             @OnEvent
             fun local(event: StateEvent<Order>): CommandRequest<OrderCommand>? = null
 
-            @OnEvent(derives = [PaymentOutcome::class])
+            @OnEvent @Sends(derives = [PaymentOutcome::class])
             fun declaredSealed(event: StateEvent<Order>): CommandRequest<*>? = null
 
-            @OnEvent(derives = [ConfirmPayment::class, CancelOrder::class])
+            @OnEvent @Sends(derives = [ConfirmPayment::class, CancelOrder::class])
             fun declaredClasses(event: StateEvent<Order>): List<CommandRequest<*>> = emptyList()
 
-            @OnEvent(derives = [PaymentOutcome::class])
+            @OnEvent @Sends(derives = [PaymentOutcome::class])
             fun narrower(event: StateEvent<Order>): CommandRequest<ConfirmPayment>? = null
 
             @OnEvent
@@ -145,16 +144,13 @@ class DerivedCommandsTest {
             fun flow(event: StateEvent<Order>): Flow<CommandRequest<CancelOrder>> = emptyFlow()
 
             @OnEvent
-            fun unknown(event: StateEvent<Order>): List<CommandRequest<*>> = emptyList()
-
-            @OnEvent
             suspend fun nothing(event: StateEvent<Order>, context: SagaContext) = Unit
 
             @OnRejected
-            fun onRejected(rejected: CommandRejected<ConfirmPayment>) = Unit
+            fun onRejected(rejected: CommandReceipt.Rejected<ConfirmPayment>) = Unit
 
             @OnCommitted
-            suspend fun onCommitted(committed: CommandCommitted<ConfirmPayment>, context: ReceiptContext) {
+            suspend fun onCommitted(committed: CommandReceipt.Committed<ConfirmPayment>, context: SagaContext) {
                 context.executionId
             }
         }
@@ -190,12 +186,6 @@ class DerivedCommandsTest {
         subscriptions.getValue("narrower").derives.assert().isEqualTo(payment)
         subscriptions.getValue("sequence").derives.assert().isEqualTo(listOf(ref("peer.ConfirmPayment")))
         subscriptions.getValue("flow").derives.assert().isEqualTo(listOf("shop.order.CancelOrder"))
-        // A return type that names no class leaves the Manifest short of what the handler derives: a warning.
-        subscriptions.getValue("unknown").derives.assert().isNull()
-        result.messages.assert().contains(
-            "handler PaymentSaga.unknown returns command requests of no named class and declares no @OnEvent(derives)",
-        )
-        result.messages.assert().doesNotContain("handler PaymentSaga.inferred returns command requests of no named")
         subscriptions.getValue("nothing").derives.assert().isEqualTo(emptyList<String>())
         subscriptions.getValue("onRejected").derives.assert().isEqualTo(emptyList<String>())
         subscriptions.getValue("onRejected").rejected.assert().isEqualTo(listOf(ref("peer.ConfirmPayment")))
@@ -211,6 +201,7 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
@@ -221,10 +212,10 @@ class DerivedCommandsTest {
 
             @Saga
             class BrokenSaga {
-                @OnEvent(derives = [NoCommand::class, StockCommand.Custom::class])
+                @OnEvent @Sends(derives = [NoCommand::class, StockCommand.Custom::class])
                 fun noCommand(event: StateEvent<Order>): CommandRequest<*>? = null
 
-                @OnEvent(derives = [ConfirmPayment::class])
+                @OnEvent @Sends(derives = [ConfirmPayment::class])
                 fun nothing(event: StateEvent<Order>) = Unit
             }
             """.trimIndent(),
@@ -232,36 +223,35 @@ class DerivedCommandsTest {
         val (_, result) = compileModelAgainst("generate", options, listOf(peerApi), model, broken)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
-            .contains("handler BrokenSaga.noCommand derives peer.NoCommand, which is no command class")
-            .contains("handler BrokenSaga.noCommand derives peer.StockCommand.Custom, which is no command class")
+            .contains("handler BrokenSaga.noCommand sends peer.NoCommand in @Sends(derives), which is no command class")
             .contains(
-                "handler BrokenSaga.nothing returns Unit, so it derives no commands, but declares @OnEvent(derives)"
+                "handler BrokenSaga.noCommand sends peer.StockCommand.Custom in @Sends(derives), which is no command class"
+            )
+            .contains(
+                "handler BrokenSaga.nothing returns Unit, so it derives no commands, but declares @Sends(derives)"
             )
     }
 
     @Test
-    fun `objects and type aliases should name commands, and a sealed type without subclasses none`() {
+    fun `objects and type aliases should name commands`() {
         val extras = SourceFile.kotlin(
             "Extras.kt",
             """
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
-            import peer.NoCommand
             import peer.Pay
             import peer.Refresh
 
             @Saga
             class Extras {
-                @OnEvent(derives = [Refresh::class, Pay::class])
+                @OnEvent @Sends(derives = [Refresh::class, Pay::class])
                 fun objects(event: StateEvent<Order>): CommandRequest<*>? = null
-
-                @OnEvent
-                fun none(event: StateEvent<Order>): CommandRequest<NoCommand>? = null
             }
             """.trimIndent(),
         )
@@ -272,8 +262,63 @@ class DerivedCommandsTest {
             .contexts.single().subscriptions.associateBy { it.name.substringAfter('.') }
         subscriptions.getValue("objects").derives.assert()
             .isEqualTo(listOf(ref("peer.ConfirmPayment"), ref("peer.Refresh")))
-        // A sealed type no class implements names no command: the return type does not say.
-        subscriptions.getValue("none").derives.assert().isNull()
+    }
+
+    @Test
+    fun `a saga's handler whose return type names no command class should declare what it derives`() {
+        val untyped = SourceFile.kotlin(
+            "Untyped.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnCommitted
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.OnSchedule
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
+            import me.ahoo.wow.api.schedule.ScheduleTick
+            import me.ahoo.wow.api.subscribe.CommandReceipt
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import peer.ConfirmPayment
+            import peer.NoCommand
+            import reactor.core.publisher.Flux
+
+            @Saga
+            class UntypedSaga {
+                @OnEvent
+                fun star(event: StateEvent<Order>): List<CommandRequest<*>> = emptyList()
+
+                @OnEvent
+                fun any(event: StateEvent<Order>): CommandRequest<Any>? = null
+
+                @OnEvent
+                fun none(event: StateEvent<Order>): CommandRequest<NoCommand>? = null
+
+                @OnRejected
+                fun onRejected(rejected: CommandReceipt.Rejected<ConfirmPayment>): Flux<CommandRequest<*>> = Flux.empty()
+
+                @OnCommitted
+                fun onCommitted(committed: CommandReceipt.Committed<ConfirmPayment>): CommandRequest<*>? = null
+
+                @OnSchedule(name = "sweep", cron = "0 0 3 * * *")
+                fun sweep(tick: ScheduleTick): List<CommandRequest<*>> = emptyList()
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModelAgainst("generate", options, listOf(peerApi), model, untyped)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        val fix = "which names no command class: declare what it derives with @Sends(derives = [...])"
+        result.messages.assert()
+            .contains(
+                "handler UntypedSaga.star returns kotlin.collections.List<me.ahoo.wow.api.client.CommandRequest<*>>, $fix"
+            )
+            .contains("handler UntypedSaga.any returns me.ahoo.wow.api.client.CommandRequest<kotlin.Any>?, $fix")
+            // A sealed type no class implements names no command either.
+            .contains("handler UntypedSaga.none returns me.ahoo.wow.api.client.CommandRequest<peer.NoCommand>?, $fix")
+            .contains("handler UntypedSaga.onRejected returns reactor.core.publisher.Flux<")
+            .contains("handler UntypedSaga.onCommitted returns me.ahoo.wow.api.client.CommandRequest<*>?, $fix")
+            .contains("handler UntypedSaga.sweep returns kotlin.collections.List<")
     }
 
     @Test
@@ -284,13 +329,14 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.StateEvent
             import peer.ConfirmPayment
 
             class Kindless {
-                @OnEvent(derives = [ConfirmPayment::class])
+                @OnEvent @Sends(derives = [ConfirmPayment::class])
                 fun onEvent(event: StateEvent<Order>): CommandRequest<ConfirmPayment>? = null
             }
             """.trimIndent(),
@@ -308,6 +354,7 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
@@ -317,7 +364,7 @@ class DerivedCommandsTest {
 
             @Saga
             class Undeclared {
-                @OnEvent(derives = [ConfirmPayment::class])
+                @OnEvent @Sends(derives = [ConfirmPayment::class])
                 fun onEvent(event: StateEvent<Order>): CommandRequest<PaymentOutcome>? = null
             }
             """.trimIndent(),
@@ -325,8 +372,7 @@ class DerivedCommandsTest {
         val (_, result) = compileModelAgainst("generate", options, listOf(peerApi), model, undeclared)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
-            "handler Undeclared.onEvent of sample.Undeclared returns peer.FailPayment, which its @OnEvent(derives) " +
-                "does not list",
+            "handler Undeclared.onEvent returns peer.FailPayment, which its @Sends(derives) does not list",
         )
     }
 
@@ -338,6 +384,7 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.SagaContext
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -346,7 +393,7 @@ class DerivedCommandsTest {
 
             @Saga
             class CheckoutSaga {
-                @OnEvent(calls = [ConfirmPayment::class, StockCommand.Adjust::class])
+                @OnEvent @Sends(calls = [ConfirmPayment::class, StockCommand.Adjust::class])
                 suspend fun onPlaced(event: StateEvent<Order>, context: SagaContext) = Unit
             }
             """.trimIndent(),
@@ -366,7 +413,10 @@ class DerivedCommandsTest {
             result.classLoader
         )
         val binding = ModelProvider.load(loader).single().processors(Dependencies.NONE).single()
-        binding.calls.map { it.name }.assert().containsExactly("peer.ConfirmPayment", "peer.StockCommand\$Adjust\$Up")
+        binding.sends.calls.map { it.name }.assert().containsExactly(
+            "peer.ConfirmPayment",
+            "peer.StockCommand\$Adjust\$Up"
+        )
     }
 
     @Test
@@ -377,6 +427,7 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Reactor
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.StateEvent
@@ -384,13 +435,13 @@ class DerivedCommandsTest {
 
             @Reactor
             class Notifier {
-                @OnEvent(calls = [ConfirmPayment::class])
+                @OnEvent @Sends(calls = [ConfirmPayment::class])
                 fun onEvent(event: StateEvent<Order>) = Unit
             }
 
             @Saga
             class SelfCalling {
-                @OnEvent(calls = [Any::class])
+                @OnEvent @Sends(calls = [Any::class])
                 fun onEvent(event: StateEvent<Order>) = Unit
             }
             """.trimIndent(),
@@ -399,9 +450,9 @@ class DerivedCommandsTest {
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
             .contains(
-                "handler Notifier.onEvent declares @OnEvent(calls), but a @Reactor handler calls no other context"
+                "handler Notifier.onEvent declares @Sends, but a @Reactor handler sends no commands: only a @Saga's do"
             )
-            .contains("handler SelfCalling.onEvent calls kotlin.Any, which is no command class")
+            .contains("handler SelfCalling.onEvent sends kotlin.Any in @Sends(calls), which is no command class")
 
         val own = SourceFile.kotlin(
             "Own.kt",
@@ -409,12 +460,13 @@ class DerivedCommandsTest {
             package sample
 
             import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Sends
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
             class SelfCalling {
-                @OnEvent(calls = [CancelOrder::class])
+                @OnEvent @Sends(calls = [CancelOrder::class])
                 fun onEvent(event: StateEvent<Order>) = Unit
             }
             """.trimIndent(),

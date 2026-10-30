@@ -26,19 +26,18 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
-import me.ahoo.wow.test.commandCommitted
-import me.ahoo.wow.test.commandRejected
 import me.ahoo.wow.test.commandTypeOf
+import me.ahoo.wow.test.committedReceipt
 import me.ahoo.wow.test.projectionSpec
 import me.ahoo.wow.test.publishedEvent
 import me.ahoo.wow.test.reactorSpec
+import me.ahoo.wow.test.rejectedReceipt
 import me.ahoo.wow.test.sagaSpec
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
@@ -92,10 +91,10 @@ class ProcessorSpecTest {
                 null
             }
 
-        fun onReserveRejected(rejected: CommandRejected<Reserve>): CommandRequest<Cancel> =
+        fun onReserveRejected(rejected: CommandReceipt.Rejected<Reserve>): CommandRequest<Cancel> =
             CommandRequest.to(rejected.source, Cancel(rejected.error.message))
 
-        fun onReserved(committed: CommandCommitted<Reserve>): CommandRequest<Confirm> =
+        fun onReserved(committed: CommandReceipt.Committed<Reserve>): CommandRequest<Confirm> =
             CommandRequest.to(
                 committed.source,
                 Confirm(committed.ref.id, committed.version, committed.result.duplicate),
@@ -111,12 +110,22 @@ class ProcessorSpecTest {
     private fun orderSagaHandlers(): List<ProcessorBinding<*>> {
         val processor = OrderSaga()
         val rejections = listOf<RejectionBinding<*>>(
-            RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, _ ->
+            RejectionBinding.of(
+                "OrderSaga",
+                "onReserveRejected",
+                Reserve::class.java,
+                derives = listOf(Cancel::class.java),
+            ) { rejected, _ ->
                 requestsOf(processor.onReserveRejected(rejected))
             },
         )
         val commits = listOf<CommittedBinding<*>>(
-            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, _ ->
+            CommittedBinding.of(
+                "OrderSaga",
+                "onReserved",
+                Reserve::class.java,
+                derives = listOf(Confirm::class.java),
+            ) { committed, _ ->
                 requestsOf(processor.onReserved(committed))
             },
         )
@@ -127,10 +136,18 @@ class ProcessorSpecTest {
                 Order::class.java,
                 rejections = rejections,
                 commits = commits,
+                derives = listOf(Reserve::class.java),
+                schedules = listOf(Remind::class.java),
             ) { event, context ->
                 requestsOf(processor.onOrder(event, context))
             },
-            ProcessorBinding.saga("OrderSaga", "onCancelled", Order::class.java, rejections = rejections) { e, c ->
+            ProcessorBinding.saga(
+                "OrderSaga",
+                "onCancelled",
+                Order::class.java,
+                rejections = rejections,
+                derives = listOf(Release::class.java),
+            ) { e, c ->
                 requestsOf(processor.onCancelled(e, c))
             },
             ProcessorBinding.saga(
@@ -139,6 +156,7 @@ class ProcessorSpecTest {
                 Quote::class.java,
                 rejections = rejections,
                 aggregates = listOf("pay.payment"),
+                derives = listOf(Cancel::class.java),
             ) { e, _ -> requestsOf(processor.onQuote(e)) },
         )
     }
@@ -211,7 +229,7 @@ class ProcessorSpecTest {
                 expectNoSchedule()
             }
         }
-        val rejected = CommandRejected<Reserve>(
+        val rejected = CommandReceipt.Rejected<Reserve>(
             commandId = "derived-1",
             commandType = "inventory.stock.Reserve",
             ref = stock,
@@ -249,7 +267,7 @@ class ProcessorSpecTest {
                 expectCommands(Confirm("pear", 1, duplicate = true))
             }
         }
-        val committed = CommandCommitted<Reserve>(
+        val committed = CommandReceipt.Committed<Reserve>(
             commandId = "derived-1",
             commandType = "inventory.stock.Reserve",
             ref = stock,
@@ -328,7 +346,7 @@ class ProcessorSpecTest {
     fun `a saga that derives other commands on a retry is caught`() {
         var calls = 0
         val handlers = listOf(
-            ProcessorBinding.saga<Any>("Flaky", "onAny", null) { event, context ->
+            ProcessorBinding.saga<Any>("Flaky", "onAny", null, derives = listOf(Remind::class.java)) { event, context ->
                 listOf(CommandRequest.to(event.ref, Remind("${calls++}")))
             },
         )
@@ -338,7 +356,12 @@ class ProcessorSpecTest {
             }
         }
         val scheduling = listOf(
-            ProcessorBinding.saga<Any>("Flaky", "onAny", null) { event, context ->
+            ProcessorBinding.saga<Any>(
+                "Flaky",
+                "onAny",
+                null,
+                schedules = listOf(Remind::class.java)
+            ) { event, context ->
                 context.schedule("k", ScheduleRule.after((calls++).minutes), CommandRequest.to(event.ref, Remind("r")))
                 emptyList()
             },
@@ -361,7 +384,7 @@ class ProcessorSpecTest {
         assertThrownBy<IllegalArgumentException> {
             projectionSpec(listOf(project)) {
                 whenRejected(
-                    CommandRejected<Any>(
+                    CommandReceipt.Rejected<Any>(
                         "c",
                         "t",
                         order,
@@ -376,7 +399,7 @@ class ProcessorSpecTest {
         assertThrownBy<IllegalArgumentException> {
             projectionSpec(listOf(project)) {
                 whenCommitted(
-                    CommandCommitted<Any>(
+                    CommandReceipt.Committed<Any>(
                         "c",
                         "t",
                         order,
@@ -456,11 +479,11 @@ class ProcessorSpecTest {
     ) {
         val execution = ExecutionId("OrderSaga.onOrder", order, 1)
         val reserve = Command("derived-1", "derived-1", stock, Reserve("order-1", 1))
-        val rejected = commandRejected(reserve, execution, "inventory.stock.insufficient", "None.")
+        val rejected = rejectedReceipt(reserve, execution, "inventory.stock.insufficient", "None.")
         rejected.commandType.assert().isEqualTo("inventory.stock.Reserve")
         rejected.error.assert().isEqualTo(ErrorInfo("inventory.stock.insufficient", "None."))
         whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
-        val committed = commandCommitted(reserve, execution, version = 3, aggregateId = "pear", duplicate = true)
+        val committed = committedReceipt(reserve, execution, version = 3, aggregateId = "pear", duplicate = true)
         committed.ref.id.assert().isEqualTo("pear")
         committed.result.function.name.assert().isEqualTo("Reserve")
         whenCommitted(committed, Reserve::class) { expectCommands(Confirm("pear", 3, duplicate = true)) }

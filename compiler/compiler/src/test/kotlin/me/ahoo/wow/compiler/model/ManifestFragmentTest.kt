@@ -157,7 +157,7 @@ class ManifestFragmentTest {
         @Name("checkout")
         class CheckoutSaga {
             @OnEvent
-            fun onEvent(event: StateEvent<*>, context: SagaContext): List<CommandRequest<*>> = emptyList()
+            fun onEvent(event: StateEvent<*>, context: SagaContext) = Unit
         }
         """.trimIndent(),
     )
@@ -280,7 +280,7 @@ class ManifestFragmentTest {
                             source = SubscriptionSource(nullableState = true),
                             function = FunctionManifest(FunctionKind.SAGA, "shop", "checkout", "onEvent"),
                             // List<Command<*>> does not say which commands.
-                            derives = null,
+                            derives = emptyList(),
                             start = SubscriptionStart.END,
                         ),
                     ),

@@ -29,7 +29,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -125,11 +125,14 @@ fun itemModel(): AggregateModel<ItemState> = aggregate<ItemState>(STOCK, "item")
  * The order saga of the sales context: each order placed reserves its quantity of the stock item of the same id, and
  * a reservation the stock context rejects cancels the order; each rejection it handles is recorded in [rejections].
  */
-fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList()): ProcessorBinding<OrderState> {
+fun orderSaga(
+    rejections: MutableList<CommandReceipt.Rejected<*>> = CopyOnWriteArrayList()
+): ProcessorBinding<OrderState> {
     val onReserveRejected = RejectionBinding.of(
         "OrderSaga",
         "onReserveRejected",
         Reserve::class.java,
+        derives = listOf(CancelOrder::class.java),
     ) { rejected, context ->
         rejections += rejected
         listOf(CommandRequest.to(rejected.source, CancelOrder()))
@@ -139,6 +142,7 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
         "onOrderPlaced",
         OrderState::class.java,
         rejections = listOf(onReserveRejected),
+        derives = listOf(Reserve::class.java),
     ) { event, context ->
         event.events.filterIsInstance<OrderPlaced>().map {
             CommandRequest.to(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))

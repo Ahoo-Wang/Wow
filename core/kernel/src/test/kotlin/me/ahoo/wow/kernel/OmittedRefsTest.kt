@@ -28,11 +28,8 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.id.IdGenerators
 import org.junit.jupiter.api.Test
@@ -118,8 +115,8 @@ class OmittedRefsTest {
     }
 
     @Test
-    fun `a receipt's handler should leave the ref out in the tenant of the commit that derived the command`() {
-        val rejected = CommandRejected<Reserve>(
+    fun `a rejection's handler should leave the ref out in the tenant of the commit that derived the command`() {
+        val rejected = CommandReceipt.Rejected<Reserve>(
             "c-1",
             "inventory.stock.Reserve",
             stock.ref("acme", "product-1"),
@@ -129,7 +126,12 @@ class OmittedRefsTest {
             Operator("alice", "acme"),
             Scope("alice", "space-a"),
         )
-        val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { _, _ ->
+        val onRejected = RejectionBinding.of(
+            "OrderSaga",
+            "onReserveRejected",
+            Reserve::class.java,
+            derives = listOf(Reserve::class.java),
+        ) { _, _ ->
             listOf(CommandRequest.of(Reserve("o-1"), "product-2"), CommandRequest.of(Reserve("o-1")))
         }
         val compensations = runBlocking {
@@ -140,8 +142,11 @@ class OmittedRefsTest {
         assertThrownBy<IllegalArgumentException> {
             runBlocking { onRejected.invoke(rejected, rejectionContextOf(onRejected, rejected)) }
         }.hasMessageContaining("OrderSaga.onReserveRejected sends")
+    }
 
-        val committed = CommandCommitted<Reserve>(
+    @Test
+    fun `a commit's handler should leave the ref out in the tenant of the commit that derived the command`() {
+        val committed = CommandReceipt.Committed<Reserve>(
             commandId = "c-1",
             commandType = "inventory.stock.Reserve",
             ref = stock.ref("acme", "product-1"),
@@ -167,7 +172,12 @@ class OmittedRefsTest {
             operator = Operator("alice", "acme"),
             scope = Scope("alice", "space-a"),
         )
-        val onCommitted = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { _, _ ->
+        val onCommitted = CommittedBinding.of(
+            "OrderSaga",
+            "onReserved",
+            Reserve::class.java,
+            derives = listOf(Reserve::class.java),
+        ) { _, _ ->
             listOf(CommandRequest.of(Reserve("o-1"), "product-3"))
         }
         val confirmations = runBlocking {
@@ -183,20 +193,14 @@ class OmittedRefsTest {
     fun `an OnSchedule job's command of an id or a body should go to its class's aggregate, in the instance's tenant`() {
         val instance = AggregateType("inventory", "job").ref("acme", "nightly")
         val ticked = StateEvent(instance, 2, "c-2", "r-2", "wow.schedule.Tick", 1L, listOf("ticked"), "state")
-        val tick = ScheduleTick("acme", "nightly", slot = 1)
+        // A job's handler gets the saga context of the job instance's commit, as an @OnEvent handler does.
         val saga =
             ExecutionSagaContext(ExecutionId("StockSaga.onNightly", instance, 2), ticked, IdGenerators.DEFAULT, types)
-        val context: JobContext = ExecutionJobContext(saga, tick)
-        context.tick.assert().isEqualTo(tick)
-        context.executionId.assert().isEqualTo(saga.executionId)
-        context.invocationKey.assert().isEqualTo(saga.invocationKey)
-        context.ids.assert().isSameAs(saga.ids)
         saga.derive(CommandRequest.of(Reserve("o-1"), "mug")).ref.assert().isEqualTo(stock.ref("acme", "mug"))
         saga.derive(CommandRequest.of(Reserve("o-2"))).ref.assert().isEqualTo(stock.unassigned("acme"))
         saga.derive(CommandRequest.to(stock.ref("acme", "all"), Reserve("o-3"))).ref.assert()
             .isEqualTo(stock.ref("acme", "all"))
-        context.toString().assert().contains("StockSaga.onNightly")
-        assertThrownBy<UnsupportedOperationException> { context.queries }
+        assertThrownBy<UnsupportedOperationException> { saga.queries }
     }
 
     @Test

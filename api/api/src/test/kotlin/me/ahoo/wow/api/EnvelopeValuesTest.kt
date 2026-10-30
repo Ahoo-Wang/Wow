@@ -27,8 +27,7 @@ import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import org.junit.jupiter.api.Test
@@ -52,10 +51,18 @@ class EnvelopeValuesTest {
     private fun execution() = ExecutionId("OrderSaga.onPlaced", ref, 1)
 
     private fun committed(version: Int = 1) =
-        CommandCommitted<Any>("c-2", "sales.order.Place", ref, version, result(), Causation("c-1", "c-1"), execution())
+        CommandReceipt.Committed<Any>(
+            "c-2",
+            "sales.order.Place",
+            ref,
+            version,
+            result(),
+            Causation("c-1", "c-1"),
+            execution()
+        )
 
     private fun rejected(id: String = "c-2") =
-        CommandRejected<Any>(id, "sales.order.Place", ref, error(), Causation("c-1", "c-1"), execution())
+        CommandReceipt.Rejected<Any>(id, "sales.order.Place", ref, error(), Causation("c-1", "c-1"), execution())
 
     private fun event(version: Int = 1) =
         StateEvent(ref, version, "c-1", "r-1", "sales.order.Place", 7L, listOf("placed"), mapOf("total" to 1))
@@ -73,8 +80,8 @@ class EnvelopeValuesTest {
         )
         valueSemantics(Rejection.of("a", "b"), Rejection.of("a", "b"), Rejection.of("a", "b", mapOf("x" to 1)))
         valueSemantics(event(), event(), event(2), "StateEvent")
-        valueSemantics(committed(), committed(), committed(2))
-        valueSemantics(rejected(), rejected(), rejected("c-3"))
+        valueSemantics(committed(), committed(), committed(2), "CommandReceipt.Committed")
+        valueSemantics(rejected(), rejected(), rejected("c-3"), "CommandReceipt.Rejected")
         valueSemantics(WaitPlan.of(Hop.committed()), WaitPlan.COMMITTED, WaitPlan.COMMITTED.within(3.seconds))
         val hop = Hop.handled("OrderSaga.onPlaced", "sales")
         (hop == Hop.handled("OrderSaga.onPlaced", "sales")).assert().isTrue()

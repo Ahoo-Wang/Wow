@@ -144,9 +144,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommitte
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnEvent : java/lang/annotation/Annotation {
 	public abstract fun aggregates ()[Ljava/lang/String;
-	public abstract fun calls ()[Ljava/lang/Class;
-	public abstract fun derives ()[Ljava/lang/Class;
-	public abstract fun schedules ()[Ljava/lang/Class;
 	public abstract fun start ()Lme/ahoo/wow/api/annotation/OnEvent$Start;
 }
 
@@ -211,6 +208,12 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/RouteQuery
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Saga : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Sends : java/lang/annotation/Annotation {
+	public abstract fun calls ()[Ljava/lang/Class;
+	public abstract fun derives ()[Ljava/lang/Class;
+	public abstract fun schedules ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/ServiceRoute : java/lang/annotation/Annotation {
@@ -1647,42 +1650,49 @@ public final class me/ahoo/wow/api/schedule/Ticked$Companion {
 	public final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/Ticked;
 }
 
-public final class me/ahoo/wow/api/subscribe/CommandCommitted {
+public abstract interface class me/ahoo/wow/api/subscribe/CommandReceipt {
+	public abstract fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public abstract fun getCommandId ()Ljava/lang/String;
+	public abstract fun getCommandType ()Ljava/lang/String;
+	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public abstract fun getHeaders ()Ljava/util/Map;
+	public abstract fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public abstract fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public abstract fun getVersion ()Ljava/lang/Integer;
+}
+
+public final class me/ahoo/wow/api/subscribe/CommandReceipt$Committed : me/ahoo/wow/api/subscribe/CommandReceipt {
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
-	public final fun getCommandId ()Ljava/lang/String;
-	public final fun getCommandType ()Ljava/lang/String;
-	public final fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public final fun getHeaders ()Ljava/util/Map;
-	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public fun getCommandId ()Ljava/lang/String;
+	public fun getCommandType ()Ljava/lang/String;
+	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getHeaders ()Ljava/util/Map;
+	public fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getVersion ()I
+	public fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public fun getVersion ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/api/subscribe/CommandRejected {
+public final class me/ahoo/wow/api/subscribe/CommandReceipt$Rejected : me/ahoo/wow/api/subscribe/CommandReceipt {
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
-	public final fun getCommandId ()Ljava/lang/String;
-	public final fun getCommandType ()Ljava/lang/String;
+	public fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public fun getCommandId ()Ljava/lang/String;
+	public fun getCommandType ()Ljava/lang/String;
 	public final fun getError ()Lme/ahoo/wow/api/result/ErrorInfo;
-	public final fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public final fun getHeaders ()Ljava/util/Map;
-	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getVersion ()Ljava/lang/Integer;
+	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getHeaders ()Ljava/util/Map;
+	public fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public fun getVersion ()Ljava/lang/Integer;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public abstract interface class me/ahoo/wow/api/subscribe/DerivingContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
-	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
 }
 
 public final class me/ahoo/wow/api/subscribe/ExecutionId {
@@ -1700,10 +1710,6 @@ public final class me/ahoo/wow/api/subscribe/ExecutionId {
 	public fun toString ()Ljava/lang/String;
 }
 
-public abstract interface class me/ahoo/wow/api/subscribe/JobContext : me/ahoo/wow/api/subscribe/DerivingContext {
-	public abstract fun getTick ()Lme/ahoo/wow/api/schedule/ScheduleTick;
-}
-
 public final class me/ahoo/wow/api/subscribe/PublishedEvent {
 	public static final field Companion Lme/ahoo/wow/api/subscribe/PublishedEvent$Companion;
 	public fun equals (Ljava/lang/Object;)Z
@@ -1719,13 +1725,10 @@ public final class me/ahoo/wow/api/subscribe/PublishedEvent$Companion {
 	public final fun of (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/api/subscribe/PublishedEvent;
 }
 
-public abstract interface class me/ahoo/wow/api/subscribe/ReceiptContext : me/ahoo/wow/api/subscribe/DerivingContext {
-	public fun getSource ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-}
-
-public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/DerivingContext {
+public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun call (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
 	public abstract fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/client/CommandRequest;)V
 }
 

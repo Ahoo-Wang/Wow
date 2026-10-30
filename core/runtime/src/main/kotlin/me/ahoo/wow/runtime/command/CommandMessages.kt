@@ -19,8 +19,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -92,7 +91,7 @@ object CommandMessages {
      * command it answers past its commit, if any.
      */
     fun receipt(
-        rejected: CommandRejected<*>,
+        rejected: CommandReceipt.Rejected<*>,
         trace: Map<String, String> = emptyMap(),
         wait: WaitContext? = null,
     ): TopicMessage {
@@ -126,7 +125,7 @@ object CommandMessages {
      * it answers past its commit: the rest of the chain, whose next hop is the saga's `@OnCommitted` handler.
      */
     fun receipt(
-        committed: CommandCommitted<*>,
+        committed: CommandReceipt.Committed<*>,
         trace: Map<String, String> = emptyMap(),
         wait: WaitContext? = null,
     ): TopicMessage {
@@ -154,8 +153,8 @@ object CommandMessages {
     }
 
     /**
-     * What the receipt [envelope] holds: a [CommandCommitted] when its payload carries a `result`,
-     * else a [CommandRejected].
+     * What the receipt [envelope] holds: a [CommandReceipt.Committed] when its payload carries a `result`,
+     * else a [CommandReceipt.Rejected].
      */
     fun receiptOf(envelope: Envelope): Any {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
@@ -167,10 +166,10 @@ object CommandMessages {
         if (wait == null && trace.isEmpty()) null else Transport(wait = wait, trace = trace)
 
     /** The rejection the receipt [envelope] holds. */
-    fun rejectedOf(envelope: Envelope): CommandRejected<Any> {
+    fun rejectedOf(envelope: Envelope): CommandReceipt.Rejected<Any> {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
         val wire = mapper.treeToValue(envelope.payload, RejectedWire::class.java)
-        return CommandRejected(
+        return CommandReceipt.Rejected(
             wire.commandId,
             wire.commandType,
             wire.ref,
@@ -185,10 +184,10 @@ object CommandMessages {
     }
 
     /** The commit the success receipt [envelope] holds. */
-    fun committedOf(envelope: Envelope): CommandCommitted<Any> {
+    fun committedOf(envelope: Envelope): CommandReceipt.Committed<Any> {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
         val wire = mapper.treeToValue(envelope.payload, CommittedWire::class.java)
-        return CommandCommitted(
+        return CommandReceipt.Committed(
             wire.commandId,
             wire.commandType,
             wire.ref,

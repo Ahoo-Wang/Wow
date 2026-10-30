@@ -543,30 +543,31 @@ class EventManifest @InternalWowApi constructor(
 /**
  * A subscription: one handler of a processor, named `processor.function`.
  *
- * - [derives] names the commands a saga's handler may derive: those `@OnEvent(derives)` declares, else
- *   those its return type names (`Command<X>`, a list of them); null when neither says (a `Command<*>`), and always
- *   for a projection or a reactor. When it is set, a wait chain may follow the saga's hop only into the contexts of
- *   these commands.
+ * - [derives] names the commands a saga's handler may derive, any of its kinds: those its `@Sends(derives)`
+ *   declares, else those its return type names (`CommandRequest<X>`, a list of them), empty when it returns `Unit`;
+ *   null for a projection or a reactor. A wait chain may follow the saga's hop only into the contexts of these
+ *   commands.
  * - [rejected] is set on an `@OnRejected` handler of a saga and on no other: the commands whose
- *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
+ *   rejections it handles, the one its receipt's `C` names, or empty for any command the saga sends. Such a
  *   handler reads rejections, not state events: its [source] is empty and not read.
  * - [committed] is set on an `@OnCommitted` handler of a saga and on no other: the commands whose
- *   success receipts it handles, the one its `CommandCommitted<C>` names, or empty for any command the saga derives.
- *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events.
+ *   success receipts it handles, the one its receipt's `C` names, or empty for any command the saga sends.
+ *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events. A handler of both
+ *   receipts, annotated both, has both set.
  * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
  *   else [SubscriptionStart.defaultFor] its kind; the host may configure another. Null on an `@OnRejected` or
  *   `@OnCommitted` handler, which reads no log, and on a reactor's or a saga's handler of another context's stream,
  *   which starts where its service joins the stream: from the beginning when no other subscription of the service
  *   reads it yet, else from the end.
  * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
- *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
+ *   `@Sends(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
  *   null when neither does. The host's `wow.subscriptions.[<context>.<name>].retry.*` overrides it, setting by setting.
  * - [job] is the job of a saga's `@OnSchedule` handler: its subscription reads the context's built-in
  *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
  *   handler.
- * - [calls] names the commands a saga's `@OnEvent` handler sends to another context with `SagaContext.call`,
- *   as its `@OnEvent(calls)` declares, each referred to as [derives] refers to a command; null when it
+ * - [calls] names the commands a saga's handler sends to another context with `SagaContext.call`,
+ *   as its `@Sends(calls)` declares, each referred to as [derives] refers to a command; null when it
  *   declares none. A wait chain may follow the saga's hop into their contexts too, but they need no command topic:
  *   the node calls their gateways, at the addresses its host configures.
  *

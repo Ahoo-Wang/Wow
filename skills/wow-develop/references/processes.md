@@ -17,7 +17,7 @@ One kind per class. Each handler (`@OnEvent`) is its own subscription `<processo
 
 - `StateEvent<S>`: the commit (`ref`, `version`, `events`, `state` after the commit, `commandId`, `requestId`, `commandType`, `commitTime`, `scope`, `causation`, `headers`, `id`, `correlationId`).
 - For one kind of event, prefer `StateTypedEvent<S, E>` (adds `event`, `eventIndex`) or `E` itself: called once per `E` of the commit, with the state after the whole commit. The compiler infers the aggregate from `E`, and the node skips commits without one. Avoid `event.events.filterIsInstance<E>()`.
-- Optionally the context: a saga's `SagaContext`, a projection's or a reactor's `SubscriptionContext`; an `@OnRejected`/`@OnCommitted` handler's `ReceiptContext` (with `source`), an `@OnSchedule` job's `JobContext` (with `tick`). Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
+- Optionally the context: a projection's or a reactor's `SubscriptionContext`; every handler of a saga, `@OnEvent`, `@OnRejected`, `@OnCommitted` or `@OnSchedule`, takes the one `SagaContext` (`ids`, `schedule`, `cancel`, `call`). Its `invocationKey` is the idempotency key of an outside call; `executionId` is per commit.
 - `suspend`, or a Reactor return type (needs `wow-reactor`), or `@Blocking` for a handler that blocks its thread (JDBC): it then runs on a virtual thread.
 
 ## Sagas
@@ -34,8 +34,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -87,13 +86,13 @@ class OrderProcessSaga {
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
     fun onReserveCommitted(
-        committed: CommandCommitted<ReserveStock>
+        committed: CommandReceipt.Committed<ReserveStock>
     ): CommandRequest<ConfirmOrderStock> =
         CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<CancelOrder> =
+    fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
         CommandRequest.of(
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
             rejected.source.id,
@@ -113,7 +112,7 @@ class OrderProcessSaga {
      */
     @Suppress("UnusedParameter")
     @OnRejected
-    fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
+    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
 
     @OnEvent
     fun onOrderShipped(
@@ -125,9 +124,10 @@ class OrderProcessSaga {
 ```
 
 - A saga returns `CommandRequest`s (one, or an `Iterable`, a `Sequence` or a `Flow` of them); the runtime gives each a deterministic id, so a handler run twice derives the same commands, which the target deduplicates. `CommandRequest.of(body, id)`, or `CommandRequest.of(body)` for a creation without an id, goes to the aggregate the local Manifest or a peer api jar's contract assigns to the body's class, in the handled commit's tenant; `CommandRequest.to(ref, body)` names the full ref (another tenant, a class several aggregates decide). A `requestId` is a business key for the id; `wait` and `timeout` are refused.
-- `@OnEvent(derives = [A::class, B::class])` (command classes, or a sealed type) when the return type does not name the commands; the build fails on a class neither the service nor a peer contract decides.
-- **Rejections:** `@OnRejected` taking `CommandRejected<C>` (and optionally `SagaContext`) returns compensating commands, or `Unit` to accept the rejection. Without one, a rejected derived command **parks the aggregate** for the saga. Decide for each derived command which rejections are expected.
-- **Committed receipts:** `@OnCommitted` taking `CommandCommitted<C>`: the derived command committed, possibly in another context.
+- `@Sends(derives = [A::class, B::class], schedules = [...], calls = [...])` (command classes, or a sealed type) declares what a saga's handler of any kind sends. A handler whose return type names its commands (`CommandRequest<X>`) needs no `derives`; one that returns untyped requests (`CommandRequest<*>`, `Any`) must declare them, or the build fails. The build also fails on `@Sends` outside a saga's handler, and on a class neither the service nor a peer contract decides. At run time, a derive, a `schedule` or a `call` of a class its `@Sends` does not declare fails the handling as unrecoverable: the aggregate parks at once.
+- **Rejections:** `@OnRejected` taking `CommandReceipt.Rejected<C>` (and optionally `SagaContext`) returns compensating commands, or `Unit` to accept the rejection. It also takes the rejection of a `call` the handler lets through: that handling is aborted and derives nothing. Without one, a rejected derived or called command **parks the aggregate** for the saga. Decide for each derived or called command which rejections are expected.
+- **Committed receipts:** `@OnCommitted` taking `CommandReceipt.Committed<C>`: the derived command committed, possibly in another context.
+- **Both receipts:** a handler annotated `@OnRejected` and `@OnCommitted` takes a `CommandReceipt<C>` and tells the two apart with `when`; each annotation keeps its own rule (a rejection is not retried, a commit's receipt is retried by the host). One annotation with `CommandReceipt<C>`, or an annotation over the other receipt's type, fails the build.
 - **Scheduled commands:** `SagaContext.schedule(key, at|after, request)` / `cancel(key, target)` record into the context, sent after the returned commands; at least once, never early. `@OnSchedule(name, cron, zone, scope, sharded, misfire)` for a cron job, overridden by the host with `wow.schedules.<name>.*`.
 
 ## Projections

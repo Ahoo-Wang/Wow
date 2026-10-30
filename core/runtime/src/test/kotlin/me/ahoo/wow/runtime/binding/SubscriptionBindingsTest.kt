@@ -83,6 +83,7 @@ class SubscriptionBindingsTest {
         "onOrderPlaced",
         OrderState::class.java,
         retry = HandlerRetry(maxAttempts = 2),
+        derives = listOf(RemoveItems::class.java),
     ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {

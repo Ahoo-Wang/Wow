@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
+import me.ahoo.wow.api.annotation.Sends
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateTypedEvent
@@ -48,7 +49,8 @@ class PaymentGatewaySaga(
 ) {
     private val warned = AtomicBoolean()
 
-    @OnEvent(derives = [ConfirmPayment::class, FailPayment::class])
+    @OnEvent
+    @Sends(derives = [ConfirmPayment::class, FailPayment::class])
     suspend fun onPaymentRequested(
         event: StateTypedEvent<PaymentState, PaymentRequested>,
         context: SagaContext,

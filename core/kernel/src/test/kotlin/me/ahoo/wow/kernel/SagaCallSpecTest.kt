@@ -21,6 +21,8 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.test.committedResult
 import me.ahoo.wow.test.failedResult
 import me.ahoo.wow.test.rejectedResult
@@ -34,6 +36,7 @@ class SagaCallSpecTest {
     data class Placed(val total: Int)
     data class Submit(val total: Int)
     data class Confirm(val orderId: String)
+    data class Reopen(val reason: String)
 
     class Basket
 
@@ -41,17 +44,21 @@ class SagaCallSpecTest {
     private val order = AggregateType("ordering", "order")
 
     /** Submits the order synchronously, then confirms the order number the ordering gave it on the basket. */
+    private suspend fun checkout(event: StateEvent<*>, context: SagaContext): List<CommandRequest<*>> {
+        val placed = event.events.filterIsInstance<Placed>().firstOrNull() ?: return emptyList()
+        val submitted = context.call(CommandRequest.to(order.unassigned(event.ref.tenantId), Submit(placed.total)))
+        return listOf(CommandRequest.to(event.ref, Confirm(submitted.ref.id)))
+    }
+
     private val handlers = listOf(
         ProcessorBinding.saga(
             "CheckoutSaga",
             "onPlaced",
             Basket::class.java,
+            derives = listOf(Confirm::class.java),
             calls = listOf(Submit::class.java),
-        ) { event, context ->
-            val placed = event.events.filterIsInstance<Placed>().firstOrNull() ?: return@saga emptyList()
-            val submitted = context.call(CommandRequest.to(order.unassigned(event.ref.tenantId), Submit(placed.total)))
-            listOf(CommandRequest.to(event.ref, Confirm(submitted.ref.id)))
-        },
+            handle = ::checkout,
+        ),
     )
 
     private fun event(vararg events: Any) = stateEvent(basket, Basket(), *events, version = 2)
@@ -84,6 +91,36 @@ class SagaCallSpecTest {
         answerCalls { failedResult(it, "wow.storage.unavailable") }
         whenEvent(event(Placed(3))) {
             expectError<WowProblemException> { result!!.error!!.code.assert().isEqualTo("wow.storage.unavailable") }
+        }
+    }
+
+    @Test
+    fun `a call's rejection the handler lets through should go to the saga's @OnRejected handler of the command`() {
+        // D372 S10: as a derived command's rejection does; the aborted handling derives nothing.
+        val onSubmitRejected = RejectionBinding.of(
+            "CheckoutSaga",
+            "onSubmitRejected",
+            Submit::class.java,
+            derives = listOf(Reopen::class.java),
+        ) { rejected, _ -> listOf(CommandRequest.to(rejected.source, Reopen(rejected.error.code))) }
+        val compensating = listOf(
+            ProcessorBinding.saga(
+                "CheckoutSaga",
+                "onPlaced",
+                Basket::class.java,
+                rejections = listOf(onSubmitRejected),
+                derives = listOf(Confirm::class.java),
+                calls = listOf(Submit::class.java),
+                handle = ::checkout,
+            ),
+        )
+        sagaSpec(compensating) {
+            answerCalls { rejectedResult(it, "ordering.order.closed") }
+            whenEvent(event(Placed(3))) {
+                expectCalls(Submit(3))
+                expectCommand(Reopen("ordering.order.closed"), to = basket)
+                expectCommandCount(1)
+            }
         }
     }
 

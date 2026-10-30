@@ -23,8 +23,7 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
@@ -203,11 +202,11 @@ internal class DerivedCommands(
          * The commit as the saga's `@OnCommitted` handler takes it, from the saga's [execution] that
          * derived it: on the aggregate the result names, the one a creation without an id got.
          */
-        fun toCommandCommitted(execution: ExecutionId): CommandCommitted<Any> = CommandCommitted(
+        fun toReceipt(execution: ExecutionId): CommandReceipt.Committed<Any> = CommandReceipt.Committed(
             commandId = command.id,
             commandType = commandType,
             ref = result.ref,
-            version = result.version ?: 0,
+            version = checkNotNull(result.version) { "A committed command's result carries its version." },
             result = result,
             causation = checkNotNull(command.causation) { "A derived command carries its causation." },
             executionId = execution,
@@ -219,7 +218,7 @@ internal class DerivedCommands(
 
     /**
      * The derived [command], of the full type name [commandType], was refused with [rejection], answered at [version]
-     * ([CommandRejected.version]).
+     * ([CommandReceipt.Rejected.version]).
      */
     data class Rejected(
         val command: Command<*>,
@@ -231,7 +230,7 @@ internal class DerivedCommands(
         val error: ErrorInfo get() = rejection.toError()
 
         /** The rejection as the saga's `@OnRejected` handler takes it, from the saga's [execution] that derived it. */
-        fun toCommandRejected(execution: ExecutionId): CommandRejected<Any> = CommandRejected(
+        fun toReceipt(execution: ExecutionId): CommandReceipt.Rejected<Any> = CommandReceipt.Rejected(
             commandId = command.id,
             commandType = commandType,
             ref = command.ref,

@@ -26,7 +26,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -96,7 +96,7 @@ class ProtocolSamplesTest {
 
     @Test
     fun `a rejection receipt`() {
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             "c-3",
             "bank.account.Withdraw",
             ref,

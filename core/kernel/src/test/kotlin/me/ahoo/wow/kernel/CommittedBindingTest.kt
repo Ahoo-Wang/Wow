@@ -26,7 +26,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import org.junit.jupiter.api.Test
 
@@ -41,7 +41,7 @@ class CommittedBindingTest {
     private class Release : StockCommand
 
     private val execution = ExecutionId("OrderSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
-    private val committed = CommandCommitted<Reserve>(
+    private val committed = CommandReceipt.Committed<Reserve>(
         commandId = "c-1",
         commandType = "inventory.stock.Reserve",
         ref = stock.ref("t", "s-1"),
@@ -124,7 +124,12 @@ class CommittedBindingTest {
     @Test
     fun `invoking a binding should call its handler with the receipt and a context that derives deterministically`(): Unit =
         runBlocking {
-            val handler = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
+            val handler = CommittedBinding.of(
+                "OrderSaga",
+                "onReserved",
+                Reserve::class.java,
+                derives = listOf(String::class.java),
+            ) { receipt, context ->
                 listOf(CommandRequest.to(execution.ref, "confirm ${receipt.ref.id}"))
             }
             val context = committedContextOf(handler, committed)

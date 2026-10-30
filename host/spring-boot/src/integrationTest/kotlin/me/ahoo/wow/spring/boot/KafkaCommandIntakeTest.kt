@@ -28,8 +28,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kafka.KafkaOptions
 import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
@@ -108,9 +107,9 @@ class KafkaCommandIntakeTest {
 
     private val reservations = CopyOnWriteArrayList<String>()
     private val cancellations = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
     private val confirmations = CopyOnWriteArrayList<String>()
-    private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
+    private val commits = CopyOnWriteArrayList<CommandReceipt.Committed<*>>()
 
     init {
         admin.createVisible(options, NewTopic(PREFIX + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(PREFIX + "wow.sales.receipts", 2, 1.toShort()))
@@ -356,11 +355,21 @@ class KafkaCommandIntakeTest {
     }
 
     private fun orderSaga(committed: Boolean): ProcessorBinding<OrderState> {
-        val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
+        val onRejected = RejectionBinding.of(
+            "OrderSaga",
+            "onReserveRejected",
+            Reserve::class.java,
+            derives = listOf(CancelOrder::class.java),
+        ) { rejected, context ->
             rejections += rejected
             listOf(CommandRequest.to(rejected.source, CancelOrder()))
         }
-        val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
+        val onReserved = CommittedBinding.of(
+            "OrderSaga",
+            "onReserved",
+            Reserve::class.java,
+            derives = listOf(ConfirmOrder::class.java),
+        ) { receipt, context ->
             commits += receipt
             listOf(CommandRequest.to(receipt.executionId.ref, ConfirmOrder()))
         }
@@ -370,6 +379,7 @@ class KafkaCommandIntakeTest {
             OrderState::class.java,
             rejections = listOf(onRejected),
             commits = if (committed) listOf(onReserved) else emptyList(),
+            derives = listOf(Reserve::class.java),
         ) {
                 event,
                 context,

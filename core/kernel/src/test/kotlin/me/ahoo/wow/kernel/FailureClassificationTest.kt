@@ -27,7 +27,6 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.test.rejectedResult
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.net.ConnectException
 import kotlin.time.Duration.Companion.seconds
 
@@ -65,13 +64,12 @@ class FailureClassificationTest {
     }
 
     @Test
-    fun `a call's rejection a saga's handler lets through is a rejection, which parks at once`() {
+    fun `a call's rejection no handler takes is a rejection, which parks at once`() {
         val command = Command("c-1", "r-1", AggregateType("shop", "cart").ref("t", "cart-1"), AddItem("mug", 1))
         val rejected = CommandRejectedException(rejectedResult(command, "cart.full", "The cart is full."))
-        val thrown = assertThrows<CallRejectedHandlingException> { parkingCallRejections { throw rejected } }
+        val thrown = CallRejectedHandlingException(rejected)
         thrown.rejected.assert().isSameAs(rejected)
         thrown.error.code.assert().isEqualTo("cart.full")
         (thrown is HandlingRejectedException).assert().isTrue()
-        parkingCallRejections { "handled" }.assert().isEqualTo("handled")
     }
 }
