@@ -65,6 +65,9 @@ class StateEventPayload @InternalWowApi constructor(val name: String, val revisi
  *   the kernel evolved them, published either way.
  * - [transport] is the stream's transport metadata: the wait context and the trace. It is not a fact:
  *   the envelope carries it beside the record ([me.ahoo.wow.spi.transport.Envelope.transport]), never inside it.
+ * - [imported] marks a commit migrate-data imported from 9.x, at or before the context's cut-over
+ *   ([me.ahoo.wow.spi.subscription.ImportCutover]): 9.x already acted on it, so a peer's saga or reactor passes over
+ *   it, while a projection or a sink takes it. False for every commit a V10 service made.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -84,6 +87,7 @@ class StateEventRecord @InternalWowApi constructor(
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
     val transport: Transport? = null,
+    val imported: Boolean = false,
 ) {
     init {
         require(version >= 1) { "A committed version starts at 1." }
@@ -116,6 +120,7 @@ class StateEventRecord @InternalWowApi constructor(
         headers: Map<String, String> = this.headers,
         operator: Operator? = this.operator,
         transport: Transport? = this.transport,
+        imported: Boolean = this.imported,
     ): StateEventRecord =
         StateEventRecord(
             ref,
@@ -133,6 +138,7 @@ class StateEventRecord @InternalWowApi constructor(
             headers,
             operator,
             transport,
+            imported,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -144,7 +150,7 @@ class StateEventRecord @InternalWowApi constructor(
         "StateEventRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
             "deleted=$deleted, tags=$tags, causation=$causation, headers=$headers, operator=$operator, " +
-            "transport=$transport)"
+            "transport=$transport, imported=$imported)"
 
     private fun valueFields(): List<Any?> = listOf(
         ref,
@@ -162,6 +168,7 @@ class StateEventRecord @InternalWowApi constructor(
         headers,
         operator,
         transport,
+        imported,
     )
 
     companion object {
@@ -187,6 +194,7 @@ class StateEventRecord @InternalWowApi constructor(
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
             transport: Transport? = null,
+            imported: Boolean = false,
         ): StateEventRecord =
             StateEventRecord(
                 ref,
@@ -204,6 +212,7 @@ class StateEventRecord @InternalWowApi constructor(
                 headers,
                 operator,
                 transport,
+                imported,
             )
     }
 }

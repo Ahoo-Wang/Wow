@@ -132,7 +132,7 @@ Streams the import appended carry no tags yet, and attribute-based access contro
 
 ## 8. Start V10 and switch traffic
 
-1. Start the V10 service's nodes. A saga or a reactor of the service's own context starts at the end of its log, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it. A saga or a reactor of another context's published stream starts at the beginning of the topic: set where it starts as [Cut over an estate](./cutover#cut-over-an-estate) says.
+1. Start the V10 service's nodes. A saga or a reactor of the service's own context starts at the end of its log, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it. Its transport sink publishes the imported history too, each record up to the cut-over the import recorded marked imported: a peer's saga or reactor passes over it, and a peer's projection builds from it ([Published Streams](../guide/published-streams#history-imported-from-9x)).
 2. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and retrying it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
