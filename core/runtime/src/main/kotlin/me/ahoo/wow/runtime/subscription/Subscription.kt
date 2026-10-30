@@ -32,7 +32,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.state.StateEventRecord
-import kotlin.time.Duration
 
 /**
  * A subscription: a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -281,17 +280,6 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
         val NOTHING: HandledEntry = HandledEntry()
     }
 }
-
-/**
- * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout]
- * ([RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
- */
-internal class HandlerTimeoutException(
-    val subscription: String,
-    val ref: AggregateRef,
-    val version: Int,
-    val timeout: Duration,
-) : IllegalStateException("$subscription did not handle $ref@$version within $timeout.")
 
 /**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of

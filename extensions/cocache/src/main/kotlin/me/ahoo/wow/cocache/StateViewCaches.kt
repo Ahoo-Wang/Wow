@@ -111,7 +111,7 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         override val name: String get() = cache.name
 
         /** Whether the last read the cache could not serve was reported, and none served since. */
-        private val unavailable = AtomicBoolean()
+        private val outage = AtomicBoolean()
 
         override suspend fun get(key: StateKey): V? = served(listOf(key)) { cache.get(key) }
 
@@ -124,29 +124,30 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
          * backend's read that failed. A state that does not decode, or any other error, is thrown as it is.
          */
         private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T {
-            val served = try {
-                read()
+            val failure = try {
+                return read().also {
+                    if (outage.get()) {
+                        outage.set(false)
+                    }
+                }
             } catch (unavailable: StateViewUnavailableException) {
-                throw reported(unavailable)
+                unavailable
             } catch (source: SourceLoadTimeoutException) {
-                throw reported(unavailable(keys, "its owner did not answer in time", source))
+                unavailable(keys, "its owner did not answer in time", source)
             } catch (source: SourceLoadRejectedException) {
-                throw reported(unavailable(keys, "too many reads of its owner are in flight", source))
+                unavailable(keys, "too many reads of its owner are in flight", source)
             } catch (source: SourceLoadCancelledException) {
-                throw reported(unavailable(keys, "the read of its owner was cancelled", source))
+                unavailable(keys, "the read of its owner was cancelled", source)
             } catch (backend: CacheReadException) {
                 if (backend.cause is ForeignFormatException) throw backend
-                throw reported(unavailable(keys, "the cache's backend failed", backend))
+                unavailable(keys, "the cache's backend failed", backend)
             }
-            if (unavailable.get()) {
-                unavailable.set(false)
-            }
-            return served
+            throw reported(failure)
         }
 
         /** [failure], logged at WARN when it is the first since the cache last served a read, else at DEBUG. */
         private fun reported(failure: StateViewUnavailableException): StateViewUnavailableException {
-            if (unavailable.compareAndSet(false, true)) {
+            if (outage.compareAndSet(false, true)) {
                 logger.warn(failure) {
                     "The cache $name cannot serve its states now: ${failure.message} Its readers that fall back do " +
                         "so until it serves again; further failures until then are logged at DEBUG."

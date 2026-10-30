@@ -260,7 +260,8 @@ class ProcessorExpectations internal constructor(
 
     /**
      * The handling failed, and the runtime retries it after this [attempt], the first by default, as [parking] reads
-     * what it threw. The backoff between the attempts is the runtime's.
+     * what it threw. The backoff between the attempts is the runtime's. A handling that ran longer than its
+     * `@Retry(timeout)` was cancelled, and threw a [me.ahoo.wow.kernel.HandlerTimeoutException].
      */
     fun expectRetried(attempt: Int = 1): Throwable {
         val (thrown, verdict) = parking(attempt)
