@@ -20,6 +20,7 @@ import {
   choiceOf,
   confirmOf,
   initialInput,
+  invalidInput,
   missingInput,
   nextChange,
   offeredAt,
@@ -132,6 +133,8 @@ export interface PendingAction {
   refused: readonly RefusalGroup[];
   /** Required fields still blank, by name. */
   missing: readonly string[];
+  /** Fields whose value their `check` refuses, by name, with why. */
+  invalid: Readonly<Record<string, string>>;
   /** The option a choice picked, as the words `{value}` is said with. */
   value: string | null;
 }
@@ -310,6 +313,7 @@ export function useRecordActions({
           ...(value === null ? {} : { values: { value } }),
           operation: action.id,
           ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
+          ...(action.done === undefined ? {} : { done: action.done }),
           each: (key, options) =>
             runOne(action, rowOf(key), input, clock.now(), options),
         },
@@ -355,6 +359,7 @@ export function useRecordActions({
       able: split.able,
       refused: refusalsByReason(split.refused),
       missing: missingInput(action, input),
+      invalid: invalidInput(action, input),
       value: valueOf(action, input),
     };
   }, [pressed, rowOf, now]);
@@ -430,7 +435,12 @@ export function useRecordActions({
 
   const confirm = useCallback(() => {
     if (!pressed || !pending) return;
-    if (pending.missing.length > 0 || pending.able.length === 0) return;
+    if (
+      pending.missing.length > 0 ||
+      Object.keys(pending.invalid).length > 0 ||
+      pending.able.length === 0
+    )
+      return;
     setPressed(null);
     execute(pressed);
   }, [pressed, pending, execute]);

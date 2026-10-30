@@ -122,6 +122,17 @@ export interface ViewStore {
   ): Promise<ViewInstance>;
   /** Synchronous, because the application fetched it before creating the engine. */
   permissions?(definitionId: string): ViewPermissions;
+  /**
+   * `true` when the views are kept where only this browser reads them — a
+   * `MemoryViewStore` over a `localStorageSnapshot`, for a host with no view
+   * store of its own. Nobody else sees a view kept so, so the engine shares
+   * none: `createShared` and every `changeAudience` are refused whatever
+   * `permissions` answers, a copy is saved without asking who it is for
+   * and says it stays in this browser, and a saved view offers no link (its
+   * address opens nothing elsewhere; a system view's still does). Absent is
+   * a store others read too.
+   */
+  readonly local?: boolean;
 }
 
 /** What every read of a store takes: the signal that cancels it. */
@@ -152,6 +163,11 @@ export interface WriteOptions extends ReadOptions {
 
 /** What the current user may do with one definition's views. */
 export interface ViewPermissions {
+  /**
+   * Set by the engine from `ViewStore.local`, for a surface to say where a
+   * view is kept; a store does not answer it.
+   */
+  local?: boolean;
   createPersonal: boolean;
   createShared: boolean;
   reorder: boolean;

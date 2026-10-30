@@ -36,6 +36,9 @@ export const scopeMessages = {
   'label.scope.tag.personal': 'personal',
   'label.scope.tag.shared': 'shared',
   'label.scope.personal.description': 'Only you see it.',
+  // Said in place of the audience question where the views are kept in this
+  // browser alone (`ViewStore.local`): nobody else sees one, anywhere.
+  'label.scope.local': 'Saved in this browser: only you see it, and only here.',
   'label.scope.shared.description': 'Everyone who uses this data sees it.',
   'label.scope.system.description':
     'Everyone who uses this data sees it among the system views; only those allowed can change it.',

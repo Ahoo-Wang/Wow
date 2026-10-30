@@ -106,6 +106,10 @@ describe("the parked entries' definition", () => {
     expect(kept("resolved")).toEqual(["resolved"]);
     expect(kept("all")).toHaveLength(4);
     expect(kept("active")).toEqual(["scheduled", "exhausted", "unrecoverable"]);
+    // The analyses of what is parked count every unresolved entry, as their
+    // titles say: "Parked by context" counted only those needing attention.
+    for (const id of ["by-context", "clusters", "by-subscription"])
+      expect(kept(id)).toEqual(["scheduled", "exhausted", "unrecoverable"]);
     for (const id of ["by-context", "clusters", "by-subscription", "over-time"])
       expect(views[id].kind).toBe("analysis");
   });

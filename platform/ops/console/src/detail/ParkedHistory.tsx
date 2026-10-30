@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { useI18n, type Message } from "@/i18n.tsx";
 import { PARKED_WORDS } from "@/views/parked.ts";
-import { formatTime, optionWord } from "./parkedEntry.ts";
+import { formatDuration, formatTime, optionWord } from "./parkedEntry.ts";
 import {
   historyOf,
   type HistoryItem,
@@ -68,9 +68,12 @@ function Step({ item }: { item: HistoryItem }) {
     );
   else if (facts.maxRetries !== undefined)
     details.push(`${words.maxRetries} ${facts.maxRetries}`);
-  if (facts.initialBackoff) details.push(`${words.initialBackoff} ${facts.initialBackoff}`);
+  if (facts.initialBackoff)
+    details.push(
+      `${words.initialBackoff} ${formatDuration(facts.initialBackoff, locale)}`,
+    );
   if (facts.claimTtl)
-    details.push(`${words.claimTtl} ${facts.claimTtl}`);
+    details.push(`${words.claimTtl} ${formatDuration(facts.claimTtl, locale)}`);
   if (facts.recoverable)
     details.push(optionWord(locale, "recoverable", facts.recoverable));
   if (facts.outcome) details.push(optionWord(locale, "outcome", facts.outcome));

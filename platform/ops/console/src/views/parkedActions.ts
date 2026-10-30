@@ -55,16 +55,20 @@ export const PARKED_ACTION_WORDS = {
     claimTtl: "Claim TTL",
     resolved: "This entry is resolved: nothing is parked to act on.",
     alreadyMarked: "Already marked so.",
+    sent: "{count} sent to the owning service",
+    "sent-one": "{record} sent to the owning service",
+    wholeNumber: "A whole number, 0 or more.",
+    duration: "A duration such as PT3M, 3m or 1h 30m.",
   },
   "zh-CN": {
     retry: "重试",
     retryConfirm: "重试 {count} 个条目？",
     "retryConfirm-one": "重试 {count} 个条目？",
-    retryBody: "所属服务从搁置处重新处理每个聚合。",
+    retryBody: "所属服务从停放处重新处理每个聚合。",
     skip: "跳过",
     skipConfirm: "跳过 {count} 个条目？",
     "skipConfirm-one": "跳过 {count} 个条目？",
-    skipBody: "所属服务不处理搁置的内容，直接解决每个条目。此操作无法撤销。",
+    skipBody: "所属服务不处理停放的内容，直接解决每个条目。此操作无法撤销。",
     reason: "原因",
     markRecoverable: "标记可恢复性",
     markAs: "标记为",
@@ -80,8 +84,12 @@ export const PARKED_ACTION_WORDS = {
     maxRetries: "最大重试次数",
     initialBackoff: "初始退避",
     claimTtl: "认领租期",
-    resolved: "此条目已解决，没有可操作的搁置内容。",
+    resolved: "此条目已解决，没有可操作的停放内容。",
     alreadyMarked: "已经是这个标记。",
+    sent: "{count} 项已发送给所属服务",
+    "sent-one": "{record} 已发送给所属服务",
+    wholeNumber: "填 0 或更大的整数。",
+    duration: "填一个时长，例如 PT3M、3m 或 1h 30m。",
   },
 } satisfies Words;
 
@@ -119,8 +127,7 @@ function idOf(row: RecordRow): string {
  * JSON writes a long: a string), which a retry or a skip names.
  */
 function failedAtOf(row: RecordRow): string | undefined {
-  const failedAt = ((row.data.state ?? {}) as Record<string, unknown>)
-    .failedAt;
+  const failedAt = ((row.data.state ?? {}) as Record<string, unknown>).failedAt;
   if (typeof failedAt === "number") return String(failedAt);
   return typeof failedAt === "string" && failedAt !== "" ? failedAt : undefined;
 }
@@ -146,6 +153,34 @@ export function retrySpecOf(input: ActionInput): ApplyRetrySpec {
   const claimTtl = textOf(input, "claimTtl");
   if (claimTtl) spec.claimTtl = claimTtl;
   return spec;
+}
+
+/**
+ * A duration the ops service takes (`Parked.isDuration`, Kotlin's
+ * `Duration.parse`): ISO-8601 (`PT3M`, `P1DT2H`) or Kotlin's own (`3m`,
+ * `1h 30m`, `1.5s`), never negative.
+ */
+const ISO_DURATION =
+  /^P(?=\d|T\d)(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/;
+const KOTLIN_DURATION =
+  /^\d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns)(?: \d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns))*$/;
+
+export function isDuration(value: string): boolean {
+  const text = value.trim();
+  return ISO_DURATION.test(text) || KOTLIN_DURATION.test(text);
+}
+
+/** A duration field's check: what the service would refuse, said first. */
+function durationCheck(value: unknown): true | string {
+  return typeof value === "string" && isDuration(value) ? true : t.duration;
+}
+
+/** A retry count's check: a whole number, never negative. */
+function wholeNumberCheck(value: unknown): true | string {
+  const number = typeof value === "string" ? Number(value.trim()) : value;
+  return typeof number === "number" && Number.isInteger(number) && number >= 0
+    ? true
+    : t.wholeNumber;
 }
 
 /**
@@ -177,6 +212,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       available: parked,
       form: { reason: { label: t.reason, required: false } },
       confirm: { title: t.retryConfirm, body: t.retryBody },
+      done: t.sent,
       run: (row, input) =>
         said(
           commands.retry(idOf(row), textOf(input, "reason"), failedAtOf(row)),
@@ -189,6 +225,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       available: parked,
       form: { reason: { label: t.reason, required: false } },
       confirm: { title: t.skipConfirm, body: t.skipBody },
+      done: t.sent,
       run: (row, input) =>
         said(
           commands.skip(idOf(row), textOf(input, "reason"), failedAtOf(row)),
@@ -213,6 +250,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
           ? { body: t.markUnrecoverableBody, tone: "danger" as const }
           : { body: t.markBody }),
       }),
+      done: t.sent,
       run: (row, { recoverable }) =>
         said(commands.markRecoverable(idOf(row), String(recoverable))),
     },
@@ -221,11 +259,21 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       label: t.applyRetrySpec,
       available: parked,
       form: {
-        maxRetries: { label: t.maxRetries, input: "number", required: false },
-        initialBackoff: { label: t.initialBackoff, required: false },
-        claimTtl: { label: t.claimTtl, required: false },
+        maxRetries: {
+          label: t.maxRetries,
+          input: "number",
+          required: false,
+          check: wholeNumberCheck,
+        },
+        initialBackoff: {
+          label: t.initialBackoff,
+          required: false,
+          check: durationCheck,
+        },
+        claimTtl: { label: t.claimTtl, required: false, check: durationCheck },
       },
       confirm: { title: t.applyConfirm, body: t.applyBody },
+      done: t.sent,
       run: (row, input) =>
         said(commands.applyRetrySpec(idOf(row), retrySpecOf(input))),
     },

@@ -249,6 +249,8 @@ export function reportingStore(
     ...(store.permissions
       ? { permissions: definitionId => store.permissions!(definitionId) }
       : {}),
+    // What the store is, passed on as it is: no call to watch.
+    ...(store.local ? { local: true } : {}),
   };
 }
 

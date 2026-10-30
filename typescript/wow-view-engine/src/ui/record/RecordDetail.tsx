@@ -86,6 +86,12 @@ interface RecordDetailProps {
    * closing the panel. A record not on it (opened by a link) has no steps.
    */
   rows?: readonly RecordRow[];
+  /**
+   * The surface's command line (`BulkStatus`), drawn in the panel too: a
+   * command pressed in its header says how it went here, where the reader
+   * is looking, rather than under rows the panel covers.
+   */
+  status?: ReactNode;
 }
 
 /**
@@ -127,6 +133,7 @@ export function RecordDetail({
   title: titleOf,
   onRenderFailure,
   rows,
+  status,
 }: RecordDetailProps) {
   const messages = useViewMessages();
   const { key, record } = detail;
@@ -231,6 +238,7 @@ export function RecordDetail({
                 <RowActions>{actions(row)}</RowActions>
               </div>
             )}
+            {row && actions && status}
           </SheetHeader>
           <div className="fve:relative fve:flex fve:min-h-0 fve:flex-1 fve:flex-col fve:gap-4 fve:overflow-y-auto fve:px-4 fve:pb-4">
             {error && (

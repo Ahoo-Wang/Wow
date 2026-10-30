@@ -17,11 +17,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
 import { ParkedHistory } from "./ParkedHistory.tsx";
-import {
-  HISTORY_LIMIT,
-  historyOf,
-  historySource,
-} from "./entryHistory.ts";
+import { HISTORY_LIMIT, historyOf, historySource } from "./entryHistory.ts";
 
 const AT = Date.parse("2026-10-01T08:00:00Z");
 
@@ -239,7 +235,8 @@ describe("an entry's timeline", () => {
     expect(steps[3]).toHaveTextContent("by alice");
     expect(steps[5]).toHaveTextContent("Unrecoverable");
     expect(steps[6]).toHaveTextContent("Max retries 5");
-    expect(steps[6]).toHaveTextContent("Initial backoff 2m");
+    // Said for a reader, as typed or as stored alike.
+    expect(steps[6]).toHaveTextContent("Initial backoff 2 min");
     expect(steps[8]).toHaveTextContent("Retry recorded");
     expect(steps[8]).toHaveTextContent("Attempts 1 of 3");
     expect(steps[9]).toHaveTextContent("Parked");

@@ -32,6 +32,7 @@ import me.ahoo.wow.ops.api.parked.Retry
 import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
+import java.time.Instant
 import kotlin.time.Duration
 
 /**
@@ -99,8 +100,8 @@ class Parked(private val state: ParkedState) {
         if (failedAt != null && failedAt != state.failedAt) {
             reject(
                 ParkedRejections.STALE,
-                "${state.subscription} parked ${state.aggregate.id} again at ${state.failedAt}, after the parking at " +
-                    "$failedAt the action names; read the entry again.",
+                "${state.subscription} parked ${state.aggregate.id} again at ${Instant.ofEpochMilli(state.failedAt)}, " +
+                    "after the parking at ${Instant.ofEpochMilli(failedAt)} the action names; read the entry again.",
             )
         }
     }

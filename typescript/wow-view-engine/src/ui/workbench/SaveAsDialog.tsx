@@ -98,6 +98,12 @@ export interface SaveAsDialogProps {
   /** Called with the copy once the store took it. */
   onSaved?(instance: ViewInstance): void;
   /**
+   * The views are kept in this browser alone (`SaveAbilities.local`): the
+   * copy is the reader's own, saved without asking who it is for, and the
+   * dialog says it stays here.
+   */
+  local?: boolean;
+  /**
    * Where the keyboard goes as it closes (`FinalFocus`): the control that
    * asked — a menu's trigger, since the item that was pressed went with the
    * menu. Base UI's own choice when left out.
@@ -197,6 +203,7 @@ export function SaveAsDialog({
   description,
   defaultScope,
   onSaved,
+  local,
   finalFocus,
 }: SaveAsDialogProps) {
   return (
@@ -213,6 +220,7 @@ export function SaveAsDialog({
           defaultScope={defaultScope}
           onOpenChange={onOpenChange}
           onSaved={onSaved}
+          {...(local ? { local } : {})}
         />
       </DialogContent>
     </Dialog>
@@ -227,6 +235,7 @@ function SaveAsForm({
   defaultScope,
   onOpenChange,
   onSaved,
+  local: keptHere,
 }: Omit<SaveAsDialogProps, 'open' | 'finalFocus'>) {
   const messages = useViewMessages();
   const fieldId = useId();
@@ -234,17 +243,28 @@ function SaveAsForm({
   // The scope a copy lands in when the user picks nothing: their own, unless
   // they may only publish. Both are offered either way — an option that is
   // simply missing reads as a scope this view cannot have.
-  const asksAudience = intent !== 'share' && intent !== 'share-system';
+  // Kept in this browser alone, a view is the reader's own and nobody
+  // else's: the copy goes there without the question, and the dialog says
+  // where it stays instead (`ViewStore.local`).
+  const local =
+    keptHere === true &&
+    can.createSystem !== true &&
+    intent !== 'share' &&
+    intent !== 'share-system';
+  const asksAudience =
+    intent !== 'share' && intent !== 'share-system' && !local;
   const [scope, setScope] = useState<ViewScope>(
     intent === 'share-system'
       ? 'system'
-      : !asksAudience
-        ? 'shared'
-        : defaultScope && allows(can, defaultScope)
-          ? defaultScope
-          : can.createPersonal
-            ? 'personal'
-            : 'shared',
+      : local
+        ? 'personal'
+        : !asksAudience
+          ? 'shared'
+          : defaultScope && allows(can, defaultScope)
+            ? defaultScope
+            : can.createPersonal
+              ? 'personal'
+              : 'shared',
   );
   const first = intent !== 'copy';
   // A copy and a first save name the thing open — on a board, 仪表盘 (Q34).
@@ -319,6 +339,12 @@ function SaveAsForm({
             }}
           />
         </Field>
+
+        {local && (
+          <FieldDescription data-slot="save-as-local">
+            {messages.label('label.scope.local')}
+          </FieldDescription>
+        )}
 
         {asksAudience && (
           <Field data-slot="save-as-scope">

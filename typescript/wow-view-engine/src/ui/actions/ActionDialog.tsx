@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { FilterValue, RecordKey } from '../../model/index.js';
 import type { EditorDescriptor } from '../../filter/index.js';
 import type { ActionFormField } from '../../runtime/actions.js';
@@ -97,11 +97,15 @@ export function ActionDialog({
   const open = pending !== null;
   if (!open && tried !== null) setTried(null);
   if (!shown) return null;
-  const { action, place, keys, confirm, refused, able, missing } = shown;
+  const { action, place, keys, confirm, refused, able, missing, invalid } =
+    shown;
   const opening = `${action.id}\u0000${place}\u0000${keys.join('\u0000')}`;
-  const count = keys.length;
-  // One record is named, not counted.
-  const record = count === 1 ? String(keys[0]) : null;
+  // A selection's question counts what will be sent: 「跳过 4 条？」 over a
+  // selection where 3 can be read as 4 going, the body then saying 3.
+  const sent = place === 'bulk' && able.length > 0 ? able : keys;
+  const count = sent.length;
+  // One record is named, not counted: the one that will be sent.
+  const record = count === 1 ? String(sent[0]) : null;
   const values = {
     count,
     ...(record === null ? {} : { record }),
@@ -132,7 +136,7 @@ export function ActionDialog({
   const answered = sayWith(confirm?.action ?? action.label, values);
   // Over a selection the answer counts what will be sent.
   const answer =
-    bulk && count > 1
+    bulk && keys.length > 1
       ? messages.label('label.action.bulk', {
           action: answered,
           count: able.length,
@@ -142,18 +146,32 @@ export function ActionDialog({
   const marked = tried === opening;
   const noneId = `${id}-none`;
   const Confirm = danger ? DestructiveAction : AlertDialogAction;
+  // What keeps the answer from being sent: the blank, then the refused,
+  // each in the form's order.
+  const blocked = Object.keys(action.form ?? {}).filter(
+    name => missing.includes(name) || name in invalid,
+  );
   const press = () => {
-    if (missing.length > 0) {
+    if (blocked.length > 0) {
       setTried(opening);
-      // The first blank field, by its name (a name is the host's, so it is
-      // matched, never written into a selector).
+      // The first blank or refused field, by its name (a name is the
+      // host's, so it is matched, never written into a selector).
       const first = [
         ...(form.current?.querySelectorAll('[data-field]') ?? []),
-      ].find(field => field.getAttribute('data-field') === missing[0]);
+      ].find(field => field.getAttribute('data-field') === blocked[0]);
       focusIn(first);
       return;
     }
     onConfirm();
+  };
+  // Enter in a typed field answers, as it does in any form. A choice, or a
+  // yes or no, is a select's button, whose own Enter opens its list; a word
+  // still being composed is the input method's.
+  const enter = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+    if (!(event.target instanceof HTMLInputElement)) return;
+    event.preventDefault();
+    if (open && able.length > 0) press();
   };
   return (
     <AlertDialog
@@ -173,7 +191,7 @@ export function ActionDialog({
           {body && <AlertDialogDescription>{body}</AlertDialogDescription>}
         </AlertDialogHeader>
         {shown.form && action.form && (
-          <FieldGroup ref={form} data-slot="action-form">
+          <FieldGroup ref={form} data-slot="action-form" onKeyDown={enter}>
             {Object.entries(action.form).map(([name, field], index) => (
               <FormField
                 key={name}
@@ -181,7 +199,8 @@ export function ActionDialog({
                 name={name}
                 field={field}
                 value={shown.input[name]}
-                invalid={marked && missing.includes(name)}
+                invalid={marked && blocked.includes(name)}
+                problem={marked ? invalid[name] : undefined}
                 onChange={value => onInput(name, value)}
                 messages={messages}
               />
@@ -198,7 +217,7 @@ export function ActionDialog({
                 able.length === 0
                   ? 'label.action.none-able'
                   : 'label.action.able',
-                { able: able.length, count, action: named },
+                { able: able.length, count: keys.length, action: named },
               )}
             </p>
             <p>{messages.label('label.action.refused')}</p>
@@ -274,7 +293,9 @@ function editorOf(field: ActionFormField): EditorDescriptor {
 /**
  * One field of the form: its label pointing at its control, the control
  * required where the field is, and 「必填」 the control's description —
- * marked invalid only once an answer was pressed without it.
+ * marked invalid only once an answer was pressed without it. A value the
+ * field's `check` refuses is marked the same way, its reason the
+ * description in place of 「必填」.
  */
 function FormField({
   id,
@@ -282,6 +303,7 @@ function FormField({
   field,
   value,
   invalid,
+  problem,
   onChange,
   messages,
 }: {
@@ -290,12 +312,15 @@ function FormField({
   field: ActionFormField;
   value: unknown;
   invalid: boolean;
+  /** Why the field's `check` refuses its value, once marked. */
+  problem: string | undefined;
   onChange(value: FilterValue): void;
   messages: MessageFormatters;
 }) {
   const label = messages.say(field.label);
   const required = field.required !== false;
   const hint = `${id}-hint`;
+  const described = required || problem !== undefined;
   return (
     <Field data-field={name} data-invalid={invalid || undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -308,14 +333,16 @@ function FormField({
         control={{
           id,
           required,
-          ...(required ? { describedBy: hint } : {}),
+          ...(described ? { describedBy: hint } : {}),
         }}
         {...(field.options ? { options: [...field.options] } : {})}
         onChange={onChange}
       />
-      {required && (
+      {described && (
         <FieldDescription id={hint}>
-          {messages.label('label.action.required')}
+          {problem !== undefined
+            ? messages.say(problem)
+            : messages.label('label.action.required')}
         </FieldDescription>
       )}
     </Field>

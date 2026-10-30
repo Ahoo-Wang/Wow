@@ -20,7 +20,13 @@ import { I18nProvider, type Locale } from "@/i18n.tsx";
 import type { OpsServices } from "@/services/ops.ts";
 import { parkedDetail } from "./parkedDetail.tsx";
 import { ParkedReading } from "./ParkedReading.tsx";
-import { failureOf, formatTime, parkedTitle } from "./parkedEntry.ts";
+import {
+  durationSeconds,
+  failureOf,
+  formatDuration,
+  formatTime,
+  parkedTitle,
+} from "./parkedEntry.ts";
 
 const FAILED_AT = Date.parse("2026-10-01T08:00:00Z");
 
@@ -75,10 +81,15 @@ describe("a parked entry's reading", () => {
     expect(reading).toHaveTextContent("eshop-payment.payment");
     expect(reading).toHaveTextContent("From position41");
     expect(reading).toHaveTextContent("3 of 3");
-    expect(reading).toHaveTextContent("PT1M");
+    // A duration is said for a reader, the stored text kept on hover.
+    expect(reading).toHaveTextContent("Initial backoff1 min");
+    expect(screen.getByTitle("PT1M")).toHaveTextContent("1 min");
+    expect(reading).toHaveTextContent("Claim TTL2 min");
     expect(reading).toHaveTextContent("Applied by an operator");
     expect(reading).toHaveTextContent("Exhausted");
-    expect(reading).toHaveTextContent("Recoverable");
+    // The recoverability badge says what it is, not a second status.
+    expect(reading).toHaveTextContent("Recoverability: Recoverable");
+    expect(reading).not.toHaveTextContent("AttemptsAttempts");
     expect(reading).toHaveTextContent("RequestedRetry");
     expect(reading).toHaveTextContent("Sent to the owning service");
     expect(reading).not.toHaveTextContent("Outcome");
@@ -86,11 +97,19 @@ describe("a parked entry's reading", () => {
 
   it("says how a resolved entry came out", () => {
     const reading = read(
-      rowOf({ status: "resolved", outcome: "skipped", resolvedAt: FAILED_AT }),
+      rowOf({
+        status: "resolved",
+        outcome: "skipped",
+        resolvedAt: FAILED_AT,
+        // As an operator typed them, said alike.
+        retrySpec: { maxRetries: 3, initialBackoff: "1m", claimTtl: "PT1H30M" },
+      }),
       "zh-CN",
     );
     expect(reading).toHaveTextContent("已解决");
     expect(reading).toHaveTextContent("已跳过");
+    expect(reading).toHaveTextContent("初始退避1 分钟");
+    expect(reading).toHaveTextContent("认领租期1 小时 30 分钟");
     // What the row does not hold reads as nothing, not as a blank.
     expect(reading).toHaveTextContent("—");
   });
@@ -106,7 +125,9 @@ describe("a parked entry's reading", () => {
     expect(reading).toHaveTextContent("Refused by the owning service");
     expect(reading).toHaveTextContent("Refused actionSkip");
     expect(reading).toHaveTextContent("Refusal codewow.auth.forbidden");
-    expect(reading).toHaveTextContent("Taken from the ops context's saga alone.");
+    expect(reading).toHaveTextContent(
+      "Taken from the ops context's saga alone.",
+    );
     expect(screen.getByTestId("parked-refusal")).toHaveTextContent(
       "did not run the operator's last request",
     );
@@ -188,5 +209,20 @@ describe("a failure", () => {
   it("is the type before the first colon and the message after it", () => {
     expect(failureOf("a.B: c: d")).toEqual({ type: "a.B", message: "c: d" });
     expect(failureOf("plain")).toEqual({ type: "plain", message: "" });
+  });
+});
+
+describe("a duration as the ops service stores one", () => {
+  it("reads ISO-8601 and Kotlin's forms alike, and leaves anything else as written", () => {
+    expect(durationSeconds("PT3M")).toBe(180);
+    expect(durationSeconds("3m")).toBe(180);
+    expect(durationSeconds("1h 30m")).toBe(5400);
+    expect(durationSeconds("P1DT2H")).toBe(93_600);
+    expect(durationSeconds("soon")).toBeNull();
+    expect(formatDuration("PT2M", "en")).toBe("2 min");
+    expect(formatDuration("90s", "en")).toBe("1 min 30 s");
+    expect(formatDuration("P1D", "zh-CN")).toBe("1 天");
+    expect(formatDuration("1.5s", "en")).toBe("1.5 s");
+    expect(formatDuration("soon", "en")).toBe("soon");
   });
 });

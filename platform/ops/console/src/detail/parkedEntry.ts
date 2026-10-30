@@ -96,3 +96,74 @@ export function formatTime(
     timeStyle: "medium",
   }).format(value);
 }
+
+/** Seconds per unit of a duration as the ops service writes one. */
+const UNIT_SECONDS: Record<string, number> = {
+  d: 86_400,
+  h: 3_600,
+  m: 60,
+  s: 1,
+  ms: 0.001,
+  us: 0.000_001,
+  ns: 0.000_000_001,
+};
+
+/** The seconds a duration names, ISO-8601 (`PT3M`) or Kotlin's (`3m`, `1h 30m`), else `null`. */
+export function durationSeconds(text: string): number | null {
+  const value = text.trim();
+  const iso =
+    /^P(?=\d|T\d)(?:(\d+(?:\.\d+)?)D)?(?:T(?=\d)(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$/.exec(
+      value,
+    );
+  if (iso) {
+    const [, d, h, m, s] = iso.map((part) => Number(part ?? 0));
+    return d * 86_400 + h * 3_600 + m * 60 + s;
+  }
+  if (
+    !/^\d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns)(?: \d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns))*$/.test(
+      value,
+    )
+  )
+    return null;
+  return value.split(" ").reduce((total, part) => {
+    const [, amount, unit] = /^(\d+(?:\.\d+)?)([a-z]+)$/.exec(part)!;
+    return total + Number(amount) * UNIT_SECONDS[unit];
+  }, 0);
+}
+
+/** The words of each unit a duration is said in, per language. */
+const DURATION_UNITS: Record<Locale, [number, string][]> = {
+  en: [
+    [86_400, "d"],
+    [3_600, "h"],
+    [60, "min"],
+    [1, "s"],
+  ],
+  "zh-CN": [
+    [86_400, "天"],
+    [3_600, "小时"],
+    [60, "分钟"],
+    [1, "秒"],
+  ],
+};
+
+/**
+ * A duration said for a reader — `PT1M` and `1m` alike as 「1 分钟」/"1 min",
+ * `PT1H30M` as "1 h 30 min" — rather than as the service stores it; the
+ * text as written when it is not one.
+ */
+export function formatDuration(text: string, locale: Locale): string {
+  const seconds = durationSeconds(text);
+  if (seconds === null) return text;
+  const parts: string[] = [];
+  let left = seconds;
+  for (const [size, unit] of DURATION_UNITS[locale]) {
+    const whole =
+      size === 1 ? Math.round(left * 1000) / 1000 : Math.floor(left / size);
+    if (whole > 0) parts.push(`${whole} ${unit}`);
+    left -= whole * size;
+  }
+  return parts.length > 0
+    ? parts.join(" ")
+    : `0 ${DURATION_UNITS[locale][3][1]}`;
+}

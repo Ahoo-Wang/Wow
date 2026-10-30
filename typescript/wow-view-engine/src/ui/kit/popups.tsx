@@ -212,16 +212,22 @@ const MENU_POSITIONER_CLASS = 'fve:isolate fve:z-50 fve:outline-none';
 
 /** The vendored popups' classes, copied verbatim from `components/`. */
 const ALERT_DIALOG_POPUP_CLASS =
-  'fve:group/alert-dialog-content fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-h-[calc(100dvh-2rem)] fve:overflow-y-auto fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[size=default]:max-w-xs fve:data-[size=sm]:max-w-xs fve:data-[size=default]:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
+  'fve:group/alert-dialog-content fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-h-[calc(100dvh-2rem)] fve:overflow-y-auto fve:[overflow-wrap:anywhere] fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:data-[size=default]:max-w-xs fve:data-[size=sm]:max-w-xs fve:data-[size=default]:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 const COMBOBOX_POPUP_CLASS =
   'fve:group/combobox-content fve:relative fve:max-h-(--available-height) fve:w-(--anchor-width) fve:max-w-(--available-width) fve:min-w-[calc(var(--anchor-width)+--spacing(7))] fve:origin-(--transform-origin) fve:overflow-hidden fve:rounded-lg fve:bg-popover fve:text-popover-foreground fve:shadow-md fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:data-[chips=true]:min-w-(--anchor-width) fve:data-[side=bottom]:slide-in-from-top-2 fve:data-[side=inline-end]:slide-in-from-left-2 fve:data-[side=inline-start]:slide-in-from-right-2 fve:data-[side=left]:slide-in-from-right-2 fve:data-[side=right]:slide-in-from-left-2 fve:data-[side=top]:slide-in-from-bottom-2 fve:*:data-[slot=input-group]:m-1 fve:*:data-[slot=input-group]:mb-0 fve:*:data-[slot=input-group]:h-8 fve:*:data-[slot=input-group]:border-input/30 fve:*:data-[slot=input-group]:bg-input/30 fve:*:data-[slot=input-group]:shadow-none fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 /**
  * A dialog never runs past the viewport: taller content scrolls inside it
  * (`max-h` one rem from each edge). A dialog whose body is a long list makes
  * that list the scroller instead, so its heading stays (`ViewManager`).
+ *
+ * Nor does it run past its own width: a word with no break in it — a
+ * record's key such as `payment-service:payment:…:(0):pay-0012` — breaks
+ * where it must (`overflow-wrap: anywhere`, which also lets the grid track
+ * shrink to the dialog). Left to the vendored grid, the key held the track
+ * at its own width and pushed the dialog's buttons out of sight.
  */
 const DIALOG_POPUP_CLASS =
-  'fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:max-h-[calc(100dvh-2rem)] fve:overflow-y-auto fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
+  'fve:fixed fve:top-1/2 fve:left-1/2 fve:z-50 fve:grid fve:w-full fve:max-w-[calc(100%-2rem)] fve:max-h-[calc(100dvh-2rem)] fve:overflow-y-auto fve:[overflow-wrap:anywhere] fve:-translate-x-1/2 fve:-translate-y-1/2 fve:gap-4 fve:rounded-xl fve:bg-popover fve:p-4 fve:text-sm fve:text-popover-foreground fve:ring-1 fve:ring-foreground/10 fve:duration-100 fve:outline-none fve:sm:max-w-sm fve:data-open:animate-in fve:data-open:fade-in-0 fve:data-open:zoom-in-95 fve:data-closed:animate-out fve:data-closed:fade-out-0 fve:data-closed:zoom-out-95';
 /**
  * The menu and the popover depart from the registry by one more class each:
  * `relative`. Each is a scroll port, and Base UI positions the positioner

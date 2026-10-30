@@ -19,7 +19,7 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from "react";
-import type { OpsCaller } from "@/services/caller.ts";
+import type { OpsCaller, SignedOut } from "@/services/caller.ts";
 import type { OpsServices } from "@/services/ops.ts";
 
 const ServicesContext = createContext<OpsServices | null>(null);
@@ -40,6 +40,12 @@ export function useServices(): OpsServices {
   if (!services)
     throw new Error("No ops services: render under ServicesProvider.");
   return services;
+}
+
+/** Why the console was last signed out, redrawn when it changes. */
+export function useSignedOut(): SignedOut | null {
+  const { callers } = useServices();
+  return useSyncExternalStore(callers.subscribe, callers.signedOut);
 }
 
 /** The caller in force, redrawn when it changes. */

@@ -77,8 +77,14 @@ export function MoreViewActions({
         ? 'shared'
         : 'personal'
       : null;
+  // A view kept in this browser alone has an address that opens nothing
+  // anywhere else: only a system view's link is worth handing on — the one
+  // view such a store calls shared, since it shares none of its own.
   const linkable =
-    router !== undefined && !state.isNew && typeof window !== 'undefined';
+    router !== undefined &&
+    !state.isNew &&
+    typeof window !== 'undefined' &&
+    (can.local !== true || state.audience === 'shared');
   // 放进仪表盘: offered on a saved view whose commands can; whether any
   // board will take it is read when the dialog opens.
   const { boards, addToDashboard } = commands;

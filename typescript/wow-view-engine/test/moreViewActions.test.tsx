@@ -164,3 +164,71 @@ describe('放进仪表盘… (R2-98)', () => {
     ).toBeTruthy();
   });
 });
+
+describe('views kept in this browser alone (`ViewStore.local`)', () => {
+  /** A permission answer that allows everything but making a board. */
+  const noBoards = (definitionId: string) => ({
+    createPersonal: definitionId !== 'overview',
+    createShared: definitionId !== 'overview',
+    reorder: true,
+    setDefault: true,
+    instance: () => ({
+      save: true,
+      rename: true,
+      delete: true,
+      changeAudience: true,
+    }),
+  });
+
+  async function openLocal() {
+    const store = new MemoryViewStore({
+      instances: [mine],
+      local: true,
+      permissions: noBoards,
+    });
+    const engine = new ViewEngine({
+      resources: resourcesOf([ordersDefinition(), overviewDefinition()], () =>
+        testSource(),
+      ),
+      store,
+    });
+    const user = userEvent.setup();
+    render(
+      <DataWorkbench
+        engine={engine}
+        definitionId="orders"
+        instanceId="orders-1"
+      />,
+    );
+    await screen.findAllByRole('row');
+    return { engine, user };
+  }
+
+  it('shares nothing, whatever the permissions answer', async () => {
+    const { engine } = await openLocal();
+    const permissions = engine.permissions('orders');
+    expect(permissions.local).toBe(true);
+    expect(permissions.createShared).toBe(false);
+    expect(permissions.instance('orders-1').changeAudience).toBe(false);
+  });
+
+  it('saves a copy without asking who it is for, and says it stays here', async () => {
+    const { user } = await openLocal();
+    await user.click(more());
+    // No move to the other audience, and no board to put it on: the only
+    // board is one the reader cannot make.
+    await screen.findByRole('menuitem', { name: 'Save as' });
+    expect(screen.queryByRole('menuitem', { name: 'Make shared' })).toBeNull();
+    expect(
+      screen.queryByRole('menuitem', { name: 'Add to dashboard…' }),
+    ).toBeNull();
+    await user.click(screen.getByRole('menuitem', { name: 'Save as' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(
+        'Saved in this browser: only you see it, and only here.',
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).queryByRole('radiogroup')).toBeNull();
+  });
+});

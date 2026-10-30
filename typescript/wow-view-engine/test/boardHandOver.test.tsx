@@ -148,6 +148,24 @@ function board(): DashboardViewConfig {
           opens: 'by-warehouse',
         },
       ),
+      // A number with no group to press: the card opens the list it counts.
+      panel(
+        'count',
+        'Orders counted',
+        { x: 12, y: 8 },
+        {
+          owned: {
+            definitionId: 'orders',
+            config: analysisConfig({
+              groups: [],
+              limit: 1,
+              layout: 'chart',
+              chart: { type: 'metric', metric: { metric: 'orders' } },
+            }),
+          },
+          opens: 'list',
+        },
+      ),
     ],
   });
 }
@@ -415,6 +433,33 @@ describe('a panel that names the view it opens in its stead (opens)', () => {
     );
     await screen.findByRole('heading', { level: 2, name: 'By warehouse' });
     await expectHandedOver(user);
+  });
+});
+
+describe('a number card that names the view it counts (opens)', () => {
+  it('opens that view when the card is pressed, as its menu’s 在工作台中打开 does', async () => {
+    const { routed, user } = setup();
+    const card = await screen.findByRole('button', {
+      name: 'Open “Orders counted” in the workbench',
+    });
+    await user.click(card);
+    expect(routed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'view',
+        definitionId: 'orders',
+        instanceId: 'list',
+      }),
+    );
+  });
+
+  it('is no button where the card names no view', async () => {
+    setup();
+    await screen.findByRole('button', {
+      name: 'Open “Orders counted” in the workbench',
+    });
+    expect(document.querySelectorAll('[data-slot="panel-opens"]')).toHaveLength(
+      1,
+    );
   });
 });
 

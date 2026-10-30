@@ -185,6 +185,7 @@ export function SaveActions({
       commands={commands}
       title={title}
       intent={first ? 'first' : 'copy'}
+      local={can.local === true}
       onSaved={saved => {
         onSaved?.(saved);
         onCreated?.(saved);

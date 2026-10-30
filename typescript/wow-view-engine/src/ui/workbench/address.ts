@@ -450,8 +450,10 @@ export function useAddressedBoard<P extends BoardAddress>(
 
 /**
  * The record open in the address (`?id=`), for `ViewHost` to hand every
- * bound resource's detail: opening one record after another is reading,
- * not moving, so it replaces the entry. `undefined` without a router.
+ * bound resource's detail. Opening a record from the list is a step of its
+ * own, so the browser's Back closes it rather than leaving the view; going
+ * from one record to the next, or closing, is reading, not moving, so it
+ * replaces the entry. `undefined` without a router.
  */
 export function useAddressedDetail(
   router: ViewRouter | undefined,
@@ -462,10 +464,12 @@ export function useAddressedDetail(
     (key: RecordKey | null) => {
       const now = latest();
       const next = key === null ? null : String(key);
-      if (!now || next === paramOf(now.location, RECORD_PARAM)) return;
+      if (!now) return;
+      const current = paramOf(now.location, RECORD_PARAM);
+      if (next === current) return;
       now.go(withParam(now.location, RECORD_PARAM, next), {
         state: now.location.state,
-        replace: true,
+        replace: current !== null || next === null,
       });
     },
     [latest],
