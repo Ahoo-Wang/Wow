@@ -17,9 +17,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
-import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ReceiptContext
+import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
@@ -28,8 +28,8 @@ import me.ahoo.wow.spi.id.IdGenerators
  * saga's [ProcessorBinding]s ([ProcessorBinding.commits]), since it takes the success receipts of the commands the
  * saga's own handlers derive; like them, it knows no runtime.
  *
- * - [commandType] is the `C` of the `CommandCommitted<C>` it takes: it handles the receipts of the commands of that
- *   class (or a subclass); null for `CommandCommitted<*>`, every command the saga derives ([handles]).
+ * - [commandType] is the `C` of the `CommandReceipt.Committed<C>` it takes: it handles the receipts of the commands of that
+ *   class (or a subclass); null for `CommandReceipt.Committed<*>`, every command the saga derives ([handles]).
  * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
  * - [invoke] calls the handler directly and returns the commands of the requests it returns
  *   ([requestsOf]), as a saga's handler does.
@@ -43,7 +43,7 @@ class CommittedBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
-    private val call: suspend (CommandCommitted<C>, ReceiptContext) -> List<CommandRequest<*>>,
+    private val call: suspend (CommandReceipt.Committed<C>, SagaContext) -> List<CommandRequest<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -61,8 +61,8 @@ class CommittedBinding<C : Any> private constructor(
      * ([committedContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
     @Suppress("UNCHECKED_CAST") // The runtime hands a handler only the receipts it handles.
-    suspend fun invoke(committed: CommandCommitted<*>, context: ReceiptContext): List<Command<*>> =
-        derivationOf(context).commandsOf(call(committed as CommandCommitted<C>, context))
+    suspend fun invoke(committed: CommandReceipt.Committed<*>, context: SagaContext): List<Command<*>> =
+        derivationOf(context).commandsOf(call(committed as CommandReceipt.Committed<C>, context))
 
     override fun toString(): String = "CommittedBinding($name, ${commandType?.name ?: "*"})"
 
@@ -74,7 +74,7 @@ class CommittedBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
-            handle: suspend (CommandCommitted<C>, ReceiptContext) -> List<CommandRequest<*>>,
+            handle: suspend (CommandReceipt.Committed<C>, SagaContext) -> List<CommandRequest<*>>,
         ): CommittedBinding<C> = CommittedBinding(processor, function, commandType, blocking, handle)
 
         /**
@@ -94,22 +94,23 @@ class CommittedBinding<C : Any> private constructor(
  */
 fun committedContextOf(
     handler: CommittedBinding<*>,
-    committed: CommandCommitted<*>,
+    committed: CommandReceipt.Committed<*>,
     ids: Ids = IdGenerators.DEFAULT,
-): ReceiptContext = committedContextOf(handler, committed, ids, CommandTypes.NONE)
+): SagaContext = committedContextOf(handler, committed, ids, CommandTypes.NONE)
 
 /**
  * The context an `@OnCommitted` handler gets for [committed], as [committedContextOf] gives it, whose commands without
- * a ref go to the aggregate type [commandTypes] assigns their class.
+ * a ref go to the aggregate type [commandTypes] assigns their class, and whose calls go through [calls].
  */
 @InternalWowApi
 fun committedContextOf(
     handler: CommittedBinding<*>,
-    committed: CommandCommitted<*>,
+    committed: CommandReceipt.Committed<*>,
     ids: Ids,
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
-): ReceiptContext = ExecutionReceiptContext(
+    calls: CommandCalls = CommandCalls.NONE,
+): SagaContext = ExecutionReceiptContext(
     ExecutionId(handler.name, committed.executionId.ref, committed.executionId.version),
     committed.commandId,
     committed.causation,
@@ -119,4 +120,5 @@ fun committedContextOf(
     committed.headers,
     commandTypes,
     queries,
+    calls = calls,
 )

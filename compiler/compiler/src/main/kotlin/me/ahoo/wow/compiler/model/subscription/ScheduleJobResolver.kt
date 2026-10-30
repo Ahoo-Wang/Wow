@@ -28,7 +28,7 @@ import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.subscribe.JobContext
+import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -42,7 +42,7 @@ import java.time.ZoneId
  * aggregate and into the Manifest's subscription `job`. The handler:
  *
  * - is a `@Saga`'s, not also `@OnEvent` or `@OnRejected`, and not private;
- * - takes a `ScheduleTick` and, optionally, the `JobContext`, and returns what a saga's handler returns;
+ * - takes a `ScheduleTick` and, optionally, the `SagaContext`, and returns what a saga's handler returns;
  * - names its job with letters, digits, `_` and `-`, gives six cron fields (or a macro, `@daily`) and a time zone Java
  *   knows, and is sharded only as a SYSTEM job; a processor's jobs of one name are declared alike. The cron fields
  *   themselves are checked when the binding is built, by the kernel's parser.
@@ -52,7 +52,7 @@ internal object ScheduleJobResolver {
     private val ON_EVENT = OnEvent::class.java.name
     private val ON_REJECTED = OnRejected::class.java.name
     private val TICK = ScheduleTick::class.java.name
-    private val JOB_CONTEXT = JobContext::class.java.name
+    private val SAGA_CONTEXT = SagaContext::class.java.name
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
@@ -148,11 +148,11 @@ internal object ScheduleJobResolver {
                 add("$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick")
             }
             val context = parameters.getOrNull(1)
-            if (context != null && context != JOB_CONTEXT) {
-                add("$where takes $context: a job's handler takes a $JOB_CONTEXT after the tick, if anything")
+            if (context != null && context != SAGA_CONTEXT) {
+                add("$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything")
             }
             if (parameters.size > 2) {
-                add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, JobContext])")
+                add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])")
             }
         }
 

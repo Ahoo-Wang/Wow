@@ -22,9 +22,11 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.ReceiptContext
+import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.spi.id.IdGenerators
 
 /**
@@ -33,8 +35,8 @@ import me.ahoo.wow.spi.id.IdGenerators
  * ([ProcessorBinding.rejections]), since it takes the rejections of the commands the saga's own handlers derive,
  * not entries of the log; like them, it knows no runtime.
  *
- * - [commandType] is the `C` of the `CommandRejected<C>` it takes: it handles the rejections of the commands of that
- *   class (or a subclass); null for `CommandRejected<*>`, every command the saga derives ([handles]).
+ * - [commandType] is the `C` of the `CommandReceipt.Rejected<C>` it takes: it handles the rejections of the commands of that
+ *   class (or a subclass); null for `CommandReceipt.Rejected<*>`, every command the saga derives ([handles]).
  * - [blocking] (`@Blocking`) asks the runtime to run the call on virtual threads instead of inline.
  * - [invoke] calls the handler directly and returns the commands that compensate, of the requests it returns
  *   ([requestsOf]), as a saga's handler derives its commands.
@@ -48,7 +50,7 @@ class RejectionBinding<C : Any> private constructor(
     val function: String,
     val commandType: Class<C>?,
     val blocking: Boolean,
-    private val call: suspend (CommandRejected<C>, ReceiptContext) -> List<CommandRequest<*>>,
+    private val call: suspend (CommandReceipt.Rejected<C>, SagaContext) -> List<CommandRequest<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
@@ -66,8 +68,8 @@ class RejectionBinding<C : Any> private constructor(
      * ([rejectionContextOf]), in the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
     @Suppress("UNCHECKED_CAST") // The runtime hands a handler only the rejections it handles.
-    suspend fun invoke(rejected: CommandRejected<*>, context: ReceiptContext): List<Command<*>> =
-        derivationOf(context).commandsOf(call(rejected as CommandRejected<C>, context))
+    suspend fun invoke(rejected: CommandReceipt.Rejected<*>, context: SagaContext): List<Command<*>> =
+        derivationOf(context).commandsOf(call(rejected as CommandReceipt.Rejected<C>, context))
 
     override fun toString(): String = "RejectionBinding($name, ${commandType?.name ?: "*"})"
 
@@ -79,12 +81,12 @@ class RejectionBinding<C : Any> private constructor(
             function: String,
             commandType: Class<C>?,
             blocking: Boolean = false,
-            handle: suspend (CommandRejected<C>, ReceiptContext) -> List<CommandRequest<*>>,
+            handle: suspend (CommandReceipt.Rejected<C>, SagaContext) -> List<CommandRequest<*>>,
         ): RejectionBinding<C> = RejectionBinding(processor, function, commandType, blocking, handle)
 
         /**
          * The handler among [handlers] of the rejection of a command of [command]: the one whose [commandType] is
-         * [command] itself, else the nearest superclass or interface one names, else a `CommandRejected<*>` one; null
+         * [command] itself, else the nearest superclass or interface one names, else a `CommandReceipt.Rejected<*>` one; null
          * when none [handles] it.
          */
         @JvmStatic
@@ -100,22 +102,23 @@ class RejectionBinding<C : Any> private constructor(
  */
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
-    rejected: CommandRejected<*>,
+    rejected: CommandReceipt.Rejected<*>,
     ids: Ids = IdGenerators.DEFAULT,
-): ReceiptContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
+): SagaContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
 
 /**
  * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
- * ref go to the aggregate type [commandTypes] assigns their class.
+ * ref go to the aggregate type [commandTypes] assigns their class, and whose calls go through [calls].
  */
 @InternalWowApi
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
-    rejected: CommandRejected<*>,
+    rejected: CommandReceipt.Rejected<*>,
     ids: Ids,
     commandTypes: CommandTypes,
     queries: ContextQueries = ContextQueries.NONE,
-): ReceiptContext = ExecutionReceiptContext(
+    calls: CommandCalls = CommandCalls.NONE,
+): SagaContext = ExecutionReceiptContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
     rejected.causation,
@@ -125,6 +128,7 @@ fun rejectionContextOf(
     rejected.headers,
     commandTypes,
     queries,
+    calls = calls,
 )
 
 /**
@@ -146,54 +150,55 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
  * [receiptOf], by an `@OnRejected` handler, or of its commit, by an `@OnCommitted` one. Handling the same receipt
  * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: each
  * command's id and request id are [compensationId] of [receiptOf], this execution, and what it asks (its target,
- * its command type and its business key or occurrence), as a saga's derived commands are keyed ([ExecutionSagaContext.derivedId]). Each
- * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
- * its operator and scope are that command's, and so are its [headers], the request facts it
- * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]).
+ * its command type and its business key or occurrence), as a saga's derived commands are keyed
+ * ([ExecutionSagaContext.derivedId]). Each command's [causation][Command.causation] is the command [receiptOf], in the
+ * chain of its root ([causation]), and its operator and scope are that command's, and so are its [headers], the
+ * request facts it inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED]). It schedules, cancels and calls as
+ * every saga context does ([ExecutionSagaContext]): its schedules written by [codec], its calls through [calls].
  */
 @InternalWowApi
 class ExecutionReceiptContext(
     override val executionId: ExecutionId,
     /** The command whose receipt the handler takes. */
     private val receiptOf: String,
-    private val causation: Causation,
-    private val operator: Operator?,
-    private val scope: Scope,
+    causation: Causation,
+    operator: Operator?,
+    scope: Scope,
     override val ids: Ids = IdGenerators.DEFAULT,
-    private val headers: Map<String, String> = emptyMap(),
+    headers: Map<String, String> = emptyMap(),
     /** Assigns the commands whose ref the handler leaves out their aggregate type. */
-    private val commandTypes: CommandTypes = CommandTypes.NONE,
+    commandTypes: CommandTypes = CommandTypes.NONE,
     /** The handler's queries, of the commit's tenant. */
     private val contextQueries: ContextQueries = ContextQueries.NONE,
-) : ReceiptContext, Derivation {
-    private val derived = DerivedRequests()
+    codec: EventCodec = EventCodec(),
+    calls: CommandCalls = CommandCalls.NONE,
+) : SagaContext, Derivation {
+    /**
+     * The commands go to the tenant of the commit whose saga execution derived the receipt's command unless they name
+     * another; their scope is that command's unless they name their target scope.
+     */
+    private val derivation = SagaDerivation(
+        executionId,
+        commandTypes,
+        codec,
+        calls,
+        scope,
+        headers,
+        Causation(causation.correlationId, receiptOf),
+        operator,
+    ) { ref, type, key -> compensationIdOf(executionId, receiptOf, ref, type, key) }
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
-    /** The commands of [requests], in order. */
-    override fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> = requests.map(::commandOf)
+    /** The commands of [requests], in order, then those [schedule] and [cancel] recorded, in the order of the calls. */
+    override fun commandsOf(requests: List<CommandRequest<*>>): List<Command<*>> = derivation.commandsOf(requests)
 
-    /**
-     * The command of [request] to its [derivedTarget], in the tenant of the commit whose saga execution derived the
-     * receipt's command unless it names another; its scope is that command's unless it names its target scope.
-     */
-    private fun commandOf(request: CommandRequest<*>): Command<*> {
-        val ref = request.derivedTarget(executionId.subscription, executionId.ref.tenantId, commandTypes)
-        val body = request.command
-        val key = derived.next(ref, body.javaClass, request.requestId)
-        val id = compensationIdOf(executionId, receiptOf, ref, body.javaClass, key)
-        return Command(
-            id = id,
-            requestId = id,
-            ref = ref,
-            body = body,
-            expectedVersion = request.expectedVersion,
-            scope = request.targetScope ?: scope,
-            headers = headers,
-            causation = Causation(causation.correlationId, receiptOf),
-            operator = operator,
-        )
-    }
+    override fun schedule(key: String, rule: ScheduleRule, request: CommandRequest<*>) =
+        derivation.schedule(key, rule, request)
+
+    override fun cancel(key: String, target: AggregateRef) = derivation.cancel(key, target)
+
+    override suspend fun call(request: CommandRequest<*>): CommandResult = derivation.call(request)
 
     @InternalWowApi
     companion object {

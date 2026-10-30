@@ -26,8 +26,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -92,10 +91,10 @@ class ProcessorSpecTest {
                 null
             }
 
-        fun onReserveRejected(rejected: CommandRejected<Reserve>): CommandRequest<Cancel> =
+        fun onReserveRejected(rejected: CommandReceipt.Rejected<Reserve>): CommandRequest<Cancel> =
             CommandRequest.to(rejected.source, Cancel(rejected.error.message))
 
-        fun onReserved(committed: CommandCommitted<Reserve>): CommandRequest<Confirm> =
+        fun onReserved(committed: CommandReceipt.Committed<Reserve>): CommandRequest<Confirm> =
             CommandRequest.to(
                 committed.source,
                 Confirm(committed.ref.id, committed.version, committed.result.duplicate),
@@ -211,7 +210,7 @@ class ProcessorSpecTest {
                 expectNoSchedule()
             }
         }
-        val rejected = CommandRejected<Reserve>(
+        val rejected = CommandReceipt.Rejected<Reserve>(
             commandId = "derived-1",
             commandType = "inventory.stock.Reserve",
             ref = stock,
@@ -249,7 +248,7 @@ class ProcessorSpecTest {
                 expectCommands(Confirm("pear", 1, duplicate = true))
             }
         }
-        val committed = CommandCommitted<Reserve>(
+        val committed = CommandReceipt.Committed<Reserve>(
             commandId = "derived-1",
             commandType = "inventory.stock.Reserve",
             ref = stock,
@@ -361,7 +360,7 @@ class ProcessorSpecTest {
         assertThrownBy<IllegalArgumentException> {
             projectionSpec(listOf(project)) {
                 whenRejected(
-                    CommandRejected<Any>(
+                    CommandReceipt.Rejected<Any>(
                         "c",
                         "t",
                         order,
@@ -376,7 +375,7 @@ class ProcessorSpecTest {
         assertThrownBy<IllegalArgumentException> {
             projectionSpec(listOf(project)) {
                 whenCommitted(
-                    CommandCommitted<Any>(
+                    CommandReceipt.Committed<Any>(
                         "c",
                         "t",
                         order,

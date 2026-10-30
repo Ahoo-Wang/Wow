@@ -24,7 +24,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import org.junit.jupiter.api.Test
 
@@ -39,7 +39,7 @@ class RejectionBindingTest {
     private class Add : CartCommand
 
     private val execution = ExecutionId("CartSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
-    private val rejected = CommandRejected<Remove>(
+    private val rejected = CommandReceipt.Rejected<Remove>(
         "c-1",
         "shop.cart.Remove",
         cart.ref("t", "alice"),

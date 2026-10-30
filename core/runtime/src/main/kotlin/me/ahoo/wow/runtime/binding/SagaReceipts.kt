@@ -19,8 +19,7 @@ import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -46,7 +45,7 @@ import java.time.Clock
  *
  * Either is the one entry point, whatever brought the receipt: the saga's own execution of a command of its context
  * ([SubscriptionBindings]), or the receipt another context wrote ([me.ahoo.wow.runtime.command.Receipts]), which
- * carries the same [CommandRejected] or [CommandCommitted]. The saga is found by the subscription of the receipt's
+ * carries the same [CommandReceipt.Rejected] or [CommandReceipt.Committed]. The saga is found by the subscription of the receipt's
  * execution id, the saga handler that derived the command: its [ProcessorBinding.rejections] or
  * [ProcessorBinding.commits] are the candidates, chosen by the command's class.
  *
@@ -87,7 +86,7 @@ internal class SagaReceipts(
      * whose handler derived it, executes what that derives and returns their ids; null when the saga has no handler
      * for it, or [rejected] names no saga handler of this context.
      */
-    override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? {
+    override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries)
         val executed = derived.execute(call(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
@@ -102,7 +101,7 @@ internal class SagaReceipts(
      * its commands carry the rest of the chain and the hop is signalled.
      */
     override suspend fun committed(
-        committed: CommandCommitted<*>,
+        committed: CommandReceipt.Committed<*>,
         command: Class<*>,
         wait: WaitContext?,
     ): List<String>? {
@@ -122,7 +121,7 @@ internal class SagaReceipts(
     private suspend fun signalHop(
         wait: WaitContext?,
         name: String,
-        committed: CommandCommitted<*>,
+        committed: CommandReceipt.Committed<*>,
         derived: List<String>,
         error: ErrorInfo?,
     ) {

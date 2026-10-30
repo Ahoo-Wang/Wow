@@ -28,7 +28,7 @@ import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -257,7 +257,7 @@ class ScheduledCommandsTest {
 
     @Test
     fun `a saga's schedule of an aggregate that does not exist reaches its OnRejected handler`(): Unit = runBlocking {
-        val rejected = CopyOnWriteArrayList<CommandRejected<*>>()
+        val rejected = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
         val saga = ProcessorBinding.saga(
             "GhostSaga",
             "onOrderPlaced",

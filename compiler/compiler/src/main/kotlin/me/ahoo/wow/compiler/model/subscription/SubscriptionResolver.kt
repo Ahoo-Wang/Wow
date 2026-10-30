@@ -34,9 +34,6 @@ import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.DerivingContext
-import me.ahoo.wow.api.subscribe.JobContext
-import me.ahoo.wow.api.subscribe.ReceiptContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -67,11 +64,11 @@ import me.ahoo.wow.compiler.model.symbol.javaTypeOf
  *   concrete subclasses; a handler that returns `Unit` declares none. A returned `CommandRequest<S>` of a sealed `S` derives
  *   the concrete subclasses of `S`. Only a saga's handler declares `@OnEvent(calls)`, the commands it sends with
  *   `SagaContext.call`, named as `derives` names them;
- * - an `@OnRejected` handler is a saga's, takes a `CommandRejected` and, optionally, the
- *   `ReceiptContext`, returns what a saga's handler returns (`Unit` to accept the rejection), and is not
+ * - an `@OnRejected` handler is a saga's, takes a `CommandReceipt.Rejected` and, optionally, the
+ *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection), and is not
  *   an `@OnEvent` handler too; no two of a saga take
- *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
- * - an `@OnCommitted` handler likewise, taking a `CommandCommitted` instead: no handler is both, nor
+ *   the rejections of the same command class, or both of every command (`CommandReceipt.Rejected<*>`);
+ * - an `@OnCommitted` handler likewise, taking a `CommandReceipt.Committed` instead: no handler is both, nor
  *   two of a saga the receipts of the same command class;
  * - no annotation outside the annotation set ([AnnotationSet]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
@@ -126,16 +123,12 @@ internal object SubscriptionResolver {
         "kotlin.sequences.Sequence",
         "kotlinx.coroutines.flow.Flow",
     )
-    private val RECEIPT_CONTEXT = ReceiptContext::class.java.name
+
+    /** The context of every handler of a saga: its `@OnEvent`, receipt and job handlers alike. */
+    private val SAGA_CONTEXT = SagaContext::class.java.name
 
     /** Every handler context: none is a handler's first parameter. */
-    private val CONTEXTS = setOf(
-        SubscriptionContext::class.java.name,
-        DerivingContext::class.java.name,
-        SagaContext::class.java.name,
-        RECEIPT_CONTEXT,
-        JobContext::class.java.name,
-    )
+    private val CONTEXTS = setOf(SubscriptionContext::class.java.name, SAGA_CONTEXT)
 
     @OptIn(KspExperimental::class)
     fun resolve(
@@ -546,7 +539,7 @@ internal object SubscriptionResolver {
     }
 
     /**
-     * The binary name of the class [type], a `CommandRequest<X>`, a `CommandRejected<X>` or a `CommandCommitted<X>`, takes;
+     * The binary name of the class [type], a `CommandRequest<X>`, a `CommandReceipt.Rejected<X>` or a `CommandReceipt.Committed<X>`, takes;
      * null for `*` or `Any`.
      */
     private fun commandClass(type: KSType): String? {
@@ -577,13 +570,13 @@ internal object SubscriptionResolver {
                 "an ${receipt.label} handler receives the ${receipt.noun} of a command the saga derived"
         }
         val context = parameters.getOrNull(1)?.qualifiedName()
-        if (context != null && context != RECEIPT_CONTEXT) {
-            problems += "$where takes $context: an ${receipt.label} handler takes a $RECEIPT_CONTEXT after the " +
+        if (context != null && context != SAGA_CONTEXT) {
+            problems += "$where takes $context: an ${receipt.label} handler takes a $SAGA_CONTEXT after the " +
                 "${receipt.noun}, if anything"
         }
         if (parameters.size > 2) {
             problems += "$where takes ${parameters.size} parameters: an ${receipt.label} handler takes " +
-                "(${receipt.parameterName}[, ReceiptContext])"
+                "(${receipt.parameterName}[, SagaContext])"
         }
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes

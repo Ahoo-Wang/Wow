@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.OpsContext
@@ -89,7 +89,7 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
     @OptIn(InternalWowApi::class) // A receipt as the owning service's intake writes it.
     suspend fun refuse(command: CommandWire, code: String, message: String) {
         val replyTo = checkNotNull(command.replyTo) { "${command.type} ${command.id} asks for no receipt." }
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             commandId = command.id,
             commandType = command.type,
             ref = command.ref,

@@ -18,8 +18,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
@@ -74,7 +73,7 @@ class OrderProcessSaga {
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
     fun onReserveCommitted(
-        committed: CommandCommitted<ReserveStock>
+        committed: CommandReceipt.Committed<ReserveStock>
     ): CommandRequest<ConfirmOrderStock> =
         CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
     // endregion
@@ -82,7 +81,7 @@ class OrderProcessSaga {
     // region rejected
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
-    fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<CancelOrder> =
+    fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
         CommandRequest.of(
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
             rejected.source.id,
@@ -104,7 +103,7 @@ class OrderProcessSaga {
      */
     @Suppress("UnusedParameter")
     @OnRejected
-    fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
+    fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
     // endregion
 
     @OnEvent

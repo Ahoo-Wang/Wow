@@ -61,7 +61,7 @@ internal class DerivedRequests {
 
 /**
  * The execution of a handler that derives commands, as its context: it turns the requests the handler returned into
- * the commands the subscription sends, as [me.ahoo.wow.api.subscribe.DerivingContext] describes, followed by those
+ * the commands the subscription sends, as [me.ahoo.wow.api.subscribe.SagaContext] describes, followed by those
  * the handler recorded through its context (a saga's schedules), in the order it recorded them.
  */
 @InternalWowApi

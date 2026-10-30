@@ -32,7 +32,7 @@ import me.ahoo.wow.compiler.model.symbol.blocking
  *   `StateEvent<S>` and the context of its kind, its result awaited through wow-reactor when it is a Reactor
  *   publisher, and, for a saga, read as the requests of the commands it derives (`requestsOf`). A saga's
  *   `@OnRejected` handlers are bound once, as `RejectionBinding`s of the class their
- *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
+ *   `CommandReceipt.Rejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
  *   rejections they take; so are its `@OnCommitted` handlers, as `CommittedBinding`s, which take
  *   their success receipts. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
  *   reads their published streams, and says whether its state is nullable

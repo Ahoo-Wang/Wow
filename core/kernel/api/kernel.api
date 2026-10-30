@@ -117,7 +117,7 @@ public final class me/ahoo/wow/kernel/CommittedBinding {
 	public final fun getProcessor ()Ljava/lang/String;
 	public static final fun handlerOf (Ljava/util/List;Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommittedBinding;
 	public final fun handles (Ljava/lang/Class;)Z
-	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/subscribe/ReceiptContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Lme/ahoo/wow/api/subscribe/SagaContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/CommittedBinding;
 	public fun toString ()Ljava/lang/String;
 }
@@ -129,8 +129,8 @@ public final class me/ahoo/wow/kernel/CommittedBinding$Companion {
 }
 
 public final class me/ahoo/wow/kernel/CommittedBindingKt {
-	public static final fun committedContextOf (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
-	public static synthetic fun committedContextOf$default (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
+	public static final fun committedContextOf (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/SagaContext;
+	public static synthetic fun committedContextOf$default (Lme/ahoo/wow/kernel/CommittedBinding;Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/SagaContext;
 }
 
 public abstract interface class me/ahoo/wow/kernel/DecideFunction {
@@ -362,7 +362,7 @@ public final class me/ahoo/wow/kernel/RejectionBinding {
 	public final fun getProcessor ()Ljava/lang/String;
 	public static final fun handlerOf (Ljava/util/List;Ljava/lang/Class;)Lme/ahoo/wow/kernel/RejectionBinding;
 	public final fun handles (Ljava/lang/Class;)Z
-	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/subscribe/ReceiptContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun invoke (Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Lme/ahoo/wow/api/subscribe/SagaContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;ZLkotlin/jvm/functions/Function3;)Lme/ahoo/wow/kernel/RejectionBinding;
 	public fun toString ()Ljava/lang/String;
 }
@@ -374,8 +374,8 @@ public final class me/ahoo/wow/kernel/RejectionBinding$Companion {
 }
 
 public final class me/ahoo/wow/kernel/RejectionBindingKt {
-	public static final fun rejectionContextOf (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
-	public static synthetic fun rejectionContextOf$default (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandRejected;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/ReceiptContext;
+	public static final fun rejectionContextOf (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Lme/ahoo/wow/api/id/Ids;)Lme/ahoo/wow/api/subscribe/SagaContext;
+	public static synthetic fun rejectionContextOf$default (Lme/ahoo/wow/kernel/RejectionBinding;Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Lme/ahoo/wow/api/id/Ids;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/SagaContext;
 }
 
 public final class me/ahoo/wow/kernel/ResultsKt {

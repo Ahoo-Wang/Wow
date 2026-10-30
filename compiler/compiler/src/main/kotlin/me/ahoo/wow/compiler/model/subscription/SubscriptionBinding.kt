@@ -134,8 +134,8 @@ internal data class HandlerBinding(
 }
 
 /**
- * The two kinds of a saga's receipt handlers: `@OnRejected`, taking a `CommandRejected<C>`, and
- * `@OnCommitted`, taking a `CommandCommitted<C>`; [binding] is the kernel's class of its binding.
+ * The two kinds of a saga's receipt handlers: `@OnRejected`, taking a `CommandReceipt.Rejected<C>`, and
+ * `@OnCommitted`, taking a `CommandReceipt.Committed<C>`; [binding] is the kernel's class of its binding.
  */
 internal enum class Receipt(
     val annotation: String,
@@ -147,14 +147,14 @@ internal enum class Receipt(
 ) {
     REJECTED(
         "me.ahoo.wow.api.annotation.OnRejected",
-        "me.ahoo.wow.api.subscribe.CommandRejected",
+        "me.ahoo.wow.api.subscribe.CommandReceipt.Rejected",
         "me.ahoo.wow.kernel.RejectionBinding",
         "rejection",
         "rejections",
     ),
     COMMITTED(
         "me.ahoo.wow.api.annotation.OnCommitted",
-        "me.ahoo.wow.api.subscribe.CommandCommitted",
+        "me.ahoo.wow.api.subscribe.CommandReceipt.Committed",
         "me.ahoo.wow.kernel.CommittedBinding",
         "receipt",
         "receipts",
@@ -164,13 +164,13 @@ internal enum class Receipt(
     /** `@OnRejected` or `@OnCommitted`. */
     val label: String get() = "@" + annotation.substringAfterLast('.')
 
-    /** `CommandRejected` or `CommandCommitted`. */
+    /** `CommandReceipt.Rejected` or `CommandReceipt.Committed`. */
     val parameterName: String get() = parameter.substringAfterLast('.')
 }
 
 /**
  * A receipt handler of a saga, of the [receipt] kind: an `@OnRejected` handler, which takes a
- * `CommandRejected<C>`, or an `@OnCommitted` one, which takes a `CommandCommitted<C>`, and optionally
+ * `CommandReceipt.Rejected<C>`, or an `@OnCommitted` one, which takes a `CommandReceipt.Committed<C>`, and optionally
  * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
  */
 internal data class ReceiptBinding(
@@ -179,7 +179,7 @@ internal data class ReceiptBinding(
     val subscription: String,
     /** The function the generated binding calls; [function] unless the handler is `@Name`d otherwise. */
     val callee: String = function,
-    /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
+    /** The binary name of the command class `C`; null for `CommandReceipt.Rejected<*>`, every command the saga derives. */
     val command: String?,
     val context: Boolean,
     val suspending: Boolean,
@@ -187,7 +187,7 @@ internal data class ReceiptBinding(
     val blocking: Boolean = false,
     /** The binary names of the command classes it returns, as [HandlerBinding.derived]. */
     val derived: List<String>? = null,
-    /** The qualified name of `C`, as the generated binding writes it; null for `CommandRejected<*>`. */
+    /** The qualified name of `C`, as the generated binding writes it; null for `CommandReceipt.Rejected<*>`. */
     val commandSource: String? = null,
     val receipt: Receipt = Receipt.REJECTED,
 )

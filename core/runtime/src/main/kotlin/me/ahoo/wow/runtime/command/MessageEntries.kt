@@ -20,8 +20,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
@@ -203,7 +202,7 @@ internal class MessageEntries private constructor(
             observer,
         ) { envelope ->
             when (val receipt = CommandMessages.receiptOf(envelope)) {
-                is CommandCommitted<*> -> Decoded(
+                is CommandReceipt.Committed<*> -> Decoded(
                     receipt.executionId.ref,
                     receipt.commandId,
                     receipt.commandId,
@@ -213,7 +212,7 @@ internal class MessageEntries private constructor(
                     receipt,
                 )
 
-                else -> (receipt as CommandRejected<*>).let { rejected ->
+                else -> (receipt as CommandReceipt.Rejected<*>).let { rejected ->
                     Decoded(
                         rejected.executionId.ref,
                         rejected.commandId,

@@ -23,7 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -92,9 +92,7 @@ class CommittedManifestTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.CommandCommitted
-        import me.ahoo.wow.api.subscribe.ReceiptContext
-        import me.ahoo.wow.api.subscribe.CommandRejected
+        import me.ahoo.wow.api.subscribe.CommandReceipt
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Mono
@@ -108,15 +106,15 @@ class CommittedManifestTest {
                 listOf(CommandRequest.to(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
 
             @OnCommitted
-            fun onReserved(committed: CommandCommitted<ReserveStock>, context: ReceiptContext): CommandRequest<ConfirmStock> =
+            fun onReserved(committed: CommandReceipt.Committed<ReserveStock>, context: SagaContext): CommandRequest<ConfirmStock> =
                 CommandRequest.to(committed.source, ConfirmStock(committed.ref.id))
 
             @Blocking
             @OnCommitted
-            fun onAnyCommitted(committed: CommandCommitted<*>): Mono<CommandRequest<*>> = Mono.empty()
+            fun onAnyCommitted(committed: CommandReceipt.Committed<*>): Mono<CommandRequest<*>> = Mono.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
+            fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<*>? = null
         }
         """.trimIndent(),
     )
@@ -182,7 +180,7 @@ class CommittedManifestTest {
             saga.rejectionHandlerOf(reserve)!!.name.assert().isEqualTo("OrderSaga.onReserveRejected")
             val order = AggregateType("shop", "order").ref("t", "o-1")
             val stock = AggregateType("inventory", "stock").ref("t", "s-1")
-            val committed = CommandCommitted<Any>(
+            val committed = CommandReceipt.Committed<Any>(
                 commandId = "c-9",
                 commandType = "inventory.stock.ReserveStock",
                 ref = stock,
@@ -225,8 +223,7 @@ class CommittedManifestTest {
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
-            import me.ahoo.wow.api.subscribe.CommandCommitted
-            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.CommandReceipt
             import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -236,40 +233,40 @@ class CommittedManifestTest {
                 fun onEvent(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun first(committed: CommandCommitted<ReserveStock>): CommandRequest<*>? = null
+                fun first(committed: CommandReceipt.Committed<ReserveStock>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun second(committed: CommandCommitted<ReserveStock>): CommandRequest<*>? = null
+                fun second(committed: CommandReceipt.Committed<ReserveStock>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun any(committed: CommandCommitted<*>): CommandRequest<*>? = null
+                fun any(committed: CommandReceipt.Committed<*>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun anyAgain(committed: CommandCommitted<Any>): CommandRequest<*>? = null
+                fun anyAgain(committed: CommandReceipt.Committed<Any>): CommandRequest<*>? = null
 
                 @OnEvent
                 @OnCommitted
-                fun both(committed: CommandCommitted<PlaceOrder>): CommandRequest<*>? = null
+                fun both(committed: CommandReceipt.Committed<PlaceOrder>): CommandRequest<*>? = null
 
                 @OnRejected
                 @OnCommitted
-                fun twoReceipts(committed: CommandCommitted<ConfirmStock>): CommandRequest<*>? = null
+                fun twoReceipts(committed: CommandReceipt.Committed<ConfirmStock>): CommandRequest<*>? = null
 
                 @Retry(maxAttempts = 2)
                 @OnCommitted
-                fun retried(committed: CommandCommitted<OrderPlaced>): CommandRequest<*>? = null
+                fun retried(committed: CommandReceipt.Committed<OrderPlaced>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun wrongFirst(rejected: CommandRejected<StockConfirmed>): CommandRequest<*>? = null
+                fun wrongFirst(rejected: CommandReceipt.Rejected<StockConfirmed>): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun wrongContext(committed: CommandCommitted<Order>, context: SubscriptionContext): CommandRequest<*>? = null
+                fun wrongContext(committed: CommandReceipt.Committed<Order>, context: SubscriptionContext): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun tooMany(committed: CommandCommitted<String>, a: Int, b: Int): CommandRequest<*>? = null
+                fun tooMany(committed: CommandReceipt.Committed<String>, a: Int, b: Int): CommandRequest<*>? = null
 
                 @OnCommitted
-                fun wrongReturn(committed: CommandCommitted<Int>): String = ""
+                fun wrongReturn(committed: CommandReceipt.Committed<Int>): String = ""
             }
 
             @Projection
@@ -278,7 +275,7 @@ class CommittedManifestTest {
                 fun onEvent(event: StateEvent<Order>) = Unit
 
                 @OnCommitted
-                fun onCommitted(committed: CommandCommitted<*>): CommandRequest<*>? = null
+                fun onCommitted(committed: CommandReceipt.Committed<*>): CommandRequest<*>? = null
             }
             """.trimIndent(),
         )
@@ -292,7 +289,9 @@ class CommittedManifestTest {
             .contains("handler BrokenSaga.both is both @OnEvent and @OnCommitted")
             .contains("handler BrokenSaga.twoReceipts is both @OnRejected and @OnCommitted")
             .contains("handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler runs in")
-            .contains("handler BrokenSaga.wrongFirst must take a me.ahoo.wow.api.subscribe.CommandCommitted first")
+            .contains(
+                "handler BrokenSaga.wrongFirst must take a me.ahoo.wow.api.subscribe.CommandReceipt.Committed first"
+            )
             .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BrokenSaga.tooMany takes 3 parameters: an @OnCommitted handler takes")
             .contains("handler BrokenSaga.wrongReturn returns kotlin.String")

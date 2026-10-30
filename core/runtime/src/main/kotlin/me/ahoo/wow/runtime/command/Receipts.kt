@@ -16,8 +16,7 @@ package me.ahoo.wow.runtime.command
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -31,14 +30,18 @@ import me.ahoo.wow.spi.wait.WaitContext
 @InternalWowApi
 interface ReceiptHandler {
     /** Hands [rejected], of a command of the class [command], to the saga's `@OnRejected` handler of it. */
-    suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>?
+    suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>?
 
     /**
      * Hands [committed], of a command of the class [command], to the saga's `@OnCommitted` handler of it. [wait] is
      * the rest of the command's wait chain past its commit, if any: when its next hop is that handler, the handler's
      * commands carry it on and the hop is signalled, as a saga's hop is.
      */
-    suspend fun committed(committed: CommandCommitted<*>, command: Class<*>, wait: WaitContext? = null): List<String>?
+    suspend fun committed(
+        committed: CommandReceipt.Committed<*>,
+        command: Class<*>,
+        wait: WaitContext? = null
+    ): List<String>?
 }
 
 /**
@@ -77,13 +80,13 @@ internal class Receipts internal constructor(
     /** The subscription of every receipt of the context's receipts topic. */
     val subscription: Subscription = Subscription.messages(nameOf(context), context) { entry ->
         when (val receipt = entry.message) {
-            is CommandCommitted<*> -> handle(receipt, entry.transport?.wait)
-            else -> handle(receipt as CommandRejected<*>)
+            is CommandReceipt.Committed<*> -> handle(receipt, entry.transport?.wait)
+            else -> handle(receipt as CommandReceipt.Rejected<*>)
         }
     }
 
     /** Hands [rejected] to the handler once per command id. */
-    internal suspend fun handle(rejected: CommandRejected<*>) = once(rejected.commandId, REJECTED) {
+    internal suspend fun handle(rejected: CommandReceipt.Rejected<*>) = once(rejected.commandId, REJECTED) {
         if (handler.rejected(rejected, commandClassOf(rejected.commandType)) == null) {
             logger.warn {
                 "No @OnRejected handler of ${rejected.executionId.subscription} in $context takes the rejection of " +
@@ -93,7 +96,7 @@ internal class Receipts internal constructor(
     }
 
     /** Hands [committed], with the [wait] its receipt carries, to the handler once per command id. */
-    internal suspend fun handle(committed: CommandCommitted<*>, wait: WaitContext? = null) =
+    internal suspend fun handle(committed: CommandReceipt.Committed<*>, wait: WaitContext? = null) =
         once(committed.commandId, COMMITTED) {
             if (synchronized(handled) { key(committed.commandId, REJECTED) in handled }) {
                 // A rejection is not in the log, so the command, sent again, was decided again.

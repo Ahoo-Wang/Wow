@@ -21,7 +21,7 @@ package me.ahoo.wow.api.annotation
  * committed stream, or each of its events of a type, with the state after it, and optionally the
  * [me.ahoo.wow.api.subscribe.SagaContext], and returns the commands it derives as requests: one
  * [me.ahoo.wow.api.client.CommandRequest], or several (an `Iterable`, a `Sequence`, a `Flow`; empty or null for none).
- * [me.ahoo.wow.api.subscribe.DerivingContext] says how each becomes a command.
+ * [me.ahoo.wow.api.subscribe.SagaContext] says how each becomes a command.
  *
  * ```kotlin
  * @Saga

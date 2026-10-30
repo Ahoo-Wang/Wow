@@ -18,7 +18,7 @@ import io.opentelemetry.context.Context
 import io.opentelemetry.sdk.trace.data.SpanData
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.FunctionManifest
@@ -53,7 +53,7 @@ class TraceChainTest {
     private val channel = LoopbackClusterChannel()
     private val nodes = CopyOnWriteArrayList<ServiceNode>()
     private val cancelled = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
 
     @AfterEach
     fun stop(): Unit = runBlocking {

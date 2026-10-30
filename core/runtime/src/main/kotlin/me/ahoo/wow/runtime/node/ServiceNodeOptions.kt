@@ -15,8 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.runtime.ExecutorOptions
@@ -498,11 +497,14 @@ fun interface SubscriptionFactory {
                 val mine = first.receipts(context) ?: return other.receipts(context)
                 val theirs = other.receipts(context) ?: return mine
                 return object : ReceiptHandler {
-                    override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
+                    override suspend fun rejected(
+                        rejected: CommandReceipt.Rejected<*>,
+                        command: Class<*>
+                    ): List<String>? =
                         mine.rejected(rejected, command) ?: theirs.rejected(rejected, command)
 
                     override suspend fun committed(
-                        committed: CommandCommitted<*>,
+                        committed: CommandReceipt.Committed<*>,
                         command: Class<*>,
                         wait: WaitContext?,
                     ): List<String>? =

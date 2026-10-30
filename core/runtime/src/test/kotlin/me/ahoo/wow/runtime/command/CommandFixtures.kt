@@ -19,8 +19,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommittedBinding
@@ -144,7 +143,9 @@ class StockItems {
  * The order saga of the sales context: each order placed reserves its quantity of the stock item of the same id, and
  * a reservation the stock context rejects cancels the order; each rejection it handles is recorded in [rejections].
  */
-fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList()): ProcessorBinding<OrderState> {
+fun orderSaga(
+    rejections: MutableList<CommandReceipt.Rejected<*>> = CopyOnWriteArrayList()
+): ProcessorBinding<OrderState> {
     val onReserveRejected = RejectionBinding.of(
         "OrderSaga",
         "onReserveRejected",
@@ -172,8 +173,8 @@ private fun reservationsOf(event: StateEvent<OrderState>): List<CommandRequest<*
  * context commits confirms the order; each receipt it handles is recorded in [commits].
  */
 fun committingOrderSaga(
-    commits: MutableList<CommandCommitted<*>> = CopyOnWriteArrayList(),
-    rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList(),
+    commits: MutableList<CommandReceipt.Committed<*>> = CopyOnWriteArrayList(),
+    rejections: MutableList<CommandReceipt.Rejected<*>> = CopyOnWriteArrayList(),
 ): ProcessorBinding<OrderState> {
     val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, _ ->
         commits += committed
@@ -267,17 +268,17 @@ fun peer(manifest: Manifest): ManifestFragment = ManifestFragment(
 
 /** A receipt handler of the given [rejected] and [committed] answers; by default it takes none. */
 fun receiptHandler(
-    rejected: suspend (CommandRejected<*>, Class<*>) -> List<String>? = { _, _ -> null },
-    committed: suspend (CommandCommitted<*>, Class<*>) -> List<String>? = { _, _ -> null },
+    rejected: suspend (CommandReceipt.Rejected<*>, Class<*>) -> List<String>? = { _, _ -> null },
+    committed: suspend (CommandReceipt.Committed<*>, Class<*>) -> List<String>? = { _, _ -> null },
 ): ReceiptHandler {
     val onRejected = rejected
     val onCommitted = committed
     return object : ReceiptHandler {
-        override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
+        override suspend fun rejected(rejected: CommandReceipt.Rejected<*>, command: Class<*>): List<String>? =
             onRejected(rejected, command)
 
         override suspend fun committed(
-            committed: CommandCommitted<*>,
+            committed: CommandReceipt.Committed<*>,
             command: Class<*>,
             wait: WaitContext?,
         ): List<String>? = onCommitted(committed, command)

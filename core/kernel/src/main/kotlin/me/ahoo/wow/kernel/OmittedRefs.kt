@@ -16,13 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.JobContext
-import me.ahoo.wow.api.subscribe.SagaContext
 
 /**
  * The aggregate type a command of the class [command] goes to when the saga handler [handler] leaves its ref out:
@@ -53,7 +47,7 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
 
 /**
  * The aggregate this request derived by the handler [handler] goes to, as
- * [me.ahoo.wow.api.subscribe.DerivingContext] describes: its type, else the one [commandTypes] assigns the command's
+ * [me.ahoo.wow.api.subscribe.SagaContext] describes: its type, else the one [commandTypes] assigns the command's
  * class ([omittedTargetOf]); its target tenant, else [tenantId], the execution's; its id, else none (a creation the
  * target's admission gives one). A request with a wait or a timeout is refused: the subscription waits for none.
  */
@@ -72,17 +66,3 @@ internal fun CommandRequest<*>.derivedTarget(
 private fun CommandRequest<*>.refusal(handler: String, field: String): String =
     "$handler derives ${command.javaClass.name} with $field: the subscription sends the commands a handler derives " +
         "and waits for none, so a derived request takes neither a wait nor a timeout."
-
-/**
- * The context an `@OnSchedule` job's handler gets for [tick]: [context], the saga context of the execution of the
- * job instance's commit, whose derivation turns the requests the job returns into its commands: one without a
- * target tenant goes to the instance's tenant ([ScheduleTick.tenantId]).
- */
-internal class ExecutionJobContext(private val context: SagaContext, override val tick: ScheduleTick) : JobContext {
-    override val executionId: ExecutionId get() = context.executionId
-    override val invocationKey: String get() = context.invocationKey
-    override val queries: SubscriptionQueries get() = context.queries
-    override val ids: Ids get() = context.ids
-
-    override fun toString(): String = "ExecutionJobContext(executionId=$executionId, tick=$tick)"
-}

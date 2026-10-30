@@ -26,8 +26,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionReceiptContext
@@ -54,8 +53,8 @@ import java.util.concurrent.atomic.AtomicInteger
 class SagaReceiptsTest {
     private val backends = InMemoryBackends(partitions = 4)
     private val decided = CopyOnWriteArrayList<String>()
-    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
-    private val anyRejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val rejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
+    private val anyRejections = CopyOnWriteArrayList<CommandReceipt.Rejected<*>>()
     private val failures = AtomicInteger()
 
     @Volatile
@@ -77,7 +76,7 @@ class SagaReceiptsTest {
         emptyList()
     }
 
-    private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
+    private val commits = CopyOnWriteArrayList<CommandReceipt.Committed<*>>()
 
     /** Thanks the owner of the cart a removal was committed on (decision D192). */
     private val onRemoved = CommittedBinding.of(
@@ -386,7 +385,7 @@ class SagaReceiptsTest {
             listOf(saga(onRemoveRejected)),
             DerivedCommands(node.context(SHOP).models, node.context(SHOP).coordinator),
         )
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             "c-1",
             "shop.cart.RemoveItems",
             cart,

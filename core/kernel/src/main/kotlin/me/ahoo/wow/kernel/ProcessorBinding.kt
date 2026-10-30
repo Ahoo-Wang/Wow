@@ -19,7 +19,6 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.Ticked
-import me.ahoo.wow.api.subscribe.JobContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -315,7 +314,7 @@ class ProcessorBinding<S> private constructor(
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
             context: String? = null,
-            handle: suspend (ScheduleTick, JobContext) -> List<CommandRequest<*>>,
+            handle: suspend (ScheduleTick, SagaContext) -> List<CommandRequest<*>>,
         ): ProcessorBinding<JobState> =
             ProcessorBinding(
                 processor,
@@ -345,7 +344,7 @@ class ProcessorBinding<S> private constructor(
                             due = ticked.due,
                             partition = state.partition,
                         )
-                        handle(tick, ExecutionJobContext(subscription as SagaContext, tick))
+                        handle(tick, subscription as SagaContext)
                     }
                 }
             }

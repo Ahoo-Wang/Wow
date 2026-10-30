@@ -26,7 +26,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import org.junit.jupiter.api.Test
 
@@ -41,7 +41,7 @@ class CommittedBindingTest {
     private class Release : StockCommand
 
     private val execution = ExecutionId("OrderSaga.onOrderPlaced", order.ref("t", "o-1"), 3)
-    private val committed = CommandCommitted<Reserve>(
+    private val committed = CommandReceipt.Committed<Reserve>(
         commandId = "c-1",
         commandType = "inventory.stock.Reserve",
         ref = stock.ref("t", "s-1"),

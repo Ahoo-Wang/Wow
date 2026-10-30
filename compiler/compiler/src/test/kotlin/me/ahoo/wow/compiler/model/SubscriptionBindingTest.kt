@@ -24,7 +24,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
@@ -64,10 +64,9 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.CommandRejected
-        import me.ahoo.wow.api.subscribe.ReceiptContext
-        import me.ahoo.wow.api.subscribe.SubscriptionContext
+        import me.ahoo.wow.api.subscribe.CommandReceipt
         import me.ahoo.wow.api.subscribe.SagaContext
+        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
         import reactor.core.publisher.Mono
@@ -126,12 +125,12 @@ class SubscriptionBindingTest {
                 Flux.just(CommandRequest.to(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
 
             @OnRejected
-            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: ReceiptContext): CommandRequest<Restore> =
+            fun onRemoveRejected(rejected: CommandReceipt.Rejected<Remove>, context: SagaContext): CommandRequest<Restore> =
                 CommandRequest.to(rejected.ref, Restore(rejected.commandId))
 
             @Blocking
             @OnRejected
-            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<CommandRequest<*>> = Flux.empty()
+            suspend fun onAnyRejected(rejected: CommandReceipt.Rejected<*>): Flux<CommandRequest<*>> = Flux.empty()
         }
 
         data class Restore(val commandId: String)
@@ -294,7 +293,7 @@ class SubscriptionBindingTest {
         onAny.name.assert().isEqualTo("CartSaga.onAnyRejected")
         onAny.blocking.assert().isTrue()
         val event = event(result)
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             "c-9",
             "shop.cart.Remove",
             AggregateType("shop", "cart").ref("t", "alice"),
@@ -385,7 +384,7 @@ class SubscriptionBindingTest {
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.OnRejected
             import me.ahoo.wow.api.annotation.Saga
-            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.CommandReceipt
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
@@ -396,7 +395,7 @@ class SubscriptionBindingTest {
 
                 @OnRejected
                 @Name("onRefused")
-                fun onAnyRejected(rejected: CommandRejected<*>) = Unit
+                fun onAnyRejected(rejected: CommandReceipt.Rejected<*>) = Unit
             }
             """.trimIndent(),
         )

@@ -92,8 +92,7 @@ class SubscriptionManifestTest {
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.client.CommandRequest
         import me.ahoo.wow.api.decide.Command
-        import me.ahoo.wow.api.subscribe.CommandRejected
-        import me.ahoo.wow.api.subscribe.ReceiptContext
+        import me.ahoo.wow.api.subscribe.CommandReceipt
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import reactor.core.publisher.Flux
@@ -117,11 +116,11 @@ class SubscriptionManifestTest {
                 Flux.empty()
 
             @OnRejected
-            fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: ReceiptContext): CommandRequest<CancelOrder>? =
+            fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>, context: SagaContext): CommandRequest<CancelOrder>? =
                 null
 
             @OnRejected
-            suspend fun onAnyRejected(rejected: CommandRejected<*>): List<CommandRequest<*>> = emptyList()
+            suspend fun onAnyRejected(rejected: CommandReceipt.Rejected<*>): List<CommandRequest<*>> = emptyList()
         }
 
         @Projection
@@ -374,7 +373,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.Saga
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
-            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.CommandReceipt
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
@@ -383,16 +382,16 @@ class SubscriptionManifestTest {
                 fun onEvent(event: StateEvent<Order>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun first(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
+                fun first(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun second(rejected: CommandRejected<ReserveStock>): CommandRequest<*>? = null
+                fun second(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun any(rejected: CommandRejected<*>): CommandRequest<*>? = null
+                fun any(rejected: CommandReceipt.Rejected<*>): CommandRequest<*>? = null
 
                 @OnRejected
-                fun anyAgain(rejected: CommandRejected<Any>): CommandRequest<*>? = null
+                fun anyAgain(rejected: CommandReceipt.Rejected<Any>): CommandRequest<*>? = null
             }
             """.trimIndent(),
         )
@@ -512,7 +511,7 @@ class SubscriptionManifestTest {
             import me.ahoo.wow.api.annotation.OnRejected
             import me.ahoo.wow.api.annotation.Projection
             import me.ahoo.wow.api.annotation.Saga
-            import me.ahoo.wow.api.subscribe.CommandRejected
+            import me.ahoo.wow.api.subscribe.CommandReceipt
             import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
@@ -522,7 +521,7 @@ class SubscriptionManifestTest {
                 fun onEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun onRejected(rejected: CommandRejected<*>) = Unit
+                fun onRejected(rejected: CommandReceipt.Rejected<*>) = Unit
             }
 
             @Saga
@@ -531,20 +530,20 @@ class SubscriptionManifestTest {
                 fun onEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun onEvent(rejected: CommandRejected<*>, other: String) = Unit
+                fun onEvent(rejected: CommandReceipt.Rejected<*>, other: String) = Unit
 
                 @OnRejected
                 fun takesEvent(event: StateEvent<Order>) = Unit
 
                 @OnRejected
-                fun wrongContext(rejected: CommandRejected<*>, context: SubscriptionContext) = Unit
+                fun wrongContext(rejected: CommandReceipt.Rejected<*>, context: SubscriptionContext) = Unit
 
                 @OnRejected
-                fun returnsText(rejected: CommandRejected<*>): String = ""
+                fun returnsText(rejected: CommandReceipt.Rejected<*>): String = ""
 
                 @OnEvent
                 @OnRejected
-                fun both(rejected: CommandRejected<*>) = Unit
+                fun both(rejected: CommandReceipt.Rejected<*>) = Unit
             }
             """.trimIndent(),
         )
@@ -554,7 +553,7 @@ class SubscriptionManifestTest {
             .contains("processor Board is a @Projection with @OnRejected handlers")
             .contains("processor BadSaga has two handlers named onEvent")
             .contains("handler BadSaga.onEvent takes kotlin.String: an @OnRejected handler takes a")
-            .contains("handler BadSaga.takesEvent must take a me.ahoo.wow.api.subscribe.CommandRejected first")
+            .contains("handler BadSaga.takesEvent must take a me.ahoo.wow.api.subscribe.CommandReceipt.Rejected first")
             .contains("handler BadSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
             .contains("handler BadSaga.returnsText returns kotlin.String")
             .contains("handler BadSaga.both is both @OnEvent and @OnRejected")

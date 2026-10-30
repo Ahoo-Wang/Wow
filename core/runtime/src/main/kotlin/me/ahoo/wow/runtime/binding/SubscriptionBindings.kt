@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -24,12 +25,12 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.BlockingDispatcher
+import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
-import me.ahoo.wow.kernel.parkingCallRejections
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -319,8 +320,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
          * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived].
          * The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
          * derived commands and with its synchronous calls, whose ids the saga's hop reports first, in
-         * the order they were made. A call's rejection the handler lets through parks the aggregate at once
-         * ([me.ahoo.wow.kernel.CallRejectedHandlingException]); a call that failed fails the handling, retried then parked.
+         * the order they were made. A call's rejection the handler lets through goes to the saga's `@OnRejected` handler
+         * of the called command, as a derived command's does ([callRejected]); a call that failed fails the handling,
+         * retried then parked.
          */
         internal suspend fun handleSaga(
             handler: ProcessorBinding<*>,
@@ -334,11 +336,32 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
             val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait, handler.calls, name)
             val execution = executionOf(handler, name, event, context, calls)
-            val commands = parkingCallRejections { call(handler, event, execution) }
+            val commands = try {
+                call(handler, event, execution)
+            } catch (rejected: CommandRejectedException) {
+                return callRejected(rejected, calls, execution.executionId, receipts)
+            }
             val replyTo = replyTo(handler, context.context, execution.executionId)
             val executed = derived.execute(commands, wait, replyTo)
             val withCalls = executed.copy(executed = calls.called + executed.executed)
             return sagaHandled(withCalls, execution.executionId, receipts, wait)
+        }
+
+        /**
+         * The handling a call's [rejected] rejection aborted, which derives nothing: the rejection goes to the saga's
+         * `@OnRejected` handler of the called command, as a derived command's does, and the hop reports the calls
+         * made and what that handler derived, with the rejection. Without such a handler, or for a rejection of no
+         * call of this [execution], the aggregate parks at once ([CallRejectedHandlingException]).
+         */
+        private suspend fun callRejected(
+            rejected: CommandRejectedException,
+            calls: SagaCalls,
+            execution: ExecutionId,
+            receipts: SagaReceipts,
+        ): HandledEntry {
+            val (receipt, command) = calls.receiptOf(rejected, execution) ?: throw CallRejectedHandlingException(rejected)
+            val compensations = receipts.rejected(receipt, command) ?: throw CallRejectedHandlingException(rejected)
+            return HandledEntry(calls.called + compensations, receipt.error)
         }
 
         /**

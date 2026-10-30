@@ -34,8 +34,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.Schedules
-import me.ahoo.wow.api.subscribe.CommandCommitted
-import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -120,7 +119,7 @@ class CommandMessagesTest {
 
     @Test
     fun `a receipt should carry the rejection without the command's body`() {
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             "c-1",
             "stock.item.Reserve",
             ref,
@@ -147,9 +146,9 @@ class CommandMessagesTest {
             .isEqualTo(Transport(trace = trace))
     }
 
-    private fun committed(commandId: String = "c-1", duplicate: Boolean = false): CommandCommitted<Any> {
+    private fun committed(commandId: String = "c-1", duplicate: Boolean = false): CommandReceipt.Committed<Any> {
         val item = ITEM.ref(TENANT, "i-9")
-        return CommandCommitted(
+        return CommandReceipt.Committed(
             commandId = commandId,
             commandType = "stock.item.Reserve",
             ref = item,
@@ -195,7 +194,7 @@ class CommandMessagesTest {
             .isEqualTo(Transport(trace = trace))
         val rejection = EnvelopeCodec.decode(
             CommandMessages.receipt(
-                CommandRejected<Any>(
+                CommandReceipt.Rejected<Any>(
                     "c-2",
                     "stock.item.Reserve",
                     ref,
@@ -205,7 +204,7 @@ class CommandMessagesTest {
                 ),
             ).value,
         )
-        (CommandMessages.receiptOf(rejection) as CommandRejected<*>).commandId.assert().isEqualTo("c-2")
+        (CommandMessages.receiptOf(rejection) as CommandReceipt.Rejected<*>).commandId.assert().isEqualTo("c-2")
         val command = EnvelopeCodec.decode(
             CommandMessages.command(
                 ClusterCodec.wire("stock.item.Reserve", Command("c", "c", ref, Reserve(1))),
@@ -222,14 +221,22 @@ class CommandMessagesTest {
             val envelope = EnvelopeCodec.decode(it.value)
             (envelope.payload as tools.jackson.databind.node.ObjectNode).remove("headers")
             when (val receipt = CommandMessages.receiptOf(envelope)) {
-                is CommandCommitted<*> -> receipt.headers.assert().isEmpty()
-                else -> (receipt as CommandRejected<*>).headers.assert().isEmpty()
+                is CommandReceipt.Committed<*> -> receipt.headers.assert().isEmpty()
+                else -> (receipt as CommandReceipt.Rejected<*>).headers.assert().isEmpty()
             }
         }
     }
 
-    private fun CommandCommitted<Any>.toRejected(): CommandRejected<Any> =
-        CommandRejected(commandId, commandType, ref, ErrorInfo("e", "m"), causation, executionId, headers = headers)
+    private fun CommandReceipt.Committed<Any>.toRejected(): CommandReceipt.Rejected<Any> =
+        CommandReceipt.Rejected(
+            commandId,
+            commandType,
+            ref,
+            ErrorInfo("e", "m"),
+            causation,
+            executionId,
+            headers = headers
+        )
 
     @Test
     fun `a reply should ask for the success receipt only when it says so, false for an older writer`() {
@@ -251,7 +258,7 @@ class CommandMessagesTest {
     fun `the entries of a receipts topic should hold both kinds of receipts in the saga aggregate's lane`(): Unit =
         runBlocking {
             topics.create(RECEIPTS, 1)
-            val rejected = CommandRejected<Any>(
+            val rejected = CommandReceipt.Rejected<Any>(
                 "c-2",
                 "stock.item.Reserve",
                 ref,
@@ -289,7 +296,7 @@ class CommandMessagesTest {
             handled.assert().containsExactly("c-1" to Reserve::class.java)
             // A rejection of the same command is dropped too: one receipt per command id.
             receipts.handle(
-                CommandRejected<Any>(
+                CommandReceipt.Rejected<Any>(
                     "c-1",
                     "stock.item.Reserve",
                     ref,
@@ -413,7 +420,7 @@ class CommandMessagesTest {
             }),
         )
         receipts.subscription.name.assert().isEqualTo("wow.receipts.sales")
-        val rejected = CommandRejected<Any>(
+        val rejected = CommandReceipt.Rejected<Any>(
             "c-1",
             "stock.item.Reserve",
             ref,
@@ -458,7 +465,7 @@ class CommandMessagesTest {
                     },
                 ),
             )
-            val rejected = CommandRejected<Any>(
+            val rejected = CommandReceipt.Rejected<Any>(
                 "c-1",
                 "stock.item.Reserve",
                 ref,
@@ -494,7 +501,14 @@ class CommandMessagesTest {
                 receiptHandler(rejected = { _, _ -> listOf("second") }, committed = { _, _ -> listOf("second") })
         }
         val context = io.mockk.mockk<ContextNode>()
-        val rejected = CommandRejected<Any>("mine", "t", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution)
+        val rejected = CommandReceipt.Rejected<Any>(
+            "mine",
+            "t",
+            ref,
+            ErrorInfo("e", "m"),
+            Causation("a", "b"),
+            execution
+        )
         val committed = { id: String -> committed(id) }
         val combined = (first + second).receipts(context)!!
         combined.rejected(rejected, Reserve::class.java).assert().containsExactly("first")

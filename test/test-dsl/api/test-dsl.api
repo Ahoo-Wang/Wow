@@ -167,9 +167,9 @@ public final class me/ahoo/wow/test/ProcessorSpec {
 	public static synthetic fun givenAggregate$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/test/GivenAggregate;
 	public final fun givenQueries (Lme/ahoo/wow/api/read/NodeQueryApi;)V
 	public final fun whenCommitted (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public final fun whenCommitted (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
+	public final fun whenCommitted (Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/subscribe/CommandCommitted;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun whenDeliveredLate (ILme/ahoo/wow/test/GivenAggregate;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenDeliveredLate$default (Lme/ahoo/wow/test/ProcessorSpec;ILme/ahoo/wow/test/GivenAggregate;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun whenEvent (Lme/ahoo/wow/api/subscribe/StateEvent;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
@@ -179,16 +179,16 @@ public final class me/ahoo/wow/test/ProcessorSpec {
 	public final fun whenRedelivered (Lme/ahoo/wow/test/GivenAggregate;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenRedelivered$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/test/GivenAggregate;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun whenRejected (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
-	public final fun whenRejected (Lme/ahoo/wow/api/subscribe/CommandRejected;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
+	public final fun whenRejected (Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenRejected$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public static synthetic fun whenRejected$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/subscribe/CommandRejected;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun whenRejected$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public final class me/ahoo/wow/test/ProcessorSpecKt {
-	public static final fun commandCommitted (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandCommitted;
-	public static synthetic fun commandCommitted$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandCommitted;
-	public static final fun commandRejected (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandRejected;
-	public static synthetic fun commandRejected$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandRejected;
+	public static final fun commandCommitted (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
+	public static synthetic fun commandCommitted$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Committed;
+	public static final fun commandRejected (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
+	public static synthetic fun commandRejected$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandReceipt$Rejected;
 	public static final fun commandTypeOf (Lme/ahoo/wow/api/decide/Command;)Ljava/lang/String;
 	public static final fun projectionSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
 	public static final fun projectionSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;

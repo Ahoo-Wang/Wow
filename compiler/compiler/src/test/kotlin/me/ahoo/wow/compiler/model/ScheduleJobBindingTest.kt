@@ -68,7 +68,7 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.Misfire
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.JobContext
+        import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         data class IssueInvoices(val tenantId: String, val slot: Long)
@@ -77,7 +77,7 @@ class ScheduleJobBindingTest {
         class BillingSaga {
             @OnSchedule(name = "invoice", cron = "0 0 0 1 * *", zone = "Asia/Shanghai", scope = JobScope.TENANT)
             @Retry(maxAttempts = 2)
-            fun invoice(tick: ScheduleTick, context: JobContext): CommandRequest<IssueInvoices> =
+            fun invoice(tick: ScheduleTick, context: SagaContext): CommandRequest<IssueInvoices> =
                 CommandRequest.to(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
 
             @OnSchedule(name = "sweep", cron = "0 */5 * * * *", sharded = true, misfire = Misfire.CATCH_UP)

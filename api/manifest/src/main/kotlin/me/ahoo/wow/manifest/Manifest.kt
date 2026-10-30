@@ -548,10 +548,10 @@ class EventManifest @InternalWowApi constructor(
  *   for a projection or a reactor. When it is set, a wait chain may follow the saga's hop only into the contexts of
  *   these commands.
  * - [rejected] is set on an `@OnRejected` handler of a saga and on no other: the commands whose
- *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
+ *   rejections it handles, the one its `CommandReceipt.Rejected<C>` names, or empty for any command the saga derives. Such a
  *   handler reads rejections, not state events: its [source] is empty and not read.
  * - [committed] is set on an `@OnCommitted` handler of a saga and on no other: the commands whose
- *   success receipts it handles, the one its `CommandCommitted<C>` names, or empty for any command the saga derives.
+ *   success receipts it handles, the one its `CommandReceipt.Committed<C>` names, or empty for any command the saga derives.
  *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events.
  * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
  *   else [SubscriptionStart.defaultFor] its kind; the host may configure another. Null on an `@OnRejected` or
