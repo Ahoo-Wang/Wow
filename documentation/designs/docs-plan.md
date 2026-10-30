@@ -587,3 +587,4 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-31 | 停放操作：跳过必须给出 `{"failedAt"}`、重试可选；扫描为条目排期；线上为小写（`requested`）；PR 3 之后用 `retry`、`activate`、`parked.claim-ttl` 的新名 | operate/ops-console:89 | D372 S3、S8（#5194、#5198） | 最终重写 |
 | DG-32 | Skill 参考（持续维护，不等最终重写）：跳过须给 `failedAt`、`retry` 一词；测试 DSL 的新期望与语义 | skills/wow-develop/references/processes.md:152、testing.md:107、:109、review-rubric.md:38，skills/wow-migrate/references/v9-to-v10.md:793 | D372 | D372 PR 3（技能的两处）与 PR 4a |
 | DG-33 | 历史状态读的回放上限：`wow.query.state.max-replay` 的含义与调高的时机，超限的 `replay-too-long`，事件历史经 events 查询模型读取；某个旧版本的状态须从第一个版本回放 | reference/configuration、guide 的历史状态与 trace 一节、operate/troubleshooting | D376 | 最终重写 |
+| DG-34 | 租户级聚合（`Ownership.TENANT`）的读取授权：调用者的所有者不限制它的读取，同一租户里登录的调用者都读得到；要按角色限制，服务须自带读取策略（`QueryPolicy`），如 ops 的 `ReaderRole`、目录的 `AnalyticsCatalogQueryPolicy` | guide 的归属与读取、operate/security | D189、UI-1（#5223） | 最终重写 |
