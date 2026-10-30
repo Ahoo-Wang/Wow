@@ -147,7 +147,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
 
 - Targets: `CLASS`, `FUNCTION`
-- Parameters: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `multiplier: Double = 0.0`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
+- Parameters: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `multiplier: Double = 0.0`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`, `systemic: Array<KClass<out Throwable>> = []`
 
 ## `@Revision`
 

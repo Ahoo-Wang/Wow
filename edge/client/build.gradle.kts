@@ -26,6 +26,6 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    // The kernel's classification, which the runtime and the test DSL share, takes this module's classifier.
-    testImplementation(project(":kernel"))
+    // The test DSL classifies with the kernel's classification, the runtime's too, which takes this module's classifier.
+    testImplementation(project(":test-dsl"))
 }

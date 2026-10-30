@@ -352,6 +352,7 @@ public final class me/ahoo/wow/manifest/RetryManifest {
 	public final fun getMaxBackoff ()Ljava/lang/String;
 	public final fun getMultiplier ()Ljava/lang/Double;
 	public final fun getRecoverable ()Ljava/util/List;
+	public final fun getSystemic ()Ljava/util/List;
 	public final fun getTimeout ()Ljava/lang/String;
 	public final fun getUnrecoverable ()Ljava/util/List;
 	public fun hashCode ()I

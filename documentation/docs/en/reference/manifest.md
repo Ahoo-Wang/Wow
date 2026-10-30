@@ -133,6 +133,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `timeout`
   - `recoverable`
   - `unrecoverable`
+  - `systemic`
   - `multiplier`
 - `job`: object; left out when absent or at its default
   - `name`
