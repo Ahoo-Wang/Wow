@@ -31,9 +31,9 @@ import java.lang.reflect.Type
  * the parameter needs a qualifier. A parameterized type is matched by every type argument, as Spring matches an
  * injection point: `StateViewCache<OrderStateView>` is not `StateViewCache<PaymentStateView>`.
  *
- * A [QueryApi] or [NodeQueryApi] without a qualifier is the node's own read API (its [NodeQueryApi] bean), whatever
- * other [QueryApi] beans (a peer's client) the application has: a command function queries the read side as the
- * command's caller. The node's API is built from the node, which is built from the models, so the models take it
+ * A [QueryApi] or [NodeQueryApi] without a qualifier is the node's own read API when the node has one (its
+ * [NodeQueryApi] bean, the query plane on), whatever other [QueryApi] beans (a peer's client) the application has: a
+ * command function queries the read side as the command's caller. The node's API is built from the node, which is built from the models, so the models take it
  * deferred ([NodeQueries]): looked up on its first use, a command's, once the node is up.
  */
 internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {

@@ -321,6 +321,12 @@ class InProcessQueryApiTest {
             projection = Projection(include = listOf(QueryField("aggregateId")))
         )
         misuse { carts.single(projected) }
+        // A projection that only leaves fields out is refused too.
+        val excluded = SingleQuery(
+            AggregateIdFilter("c-1"),
+            projection = Projection(exclude = listOf(QueryField("state"))),
+        )
+        misuse { carts.single(excluded) }
         val tree = carts.dynamic<ObjectNode>().single(projected)!!
         tree["aggregateId"].asString().assert().isEqualTo("c-1")
         tree.has("state").assert().isFalse()

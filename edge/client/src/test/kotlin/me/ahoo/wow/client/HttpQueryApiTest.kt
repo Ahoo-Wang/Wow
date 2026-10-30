@@ -253,6 +253,9 @@ class HttpQueryApiTest {
     fun `a typed query should read whole records, a projection only through dynamic()`(): Unit = runBlocking {
         val projected = ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("state"))))
         caught<IllegalArgumentException> { runBlocking { boxes.list(projected).toList() } }
+        // A projection that only leaves fields out is refused too.
+        val excluded = ListQuery(MatchAllFilter, projection = Projection(exclude = listOf(QueryField("state"))))
+        caught<IllegalArgumentException> { runBlocking { boxes.list(excluded).toList() } }
         peer.reply(Reply.json(listOf(mapOf("state" to mapOf("items" to 1)))))
         boxes.dynamic<Map<String, Any>>().list(projected).toList().single().keys.assert().containsExactly("state")
         caught<IllegalArgumentException> { runBlocking { boxes.state(AggregateType("mail", "other").ref("t1", "x")) } }
