@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.api.context.request.AppIdCapable
+import me.ahoo.cosec.runtime.http.CoSecParameters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -24,14 +24,17 @@ import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.junit.jupiter.api.Test
+import org.springframework.http.MediaType
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** [CoSecCallerResolver] behind the public routes, after a stand-in of CoSec's WebFilter ([coSecFilter]). */
+/** [CoSecCallerResolver] and [CoSecCommandAuthorizer] behind the public routes, after CoSec's pipeline filter. */
 class CoSecEdgeTest {
     private val headers = CopyOnWriteArrayList<Map<String, String>>()
+    private val cosec = CoSecPipeline()
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions(crossScopeRoles = setOf("admin"))),
+        cosec = cosec,
         options = CoSecRequestIds.addTo(CoSecRequestFacts.addTo(WowHttpOptions(requestFacts = setOf("X-Trace")))),
         transformers = listOf(
             object : CommandTransformer {
@@ -43,7 +46,10 @@ class CoSecEdgeTest {
                 }
             },
         ),
+        authorizer = CoSecCommandAuthorizer(cosec.checker),
     )
+
+    private fun token(value: String) = mapOf("Authorization" to "Bearer $value")
 
     private fun Pair<Int, JsonNode?>.assertProblem(status: Int, code: String) {
         first.assert().isEqualTo(status)
@@ -62,38 +68,66 @@ class CoSecEdgeTest {
 
     @Test
     fun `the principal's tenant and id are the command's tenant and owner`() {
-        val result = node.post("/shop/cart/open-cart", headers = mapOf("X-User" to "alice")).assertSucceeded()
+        val result = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
         result["ref"]["tenantId"].asString().assert().isEqualTo("acme")
         result["status"].asString().assert().isEqualTo("succeeded")
     }
 
     @Test
-    fun `Wow-Space selects a space the principal belongs to, and is forbidden otherwise`() {
-        val member = mapOf("X-User" to "alice", "X-Roles" to "editor@s1,viewer@s2", WowHeaders.SPACE to "s2")
+    fun `CoSec-Space-Id selects a space CoSec validated, and CoSec refuses a space the principal is not in`() {
+        val member = token("alice;acme;editor@s1,viewer@s2") + (CoSecParameters.SPACE_ID to "s2")
         node.post("/shop/cart/open-cart", headers = member).assertSucceeded()
-        node.post("/shop/cart/open-cart", headers = member + (WowHeaders.SPACE to "s9"))
-            .assertProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
+        node.post("/shop/cart/open-cart", headers = member + (CoSecParameters.SPACE_ID to "s9")).first
+            .assert().isEqualTo(403)
     }
 
     @Test
     fun `Wow-Scope is forbidden without the cross-scope role and honoured with it`() {
-        val opened = node.post("/shop/cart/open-cart", headers = mapOf("X-User" to "alice")).assertSucceeded()
+        val opened = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
         val id = opened["ref"]["id"].asString()
         val scope = mapOf(WowHeaders.SCOPE to """owner="alice"""")
-        node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", scope + ("X-User" to "bob"))
+        node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", scope + token("bob;acme"))
             .assertProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
-        val admin = scope + mapOf("X-User" to "root", "X-Roles" to "admin")
-        node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", admin)
+        node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", scope + token("root;acme;admin"))
             .assertSucceeded()["version"].asInt().assert().isEqualTo(2)
-        node.post("/shop/cart/$id/add-item", """{"sku":"pear"}""", mapOf("X-User" to "bob"))
+        node.post("/shop/cart/$id/add-item", """{"sku":"pear"}""", token("bob;acme"))
             .assertProblem(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
     }
 
     @Test
+    fun `CoSec decides the route and the authorizer the command, by one action, in the request's scope`() {
+        val opened = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
+        val id = opened["ref"]["id"].asString()
+        cosec.asked.clear()
+        node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", token("alice;acme")).assertSucceeded()
+        cosec.asked.map { it.toString() }.assert().isEqualTo(listOf("shop:AddItem cart/$id", "shop:AddItem cart/$id"))
+    }
+
+    @Test
+    fun `the authorizer decides a command answered as an event stream with the request's security too`() {
+        val opened = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
+        val id = opened["ref"]["id"].asString()
+        // The route is permitted, the command is not: only the authorizer asks a second time.
+        var asked = 0
+        cosec.permits = { it.action != "shop:AddItem" || ++asked == 1 }
+        val status = node.client.post().uri("/shop/cart/$id/add-item")
+            .header("Authorization", "Bearer alice;acme")
+            .header("Content-Type", "application/json")
+            .accept(MediaType.TEXT_EVENT_STREAM)
+            .bodyValue("""{"sku":"apple"}""")
+            .exchange()
+            .expectBody(String::class.java)
+            .returnResult()
+        status.status.value().assert().isEqualTo(403)
+        status.responseBody!!.assert().contains(FrameworkCodes.AUTH_FORBIDDEN)
+        asked.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `CoSec-Request-Id is a command's request id without Wow-Request-Id, which wins`() {
-        val opened = node.post("/shop/cart/open-cart", headers = mapOf("X-User" to "alice")).assertSucceeded()
+        val opened = node.post("/shop/cart/open-cart", headers = token("alice;acme")).assertSucceeded()
         val path = "/shop/cart/${opened["ref"]["id"].asString()}/add-item"
-        val retried = mapOf("X-User" to "alice", CoSecRequestIds.HEADER to "gateway-1")
+        val retried = token("alice;acme") + (CoSecRequestIds.HEADER to "gateway-1")
         node.post(path, """{"sku":"apple"}""", retried).assertSucceeded()["version"].asInt().assert().isEqualTo(2)
         // The gateway's retry carries the same header: the same request, not a second item.
         node.post(path, """{"sku":"apple"}""", retried).assertSucceeded()["version"].asInt().assert().isEqualTo(2)
@@ -103,16 +137,15 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `the CoSec request facts and the application CoSec authorized reach the command beside the host's own`() {
+    fun `the CoSec request facts and the app of CoSec's scope reach the command beside the host's own`() {
         node.post(
             "/shop/cart/open-cart",
-            headers = mapOf(
-                "X-User" to "alice",
-                "X-Granted" to "app-role",
-                AppIdCapable.APP_ID_KEY to "shop-app",
+            headers = token("alice;acme") + mapOf(
+                CoSecParameters.APP_ID to "shop-app",
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
                 "X-Other" to "ignored",
+                "app_id" to "forged",
             ),
         ).assertSucceeded()
         headers.single().assert().isEqualTo(
@@ -125,60 +158,9 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `a CoSec-App-Id CoSec did not authorize the request in is not recorded`() {
-        node.post(
-            "/shop/cart/open-cart",
-            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app", "app_id" to "forged"),
-        ).assertSucceeded()
+    fun `a request in no app records none`() {
+        node.post("/shop/cart/open-cart", headers = token("alice;acme") + ("app_id" to "forged")).assertSucceeded()
         headers.single().assert().isEmpty()
-    }
-
-    @Test
-    fun `the application of an injected request is not recorded unless the host trusts it`() {
-        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected", AppIdCapable.APP_ID_KEY to "shop-app")
-        node.post("/shop/cart/open-cart", headers = injected).assertSucceeded()
-        headers.single().assert().isEmpty()
-    }
-
-    @Test
-    fun `a host that trusts injected applications records the one the gateway forwarded, and no other`() {
-        val recorded = CopyOnWriteArrayList<Map<String, String>>()
-        val trusting = CoSecNode(
-            callers = CoSecCallerResolver(CoSecCallerOptions(trustInjectedApp = true)),
-            transformers = listOf(
-                object : CommandTransformer {
-                    override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
-
-                    override suspend fun transform(input: CommandInput): CommandTarget {
-                        recorded += input.headers
-                        return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
-                    }
-                },
-            ),
-        )
-        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected")
-        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " shop-app "))
-            .assertSucceeded()
-        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " ")).assertSucceeded()
-        trusting.post("/shop/cart/open-cart", headers = injected + ("app_id" to "forged")).assertSucceeded()
-        // A request CoSec authorized here still needs the application's role, whatever the option.
-        trusting.post(
-            "/shop/cart/open-cart",
-            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app"),
-        ).assertSucceeded()
-        trusting.post(
-            "/shop/cart/open-cart",
-            headers = mapOf("X-User" to "bob", "X-Granted" to "app-role", AppIdCapable.APP_ID_KEY to "console"),
-        ).assertSucceeded()
-        recorded.toList().assert().isEqualTo(
-            listOf(
-                mapOf(RequestFacts.APP_ID to "shop-app"),
-                emptyMap(),
-                emptyMap(),
-                emptyMap(),
-                mapOf(RequestFacts.APP_ID to "console"),
-            ),
-        )
     }
 
     @Test

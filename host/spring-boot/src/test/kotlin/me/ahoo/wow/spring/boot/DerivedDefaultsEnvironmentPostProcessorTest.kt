@@ -36,18 +36,13 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
     }
 
     @Test
-    fun `the gateway mode should set exactly CoSec's inject-mode keys`() {
+    fun `the gateway mode should set exactly CoSec's gateway-mode keys`() {
         // Pinned, so a CoSec upgrade that renames one of them fails here rather than in a deployment.
         CoSecModeEnvironmentPostProcessor.GATEWAY.assert().isEqualTo(
             mapOf(
                 "cosec.enabled" to "true",
+                "cosec.pipeline.mode" to "gateway",
                 "cosec.jwt.enabled" to "false",
-                "cosec.inject.enabled" to "true",
-                "cosec.authorization.enabled" to "false",
-                "cosec.authentication.enabled" to "false",
-                "cosec.audit.enabled" to "false",
-                "cosec.ip2region.enabled" to "false",
-                "cosec.limiter.enabled" to "false",
             ),
         )
         val gateway = environment(CoSecModeEnvironmentPostProcessor.MODE to "gateway").coSec()
@@ -65,14 +60,14 @@ class DerivedDefaultsEnvironmentPostProcessorTest {
             "cosec.jwt.enabled" to "true",
         ).coSec()
         own.getProperty("cosec.jwt.enabled").assert().isEqualTo("true")
-        own.getProperty("cosec.inject.enabled").assert().isEqualTo("true")
+        own.getProperty("cosec.pipeline.mode").assert().isEqualTo("gateway")
     }
 
     @Test
     fun `the disabled mode should turn CoSec off, and no mode should leave it to CoSec`() {
         val off = environment(CoSecModeEnvironmentPostProcessor.MODE to "disabled").coSec()
         off.getProperty("cosec.enabled").assert().isEqualTo("false")
-        off.getProperty("cosec.inject.enabled").assert().isNull()
+        off.getProperty("cosec.pipeline.mode").assert().isNull()
         val unset = environment().coSec()
         unset.propertySources.contains(CoSecModeEnvironmentPostProcessor.SOURCE).assert().isFalse()
     }

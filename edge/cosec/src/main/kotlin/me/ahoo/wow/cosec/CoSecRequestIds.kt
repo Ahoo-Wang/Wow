@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.api.context.request.RequestIdCapable
+import me.ahoo.cosec.runtime.http.CoSecParameters
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.WowHttpOptions
 
 /**
  * CoSec's request id as a command's request id when the request has no `Wow-Request-Id`: a CoSec
  * gateway sets `CoSec-Request-Id` on the requests it forwards, so a command it sends again under the same header is
- * the same request, which the log answers as a duplicate. The header is read as the request carries it, never CoSec's
- * own `Request.requestId`, which CoSec generates for a request without the header.
+ * the same request, which the log answers as a duplicate. The header is read as the request carries it, never the
+ * request id CoSec generates for a request without the header.
  */
 @InternalWowApi
 object CoSecRequestIds {
-    const val HEADER: String = RequestIdCapable.REQUEST_ID_KEY
+    const val HEADER: String = CoSecParameters.REQUEST_ID
 
     /** [options] with `CoSec-Request-Id` after the request id headers it lists. */
     @JvmStatic

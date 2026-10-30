@@ -13,8 +13,9 @@
 
 # The GA end-to-end verification (roadmap 9.3g, decision D317, work packages G.2 and G.3): the eShop, ops, the view
 # store and the analytics catalog deployed on a kind cluster with Calico, so the NetworkPolicies hold, behind CoSec
-# Gateway in inject mode, with the deploy/ manifests (and .github/ga-e2e/services/ for the services that have none
-# yet), on PostgreSQL or a MongoDB replica set, Kafka and ClickHouse. The images are built from the commit and loaded
+# Gateway, which decides each request with its documents (published before it starts) and forwards the identity it
+# verified to the services in CoSec's gateway mode, with the deploy/ manifests (and .github/ga-e2e/services/ for the
+# services that have none yet), on PostgreSQL or a MongoDB replica set, Kafka and ClickHouse. The images are built from the commit and loaded
 # into the cluster, never pushed. The runner (`:eshop-e2e:clusterTest`) drives the scenarios through the gateway and
 # judges them by the soak's invariants; the report (JSON) and every pod's log are uploaded. nightly.yml dispatches it
 # every night main moved; it can also be dispatched by hand.
@@ -96,6 +97,7 @@ jobs:
           wait: 0s
       - name: Install Calico and load the images
         run: .github/ga-e2e/cluster.sh network
+      # The gateway's documents are published into its Redis by cosec-migrate, which the e2e project runs.
       - name: Deploy the backends and the gateway
         env:
           BACKEND: ${{ matrix.backend }}

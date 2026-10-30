@@ -6,6 +6,7 @@ me.ahoo.wow.spring.boot.QueryAutoConfiguration
 me.ahoo.wow.spring.boot.InMemoryTopicsAutoConfiguration
 me.ahoo.wow.spring.boot.TransportAutoConfiguration
 me.ahoo.wow.spring.boot.CoSecAutoConfiguration
+me.ahoo.wow.spring.boot.CoSecRouteMapAutoConfiguration
 me.ahoo.wow.spring.boot.SinkAutoConfiguration
 me.ahoo.wow.spring.boot.NodeSamplerAutoConfiguration
 me.ahoo.wow.spring.boot.ObservabilityAutoConfiguration

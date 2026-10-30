@@ -11,8 +11,9 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 - The public port is reachable from the gateway alone.
 - The internal port, Kafka and the stores are never reachable from outside the platform: network policies, as in `deploy/`, let only the platform's own pods reach them.
-- The gateway overwrites the forwarded headers and the identity headers it injects; it never passes a client's on.
+- The gateway writes the forwarded headers itself and removes any `CoSec-Identity` a client sends; it never passes a client's on.
 - A caller resolver authenticates every request to the public port; CoSec provides one.
+- CoSec's documents are published, to a Redis that runs with `maxmemory-policy noeviction`, before the first request.
 - Commands are authorized per action, not only per route, where routes alone are not enough.
 - Each service lists the system commands other services may call on its internal port, and, where it helps catch a mistake, the domain commands and models.
 - Only a service's own nodes, the services that send it commands, and ops write its command topic.
@@ -23,14 +24,17 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
 
-With CoSec on the classpath, its resolver is the host's. It reads the caller from CoSec's security context:
+With `wow-cosec` and CoSec's starter and WebFlux module (`me.ahoo.cosec:cosec-spring-boot`, `me.ahoo.cosec:cosec-webflux`) on the classpath, CoSec's resolver is the host's, unless the application defines a `CallerResolver` of its own. CoSec's pipeline authenticates each request and resolves its scope, the app and space the request is decided in; the resolver turns the security context CoSec built into the caller:
 
-- **Tenant and subject** come from the principal. A request without an authenticated principal is answered 401.
+- **Tenant and subject** come from the principal; CoSec's default tenant, `(0)`, is `wow.tenant.default`. A request without an authenticated principal, or whose security context CoSec's pipeline did not build, is answered 401.
 - **Owner.** A principal is an owner-level caller, acting on its own aggregates, unless it has one of the roles or policies of `wow.cosec.tenant-level`: then it is a tenant-level caller, acting on every aggregate of its tenant, such as a member of staff who ships every buyer's orders.
-- **Space.** A principal's spaced roles (`role@space`) are the spaces it belongs to. The `Wow-Space` header picks one; without it, a principal acts in its only space, or in none.
+- **Space** is the space of CoSec's scope. The client names it in `CoSec-Space-Id`, and CoSec accepts it only when the principal has a role in that space; without it, the request is in CoSec's default space, which is no Wow space. A CoSec host does not read `Wow-Space`.
+- **Application.** The caller's application (`Caller.app`), recorded as the commit's request fact `app_id`, is the app of CoSec's scope: the host's own (`cosec.authorization.scope.app-id`), else the `CoSec-App-Id` the request declared and CoSec accepted, else, behind a CoSec gateway, the app the gateway forwarded. A scope without an app gives the caller none.
+- **Roles and attributes.** The caller's `roles` attribute lists the principal's roles in the scope's space, `policies` its policies, and its principal attributes whose key starts with `abac.` are its ABAC attributes. Behind a CoSec gateway a principal has no policies, so only the roles of `wow.cosec.tenant-level` and `wow.cosec.cross-scope` match there, and the ABAC attributes come from the claims the gateway forwards (`cosec.gateway.identity.claims`).
 - **Acting elsewhere.** Only a principal with a role or policy of `wow.cosec.cross-scope` may name another tenant or scope in `Wow-Scope`.
 - **Services.** A CoSec principal is never a service identity. A service names itself on the internal port alone ([Close the internal port](#close-the-internal-port)).
-- **Application.** The request's `CoSec-App-Id` becomes the caller's application, and the commit's `app_id` fact, only when CoSec authorized the request through that application's role permissions. A header the client sets is not trusted on its own. Behind a CoSec gateway in inject mode, `wow.cosec.trust-injected-app` trusts the application the gateway forwards; it is off by default, and only safe when nothing but the gateway reaches the service.
+
+CoSec's guide describes how it authenticates a request and how it checks the app and space a client declares: [Authentication](https://cosec.ahoo.me/integration/authentication), [App and space](https://cosec.ahoo.me/integration/web#app-and-space).
 
 ## Record the client address
 
@@ -40,35 +44,71 @@ Each command records the client's `User-Agent` and address (`user_agent`, `remot
 
 Authorization happens at admission, before the command runs:
 
-- **Per route.** CoSec's web filter authorizes the public routes by path and method.
-- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command as its caller, whichever way it arrived. It is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed. A `CommandAuthorizer` of your own is asked beside CoSec's, and a command needs both to allow it ([the composition rule](../guide/spring-boot#beans-the-application-gives)); an authorizer of your own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and has no objection when there is one, as the platform services' do. CoSec evaluates each command as the request of its route in the service's Manifest, the same method and path the web filter sees (`DELETE /shop/cart/{id}` for `wow.lifecycle.DeleteAggregate`, `POST /shop/cart/wow.snapshot.rebuild`, `POST /shop/wow.schedule/{id}/enable`), so one policy covers both entries. The same switch has CoSec authorize every call of a [service route](../reference/annotations#serviceroute) by the route's method and path. Both authorizers evaluate the request as the caller sends it, from its application (`CoSec-App-Id`) and in its space, so a permission of the application's roles applies to them as it does to the web filter: turning the switch on never denies what HTTP allows. A command the Manifest routes nowhere, such as the scheduler's `wow.schedule.Tick`, is evaluated as `POST /{context}/{aggregate}/{id}/{full name}` (`POST /shop/schedule/report/wow.schedule.Tick`): write a policy for it in that shape. A policy that matches the command by its attribute reads `wow.command`, the command's full type name (`shop.cart.AddItem`; a system command qualified by its aggregate type, `shop.cart.wow.lifecycle.DeleteAggregate`), beside `wow.aggregate.id`, `wow.tenant`, `wow.owner`, `wow.space` and `wow.creation`.
+- **Per route.** Where CoSec decides a request, its pipeline authorizes it, by an action on a resource, before the route runs.
+- **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command and service route call of a request as its caller ([Where CoSec decides](#where-cosec-decides)). A `CommandAuthorizer` of your own does the same.
 - **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see.
 
-Commands a saga sends, compensations and scheduled commands inherit the scope and operator of the root command, which was authorized when it was admitted.
-
 The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
+
+### Action names {#action-names}
+
+A command and a service route have one CoSec name, whether CoSec decides the HTTP request or the authorizer decides the command in the process, so one policy guards both:
+
+| What | Action | Resource |
+| --- | --- | --- |
+| A command | `<context>:<command>`, its name as the Manifest lists it: `eshop-ordering:CreateOrder`, `shop:wow.lifecycle.DeleteAggregate` | `<aggregate>/<id>`: `order/o-1` |
+| A command route that names no aggregate id, such as a creation | `<context>:<command>` | `<aggregate>`: `order` |
+| The snapshot rebuild of an aggregate type | `<context>:wow.snapshot.Rebuild` | `snapshot/<aggregate>` |
+| A scheduled job's command | `<context>:wow.schedule.Enable` and the other job commands | `schedule/<job>` |
+| A service route | `<context>:<route>` | `route/<route>` |
+| A query or state route | `http:<METHOD>` | its path |
+
+A route that names no aggregate id leaves the id to the server, so its HTTP request is on the aggregate type alone while the command, in the process, is on the aggregate it addresses: a policy for such a command names the aggregate type both with and without an id. A policy on `http:` actions never covers the command and service routes: they are in their context's namespace.
+
+CoSec's documents, the platform's, each app's and each tenant's, say who may do what. Write them with CoSec's guide rather than from this page: [Policy language](https://cosec.ahoo.me/policies/language), [Role permissions](https://cosec.ahoo.me/policies/role-permissions), [Testing policies](https://cosec.ahoo.me/policies/testing).
+
+### Where CoSec decides {#where-cosec-decides}
+
+- **In a service that decides for itself** (`cosec.pipeline.mode` `enforce`, CoSec's default), CoSec's pipeline reads the route map the host builds from the service's Manifest: its command and service routes, under the names above, in place of a `cosec-routes.json`. An application that declares a `RouteMap` bean of its own keeps it. Such a service holds CoSec's signing secret and reads its documents from CoSec's Redis ([CoSec's quick start](https://cosec.ahoo.me/guide/quick-start)).
+- **Behind a CoSec gateway** (`wow.cosec.mode: gateway`), the gateway decides. It loads no route map, so its policies name `http:<METHOD>` actions on the request's path, and the service decides nothing by policy ([Run services in gateway mode](#run-services-in-gateway-mode)).
+
+With `wow.cosec.authorizer.enabled: true`, `CoSecCommandAuthorizer` and `CoSecServiceRouteAuthorizer` authorize each command and service route call in the process, whichever way it reached the command gateway, by its action above, for the principal and in the scope of the request it came from. They are wired only where CoSec decides for itself, which needs CoSec's `AuthorizationChecker`: a service in gateway mode has none, and the switch does nothing there. The switch is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed. A `CommandAuthorizer` of your own is asked beside CoSec's, and a command needs both to allow it ([the composition rule](../guide/spring-boot#beans-the-application-gives)); an authorizer of your own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and has no objection when there is one, as the platform services' do.
+
+A command that no request carries gets no objection from the CoSec authorizers: a command a saga, a timer or a compensation sends, a scheduled job's command, and a call another service makes on the internal port. CoSec has no request of theirs to decide. Such a command carries the scope and operator of the root command, which admission authorized when the root request arrived; the node's other authorizers still apply to it, and a service's calls on the internal port are what its caller list allows ([Close the internal port](#close-the-internal-port)).
 
 ## Put the gateway in front
 
 Wow trusts the identity the gateway forwards, so the gateway is a boundary of its own. Two requirements hold for every deployment:
 
-1. **The public port is reachable from the gateway alone.** A client that reached the public port around the gateway could send the headers the gateway would have injected, and be anyone. The deploy manifests' network policies let only the gateway's pods reach it.
-2. **The gateway overwrites the headers the service trusts.** It sets the forwarded headers, `X-Forwarded-For` and `Forwarded`, from the connection it accepted, instead of passing a client's on or appending to them, and it sets the identity headers it injects, such as CoSec inject mode's headers and `CoSec-App-Id`, removing any the client sent. Otherwise a client chooses its own address or identity.
+1. **The public port is reachable from the gateway alone.** A client that reached the public port around the gateway could send a `CoSec-Identity` of its own, and be anyone. The deploy manifests' network policies let only the gateway's pods reach it.
+2. **The gateway overwrites the headers the service trusts.** It sets the forwarded headers, `X-Forwarded-For` and `Forwarded`, from the connection it accepted, instead of passing a client's on or appending to them, and it removes any `CoSec-Identity` the client sent, forwarding only the identity it verified; the CoSec gateway does the latter on every route, whatever its configuration. Otherwise a client chooses its own address or identity.
 
 The host cannot see the network, so it does not check either at startup.
 
-Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
-
 A command sent again is the same command only under the same request id. A client that resends a command after losing its answer sends it with the same `Wow-Request-Id`, and the service answers it as a duplicate instead of running it twice. With CoSec, a command without `Wow-Request-Id` takes the request's `CoSec-Request-Id`. The CoSec gateway sets it once on each request it forwards, and a retry of the request, such as Spring Cloud Gateway's after a connection reset, resends the same one, so the service answers the retry as a duplicate. `Wow-Request-Id` wins when a request carries both.
+
+### Run services in gateway mode {#run-services-in-gateway-mode}
+
+Behind a CoSec gateway, a service need not verify a token again, nor hold CoSec's documents. `wow.cosec.mode: gateway` sets CoSec's defaults for it: `cosec.enabled=true`, `cosec.pipeline.mode=gateway` and `cosec.jwt.enabled=false`. A `cosec.*` key the application sets still wins.
+
+```yaml
+wow:
+  cosec:
+    mode: gateway
+```
+
+The gateway authenticates and authorizes each request and forwards what it verified in `CoSec-Identity`: the principal, its tenant, and the app, space and roles of its scope. The service reads the caller from it. It holds no signing secret, no documents and no Redis of CoSec's, and has no `AuthorizationChecker`: what a caller may do beyond the gateway's decision is for the service's own authorizers to say. `wow.cosec.mode: disabled` turns CoSec off (`cosec.enabled=false`) for a service run without a gateway. The eShop's services and Wow's platform services, the ops service, the view store and the analytics catalog, run in gateway mode in their `cosec` profile.
+
+**Only the gateway may reach a service in gateway mode.** It believes any `CoSec-Identity` it receives: anyone else who can send it a request is whoever they claim. Enforce it in the network, with a network policy that admits only the gateway's pods, as the deploy manifests do. A request without the header is anonymous, which the resolver answers 401; CoSec answers an unreadable header 400, and one older than `cosec.pipeline.gateway.max-age` (60 seconds) 401. CoSec's guide has the details: [Services behind the gateway](https://cosec.ahoo.me/integration/web#services-behind-the-gateway), [Trust boundaries](https://cosec.ahoo.me/guide/security-model#trust-boundaries).
 
 ### Configure the CoSec Gateway {#configure-the-cosec-gateway}
 
-The CoSec Gateway, built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
+The CoSec Gateway (`cosec-gateway-server`, the image `ghcr.io/ahoo-wang/cosec-gateway`), built on Spring Cloud Gateway, is the gateway Wow's end-to-end tests run in front of the eShop and the platform services, with the settings below. They are the requirements above in that gateway's terms:
 
 - **It is the edge.** `server.forward-headers-strategy: none`: it never takes a client's `Forwarded` or `X-Forwarded-For` as its own remote address, as Spring Boot's default on Kubernetes would.
 - **It writes the client's address once.** From Spring Cloud Gateway 4.1, the X-Forwarded headers filter writes nothing unless `trusted-proxies` matches the peer, so `for-append: false` alone does nothing. `trusted-proxies: ".*"` with `for-append: false` writes the peer it accepted as the one `X-Forwarded-For`, replacing a client's, and `forwarded.enabled: false` sends no `Forwarded` header, which a service would prefer.
 - **It retries a lost connection, never an answer.** The `Retry` filter resends a request once on an `IOException` or a `TimeoutException`, `POST` included: the retry carries the same `CoSec-Request-Id`, or the client's `Wow-Request-Id`, so the service answers it as a duplicate. `series: INFORMATIONAL` matches no final status, so no response is retried. Pooled connections idle at most 15 seconds, so one to a pod that has gone is rarely reused.
-- **It needs its Redis**, where it keeps its policies. No Wow service connects to it.
+- **It decides with CoSec's documents in its Redis.** The gateway reads CoSec 8's documents (schema 2: the platform document, and one per app and per tenant) from a Redis that must run with `maxmemory-policy noeviction`: it checks the policy at startup and does not start otherwise. Publish the documents before traffic arrives, with `cosec-migrate publish --to-redis`: until a platform document exists, the gateway answers every routed request 503 and reports itself not ready. No Wow service connects to this Redis.
 
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#settings -->
 
@@ -122,66 +162,20 @@ Each route sends a context's path prefix to its service:
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#routes -->
 
 ```yaml
-# Each service by its context prefix.
+# Each service by its context prefix. A route takes the CoSec-Identity of a permitted request only when
+# it opts in (metadata cosec-identity: true) or targets lb://: these target a Kubernetes Service's URL.
 routes:
   - id: eshop-catalog
     uri: http://eshop-catalog-service
     predicates: [Path=/eshop-catalog/**]
+    metadata: { cosec-identity: true }
   - id: eshop-basket
     uri: http://eshop-basket-service
     predicates: [Path=/eshop-basket/**]
+    metadata: { cosec-identity: true }
 ```
 
-The gateway verifies each request's token (`cosec.jwt`) and authorizes it by its policies; behind it, a service in CoSec's inject mode parses the principal from the token it forwards. CoSec's Redis rate limiter stays off: with Redis configured, its bean clashes with Spring Cloud Gateway's.
-
-<!-- sample: .github/ga-e2e/gateway/gateway.yaml#cosec -->
-
-```yaml
-cosec:
-  audit:
-    kafka:
-      enabled: false
-  authentication:
-    enabled: false
-  ip2region:
-    enabled: false
-  # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
-  # auto-configuration does: with Redis configured, the image does not start unless one of them is off (see
-  # https://github.com/Ahoo-Wang/CoSec/issues/1063).
-  limiter:
-    enabled: false
-  jwt:
-    algorithm: hmac256
-    secret: ${COSEC_JWT_SECRET}
-  authorization:
-    # A principal named by the cosec.root property would bypass every policy.
-    root-enabled: false
-    local-policy:
-      enabled: true
-      init-repository: true
-      force-refresh: true
-      locations: file:./config/policy.json
-```
-
-A global policy lets any authenticated principal through and leaves what it may do to each service, which authorizes each command:
-
-<!-- sample: .github/ga-e2e/gateway/gateway.yaml#policy -->
-
-```yaml
-# Any authenticated principal passes; what it may do is each service's to say (the gateway authorizes coarsely).
-policy.json: |
-  {
-    "id": "ga-e2e",
-    "name": "GA end-to-end",
-    "category": "ga-e2e",
-    "description": "Every route for any authenticated principal",
-    "type": "global",
-    "tenantId": "(platform)",
-    "statements": [
-      { "name": "authenticated", "action": "/**", "condition": { "authenticated": {} } }
-    ]
-  }
-```
+The gateway verifies each request's token with CoSec's signing secret (`cosec.jwt.secret`), decides it by the documents and forwards the identity. Its settings and the documents' format are CoSec's: [Deploying the gateway server](https://cosec.ahoo.me/operations/deployment), [The first documents](https://cosec.ahoo.me/operations/storage#the-first-documents), [Configuration](https://cosec.ahoo.me/operations/configuration). A coarse document at the gateway, such as one that lets any authenticated principal through, leaves what each caller may do to the services' own authorizers.
 
 The gateway's pods carry `app.kubernetes.io/component: gateway`, the label the services' public network policy admits.
 

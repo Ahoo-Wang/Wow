@@ -50,13 +50,13 @@ export function onSignedIn(
 }
 ```
 
-`applyTo` 加上 `Authorization: Bearer <access token>`，在令牌过期之前刷新它（并发的请求只刷新一次），在刷新之后重试被以 401 回答的请求，在刷新也解决不了的 401 时调用 `onUnauthorized`，在 403 时调用 `onForbidden`。它还发送 `CoSec-App-Id`、一个 `CoSec-Device-Id` 和一个 `CoSec-Request-Id`。只有当 CoSec 通过该应用的角色授权了请求时，服务才把这个应用记录为提交的 `app_id`：这个请求头本身不被信任。
+`applyTo` 加上 `Authorization: Bearer <access token>`，在令牌过期之前刷新它（并发的请求只刷新一次），在刷新之后重试被以 401 回答的请求，在刷新也解决不了的 401 时调用 `onUnauthorized`，在 403 时调用 `onForbidden`。它还发送 `CoSec-App-Id`、一个 `CoSec-Device-Id` 和一个 `CoSec-Request-Id`。服务把 CoSec 决定这个请求时所在的应用记录为提交的 `app_id`：宿主自己的应用，或 CoSec 接受的 `CoSec-App-Id`，或在 CoSec 网关之后由网关转发的应用。
 
 服务拒绝的请求以 `WowProblemError` reject：401 `wow.auth.unauthenticated`、403 `wow.auth.forbidden`，或者对调用方作用域之外的聚合的 403 `wow.aggregate.forbidden`。
 
 ## 空间与作用域 {#spaces-and-scopes}
 
-属于多个空间的调用方，用 `space`（`Wow-Space`）为每个请求选择一个空间；不选时，它在自己唯一的空间中行事，或者不在任何空间中。被允许跨作用域行事的调用方，用 `scope`（`Wow-Scope`）指明另一个租户、所有者或空间；命令则用 `targetTenant` 和 `targetScope` 指明（[发送命令](./commands#lifecycle-commands-scope-and-space)）。两者都是每个客户端方法的请求选项：
+属于多个空间的调用方，用 `space`（`Wow-Space`）为每个请求选择一个空间；不选时，它在自己唯一的空间中行事，或者不在任何空间中。CoSec 服务改从 `CoSec-Space-Id` 读取空间，由 `CoSecConfigurer` 的 `spaceIdProvider` 发送。被允许跨作用域行事的调用方，用 `scope`（`Wow-Scope`）指明另一个租户、所有者或空间；命令则用 `targetTenant` 和 `targetScope` 指明（[发送命令](./commands#lifecycle-commands-scope-and-space)）。两者都是每个客户端方法的请求选项：
 
 <!-- typecheck-generated: examples/eshop/web/src/generated -->
 

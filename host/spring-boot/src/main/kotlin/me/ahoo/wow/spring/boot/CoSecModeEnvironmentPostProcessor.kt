@@ -22,10 +22,11 @@ import org.springframework.core.env.MapPropertySource
  * CoSec's settings for a service as `wow.cosec.mode` names its mode, as defaults: they come after every other source,
  * so a `cosec.*` key the application sets still wins.
  *
- * - `gateway` ([GATEWAY]): behind a CoSec gateway, in CoSec's inject mode. The gateway verifies each request's token
- *   and authorizes it coarsely; the service reads the principal from the token it forwards and holds no secret, so
- *   CoSec verifies, authorizes, authenticates, audits, locates and limits nothing itself. What a caller may do is
- *   the service's to say.
+ * - `gateway` ([GATEWAY]): behind a CoSec gateway (`cosec.pipeline.mode=gateway`). The gateway authenticates and
+ *   authorizes each request and forwards the identity it verified in `CoSec-Identity`: the principal, its tenant, and
+ *   the app, space and roles of its scope. The service reads it and holds no secret, documents or Redis of CoSec's:
+ *   it verifies no token (`cosec.jwt.enabled=false`), and what a caller may do is the service's to say. Only the
+ *   gateway may reach it.
  * - `disabled` ([DISABLED]): CoSec off, for a service run without a gateway.
  */
 internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
@@ -42,19 +43,12 @@ internal class CoSecModeEnvironmentPostProcessor : EnvironmentPostProcessor {
         const val MODE: String = "wow.cosec.mode"
         const val SOURCE: String = "wowCoSecMode"
 
-        /** Behind a CoSec gateway: CoSec on in its inject mode, and nothing else of it on. */
+        /** Behind a CoSec gateway: CoSec on, reading the identity the gateway forwards. */
         val GATEWAY: Map<String, Any> = linkedMapOf(
             "cosec.enabled" to "true",
+            "cosec.pipeline.mode" to "gateway",
             // The gateway holds CoSec's signing secret; this service neither signs nor verifies a token.
             "cosec.jwt.enabled" to "false",
-            // The principal from the token the gateway verified and forwarded.
-            "cosec.inject.enabled" to "true",
-            // The gateway authorizes the paths, and the service decides what a caller may do.
-            "cosec.authorization.enabled" to "false",
-            "cosec.authentication.enabled" to "false",
-            "cosec.audit.enabled" to "false",
-            "cosec.ip2region.enabled" to "false",
-            "cosec.limiter.enabled" to "false",
         )
 
         /** CoSec off. */
