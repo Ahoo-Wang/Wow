@@ -102,6 +102,9 @@ class OpsAuthorizerTest {
                 refused.code.assert().isEqualTo(ReaderRole.READER_REQUIRED)
                 refused.errorMsg.assert().startsWith("${reader.subject} reads no parked entry")
             }
+            // A caller without a subject, which the edge answers 401 before it queries, is named as anonymous.
+            assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(Caller.ANONYMOUS), entries) }
+                .errorMsg.assert().startsWith("An anonymous caller reads no parked entry")
             // It hides no entry, so the entries' events queries need not name their aggregates.
             policy.events.assert().isEqualTo(EventsMode.NONE)
         }
