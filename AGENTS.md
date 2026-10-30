@@ -125,7 +125,7 @@ examples/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Post
 - The core is coroutines (`suspend`, `Flow`); a domain's handlers are `suspend`, synchronous, or Reactor through `:reactor`. Do not block a thread in the core's paths: a blocking handler is marked `@Blocking` and runs on a virtual thread, and a blocking driver runs on its backend's own dispatcher.
 - Prefer focused interfaces and module boundaries (06-modules.md §3, held by `:architecture`): the programming model in `:api`, the decide/evolve/append loop in `:kernel`, the node in `:runtime`, Spring wiring in `:spring-boot` only, and storage or transport concerns in their backends.
 - Serialization uses Jackson; framework code uses the existing Jackson stack and Spring compatibility modules where already present.
-- ID generation uses CosId and existing Wow ID helpers.
+- ID generation uses Wow's ID helpers (`GlobalIdGenerator`, `AggregateIdGenerator` in `:spi`): the node's own ids (request, command, wait, ledger) are always UUIDv7; CosId only gives aggregate ids, through `wow-cosid`.
 - Logging uses kotlin-logging, SLF4J, and Logback.
 - Detekt uses `config/detekt/detekt.yml`; line-length and several style rules are intentionally relaxed.
 - `inline` (and `reified`) is a design choice, made where the function needs the caller's context for its lambdas (a helper called from suspending and blocking code alike), needs a reified type, or must not allocate its lambdas on a hot path; never to satisfy, or to avoid, a coverage tool (see Testing).

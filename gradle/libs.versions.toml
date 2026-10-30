@@ -1,7 +1,7 @@
 [versions]
 # libraries
 spring-boot = "4.1.2"
-cosid = "3.4.1"
+cosid = "5.0.0"
 cocache = "6.8.0"
 cosec = "8.0.0-alpha.2"
 testcontainers = "2.0.5"

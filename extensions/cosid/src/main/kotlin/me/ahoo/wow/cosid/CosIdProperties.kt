@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.CosId
+import me.ahoo.cosid.runtime.RuntimeSpec
 
 /**
  * wow-cosid's settings, `wow.cosid.*`: the one default of each key, and the class its configuration metadata comes
@@ -22,15 +22,17 @@ import me.ahoo.cosid.CosId
  */
 class CosIdProperties {
     /**
-     * The CosId generator of the node's global ids (command ids, wait ids): CosId's shared generator, `cosid`, when
-     * not set.
+     * The CosId generator, by its name in `cosid.generators`, of the aggregate types that
+     * `wow.aggregates.[<context>.<aggregate>].id-generator` does not name and that have no CosId generator named after
+     * them (`<context>.<aggregate>`): CosId's `default` generator when not set. It must be one of CosId's generators,
+     * or the node does not start. The node's own ids (request, command, wait ids) are never CosId's.
      */
-    var globalGenerator: String = CosId.COSID
+    var aggregateGenerator: String = RuntimeSpec.DEFAULT_GENERATOR
 
     companion object {
         const val PREFIX: String = "wow.cosid"
 
-        /** The key of [globalGenerator]. */
-        const val GLOBAL_GENERATOR: String = "wow.cosid.global-generator"
+        /** The key of [aggregateGenerator]. */
+        const val AGGREGATE_GENERATOR: String = "wow.cosid.aggregate-generator"
     }
 }

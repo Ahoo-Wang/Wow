@@ -1,4 +1,4 @@
-description = "Wow CosId: CosId's generators as a node's global and aggregate id generators"
+description = "Wow CosId: CosId's generators as a node's aggregate id generators"
 
 dependencies {
     api(project(":spi"))
@@ -8,6 +8,8 @@ dependencies {
     compileOnly("org.springframework:spring-context")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.springframework:spring-context")
+    // CosId's runtime from its configuration, as an application starts it.
+    testImplementation("me.ahoo.cosid:cosid-spring-boot-starter")
     // ApplicationContextRunner, and the import selector that reads this module's auto-configuration metadata.
     testImplementation("org.springframework.boot:spring-boot-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-test")

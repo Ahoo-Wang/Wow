@@ -69,7 +69,7 @@ fun interface AggregateIdGenerator {
 }
 
 /**
- * Generators a host finds by a name no generator bean has, such as CosId's by its provider's names:
+ * Generators a host finds by a name no generator bean has, such as CosId's by its generators' names:
  * `wow.aggregates.[<context>.<aggregate>].id-generator` names one of these when it names no [AggregateIdGenerator].
  */
 @WowSpi

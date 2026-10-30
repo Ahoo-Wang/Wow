@@ -13,82 +13,71 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.CosId
-import me.ahoo.cosid.IdGenerator
-import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
-import me.ahoo.cosid.cosid.Radix62CosIdGenerator
-import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId
+import me.ahoo.cosid.runtime.CosIdRuntime
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 
-/** CosId's generators as the node's (decision D171). */
+/** CosId's generators as the node's aggregate id generators (decision D171), on CosId's runtime as its starter starts it. */
 class CosIdGeneratorsTest {
     private val order = AggregateType("shop", "order")
     private val cart = AggregateType("shop", "cart")
+    private val ledger = AggregateType("shop", "ledger")
+    private val radix62 = Regex("[0-9A-Za-z]{15}")
 
-    /** A generator of fixed ids, without a machine id, as a segment generator is. */
-    private class Counting(private val prefix: Long) : IdGenerator {
-        private var next = 0L
-
-        override fun generate(): Long = prefix + ++next
-
-        override fun generateAsString(): String = generate().toString()
-    }
+    private fun aggregatesOf(runtime: CosIdRuntime, fallback: String = "default") = CosIdAggregateIdGenerator(
+        runtime,
+        fallback
+    )
 
     @Test
-    fun `the global ids should come from CosId's generator of the name, else from its shared one`() {
-        val provider = DefaultIdGeneratorProvider().apply {
-            share = Counting(100)
-            set(CosId.COSID, Counting(200))
-            set("orders", Counting(300))
+    fun `a type with no generator of its own should take CosId's default, 15 radix-62 characters sorting like their time`() {
+        cosIdRunner().run { context ->
+            val aggregates = aggregatesOf(context.getBean(CosIdRuntime::class.java))
+            aggregates.fallback.assert().isEqualTo("default")
+            aggregates.toString().assert().isEqualTo("CosIdAggregateIdGenerator(default)")
+            val ids = (1..2_000).map { aggregates.next(cart) }
+            ids.forEach { it.assert().matches(radix62.pattern) }
+            ids.toSet().size.assert().isEqualTo(ids.size)
+            // The text sorts as the ids were issued: time, then machine, then sequence, each at a fixed width.
+            ids.sorted().assert().isEqualTo(ids)
         }
-        val global = CosIdGlobalIdGenerator(provider)
-        global.name.assert().isEqualTo(CosId.COSID)
-        global.next().assert().isEqualTo("201")
-        global.next().assert().isEqualTo("202")
-        CosIdGlobalIdGenerator(provider, "orders").next().assert().isEqualTo("301")
-        CosIdGlobalIdGenerator(provider, "missing").next().assert().isEqualTo("101")
     }
 
     @Test
-    fun `a type's ids should come from CosId's generator of the aggregate's name`() {
-        val provider = DefaultIdGeneratorProvider().apply { set("order", Counting(500)) }
-        val aggregates = CosIdAggregateIdGenerator(provider) { error("No machine id is needed.") }
-        aggregates.next(order).assert().isEqualTo("501")
-        aggregates.next(order).assert().isEqualTo("502")
-    }
-
-    @Test
-    fun `a type without a generator of its own should get a Radix62 CosId generator of the machine id`() {
-        var asked = 0
-        val aggregates = CosIdAggregateIdGenerator(DefaultIdGeneratorProvider()) {
-            asked++
-            7
+    fun `a type should take CosId's generator of its qualified name, else the fallback`() {
+        cosIdRunner().run { context ->
+            val aggregates = aggregatesOf(context.getBean(CosIdRuntime::class.java))
+            // Step 2: the generator named `shop.ledger`, configured as cosid.generators.[shop.ledger]: decimal ids.
+            CosIdAggregateIdGenerator.nameOf(ledger).assert().isEqualTo("shop.ledger")
+            aggregates.next(ledger).toLong().assert().isPositive()
+            // The aggregate's simple name is no convention: the generator `order` is not `shop.order`'s.
+            aggregates.next(order).assert().matches(radix62.pattern)
+            // Step 3: another fallback, `wow.cosid.aggregate-generator`.
+            aggregatesOf(context.getBean(CosIdRuntime::class.java), "counter").next(cart).toLong().assert().isPositive()
         }
-        val ids = (1..100).map { aggregates.next(cart) }
-        ids.toSet().size.assert().isEqualTo(ids.size)
-        ids.forEach { it.contains('-').assert().isFalse() }
-        Radix62CosIdGenerator(7).stateParser.asState(ids.first()).machineId.assert().isEqualTo(7)
-        aggregates.next(order)
-        asked.assert().isEqualTo(2)
     }
 
     @Test
-    fun `CosId's generators should be found by name, and nothing by a name it does not have`() {
-        val provider = DefaultIdGeneratorProvider().apply { set("legacy-orders", Counting(900)) }
-        val aggregates = CosIdAggregateIdGenerator(provider) { 1 }
-        aggregates.find("legacy-orders")!!.next(order).assert().isEqualTo("901")
-        aggregates.find("missing").assert().isNull()
+    fun `a fallback CosId does not have should fail naming the key`() {
+        cosIdRunner().run { context ->
+            val failure = runCatching { aggregatesOf(context.getBean(CosIdRuntime::class.java), "missing") }
+                .exceptionOrNull() as WowConfigurationException
+            failure.key.assert().isEqualTo(CosIdProperties.AGGREGATE_GENERATOR)
+            failure.message.assert().contains("missing").contains("cosid.generators.missing")
+        }
     }
 
     @Test
-    fun `the machine id should be a CosId or Snowflake generator's, and none of another`() {
-        CosIdAggregateIdGenerator.machineIdOf(ClockSyncCosIdGenerator(Radix62CosIdGenerator(3))).assert().isEqualTo(3)
-        CosIdAggregateIdGenerator.machineIdOf(MillisecondSnowflakeId(5)).assert().isEqualTo(5)
-        assertThrownBy<IllegalStateException> { CosIdAggregateIdGenerator.machineIdOf(Counting(0)) }
-            .hasMessageContaining("no machine id")
+    fun `CosId's generators should be found by name, whatever their strategy, and nothing by another`() {
+        cosIdRunner().run { context ->
+            val aggregates = aggregatesOf(context.getBean(CosIdRuntime::class.java))
+            // Step 1: wow.aggregates.[..].id-generator names any of CosId's generators, a dotted one too.
+            aggregates.find("counter")!!.next(order).toLong().assert().isPositive()
+            aggregates.find("shop.ledger")!!.next(order).toLong().assert().isPositive()
+            aggregates.find("order")!!.next(order).assert().matches(radix62.pattern)
+            aggregates.find("missing").assert().isNull()
+        }
     }
 }

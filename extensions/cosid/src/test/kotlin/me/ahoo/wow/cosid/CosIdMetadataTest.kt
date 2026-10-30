@@ -31,7 +31,7 @@ import java.util.Enumeration
  */
 class CosIdMetadataTest {
     private val metadata = ConfigurationMetadata(listOf(CosIdProperties::class.java to CosIdProperties.PREFIX))
-    private val environment = MockEnvironment().withProperty(CosIdProperties.GLOBAL_GENERATOR, "snowflake")
+    private val environment = MockEnvironment().withProperty(CosIdProperties.AGGREGATE_GENERATOR, "snowflake")
 
     @Test
     fun `the committed metadata should be what the properties class gives`() {
@@ -49,13 +49,22 @@ class CosIdMetadataTest {
         val refused = assertThrows<WowConfigurationException> {
             ConfigurationKeys.of(WithoutModule(javaClass.classLoader)).check(environment)
         }
-        refused.message.assert().contains("wow.cosid.global-generator (needs wow-cosid on the class path)")
+        refused.message.assert().contains("wow.cosid.aggregate-generator (needs wow-cosid on the class path)")
     }
 
     @Test
-    fun `the global generator should be the key, else the properties' default`() {
-        WowCosIdAutoConfiguration.globalName(environment).assert().isEqualTo("snowflake")
-        WowCosIdAutoConfiguration.globalName(MockEnvironment()).assert().isEqualTo(CosIdProperties().globalGenerator)
+    fun `the former key of the global generator should be refused as unknown`() {
+        // The node's own ids are never CosId's: wow.cosid.global-generator is gone, with no alias (D306).
+        val former = MockEnvironment().withProperty("wow.cosid.global-generator", "default")
+        assertThrows<WowConfigurationException> { ConfigurationKeys.of(javaClass.classLoader).check(former) }
+            .message.assert().contains("wow.cosid.global-generator")
+    }
+
+    @Test
+    fun `the aggregate generator should be the key, else the properties' default`() {
+        WowCosIdAutoConfiguration.aggregateGeneratorOf(environment).assert().isEqualTo("snowflake")
+        WowCosIdAutoConfiguration.aggregateGeneratorOf(MockEnvironment()).assert()
+            .isEqualTo(CosIdProperties().aggregateGenerator)
     }
 
     /** A class loader without wow-cosid's configuration metadata, as a host without the module has none. */

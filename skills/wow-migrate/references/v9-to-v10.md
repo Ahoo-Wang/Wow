@@ -644,6 +644,21 @@ A target pinned to an earlier V10 pre-release (alpha or beta) moves to CoSec 8.0
 - **App and space.** `Caller.app` (the request fact `app_id`) is the app of CoSec's scope, as above, with no switch. The caller's space is CoSec's validated scope space (`CoSec-Space-Id`, a space the principal has a role in); `Wow-Space` is not read on a CoSec host. The `roles` attribute lists the principal's roles in that space.
 - **Action names.** CoSec's command authorizer and the route map the host gives CoSec name a command `<context>:<command>` (its Manifest name: `shop:AddItem`, `shop:wow.lifecycle.DeleteAggregate`) on `<aggregate>/<id>` (`<aggregate>` alone for a route without an id), the snapshot rebuild `snapshot/<aggregate>`, a job's commands `schedule/<job>`, and a service route `<context>:<route>` on `route/<route>`; query routes stay `http:<METHOD>` on their path. The old request attributes (`wow.command`, `wow.aggregate.id`, `wow.tenant`, `wow.owner`, `wow.space`, `wow.creation`) and the `POST /{context}/{aggregate}/{id}/{full type name}` shape of a routeless command are gone: rewrite each policy by these names. `wow.cosec.authorizer.enabled` works only where CoSec decides for itself (not behind a gateway), and a request-less command (a saga's, a timer's, a compensation's, a scheduled job's, a service's call on the internal port) gets no objection from the CoSec authorizers: it carries the root command's scope and operator, which admission authorized.
 
+## Ids (CosId)
+
+9.x took CosId 3.x through its own provider (`IdGeneratorProvider`, the `cosid` generator, the share). V10's `wow-cosid` runs on CosId 5, whose model is new: no compatibility code, not the API, not the configuration, not the store formats. Report each item below and what replaces it.
+
+| 9.x | V10 (`wow-cosid` on CosId 5) |
+|---|---|
+| The `cosid` generator (Radix62 `CosIdGenerator`) as the global ids (command, request and wait ids), else the share | None: the node's own ids are always UUIDv7, since request ids from several services meet in one context's idempotency key and a CosId id is unique only within its namespace. A 9.x or earlier-V10 service whose command or request ids came from CosId keeps those ids as they are; new ones are UUIDv7, and nothing stored compares them (D306) |
+| The aggregate types without a generator of their own | `wow.cosid.aggregate-generator`, `default` unless set: configure `cosid.generators.default` as a `cosid80` with `codec: [ { radix: { radix: 62 } } ]` for the same 15-character sortable shape. A name CosId does not have fails the start |
+| An aggregate type's own `ClockSync(Radix62CosIdGenerator(machineId))` when no generator is named after it | In order: the generator `wow.aggregates.[<context>.<aggregate>].id-generator` names (it must exist); else the generator named `<context>.<aggregate>` (`cosid.generators."[<context>.<aggregate>]"`, the qualified name, not 9.x's simple aggregate name); else `wow.cosid.aggregate-generator` |
+| CosId machine distributors, the guarder, the machine-state file in the user's home | `cosid.machine.leased` (a store) or `cosid.machine.static.slot`; every instance of an application shares `cosid.namespace`, `bits` and `tolerance` |
+| The `cosid.*` 3.x/4.x keys | CosId 5's model (`cosid.stores`, `cosid.machine`, `cosid.generators`); an unknown `cosid.*` key fails the start. `cosid-migration config` converts a 4.x configuration |
+| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE` in the service's own code | The `CosIdRuntime` bean or the `IdGenerator` beans (`@Qualifier("<name>")`); there is no global singleton |
+
+Persisted ids: a 9.x service whose aggregates hold CosId ids moves its CosId data with CosId's offline `cosid-migration` tool (plan, apply, verify) **before** the V10 service starts, so that new ids never meet the ones CosId issued before. CosId never runs 4.x and 5 in one namespace at once. A service that took 9.x's UUIDv7 default has nothing to move.
+
 ## REST clients
 
 | 9.x | V10 |
