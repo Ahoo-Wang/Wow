@@ -21,6 +21,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.typeOf
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.NodeQueryApi
@@ -150,7 +151,7 @@ class RoutedCommandClient(
 
     private fun clientOf(request: CommandRequest<*>): CommandClient {
         val context = checkNotNull(request.type).context
-        require(request.command !is NamedCommand || context in peers.described) {
+        requireUse(request.command !is NamedCommand || context in peers.described) {
             "$context is not described by its Manifest: a named command goes only to a context of wow.peers " +
                 "with contract: manifest."
         }

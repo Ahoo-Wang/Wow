@@ -13,11 +13,15 @@
 
 package me.ahoo.wow.spring.boot
 
+import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.kernel.AmbiguousDependencyException
 import me.ahoo.wow.kernel.Dependencies
 import org.springframework.beans.factory.ListableBeanFactory
@@ -31,10 +35,11 @@ import java.lang.reflect.Type
  * the parameter needs a qualifier. A parameterized type is matched by every type argument, as Spring matches an
  * injection point: `StateViewCache<OrderStateView>` is not `StateViewCache<PaymentStateView>`.
  *
- * A [QueryApi] or [NodeQueryApi] without a qualifier is the node's own read API when the node has one (its
- * [NodeQueryApi] bean, the query plane on), whatever other [QueryApi] beans (a peer's client) the application has: a
- * command function queries the read side as the command's caller. The node's API is built from the node, which is built from the models, so the models take it
- * deferred ([NodeQueries]): looked up on its first use, a command's, once the node is up.
+ * The node's own APIs, which a command function calls the read side and other contexts with, are built from the node,
+ * which is built from the models: a [QueryApi] or [NodeQueryApi] without a qualifier is the node's read API (its only
+ * [NodeQueryApi] bean, the query plane on), whatever other [QueryApi] beans (a peer's client) the application has, and
+ * a [CommandClient] without one is the only [CommandClient] bean, the node's. The models take them deferred
+ * ([NodeQueries], [NodeCommands]): each looked up by its name on its first use, a command's, once the node is up.
  */
 internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {
     override fun find(type: Class<*>, qualifier: String?): Any? = find(ResolvableType.forClass(type), type, qualifier)
@@ -42,9 +47,6 @@ internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFact
     override fun find(type: Type, qualifier: String?): Any? = find(ResolvableType.forType(type), type, qualifier)
 
     private fun find(resolvable: ResolvableType, type: Type, qualifier: String?): Any? {
-        if (qualifier == null && resolvable.toClass() in NODE_QUERIES && nodeQueries()) {
-            return NodeQueries { beanFactory.getBean(NodeQueryApi::class.java) }
-        }
         if (qualifier != null) {
             return if (beanFactory.containsBean(qualifier) && beanFactory.isTypeMatch(qualifier, resolvable)) {
                 beanFactory.getBean(qualifier)
@@ -52,6 +54,7 @@ internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFact
                 null
             }
         }
+        deferred(resolvable.toClass())?.let { return it }
         val names = beanFactory.getBeanNamesForType(resolvable)
         return when (names.size) {
             0 -> null
@@ -61,14 +64,24 @@ internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFact
         }
     }
 
-    /** Whether the node has its read API: a [NodeQueryApi] bean, looked for without creating it. */
-    private fun nodeQueries(): Boolean =
-        beanFactory.getBeanNamesForType(NodeQueryApi::class.java, true, false).isNotEmpty()
+    /**
+     * The node's own API of [type], deferred; null for any other type, and when the node has none or the application
+     * several, found then as any other bean.
+     */
+    private fun deferred(type: Class<*>): Any? = when (type) {
+        QueryApi::class.java, NodeQueryApi::class.java -> onlyBeanOf(NodeQueryApi::class.java)?.let { name ->
+            NodeQueries { beanFactory.getBean(name, NodeQueryApi::class.java) }
+        }
 
-    private companion object {
-        /** The types a model's parameter names the node's read API by. */
-        val NODE_QUERIES: Set<Class<*>> = setOf(QueryApi::class.java, NodeQueryApi::class.java)
+        CommandClient::class.java -> onlyBeanOf(CommandClient::class.java)?.let { name ->
+            NodeCommands { beanFactory.getBean(name, CommandClient::class.java) }
+        }
+
+        else -> null
     }
+
+    /** The name of the only bean of [type], looked for without creating it; null when there is none or several. */
+    private fun onlyBeanOf(type: Class<*>): String? = beanFactory.getBeanNamesForType(type, true, false).singleOrNull()
 }
 
 /** The node's read API, which [node] gives on the first query: the models take it before the node is built. */
@@ -80,4 +93,19 @@ private class NodeQueries(node: () -> NodeQueryApi) : NodeQueryApi {
     override fun trusted(): TrustedQueries = node.trusted()
 
     override fun toString(): String = "NodeQueries(the node's NodeQueryApi)"
+}
+
+/** The node's command client, which [client] gives on the first command: the models take it before the node is built. */
+private class NodeCommands(client: () -> CommandClient) : CommandClient {
+    private val client by lazy(client)
+
+    override fun of(caller: Caller): CommandClient = client.of(caller)
+
+    override suspend fun send(request: CommandRequest<*>): CommandResult = client.send(request)
+
+    override suspend fun wait(request: CommandRequest<*>): CommandResult = client.wait(request)
+
+    override fun stream(request: CommandRequest<*>): Flow<CommandResult> = client.stream(request)
+
+    override fun toString(): String = "NodeCommands(the node's CommandClient)"
 }

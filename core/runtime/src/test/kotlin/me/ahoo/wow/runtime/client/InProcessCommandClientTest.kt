@@ -27,6 +27,7 @@ import me.ahoo.wow.api.client.send
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
@@ -149,7 +150,7 @@ class InProcessCommandClientTest {
         val created = client.wait(OpenCart())
         created.ref.type.assert().isEqualTo(cart)
         created.ref.isAssigned.assert().isTrue()
-        assertThrows<IllegalArgumentException> { runBlocking { client.wait(Unknown) } }
+        assertThrows<Misuse.Argument> { runBlocking { client.wait(Unknown) } }
             .message.assert().contains("decided by no aggregate")
         val wishlist = aggregate<Cart>(CONTEXT, "wishlist") {
             initial { Cart() }

@@ -24,6 +24,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
@@ -132,7 +134,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> {
             val gateway = engine.datasets[AggregateType(name.context, name.name)]?.takeIf {
                 engine.datasetVisibility.visible(it.dataset, caller)
-            } ?: throw ReadMisuse("No dataset $name is served.")
+            } ?: throw Misuse.Argument("No dataset $name is served.")
             return Rows(gateway, caller) { decode(it, rowType) }
         }
     }
@@ -245,7 +247,7 @@ class InProcessQueryApi @InternalWowApi constructor(
          * one with no commit, are not found, as they are without a minimum version.
          */
         override suspend fun state(ref: AggregateRef, minVersion: Int): Snapshot<S>? {
-            requireRead(minVersion >= 1) { "A committed state has a version from 1." }
+            requireUse(minVersion >= 1) { "A committed state has a version from 1." }
             var notReached: MinVersionNotReachedException? = null
             val state = read(ref) {
                 try {
@@ -261,7 +263,7 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         /** The state of [ref] [load] reads, as the public port's state read answers it. */
         private suspend fun read(ref: AggregateRef, load: suspend () -> Snapshot<JsonNode>?): Snapshot<S>? {
-            requireRead(ref.type == type) { "$ref is not an aggregate of $type." }
+            requireUse(ref.type == type) { "$ref is not an aggregate of $type." }
             val reads = engine.reads
             return try {
                 mapped {
@@ -349,7 +351,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         /** A typed row reads the whole record: a projection leaves out fields it needs. */
         private fun wholeRecords(query: Any) {
             val projection = (query as? ProjectionCapable<*>)?.projection ?: return
-            requireRead(projection.include.isEmpty() && projection.exclude.isEmpty()) {
+            requireUse(projection.include.isEmpty() && projection.exclude.isEmpty()) {
                 "A typed query reads whole records: run a projection through dynamic()."
             }
         }

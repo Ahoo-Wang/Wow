@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -51,6 +52,11 @@ class FailureClassificationTest {
         FailureClassification.retryAfterOf(IllegalStateException("x", busy)).assert().isEqualTo(1.seconds)
         classification.classify(StorageRefusedException("refused"), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
         classification.classify(IllegalStateException("broken"), null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        // A Wow API the handler used in a way it cannot serve fails the same way every time: the code's mistake.
+        classification.classify(Misuse.Argument("No aggregate has a state of X."), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(Misuse.State("No URL calls context x."), null).assert()
+            .isEqualTo(FailureClass.UNRECOVERABLE)
     }
 
     @Test

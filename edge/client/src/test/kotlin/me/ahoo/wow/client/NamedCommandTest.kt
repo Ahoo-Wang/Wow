@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitPlan
@@ -106,7 +107,7 @@ class NamedCommandTest {
         )
         val commands = client().of(alice)
         commands.wait(CommandRequest.to(ref, deliver()))
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<Misuse.Argument> {
             runBlocking {
                 commands.wait(
                     CommandRequest.to(ref, NamedCommand("mail.box.Burn", WowJson.mapper.readTree("{}")))
@@ -148,10 +149,10 @@ class NamedCommandTest {
     @Test
     fun `a named command should go only to a peer described by its Manifest, and only to its own aggregate`(): Unit =
         runBlocking {
-            assertThrownBy<IllegalArgumentException> {
+            assertThrownBy<Misuse.Argument> {
                 runBlocking { client(described = setOf("other")).wait(CommandRequest.to(ref, deliver())) }
             }.hasMessageContaining("not described by its Manifest")
-            assertThrownBy<IllegalArgumentException> {
+            assertThrownBy<Misuse.Argument> {
                 runBlocking {
                     client().wait(
                         CommandRequest.to(ref, NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")))
@@ -176,10 +177,10 @@ class NamedCommandTest {
         CallWires.decode(
             peer.taken.single().headers.getValue(WowHeaders.CALL)
         ).operator?.id.assert().isEqualTo("alice")
-        assertThrownBy<IllegalArgumentException> { runBlocking { client.manifestOf("other", alice) } }
+        assertThrownBy<Misuse.Argument> { runBlocking { client.manifestOf("other", alice) } }
             .hasMessageContaining("not described by its Manifest")
         val plain = WowClient.builder().endpoints(EndpointResolver.NONE).service("console").build()
-        assertThrownBy<IllegalArgumentException> { runBlocking { plain.manifestOf("mail", alice) } }
+        assertThrownBy<Misuse.Argument> { runBlocking { plain.manifestOf("mail", alice) } }
             .hasMessageContaining("not described by its Manifest")
     }
 
@@ -193,7 +194,7 @@ class NamedCommandTest {
 
     @Test
     fun `a command object to a peer described by its Manifest should be a configuration error`(): Unit = runBlocking {
-        assertThrownBy<IllegalStateException> {
+        assertThrownBy<Misuse.State> {
             runBlocking { client().wait(CommandRequest.to(ref, HttpCommandClientTest.DeliverItems(listOf("mug")))) }
         }.hasMessageContaining("send it a NamedCommand")
     }

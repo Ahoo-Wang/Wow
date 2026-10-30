@@ -27,7 +27,10 @@ import me.ahoo.wow.api.client.sendable
 import me.ahoo.wow.api.client.targetTenantOf
 import me.ahoo.wow.api.client.typeOf
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.decide.checkUse
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
@@ -39,6 +42,7 @@ import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.spi.call.requestIdOf
@@ -108,7 +112,7 @@ class HttpCommandClient internal constructor(
 
     /** The result [answer] holds, of whatever status, or the exception of a problem that holds none. */
     private fun resultOf(peer: Sent, answer: Answer<ByteArray>): CommandResult = when (answer) {
-        is Answer.Ok -> decode(answer.value)
+        is Answer.Ok -> decode(peer.what, answer.value)
         is Answer.Problem -> answer.problem.result ?: throw answer.problem.exception(peer.what)
     }
 
@@ -118,7 +122,7 @@ class HttpCommandClient internal constructor(
      * retried, since sending again does not teach this client the status.
      */
     private fun settled(peer: Sent, answer: Answer<ByteArray>): CommandResult = when (answer) {
-        is Answer.Ok -> decode(answer.value).also { result ->
+        is Answer.Ok -> decode(peer.what, answer.value).also { result ->
             when (result.status) {
                 CommandResult.Status.REJECTED -> throw CommandRejectedException(result)
                 CommandResult.Status.UNKNOWN -> throw WowProblemException(
@@ -210,9 +214,9 @@ class HttpCommandClient internal constructor(
 
     /** The Manifest of [context], a peer described by its Manifest alone, read as this client's caller. */
     internal suspend fun manifestOf(context: String): Manifest {
-        val peers = requireNotNull(described) {
-            "$context is not described by its Manifest: list it in wow.peers with contract: manifest."
-        }
+        val peers = described ?: throw Misuse.Argument(
+            "$context is not described by its Manifest: list it in wow.peers with contract: manifest.",
+        )
         val call = if (transport.mode is ClientMode.Service) rootOf(caller.tenantId, caller.scope, false) else null
         return peers.manifestOf(context, caller, call)
     }
@@ -226,33 +230,34 @@ class HttpCommandClient internal constructor(
     private suspend fun routeOf(command: Any, type: AggregateType, byId: Boolean, call: CallWire?): RouteManifest {
         val manifestPeer = described?.describes(type.context) == true
         if (command is NamedCommand) {
-            require(manifestPeer) {
+            requireUse(manifestPeer) {
                 "${type.context} is not described by its Manifest: a named command goes only to a context of " +
                     "wow.peers with contract: manifest."
             }
             val declared = described.commandOf(command, type, caller, call)
             return routeOf("$type.${declared.name}", byId, CommandRoutes.routeOf(declared.routes, byId))
         }
-        check(!manifestPeer) {
+        checkUse(!manifestPeer) {
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
                 "the command object ${command.javaClass.name}."
         }
-        val name = requireNotNull(names.commandTypeOf(type.toString(), command.javaClass)) {
+        val name = names.commandTypeOf(type.toString(), command.javaClass) ?: throw Misuse.Argument(
             "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
                 "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type name to a " +
-                "peer described by its Manifest."
-        }
+                "peer described by its Manifest.",
+        )
         return routeOf(name, byId, names.routeOf(name, byId))
     }
 
     /** [route], the route of the command [name], or why its contract lists none. */
-    private fun routeOf(name: String, byId: Boolean, route: RouteManifest?): RouteManifest = requireNotNull(route) {
-        if (byId) {
-            "The contract of $name lists no route to an aggregate by its id: send it without an id."
-        } else {
-            "The contract of $name lists no route without an aggregate id: send it to an aggregate by its id."
-        }
-    }
+    private fun routeOf(name: String, byId: Boolean, route: RouteManifest?): RouteManifest =
+        route ?: throw Misuse.Argument(
+            if (byId) {
+                "The contract of $name lists no route to an aggregate by its id: send it without an id."
+            } else {
+                "The contract of $name lists no route without an aggregate id: send it to an aggregate by its id."
+            },
+        )
 
     /**
      * The root context a service-mode command asserts: a command of its own, in [tenantId] (the caller's, or the
@@ -281,13 +286,19 @@ class HttpCommandClient internal constructor(
         /** The status of the problem of a result whose status this client does not know: a bad gateway, as a call's. */
         private const val NEWER_PEER_STATUS = 502
 
-        fun decode(body: ByteArray): CommandResult = try {
+        /**
+         * The result [body] holds, the answer to [what]. An answer that holds none is the wire's or the peer's fault, as
+         * an answer that never came is: `wow.command.unknown`, whether the command committed unknown, which the same
+         * request id may be sent again for.
+         */
+        fun decode(what: String, body: ByteArray): CommandResult = try {
             ClientJson.mapper.readValue(body, CommandResult::class.java)
         } catch (invalid: JacksonException) {
-            throw IllegalStateException(
-                "The peer answered a command with no result: ${invalid.originalMessage}",
-                invalid
-            )
+            throw PeerProblem.of(
+                FrameworkErrors.COMMAND_UNKNOWN,
+                "The answer holds no result (${invalid.originalMessage}): whether the command committed is unknown.",
+                invalid,
+            ).exception(what)
         }
     }
 }

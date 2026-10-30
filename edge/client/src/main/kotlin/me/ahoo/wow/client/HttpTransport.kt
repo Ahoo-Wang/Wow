@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -232,7 +233,7 @@ internal class HttpTransport(
     /** The targets of [context], each a base URL without its trailing slash, from the next one in turn. */
     private suspend fun targetsOf(context: String): List<String> {
         val targets = endpoints.resolveAll(context, mode.port).map { it.toString().trimEnd('/') }
-        check(targets.isNotEmpty()) {
+        checkUse(targets.isNotEmpty()) {
             "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
                 "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
                 "or give the client an EndpointResolver that finds it."

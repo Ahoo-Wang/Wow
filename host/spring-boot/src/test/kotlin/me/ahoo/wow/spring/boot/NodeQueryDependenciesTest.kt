@@ -13,14 +13,21 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean
@@ -46,6 +53,11 @@ class NodeQueryDependenciesTest {
 
         @Bean
         fun peer(): QueryApi = mockk()
+
+        @Bean
+        fun commands(): CommandClient = mockk {
+            every { of(any()) } returns this
+        }
     }
 
     /** A peer's client alone: a node with its query plane off has no read API of its own. */
@@ -74,6 +86,22 @@ class NodeQueryDependenciesTest {
             asQueryApi.trusted().assert().isSameAs(trusted)
             asQueryApi.toString().assert().contains("NodeQueryApi")
             dependencies.get(NodeQueryApi::class.java).trusted().assert().isSameAs(trusted)
+            // The node's command client, behind the deferred one.
+            val commands = dependencies.get(CommandClient::class.java)
+            commands.assert().isNotSameAs(context.getBean("commands"))
+            commands.of(Caller.ANONYMOUS).assert().isSameAs(context.getBean("commands"))
+            commands.toString().assert().contains("CommandClient")
+            val bean = context.getBean("commands", CommandClient::class.java)
+            val request = CommandRequest.of("a command")
+            val result = mockk<CommandResult>()
+            coEvery { bean.send(request) } returns result
+            coEvery { bean.wait(request) } returns result
+            every { bean.stream(request) } returns flowOf(result)
+            runBlocking {
+                commands.send(request).assert().isSameAs(result)
+                commands.wait(request).assert().isSameAs(result)
+                commands.stream(request).toList().assert().containsExactly(result)
+            }
             // A qualifier names the bean itself.
             dependencies.find(QueryApi::class.java, "peer").assert().isSameAs(context.getBean("peer"))
         }
@@ -86,6 +114,8 @@ class NodeQueryDependenciesTest {
             // The peer's client is no stand-in for the node's: an unqualified QueryApi is then the only bean of it.
             dependencies.find(QueryApi::class.java, null).assert().isSameAs(context.getBean("peer"))
             dependencies.find(NodeQueryApi::class.java, null).assert().isNull()
+            // Nor is there a command client to defer: the parameter has no dependency.
+            dependencies.find(CommandClient::class.java, null).assert().isNull()
         }
     }
 }

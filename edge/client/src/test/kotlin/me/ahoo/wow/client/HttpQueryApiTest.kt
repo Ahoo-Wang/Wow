@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -275,7 +276,7 @@ class HttpQueryApiTest {
             .message.assert().contains("share the state")
         caught<IllegalArgumentException> { models.typeOf(String::class.java) }
             // The code's mistake, not the caller's: a command function that makes it fails its command (PA-9).
-            .assert().isInstanceOf(ReadMisuse::class.java)
+            .assert().isInstanceOf(Misuse.Argument::class.java)
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
     }
