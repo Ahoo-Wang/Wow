@@ -27,7 +27,7 @@ import kotlin.time.Duration
  * - [initialBackoff]: the wait after the first failure; [maxBackoff]: the longest wait; [multiplier]: how much
  *   longer each next wait is.
  * - [timeout]: how long one attempt may run before it is cancelled and counted as failed.
- * - [recoverable], [unrecoverable]: the exception classes the handler classifies itself,
+ * - [recoverable], [unrecoverable], [systemic]: the exception classes the handler classifies itself,
  *   each with its subclasses ([classify]); null when not given, never empty.
  */
 class HandlerRetry @InternalWowApi constructor(
@@ -38,6 +38,7 @@ class HandlerRetry @InternalWowApi constructor(
     val timeout: Duration? = null,
     val recoverable: List<Class<out Throwable>>? = null,
     val unrecoverable: List<Class<out Throwable>>? = null,
+    val systemic: List<Class<out Throwable>>? = null,
 ) {
     init {
         require(
@@ -47,7 +48,7 @@ class HandlerRetry @InternalWowApi constructor(
         require(maxBackoff == null || !maxBackoff.isNegative()) { "A backoff is never negative." }
         require(multiplier == null || multiplier >= 1.0) { "A backoff never shrinks." }
         require(timeout == null || timeout.isPositive()) { "The timeout of an attempt is positive." }
-        require(recoverable?.isEmpty() != true && unrecoverable?.isEmpty() != true) {
+        require(recoverable?.isEmpty() != true && unrecoverable?.isEmpty() != true && systemic?.isEmpty() != true) {
             "An exception class list that is given holds at least one class."
         }
     }
@@ -68,25 +69,21 @@ class HandlerRetry @InternalWowApi constructor(
             timeout ?: base.timeout,
             recoverable ?: base.recoverable,
             unrecoverable ?: base.unrecoverable,
+            systemic ?: base.systemic,
         )
     }
 
     /**
-     * The class of [failure] by the handler's own lists (9.x `Retry.recoverable`): [FailureClass.UNRECOVERABLE] when
-     * an [unrecoverable] class is nearer to it in its class hierarchy than every [recoverable] one,
-     * [FailureClass.RECOVERABLE] when a [recoverable] class is at least as near; null when neither list holds a class
-     * it is an instance of.
+     * The class of [failure] by the handler's own lists (9.x `Retry.recoverable`): the class of the list whose class is
+     * nearest to it in its class hierarchy, [recoverable] then [systemic] then [unrecoverable] on a tie; null when no
+     * list holds a class it is an instance of.
      */
-    fun classify(failure: Throwable): FailureClass? {
-        val recoverableDistance = recoverable.nearest(failure.javaClass)
-        val unrecoverableDistance = unrecoverable.nearest(failure.javaClass)
-        return when {
-            unrecoverableDistance != null && (recoverableDistance == null || unrecoverableDistance < recoverableDistance) ->
-                FailureClass.UNRECOVERABLE
-            recoverableDistance != null -> FailureClass.RECOVERABLE
-            else -> null
-        }
-    }
+    fun classify(failure: Throwable): FailureClass? = listOf(
+        FailureClass.RECOVERABLE to recoverable,
+        FailureClass.SYSTEMIC to systemic,
+        FailureClass.UNRECOVERABLE to unrecoverable,
+    ).mapNotNull { (type, classes) -> classes.nearest(failure.javaClass)?.let { type to it } }
+        .minByOrNull { it.second }?.first
 
     override fun equals(other: Any?): Boolean =
         this === other || other is HandlerRetry && valueFields() == other.valueFields()
@@ -94,7 +91,8 @@ class HandlerRetry @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String = "HandlerRetry(" +
-        "maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, multiplier=$multiplier, timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable)"
+        "maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, multiplier=$multiplier, " +
+        "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, systemic=$systemic)"
 
     private fun valueFields(): List<Any?> = listOf(
         maxAttempts,
@@ -103,7 +101,8 @@ class HandlerRetry @InternalWowApi constructor(
         multiplier,
         timeout,
         recoverable,
-        unrecoverable
+        unrecoverable,
+        systemic,
     )
 
     companion object {
@@ -129,9 +128,10 @@ class HandlerRetry @InternalWowApi constructor(
 
         /**
          * The budget of the `@Retry` settings given, as [of] without the exception classes, and the classes of
-         * `@Retry(recoverable, unrecoverable)`: an empty list is not given.
+         * `@Retry(recoverable, unrecoverable, systemic)`: an empty list is not given.
          */
         @JvmStatic
+        @Suppress("LongParameterList")
         fun of(
             maxAttempts: Int,
             initialBackoff: String,
@@ -140,6 +140,7 @@ class HandlerRetry @InternalWowApi constructor(
             recoverable: List<Class<out Throwable>>,
             unrecoverable: List<Class<out Throwable>>,
             multiplier: Double = 0.0,
+            systemic: List<Class<out Throwable>> = emptyList(),
         ): HandlerRetry? {
             require(maxAttempts >= 0) { "@Retry(maxAttempts) is at least 1, or 0 for not given; not $maxAttempts." }
             require(multiplier == 0.0 || multiplier >= 1.0) {
@@ -153,6 +154,7 @@ class HandlerRetry @InternalWowApi constructor(
                 timeout = duration("timeout", timeout),
                 recoverable = recoverable.takeUnless { it.isEmpty() },
                 unrecoverable = unrecoverable.takeUnless { it.isEmpty() },
+                systemic = systemic.takeUnless { it.isEmpty() },
             ).takeUnless { it.isEmpty }
         }
 
@@ -167,6 +169,7 @@ class HandlerRetry @InternalWowApi constructor(
                 it.recoverable.map { type -> type.java },
                 it.unrecoverable.map { type -> type.java },
                 it.multiplier,
+                it.systemic.map { type -> type.java },
             )
         }
 

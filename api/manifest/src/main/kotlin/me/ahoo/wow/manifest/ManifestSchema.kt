@@ -207,6 +207,7 @@ object ManifestSchema {
                 "timeout" to string(),
                 "recoverable" to strings(),
                 "unrecoverable" to strings(),
+                "systemic" to strings(),
                 "multiplier" to obj("type" to "number"),
             ),
             JOB to objectOf(

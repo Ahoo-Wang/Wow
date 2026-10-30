@@ -18,6 +18,7 @@ import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -111,7 +112,7 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
  *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
  *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
- *   same way every time.
+ *   same way every time; and a failure a handler says no retry changes ([UnrecoverableHandlingException]).
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -133,7 +134,11 @@ internal object BuiltInFailures : FailureClassifier {
             failure.code == FrameworkCodes.PEER_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
-        is StorageRefusedException, is TransportRefusedException, is UndeclaredSendException -> FailureClass.UNRECOVERABLE
+        is StorageRefusedException,
+        is TransportRefusedException,
+        is UndeclaredSendException,
+        is UnrecoverableHandlingException,
+        -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException, is TransportUnavailableException -> FailureClass.SYSTEMIC
         else -> null
     }

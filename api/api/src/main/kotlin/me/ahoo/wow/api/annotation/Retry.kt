@@ -45,17 +45,25 @@ import kotlin.reflect.KClass
  * - [multiplier]: how many times longer each wait is than the one before, at least 1; 0 is not given.
  * - [timeout]: how long one attempt may run; an attempt that runs longer is cancelled and counts as failed.
  *
- * - [recoverable], [unrecoverable]: the exception classes this handler classifies itself,
- *   each with its subclasses. A failure of an [unrecoverable] class parks the aggregate at once, without a retry; one
- *   of a [recoverable] class is retried within this budget, then parks the aggregate, even where the subscription
- *   would take it for a systemic failure (a store or a connection down), which pauses the whole partition instead.
- *   When both lists hold a class the failure is an instance of, the nearer one in its class hierarchy decides, and
- *   [recoverable] on a tie. A class neither list holds is classified by the host's classifiers (the SPI's
- *   `FailureClassifier`), else retried within the budget. A handler's own lists replace its processor's.
+ * - [recoverable], [unrecoverable], [systemic]: the exception classes this handler classifies itself, each with its
+ *   subclasses, one class each. A failure of a [recoverable] class is the aggregate's own, which a retry may get past:
+ *   it is retried within this budget, then parks the aggregate. One of an [unrecoverable] class is the aggregate's own
+ *   too, but no retry changes it: it parks the aggregate at once. One of a [systemic] class is not the aggregate's
+ *   but its surroundings' (a downstream the handler calls that is down): the subscription pauses the whole partition
+ *   and retries until it is back, spending no aggregate's budget and parking none. When several lists hold a class the
+ *   failure is an instance of, the nearest one in its class hierarchy decides; on a tie, [recoverable], then
+ *   [systemic]. A class no list holds is classified by the classifiers (the SPI's `FailureClassifier`: the
+ *   application's, then the modules' on the classpath), else retried within the budget. A handler's own lists replace
+ *   its processor's. A handler may also throw `me.ahoo.wow.api.subscribe.UnrecoverableHandlingException` to park the
+ *   aggregate at once. The host's configuration classifies nothing: these lists are the handler's.
  *
  * ```kotlin
  * @OnEvent
- * @Retry(unrecoverable = [IllegalArgumentException::class], recoverable = [CarrierBusyException::class])
+ * @Retry(
+ *     unrecoverable = [IllegalArgumentException::class],
+ *     recoverable = [CarrierBusyException::class],
+ *     systemic = [CarrierUnreachableException::class],
+ * )
  * suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
  * ```
  *
@@ -72,4 +80,5 @@ annotation class Retry(
     val timeout: String = "",
     val recoverable: Array<KClass<out Throwable>> = [],
     val unrecoverable: Array<KClass<out Throwable>> = [],
+    val systemic: Array<KClass<out Throwable>> = [],
 )

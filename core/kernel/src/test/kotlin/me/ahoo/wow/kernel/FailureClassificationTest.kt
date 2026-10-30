@@ -20,6 +20,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -84,6 +85,20 @@ class FailureClassificationTest {
             FailureClassifier { FailureClass.UNRECOVERABLE.takeIf { _ -> it is IllegalArgumentException } }
         FailureClassification.of(listOf(application), listOf(own), listOf(module))
             .classify(IllegalArgumentException("bad"), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+    }
+
+    @Test
+    fun `a failure a handler says no retry changes should park at once, unless its own @Retry says otherwise`() {
+        class UnknownBuyerException : UnrecoverableHandlingException("The notification service knows no such buyer.")
+        classification.classify(UnrecoverableHandlingException("No retry changes this."), null)
+            .assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(UnknownBuyerException(), null).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(IllegalStateException("wrapped", UnknownBuyerException()), null)
+            .assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(
+            UnknownBuyerException(),
+            HandlerRetry(recoverable = listOf(UnknownBuyerException::class.java)),
+        ).assert().isEqualTo(FailureClass.RECOVERABLE)
     }
 
     @Test

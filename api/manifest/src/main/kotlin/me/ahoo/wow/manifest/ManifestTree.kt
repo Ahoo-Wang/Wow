@@ -156,6 +156,7 @@ object ManifestTree {
                 "timeout" to it.timeout,
                 "recoverable" to it.recoverable,
                 "unrecoverable" to it.unrecoverable,
+                "systemic" to it.systemic,
                 "multiplier" to it.multiplier,
             )
         },
@@ -330,6 +331,18 @@ object ManifestTree {
         )
     }
 
+    /** A subscription's `retry`, each list read only when it is written. */
+    private fun readRetry(node: Node): RetryManifest = RetryManifest(
+        maxAttempts = node.intOrNull("maxAttempts"),
+        initialBackoff = node.stringOrNull("initialBackoff"),
+        maxBackoff = node.stringOrNull("maxBackoff"),
+        timeout = node.stringOrNull("timeout"),
+        recoverable = if (node.has("recoverable")) node.strings("recoverable") else null,
+        unrecoverable = if (node.has("unrecoverable")) node.strings("unrecoverable") else null,
+        multiplier = node.doubleOrNull("multiplier"),
+        systemic = if (node.has("systemic")) node.strings("systemic") else null,
+    )
+
     /** The subscription of [node], or null, told, when one of its enumerations has a value this reader does not know. */
     private fun readSubscription(node: Node): SubscriptionManifest? {
         val source = node.obj("source")
@@ -363,17 +376,7 @@ object ManifestTree {
             calls = node.stringsOrNull("calls"),
             start = start,
             schedules = node.stringsOrNull("schedules"),
-            retry = node.objOrNull("retry")?.let {
-                RetryManifest(
-                    maxAttempts = it.intOrNull("maxAttempts"),
-                    initialBackoff = it.stringOrNull("initialBackoff"),
-                    maxBackoff = it.stringOrNull("maxBackoff"),
-                    timeout = it.stringOrNull("timeout"),
-                    recoverable = if (it.has("recoverable")) it.strings("recoverable") else null,
-                    unrecoverable = if (it.has("unrecoverable")) it.strings("unrecoverable") else null,
-                    multiplier = it.doubleOrNull("multiplier"),
-                )
-            },
+            retry = node.objOrNull("retry")?.let(::readRetry),
             job = node.objOrNull("job")?.let {
                 JobManifest(
                     name = it.string("name"),

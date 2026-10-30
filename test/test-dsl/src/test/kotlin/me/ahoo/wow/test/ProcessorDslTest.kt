@@ -22,6 +22,7 @@ import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlingRejectedException
@@ -280,6 +281,28 @@ class ProcessorDslTest {
             whenEvent(OrderPaid(1)) {
                 assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("is unrecoverable")
                 expectParked()
+            }
+        }
+    }
+
+    @Test
+    fun `a handler should park at once by its own exception, and pause by its systemic classes`() {
+        // UnrecoverableHandlingException: the handler says no retry changes its failure.
+        sagaSpec(sagaHandlers { throw UnrecoverableHandlingException("The carrier knows no such address.") }) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                assertThrownBy<AssertionError> { expectRetried() }.hasMessageContaining("is unrecoverable")
+                expectParked()
+            }
+        }
+        // @Retry(systemic): a downstream the handler calls is down, retried without spending the handler's budget.
+        val systemic = HandlerRetry(maxAttempts = 2, systemic = listOf(IllegalStateException::class.java))
+        sagaSpec(sagaHandlers(systemic) { error("The carrier is down.") }) {
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPaid(1)) {
+                expectRetried(attempt = 100)
+                assertThrownBy<AssertionError> { expectParked(attempt = 100) }
+                    .hasMessageContaining("retried without spending the handler's budget")
             }
         }
     }
