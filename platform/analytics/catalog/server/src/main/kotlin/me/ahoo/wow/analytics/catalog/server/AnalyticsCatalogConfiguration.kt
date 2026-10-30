@@ -85,6 +85,7 @@ class AnalyticsCatalogConfiguration {
      * no objection); otherwise the catalog's roles decide ([AnalyticsCatalogAuthorizer]).
      */
     @Bean
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun analyticsCatalogAuthorizer(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
         if (cosec.ifAvailable == null) AnalyticsCatalogAuthorizer() else CommandAuthorizer.ALLOW_ALL
 

@@ -121,6 +121,7 @@ class AnalyticsCatalogConfigurationTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `the catalog's roles should decide only where CoSec does not authorize the commands`(): Unit = runBlocking {
         configuration.analyticsCatalogAuthorizer(provider<CoSecCommandAuthorizer>(null)).assert()
             .isInstanceOf(AnalyticsCatalogAuthorizer::class.java)

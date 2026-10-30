@@ -32,7 +32,7 @@ The Gradle plugins add `platform("me.ahoo.wow:wow-bom:<their version>")`, so `im
 | `me.ahoo.wow:wow-openapi` | [`edge/openapi`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/openapi) | The OpenAPI 3.1 document of a service's public routes, from its Manifest alone; plain data |
 | `me.ahoo.wow:wow-http` | [`edge/http`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/http) | Routes materialized from the Manifest, problem+json, SSE and the signal entry |
 | `me.ahoo.wow:wow-client` | [`edge/client`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/client) | The typed command and query clients of a peer's HTTP routes, on the JDK HttpClient |
-| `me.ahoo.wow:wow-cosec` | [`edge/cosec`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/cosec) | The caller from CoSec's security context, and command authorization |
+| `me.ahoo.wow:wow-cosec` | [`edge/cosec`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/cosec) | The caller from CoSec's security context, and command authorization; experimental in 10.0: it follows CoSec 8's pre-release and may change within 10.x |
 | `me.ahoo.wow:wow-observability` | [`edge/observability`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/observability) | Tracing and Micrometer metrics on the core's observation seams |
 | `me.ahoo.wow:wow-spring-boot` | [`host/spring-boot`](https://github.com/Ahoo-Wang/Wow/tree/main/host/spring-boot) | Auto-configuration by classpath; wiring only |
 | `me.ahoo.wow:wow-cosid` | [`extensions/cosid`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cosid) | CosId's generators as a node's aggregate id generators |

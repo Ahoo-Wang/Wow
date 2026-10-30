@@ -27,6 +27,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
@@ -79,6 +80,7 @@ class OpsConfigurationTest {
      * The node's decision on [action] by [caller], within the request [security] when there is one: every authorizer
      * the ops service and the host register, all asked.
      */
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     private fun authorize(
         checker: AuthorizationChecker?,
         authorizerEnabled: Boolean,

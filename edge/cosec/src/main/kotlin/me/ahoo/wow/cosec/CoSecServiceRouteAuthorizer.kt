@@ -14,6 +14,7 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.RouteAction
@@ -24,6 +25,7 @@ import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
  * call is the action `<context>:<route>` on the resource `route/<route>` ([CoSecActions]), the name CoSec's route
  * map gives the route over HTTP. A request-less caller gets no objection.
  */
+@ExperimentalWowApi
 class CoSecServiceRouteAuthorizer(
     private val checker: AuthorizationChecker,
     private val defaultTenant: String = Caller.DEFAULT_TENANT,
