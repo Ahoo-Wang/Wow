@@ -23,6 +23,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -34,6 +35,7 @@ import {
   text,
   type RecordAction,
   type RecordActions,
+  type RecordRow,
 } from '../src/index.js';
 import {
   MemoryViewStore,
@@ -41,7 +43,11 @@ import {
   defaultRuntimeEnvironment,
   type ViewErrorEvent,
 } from '../src/index.js';
-import type { RecordActionSlots } from '../src/react/index.js';
+import {
+  useRecordActions,
+  type RecordActionSlots,
+  type RecordActionTable,
+} from '../src/react/index.js';
 import { DataWorkbench, MessagesProvider, zhCN } from '../src/ui/index.js';
 import {
   deferred,
@@ -456,6 +462,67 @@ describe('a record’s declared actions', () => {
         { signal: expect.any(AbortSignal) },
       ),
     );
+  });
+
+  it('answers only a typed field’s own Enter: another key, a word being composed or a select keep theirs', async () => {
+    const run = vi.fn(() => Promise.resolve());
+    await open(
+      actions([
+        ship(),
+        {
+          id: 'note',
+          label: text('orders.note'),
+          form: {
+            // Optional: described only once its check refuses it.
+            note: {
+              label: text('orders.noteField'),
+              required: false,
+              check: value =>
+                value === undefined ||
+                value === '' ||
+                (typeof value === 'string' && value.trim().length >= 3)
+                  ? true
+                  : text('orders.noteShort'),
+            },
+            priority: {
+              label: text('orders.priorityField'),
+              options: [
+                { value: 'high', label: text('orders.high') },
+                { value: 'low', label: text('orders.low') },
+              ],
+              initial: 'high',
+            },
+            urgent: { label: 'Urgent', input: 'boolean', initial: false },
+          },
+          run,
+        },
+      ]),
+    );
+    await userEvent.click(
+      within(rowOf('o-1')).getByRole('button', { name: 'Actions for o-1' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Add a note' }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Add a note: o-1',
+    });
+    const note = within(dialog).getByLabelText('Note');
+    expect(note.getAttribute('aria-describedby')).toBeNull();
+    fireEvent.change(note, { target: { value: 'ab' } });
+    fireEvent.keyDown(note, { key: 'a' });
+    fireEvent.keyDown(note, { key: 'Enter', isComposing: true });
+    // A choice and a yes or no are selects: their Enter opens their list.
+    for (const select of within(dialog).getAllByRole('combobox'))
+      fireEvent.keyDown(select, { key: 'Enter' });
+    // None of them answered: the note is not yet marked, nothing is sent.
+    expect(note.getAttribute('aria-invalid')).not.toBe('true');
+    expect(run).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(note, { key: 'Enter' });
+    await waitFor(() => expect(note.getAttribute('aria-invalid')).toBe('true'));
+    expect(described(note)).toBe('At least 3 characters.');
+    expect(run).not.toHaveBeenCalled();
   });
 
   it('says what was done in the action’s own words, where 「done」 says more than happened', async () => {
@@ -987,5 +1054,54 @@ describe('a host’s question that is code', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     // The item said it opens nothing, so the menu gave the keyboard back.
     await waitFor(() => expect(document.activeElement).toBe(more));
+  });
+});
+
+describe('the actions’ controller, as a host’s own dialog drives it', () => {
+  const row = { key: 'o-1', data: { id: 'o-1' } } as RecordRow;
+  const table: RecordActionTable = {
+    rows: [row],
+    selection: [],
+    selectedRows: [],
+    select: () => {},
+    refresh: () => {},
+  };
+
+  it('sends nothing a field’s check refuses, however it is answered', async () => {
+    const run = vi.fn(() => Promise.resolve());
+    const declared = actions([
+      {
+        id: 'note',
+        label: 'Add a note',
+        form: {
+          note: {
+            label: 'Note',
+            check: value => (value === 'Call first' ? true : 'Say why.'),
+          },
+        },
+        run,
+      },
+    ]);
+    const { result } = renderHook(() =>
+      useRecordActions({ actions: declared, table }),
+    );
+    act(() => result.current.start('note', 'row', row, { note: 'ab' }));
+    expect(result.current.pending?.invalid).toEqual({ note: 'Say why.' });
+    // A host's dialog answering anyway: the question stays, nothing goes.
+    act(() => result.current.confirm());
+    expect(result.current.pending).not.toBeNull();
+    expect(run).not.toHaveBeenCalled();
+
+    act(() => result.current.cancel());
+    act(() => result.current.start('note', 'row', row, { note: 'Call first' }));
+    expect(result.current.pending?.invalid).toEqual({});
+    act(() => result.current.confirm());
+    await waitFor(() =>
+      expect(run).toHaveBeenCalledWith(
+        row,
+        { note: 'Call first' },
+        { signal: expect.any(AbortSignal) },
+      ),
+    );
   });
 });

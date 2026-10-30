@@ -164,17 +164,12 @@ export function ActionDialog({
     }
     onConfirm();
   };
-  // Enter in a typed field answers, as it does in any form; a list's own
-  // Enter (an open choice) stays the list's.
+  // Enter in a typed field answers, as it does in any form. A choice, or a
+  // yes or no, is a select's button, whose own Enter opens its list; a word
+  // still being composed is the input method's.
   const enter = (event: KeyboardEvent) => {
     if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
-    const target = event.target;
-    if (
-      !(target instanceof HTMLInputElement) ||
-      target.getAttribute('role') === 'combobox' ||
-      target.type === 'checkbox'
-    )
-      return;
+    if (!(event.target instanceof HTMLInputElement)) return;
     event.preventDefault();
     if (open && able.length > 0) press();
   };

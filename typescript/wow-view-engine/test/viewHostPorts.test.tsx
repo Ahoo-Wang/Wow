@@ -24,6 +24,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -56,7 +57,10 @@ import {
   type ViewHostProps,
   type ViewRouter,
 } from '../src/ui/index.js';
-import { useAddressedBoard } from '../src/ui/workbench/address.js';
+import {
+  useAddressedBoard,
+  useAddressedDetail,
+} from '../src/ui/workbench/address.js';
 import { useRoutedNavigate } from '../src/ui/workbench/ViewEngineProvider.js';
 import {
   mine,
@@ -545,6 +549,49 @@ describe('the address: `?id=`, the record a bound resource’s detail holds', ()
     await act(() => router.navigate(-1));
     await waitFor(() => expect(at().search).toBe('?view=orders-1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  /** A router standing at `search`, telling `go` where it is sent. */
+  const standingAt = (
+    search: string,
+    go: ViewRouter['go'] = vi.fn(),
+  ): ViewRouter => ({
+    location: { pathname: '/orders', search, state: { s: 1 } },
+    go,
+  });
+
+  it('moves nowhere for the record already open, and only replaces from one record to the next', () => {
+    const go = vi.fn();
+    const { result } = renderHook(() =>
+      useAddressedDetail(standingAt('?id=o-1', go)),
+    );
+    expect(result.current?.open).toBe('o-1');
+    act(() => result.current?.onOpenChange?.('o-1'));
+    expect(go).not.toHaveBeenCalled();
+    act(() => result.current?.onOpenChange?.('o-2'));
+    expect(go).toHaveBeenCalledWith('/orders?id=o-2', {
+      state: { s: 1 },
+      replace: true,
+    });
+  });
+
+  it('moves nowhere once the host takes its router away', () => {
+    const go = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ router }: { router: ViewRouter | undefined }) =>
+        useAddressedDetail(router),
+      {
+        initialProps: {
+          router: standingAt('', go) as ViewRouter | undefined,
+        },
+      },
+    );
+    // A detail still holding what it was handed, told to open a record.
+    const held = result.current;
+    rerender({ router: undefined });
+    expect(result.current).toBeUndefined();
+    act(() => held?.onOpenChange?.('o-1'));
+    expect(go).not.toHaveBeenCalled();
   });
 
   it('leaves a detail the host holds itself alone', async () => {
