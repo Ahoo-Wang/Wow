@@ -55,7 +55,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`, `@ProjectionProcessor`, `@EventProcessor` | `@Saga`, `@Projection`, `@Reactor` |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent`, one handler kind taking a `StateEvent` |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<processor.function>].parked.*` (`executionTimeout` as `timeout`) |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<context>.<processor.function>].parked.*` (`executionTimeout` as `claim-ttl`) |
 | `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
@@ -257,7 +257,7 @@ Some 9.x constructs have no V10 form. The Skill reports each one the service use
 - a 9.x Redis event store: the data tool reads MongoDB only;
 - Java tests on `AggregateVerifier`, and Java calls of `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`): Kotlin only;
 - Jackson modules found on the class path, and fields without public getters: `WowJson` applies neither;
-- state-event resend and per-version re-dispatch: none until 10.x; a parked entry is resumed instead;
+- state-event resend and per-version re-dispatch: none until 10.x; a parked entry is retried instead;
 - a `MessageFunction` registered at run time: rewrite it as an annotated processor.
 
 Next: the [configuration](./configuration), the [HTTP and TypeScript clients](./http-and-clients), then the [data](./data) and the [cut-over](./cutover).

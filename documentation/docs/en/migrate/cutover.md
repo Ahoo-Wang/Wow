@@ -19,7 +19,7 @@ Choose by the rehearsal's measured import time against the stop the business acc
 | Path | Write stop, 9.x stopped to V10 serving | Where the time went |
 | --- | --- | --- |
 | Offline | 243.4 s | The full import 98.2 s, compare 23.5 s, snapshots 43.8 s, tags 35.4 s, start of both services 36.3 s |
-| Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, resume of both services 29.3 s |
+| Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, activation of both services 29.3 s |
 
 The offline stop grows with the whole history, the online one with what 9.x wrote since the tail last read, plus the steps both share. A history that imports within the window you can stop for goes offline.
 
@@ -78,7 +78,7 @@ From the first import until the switch, 9.x serves and V10 waits: `tail` follows
 4. **Gate**, as offline does. Otherwise go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**
-7. **Resume every V10 node:** `POST /wow/node/resume` on each node's internal port, with `Wow-Service: <the node's service>` and `{"by": "<operator>", "reason": "<why>"}`. The node joins its groups, starts its work and then admits commands. The resume ends the write stop; `GET /wow/node/standby` shows each node's record of it.
+7. **Activate every V10 node:** `POST /wow/node/activate` on each node's internal port, with `Wow-Service: <the node's service>` and `{"by": "<operator>", "reason": "<why>"}`. The node joins its groups, starts its work and then admits commands. The activation ends the write stop; `GET /wow/node/standby` shows each node's record of it.
 8. **Switch traffic to V10**, then scale it out. Keep 9.x stopped.
 9. **Observe**, as offline does.
 

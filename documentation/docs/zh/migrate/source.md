@@ -55,7 +55,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | `@Saga`、`@Projection`、`@Reactor` |
 | `@OnEvent(vararg aggregates)`、`@OnStateEvent`、`@OnMessage` | `@OnEvent`，一种接收 `StateEvent` 的处理函数 |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<processor.function>].parked.*`（`executionTimeout` 对应 `timeout`） |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<context>.<processor.function>].parked.*`（`executionTimeout` 对应 `claim-ttl`） |
 | `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |
@@ -257,7 +257,7 @@ V10 新增、9.x 没有对应的：用于 saga 处理回执的 `whenRejected` �
 - 9.x 的 Redis 事件存储：数据工具只读取 MongoDB；
 - 基于 `AggregateVerifier` 的 Java 测试，以及对 `suspend` API（`DecideScope.reserve`、`SagaContext.call`）的 Java 调用：只支持 Kotlin；
 - 在类路径上发现的 Jackson 模块，以及没有公共 getter 的字段：`WowJson` 两者都不应用；
-- 状态事件重发和按版本重新分发：10.x 之前都没有；改为恢复停放的条目；
+- 状态事件重发和按版本重新分发：10.x 之前都没有；改为重试停放的条目；
 - 在运行时注册的 `MessageFunction`：把它改写为带注解的处理器。
 
 下一步：[配置](./configuration)、[HTTP 与 TypeScript 客户端](./http-and-clients)，然后是[数据](./data)和[切换](./cutover)。
