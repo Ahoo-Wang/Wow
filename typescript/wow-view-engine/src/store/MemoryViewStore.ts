@@ -45,6 +45,12 @@ export interface MemoryViewStoreOptions {
   /** Lets an example keep its data across reloads; not a second store. */
   snapshot?: MemorySnapshot;
   /**
+   * The views are this browser's alone (`ViewStore.local`) — a
+   * `localStorageSnapshot` kept for a host with no view store: nothing is
+   * shared, and the surfaces say a view stays here.
+   */
+  local?: boolean;
+  /**
    * The views one page of `list` answers; 100 when left out. A test sets it
    * low to read a list across pages, as a server's own page size makes it.
    */
@@ -119,6 +125,8 @@ export class MemoryViewStore implements ViewStore {
   private readonly preferenceOutcomes = new Map<string, ViewPreferences>();
   private readonly snapshot?: MemorySnapshot;
   readonly permissions?: (definitionId: string) => ViewPermissions;
+  /** See `MemoryViewStoreOptions.local`. */
+  readonly local?: boolean;
   /** See `MemoryViewStoreOptions.pageSize`. */
   private readonly pageSize: number;
   private sequence = 0;
@@ -127,6 +135,7 @@ export class MemoryViewStore implements ViewStore {
     // Left undefined when the caller declared none, which the port reads as
     // "everything is allowed".
     if (options.permissions) this.permissions = options.permissions;
+    if (options.local) this.local = true;
     this.pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     this.snapshot = options.snapshot;
 

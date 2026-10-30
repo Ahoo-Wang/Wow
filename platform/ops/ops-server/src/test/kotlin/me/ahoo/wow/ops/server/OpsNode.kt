@@ -59,11 +59,17 @@ val Answer.ids: List<String> get() = json.values().map { it["aggregateId"].asStr
 /** Who sends a request: the headers the host's development callers read. */
 data class Who(val headers: Map<String, String>) {
     companion object {
-        /** An operator, who acts on the entries. */
-        val OPERATOR: Who = Who(mapOf(USER to "alice", ROLES to "viewer, ${OpsRoles.OPERATOR}"))
+        /** An operator, who reads the entries and acts on them. */
+        val OPERATOR: Who = Who(mapOf(USER to "alice", ROLES to OpsRoles.OPERATOR))
 
-        /** A caller of the tenant that reads the entries, and may not act on them. */
-        val VIEWER: Who = Who(mapOf(USER to "victor", ROLES to "viewer"))
+        /** A viewer, who reads the entries and may not act on them. */
+        val VIEWER: Who = Who(mapOf(USER to "victor", ROLES to OpsRoles.VIEWER))
+
+        /** A caller of the tenant with no role. */
+        val ROLELESS: Who = Who(mapOf(USER to "nora"))
+
+        /** A caller of the tenant with a role of another service alone. */
+        val STRANGER: Who = Who(mapOf(USER to "sam", ROLES to "someone.else"))
 
         /** A caller of another tenant. */
         val OUTSIDER: Who = Who(

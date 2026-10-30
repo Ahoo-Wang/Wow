@@ -26,7 +26,8 @@ package me.ahoo.wow.cocache.api
  *   its keys, the view's JSON) follows from the view, on the owner and on every reader alike.
  * - **When it cannot serve.** A state the cache does not hold, whose owner cannot be read now, is a
  *   [StateViewUnavailableException]. A read for the reader's own use (a name, a description) may fall back on it; a
- *   read a decision rests on must not, and fails as the owner's read fails.
+ *   read a decision rests on must not, and fails as the owner's read fails. The cache logs the first such failure at
+ *   WARN, and the next ones at DEBUG until it serves a read again, so a reader that falls back logs nothing itself.
  * - **A trusted read.** The cache holds the full view as this service's identity sees it, for every tenant and owner:
  *   never return it to an end user as it is, nor decide by it what the owner alone decides. A command's decision rests
  *   on its own aggregate's state; a check that must be consistent is the owner's, which rejects the command.

@@ -82,7 +82,7 @@ internal fun derivationOf(context: SubscriptionContext): Derivation = when (cont
 /**
  * The command requests a saga's handler returned: nothing (`null`, `Unit`, an empty `Mono`), one [CommandRequest], or
  * several, as an `Iterable` (such as the list a `Flux` was collected into), a `Sequence` or a `Flow`, collected in
- * order. Anything else is a handler that does not return command requests, which fails it.
+ * order. Anything else is a handler that does not return command requests: an [InvalidDerivedRequestException].
  */
 suspend fun requestsOf(result: Any?): List<CommandRequest<*>> = when (result) {
     null, Unit -> emptyList()
@@ -94,10 +94,17 @@ suspend fun requestsOf(result: Any?): List<CommandRequest<*>> = when (result) {
 
 private fun requestOf(element: Any?): CommandRequest<*> = when (element) {
     is CommandRequest<*> -> element
-    is Command<*> -> throw IllegalStateException(
+    is Command<*> -> throw InvalidDerivedRequestException(
         "A saga returns command requests, not the command ${element.id}: return CommandRequest.to(ref, body), " +
             "or CommandRequest.of(body, id).",
     )
 
-    else -> throw IllegalStateException("A saga derives command requests, not $element.")
+    else -> throw InvalidDerivedRequestException("A saga derives command requests, not $element.")
 }
+
+/**
+ * A saga's handler derived what is no derived request: an element that is no [CommandRequest] (a [Command], another
+ * object), or a request with a wait or a timeout, which the subscription that sends it waits for none of. A defect in
+ * the saga, which no retry changes: the handling fails unrecoverable, so the aggregate parks at once.
+ */
+class InvalidDerivedRequestException(message: String) : IllegalStateException(message)

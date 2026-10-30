@@ -101,6 +101,8 @@
 
 ### 面板菜单（D22 D）
 
+**数字卡整张可按**：作者给一块只有一个数、没有分组的分析面板（`chart.type: 'metric'`、`groups` 为空）指明了它所计的视图（`opens`）时，卡片上盖一颗按钮，名为「在工作台中打开「X」」，按下与菜单里的「在工作台中打开」一样交出——「需要处理 18」打开那 18 条的队列。没有 `opens` 的卡、有分组的面板不变：分组有自己的按法（UI 走查 UI-21；见 test/boardHandOver.test.tsx「opens that view when the card is pressed, as its menu’s 在工作台中打开 does」）。
+
 每块面板标题行末尾一颗「⋯」（`ui/dashboard/PanelMenu.tsx`，名字「「X」的操作」），两组，**一项只在做得到时出现**（D4），一项都没有就不画这颗按钮：
 
 - **看**（读与搭都有）：「在工作台中打开」——只在宿主给了路由钩子 `onNavigate(to)` 时（`DashboardWorkbench` 与 `EmbeddedDashboard` 同名属性，见下文「点击」），交出 `{ kind: 'view', definitionId, instanceId, scopeFilter, filter, from }`（`DashboardController.handOver`，D26 Q30），两部分都**已经映射成那个视图自己的字段名**：`scopeFilter` 是板子的固定范围与页面锁定、隐藏的筛选，到了工作台是作用域、没有 ✕；`filter` 是读者在板上设的值，到了工作台是视图**自己的**条件——视图开着就是「已修改」，每一条都能拿掉（✕ 整条拿掉，拿光了视图就是保存时的样子、不再「已修改」），「还原」一次拿掉。宿主把整个对象交给 `DataWorkbench` 的 `handOver`。板内分析没有已保存的视图，交出的是 `{ kind: 'unsaved', … }`：它自己的配置、读者的值并进它自己的条件，页面持有的同样是 `scopeFilter`。四个出口（这一项、追问、点击去另一个视图、板内分析）一种交法。`from` 是回板子的路：工作台据此在标题栏下画「返回〈仪表盘〉」，按下把 `{ kind: 'dashboard', …, filters, tab }` 交回宿主的路由——草稿仍是交来的样子就不问，读者在那之外改过才经离开守卫问，板子按离开时的筛选与标签页打开（D26 Q33）；宿主不必自己画返回键。（批 D「打开源视图」；见 test/dashboardPressUi.test.tsx「在工作台中打开 an analysis the board owns」、test/boardHandOver.test.tsx「leaving a board through the host’s route (D26 Q30)」「the way back to the board (D26 Q33)」；浏览器里 stories/view-engine/DashboardClicks.test.stories.tsx「OpenInWorkbenchKeepsBoardFilters」）「刷新这个面板」（`refreshPanel`）。「导出数据…」（见下一条）。

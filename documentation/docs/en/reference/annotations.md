@@ -95,31 +95,31 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 ## `@OnCommitted`
 
-[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Committed` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
+[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Committed` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
 
-- Targets: `FUNCTION`, `ANNOTATION_CLASS`
+- Targets: `FUNCTION`
 - Parameters: None.
 
 ## `@OnEvent`
 
-[OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
+[OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context: a projection's or a reactor's `SubscriptionContext`, a saga's `SagaContext` or the `SubscriptionContext` it extends.
 
-- Targets: `FUNCTION`, `ANNOTATION_CLASS`
+- Targets: `FUNCTION`
 - Parameters: `aggregates: Array<String> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 
-[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived or called: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Rejected` of the command's type (or of `*`, for every command the saga sends) and, optionally, the `SagaContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
+[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived or called: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Rejected` of the command's type (or of `*`, for every command the saga sends) and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands that compensate, as an `OnEvent` handler of a saga does.
 
-- Targets: `FUNCTION`, `ANNOTATION_CLASS`
+- Targets: `FUNCTION`
 - Parameters: None.
 
 ## `@OnSchedule`
 
-[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
+[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
-- Targets: `FUNCTION`, `ANNOTATION_CLASS`
-- Parameters: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `sharded: Boolean = false`, `misfire: Misfire = Misfire.COALESCE`
+- Targets: `FUNCTION`
+- Parameters: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `misfire: Misfire = Misfire.COALESCE`
 
 ## `@OnSourcing`
 
@@ -147,7 +147,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
 
 - Targets: `CLASS`, `FUNCTION`
-- Parameters: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `multiplier: Double = 0.0`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
+- Parameters: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `multiplier: Double = 0.0`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`, `systemic: Array<KClass<out Throwable>> = []`
 
 ## `@Revision`
 
@@ -167,7 +167,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 [Sends](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Sends.kt): What a `Saga`'s handler sends, by the commands' classes: any of its handlers, `@OnEvent`, `@OnRejected`, `@OnCommitted` or `@OnSchedule`, may carry it, and nothing else does: the compiler refuses it on a `Projection`'s or a `Reactor`'s handler, or on a function that is no handler.
 
-- Targets: `FUNCTION`, `ANNOTATION_CLASS`
+- Targets: `FUNCTION`
 - Parameters: `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`
 
 ## `@ServiceRoute`

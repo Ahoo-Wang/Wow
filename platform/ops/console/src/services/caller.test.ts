@@ -121,13 +121,16 @@ describe("the CoSec sign-in", () => {
     const tokens = new TokenStorage();
     expect(tokenCaller(tokens)).toBeNull();
     expect(tokenCaller(null)).toBeNull();
-    const token = accessToken({ sub: "alice", roles: ["ops.operator"] });
+    const exp = Math.floor(Date.now() / 1000) + 600;
+    const token = accessToken({ sub: "alice", roles: ["ops.operator"] }, exp);
     tokens.signIn({ accessToken: token, refreshToken: token });
     expect(tokenCaller(tokens)).toEqual({
       user: "alice",
       tenant: DEFAULT_TENANT,
       roles: ["ops.operator"],
       via: "cosec",
+      // When it runs out, to say so when the service refuses it then.
+      expiresAt: exp * 1000,
     });
     const other = accessToken({ sub: "olga", tenantId: "t-1" });
     tokens.signIn({ accessToken: other, refreshToken: other });

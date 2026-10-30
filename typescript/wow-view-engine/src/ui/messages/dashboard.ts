@@ -299,6 +299,8 @@ export const dashboardMessages = {
   'label.panel.menu.view': 'Data',
   'label.panel.menu.edit': 'Edit panel',
   'label.panel.open': 'Open in the workbench',
+  // A number card whose author named the view it counts, pressed whole.
+  'label.panel.open-number': 'Open “{name}” in the workbench',
   'label.panel.refresh': 'Refresh this panel',
   'label.panel.export': 'Export data…',
   'label.panel.rename': 'Rename',

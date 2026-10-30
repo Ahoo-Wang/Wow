@@ -53,7 +53,8 @@ import me.ahoo.wow.compiler.model.symbol.javaTypeOf
  * - the class has exactly one of `@Projection`, `@Reactor`, `@Saga`, and at least one `@OnEvent` function, none of
  *   them private, no two of them with the same name (each is the subscription `processor.function`);
  * - a handler takes a `StateEvent` and, optionally, the context of its kind (a projection's or a reactor's
- *   `SubscriptionContext`, a saga's `SagaContext`), nothing else: the processor's dependencies are its constructor's;
+ *   `SubscriptionContext`, a saga's `SagaContext`, or a context it extends: a saga's handler may take a
+ *   `SubscriptionContext`), nothing else: the processor's dependencies are its constructor's;
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a
  *   `CommandRequest`, or an `Iterable`, a `Sequence` or a `Flow` of them), or nothing (`Unit`: it derives none); any
  *   of them may instead return a Reactor publisher;
@@ -76,13 +77,21 @@ import me.ahoo.wow.compiler.model.symbol.javaTypeOf
  *
  * A handler a processor inherits is its handler, its annotations those of the function it overrides when the
  * override leaves them out ([annotatedIn]): a processor base class, in the module or a library, is read
- * only through the processors that extend it.
+ * only through the processors that extend it. So is a class-level `@Retry`: the processor's own, else the nearest
+ * superclass's, taken whole ([RetryResolver.inherited]).
+ *
+ * What compiles but is likely wrong is a warning: `@Blocking` on a handler that returns a Reactor publisher, and a
+ * receipt handler of a command class no handler of the saga derives or calls ([unsentReceipts]).
  */
 internal object SubscriptionResolver {
-    private enum class Kind(val annotation: String, val context: String, val label: String) {
-        PROJECT(Projection::class.java.name, SubscriptionContext::class.java.name, "@Projection"),
-        REACT(Reactor::class.java.name, SubscriptionContext::class.java.name, "@Reactor"),
-        SAGA(Saga::class.java.name, SagaContext::class.java.name, "@Saga"),
+    private enum class Kind(val annotation: String, val context: Class<*>, val label: String) {
+        PROJECT(Projection::class.java.name, SubscriptionContext::class.java, "@Projection"),
+        REACT(Reactor::class.java.name, SubscriptionContext::class.java, "@Reactor"),
+        SAGA(Saga::class.java.name, SagaContext::class.java, "@Saga"),
+        ;
+
+        /** The contexts a handler of this kind may take: its own, and the context interfaces it extends. */
+        val contexts: Set<String> = contextsOf(context)
     }
 
     /** The annotations that make a class a subscription processor. */
@@ -111,6 +120,11 @@ internal object SubscriptionResolver {
     private val RETRY = Retry::class.java.name
     private val REQUEST = CommandRequest::class.java.name
     private const val UNIT = "kotlin.Unit"
+    private const val MONO = "reactor.core.publisher.Mono"
+    private const val FLUX = "reactor.core.publisher.Flux"
+
+    /** What a projection's or a reactor's `Mono` emits: nothing. */
+    private val NOTHING = setOf(UNIT, "java.lang.Void")
     private const val DEPENDENCIES = "me.ahoo.wow.kernel.Dependencies"
     private val COMMAND_COLLECTIONS = setOf(
         "kotlin.collections.List",
@@ -140,7 +154,7 @@ internal object SubscriptionResolver {
         val className = processor.simpleName.asString()
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
         val problems = (AnnotationSet.problems(processor, "processor $className", processor = true) + nameProblems(className, name)).toMutableList()
-        val processorRetry = RetryResolver.read(processor, "processor $className", problems)
+        val processorRetry = RetryResolver.inherited(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
         problems += kindProblems(className, kinds)
@@ -161,18 +175,15 @@ internal object SubscriptionResolver {
             problems += AnnotationSet.problemsOfFunction(it, "processor $className", processor = true)
         }
         problems += straySends(processor, className)
-        (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
-            .filterValues { it.size > 1 }.keys.forEach {
-                problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
-            }
-        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems) {
-            returnProblem(Kind.SAGA, it)
-        }
+        problems += sameNames(className, name, functions + receiptFunctions.values.flatten() + jobFunctions)
+        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems)
         val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, events, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val (rejections, commits) = Receipt.entries.map { receipt ->
             receiptHandlers(className, name, receipt, receiptFunctions.getValue(receipt), reactorTypes, problems)
         }
+        val warnings = blockingPublishers(functions + receiptFunctions.values.flatten() + jobFunctions, reactorTypes) +
+            unsentReceipts(name, handlers, rejections + commits)
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
         val dependencies = if (isObject) emptyList() else dependencies(processor, className, problems)
@@ -186,6 +197,7 @@ internal object SubscriptionResolver {
             kind = kind?.name,
             handlers = handlers,
             problems = problems.distinct(),
+            warnings = warnings,
             packageName = processor.packageName.asString(),
             simpleNames = generateSequence<KSDeclaration>(processor) { it.parentDeclaration }
                 .map { it.simpleName.asString() }.toList().asReversed(),
@@ -196,6 +208,40 @@ internal object SubscriptionResolver {
             internal = processor.isInternal() || !isObject && constructorOf(processor)?.isInternal() == true,
         )
     }
+
+    /** The handlers among [functions] that are `@Blocking` but return a Reactor publisher ([blocking]). */
+    private fun blockingPublishers(functions: List<KSFunctionDeclaration>, reactorTypes: Set<String>): List<String> =
+        mutableListOf<String>().also { warnings ->
+            functions.distinct().forEach {
+                blocking(it, it.returnType?.resolve()?.qualifiedName() in reactorTypes, warnings)
+            }
+        }
+
+    /**
+     * The [receipts] handlers of the saga [name] that never run: each takes the receipts of a command class no handler
+     * of the saga ([handlers], [receipts]) derives or calls, nor one of its subclasses. A misspelled or a stale type
+     * compiles, so the handler is silently never called.
+     */
+    private fun unsentReceipts(
+        name: String,
+        handlers: List<HandlerBinding>,
+        receipts: List<ReceiptBinding>,
+    ): List<String> {
+        val sent = (handlers.map { it.sends } + receipts.map { it.sends }).flatMap { it.derives + it.calls }
+        return receipts.filter { receipt -> receipt.command != null && sent.none { it.isA(receipt.command) } }
+            .groupBy { it.function }.map { (function, unsent) ->
+                val nouns = unsent.singleOrNull()?.receipt?.nouns ?: "receipts"
+                val command = unsent.first().let { it.commandSource ?: it.command }
+                "handler $name.$function takes the $nouns of $command, which no handler of the saga derives or " +
+                    "calls: it never runs; name a command the saga sends, or declare it with @Sends"
+            }
+    }
+
+    /** Two [handlers] of the processor [name] with one name, which would be one subscription. */
+    private fun sameNames(className: String, name: String, handlers: List<KSFunctionDeclaration>): List<String> =
+        handlers.distinct().groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.map {
+            "processor $className has two handlers named $it: each is the subscription $name.$it"
+        }
 
     /** `@Sends` on a function of [processor] that is no handler: it declares what nothing sends. */
     private fun straySends(processor: KSClassDeclaration, className: String): List<String> =
@@ -267,8 +313,10 @@ internal object SubscriptionResolver {
         }
         functions.filter { it.isHandler(RETRY) }.forEach {
             add(
-                "handler $name.${it.simpleName.asString()} is annotated @Retry: ${receipt.retryReason}; @Retry goes " +
-                    "on an @OnEvent handler or its processor",
+                "handler $name.${it.simpleName.asString()} is annotated @Retry: an ${receipt.label} handler takes " +
+                    "the budget of where its receipt arrives, the @OnEvent handler that derived the command for one " +
+                    "of the saga's own context, the host's retry of wow.receipts.<context> for one from another " +
+                    "context; @Retry goes on that @OnEvent handler or its processor",
             )
         }
         if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
@@ -278,13 +326,6 @@ internal object SubscriptionResolver {
             )
         }
     }
-
-    /** Why a handler of this kind takes no `@Retry`. */
-    private val Receipt.retryReason: String
-        get() = when (this) {
-            Receipt.REJECTED -> "an @OnRejected handler compensates a business outcome, which is not retried"
-            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
-        }
 
     /**
      * Whether [function] is an `@OnEvent` handler (or overrides one), and no receipt handler: `@OnEvent` alone declares
@@ -383,8 +424,8 @@ internal object SubscriptionResolver {
         val context = parameters.getOrNull(1)
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
-        if (kind != null && returned != null && !reactor) {
-            returnProblem(kind, returned)?.let { problems += "$where $it" }
+        if (kind != null && returned != null) {
+            returnProblem(kind, returned, reactor)?.let { problems += "$where $it" }
         }
         val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
@@ -482,16 +523,17 @@ internal object SubscriptionResolver {
         val parameter = if (both) RECEIPT_NAME else receipt.parameterName
         problems += receiptParameterProblems(where, receipt, both, first?.qualifiedName())
         val context = parameters.getOrNull(1)?.qualifiedName()
-        if (context != null && context != SAGA_CONTEXT) {
-            problems += "$where takes $context: an $label handler takes a $SAGA_CONTEXT after the receipt, if anything"
+        if (context != null && context !in Kind.SAGA.contexts) {
+            problems += "$where takes $context: an $label handler takes a $SAGA_CONTEXT, or a context it extends, " +
+                "after the receipt, if anything"
         }
         if (parameters.size > 2) {
             problems += "$where takes ${parameters.size} parameters: an $label handler takes ($parameter[, SagaContext])"
         }
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
-        if (returned != null && !reactor) {
-            returnProblem(Kind.SAGA, returned)?.let { problems += "$where $it" }
+        if (returned != null) {
+            returnProblem(Kind.SAGA, returned, reactor)?.let { problems += "$where $it" }
         }
         val sends = SendsResolver.resolve(function, where, true, null, returned, reactor, problems)
         if (problems.size > count) {
@@ -575,10 +617,10 @@ internal object SubscriptionResolver {
             )
         }
         val context = parameters.getOrNull(1)?.qualifiedName()
-        if (context != null && kind != null && context != kind.context) {
+        if (context != null && kind != null && context !in kind.contexts) {
             add(
-                "$where takes $context: a ${kind.label} handler takes a ${kind.context} after the state event, " +
-                    "if anything",
+                "$where takes $context: a ${kind.label} handler takes a ${kind.context.name}, or a context it " +
+                    "extends, after the state event, if anything",
             )
         }
         if (context != null && kind == null && context !in CONTEXTS) {
@@ -592,8 +634,16 @@ internal object SubscriptionResolver {
         }
     }
 
-    private fun returnProblem(kind: Kind, returned: KSType): String? {
+    /**
+     * Why a handler of [kind] may not return [returned], a Reactor publisher when [reactor]; null when it may. A
+     * publisher is checked by what it emits: a saga's a `Mono` or a `Flux` of command requests, a projection's or a
+     * reactor's a `Mono<Void>` or a `Mono<Unit>`, which completes when the handling does.
+     */
+    private fun returnProblem(kind: Kind, returned: KSType, reactor: Boolean): String? {
         val name = returned.qualifiedName()
+        if (reactor) {
+            return publisherProblem(kind, name, returned)
+        }
         return if (kind == Kind.SAGA) {
             val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
             val commands = name == UNIT || name == REQUEST || (name in COMMAND_COLLECTIONS && element == REQUEST)
@@ -606,6 +656,26 @@ internal object SubscriptionResolver {
         } else {
             if (name == UNIT) null else "returns $name: a ${kind.label} handler returns nothing"
         }
+    }
+
+    /** Why a saga's handler may not return [returned], a Reactor publisher when [reactor]; null when it may. */
+    internal fun sagaReturnProblem(returned: KSType, reactor: Boolean): String? = returnProblem(
+        Kind.SAGA,
+        returned,
+        reactor
+    )
+
+    private fun publisherProblem(kind: Kind, name: String?, returned: KSType): String? {
+        val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
+        val (allowed, problem) = if (kind == Kind.SAGA) {
+            ((name == MONO || name == FLUX) && element == REQUEST) to
+                "a @Saga handler that returns a publisher returns a Mono or a Flux of $REQUEST, the commands it derives"
+        } else {
+            (name == MONO && element in NOTHING) to
+                "a ${kind.label} handler that returns a publisher returns Mono<Void> or Mono<Unit>, which completes " +
+                "when its handling does"
+        }
+        return if (allowed) null else "returns ${returned.render()}: $problem"
     }
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
@@ -623,3 +693,7 @@ internal object SubscriptionResolver {
     private fun com.google.devtools.ksp.symbol.KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName }
 }
+
+/** [context] and the context interfaces it extends, by their names: a handler may take any of them. */
+internal fun contextsOf(context: Class<*>): Set<String> =
+    linkedSetOf(context.name) + context.interfaces.flatMap { contextsOf(it) }

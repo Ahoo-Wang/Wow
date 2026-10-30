@@ -606,8 +606,9 @@ describe('a failure event is typed by its kind', () => {
   });
 
   it('names every store method but the synchronous `permissions`', () => {
+    // `local` is what the store is, not a call it answers.
     expectTypeOf<StoreOperation>().toEqualTypeOf<
-      Exclude<keyof ViewStore, 'permissions'>
+      Exclude<keyof ViewStore, 'permissions' | 'local'>
     >();
     expectTypeOf<
       Extract<ViewErrorEvent, { kind: 'query' }>['context']['operation']

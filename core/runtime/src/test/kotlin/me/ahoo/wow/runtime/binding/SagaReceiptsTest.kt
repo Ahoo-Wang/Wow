@@ -31,6 +31,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionReceiptContext
 import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.admission.CommandBody
@@ -347,6 +348,34 @@ class SagaReceiptsTest {
             last.error!!.code.assert().isEqualTo(FORBIDDEN)
             eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-4")) }
             decided.assert().contains(compensationId("o-4", type = RemoveItems::class.java))
+        }
+
+    @Test
+    fun `a rejection handler that fails should spend the deriving handler's budget and park under its name`(): Unit =
+        runBlocking {
+            // D372 S14: a receipt of the saga's own context is handled inside the deriving @OnEvent handling.
+            val budgeted = ProcessorBinding.saga(
+                "CartSaga",
+                "onOrderPlaced",
+                OrderState::class.java,
+                rejections = listOf(onRemoveRejected),
+                retry = HandlerRetry(maxAttempts = 2),
+                derives = listOf(RemoveItems::class.java),
+            ) { event, _ ->
+                val owner = event.scope.ownerId ?: return@saga emptyList()
+                event.events.filterIsInstance<Placed>().map {
+                    CommandRequest.to(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+                }
+            }
+            val node = start(budgeted)
+            node.fill()
+            failures.set(100)
+            node.place("o-5", FORBIDDEN_ITEM)
+            eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-5")) }
+            // Each of the deriving handler's two attempts derived the command again and handed its rejection over.
+            rejections.map { it.commandId }.assert().containsExactly(rejectedId("o-5"), rejectedId("o-5"))
+            // Parked under the @OnEvent handler's subscription: the receipt handler has none of its own.
+            ledger.isParked("CartSaga.onRemoveRejected", ORDER.ref(TENANT, "o-5")).assert().isFalse()
         }
 
     @Test

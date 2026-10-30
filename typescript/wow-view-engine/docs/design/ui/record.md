@@ -137,6 +137,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - **先显示已有的，再补全**：完整记录用 `runtime.fetchRecord`（按行键、叠宿主作用域、不带页上的条件与投影）——详情关于记录而不是列表。视图有新结果时再读一次；
 - **怎么排**：按定义的字段分组一节一节（`detailSections`），未分组的收在「其他」；搜索、删除开关这类非值字段不列。读法与卡片一致（`cardField`，`cellValue` 的 `detail` 呈现面）；长文本（带换行或超一行）整段原样、等宽、可滚、可复制（`LongText`）；
 - **头部放这一行的操作**：读完就要动手；
+- **命令在详情里说结局**：在详情头部按下的命令，结局行（`BulkStatus`）也画在抽屉里，不只画在被抽屉盖住的行下面（`ActionSurface.detailStatus`；UI 走查 UI-29；见 test/declaredActions.test.tsx「says how a command pressed in the detail went, in the detail」）。
 - **上一条／下一条**（R2-97）：头部的 ↑／↓ 两颗按钮与 K／J 在当前页里挪到前后一条，不关抽屉（`RecordDetail` 的 `rows` 与 `DetailStep`，一次挪动就是打开那一行，地址的 `?id=` 跟着走），旁边写「第 3 / 20 条」。到页首页尾那一颗留在键盘所在之处、名字换成原因（「已是本页第一条」），按下不动（`aria-disabled`，与被拒的行操作同一个做法）。不用 ↑／↓ 键：长记录要靠它们滚。凭链接打开、不在这一页上的记录、看板视图（卡片分在各栏，没有一个顺序）与嵌套的第二层都没有这一组（见 test/recordDetail.test.tsx「steps to the record before and after」）；
 - **结构读全**：数组对象**逐个元素**展开——「第 n 项」加标题徽章，再按元素声明的子字段逐项读，最后是未声明的部分；未声明元素的对象**逐个键**展开（原键名、等宽）；纯值数组连成一行；嵌套超过六层整段写出。结构与长文本放在名字**下面**、占满整宽（左侧竖线表示层级，`blockOf`），短值放在旁边——否则每深一层都再让出一列名字宽度（`record/DetailStructure.tsx`，子字段由 `cardField` 解析为 `elements`）（test/detailStructure.test.tsx「a structure in a record detail, read whole」）；
 - **读不到与已不在**：失败说出源的原因（`sourceReason`），下面仍是已有字段；记录已删除或出了作用域，说「这条记录已不在了」（test/recordDetail.test.tsx「a record read whole」「detailSections」）。

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.cocache
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
 import me.ahoo.cocache.api.Cache
 import me.ahoo.cocache.api.CacheReadException
@@ -45,6 +46,7 @@ import me.ahoo.wow.cocache.api.StateViewUnavailableException
 import java.io.IOException
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The state view caches of a service, one CoCache cache per aggregate type, each holding that type's states as the
@@ -100,8 +102,16 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         val reads: StateViewCache<V> = Reads(cache)
     }
 
+    /**
+     * The reads of one cache. It says once, at WARN, when it cannot serve ([reported]), and again only after it served
+     * a read since: a reader that falls back on [StateViewUnavailableException] need not log it, and an outage does not
+     * flood the log. Each further unavailable read is logged at DEBUG.
+     */
     private class Reads<V : Any>(private val cache: SuspendingCache<StateKey, V>) : StateViewCache<V> {
         override val name: String get() = cache.name
+
+        /** Whether the last read the cache could not serve was reported, and none served since. */
+        private val outage = AtomicBoolean()
 
         override suspend fun get(key: StateKey): V? = served(listOf(key)) { cache.get(key) }
 
@@ -109,29 +119,53 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
             served(keys) { cache.getAll(keys) }
 
         /**
-         * [read], whose failure to reach the states' source is a [StateViewUnavailableException]: the owner's read
-         * the loader could not make, CoCache's load that timed out, was refused or cancelled, or its backend's read
-         * that failed. A state that does not decode, or any other error, is thrown as it is.
+         * [read], whose failure to reach the states' source is a [StateViewUnavailableException], [reported]: the
+         * owner's read the loader could not make, CoCache's load that timed out, was refused or cancelled, or its
+         * backend's read that failed. A state that does not decode, or any other error, is thrown as it is.
          */
-        private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T = try {
-            read()
-        } catch (unavailable: StateViewUnavailableException) {
-            throw unavailable
-        } catch (source: SourceLoadTimeoutException) {
-            throw unavailable(keys, "its owner did not answer in time", source)
-        } catch (source: SourceLoadRejectedException) {
-            throw unavailable(keys, "too many reads of its owner are in flight", source)
-        } catch (source: SourceLoadCancelledException) {
-            throw unavailable(keys, "the read of its owner was cancelled", source)
-        } catch (backend: CacheReadException) {
-            if (backend.cause is ForeignFormatException) throw backend
-            throw unavailable(keys, "the cache's backend failed", backend)
+        private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T {
+            val failure = try {
+                return read().also {
+                    if (outage.get()) {
+                        outage.set(false)
+                    }
+                }
+            } catch (unavailable: StateViewUnavailableException) {
+                unavailable
+            } catch (source: SourceLoadTimeoutException) {
+                unavailable(keys, "its owner did not answer in time", source)
+            } catch (source: SourceLoadRejectedException) {
+                unavailable(keys, "too many reads of its owner are in flight", source)
+            } catch (source: SourceLoadCancelledException) {
+                unavailable(keys, "the read of its owner was cancelled", source)
+            } catch (backend: CacheReadException) {
+                if (backend.cause is ForeignFormatException) throw backend
+                unavailable(keys, "the cache's backend failed", backend)
+            }
+            throw reported(failure)
+        }
+
+        /** [failure], logged at WARN when it is the first since the cache last served a read, else at DEBUG. */
+        private fun reported(failure: StateViewUnavailableException): StateViewUnavailableException {
+            if (outage.compareAndSet(false, true)) {
+                logger.warn(failure) {
+                    "The cache $name cannot serve its states now: ${failure.message} Its readers that fall back do " +
+                        "so until it serves again; further failures until then are logged at DEBUG."
+                }
+            } else {
+                logger.debug(failure) { failure.message }
+            }
+            return failure
         }
 
         private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
             StateViewUnavailableException(keys, "The states $keys in $name cannot be served: $reason.", cause)
 
         override fun toString(): String = "StateViewCache($name)"
+
+        private companion object {
+            val logger = KotlinLogging.logger {}
+        }
     }
 
     /** What creates a CoCache cache of a spec: the runtime itself, or CoCache's starter, which applies its settings. */

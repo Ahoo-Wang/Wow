@@ -89,8 +89,12 @@ class AnalyticsCatalogAuthorizerTest {
         policy.evaluate(QueryCaller.IN_PROCESS, sources).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         policy.evaluate(QueryCaller.of(caller(AnalyticsCatalogRoles.VIEWER)), sources)
             .assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(caller("other")), sources) }
-            .code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)
+        listOf(caller(), caller("other")).forEach { reader ->
+            val refused = assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(reader), sources) }
+            refused.code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)
+            // The query is right, the caller may not run it (UI-35).
+            refused.errorCode.assert().isEqualTo(me.ahoo.wow.api.result.FrameworkCodes.AUTH_FORBIDDEN)
+        }
         // A published dataset is the data plane's: its readers need no catalog role.
         val dataset = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.DATASET)
         policy.evaluate(

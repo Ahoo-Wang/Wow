@@ -1248,9 +1248,7 @@ export interface JobManifest {
     readonly misfire: 'coalesce' | 'catch-up' | (string & {});
     // (undocumented)
     readonly name: string;
-    readonly scope: 'system' | 'tenant' | (string & {});
-    // (undocumented)
-    readonly sharded: boolean;
+    readonly scope: 'system' | 'tenant' | 'sharded' | (string & {});
     // (undocumented)
     readonly zone: string;
 }
@@ -1706,6 +1704,8 @@ export interface RetryManifest {
     // (undocumented)
     readonly recoverable?: readonly string[];
     // (undocumented)
+    readonly systemic?: readonly string[];
+    // (undocumented)
     readonly timeout?: string;
     // (undocumented)
     readonly unrecoverable?: readonly string[];
@@ -2062,7 +2062,7 @@ export interface SubscriptionManifest {
     // (undocumented)
     readonly source: SourceManifest;
     // (undocumented)
-    readonly start?: 'beginning' | 'end' | (string & {});
+    readonly start?: 'beginning' | 'end' | 'join' | (string & {});
 }
 
 // @public

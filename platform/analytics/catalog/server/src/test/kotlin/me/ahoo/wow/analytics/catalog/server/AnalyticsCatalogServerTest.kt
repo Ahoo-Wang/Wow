@@ -102,7 +102,10 @@ class AnalyticsCatalogServerTest {
         // The sources are read by the catalog's roles only.
         val ids = node.sources().assertOk().json.values().map { it["aggregateId"].asString() }
         ids.assert().contains(id)
-        node.sources(Who.NOBODY_IN_PARTICULAR).status.assert().isEqualTo(BAD_REQUEST)
+        // Anyone else may not read them (UI-35): the query is right, the caller is not one of the catalog's readers.
+        node.sources(Who.NOBODY_IN_PARTICULAR).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        node.get("/analytics-catalog/source/$id/state", Who.NOBODY_IN_PARTICULAR)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
         // The table dropped: the watcher marks its source missing.
         warehouse.tables.remove("${MemoryWarehouse.DATABASE}.${ORDERS.name}")
         eventually("the dropped table seen") { node.state(id)["state"]["missing"].asBoolean() }

@@ -387,10 +387,12 @@ export function BulkActionButtons({
             />
           );
         }
+        // Counted only where something can be sent: 「重试 1 条」 over one
+        // record that will not take it named a count of nothing.
         const named =
-          action.primary !== true
+          action.primary !== true || able === 0
             ? label
-            : able < count && able > 0
+            : able < count
               ? messages.label('label.action.bulk-able', {
                   action: label,
                   able,

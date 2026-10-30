@@ -26,6 +26,7 @@ import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
@@ -142,8 +143,9 @@ class WowProperties {
     var timers: Timers = Timers()
 
     /**
-     * Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the
-     * node runs fails its start.
+     * Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the
+     * retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's
+     * subscription configured under `wow.subscriptions`.
      */
     var schedules: MutableMap<String, Schedule> = LinkedHashMap()
     var tenant: Tenant = Tenant()
@@ -171,7 +173,10 @@ class WowProperties {
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
 
-    /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
+    /**
+     * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
+     * Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
+     */
     var cosec: CoSec = CoSec()
 
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
@@ -206,10 +211,31 @@ class WowProperties {
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
      * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no
      * stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true).
-     * `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type,
-     * names the transport.
+     * `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any
+     * profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the
+     * transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back
+     * to the topics in the JVM.
      */
     var transport: String = TransportSelection.AUTO
+
+    /** The in-memory provider's settings: the topics it keeps in the JVM. */
+    var memory: Memory = Memory()
+
+    /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
+    @InternalWowApi
+    class Memory {
+        /**
+         * The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in
+         * development without a transport), at least one: past it, a partition drops its oldest, as a broker's
+         * retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay
+         * bounded however long the node runs.
+         */
+        var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
+            set(value) {
+                require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
+                field = value
+            }
+    }
 
     @InternalWowApi
     class Node {
@@ -779,7 +805,8 @@ class WowProperties {
      * When a subscription pauses its partition on a systemic failure: at once on a failure classified systemic, or
      * when enough different aggregates failed within a window with no handling succeeding since. While paused, one
      * attempt at a time probes until a handling succeeds. A handler's failures are classified by its
-     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, then the runtime's own.
+     * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, then the modules' on the classpath,
+     * then the runtime's own.
      */
     @InternalWowApi
     class Systemic {
@@ -864,7 +891,8 @@ class WowProperties {
      * kind's default (a projection from the beginning, a reactor or a saga from the end). A subscription that has a
      * checkpoint goes on from it. [parked] is how its parked entries are retried, over `wow.subscription.parked`.
      * [retry] is its in-process retry budget before it parks, over its handler's `@Retry` and `wow.subscription.retry`.
-     * A name the node has no subscription of is refused at startup.
+     * A name the node has no subscription of is refused at startup, and so is the subscription of an `@OnSchedule` job,
+     * whose settings are its job's, `wow.schedules.<job>.*`.
      */
     @InternalWowApi
     class SubscriptionSettings {
@@ -1027,25 +1055,35 @@ class WowProperties {
     }
 
     /**
-     * The host's override of an `@OnSchedule` job's default rule: its cron [expression], its time
-     * [zone] and its [misfire] policy, each unset to keep the annotation's; [enabled] false disables a SYSTEM job's
-     * instances at startup. A tenant's own rule of a TENANT job comes before it.
+     * An `@OnSchedule` job's settings, the only place it is configured: its rule, the [cron], the time [zone] and the
+     * [misfire] policy, each unset to keep the annotation's (a tenant's own rule of a TENANT job comes before it);
+     * [enabled] false disables a SYSTEM or a SHARDED job's instances at startup; and the [retry] and [parked] retries
+     * of the subscriptions that run it, over its handler's `@Retry` and `wow.subscription.retry`, and over
+     * `wow.subscription.parked`.
      */
     @InternalWowApi
     class Schedule {
-        /** The job's cron expression, over its annotation's. */
-        var expression: String? = null
+        /** The job's cron, six fields, over its annotation's. */
+        var cron: String? = null
 
-        /** The time zone its expression is read in, over its annotation's. */
+        /** The time zone its cron is read in, over its annotation's. */
         var zone: String? = null
 
         /** What a firing missed while no node ran it does, over its annotation's. */
         var misfire: Misfire? = null
 
-        /** Whether a SYSTEM job's instances run; false disables them at startup. */
+        /** Whether a SYSTEM or a SHARDED job's instances run; false disables them at startup. */
         var enabled: Boolean = true
 
-        fun options(): JobOptions = JobOptions(expression, zone, misfire, enabled)
+        /** The in-process retry budget of the subscriptions that run it, before they park. */
+        var retry: RetrySpec = RetrySpec()
+
+        /** How their parked entries are retried. */
+        var parked: ParkedSpec = ParkedSpec()
+
+        /** These settings, the parked retries over [parkedBase], `wow.subscription.parked`'s. */
+        fun options(parkedBase: ParkedRetrySpec): JobOptions =
+            JobOptions(cron, zone, misfire, enabled, retry.handlerRetry(), parked.specOver(parkedBase))
     }
 
     /**

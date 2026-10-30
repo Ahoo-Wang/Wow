@@ -31,6 +31,13 @@ export interface OpsServices {
 }
 
 /**
+ * How long a request is waited for, in milliseconds: a service that stops
+ * answering ends in an error the page says, rather than a page that reads
+ * 「正在查询」 for ever. An action waits for its snapshot inside it too.
+ */
+export const REQUEST_TIMEOUT = 30_000;
+
+/**
  * The console's services on one fetcher, same-origin: the ops server serves
  * the console and the API from one place, and Vite forwards the API in
  * development. Every request carries the caller in force: the CoSec token it
@@ -40,11 +47,12 @@ export interface OpsServices {
 export function createOpsServices(
   tokens: TokenStorage = new TokenStorage(),
   callers: CallerStore = new CallerStore(undefined, tokens),
-  fetcher: Fetcher = new Fetcher({ baseURL: "" }),
+  fetcher: Fetcher = new Fetcher({ baseURL: "", timeout: REQUEST_TIMEOUT }),
 ): OpsServices {
-  withCoSec(fetcher, tokens, () => {
-    if (callers.get()?.via === "cosec") callers.set(null);
-  });
+  // A 401 signs out whoever was calling — a token the gateway or the
+  // service refused, or a caller of headers a deployment does not read —
+  // and the sign-in page says which.
+  withCoSec(fetcher, tokens, () => callers.refused());
   fetcher.interceptors.request.use(callerHeaders(callers.get));
   return {
     callers,

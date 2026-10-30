@@ -25,6 +25,7 @@ import me.ahoo.wow.test.reactorSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /** The shipment notifier tells a shipped order's buyer, once per commit, within its own retry budget. */
 class ShipmentNotifierTest {
@@ -77,6 +78,18 @@ class ShipmentNotifierTest {
         sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:${order.ref}@3:0")
     }
     // endregion
+
+    @Test
+    fun `the notifier should run under its own budget`() {
+        // A notification that outlasts the ten seconds is cancelled and counts as a failed attempt: the test DSL
+        // proves that path with a short timeout; here the budget is the notifier's @Retry.
+        val retry = checkNotNull(handlers.single().retry)
+        retry.maxAttempts.assert().isEqualTo(5)
+        retry.initialBackoff.assert().isEqualTo(1.seconds)
+        retry.maxBackoff.assert().isEqualTo(30.seconds)
+        retry.timeout.assert().isEqualTo(10.seconds)
+        retry.unrecoverable.assert().containsExactly(UnknownBuyerException::class.java)
+    }
 
     @Test
     fun `a notification failing past the notifier's budget should park`() = reactorSpec(handlers) {

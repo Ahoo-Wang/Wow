@@ -1,4 +1,5 @@
-description = "Wow CoSec: the caller from CoSec's security context, and command authorization"
+description = "Wow CoSec: the caller from CoSec's security context, and command authorization; experimental in 10.0: " +
+    "it follows CoSec 8's pre-release and may change within 10.x"
 
 dependencies {
     // The guard of the hand-written equals (finding R5.B-13).

@@ -21,6 +21,7 @@ import { PARKED_WORDS } from "@/views/parked.ts";
 import {
   entryOf,
   failureOf,
+  formatDuration,
   formatTime,
   optionWord,
   type ParkedField,
@@ -137,8 +138,16 @@ export function ParkedReading({
     value ? optionWord(locale, kind, value) : undefined;
   // An epoch-millisecond Long reads as its exact text (review R4-Q, Q-9).
   const time = (value: string | number | null | undefined) =>
-    formatTime(value === null || value === undefined ? value : Number(value), locale);
+    formatTime(
+      value === null || value === undefined ? value : Number(value),
+      locale,
+    );
   const label = (key: ParkedField) => words[key];
+  // Said for a reader, the stored text on hover.
+  const duration = (value: string | null | undefined) =>
+    value ? (
+      <span title={value}>{formatDuration(value, locale)}</span>
+    ) : undefined;
   const spec = entry.retrySpec;
   const aggregate = entry.aggregate;
 
@@ -151,8 +160,13 @@ export function ParkedReading({
           </Badge>
         ) : null}
         {entry.recoverable ? (
+          // Named, since its words alone (「未知」, "Unrecoverable") read as a
+          // second status beside the first.
           <Badge variant="outline">
-            {option("recoverable", entry.recoverable)}
+            {t("labelled", {
+              label: words.recoverable,
+              value: option("recoverable", entry.recoverable) ?? "",
+            })}
           </Badge>
         ) : null}
       </div>
@@ -197,8 +211,8 @@ export function ParkedReading({
         <Facts
           rows={[
             [label("maxRetries"), spec?.maxRetries],
-            [label("initialBackoff"), spec?.initialBackoff],
-            [label("claimTtl"), spec?.claimTtl],
+            [label("initialBackoff"), duration(spec?.initialBackoff)],
+            [label("claimTtl"), duration(spec?.claimTtl)],
             ...(spec?.applied ? [[t("applied"), "✓"] as [string, string]] : []),
           ]}
         />
@@ -215,12 +229,18 @@ export function ParkedReading({
         <Section title={t("refusal")}>
           <Facts
             rows={[
-              [label("refusedAction"), option("refusedAction", entry.refusedAction)],
+              [
+                label("refusedAction"),
+                option("refusedAction", entry.refusedAction),
+              ],
               [label("refusalCode"), entry.refusalCode ?? undefined],
               [label("refusalReason"), entry.refusalReason ?? undefined],
             ]}
           />
-          <p className="text-sm text-muted-foreground" data-testid="parked-refusal">
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="parked-refusal"
+          >
             {t("refusalHint")}
           </p>
         </Section>

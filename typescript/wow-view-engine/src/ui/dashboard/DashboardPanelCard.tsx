@@ -55,6 +55,7 @@ import type { HandleMove } from '../kit/DragHandle.js';
 import { ContentPanel } from './DashboardPanels.js';
 import type { PanelCommands } from './commands.js';
 import type { PanelPress } from './press.js';
+import { isNumberCard, OpensNumber } from './OpensNumber.js';
 import { hasMenu, PanelMenu, PanelTitleInput } from './PanelMenu.js';
 import { PanelExport } from './PanelExport.js';
 import { useScrollMore } from './scrollMore.js';
@@ -399,6 +400,11 @@ export function DashboardPanelCard({
                   wayOut={wayOut}
                   nameIssue={nameIssue}
                   press={press}
+                  {...(panel.panel.kind === 'view' &&
+                  panel.panel.opens &&
+                  commands?.open
+                    ? { opens: commands.open }
+                    : {})}
                   headingLevel={headingLevel}
                   record={record}
                   name={name}
@@ -586,6 +592,7 @@ function PanelBody({
   wayOut,
   nameIssue,
   press,
+  opens,
   headingLevel,
   record,
   name,
@@ -599,6 +606,11 @@ function PanelBody({
    */
   nameIssue: (found: Issue) => Issue;
   press?: PanelPress;
+  /**
+   * Opens the view the author named for the panel (`opens`): a number card
+   * is that press as a whole, since it has no group of its own to press.
+   */
+  opens?: () => void;
   /** The panel title's level, which a note's own headings go under. */
   headingLevel: PanelHeadingLevel;
   record?: RecordPanelHost;
@@ -623,10 +635,18 @@ function PanelBody({
     return <ContentPanel panel={panel.panel} headingLevel={headingLevel} />;
   if (!panel.runtime)
     return <PanelUnavailable issue={panel.issues[0]} {...out} />;
-  if (isAnalysisRuntime(panel.runtime))
-    return (
+  if (isAnalysisRuntime(panel.runtime)) {
+    const body = (
       <AnalysisPanel runtime={panel.runtime} onRetry={onRetry} press={press} />
     );
+    return opens && isNumberCard(panel.runtime.getSnapshot().draft) ? (
+      <OpensNumber name={name} onOpen={opens}>
+        {body}
+      </OpensNumber>
+    ) : (
+      body
+    );
+  }
   return isRecordRuntime(panel.runtime) ? (
     <RecordPanel
       runtime={panel.runtime}

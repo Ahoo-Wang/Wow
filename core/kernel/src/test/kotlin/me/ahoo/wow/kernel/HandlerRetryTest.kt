@@ -142,4 +142,35 @@ class HandlerRetryTest {
         ).classify(IllegalStateException("x")).assert().isEqualTo(FailureClass.RECOVERABLE)
         HandlerRetry(maxAttempts = 2).classify(IllegalStateException("x")).assert().isNull()
     }
+
+    @Test
+    fun `a systemic class should pause the partition, the nearer list deciding, then recoverable, then systemic`() {
+        val retry = HandlerRetry(
+            recoverable = listOf(IllegalStateException::class.java),
+            unrecoverable = listOf(IllegalArgumentException::class.java),
+            systemic = listOf(java.io.UncheckedIOException::class.java, NumberFormatException::class.java),
+        )
+        retry.classify(
+            java.io.UncheckedIOException(java.io.IOException("down"))
+        ).assert().isEqualTo(FailureClass.SYSTEMIC)
+        // NumberFormatException extends IllegalArgumentException: its own class, systemic, is nearer.
+        retry.classify(NumberFormatException("x")).assert().isEqualTo(FailureClass.SYSTEMIC)
+        retry.classify(IllegalArgumentException("x")).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        // On a tie, recoverable before systemic, systemic before unrecoverable.
+        HandlerRetry(
+            recoverable = listOf(RuntimeException::class.java),
+            systemic = listOf(RuntimeException::class.java),
+        ).classify(IllegalStateException("x")).assert().isEqualTo(FailureClass.RECOVERABLE)
+        HandlerRetry(
+            systemic = listOf(RuntimeException::class.java),
+            unrecoverable = listOf(RuntimeException::class.java),
+        ).classify(IllegalStateException("x")).assert().isEqualTo(FailureClass.SYSTEMIC)
+        // A handler's own list replaces its processor's.
+        HandlerRetry(systemic = listOf(IllegalStateException::class.java))
+            .over(HandlerRetry(systemic = listOf(IllegalArgumentException::class.java))).systemic
+            .assert().containsExactly(IllegalStateException::class.java)
+        assertThrows<IllegalArgumentException> { HandlerRetry(systemic = emptyList()) }
+        HandlerRetry.of(0, "", "", "", emptyList(), emptyList(), systemic = listOf(IllegalStateException::class.java))
+            .assert().isEqualTo(HandlerRetry(systemic = listOf(IllegalStateException::class.java)))
+    }
 }

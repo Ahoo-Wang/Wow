@@ -226,7 +226,7 @@ internal object SubscriptionSource {
         val rule = "$SCHEDULE.ScheduleRule.Cron.of(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
             "$SCHEDULE.Misfire.${job.misfire})"
         val definition = "$KERNEL.schedule.ScheduleJob.of(\"${escape(job.name)}\", $rule, " +
-            "$SCHEDULE.JobScope.${job.scope}, ${job.sharded})"
+            "$SCHEDULE.JobScope.${job.scope})"
         val receipts = (if (rejections) ", rejections = rejections" else "") +
             if (commits) ", commits = commits" else ""
         val retry = handler.retry?.let { ", retry = ${it.source()}" }.orEmpty()

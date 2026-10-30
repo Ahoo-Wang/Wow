@@ -32,7 +32,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.state.StateEventRecord
-import kotlin.time.Duration
 
 /**
  * A subscription: a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -283,28 +282,19 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
 }
 
 /**
- * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout]
- * ([RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
- */
-internal class HandlerTimeoutException(
-    val subscription: String,
-    val ref: AggregateRef,
-    val version: Int,
-    val timeout: Duration,
-) : IllegalStateException("$subscription did not handle $ref@$version within $timeout.")
-
-/**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of
- * the context when empty), holding at least one event whose stored name is in [events] (any event when empty).
+ * the context when empty), of the aggregates whose id is in [ids] (any id when empty: a job's subscription reads its
+ * job's instances alone), holding at least one event whose stored name is in [events] (any event when empty).
  * Event names are the names the log stores (`context.aggregate.Event`). Without models a renamed event must be listed
  * under its former names too; [resolve] adds them from the models. An entry outside the filter still moves the
- * checkpoint.
+ * checkpoint, its state never read.
  */
 @InternalWowApi
 data class SubscriptionFilter(
     val context: String,
     val aggregates: Set<String> = emptySet(),
     val events: Set<String> = emptySet(),
+    val ids: Set<String> = emptySet(),
 ) {
     init {
         require(context.isNotBlank()) { "A subscription filter needs a context." }
@@ -314,6 +304,7 @@ data class SubscriptionFilter(
         val type = stream.ref.type
         return type.context == context &&
             (aggregates.isEmpty() || type.name in aggregates) &&
+            (ids.isEmpty() || stream.ref.id in ids) &&
             (events.isEmpty() || stream.events.any { it.name in events })
     }
 

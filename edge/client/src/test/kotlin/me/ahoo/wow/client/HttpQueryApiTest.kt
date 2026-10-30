@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -253,6 +254,9 @@ class HttpQueryApiTest {
     fun `a typed query should read whole records, a projection only through dynamic()`(): Unit = runBlocking {
         val projected = ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("state"))))
         caught<IllegalArgumentException> { runBlocking { boxes.list(projected).toList() } }
+        // A projection that only leaves fields out is refused too.
+        val excluded = ListQuery(MatchAllFilter, projection = Projection(exclude = listOf(QueryField("state"))))
+        caught<IllegalArgumentException> { runBlocking { boxes.list(excluded).toList() } }
         peer.reply(Reply.json(listOf(mapOf("state" to mapOf("items" to 1)))))
         boxes.dynamic<Map<String, Any>>().list(projected).toList().single().keys.assert().containsExactly("state")
         caught<IllegalArgumentException> { runBlocking { boxes.state(AggregateType("mail", "other").ref("t1", "x")) } }
@@ -271,6 +275,8 @@ class HttpQueryApiTest {
         caught<IllegalArgumentException> { models.typeOf(HttpCommandClientTest.DeliverItems::class.java) }
             .message.assert().contains("share the state")
         caught<IllegalArgumentException> { models.typeOf(String::class.java) }
+            // The code's mistake, not the caller's: a command function that makes it fails its command (PA-9).
+            .assert().isInstanceOf(Misuse.Argument::class.java)
         PeerModels.of(listOf(Manifest(contexts = listOf(mail.contexts.first()))))
             .typeOf(HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo(BOX)
     }

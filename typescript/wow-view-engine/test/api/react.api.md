@@ -60,6 +60,7 @@ type ActionForm = Readonly<Record<string, ActionFormField>>;
 
 // @public
 interface ActionFormField {
+    check?(value: unknown): Availability;
     initial?: string | number | boolean;
     input?: 'text' | 'number' | 'boolean';
     // (undocumented)
@@ -670,6 +671,7 @@ export interface BulkFailure {
 
 // @public
 export interface BulkOutcome {
+    done?: string;
     failed: readonly BulkFailure[];
     kept: readonly RecordKey[];
     refused: readonly BulkFailure[];
@@ -694,6 +696,7 @@ export interface BulkProgress {
 
 // @public
 export interface BulkRun {
+    done?: string;
     each(key: RecordKey, options: {
         signal: AbortSignal;
     }): Promise<unknown>;
@@ -2842,6 +2845,7 @@ export interface PendingAction {
     form: boolean;
     // (undocumented)
     input: ActionInput;
+    invalid: Readonly<Record<string, string>>;
     keys: readonly RecordKey[];
     missing: readonly string[];
     // (undocumented)
@@ -2985,6 +2989,7 @@ interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+    readonly done?: string;
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
     readonly id: string;
@@ -3687,6 +3692,7 @@ export interface SaveAbilities {
     createSystem: boolean;
     // (undocumented)
     delete: boolean;
+    local?: boolean;
     // (undocumented)
     rename: boolean;
     revert: boolean;
@@ -4417,6 +4423,7 @@ interface ViewPermissions {
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
+    local?: boolean;
     // (undocumented)
     reorder: boolean;
     // (undocumented)
@@ -4559,6 +4566,7 @@ interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions_2): Promise<ViewListPage>;
+    readonly local?: boolean;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)

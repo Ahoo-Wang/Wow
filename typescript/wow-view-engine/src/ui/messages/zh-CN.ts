@@ -239,7 +239,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.record.detail.partial': '下面是列表里已有的字段。',
   'label.record.detail.other': '其他',
   'label.record.detail.element': '第 {index} 项',
-  'label.record.detail.retry': '重试',
+  'label.record.detail.retry': '重新加载',
   'label.record.detail.back': '返回 {key}',
   'label.record.detail.previous': '上一条',
   'label.record.detail.next': '下一条',
@@ -457,7 +457,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.filter.no-candidate': '没有匹配的候选',
   'label.filter.more-candidates': '更多',
   'label.filter.candidates-failed': '候选加载失败',
-  'label.filter.candidates-retry': '重试',
+  'label.filter.candidates-retry': '重新加载',
   'label.filter.pick-or-type': '选择或输入一个值',
   'label.search.hint': '按 Enter 搜索。',
   'label.search.by-words': '{field}（按词检索）…',
@@ -684,6 +684,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.scope.tag.shared': '共享',
   'label.scope.personal.description': '只有你看得到。',
   'label.scope.shared.description': '用这份数据的人都看得到。',
+  // 视图只存在这个浏览器里时（`ViewStore.local`），代替「给谁看」这一问。
+  'label.scope.local': '保存在这个浏览器里：只有你看得到，也只在这里。',
   'label.scope.system.description':
     '用这份数据的人都看得到，列在系统视图里；只有获准的人能修改。',
   'label.scope.system-stored': '所有人都看得到；只有获准的人能修改',
@@ -703,7 +705,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.view.new-title': '新视图',
   'label.view.unopenable': '无法打开这个视图',
   'label.view.open-default': '回到默认视图',
-  'label.view.open-retry': '重试',
+  'label.view.open-retry': '重新加载',
   'label.view.needs-fixing': '这个视图要先修正才能运行',
   'label.view.conditions-to-fix': '条件要先修正，视图才会查询（{count} 项）',
   'label.view.show-conditions': '查看条件',
@@ -1840,7 +1842,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dashboard.write-conflict': '别人先保存了这个仪表盘',
   'label.dashboard.scope-refused': '页面的作用域条件对这个仪表盘不适用',
   'label.dashboard.render-hint':
-    '仪表盘的其余部分照常可用；重试会重新绘制这一块。',
+    '仪表盘的其余部分照常可用；重新加载会重新绘制这一块。',
   'label.dashboard.unopenable': '无法打开这个仪表盘',
   'label.dashboard.open-default': '回到默认仪表盘',
   'label.dashboard.save-group': '仪表盘操作',
@@ -1946,8 +1948,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '请视图的所有者打开它修正，或者请这个仪表盘的维护者替换这个面板。',
   'label.panel.way-out.dashboard': '仪表盘修正之后，这个面板会重新运行。',
   'label.panel.way-out.retry':
-    '请重试；一直打不开的话，请联系这个仪表盘的维护者。',
-  'label.panel.retry': '重试',
+    '请重新加载；一直打不开的话，请联系这个仪表盘的维护者。',
+  'label.panel.retry': '重新加载',
   'label.panel.finding': '「{panel}」：{finding}',
   'label.panel.resize': '调整「{title}」的大小',
   'label.panel.handle': '移动或调整「{title}」大小',
@@ -2193,6 +2195,8 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.panel.menu.view': '数据',
   'label.panel.menu.edit': '编辑面板',
   'label.panel.open': '在工作台中打开',
+  // 作者为数字卡指明了它所计的视图（`opens`）：整张卡都可按。
+  'label.panel.open-number': '在工作台中打开「{name}」',
   'label.panel.refresh': '刷新这个面板',
   'label.panel.export': '导出数据…',
   'label.panel.rename': '改标题',
@@ -2352,7 +2356,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.query.forbidden': '无权限',
   'label.query.stale': '{error} · 显示的是上一次成功的结果',
   'label.query.stale-conditions': '{error} · 显示的是改条件之前的结果',
-  'label.query.retry': '重试',
+  'label.query.retry': '重新加载',
   'label.write.conflict': '别人先保存了这个视图',
   'label.write.unknown': '{what}没有收到答复，可能已经成功',
   'label.write.action.save': '保存',
@@ -2364,8 +2368,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.image.failed': '图片加载失败',
   'label.image.link': '打开链接的页面',
   'label.render.failed': '这一块没能画出来',
-  'label.render.failed-hint': '视图的其余部分照常可用；重试会重新绘制这一块。',
-  'label.render.retry': '重试',
+  'label.render.failed-hint':
+    '视图的其余部分照常可用；重新加载会重新绘制这一块。',
+  'label.render.retry': '重新加载',
 
   // 定义准入。
   'definition.field.search-fields-unknown':

@@ -30,6 +30,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-pg-cross-partition](v10-pg-cross-partition.md) | PostgreSQL commits several partitions' groups with one statement (D280): L1 merging off against on, and end to end against `main` on disk (fixed rates and closed-loop sweeps), with the first version's regression | Decision for D280 |
 | [v10-actions-l3-l4-rc](v10-actions-l3-l4-rc.md) | The pre-rc refresh on Actions (roadmap §6 item 19): L3 against `10.0.0-alpha.4` at 1k and 100k accounts, L4's sustainable rates, cliffs, cluster and cold cache, with the code of `10.0.0-alpha.5` | Snapshot for its commits |
 | [v10-m5max-snapshot](v10-m5max-snapshot.md) | The milestone saturation snapshot on the Apple M5 Max (18 cores, 64 GB): ceilings, disk vs memory (tmpfs), an A/A pair, L1, three nodes on one host and JDK 25 | Snapshot for its commit |
+| [v10-vs-axon](v10-vs-axon.md) | Wow against Axon Framework 4 on PostgreSQL: Apple Silicon local baseline, M4 Pro and M5 Max | Industry comparison |
 
 ## 9.x
 

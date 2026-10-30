@@ -16,6 +16,7 @@ package me.ahoo.wow.ops.server
 import me.ahoo.cosec.runtime.identity.IdentityCodec
 import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -87,6 +88,7 @@ class OpsCoSecTest {
     )
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `the caller should be CoSec's`() {
         ops.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
     }
@@ -115,9 +117,32 @@ class OpsCoSecTest {
     @Test
     fun `a viewer should read the entries and may not act on them`() {
         val id = ops.publish(entry("shop-viewer", "p-1"))
-        val viewer = signedIn("victor", "ops.viewer")
+        val viewer = signedIn("victor", OpsRoles.VIEWER)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", viewer).status == OK }
         ops.post("/ops/parked/$id/skip", "{}", viewer).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+    }
+
+    @Test
+    fun `a principal with neither ops role should read nothing, refused as forbidden (UI-1)`() {
+        val id = ops.publish(entry("shop-roleless", "p-1"))
+        val operator = signedIn("alice", OpsRoles.OPERATOR)
+        eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
+        val everything = """{"op":"match-all"}"""
+        val history = """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}"""
+        // A principal with no role, and one with a role of another service: owner-level callers, whose owner does not
+        // restrict an entry of their tenant (the entries are the tenant's, Ownership.TENANT).
+        listOf(signedIn("nobody"), signedIn("stranger", "someone.else")).forEach { reader ->
+            ops.post(QUERY, """{"kind":"count","filter":$everything}""", reader)
+                .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.post(QUERY, """{"kind":"list","filter":$everything}""", reader)
+                .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.post("/ops/parked/events/query", history, reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state/trace", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        }
+        // A viewer reads them, as the operator did.
+        ops.post(QUERY, """{"kind":"count","filter":$everything}""", signedIn("victor", OpsRoles.VIEWER)).assertOk()
+        ops.get("/ops/parked/$id/state", signedIn("victor", OpsRoles.VIEWER)).assertOk()
     }
 
     @Test
@@ -134,6 +159,7 @@ class OpsCoSecTest {
 
     private companion object {
         const val DEFAULT_TENANT = "(0)"
+        const val QUERY = "/ops/parked/snapshot/query"
         const val SAGA = "PaymentSaga.onOrderPlaced"
         const val FAILED_AT = 1_700_000_000_000L
         const val OK = 200

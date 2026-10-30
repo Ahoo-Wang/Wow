@@ -56,6 +56,7 @@ class RetryBindingTest {
 
         class Carrier {
             class BusyException : RuntimeException()
+            class DownException : RuntimeException()
         }
 
         @Reactor
@@ -75,7 +76,7 @@ class RetryBindingTest {
             fun onEvent(event: StateEvent<OrderState>) = Unit
 
             @OnEvent
-            @Retry(maxBackoff = "1m", multiplier = 1.5)
+            @Retry(maxBackoff = "1m", multiplier = 1.5, systemic = [Carrier.DownException::class])
             fun own(event: StateEvent<OrderState>) = Unit
         }
         """.trimIndent(),
@@ -106,7 +107,9 @@ class RetryBindingTest {
         bindings.getValue("Notifier.inherited").retry.assert()
             .isEqualTo(HandlerRetry(maxAttempts = 3, timeout = 2.seconds, unrecoverable = invalid))
         bindings.getValue("Board.onEvent").retry.assert().isNull()
-        bindings.getValue("Board.own").retry.assert().isEqualTo(HandlerRetry(maxBackoff = 60.seconds, multiplier = 1.5))
+        val down = loader.loadClass("sample.shop.Carrier\$DownException").asSubclass(Throwable::class.java)
+        bindings.getValue("Board.own").retry.assert()
+            .isEqualTo(HandlerRetry(maxBackoff = 60.seconds, multiplier = 1.5, systemic = listOf(down)))
 
         val fragment = compilation.workingDir.walkTopDown()
             .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
@@ -127,7 +130,13 @@ class RetryBindingTest {
         subscriptions.getValue("Board.onEvent").retry.assert().isNull()
         subscriptions.getValue(
             "Board.own"
-        ).retry.assert().isEqualTo(RetryManifest(maxBackoff = "PT1M", multiplier = 1.5))
+        ).retry.assert().isEqualTo(
+            RetryManifest(
+                maxBackoff = "PT1M",
+                multiplier = 1.5,
+                systemic = listOf("sample.shop.Carrier.DownException"),
+            ),
+        )
     }
 
     @Test
@@ -186,7 +195,9 @@ class RetryBindingTest {
             .contains("handler Shaky.onEvent is annotated @Retry(maxBackoff = \"-1s\"): it is never negative")
             .contains("handler Shaky.onEvent is annotated @Retry(timeout = \"0s\"): it is positive")
             .contains("handler Shaky.onEvent is annotated @Retry(multiplier = 0.5): a backoff never shrinks")
-            .contains("handler Compensating.onRejected is annotated @Retry: an @OnRejected handler compensates")
+            .contains(
+                "handler Compensating.onRejected is annotated @Retry: an @OnRejected handler takes the budget of where"
+            )
     }
 
     @Test

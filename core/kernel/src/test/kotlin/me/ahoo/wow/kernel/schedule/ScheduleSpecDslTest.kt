@@ -56,7 +56,7 @@ class ScheduleSpecDslTest {
 
     private val account = AggregateType("billing", "account")
     private val invoice = ScheduleJob("invoice", ScheduleRule.Cron("0 0 0 1 * *"), JobScope.TENANT)
-    private val sweep = ScheduleJob("sweep", ScheduleRule.Cron("0 0 * * * *"), sharded = true)
+    private val sweep = ScheduleJob("sweep", ScheduleRule.Cron("0 0 * * * *"), JobScope.SHARDED)
     private val nightly = ScheduleJob("nightly", ScheduleRule.Cron("0 0 3 * * *"))
 
     private val handlers = listOf(
@@ -242,15 +242,14 @@ class ScheduleSpecDslTest {
     }
 
     @Test
-    fun `a job handler is a saga handler of the job aggregate that takes only its job's ticks`(): Unit = runBlocking {
+    fun `a job handler is a saga handler of the job aggregate, handed its instances' ticks`(): Unit = runBlocking {
         val handler = handlers.first()
         handler.job.assert().isEqualTo(invoice)
         handler.kind.assert().isEqualTo(FunctionKind.SAGA)
         handler.stateType.assert().isEqualTo(JobState::class.java)
         handler.nullableState.assert().isFalse()
-        val ref = ScheduleJobModel.refOf("billing", "nightly")
-        val other = stateEvent(ref, JobState().apply { job = "nightly" }, Ticked("t", 1, 0, 0))
-        handler.invoke(other, contextOf(FunctionKind.SAGA, handler.name, other)).assert().isEmpty()
+        // Its subscription reads its job's instances alone (ScheduleJobModel.instanceIds): each tick is its job's.
+        val ref = ScheduleJobModel.refOf("billing", "invoice", "acme")
         val own = stateEvent(ref, JobState().apply { job = "invoice" }, Ticked("t", 1, 0, 0))
         handler.invoke(own, contextOf(FunctionKind.SAGA, handler.name, own)).assert().hasSize(1)
     }

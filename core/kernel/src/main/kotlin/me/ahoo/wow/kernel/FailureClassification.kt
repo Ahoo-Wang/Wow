@@ -15,9 +15,11 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.StorageRefusedException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -25,12 +27,7 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.transport.TransportRefusedException
 import me.ahoo.wow.spi.transport.TransportUnavailableException
-import java.net.SocketException
-import java.net.UnknownHostException
-import java.net.http.HttpConnectTimeoutException
-import java.sql.SQLException
-import java.sql.SQLNonTransientConnectionException
-import java.sql.SQLTransientConnectionException
+import java.util.ServiceLoader
 import kotlin.time.Duration
 
 /**
@@ -38,9 +35,9 @@ import kotlin.time.Duration
  * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first, of the failure itself or, for an
  * [UnreadableEventException], of what the kernel could not read; then, for the failure and each of its causes
  * in turn, each of [classifiers] in order, the first class one gives deciding; [FailureClass.RECOVERABLE] when none
- * does. The backends classify nothing: they throw the SPI's typed failures, which the built-in classifier
- * ([BuiltInFailures]) knows. A [HandlingRejectedException] is no failure to classify: a business outcome, it parks
- * the aggregate at once.
+ * does. [of] orders them: the application's, then the modules' found on the classpath ([MODULES]), then the caller's
+ * own, then the built-in rules for Wow's SPI failures ([BuiltInFailures]). A [HandlingRejectedException] is no
+ * failure to classify: a business outcome, it parks the aggregate at once.
  */
 @InternalWowApi
 class FailureClassification(private val classifiers: List<FailureClassifier>) {
@@ -60,12 +57,31 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
         /** The causes a classification walks at most: the failure, its cause, and so on. */
         private const val MAX_CAUSES = 16
 
-        /** The built-in classifier alone ([BuiltInFailures]). */
-        val DEFAULT: FailureClassification = FailureClassification(listOf(BuiltInFailures))
+        /**
+         * The classifiers of the modules on the classpath (`ServiceLoader`, from a module's
+         * `META-INF/services/me.ahoo.wow.spi.subscription.FailureClassifier`), as `StoreProvider`s and
+         * `TransportProvider`s are found: each knows the raw failures of its own technology that an application's
+         * handler meets (a JDBC driver's in `wow-postgres`, the JDK's network failures in `wow-client`), in the order
+         * of their class names.
+         */
+        val MODULES: List<FailureClassifier> by lazy { modulesOf(FailureClassification::class.java.classLoader) }
 
-        /** [classifiers], the application's and the runtime's own, then the built-in one. */
-        fun of(classifiers: List<FailureClassifier> = emptyList()): FailureClassification =
-            if (classifiers.isEmpty()) DEFAULT else FailureClassification(classifiers + BuiltInFailures)
+        /** The modules' classifiers [classLoader] finds, as [MODULES] are found. */
+        fun modulesOf(classLoader: ClassLoader): List<FailureClassifier> =
+            ServiceLoader.load(FailureClassifier::class.java, classLoader).sortedBy { it.javaClass.name }
+
+        /** The modules' classifiers, then the built-in one: no application's, as the test DSL classifies. */
+        val DEFAULT: FailureClassification by lazy { of() }
+
+        /**
+         * The [application]'s classifiers, then the [modules]', then the caller's [own] (the runtime's), then the
+         * built-in one: the first that knows a failure decides.
+         */
+        fun of(
+            application: List<FailureClassifier> = emptyList(),
+            own: List<FailureClassifier> = emptyList(),
+            modules: List<FailureClassifier> = MODULES,
+        ): FailureClassification = FailureClassification(application + modules + own + BuiltInFailures)
 
         /**
          * The wait [failure] asks for before a retry, the server's `Retry-After` ([WowProblemException.retryAfter]),
@@ -82,15 +98,13 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
 }
 
 /**
- * The failures classified whatever the backends:
+ * The failures classified whatever the modules: Wow's own SPI failures, which every backend throws for its
+ * technology's. A raw failure of a technology (a JDBC driver's, the JDK's network failures) is the classifier's of the
+ * module that owns it ([FailureClassification.MODULES]); without that module, it is recoverable.
  *
  * - [FailureClass.SYSTEMIC], a downstream that is down: a store a port could not reach ([StorageUnavailableException],
  *   or a command or call answered `wow.storage.unavailable`), a peer a client reached no node of
- *   (`wow.peer.unavailable`), a transport it could not reach
- *   ([TransportUnavailableException]), a socket that could not connect or was reset
- *   ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve, an HTTP connection
- *   that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
- *   [SQLNonTransientConnectionException], SQL state class `08`).
+ *   (`wow.peer.unavailable`), and a transport it could not reach ([TransportUnavailableException]).
  * - [FailureClass.BACKPRESSURE], a downstream that is up but overloaded: a store that did not admit the call
  *   ([StorageBusyException], a query store's bulkhead or a server at its capacity; checked before the
  *   [StorageUnavailableException] it is a kind of), and a command or call answered `wow.command.busy`,
@@ -99,14 +113,16 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
  *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
  *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
- *   same way every time.
+ *   same way every time, or that derives what is no derived request ([InvalidDerivedRequestException]: no command
+ *   request, or one with a wait or a timeout); a Wow API the handler used in a way it cannot serve ([Misuse]: a read
+ *   of a state class no aggregate has, a command to a context no peer describes), the code's mistake, which fails the
+ *   same way every time; and a failure a handler says no retry changes ([UnrecoverableHandlingException]).
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
  * aggregate's own, retried within its budget.
  */
 internal object BuiltInFailures : FailureClassifier {
-    private const val CONNECTION_EXCEPTION_CLASS = "08"
     private const val TOO_MANY_REQUESTS = 429
 
     /** The codes of a downstream that asks to be called later. */
@@ -122,18 +138,14 @@ internal object BuiltInFailures : FailureClassifier {
             failure.code == FrameworkCodes.PEER_UNAVAILABLE -> FailureClass.SYSTEMIC
             else -> null
         }
-        is StorageRefusedException, is TransportRefusedException, is UndeclaredSendException -> FailureClass.UNRECOVERABLE
-        is StorageUnavailableException,
-        is TransportUnavailableException,
-        is SocketException,
-        is UnknownHostException,
-        is HttpConnectTimeoutException,
-        is SQLTransientConnectionException,
-        is SQLNonTransientConnectionException,
-        -> FailureClass.SYSTEMIC
-        is SQLException -> FailureClass.SYSTEMIC.takeIf {
-            failure.sqlState?.startsWith(CONNECTION_EXCEPTION_CLASS) == true
-        }
+        is StorageRefusedException,
+        is TransportRefusedException,
+        is UndeclaredSendException,
+        is InvalidDerivedRequestException,
+        is Misuse,
+        is UnrecoverableHandlingException,
+        -> FailureClass.UNRECOVERABLE
+        is StorageUnavailableException, is TransportUnavailableException -> FailureClass.SYSTEMIC
         else -> null
     }
 }

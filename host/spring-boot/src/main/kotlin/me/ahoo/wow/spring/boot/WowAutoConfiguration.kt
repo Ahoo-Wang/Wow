@@ -141,7 +141,8 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Admission**: every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
  *   ([CommandAuthorizer.allOf]); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider, the id generators: the [GlobalIdGenerator] bean
- *   (UUIDv7 unless the application or wow-cosid gives one) and, per aggregate type, the [AggregateIdGenerator] bean
+ *   (UUIDv7 unless the application gives one; wow-cosid gives aggregate ids alone) and, per aggregate type,
+ *   the [AggregateIdGenerator] bean
  *   `wow.aggregates.*.id-generator` names, or one an [AggregateIdGeneratorSource] bean finds by that name, else the
  *   `wowAggregateIdGenerator` bean (the global generator's ids unless replaced); the fixed tenants of
  *   `wow.aggregates.*.tenant`, and `wow.wait.default-timeout`, the node's default wait timeout for every entry.

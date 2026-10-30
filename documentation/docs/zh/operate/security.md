@@ -24,6 +24,10 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
 
+::: warning wow-cosec 在 10.0 中是实验性的
+`wow-cosec` 跟随 CoSec 8.0.0，而 CoSec 8.0.0 仍是预发布版本，所以 `wow-cosec` 在 10.x 内可能改变。它的类型（`CoSecCallerResolver`、`CoSecCallerOptions`、`CoSecCommandAuthorizer`、`CoSecServiceRouteAuthorizer`、`CoSecActions`）以及宿主的 `CoSecAutoConfiguration` 和 `CoSecRouteMapAutoConfiguration` 都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.cosec.*` 配置键也可能随之改变。只靠依赖和配置键启用 CoSec 的服务无需再做什么；在 Kotlin 代码里用到这些类型时，以 `@OptIn(ExperimentalWowApi::class)` 选择使用。CoSec 8 正式发布后，一个 10.x 的次版本会去掉这个标记。不用 CoSec 的服务不受影响：其余 API 的级别不变。
+:::
+
 类路径上有 `wow-cosec` 以及 CoSec 的 starter 和 WebFlux 模块（`me.ahoo.cosec:cosec-spring-boot`、`me.ahoo.cosec:cosec-webflux`）时，除非应用自己定义了 `CallerResolver`，CoSec 的解析器就是宿主的解析器。CoSec 的管道认证每个请求并解析它的作用域，即决定这个请求时所在的应用和空间；解析器把 CoSec 构建的安全上下文变成调用方：
 
 - **租户和主体标识**来自主体；CoSec 的默认租户 `(0)` 即 `wow.tenant.default`。没有已认证主体的请求，或者安全上下文不是 CoSec 的管道构建的请求，返回 401。

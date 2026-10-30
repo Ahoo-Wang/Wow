@@ -22,7 +22,7 @@ import {
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import { ParkedSnapshotQueryClient } from "@/generated/index.ts";
-import { overview } from "./overview.ts";
+import { OVERVIEW, overview } from "./overview.ts";
 import { parked } from "./parked.ts";
 
 /**
@@ -43,6 +43,23 @@ export function parkedSource(fetcher: Fetcher): ViewSource {
 export function browserViewStore(): ViewStore {
   return new MemoryViewStore({
     snapshot: localStorageSnapshot("wow-ops-console:views"),
+    // Nobody else reads this browser's views: nothing is shared, a saved
+    // view has no link, and a copy says it stays here.
+    local: true,
+    permissions: (definitionId) => ({
+      // The overview is the console's one board, a system board: there is
+      // no page to make another, so no view is offered a board to join.
+      createPersonal: definitionId !== OVERVIEW,
+      createShared: false,
+      reorder: true,
+      setDefault: true,
+      instance: () => ({
+        save: true,
+        rename: true,
+        delete: true,
+        changeAudience: false,
+      }),
+    }),
   });
 }
 

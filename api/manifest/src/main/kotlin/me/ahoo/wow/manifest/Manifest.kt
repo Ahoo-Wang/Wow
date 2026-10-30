@@ -555,10 +555,8 @@ class EventManifest @InternalWowApi constructor(
  *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events. A handler of both
  *   receipts, annotated both, has both set.
  * - [start] is where a new subscription starts in the log: what `@OnEvent(start)` declares,
- *   else [SubscriptionStart.defaultFor] its kind; the host may configure another. Null on an `@OnRejected` or
- *   `@OnCommitted` handler, which reads no log, and on a reactor's or a saga's handler of another context's stream,
- *   which starts where its service joins the stream: from the beginning when no other subscription of the service
- *   reads it yet, else from the end.
+ *   else [SubscriptionStart.defaultFor] its kind and source; the host may configure another. Null on an `@OnRejected`
+ *   or `@OnCommitted` handler, which reads no log.
  * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
  *   `@Sends(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
@@ -617,9 +615,9 @@ class SubscriptionManifest @InternalWowApi constructor(
 
 /**
  * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
- * handled as [misfire] says: `coalesce` or `catch-up`), its [scope] (`system` or `tenant`) and whether it is [sharded],
- * each value spelled as Wow writes its enumerations.
- * The host's `wow.schedules.<name>.*` overrides the rule.
+ * handled as [misfire] says: `coalesce` or `catch-up`) and its [scope] (`system`, `tenant` or `sharded`), each value
+ * spelled as Wow writes its enumerations.
+ * The host configures the job under `wow.schedules.<name>.*`: its rule, and the retries of its subscriptions.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -628,7 +626,6 @@ class JobManifest @InternalWowApi constructor(
     val cron: String,
     val zone: String = "UTC",
     val scope: String = SYSTEM,
-    val sharded: Boolean = false,
     val misfire: String = COALESCE,
 ) {
     override fun equals(other: Any?): Boolean =
@@ -636,10 +633,9 @@ class JobManifest @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String =
-        "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, sharded=$sharded, misfire=$misfire)"
+    override fun toString(): String = "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, misfire=$misfire)"
 
-    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, sharded, misfire)
+    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, misfire)
 
     companion object {
         /** The [scope] of a job of the whole system, the default. */
@@ -649,7 +645,7 @@ class JobManifest @InternalWowApi constructor(
         const val COALESCE: String = "coalesce"
 
         /** The values of [scope], the programming model's job scopes by their wire names. */
-        val SCOPES: List<String> = listOf(SYSTEM, "tenant")
+        val SCOPES: List<String> = listOf(SYSTEM, "tenant", "sharded")
 
         /** The values of [misfire], the programming model's misfires by their wire names. */
         val MISFIRES: List<String> = listOf(COALESCE, "catch-up")
@@ -658,8 +654,8 @@ class JobManifest @InternalWowApi constructor(
 
 /**
  * A subscription handler's in-process retry budget as `@Retry` declares it: each setting null when it
- * is not given. Durations are ISO-8601 (`PT2S`). [recoverable] and [unrecoverable] are the qualified names of the
- * exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable)`).
+ * is not given. Durations are ISO-8601 (`PT2S`). [recoverable], [unrecoverable] and [systemic] are the qualified
+ * names of the exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable, systemic)`).
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -672,6 +668,7 @@ class RetryManifest @InternalWowApi constructor(
     val unrecoverable: List<String>? = null,
     /** How many times longer each wait between attempts is than the one before. */
     val multiplier: Double? = null,
+    val systemic: List<String>? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is RetryManifest && valueFields() == other.valueFields()
@@ -680,27 +677,43 @@ class RetryManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "RetryManifest(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
-            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, multiplier=$multiplier)"
+            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable, multiplier=$multiplier, " +
+            "systemic=$systemic)"
 
     private fun valueFields(): List<Any?> =
-        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier)
+        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable, multiplier, systemic)
 }
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
 
-/** Where a new subscription, one without a checkpoint, starts reading the log. */
+/** Where a new subscription, one without a checkpoint, starts reading the log or the stream. */
 enum class SubscriptionStart {
     /** From the first entry: a projection builds its read model from the whole history. */
     BEGINNING,
 
     /** From the entries committed after it starts: a reactor or a saga does not act on the history again. */
     END,
+
+    /**
+     * Where its service joins another context's stream: from the [BEGINNING] when no other subscription of the
+     * service reads the stream yet, so a service that joins later still gets what was published before, else from
+     * the [END], so a handler added later does not act on it again. A reactor's or a saga's handler of another
+     * context's stream starts so.
+     */
+    JOIN,
     ;
 
     companion object {
-        /** A projection starts from the [BEGINNING], a reactor or a saga from the [END]. */
-        fun defaultFor(kind: SubscriptionKind): SubscriptionStart =
-            if (kind == SubscriptionKind.PROJECTION) BEGINNING else END
+        /**
+         * Where a handler of [kind] starts when it declares nothing: a projection from the [BEGINNING]; a reactor or a
+         * saga from the [END] of its own context's log, and where its service [JOIN]s another context's stream when it
+         * reads one ([peer]).
+         */
+        fun defaultFor(kind: SubscriptionKind, peer: Boolean = false): SubscriptionStart = when {
+            kind == SubscriptionKind.PROJECTION -> BEGINNING
+            peer -> JOIN
+            else -> END
+        }
     }
 }
 

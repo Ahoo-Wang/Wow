@@ -1,6 +1,6 @@
 #!/bin/bash
 # The industry comparison (user 2026-10-25): Wow against Axon Framework 4 on PostgreSQL, one node, the store on disk,
-# 1 GB heap, 100,000 accounts primed, fresh sessions W A A W (W: Wow with Kafka off, a blank broker address, so no
+# 1 GB heap, 100,000 accounts primed, fresh sessions W A A W (W: Wow with no topics, wow.transport=none, so no
 # state stream is published; A:
 # Axon with its JDBC event storage engine, no Axon Server), then K K (Wow as the other reports run it, publishing to
 # Kafka). Each session: E1 at 2,500/s and E3 at 700/s (20 s warm-up, 40 s measured), then E1 and E3 closed-loop
@@ -19,9 +19,9 @@ n=0
 for arm in $ARMS; do n=$((n+1))
   O=$S/$ROUND/$n-$arm-postgres; mkdir -p "$O"
   case $arm in
-    # Not wow.topics.in-memory: those topics keep every record in the JVM (local development), and a 1 GB node ran
-    # out of heap in the first E1 sweep.
-    W) C=(--install="$WOW" "--server-args=--wow.kafka.bootstrap-servers=") ;;
+    # wow.transport=none, not a blank wow.kafka.bootstrap-servers: the node's internal port is on loopback, so it counts
+    # as development, and without a broker it falls back to topics in its JVM (X-33), which a 1 GB node does not hold.
+    W) C=(--install="$WOW" "--server-args=--wow.transport=none") ;;
     A) C=(--install="$AXON") ;;
     K) C=(--install="$WOW") ;;
   esac

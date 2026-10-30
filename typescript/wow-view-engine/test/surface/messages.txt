@@ -1,4 +1,4 @@
-# Message keys — 2214.
+# Message keys — 2216.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1694,6 +1694,7 @@ label.panel.new-analysis.title
 label.panel.new-analysis.title-hint
 label.panel.numbered
 label.panel.open
+label.panel.open-number
 label.panel.out.blocked
 label.panel.out.config
 label.panel.out.failed
@@ -1886,6 +1887,7 @@ label.scope.everyone
 label.scope.group.personal
 label.scope.group.shared
 label.scope.group.system
+label.scope.local
 label.scope.no-permission
 label.scope.only-me
 label.scope.personal.description

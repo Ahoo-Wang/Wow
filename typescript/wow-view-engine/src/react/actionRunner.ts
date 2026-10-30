@@ -44,6 +44,12 @@ export interface BulkRun {
   /** Words said into `title`'s `{name}`s, each itself said first. */
   values?: Readonly<Record<string, string>>;
   /**
+   * What the outcome line says of the records the command was done for, in
+   * place of 「已完成」/"done": a declared action's `done`, said with
+   * `{count}` and, for one record, `{record}`.
+   */
+  done?: string;
+  /**
    * Sends one record's command. `signal` aborts when the run stops waiting
    * for it — past `timeout`, or on the second Stop — so a host can cancel
    * what it has not sent; the outcome is reported as unknown either way.
@@ -83,6 +89,8 @@ export interface BulkProgress {
 export interface BulkOutcome {
   title: string;
   values?: Readonly<Record<string, string>>;
+  /** The command's own words for what was done (`BulkRun.done`). */
+  done?: string;
   succeeded: readonly RecordKey[];
   /** Sent, and refused by the source: the source's reason for each. */
   failed: readonly BulkFailure[];
@@ -382,6 +390,7 @@ export function useActionRunner(
         setOutcome({
           title: command.title,
           ...(command.values ? { values: command.values } : {}),
+          ...(command.done === undefined ? {} : { done: command.done }),
           succeeded,
           failed,
           refused,

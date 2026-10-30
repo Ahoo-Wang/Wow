@@ -5066,7 +5066,7 @@
           },
           "start" : {
             "type" : "string",
-            "enum" : [ "beginning", "end" ]
+            "enum" : [ "beginning", "end", "join" ]
           },
           "schedules" : {
             "type" : "array",
@@ -5161,6 +5161,12 @@
               "type" : "string"
             }
           },
+          "systemic" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
           "multiplier" : {
             "type" : "number"
           }
@@ -5169,7 +5175,7 @@
       "wow.Manifest.Job" : {
         "type" : "object",
         "description" : "The scheduled job a subscription runs.",
-        "required" : [ "name", "cron", "zone", "scope", "sharded", "misfire" ],
+        "required" : [ "name", "cron", "zone", "scope", "misfire" ],
         "properties" : {
           "name" : {
             "type" : "string"
@@ -5182,11 +5188,8 @@
           },
           "scope" : {
             "type" : "string",
-            "enum" : [ "system", "tenant" ],
+            "enum" : [ "system", "tenant", "sharded" ],
             "description" : "Who the job runs for."
-          },
-          "sharded" : {
-            "type" : "boolean"
           },
           "misfire" : {
             "type" : "string",

@@ -173,7 +173,11 @@ describe("the console", () => {
       `Bearer ${accessToken({ sub: "alice", roles: ["ops.operator"] })}`,
     );
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(callers.get()).toEqual({ ...OPERATOR, via: "cosec" });
+    expect(callers.get()).toEqual({
+      ...OPERATOR,
+      via: "cosec",
+      expiresAt: expect.any(Number),
+    });
     expect(
       await screen.findByRole("table", { name: "Needs attention" }),
     ).toBeVisible();
@@ -188,10 +192,22 @@ describe("the console", () => {
   });
 
   it("says a caller without ops.operator only reads", async () => {
-    console_({ user: "victor", tenant: "(0)", roles: ["viewer"] });
+    console_({ user: "victor", tenant: "(0)", roles: ["ops.viewer"] });
     expect(
       await screen.findByText(/This caller has no ops.operator role/),
     ).toBeVisible();
+  });
+
+  it("says a caller with neither ops role reads nothing", async () => {
+    console_({ user: "nora", tenant: "(0)", roles: ["someone.else"] });
+    expect(
+      await screen.findByText(
+        "This caller has neither ops.viewer nor ops.operator: the service shows it no entry.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/This caller has no ops.operator role/),
+    ).toBeNull();
   });
 
   it("speaks Chinese", async () => {
@@ -199,7 +215,7 @@ describe("the console", () => {
     expect(
       await screen.findByRole("table", { name: "需要处理" }),
     ).toBeVisible();
-    expect(screen.getAllByText("搁置条目").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("停放条目").length).toBeGreaterThan(0);
   });
 
   it("changes and clears the caller on its own page", async () => {

@@ -32,6 +32,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.id.Ids
@@ -671,7 +672,7 @@ class Kernel(
         val type = if (target.type == model.type) {
             model.commandType(body.javaClass).name
         } else {
-            commandTypes.nameOf(target.type, body.javaClass) ?: throw ScopeMisuse.Argument(
+            commandTypes.nameOf(target.type, body.javaClass) ?: throw Misuse.Argument(
                 "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
                     "its peers names.",
             )

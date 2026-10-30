@@ -20,7 +20,7 @@
   }, {
     "name" : "wow.cosec",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
-    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.",
+    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.cosec.authorizer",
@@ -129,6 +129,11 @@
     "name" : "wow.log",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Log",
     "description" : "The aggregates' logs: their partitions, their store, and how their appends and tails run.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
+    "name" : "wow.memory",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
+    "description" : "The in-memory provider's settings: the topics it keeps in the JVM.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.mongo",
@@ -750,6 +755,12 @@
     "description" : "The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
   }, {
+    "name" : "wow.memory.topic-retention",
+    "type" : "java.lang.Integer",
+    "description" : "The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
+    "defaultValue" : 1000
+  }, {
     "name" : "wow.mongo.append-timeout",
     "type" : "java.time.Duration",
     "description" : "How long an append's insert may take: below the default wait timeout, so a command appending during an outage is answered before its wait ends.",
@@ -1251,7 +1262,7 @@
   }, {
     "name" : "wow.schedules",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Schedule>",
-    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start.",
+    "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's subscription configured under `wow.subscriptions`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.service",
@@ -1534,7 +1545,7 @@
   }, {
     "name" : "wow.transport",
     "type" : "java.lang.String",
-    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
+    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back to the topics in the JVM.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {

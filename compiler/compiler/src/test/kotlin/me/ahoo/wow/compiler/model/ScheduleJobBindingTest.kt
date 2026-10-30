@@ -80,7 +80,7 @@ class ScheduleJobBindingTest {
             fun invoice(tick: ScheduleTick, context: SagaContext): CommandRequest<IssueInvoices> =
                 CommandRequest.to(AggregateType("billing", "account").ref(tick.tenantId, "all"), IssueInvoices(tick.tenantId, tick.slot))
 
-            @OnSchedule(name = "sweep", cron = "0 */5 * * * *", sharded = true, misfire = Misfire.CATCH_UP)
+            @OnSchedule(name = "sweep", cron = "0 */5 * * * *", scope = JobScope.SHARDED, misfire = Misfire.CATCH_UP)
             suspend fun sweep(tick: ScheduleTick): List<CommandRequest<IssueInvoices>> = emptyList()
 
             @OnEvent
@@ -128,7 +128,7 @@ class ScheduleJobBindingTest {
             invoice.context.assert().isEqualTo("billing")
             bindings.getValue("BillingSaga.onEvent").context.assert().isNull()
             bindings.getValue("BillingSaga.sweep").job.assert().isEqualTo(
-                ScheduleJob("sweep", ScheduleRule.Cron("0 */5 * * * *", misfire = Misfire.CATCH_UP), sharded = true),
+                ScheduleJob("sweep", ScheduleRule.Cron("0 */5 * * * *", misfire = Misfire.CATCH_UP), JobScope.SHARDED),
             )
             bindings.getValue("Nightly.nightly").job?.rule?.expression.assert().isEqualTo("@daily")
             bindings.getValue("BillingSaga.onEvent").job.assert().isNull()
@@ -150,7 +150,7 @@ class ScheduleJobBindingTest {
             manifest.source.assert().isEqualTo(SubscriptionSource("billing", listOf(ScheduleJobs.AGGREGATE)))
             manifest.job.assert().isEqualTo(JobManifest("invoice", "0 0 0 1 * *", "Asia/Shanghai", "tenant"))
             subscriptions.getValue("BillingSaga.sweep").job.assert()
-                .isEqualTo(JobManifest("sweep", "0 */5 * * * *", sharded = true, misfire = "catch-up"))
+                .isEqualTo(JobManifest("sweep", "0 */5 * * * *", scope = "sharded", misfire = "catch-up"))
             subscriptions.getValue("BillingSaga.onEvent").job.assert().isNull()
         }
 
@@ -167,7 +167,6 @@ class ScheduleJobBindingTest {
         import me.ahoo.wow.api.decide.Command
         import me.ahoo.wow.api.schedule.JobScope
         import me.ahoo.wow.api.schedule.ScheduleTick
-        import me.ahoo.wow.api.subscribe.SubscriptionContext
         import me.ahoo.wow.api.subscribe.StateEvent
 
         @Reactor
@@ -178,7 +177,7 @@ class ScheduleJobBindingTest {
 
         @Saga
         object Wrong {
-            @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT, sharded = true)
+            @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT)
             fun misnamed(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "twice", cron = "0 0 3 * * *")
@@ -186,7 +185,7 @@ class ScheduleJobBindingTest {
             fun both(tick: ScheduleTick) = Unit
 
             @OnSchedule(name = "params", cron = "0 0 3 * * *")
-            fun params(event: StateEvent<*>, context: SubscriptionContext, extra: String) = Unit
+            fun params(event: StateEvent<*>, context: String, extra: String) = Unit
 
             @OnSchedule(name = "returns", cron = "0 0 3 * * *")
             fun returns(tick: ScheduleTick): String = ""
@@ -212,10 +211,9 @@ class ScheduleJobBindingTest {
             .contains("handler Wrong.misnamed names its job \"bad name\"")
             .contains("handler Wrong.misnamed runs by \"0 0 *\", of 3 fields")
             .contains("handler Wrong.misnamed runs in the time zone \"Mars/Olympus\", which is not one")
-            .contains("handler Wrong.misnamed is a sharded TENANT job: only a SYSTEM job is sharded")
             .contains("handler Wrong.both is @OnSchedule and @OnEvent or @OnRejected")
             .contains("handler Wrong.params must take a me.ahoo.wow.api.schedule.ScheduleTick first")
-            .contains("handler Wrong.params takes me.ahoo.wow.api.subscribe.SubscriptionContext")
+            .contains("handler Wrong.params takes kotlin.String")
             .contains("handler Wrong.params takes 3 parameters")
             .contains("handler Wrong.returns returns kotlin.String")
             .contains("processor Wrong declares the job same twice, differently")

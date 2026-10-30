@@ -79,7 +79,7 @@ object Manifests {
                         ),
                         function = FunctionManifest(FunctionKind.SAGA, context, "CheckoutSaga", "onOrderPaid"),
                         derives = listOf("$context.cart.PutItem", Manifest.schemaRef("sales.Refund")),
-                        start = SubscriptionStart.END,
+                        start = SubscriptionStart.JOIN,
                     ),
                     SubscriptionManifest(
                         name = "CheckoutSaga.onRefundRejected",

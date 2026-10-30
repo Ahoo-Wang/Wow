@@ -16,34 +16,31 @@ package me.ahoo.wow.api.annotation
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
-import java.lang.annotation.Inherited
 
 /**
- * A job of a [Saga] run by a cron rule: the handler takes a [me.ahoo.wow.api.schedule.ScheduleTick]
- * and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
- * The compiler writes the job into the Manifest. Each job is kept by the built-in aggregate `<context>.schedule`, whose
- * id is the job's [name] in its tenant: each time the rule is due it commits `Ticked(slot)`, and its subscription,
- * `processor.function`, hands the tick to the handler, retried and parked as any subscription's.
+ * A job of a [Saga] run by a cron rule: the handler takes a [me.ahoo.wow.api.schedule.ScheduleTick] and, optionally,
+ * the `SagaContext` (or the `SubscriptionContext` it extends), and returns the commands it derives, as an `@OnEvent`
+ * handler of a saga does. The compiler writes the job into the Manifest. Each job is kept by the built-in aggregate
+ * `<context>.schedule`, whose id is the job's [name] in its tenant: each time the rule is due it commits
+ * `Ticked(slot)`, and its subscription, `processor.function`, hands the ticks of the job's instances, and of no
+ * other job's, to the handler, retried and parked as any subscription's.
  *
- * @param name the job's name, unique in its context: letters, digits, `_` and `-`. The host overrides its rule with
- *   `wow.schedules.<name>.*`.
+ * @param name the job's name, unique in its context: letters, digits, `_` and `-`. The host configures the job under
+ *   `wow.schedules.<name>.*`, and only there: its rule (`cron`, `zone`, `misfire`), whether it is `enabled`, and its
+ *   subscription's `retry` and `parked` retries.
  * @param cron six fields, as Spring's `CronExpression` reads them (`0 0 3 * * *`: at 03:00 every day).
  * @param zone the time zone [cron] is read in, UTC by default.
- * @param scope [JobScope.SYSTEM]: one instance, enabled by the host at startup; [JobScope.TENANT]: one per tenant,
- *   created by the system command `wow.schedule.Enable`, each tenant free to override the rule and its time zone.
- * @param sharded a [JobScope.SYSTEM] job run by every partition's owner for its own partition's aggregates: one
- *   instance per log partition, each ticked exactly once per slot (`ScheduleTick.partition`).
+ * @param scope who the job runs for ([JobScope]): one instance for the service, one per tenant, or one per log
+ *   partition.
  * @param misfire what a slot missed while no node ran the job does: by default only the latest runs, and the tick
  *   counts the others as skipped.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class OnSchedule(
     val name: String,
     val cron: String,
     val zone: String = ScheduleRule.UTC,
     val scope: JobScope = JobScope.SYSTEM,
-    val sharded: Boolean = false,
     val misfire: Misfire = Misfire.COALESCE,
 )

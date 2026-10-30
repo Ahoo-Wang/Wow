@@ -18,14 +18,12 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.OnSchedule
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -44,7 +42,7 @@ import java.time.ZoneId
  * - is a `@Saga`'s, not also `@OnEvent` or `@OnRejected`, and not private;
  * - takes a `ScheduleTick` and, optionally, the `SagaContext`, and returns what a saga's handler returns;
  * - names its job with letters, digits, `_` and `-`, gives six cron fields (or a macro, `@daily`) and a time zone Java
- *   knows, and is sharded only as a SYSTEM job; a processor's jobs of one name are declared alike. The cron fields
+ *   knows; a processor's jobs of one name are declared alike. The cron fields
  *   themselves are checked when the binding is built, by the kernel's parser.
  */
 internal object ScheduleJobResolver {
@@ -53,6 +51,7 @@ internal object ScheduleJobResolver {
     private val ON_REJECTED = OnRejected::class.java.name
     private val TICK = ScheduleTick::class.java.name
     private val SAGA_CONTEXT = SagaContext::class.java.name
+    private val SAGA_CONTEXTS = contextsOf(SagaContext::class.java)
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
@@ -62,7 +61,7 @@ internal object ScheduleJobResolver {
     /**
      * The bindings of the `@OnSchedule` handlers [functions] of the processor class [className], named [processor],
      * of [kind] (`SAGA`, or another kind they are a problem for). A handler with problems is left out, its problems
-     * added to [problems], and so is a job declared twice differently. [returnProblem] checks what a saga returns.
+     * added to [problems], and so is a job declared twice differently. What it returns is checked as a saga's handler's ([SubscriptionResolver.sagaReturnProblem]).
      */
     @Suppress("LongParameterList")
     fun handlers(
@@ -72,9 +71,8 @@ internal object ScheduleJobResolver {
         kind: String?,
         reactorTypes: Set<String>,
         problems: MutableList<String>,
-        returnProblem: (KSType) -> String?,
     ): List<HandlerBinding> {
-        val handlers = functions.mapNotNull { handler(it, processor, kind, reactorTypes, problems, returnProblem) }
+        val handlers = functions.mapNotNull { handler(it, processor, kind, reactorTypes, problems) }
         handlers.mapNotNull { it.job }.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.forEach {
             problems += "processor $className declares the job $it twice, differently: a job has one rule"
         }
@@ -89,7 +87,6 @@ internal object ScheduleJobResolver {
         kind: String?,
         reactorTypes: Set<String>,
         problems: MutableList<String>,
-        returnProblem: (KSType) -> String?,
     ): HandlerBinding? {
         val callee = function.simpleName.asString()
         val where = "handler $processor.$callee"
@@ -98,8 +95,8 @@ internal object ScheduleJobResolver {
         problems += signatureProblems(where, function, kind)
         val returned = function.returnType?.resolve()
         val reactor = returned?.declaration?.qualifiedName?.asString() in reactorTypes
-        if (returned != null && !reactor) {
-            returnProblem(returned)?.let { problems += "$where $it" }
+        if (returned != null) {
+            SubscriptionResolver.sagaReturnProblem(returned, reactor)?.let { problems += "$where $it" }
         }
         val sends = SendsResolver.resolve(function, where, kind == SAGA, null, returned, reactor, problems)
         val annotation = function.annotatedIn(ON_SCHEDULE)!!.getAnnotationsByType(OnSchedule::class).first()
@@ -108,7 +105,6 @@ internal object ScheduleJobResolver {
             cron = annotation.cron,
             zone = annotation.zone,
             scope = annotation.scope.name,
-            sharded = annotation.sharded,
             misfire = annotation.misfire.name,
         )
         problems += jobProblems(where, job)
@@ -150,15 +146,18 @@ internal object ScheduleJobResolver {
                 add("$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick")
             }
             val context = parameters.getOrNull(1)
-            if (context != null && context != SAGA_CONTEXT) {
-                add("$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything")
+            if (context != null && context !in SAGA_CONTEXTS) {
+                add(
+                    "$where takes $context: a job's handler takes a $SAGA_CONTEXT, or a context it extends, after " +
+                        "the tick, if anything",
+                )
             }
             if (parameters.size > 2) {
                 add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])")
             }
         }
 
-    /** What is wrong with [job]: its name, its fields, its time zone, or a sharded job that is not SYSTEM. */
+    /** What is wrong with [job]: its name, its fields or its time zone. */
     private fun jobProblems(where: String, job: JobBinding): List<String> = buildList {
         if (!ScheduleJobs.isJobName(job.name)) {
             add("$where names its job \"${job.name}\": a job's name has letters, digits, '_' and '-' only")
@@ -175,9 +174,6 @@ internal object ScheduleJobResolver {
         } catch (_: DateTimeException) {
             add("$where runs in the time zone \"${job.zone}\", which is not one")
         }
-        if (job.sharded && job.scope != JobScope.SYSTEM.name) {
-            add("$where is a sharded ${job.scope} job: only a SYSTEM job is sharded")
-        }
     }
 
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
@@ -190,10 +186,8 @@ internal data class JobBinding(
     val cron: String,
     val zone: String,
     val scope: String,
-    val sharded: Boolean,
     val misfire: String,
 ) {
-    /** The job as the Manifest's subscription records it. */
     /** The job as the Manifest lists it, its scope and misfire by their wire names. */
-    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), sharded, WireNames.of(misfire))
+    fun manifest(): JobManifest = JobManifest(name, cron, zone, WireNames.of(scope), WireNames.of(misfire))
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.runtime.AuthorizationChecker
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -31,6 +32,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * already decided the command's route by the same action, so the host leaves this authorizer off unless
  * `wow.cosec.authorizer.enabled` asks for it.
  */
+@ExperimentalWowApi
 class CoSecCommandAuthorizer(
     private val checker: AuthorizationChecker,
     private val defaultTenant: String = Caller.DEFAULT_TENANT,

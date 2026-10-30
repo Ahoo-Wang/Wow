@@ -32,6 +32,7 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -220,12 +221,15 @@ class OmittedRefsTest {
         )
         saga().derive(CommandRequest.builder(Reserve("o-9")).id("product-1").requestId("k-1").build()).id.assert()
             .isEqualTo(keyed.id)
-        assertThrownBy<IllegalArgumentException> {
+        // A defect in the saga, which no retry changes: the aggregate parks at once.
+        val waiting = assertThrownBy<InvalidDerivedRequestException> {
             context.derive(CommandRequest.builder(Reserve("o-1")).id("p").wait(WaitPlan.COMMITTED).build())
         }.hasMessageContaining(
             "OrderSaga.onOrderPlaced derives ${Reserve::class.java.name} with a wait (CommandRequest.wait)"
-        )
-        assertThrownBy<IllegalArgumentException> {
+        ).actual()
+        FailureClassification.DEFAULT.classify(waiting, HandlerRetry(maxAttempts = 5))
+            .assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        assertThrownBy<InvalidDerivedRequestException> {
             context.derive(CommandRequest.builder(Reserve("o-1")).id("p").timeout(1.seconds).build())
         }.hasMessageContaining("with a timeout (CommandRequest.timeout)")
     }

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
@@ -63,6 +64,7 @@ class ThrownRejectionsTest {
                 "scope" -> reject("insufficient-funds", "Only 5 left.")
                 "timeout" -> withTimeout(1) { delay(1_000) }
                 "blank schedule key" -> schedule(" ", ScheduleRule.after(1.minutes), Open("x"))
+                "blank cancelled key" -> cancelSchedule(" ")
                 else -> throwing.getValue(body.label)()
             }
             Decision.events(Opened(body.label))
@@ -112,8 +114,11 @@ class ThrownRejectionsTest {
         Triple("NumberFormatException", { throw NumberFormatException("x") }, null),
         Triple("IOException", { throw IOException("connection reset") }, null),
         Triple("UnsupportedOperationException", { throw UnsupportedOperationException("no") }, null),
-        // The kernel's own guards inside the scope are faults, not refusals.
+        // The kernel's own guards inside the scope are faults, not refusals, as a Wow API's misuse is.
         Triple("blank schedule key", { error("unreachable") }, null),
+        Triple("blank cancelled key", { error("unreachable") }, null),
+        Triple("a Wow API's argument misuse", { throw Misuse.Argument("No aggregate has a state of X.") }, null),
+        Triple("a Wow API's state misuse", { throw Misuse.State("No URL calls context x.") }, null),
     )
 
     @TestFactory

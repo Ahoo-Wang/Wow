@@ -12,17 +12,30 @@
  */
 
 import type { ReactNode } from "react";
-import { Eye, UserRound } from "lucide-react";
+import { Eye, EyeOff, UserRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useI18n } from "@/i18n.tsx";
-import { isOperator, type OpsCaller } from "@/services/caller.ts";
+import { useI18n, type Message } from "@/i18n.tsx";
+import {
+  isOperator,
+  isReader,
+  type OpsCaller,
+  type SignedOut,
+} from "@/services/caller.ts";
 import { CallerForm } from "./CallerForm.tsx";
-import { useCaller } from "./services.tsx";
+import { useCaller, useSignedOut } from "./services.tsx";
+
+/** What the sign-in page says of why the console was signed out. */
+const SIGNED_OUT = {
+  expired: "signedOutExpired",
+  refused: "signedOutRefused",
+  "headers-refused": "signedOutHeaders",
+} as const satisfies Record<SignedOut, Message>;
 
 /**
  * A page that reads the entries: without a caller there is nothing to read
  * — the service answers 401 — so it asks for one first; a caller without
- * `ops.operator` is told it only reads.
+ * `ops.operator` is told it only reads, one with neither `ops.viewer` nor
+ * `ops.operator` that the service shows it nothing (403).
  */
 export function CallerGate({
   children,
@@ -31,13 +44,22 @@ export function CallerGate({
 }) {
   const { t } = useI18n();
   const caller = useCaller();
+  const signedOut = useSignedOut();
 
   if (!caller)
     return (
       <div className="flex flex-col items-center gap-4 overflow-auto p-6">
         <Alert className="max-w-md">
           <UserRound />
-          <AlertDescription>{t("needCaller")}</AlertDescription>
+          <AlertDescription>
+            {/* Why the console asks again, before what it needs. */}
+            {signedOut ? (
+              <span className="block font-medium" data-testid="signed-out">
+                {t(SIGNED_OUT[signedOut])}
+              </span>
+            ) : null}
+            {t("needCaller")}
+          </AlertDescription>
         </Alert>
         <CallerForm />
       </div>
@@ -45,10 +67,15 @@ export function CallerGate({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {isOperator(caller) ? null : (
+      {isOperator(caller) ? null : isReader(caller) ? (
         <Alert className="mx-3 mt-3 w-auto">
           <Eye />
           <AlertDescription>{t("readOnly")}</AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="mx-3 mt-3 w-auto">
+          <EyeOff />
+          <AlertDescription>{t("noReader")}</AlertDescription>
         </Alert>
       )}
       {children(caller)}

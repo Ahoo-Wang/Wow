@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.schedule
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -28,10 +29,17 @@ import me.ahoo.wow.api.schedule.JobRule
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.runtime.subscription.SubscriptionId
+import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.wait.Settlement
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -92,8 +100,50 @@ class ScheduleJobRuntimeTest {
         )
         configured.getValue("shop").single().rule.assert()
             .isEqualTo(ScheduleRule.Cron("0 0 3 * * *", "Asia/Tokyo", Misfire.CATCH_UP))
-        JobOptions(expression = "0 0 4 * * *").rule.assert().isEqualTo(JobRule("0 0 4 * * *"))
+        JobOptions(cron = "0 0 4 * * *").rule.assert().isEqualTo(JobRule("0 0 4 * * *"))
         ScheduleJobRuntime.startup("shop", listOf(job), mapOf("nightly" to JobOptions(enabled = false)), 1)
             .assert().containsExactly(ref to DisableJob)
+    }
+
+    @Test
+    fun `a job's retries should be those of the subscriptions that run it`() {
+        val declared = mapOf("shop" to mapOf("Billing.onNightly" to job, "Audit.onNightly" to job))
+        val budget = HandlerRetry(maxAttempts = 1)
+        val spec = ParkedRetrySpec(maxRetries = 0)
+        val subscription = SubscriptionOptions(retries = mapOf(SubscriptionId("shop", "Board.onOrder") to budget))
+        val options = ScheduleJobRuntime.subscriptionOptions(
+            subscription,
+            mapOf("nightly" to JobOptions(retry = budget, parked = spec)),
+            declared,
+        )
+        options.retries.assert().isEqualTo(
+            mapOf(
+                SubscriptionId("shop", "Board.onOrder") to budget,
+                SubscriptionId("shop", "Billing.onNightly") to budget,
+                SubscriptionId("shop", "Audit.onNightly") to budget,
+            ),
+        )
+        options.parked.specOf(SubscriptionId("shop", "Billing.onNightly")).assert().isEqualTo(spec)
+        options.parked.specOf(SubscriptionId("shop", "Board.onOrder")).assert().isEqualTo(subscription.parked.spec)
+        // A job without retries of its own leaves the options as they are.
+        ScheduleJobRuntime.subscriptionOptions(subscription, mapOf("nightly" to JobOptions()), declared)
+            .assert().isSameAs(subscription)
+    }
+
+    @Test
+    fun `a job's subscription configured under its subscription's name should fail`() {
+        val declared = mapOf("shop" to mapOf("Billing.onNightly" to job))
+        val id = SubscriptionId("shop", "Billing.onNightly")
+        listOf(
+            SubscriptionOptions(starts = mapOf(id to SubscriptionStart.Beginning)),
+            SubscriptionOptions(retries = mapOf(id to HandlerRetry(maxAttempts = 1))),
+            SubscriptionOptions(parked = ParkedRetryOptions(specs = mapOf(id to ParkedRetrySpec(maxRetries = 0)))),
+        ).forEach { subscription ->
+            assertThrownBy<WowConfigurationException> {
+                ScheduleJobRuntime.subscriptionOptions(subscription, emptyMap(), declared)
+            }.isInstanceOfSatisfying(WowConfigurationException::class.java) {
+                it.key.assert().isEqualTo("wow.subscriptions.[shop.Billing.onNightly]")
+            }
+        }
     }
 }

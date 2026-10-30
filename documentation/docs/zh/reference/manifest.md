@@ -133,12 +133,12 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `timeout`
   - `recoverable`
   - `unrecoverable`
+  - `systemic`
   - `multiplier`
 - `job`: 对象; 缺省或取默认值时省略
   - `name`
   - `cron`
   - `zone`
   - `scope`
-  - `sharded`
   - `misfire`
 

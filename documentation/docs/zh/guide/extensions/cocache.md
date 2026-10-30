@@ -59,7 +59,7 @@ class PaymentGatewaySaga(
 
 缓存中没有、而属主此刻读不到（连不上、本节点没有到它的路由、超时），或缓存后端故障时，读取抛出 `StateViewUnavailableException`，并写出这些键。其他情况都不是它：解码不成视图的状态，或读取代码中的缺陷，都原样抛出。
 
-是否在它上面回退由读方决定。为读方自己用途的读取（名称、描述）可以回退；决策所依据的读取不可以：它应当失败，处理函数会像任何失败一样重试，然后挂起。eShop 的支付读取它要扣款的订单，用来说明这笔扣款的内容，这是它自己的用途，所以支付从不为此等待订单服务。它只捕获不可用这一种情况，只记录一次，并按订单 ID 扣款：
+是否在它上面回退由读方决定。为读方自己用途的读取（名称、描述）可以回退；决策所依据的读取不可以：它应当失败，处理函数会像任何失败一样重试，然后挂起。eShop 的支付读取它要扣款的订单，用来说明这笔扣款的内容，这是它自己的用途，所以支付从不为此等待订单服务。它只捕获不可用这一种情况（缓存在每次不可用期间只记录一次），并按订单 ID 扣款：
 
 <!-- sample: examples/eshop/payment/payment-domain/src/main/kotlin/me/ahoo/wow/example/eshop/payment/domain/payment/PaymentGatewaySaga.kt#read-order -->
 
@@ -68,17 +68,12 @@ class PaymentGatewaySaga(
  * The order [orderId] as the ordering's shared cache gives it; null when the cache cannot serve it now (the
  * ordering does not share its orders here, or a miss cannot reach the ordering service). The charge's description
  * is the saga's own use of the order, so a payment never waits on the ordering for it. Only an unavailable order
- * falls back: an order that does not decode, or a defect, fails the handling as any error does.
+ * falls back, which the cache itself logs: an order that does not decode, or a defect, fails the handling as any
+ * error does.
  */
 private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? = try {
     orders.get(tenantId, orderId)
-} catch (unavailable: StateViewUnavailableException) {
-    // Once at WARN, so a payment service that runs without the ordering's orders says so without flooding its log.
-    if (warned.compareAndSet(false, true)) {
-        logger.warn(unavailable) { "The order ${unavailable.key} is unavailable: charges name their order's id." }
-    } else {
-        logger.debug(unavailable) { "The order ${unavailable.key} is unavailable." }
-    }
+} catch (_: StateViewUnavailableException) {
     null
 }
 ```

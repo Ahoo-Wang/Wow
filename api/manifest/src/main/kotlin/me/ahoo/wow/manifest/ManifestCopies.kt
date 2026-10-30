@@ -180,9 +180,8 @@ fun JobManifest.copyWith(
     cron: String = this.cron,
     zone: String = this.zone,
     scope: String = this.scope,
-    sharded: Boolean = this.sharded,
     misfire: String = this.misfire,
-): JobManifest = JobManifest(name, cron, zone, scope, sharded, misfire)
+): JobManifest = JobManifest(name, cron, zone, scope, misfire)
 
 @InternalWowApi
 fun RetryManifest.copyWith(
@@ -193,6 +192,7 @@ fun RetryManifest.copyWith(
     recoverable: List<String>? = this.recoverable,
     unrecoverable: List<String>? = this.unrecoverable,
     multiplier: Double? = this.multiplier,
+    systemic: List<String>? = this.systemic,
 ): RetryManifest = RetryManifest(
     maxAttempts,
     initialBackoff,
@@ -200,7 +200,8 @@ fun RetryManifest.copyWith(
     timeout,
     recoverable,
     unrecoverable,
-    multiplier
+    multiplier,
+    systemic,
 )
 
 @InternalWowApi

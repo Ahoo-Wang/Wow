@@ -104,7 +104,7 @@ export const PARKED_WORDS = {
     recordedAt: "Recorded at",
     resolvedAt: "Resolved at",
     viewAttention: "Needs attention",
-    viewScheduled: "Retrying",
+    viewScheduled: "Scheduled",
     viewUnrecoverable: "Unrecoverable",
     viewResolved: "Resolved",
     viewAll: "All",
@@ -118,8 +118,8 @@ export const PARKED_WORDS = {
     clusterLatest: "Last failed",
   },
   "zh-CN": {
-    title: "搁置条目",
-    recordNoun: "搁置条目",
+    title: "停放条目",
+    recordNoun: "停放条目",
     groupWhere: "位置",
     groupStatus: "状态",
     groupRetry: "重试",
@@ -155,7 +155,7 @@ export const PARKED_WORDS = {
     outcomeRetried: "已重试",
     outcomeSkipped: "已跳过",
     outcomeResolved: "已解决",
-    outcomeNotParked: "未搁置",
+    outcomeNotParked: "未停放",
     retries: "已尝试次数",
     maxRetries: "最大重试次数",
     initialBackoff: "初始退避",
@@ -166,16 +166,16 @@ export const PARKED_WORDS = {
     recordedAt: "记录时间",
     resolvedAt: "解决时间",
     viewAttention: "需要处理",
-    viewScheduled: "重试中",
+    viewScheduled: "计划重试",
     viewUnrecoverable: "不可恢复",
     viewResolved: "已解决",
     viewAll: "全部",
     viewByContext: "按上下文统计",
-    viewActive: "搁置中",
+    viewActive: "停放中",
     viewClusters: "失败集群",
     viewBySubscription: "失败最多的订阅",
-    viewOverTime: "搁置趋势",
-    clusterCount: "搁置中",
+    viewOverTime: "停放趋势",
+    clusterCount: "停放中",
     clusterOldest: "最早失败",
     clusterLatest: "最近失败",
   },
@@ -347,6 +347,19 @@ export function bySubscription(limit = 10): AnalysisViewConfig {
   });
 }
 
+/**
+ * Each status in one colour on every chart of it: the tone its badge takes
+ * (exhausted danger, unrecoverable warning, scheduled neutral, resolved
+ * success), so the stacked trend and the donut say a status alike. A chart's
+ * `colors` is keyed by the status code, a category's or a metric's.
+ */
+export const STATUS_COLORS: Readonly<Record<ParkedStatus, string>> = {
+  exhausted: "var(--destructive)",
+  unrecoverable: "var(--warning)",
+  scheduled: "var(--muted-foreground)",
+  resolved: "var(--success)",
+};
+
 /** The statuses of the trend, the ones needing attention first. */
 const TREND: readonly [ParkedStatus, Text][] = [
   ["exhausted", t.statusExhausted],
@@ -389,16 +402,18 @@ export function overTime(): AnalysisViewConfig {
             stack: "status",
           })),
         },
+        colors: STATUS_COLORS,
       },
     },
     [],
   );
 }
 
+/** The parked entries by context: every unresolved one, as the title says. */
 function byContext(): AnalysisViewConfig {
   return {
     kind: "analysis",
-    filter: { op: "and", children: [ATTENTION] },
+    filter: { op: "and", children: [ACTIVE] },
     filterMode: "simple",
     refresh: { interval: null },
     groups: [
@@ -559,7 +574,10 @@ export const parked: DataViewDefinition = {
     },
     number("state.retries", t.retries),
     number("state.retrySpec.maxRetries", t.maxRetries),
-    { ...string("state.retrySpec.initialBackoff", t.initialBackoff), sortable: false },
+    {
+      ...string("state.retrySpec.initialBackoff", t.initialBackoff),
+      sortable: false,
+    },
     {
       ...string("state.retrySpec.claimTtl", t.claimTtl),
       sortable: false,

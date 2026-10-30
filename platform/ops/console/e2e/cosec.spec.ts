@@ -131,6 +131,43 @@ test("a viewer reads the entries, and the service refuses its actions", async ({
   ).toBeVisible();
 });
 
+test("a principal with neither ops role reads nothing: the service refuses its reads as forbidden (UI-1)", async ({
+  page,
+  request,
+}) => {
+  const query = "/ops/parked/snapshot/query";
+  const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
+  const everything = { op: "match-all" };
+  for (const token of [
+    accessToken("nobody", []),
+    accessToken("stranger", ["someone.else"]),
+  ]) {
+    const headers = { Authorization: `Bearer ${token}` };
+    for (const answer of [
+      await request.post(query, { headers, data: { kind: "count", filter: everything } }),
+      await request.post(query, { headers, data: { kind: "list", filter: everything } }),
+      await request.get(state, { headers }),
+    ]) {
+      expect(answer.status()).toBe(403);
+      expect((await answer.json()).code).toBe("wow.auth.forbidden");
+    }
+  }
+
+  await open(page);
+  await signIn(page, accessToken("nobody", []));
+  await expect(
+    page.getByText(
+      "This caller has neither ops.viewer nor ops.operator: the service shows it no entry.",
+    ),
+  ).toBeVisible();
+  // The workbench's query is refused (403): the view says so, and lists nothing.
+  await expect(
+    page.getByText("You do not have permission to view this data.").first(),
+  ).toBeVisible();
+  await expect(row(page, exhausted)).toHaveCount(0);
+  await expect(row(page, unrecoverable)).toHaveCount(0);
+});
+
 test("a token the gateway refuses signs the console out", async ({ page }) => {
   await open(page);
   await signIn(
@@ -143,6 +180,26 @@ test("a token the gateway refuses signs the console out", async ({ page }) => {
   );
   await expect(
     page.getByText("Sign in to read the parked entries"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Caller: No caller/ }),
+  ).toBeVisible();
+});
+
+test("a token the gateway refuses later signs the console out, saying so", async ({
+  page,
+}) => {
+  await open(page);
+  // Well formed and unexpired, so the console takes it; signed with another
+  // secret, so the gateway answers 401.
+  await signIn(
+    page,
+    accessToken("mallory", ["ops.operator"], 3600, "a-secret-the-gateway-does-not-know"),
+  );
+  await expect(
+    page.getByText(
+      "Your CoSec access token was refused (401): sign in with another.",
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Caller: No caller/ }),

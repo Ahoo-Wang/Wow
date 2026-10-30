@@ -203,6 +203,7 @@ class ManifestTreeTest {
             timeout = "PT2S",
             unrecoverable = listOf("sample.InvalidAddress"),
             multiplier = 1.5,
+            systemic = listOf("sample.CarrierUnreachable"),
         )
         val subscription = SubscriptionManifest(
             "Notifier.onEvent",
@@ -232,6 +233,7 @@ class ManifestTreeTest {
                     "maxAttempts" to 3,
                     "timeout" to "PT2S",
                     "unrecoverable" to listOf("sample.InvalidAddress"),
+                    "systemic" to listOf("sample.CarrierUnreachable"),
                     "multiplier" to 1.5,
                 )
             )
@@ -302,7 +304,7 @@ class ManifestTreeTest {
 
     @Test
     fun `a job should come back, its defaults written too, and an absent one left out`() {
-        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant", sharded = false)
+        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "tenant")
         val subscription = SubscriptionManifest(
             "Billing.nightly",
             SubscriptionKind.SAGA,
@@ -327,7 +329,6 @@ class ManifestTreeTest {
                 "cron" to "0 0 3 * * *",
                 "zone" to "Asia/Shanghai",
                 "scope" to "tenant",
-                "sharded" to false,
                 "misfire" to "coalesce",
             ),
         )

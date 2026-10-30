@@ -303,7 +303,6 @@ class CommittedManifestTest {
             import me.ahoo.wow.api.client.CommandRequest
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.api.subscribe.CommandReceipt
-            import me.ahoo.wow.api.subscribe.SubscriptionContext
             import me.ahoo.wow.api.subscribe.StateEvent
 
             @Saga
@@ -348,7 +347,7 @@ class CommittedManifestTest {
                 fun wrongFirst(rejected: CommandReceipt.Rejected<StockConfirmed>) = Unit
 
                 @OnCommitted
-                fun wrongContext(committed: CommandReceipt.Committed<Order>, context: SubscriptionContext) = Unit
+                fun wrongContext(committed: CommandReceipt.Committed<Order>, context: String) = Unit
 
                 @OnCommitted
                 fun tooMany(committed: CommandReceipt.Committed<String>, a: Int, b: Int) = Unit
@@ -392,12 +391,14 @@ class CommittedManifestTest {
                 "handler BrokenSaga.rejectedTakesCommitted is @OnRejected but takes a CommandReceipt.Committed<C>: " +
                     "annotate it @OnCommitted instead, or take a CommandReceipt.Rejected<C>",
             )
-            .contains("handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler runs in")
+            .contains(
+                "handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler takes the budget of where"
+            )
             .contains(
                 "handler BrokenSaga.wrongFirst is @OnCommitted but takes a CommandReceipt.Rejected<C>: annotate it " +
                     "@OnRejected instead, or take a CommandReceipt.Committed<C>",
             )
-            .contains("handler BrokenSaga.wrongContext takes me.ahoo.wow.api.subscribe.SubscriptionContext")
+            .contains("handler BrokenSaga.wrongContext takes kotlin.String")
             .contains("handler BrokenSaga.tooMany takes 3 parameters: an @OnCommitted handler takes")
             .contains("handler BrokenSaga.wrongReturn returns kotlin.String")
             .contains("processor Board is a @Projection with @OnCommitted handlers")

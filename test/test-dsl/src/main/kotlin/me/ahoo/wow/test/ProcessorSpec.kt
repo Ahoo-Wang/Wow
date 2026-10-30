@@ -15,6 +15,8 @@ package me.ahoo.wow.test
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -35,12 +37,15 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.BlockingDispatcher
 import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -654,7 +659,7 @@ class ProcessorSpec private constructor(
                 handler.sends,
             )
             val derived = try {
-                runBlocking { handler.invoke(event, context) }
+                runBlocking { attempt(handler, event, context) }
             } catch (rejected: CommandRejectedException) {
                 if (kind != FunctionKind.SAGA) throw rejected
                 callRejected(handler, rejected, rejectedCalls[rejected.result.commandId], context.executionId)
@@ -664,6 +669,27 @@ class ProcessorSpec private constructor(
         }
         failing = null
         Handled(commands, calls)
+    }
+
+    /**
+     * One attempt of [handler] with [event], as the runtime's subscription makes it: on a virtual thread when it is
+     * `@Blocking`, and cancelled once it runs longer than its `@Retry(timeout)`, a failed attempt
+     * ([HandlerTimeoutException]) the runtime retries, then parks. The time is real: a timeout on virtual time would
+     * fire while a blocking handler's thread still runs.
+     */
+    private suspend fun attempt(
+        handler: ProcessorBinding<*>,
+        event: StateEvent<*>,
+        context: SubscriptionContext,
+    ): List<Command<*>> {
+        val call: suspend () -> List<Command<*>> = if (handler.blocking) {
+            { withContext(BlockingDispatcher.dispatcher) { handler.invoke(event, context) } }
+        } else {
+            { handler.invoke(event, context) }
+        }
+        val timeout = handler.retry?.timeout ?: return call()
+        return withTimeoutOrNull(timeout) { call() }
+            ?: throw HandlerTimeoutException(handler.name, event.ref, event.version, timeout)
     }
 
     /**

@@ -33,8 +33,11 @@ The rewrite is accepted when the service compiles under the V10 compiler and its
 | An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `TOO_MANY_GROUPS` |
 | `Pagination.offset()` as an `Int` | A `Long` |
 | `wow-test` (`AggregateSpec`) | `wow-test`, with the functional `aggregateSpec` and `sagaSpec` |
-| `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-cocache`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
+| `wow-redis`, `wow-bi`, `wow-apiclient`, `wow-compensation-*` | Removed: no Redis backend, the ClickHouse sink, the `CommandClient` and `QueryApi` clients, each node's failure ledger |
+| `wow-cocache` | `wow-cocache` of V10: the owning context writes one shared cache per aggregate type, and readers inject `StateViewCache<V>`; a reader's own index and join caches have no counterpart |
 | Handlers returning `Mono` or `Flux` | `suspend` functions, or Reactor through `wow-reactor` |
+
+The plugins need Gradle 9 or later and the Kotlin JVM plugin 2.3 or later: upgrade a Gradle 8 wrapper first. KSP reads whole source directories and ignores a source set's `exclude`, so a migration that compiles part of a domain at a time syncs those files into a directory of their own.
 
 [9.x Capabilities in V10](./capabilities) says where every 9.x capability went.
 
@@ -45,14 +48,14 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | 9.x | V10 |
 | --- | --- |
 | `@BoundedContext(name, alias, …, aggregates)` | `@BoundedContext(name, description)`; the context name is part of every command, event and route name, so choose it on purpose |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer` |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle, published, publishState, topic, ownership, idSource, retiredEvents)`; a mounted command is `@MountedCommand` with a `CommandTransformer`, its class in the domain module of its aggregate, where the compiler finds it |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])`, needed only for a function returning `Decision` |
 | `@Event(revision = "0.0.1")` | `@Revision(n)`; a migrated 9.x shape is revision 1 |
 | `EventUpgrader` | `@Upgrade(event, from)` on a function from `ObjectNode` to `ObjectNode` |
 | `DroppedEvent` | `@AggregateRoot(retiredEvents = ["<stored name>"])` |
 | `@StatelessSaga`, `@ProjectionProcessor`, `@EventProcessor` | `@Saga`, `@Projection`, `@Reactor` |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent`, one handler kind taking a `StateEvent` |
-| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<processor.function>].parked.*` (`executionTimeout` as `timeout`) |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<context>.<processor.function>].parked.*` (`executionTimeout` as `claim-ttl`) |
 | `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
@@ -118,6 +121,8 @@ A rejection carries a code and a message: 9.x `bindingErrors` go into the messag
 - **Revisions.** An event whose V10 shape differs from what 9.x stored (an identity field removed, a computed property dropped) gets a higher `@Revision` and an `@Upgrade` function from revision 1, which a test covers with a real 9.x payload.
 - **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value before creation (no `lateinit`). A 9.x `StateAggregateTagsExtractor` is a `@Tags` member of the state.
 - **Deleted events** are retired: delete the class and its sourcing function, list the stored name in `retiredEvents`, and map it with `"retire": true`.
+- **Wow types in events and state.** A stored `Condition`, `Sort` or `Projection` (a saved filter, say) has no V10 form: the `Condition` protocol is gone, the kernel's JSON has no codec for the query protocol, and its enumerations are lower case now. Store a type of your own, and upgrade the 9.x JSON into it with an `@Upgrade` function and a test.
+- **The event's envelope.** A 9.x sourcing function that read `DomainEvent.createTime` or the operator has no V10 form today: a sourcing function takes its event only. Put the value in the event; states rebuilt from 9.x history lack it, and `compare` reports it. How V10 exposes the envelope is a pending decision.
 
 ## Processors
 
@@ -133,6 +138,8 @@ fun onOrderSubmitted(
 ```
 
 A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
+
+A periodic job a 9.x service ran in Simba or `@Scheduled` is an `@OnSchedule` handler of a saga, on a cron rule, when it derives commands from what is due; a job that waits for each command's outcome before the next stays outside, sending through the `CommandClient` ([Scheduled Commands](../guide/scheduling)). A 9.x backfill that re-dispatched stored events to one handler is a handler of a new name with `@OnEvent(start = OnEvent.Start.BEGINNING)`, which reads the stream once from its start ([Rebuild and Replay](../operate/replay)).
 
 ## Reserved keys
 
@@ -195,8 +202,8 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | 9.x | V10 |
 | --- | --- |
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`, a `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`, one test; `@TestFactory fun x() = aggregateSpecTests(model) { … }`, a test per step and fork |
-| `aggregateVerifier<A, S>()`, the Java entry | Removed: the test DSL is Kotlin only |
-| `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`); `fork(name, model = …)` for a branch whose service answers otherwise |
+| `aggregateVerifier<A, S>()`, its chained stages (from Kotlin or Java) | One `aggregateSpec`: `.whenCommand(c).expect…().verify()` is `whenCommand(c) { expect… }`; `.then()` and `.then(false)` are the next `whenCommand`, since a spec chains and a rejection changes nothing; `.fork { … }` is `fork(name) { … }` inside the checks. The test DSL is Kotlin only |
+| `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`, the context name first, with a default, so services passed alone go by name); `fork(name, model = …)` for a branch whose service answers otherwise |
 | `givenOwnerId(…)`, `givenSpaceId(…)` | `scope = Scope(owner, space)` on `given`, `givenState` or `whenCommand` |
 | `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays |
 | `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
@@ -250,7 +257,7 @@ Some 9.x constructs have no V10 form. The Skill reports each one the service use
 - a 9.x Redis event store: the data tool reads MongoDB only;
 - Java tests on `AggregateVerifier`, and Java calls of `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`): Kotlin only;
 - Jackson modules found on the class path, and fields without public getters: `WowJson` applies neither;
-- state-event resend and per-version re-dispatch: none until 10.x; a parked entry is resumed instead;
+- state-event resend and per-version re-dispatch: none until 10.x; a parked entry is retried instead;
 - a `MessageFunction` registered at run time: rewrite it as an annotated processor.
 
 Next: the [configuration](./configuration), the [HTTP and TypeScript clients](./http-and-clients), then the [data](./data) and the [cut-over](./cutover).

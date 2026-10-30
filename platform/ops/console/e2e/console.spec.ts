@@ -33,7 +33,7 @@ interface Caller {
 }
 
 const OPERATOR: Caller = { user: "alice", roles: ["ops.operator"] };
-const VIEWER: Caller = { user: "victor", roles: ["viewer"] };
+const VIEWER: Caller = { user: "victor", roles: ["ops.viewer"] };
 
 /** The console in English, as `caller` (none: the console asks first). */
 async function open(page: Page, caller: Caller | null, path = "/#/parked") {
@@ -108,7 +108,7 @@ test("the queues list the entries by status", async ({ page }) => {
   await expect(row(page, unrecoverable)).toBeVisible();
   await expect(row(page, scheduled)).toHaveCount(0);
 
-  await view(page, "Retrying");
+  await view(page, "Scheduled");
   await expect(row(page, scheduled)).toBeVisible();
   await expect(row(page, exhausted)).toHaveCount(0);
   await expect(page).toHaveURL(/view=/);
@@ -184,8 +184,9 @@ test("an entry's detail reads its cause, attempts, retry spec and owning aggrega
   await expect(detail).toContainText(`${context}-service`);
   await expect(detail).toContainText(`${context}.payment`);
   await expect(detail).toContainText("3 of 3");
-  await expect(detail).toContainText("PT1M");
-  await expect(detail).toContainText("PT2M");
+  // The retry spec's durations, said for a reader (PT1M, PT2M as stored).
+  await expect(detail).toContainText("Initial backoff1 min");
+  await expect(detail).toContainText("Claim TTL2 min");
   await expect(page).toHaveURL(/id=/);
 });
 
@@ -199,6 +200,10 @@ test("an operator retries an entry, it goes back to the owning service, and the 
   await dialog.getByLabel("Reason").fill("The gateway is back.");
   await dialog.getByRole("button", { name: "Retry" }).click();
   await expect(dialog).toHaveCount(0);
+  // Sent, not done: the owning service runs it.
+  await expect(
+    page.getByText(/sent to the owning service/).first(),
+  ).toBeVisible();
 
   // The request is recorded on the entry, and the saga sends it to the owning context.
   await expect(row(page, exhausted)).toContainText("Retry");
@@ -248,6 +253,14 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   await entry.getByRole("button", { name: /^Actions for/ }).click();
   await page.getByRole("menuitem", { name: "Apply retry spec" }).click();
   const dialog = page.getByRole("dialog");
+  // What the service would refuse is refused in the form, which stays.
+  await dialog.getByLabel("Max retries").fill("-1");
+  await dialog.getByLabel("Initial backoff").fill("soon");
+  await dialog.getByRole("button", { name: "Apply retry spec" }).click();
+  await expect(dialog.getByText("A whole number, 0 or more.")).toBeVisible();
+  await expect(
+    dialog.getByText("A duration such as PT3M, 3m or 1h 30m."),
+  ).toBeVisible();
   await dialog.getByLabel("Max retries").fill("5");
   await dialog.getByLabel("Initial backoff").fill("2m");
   await dialog.getByRole("button", { name: "Apply retry spec" }).click();
@@ -271,6 +284,86 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   expect(spec?.body).toMatchObject({ maxRetries: 5, initialBackoff: "2m" });
 });
 
+test("at a phone's width the bar and a confirm dialog keep every control in reach", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await open(page, OPERATOR, "/#/parked?view=system%3Aops-parked%3Aall");
+  const caller = page.getByRole("link", { name: /Caller: alice/ });
+  await expect(caller).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Language" })).toBeInViewport();
+  // The entry's key does not push the answer out of the dialog.
+  await row(page, scheduled).getByRole("button", { name: "Retry" }).click();
+  const dialog = page.getByRole("dialog");
+  const box = (await dialog.boundingBox())!;
+  for (const name of ["Cancel", "Retry"]) {
+    const button = (await dialog
+      .getByRole("button", { name, exact: true })
+      .boundingBox())!;
+    expect(button.x).toBeGreaterThanOrEqual(box.x);
+    expect(button.x + button.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  }
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("the overview's numbers open their queues, and the board follows the window's width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await open(page, OPERATOR, "/#/overview");
+  const card = page.getByRole("button", {
+    name: "Open “Needs attention” in the workbench",
+  });
+  await expect(card).toBeVisible();
+  const right = async () =>
+    Math.max(
+      ...(await page
+        .locator(".react-grid-item")
+        .evaluateAll((items) =>
+          items.map((item) => item.getBoundingClientRect().right),
+        )),
+    );
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect.poll(right).toBeGreaterThan(1300);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await expect.poll(right).toBeLessThanOrEqual(1100);
+  await card.click();
+  await expect(page).toHaveURL(/view=system%3Aops-parked%3Aattention/);
+});
+
+test("Enter on an entry opens its detail with the keyboard in it, and Back closes it", async ({
+  page,
+}) => {
+  await open(page, OPERATOR, "/#/parked?view=system%3Aops-parked%3Aattention");
+  await row(page, unrecoverable).focus();
+  await page.keyboard.press("Enter");
+  const detail = page.getByRole("dialog");
+  await expect(detail).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => !!document.activeElement?.closest("[role=dialog]")),
+    )
+    .toBe(true);
+  await expect(page).toHaveURL(/id=/);
+  await page.goBack();
+  await expect(page).not.toHaveURL(/id=/);
+  await expect(page).toHaveURL(/view=system%3Aops-parked%3Aattention/);
+  await expect(detail).toHaveCount(0);
+});
+
+test("a view saved here stays in this browser: no audience, no link", async ({
+  page,
+}) => {
+  await open(page, OPERATOR, "/#/parked?view=system%3Aops-parked%3Aall");
+  await page.getByRole("button", { name: "Save as" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText("Saved in this browser: only you see it, and only here."),
+  ).toBeVisible();
+  await expect(dialog.getByRole("radiogroup")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
 test("a caller without ops.operator reads the entries, and the service's refusal is said", async ({
   page,
 }) => {
@@ -278,13 +371,8 @@ test("a caller without ops.operator reads the entries, and the service's refusal
   await expect(
     page.getByText("This caller has no ops.operator role"),
   ).toBeVisible();
-  await row(page, unrecoverable)
-    .getByRole("button", { name: "Retry" })
-    .click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Retry" })
-    .click();
+  await row(page, unrecoverable).getByRole("button", { name: "Retry" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Retry" }).click();
   // The problem's own words and code (application/problem+json), said on
   // the outcome line.
   await expect(

@@ -75,6 +75,14 @@ export interface ActionFormField {
   required?: boolean;
   /** What the form opens with. */
   initial?: string | number | boolean;
+  /**
+   * `true` when a value given can be sent, else why not — a key or words,
+   * said under the field once an answer is pressed, which then stays unsent
+   * (a blank field is `required`'s, never asked here). For what the
+   * command's service would refuse anyway — a negative count, a duration it
+   * cannot read — said before the dialog closes rather than after.
+   */
+  check?(value: unknown): Availability;
 }
 
 /** An action's form, by field name: what `run` receives as its input. */
@@ -143,6 +151,15 @@ export interface RecordAction {
    * picked is the input.
    */
   readonly form?: ActionForm;
+  /**
+   * What the outcome line says of a record the command was done for, in
+   * place of 「已完成」/"done" — a key or words, said with `{count}` (how
+   * many, with a `-one` form) and `{record}` (the key, when it is one). For
+   * a command whose `run` resolves once it is *requested* rather than
+   * carried out — sent on to the service that runs it — "done" says more
+   * than happened: `'{count} sent to the owning service'`.
+   */
+  readonly done?: string;
   /**
    * The record field this command sets, for a kanban laid out by it (D83):
    * a card dropped on another lane of that field runs the command with the
@@ -335,6 +352,29 @@ export function missingInput(
   return Object.entries(action.form ?? {})
     .filter(([name, field]) => field.required !== false && blank(input[name]))
     .map(([name]) => name);
+}
+
+/**
+ * The fields whose given value their `check` refuses, by name, with why, in
+ * the form's order. A blank field is left to `missingInput`; a `check` that
+ * throws is the host's bug, and refuses nothing.
+ */
+export function invalidInput(
+  action: RecordAction,
+  input: ActionInput,
+): Record<string, string> {
+  const invalid: Record<string, string> = {};
+  for (const [name, field] of Object.entries(action.form ?? {})) {
+    if (!field.check || blank(input[name])) continue;
+    let said: Availability = true;
+    try {
+      said = field.check(input[name]);
+    } catch {
+      // The host's code: the service keeps the last word.
+    }
+    if (said !== true) invalid[name] = said;
+  }
+  return invalid;
 }
 
 /**

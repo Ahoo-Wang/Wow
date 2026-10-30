@@ -161,6 +161,11 @@ test("a viewer reads the catalog, and the service's refusal is said", async ({
   await expect(page.getByText(/This caller has neither/)).toBeVisible();
   await act(page, "Publish");
   await expect(
-    page.getByRole("alert").filter({ hasText: "(wow.auth.forbidden)" }),
+    // Said in the list and, since the detail shows what came of its
+    // actions too, in the detail.
+    page
+      .getByRole("alert")
+      .filter({ hasText: "(wow.auth.forbidden)" })
+      .first(),
   ).toBeVisible();
 });

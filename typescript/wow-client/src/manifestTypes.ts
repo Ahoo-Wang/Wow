@@ -168,7 +168,7 @@ export interface SubscriptionManifest {
   readonly rejected?: readonly string[];
   readonly committed?: readonly string[];
   readonly calls?: readonly string[];
-  readonly start?: 'beginning' | 'end' | (string & {});
+  readonly start?: 'beginning' | 'end' | 'join' | (string & {});
   readonly schedules?: readonly string[];
   readonly retry?: RetryManifest;
   readonly job?: JobManifest;
@@ -199,6 +199,7 @@ export interface RetryManifest {
   readonly timeout?: string;
   readonly recoverable?: readonly string[];
   readonly unrecoverable?: readonly string[];
+  readonly systemic?: readonly string[];
   readonly multiplier?: number;
 }
 
@@ -208,8 +209,7 @@ export interface JobManifest {
   readonly cron: string;
   readonly zone: string;
   /** Who the job runs for. */
-  readonly scope: 'system' | 'tenant' | (string & {});
-  readonly sharded: boolean;
+  readonly scope: 'system' | 'tenant' | 'sharded' | (string & {});
   /** What the job does with the slots it missed. */
   readonly misfire: 'coalesce' | 'catch-up' | (string & {});
 }

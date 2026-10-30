@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.annotation
 
-import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
@@ -38,8 +37,7 @@ import kotlin.reflect.KClass
  *   says it does not reach (`wow.peers.<context>.url`). A called command needs no command topic, and is not one the
  *   handler derives. A command of the handler's own context is derived, never called.
  */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
-@Inherited
+@Target(AnnotationTarget.FUNCTION)
 @MustBeDocumented
 annotation class Sends(
     val derives: Array<KClass<*>> = [],

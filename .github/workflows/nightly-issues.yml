@@ -1,0 +1,64 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# A failed nightly opens an issue (decision D375). When a workflow nightly.yml
+# dispatches (soak.yml, mongo-cluster.yml, ga-e2e.yml, ci.yml) completes a
+# dispatch run on main, .github/scripts/nightly-issues.mjs opens that
+# workflow's issue (label `nightly-failure`, title `Nightly: <workflow>
+# failed`) or comments on the open one when the run failed, and comments on it
+# and closes it when the run passed; a cancelled or skipped run changes
+# nothing. A manual dispatch on main counts the same. Release admission
+# dispatches ci.yml on the release tag, which the branch filter leaves out, and
+# ci.yml's push runs on main are not dispatches. GitHub runs workflow_run from
+# the default branch, main, and the script is checked out from there, never
+# from the run it reports.
+name: Nightly issues
+on:
+  workflow_run:
+    workflows: [Soak, MongoDB cluster, GA end-to-end, CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One report per workflow at a time, so two of its runs never open two
+  # issues. The event is in the group so that ci.yml's push runs, whose
+  # reports skip, never replace a dispatch run's pending report.
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.workflow_id }}-${{ github.event.workflow_run.event }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Report ${{ github.event.workflow_run.name }}
+    if: github.repository == 'Ahoo-Wang/Wow' && github.event.workflow_run.event == 'workflow_dispatch'
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      # The run and its jobs.
+      actions: read
+      contents: read
+      # The workflow's issue and the label.
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: node .github/scripts/nightly-issues.mjs
