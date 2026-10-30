@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate.example
 
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.aggregate
@@ -173,7 +174,10 @@ internal object NineXExample {
 
     private fun ref(name: String) = Manifest.schemaRef("example.$name")
 
-    val orderModel: AggregateModel<OrderState> = aggregate<OrderState>(CONTEXT, "order") {
+    val orderModel: AggregateModel<OrderState> = orderModel(payable = false)
+
+    /** The order's V10 model; [payable] adds the decision of `PayOrder`, for a service that runs it. */
+    fun orderModel(payable: Boolean): AggregateModel<OrderState> = aggregate<OrderState>(CONTEXT, "order") {
         initial { OrderState(it.id) }
         evolve<OrderCreated>(revision = 2) { created ->
             address = created.address
@@ -192,6 +196,9 @@ internal object NineXExample {
         evolve<OrderShipped> { status = OrderStatus.SHIPPED }
         evolve<OrderReceived> { status = OrderStatus.RECEIVED }
         retired(ORDER_ARCHIVED)
+        if (payable) {
+            decide<PayOrder> { _, body -> Decision.events(OrderPaid(body.amount, paid = true)) }
+        }
     }
 
     val cartModel: AggregateModel<CartState> = aggregate<CartState>(CONTEXT, "cart") {
@@ -240,6 +247,8 @@ internal data class OrderCreated(val items: List<OrderItem>, val address: Shippi
 internal data class AddressChanged(val shippingAddress: ShippingAddress)
 
 internal data class OrderPaid(val amount: BigDecimal, val paid: Boolean)
+
+internal data class PayOrder(val amount: BigDecimal)
 
 internal class OrderShipped
 

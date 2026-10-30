@@ -182,6 +182,25 @@ class SourcedNodeTest {
         }
 
     @Test
+    fun `a saga should pass over the records a peer published as imported, which a projection takes`(): Unit =
+        runBlocking {
+            val node = node()
+            node.start()
+            node.topicSubscriptions.getValue(TOPIC).awaitStarted()
+            topics.publish(
+                orderRecord("o-1", 1).copyWith(imported = true),
+                orderRecord("o-1", 2).copyWith(imported = true),
+                orderRecord("o-1", 3),
+                topic = TOPIC,
+            )
+            eventually { seen.size == 3 && decided.size == 1 }
+            // 9.x acted on the imported records already: the saga derives for V10's commit alone. One aggregate's
+            // records are admitted in version order, so the two before it were passed over by then.
+            seen.map { it.version }.assert().containsExactly(1, 2, 3)
+            decided.size.assert().isEqualTo(1)
+        }
+
+    @Test
     fun `the operator's view should list a topic subscription's partitions only while they are held back (D372 S7)`(): Unit =
         runBlocking {
             val down = ProcessorBinding.project<OrderTotal?>(

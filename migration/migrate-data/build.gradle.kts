@@ -25,6 +25,8 @@ dependencies {
     integrationTestImplementation(project(":tck-containers"))
     // The ops API's reading of the imported parked entries (roadmap 8b.4): ParkedOps over a subscription runtime.
     integrationTestImplementation(project(":runtime"))
+    // The imported service and a peer of it as nodes, on one loopback cluster channel (X-38).
+    integrationTestImplementation(testFixtures(project(":runtime")))
     // The 9.x example's fixtures and its V10 port, shared with the unit tests.
     integrationTestImplementation(sourceSets.test.get().output)
 }

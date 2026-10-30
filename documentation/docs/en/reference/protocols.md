@@ -83,6 +83,7 @@ A state event is a commit together with the aggregate's state after it. Handlers
 | --- | --- |
 | `state` | `{version, schemaFingerprint, state}`: the state serialized once when the version committed, with the fingerprint of its schema. Null when the aggregate publishes without state. |
 | `deleted` | Whether the aggregate is deleted after this commit. |
+| `imported` | `true` for a commit `migrate-data` imported from 9.x, up to the context's cut-over; left out otherwise. A saga or a reactor of another context passes over it, since 9.x acted on it. |
 
 Events are upgraded to their current revision before they are published.
 

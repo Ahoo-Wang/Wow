@@ -55,6 +55,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.ImportCutover
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
@@ -171,7 +172,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val builtIns = snapshots.map { it.subscription } +
             listOfNotNull(maintenance?.rebuildSubscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
-            logGroupOf(progress[index].group, part, builtIns, timersOf(context, part, firing))
+            logGroupOf(context, progress[index].group, part, builtIns, timersOf(context, part, firing))
         }
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
@@ -235,10 +236,12 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     )
 
     /**
-     * A log group [part] of a context on this node: the runtime [name]d of its subscriptions, the [builtIns] and its
-     * [timers]' `timers` subscription among them, over its log, checkpoints and ledger.
+     * A log group [part] of [context] on this node: the runtime [name]d of its subscriptions, the [builtIns] and its
+     * [timers]' `timers` subscription among them, over its log, checkpoints and ledger, which also hold the cut-over
+     * of a migrated context's imported history ([ImportCutover]).
      */
     private fun logGroupOf(
+        context: String,
         name: String,
         part: GroupParts,
         builtIns: List<Subscription>,
@@ -256,6 +259,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             observer = observer,
             classification = classification,
             clock = clock,
+            cutover = ImportCutover.groupOf(context),
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }

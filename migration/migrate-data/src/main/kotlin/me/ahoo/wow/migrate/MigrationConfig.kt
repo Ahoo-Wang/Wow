@@ -25,15 +25,18 @@ import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.apache.hc.core5.http.HttpHost
 import tools.jackson.databind.DeserializationFeature
 import java.io.Closeable
@@ -234,6 +237,9 @@ internal interface MigrationConnections : Closeable {
     /** The V10 reservation store, one for every context, on the target backend; its schema created. */
     fun reservationStore(): ReservationStore
 
+    /** The V10 checkpoint store on the target backend, where the import's cut-over is kept; its schema created. */
+    fun checkpointStore(): CheckpointStore
+
     /** The 9.x compensation service's executions; null when the configuration names no compensation database. */
     val compensation: NineXCompensationSource? get() = null
 
@@ -308,6 +314,16 @@ internal class ConfiguredConnections(private val config: MigrationConfig) : Migr
     }
 
     override fun reservationStore(): ReservationStore = reservationStore
+
+    private val checkpointStore: CheckpointStore by lazy {
+        if (targetClient != null) {
+            MongoCheckpointStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+        } else {
+            PostgresCheckpointStore(dataSource.value).also { it.createSchema() }
+        }
+    }
+
+    override fun checkpointStore(): CheckpointStore = checkpointStore
 
     private val compensationClient: MongoClient? = config.compensation?.uri
         ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }

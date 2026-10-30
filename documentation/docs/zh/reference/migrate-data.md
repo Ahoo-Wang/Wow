@@ -67,6 +67,7 @@ outline: deep
 | `CONFLICT` | `export` 发现一条 9.x 在同一版本上持有、但命令或租户不同的流。不导出任何东西。 |
 | `VERDICT` | `export --dry-run` 对一个上下文的结论：切回、导出 N 条流，或者自某个时间起无法通过导出回滚。 |
 | `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多。 |
+| `CUTOVER` | 在向某个上下文的日志追加过的一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史现在在哪里结束：切换点，记在每个分区日志的头部。 |
 
 ## 配置文件 {#configuration-file}
 
@@ -266,5 +267,7 @@ V10 订阅的名字是 `<processor>.<function>`。
 它旁边的 `<checkpoint>.reservations.jsonl` 在预留每个键之前先记下它，这样之后的导入可以释放 9.x 已放弃的键。把这两个文件放在一起。
 
 多个命令可以同时使用同一个检查点文件，例如 `tail` 与 `compare` 并行：每次改动都持有 `<checkpoint>.lock` 上的锁，并原子地替换文件，所以谁也不会丢失别人的进度。停下的运行最多重复一页。
+
+切换点保存在 V10 目标里、日志旁边：每个分区一行检查点，组为 `wow.migrate/<context>`，名为 `cutover`，每一轮只会把它往前移，从不后退。服务的订阅把它及之前的条目视为导入的，它的传输 Sink 也把它们标为导入的发布出去（[从 9.x 导入的历史](../guide/published-streams#history-imported-from-9x)）。演练运行（dry run）不记录切换点。
 
 在工具开始记录来源之前导入的预留键和停放条目，无法与 V10 自己的区分开：导入到全新的 V10 目标，或者在 `import --restart` 之前删除它们。

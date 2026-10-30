@@ -47,6 +47,8 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *   the published form, a JSON tree with its schema's fingerprint ([PublishedState]).
  * - **Transport**: the entry's wait context and trace go with the record, the trace of the sink's
  *   handling instead when it is observed; its reservations stay in the context.
+ * - **Imported history**: an entry migrate-data imported from 9.x, at or before the context's cut-over, is written
+ *   marked [StateEventRecord.imported], so a peer's saga or reactor passes over it and its projection takes it.
  * - **At least once**: an entry is done, and the checkpoint may pass it, only once [Sink.write]
  *   returned, which is once the records are durable (the broker acknowledged them). A crash, a retry or an old owner
  *   beside the new one writes a record again; a reader drops it by [StateEventRecord.id].
@@ -113,6 +115,7 @@ internal class SinkSubscription(
             headers = stream.headers,
             operator = stream.operator,
             transport = published(entry.transport, currentCoroutineContext().trace),
+            imported = entry.imported,
         )
     }
 
