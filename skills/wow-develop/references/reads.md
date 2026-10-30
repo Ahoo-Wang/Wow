@@ -18,6 +18,7 @@ The job: serve and read the read side of a V10 service, and keep its contract (t
 `QueryApi` (`me.ahoo.wow.api.read`, a bean of the host) runs the same admission, visibility, bulkhead and budget as the public port:
 
 - `queryApi.of(caller)` reads within that caller's scope; `queryApi.trusted()` reads every tenant (trusted code only); `trusted().unbounded()` drops the budget, under `wow.query.unbounded-timeout`.
+- From a command function: a `QueryApi` or `NodeQueryApi` service of the model, read as the caller rebuilt from the command, or `trusted()` filtered by the command's tenant ([model.md](model.md), "A decide function that queries").
 - A subscription handler reads through its context's `queries`: the whole tenant of the commit it handles, as trusted code pinned to that tenant.
 - `snapshots<S>()` (or `snapshots(type)`), `events(type)`, `datasets<R>(name)`; each has `single`, `list` (a `Flow`), `stream`, `paged`, `cursor`, `count`, `aggregate`. A typed snapshot row reads the whole record; a query with a projection goes through `dynamic<T>()`.
 - Failures: `wow.query.invalid` (refused), `wow.query.timeout`, `wow.query.busy` (back off), `MinVersionNotReachedException`.

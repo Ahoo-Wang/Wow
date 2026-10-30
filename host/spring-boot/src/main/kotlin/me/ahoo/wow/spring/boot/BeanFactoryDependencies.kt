@@ -13,6 +13,11 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.kernel.AmbiguousDependencyException
 import me.ahoo.wow.kernel.Dependencies
 import org.springframework.beans.factory.ListableBeanFactory
@@ -25,6 +30,11 @@ import java.lang.reflect.Type
  * is the only bean of its type, or its primary bean when there are several. Several without a primary are ambiguous:
  * the parameter needs a qualifier. A parameterized type is matched by every type argument, as Spring matches an
  * injection point: `StateViewCache<OrderStateView>` is not `StateViewCache<PaymentStateView>`.
+ *
+ * A [QueryApi] or [NodeQueryApi] without a qualifier is the node's own read API when the node has one (its
+ * [NodeQueryApi] bean, the query plane on), whatever other [QueryApi] beans (a peer's client) the application has: a
+ * command function queries the read side as the command's caller. The node's API is built from the node, which is built from the models, so the models take it
+ * deferred ([NodeQueries]): looked up on its first use, a command's, once the node is up.
  */
 internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {
     override fun find(type: Class<*>, qualifier: String?): Any? = find(ResolvableType.forClass(type), type, qualifier)
@@ -32,6 +42,9 @@ internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFact
     override fun find(type: Type, qualifier: String?): Any? = find(ResolvableType.forType(type), type, qualifier)
 
     private fun find(resolvable: ResolvableType, type: Type, qualifier: String?): Any? {
+        if (qualifier == null && resolvable.toClass() in NODE_QUERIES && nodeQueries()) {
+            return NodeQueries { beanFactory.getBean(NodeQueryApi::class.java) }
+        }
         if (qualifier != null) {
             return if (beanFactory.containsBean(qualifier) && beanFactory.isTypeMatch(qualifier, resolvable)) {
                 beanFactory.getBean(qualifier)
@@ -47,4 +60,24 @@ internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFact
                 ?: throw AmbiguousDependencyException(type, names.toList())
         }
     }
+
+    /** Whether the node has its read API: a [NodeQueryApi] bean, looked for without creating it. */
+    private fun nodeQueries(): Boolean =
+        beanFactory.getBeanNamesForType(NodeQueryApi::class.java, true, false).isNotEmpty()
+
+    private companion object {
+        /** The types a model's parameter names the node's read API by. */
+        val NODE_QUERIES: Set<Class<*>> = setOf(QueryApi::class.java, NodeQueryApi::class.java)
+    }
+}
+
+/** The node's read API, which [node] gives on the first query: the models take it before the node is built. */
+private class NodeQueries(node: () -> NodeQueryApi) : NodeQueryApi {
+    private val node by lazy(node)
+
+    override fun of(caller: Caller): Queries = node.of(caller)
+
+    override fun trusted(): TrustedQueries = node.trusted()
+
+    override fun toString(): String = "NodeQueries(the node's NodeQueryApi)"
 }

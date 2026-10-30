@@ -164,6 +164,55 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 服务可以做 I/O。会阻塞线程的函数，例如调用 JDBC 的函数，要标注 `@Blocking`，它会在虚拟线程上运行。函数也可以是 `suspend`，或者返回 Reactor 的 `Mono`，这需要类路径上有 `wow-reactor`。
 
+### 查询读取端 {#query-the-read-side}
+
+命令函数需要聚合状态以外的信息时，例如它引用的账户是否存在，就把节点的读取 API 作为服务接收：`QueryApi`，或者用于受信读取的 `NodeQueryApi`。两者都在 `wow-api`（`me.ahoo.wow.api.read`）里，领域模块不需要别的依赖，宿主会把节点自己的读取 API 交给模型。如果调用方已经知道这个事实，就把它放进命令（用 `CommandTransformer`，或由发送命令的 Saga 放入）：读取会在每次版本冲突后的重试中再跑一遍，而且读到的内容可能在事件追加之前就变了。
+
+以命令的调用方身份读取，调用方从命令重建：它的租户、所有者和空间，以及它的操作员。读取能看到的，就是这个调用方能看到的：
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: LendBook, queries: QueryApi, scope: DecideScope): BookLent {
+    val admitted = scope.command
+    val caller = Caller.of(admitted.ref.tenantId, admitted.scope, admitted.operator?.id)
+    queries.of(caller).snapshots<AccountState>().state(command.accountId)
+        ?: reject("library.book.no-account", "No account ${command.accountId}.")
+    return BookLent(command.accountId)
+}
+```
+
+重建的调用方没有角色、策略或 ABAC 属性。它们只随请求存在，而命令可能在另一个节点上决定，或者从它的命令主题取来。读取这些属性的查询策略什么也看不到，要求某个角色的策略会拒绝这次读取。
+
+不应受任何策略限制的读取，接收 `NodeQueryApi` 并用 `trusted()` 读取。
+
+::: warning 受信读取跨越租户
+`trusted()` 读取所有租户。在有多个租户的服务里，函数要自己按命令的租户过滤，如示例所示。
+:::
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideScope): BookLent {
+    val lent = queries.trusted().snapshots<BookState>().count(
+        countQuery {
+            filter {
+                tenantId(scope.command.ref.tenantId)
+                "state.account" eq command.accountId
+            }
+        },
+    )
+    if (lent.count >= MAX_BOOKS) {
+        reject("library.book.too-many", "Account ${command.accountId} has $MAX_BOOKS books.")
+    }
+    return BookLent(command.accountId)
+}
+```
+
+读取失败时，命令以 `wow.command.failed`（500）失败，与任何意外异常一样。读取端拒绝的读取，以及代码写错的读取（例如没有聚合使用的状态类），都是如此：过错在代码，不在调用方。在聚合规格里，把 `memoryQueries { snapshots(...) }` 作为 `QueryApi` 交给模型工厂（[测试](./testing)）。
+
 ## 向内核要更多东西 {#ask-the-kernel-for-more}
 
 `DecideScope` 是一次决定除了事件之外还能向内核要的东西：

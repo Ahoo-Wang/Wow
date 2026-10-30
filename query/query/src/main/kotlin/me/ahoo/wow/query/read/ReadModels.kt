@@ -45,8 +45,8 @@ class ReadModels(models: Collection<Model>) {
     fun typeOf(stateType: Class<*>): AggregateType {
         StateView.typeOf(stateType)?.let { return it }
         val models = byState[stateType].orEmpty()
-        require(models.isNotEmpty()) { "No aggregate of this node has a state of ${stateType.name}." }
-        require(models.size == 1) {
+        requireRead(models.isNotEmpty()) { "No aggregate of this node has a state of ${stateType.name}." }
+        requireRead(models.size == 1) {
             "The aggregates ${models.map { it.type }} share the state ${stateType.name}: query them by type."
         }
         return models.single().type
