@@ -33,7 +33,7 @@ interface Caller {
 }
 
 const OPERATOR: Caller = { user: "alice", roles: ["ops.operator"] };
-const VIEWER: Caller = { user: "victor", roles: ["viewer"] };
+const VIEWER: Caller = { user: "victor", roles: ["ops.viewer"] };
 
 /** The console in English, as `caller` (none: the console asks first). */
 async function open(page: Page, caller: Caller | null, path = "/#/parked") {

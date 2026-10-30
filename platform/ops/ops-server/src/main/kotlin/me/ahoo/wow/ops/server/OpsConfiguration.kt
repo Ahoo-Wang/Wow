@@ -15,6 +15,7 @@ package me.ahoo.wow.ops.server
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.SignedInCallerResolver
@@ -39,6 +40,10 @@ import org.springframework.context.annotation.Configuration
  * role among its CoSec roles ([OperatorRole]). An operator's
  * action is authorized here, as `ops.parked.Retry` and the others: the owning service runs the ledger command
  * the saga sends it through its command topic, and guards its own operator routes (`/wow/ops/parked`) itself.
+ *
+ * What each caller may read, decided alike: CoSec's policies of the query routes' paths where CoSec decides and its
+ * authorizer is on, else a reader's role among its CoSec roles ([ReaderRole]); a caller with neither role reads
+ * nothing. The entries are their tenant's, so a caller's owner keeps none of them from it.
  */
 @Configuration(proxyBeanMethods = false)
 class OpsConfiguration {
@@ -54,6 +59,14 @@ class OpsConfiguration {
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun opsOperatorRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
         if (cosec.ifAvailable == null) OperatorRole() else CommandAuthorizer.ALLOW_ALL
+
+    /**
+     * Who reads the entries: steps aside when CoSec decides ([CoSecCommandAuthorizer]: its policies of the query
+     * routes, which it decides as their paths); otherwise the reader roles decide ([ReaderRole]).
+     */
+    @Bean
+    fun opsReaderRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): QueryPolicy =
+        if (cosec.ifAvailable == null) ReaderRole() else ReaderRole.COSEC_DECIDES
 
     companion object {
         /**

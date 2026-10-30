@@ -121,7 +121,7 @@ abstract class OpsContract {
         detail["aggregate"]["id"].asString().assert().isEqualTo("p-1")
         detail["reason"].asString().assert().contains("unreachable")
         detail["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(3)
-        // A caller of the tenant reads the entries too; one of another tenant sees none of them.
+        // A viewer of the tenant reads the entries too; one of another tenant sees none of them.
         query(eq("state.context", context), Who.VIEWER).assertOk().ids.assert().hasSize(3)
         query(eq("state.context", context), Who.OUTSIDER).assertOk().ids.assert().isEmpty()
     }
@@ -280,6 +280,18 @@ abstract class OpsContract {
         ops.post("/ops/parked/$id/record-resolved", forged, Who.OPERATOR).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         state(id)!!["status"].asString().assert().isEqualTo(ParkedStatus.EXHAUSTED)
         ops.ledgerCommands(context).assert().isEmpty()
+    }
+
+    @Test
+    fun `a caller with neither ops role should read nothing (UI-1)`() {
+        val context = context()
+        val id = ops.publish(entry(context, "p-1"))
+        eventually("$id recorded") { state(id) != null }
+
+        listOf(Who.ROLELESS, Who.STRANGER).forEach { reader ->
+            query(eq("state.context", context), reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        }
     }
 
     @Test

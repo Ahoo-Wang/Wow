@@ -60,18 +60,19 @@ ops 服务是一个运行在 MongoDB 和 Kafka（或 PostgreSQL）上、位于 C
 wow:
   cosec:
     mode: gateway
-    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
-    # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
-    # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
+    # The operators and viewers, tenant-level callers (their scope has no owner): an operator acts on the entries, a
+    # viewer reads them, and a principal with neither role reads nothing (403 wow.auth.forbidden). An entry is its
+    # tenant's, so no caller's owner restricts its reads: the roles do. The services' ledgers publish to Wow's
+    # default tenant, (0), which a principal of CoSec's default tenant is in.
     tenant-level:
       roles: ops.operator, ops.viewer
 ```
 
 - `ops.operator` 读取条目并对它们执行操作。
 - `ops.viewer` 只读取条目。
-- 两个角色都没有的主体什么都读不到。没有有效令牌的请求返回 401，控制台随即退出登录。
+- 两个角色都没有的主体什么都读不到：它对条目的查询和状态读取都返回 403 `wow.auth.forbidden`。没有有效令牌的请求返回 401，控制台随即退出登录。
 
-各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 自己决定 ops 服务的请求、并设置 `wow.cosec.authorizer.enabled: true` 时（不是在网关之后，那里服务没有 CoSec 的决定），改由 CoSec 的文档而不是角色来决定谁是运维人员，每个操作按它命令的动作判定：ops 服务上 `parked/<id>` 的 `ops:Resume` 及其他操作（[动作名称](./security#action-names)）。自己提供运维路由的服务（`/wow/ops/parked`，见下文）按它的 `wow.ledger.*` 命令判定这些路由。为你暴露的每条路由编写策略。无论由谁决定，任何调用方都不能发送记录命令（`ops.parked.RecordParked`、`RecordResolved`、`RecordActionRefused`）：只有各服务的台账和 ops 的 Saga 会产生它们。
+各服务的台账发布到 Wow 的默认租户 `(0)`。CoSec 自己决定 ops 服务的请求、并设置 `wow.cosec.authorizer.enabled: true` 时（不是在网关之后，那里服务没有 CoSec 的决定），改由 CoSec 的文档而不是角色来决定谁能读取条目、谁是运维人员，读取按查询路由的路径判定，每个操作按它命令的动作判定：ops 服务上 `parked/<id>` 的 `ops:Resume` 及其他操作（[动作名称](./security#action-names)）。自己提供运维路由的服务（`/wow/ops/parked`，见下文）按它的 `wow.ledger.*` 命令判定这些路由。为你暴露的每条路由编写策略。无论由谁决定，任何调用方都不能发送记录命令（`ops.parked.RecordParked`、`RecordResolved`、`RecordActionRefused`）：只有各服务的台账和 ops 的 Saga 会产生它们。
 
 ## 使用控制台 {#work-with-the-console}
 

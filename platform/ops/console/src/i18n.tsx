@@ -33,7 +33,7 @@ const SHELL = {
     signedOut: "No caller",
     callerTitle: "Local run: who is calling",
     callerDescription:
-      "Only a development run of the ops service (a dev profile) reads the caller from request headers, standing in for CoSec: Wow-User names the operator, Wow-Tenant its tenant, Wow-Roles its roles. Acting on an entry needs the role ops.operator.",
+      "Only a development run of the ops service (a dev profile) reads the caller from request headers, standing in for CoSec: Wow-User names the operator, Wow-Tenant its tenant, Wow-Roles its roles. Reading the entries needs the role ops.viewer or ops.operator, acting on them ops.operator.",
     signInTitle: "Sign in with CoSec",
     signInDescription:
       "Paste an access token your CoSec issued. The ops service verifies it and reads the operator from it: its tenant, its id and its roles. Reading the entries needs the role ops.viewer or ops.operator, acting on them ops.operator.",
@@ -53,6 +53,8 @@ const SHELL = {
       "Sign in to read the parked entries, or name a caller for a local run: the ops service answers an anonymous request with 401.",
     readOnly:
       "This caller has no ops.operator role: it reads the entries, and the service refuses its actions.",
+    noReader:
+      "This caller has neither ops.viewer nor ops.operator: the service shows it no entry.",
     cause: "Cause",
     owner: "Owning aggregate",
     attempts: "Attempts",
@@ -95,7 +97,7 @@ const SHELL = {
     signedOut: "未指定调用者",
     callerTitle: "本地运行：调用者",
     callerDescription:
-      "只有以开发模式运行的运维服务（dev profile）才从请求头读取调用者（代替 CoSec）：Wow-User 为操作员，Wow-Tenant 为其租户，Wow-Roles 为其角色。操作条目需要 ops.operator 角色。",
+      "只有以开发模式运行的运维服务（dev profile）才从请求头读取调用者（代替 CoSec）：Wow-User 为操作员，Wow-Tenant 为其租户，Wow-Roles 为其角色。查看条目需要 ops.viewer 或 ops.operator 角色，操作条目需要 ops.operator。",
     signInTitle: "使用 CoSec 登录",
     signInDescription:
       "粘贴 CoSec 签发的访问令牌。运维服务验证令牌并从中读取操作员：租户、标识与角色。查看条目需要 ops.viewer 或 ops.operator 角色，操作条目需要 ops.operator。",
@@ -115,6 +117,8 @@ const SHELL = {
       "请先登录，或为本地运行指定调用者：运维服务对匿名请求返回 401。",
     readOnly:
       "此调用者没有 ops.operator 角色：可以查看条目，但服务会拒绝其操作。",
+    noReader:
+      "此调用者既没有 ops.viewer 也没有 ops.operator 角色：服务不向其展示任何条目。",
     cause: "原因",
     owner: "所属聚合",
     attempts: "尝试",

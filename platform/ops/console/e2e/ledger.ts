@@ -110,14 +110,17 @@ export async function ledgerCommands(
 }
 
 /**
- * Waits until the ops service lists `entry` to an operator, who calls with
- * `headers`: a caller of headers by default, a CoSec token's on a server in
+ * Waits until the ops service lists `entry` to a reader, who calls with
+ * `headers`: a viewer of headers by default, a CoSec token's on a server in
  * its `cosec` profile.
  */
 export async function listed(
   request: APIRequestContext,
   entry: Parked,
-  headers: Record<string, string> = { [DevelopmentCallerHeaders.USER]: "e2e" },
+  headers: Record<string, string> = {
+    [DevelopmentCallerHeaders.USER]: "e2e",
+    [DevelopmentCallerHeaders.ROLES]: "ops.viewer",
+  },
 ): Promise<void> {
   await expect
     .poll(async () => {
