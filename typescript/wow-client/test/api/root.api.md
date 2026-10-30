@@ -1706,6 +1706,8 @@ export interface RetryManifest {
     // (undocumented)
     readonly recoverable?: readonly string[];
     // (undocumented)
+    readonly systemic?: readonly string[];
+    // (undocumented)
     readonly timeout?: string;
     // (undocumented)
     readonly unrecoverable?: readonly string[];
