@@ -25,7 +25,12 @@ import { vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
 import { ROUTES } from "@/router.tsx";
 import { CallerStore, type CatalogCaller } from "@/services/caller.ts";
-import type { CatalogServices } from "@/services/catalog.ts";
+import {
+  followSettings,
+  ServingStore,
+  type CatalogServices,
+} from "@/services/catalog.ts";
+import { SettingsStore, type CatalogSettings } from "@/services/settings.ts";
 import type { CatalogCommands } from "@/views/catalogCommands.ts";
 import { createCatalogEngine } from "@/views/engine.ts";
 import type { ReferenceActions } from "@/views/referenceActions.ts";
@@ -163,6 +168,40 @@ export const DATASET_ROWS = [
       versions: [],
     },
   },
+  {
+    aggregateId: "shop.customer_contacts",
+    state: {
+      context: "shop",
+      name: "customer_contacts",
+      title: "Customer contacts",
+      status: "PUBLISHED",
+      current: 2,
+      stillServing: false,
+      dropped: false,
+      definition: DEFINITION,
+      // Revised to compute from a sensitive value: it awaits an approver.
+      requested: DEFINITION,
+      problems: [],
+      requestReasons: [
+        "c.phone is sensitive: computing from it takes an approver.",
+      ],
+      sources: ["default:shop:orders"],
+      versions: [1, 2].map((version) => ({
+        definition: DEFINITION,
+        artifact: {
+          context: "shop",
+          name: "customer_contacts",
+          database: "wow_datasets",
+          view: `ds_shop_customer_contacts_v${version}`,
+          version,
+          ddl: `CREATE VIEW wow_datasets.ds_shop_customer_contacts_v${version} AS SELECT o.id AS id FROM shop.orders AS o`,
+          sources: ["default:shop:orders"],
+          scope: { tenant: "tenant_id" },
+          fields: [{ name: "id" }],
+        },
+      })),
+    },
+  },
 ];
 
 /** A served dataset's definition, as `DatasetResources` registers one. */
@@ -243,10 +282,24 @@ export function commandsStub(): {
   };
 }
 
+/** A catalog of the defaults but for one: a source takes an approver; its roles decide. */
+export const SETTINGS: CatalogSettings = {
+  connection: "default",
+  requireSourceApproval: true,
+  requirePublicationApproval: false,
+  rolesDecide: true,
+};
+
 export const EDITOR: CatalogCaller = {
   user: "alice",
   tenant: "(platform)",
   roles: ["analytics.catalog.editor"],
+};
+
+export const APPROVER: CatalogCaller = {
+  user: "bob",
+  tenant: "(platform)",
+  roles: ["analytics.catalog.approver"],
 };
 
 /** The console's engine over memory sources, with the orders dataset when one is `served`. */
@@ -276,6 +329,8 @@ export function renderConsole(
     tokens = null as TokenStorage | null,
     served = [] as DatasetResource[],
     engine = catalogEngine(served),
+    settings = SETTINGS as CatalogSettings | null,
+    serving = true as boolean | null,
   } = {},
 ) {
   const callers = new CallerStore(null, tokens);
@@ -287,11 +342,21 @@ export function renderConsole(
     return ORDER_ACTIONS;
   });
   const send = vi.fn(async () => ({ status: "succeeded" }));
+  // `null`: a catalog that does not say (an older one, or a failure).
+  const settingsStore = new SettingsStore(async () => {
+    if (settings === null) throw new Error("No settings route.");
+    return settings;
+  });
+  followSettings(settingsStore, engine, memorySource(SOURCE_ROWS));
+  const servingStore = new ServingStore();
+  if (serving !== null) servingStore.set(serving);
   const services: CatalogServices = {
     callers,
     fetcher: new Fetcher({ baseURL: "" }),
     commands,
     engine,
+    settings: settingsStore,
+    serving: servingStore,
     datasets: { refresh },
     references: { actions: referenceActionsOf, send },
   };

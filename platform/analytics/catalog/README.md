@@ -63,10 +63,10 @@ sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `an
 
 Swagger UI: http://localhost:8087/swagger-ui.html
 
-`wow.analytics.catalog.*`: `connection` (`default`), `engine` (`clickhouse`), `databases` (`wow.clickhouse.database` when empty),
-`trusted-writers.<account>` (the contexts it is trusted for), `refresh-interval` (30s), `watch` (on).
+`wow.analytics.catalog.*`: `connection` (`default`), `databases` (`wow.clickhouse.database` when empty),
+`trusted-writers.<account>` (the contexts it is trusted for), `refresh-interval` (30s), `watch.enabled` (on).
 `wow.analytics.catalog.datasets.*`: `database` (`wow_datasets`; the account needs `CREATE DATABASE`, `CREATE VIEW` and
-`DROP VIEW` there), `retention` (7d), `serve` (on), `refresh-interval` (5s), `reconcile-interval` (5m). The approval switches,
+`DROP VIEW` there), `retention` (7d), `serving.enabled` (on), `refresh-interval` (5s), `reconcile-interval` (5m). The approval switches,
 `require-source-approval` and `require-publication-approval`, are off by default. A node that serves
 the datasets is ready (`/actuator/health/readiness`) once it read the publications; its metrics are
 `wow.analytics.catalog.datasets.sync.age` and `wow.analytics.catalog.datasets.publication.lag`.

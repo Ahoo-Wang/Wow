@@ -17,6 +17,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n.tsx";
 import { problemText } from "@/views/catalogCommands.ts";
+import type { DefinitionError } from "./datasetRecord.ts";
 
 export function Section({
   title,
@@ -116,15 +117,21 @@ export function useSaving(refresh: () => void): Saving {
   return { save, busy, error, saved };
 }
 
-/** A form's save button, and what came of the last save. */
+/**
+ * A form's save button, and what came of the last save: the service's
+ * refusal, or `done` — what was saved and where to find it — in place of
+ * 「已保存」, so a save is said once.
+ */
 export function SaveBar({
   saving,
   disabled,
   label,
+  done,
 }: {
   saving: Saving;
   disabled?: boolean;
   label?: string;
+  done?: ReactNode;
 }) {
   const { t } = useI18n();
   return (
@@ -138,7 +145,7 @@ export function SaveBar({
         </p>
       ) : saving.saved ? (
         <p role="status" className="text-sm text-muted-foreground">
-          {t("saved")}
+          {done ?? t("saved")}
         </p>
       ) : null}
     </div>
@@ -148,3 +155,17 @@ export function SaveBar({
 /** The input style of the shadcn input, for the native controls beside it. */
 export const CONTROL =
   "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
+
+/** Why the definition typed is not one, in the console's words. */
+export function DefinitionProblem({ error }: { error: DefinitionError }) {
+  const { t } = useI18n();
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {error.kind === "object"
+        ? t("definitionNotObject")
+        : error.line !== undefined && error.column !== undefined
+          ? t("definitionInvalidAt", { line: error.line, column: error.column })
+          : t("definitionInvalid")}
+    </p>
+  );
+}

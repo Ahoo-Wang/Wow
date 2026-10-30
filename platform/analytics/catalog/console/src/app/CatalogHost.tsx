@@ -26,7 +26,7 @@ import {
   type ReferenceActions,
 } from "@/views/referenceActions.ts";
 import { ServedProvider, type Served } from "./served.tsx";
-import { useCaller, useServices } from "./services.tsx";
+import { useCaller, useServices, useSettings } from "./services.tsx";
 
 /** Wow's blue, the console's brand over the engine's porcelain preset. */
 const BRAND = "oklch(0.546 0.245 262.881)";
@@ -94,18 +94,47 @@ function useServed(): Served {
  * engine's theme.
  */
 export function CatalogHost({ children }: { children: ReactNode }) {
-  const { engine, commands, references } = useServices();
+  const { engine, commands, references, settings: store } = useServices();
   const { locale } = useI18n();
   const served = useServed();
+  const caller = useCaller();
+  const settings = useSettings();
+  // The catalog answers nobody: its settings are read once someone calls.
+  useEffect(() => {
+    if (caller) store.load();
+  }, [caller, store]);
   const bindings = useMemo(
     () =>
-      consoleBindings(commands, served.datasets, (id) => {
-        const actions = served.references[id];
-        return actions
-          ? referenceActions(actions, references.send, REFERENCE_WORDS[locale])
-          : undefined;
-      }),
-    [commands, served.datasets, served.references, references.send, locale],
+      consoleBindings(
+        commands,
+        served.datasets,
+        (id) => {
+          const actions = served.references[id];
+          return actions
+            ? referenceActions(
+                actions,
+                references.send,
+                REFERENCE_WORDS[locale],
+              )
+            : undefined;
+        },
+        {
+          // Only where the catalog's roles decide can the console tell
+          // what the caller's rule out; CoSec's policies it cannot read.
+          roles: () =>
+            settings?.rolesDecide === true ? (caller?.roles ?? []) : null,
+          settings,
+        },
+      ),
+    [
+      commands,
+      served.datasets,
+      served.references,
+      references.send,
+      locale,
+      caller,
+      settings,
+    ],
   );
   return (
     <ServedProvider served={served}>

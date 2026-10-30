@@ -161,6 +161,18 @@ class AnalyticsCatalogConfiguration {
         described = manifestPeers(wow),
     )
 
+    /**
+     * `GET /analytics-catalog/settings`: what a console offers depends on (`CatalogSettings`), the roles deciding as
+     * [analyticsCatalogAuthorizer] has them decide.
+     */
+    @Bean
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
+    fun catalogSettingsRoute(
+        catalog: WarehouseCatalog,
+        properties: AnalyticsCatalogProperties,
+        cosec: ObjectProvider<CoSecCommandAuthorizer>,
+    ): CatalogSettingsRoute = CatalogSettingsRoute.of(catalog, properties, rolesDecide = cosec.ifAvailable == null)
+
     /** The peer contexts `wow.peers.<context>.contract: manifest` describes by their Manifest alone, the host's. */
     @OptIn(InternalWowApi::class)
     private fun manifestPeers(wow: WowProperties): Set<String> =

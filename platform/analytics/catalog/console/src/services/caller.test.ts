@@ -180,6 +180,8 @@ describe("the CoSec sign-in", () => {
       tenant: DEFAULT_TENANT,
       roles: ["analytics.catalog.editor"],
       via: "cosec",
+      // When it stops being one, to say why it was signed out.
+      expiresAt: expect.any(Number),
     });
     const other = accessToken({ sub: "olga", tenantId: "t-1" });
     tokens.signIn({ accessToken: other, refreshToken: other });

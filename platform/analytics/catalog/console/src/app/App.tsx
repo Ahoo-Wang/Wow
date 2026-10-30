@@ -92,9 +92,13 @@ function CallerLink() {
         {caller ? caller.user : t("signedOut")}
       </span>
       {caller && isApprover(caller) ? (
-        <Badge variant="secondary" className="max-sm:hidden">{APPROVER_ROLE}</Badge>
+        <Badge variant="secondary" className="max-sm:hidden">
+          {APPROVER_ROLE}
+        </Badge>
       ) : caller && isEditor(caller) ? (
-        <Badge variant="secondary" className="max-sm:hidden">{EDITOR_ROLE}</Badge>
+        <Badge variant="secondary" className="max-sm:hidden">
+          {EDITOR_ROLE}
+        </Badge>
       ) : null}
     </Button>
   );

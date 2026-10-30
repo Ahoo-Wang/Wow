@@ -39,6 +39,7 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
       routes: [
         { name: 'referenceActions', route: { method: 'GET', path: '/analytics-catalog/datasets/{dataset}/reference-actions' } },
         { name: 'sendReferenceAction', route: { method: 'POST', path: '/analytics-catalog/datasets/{dataset}/rows/{field}/{id}/{command}' } },
+        { name: 'settings', route: { method: 'GET', path: '/analytics-catalog/settings' } },
       ],
     },
   ],

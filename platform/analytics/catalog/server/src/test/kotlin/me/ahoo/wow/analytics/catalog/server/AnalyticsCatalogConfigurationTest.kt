@@ -122,12 +122,20 @@ class AnalyticsCatalogConfigurationTest {
 
     @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
-    fun `the catalog's roles should decide only where CoSec does not authorize the commands`(): Unit = runBlocking {
+    fun `the catalog's roles should decide only where CoSec does not authorize the commands, as its settings say`(): Unit = runBlocking {
         configuration.analyticsCatalogAuthorizer(provider<CoSecCommandAuthorizer>(null)).assert()
             .isInstanceOf(AnalyticsCatalogAuthorizer::class.java)
         // With CoSec authorizing them, its policies decide alone: the roles have no objection.
         configuration.analyticsCatalogAuthorizer(provider(mockk<CoSecCommandAuthorizer>())).assert()
             .isSameAs(CommandAuthorizer.ALLOW_ALL)
+        // A console is told the same: it rules out by role only where the roles decide.
+        suspend fun rolesDecide(cosec: CoSecCommandAuthorizer?) = configuration.catalogSettingsRoute(
+            WarehouseCatalog.NONE,
+            AnalyticsCatalogProperties(),
+            provider(cosec),
+        ).settings(mockk()).rolesDecide
+        rolesDecide(null).assert().isTrue()
+        rolesDecide(mockk()).assert().isFalse()
         configuration.trustedWriters(
             AnalyticsCatalogProperties(trustedWriters = mutableMapOf("w" to mutableListOf("c")))
         )
