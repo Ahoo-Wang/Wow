@@ -86,6 +86,19 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await tv.getByLabel("Quantity of tv received").fill("1");
     await tv.getByRole("button", { name: "Receive" }).click();
     await expect(tv.getByTestId("stock")).toHaveText("1 / 1");
+    // A second product under the limit, for a basket of two.
+    await submit(
+      page,
+      "New product",
+      { Id: "cap", Name: "Wow cap", Description: "", Price: "12" },
+      { Brand: "wow", Category: "mugs" },
+    );
+    const cap = page.locator('[data-product="cap"]');
+    await cap.getByRole("button", { name: "Publish" }).click();
+    await expect(cap).toContainText("PUBLISHED");
+    await cap.getByLabel("Quantity of cap received").fill("5");
+    await cap.getByRole("button", { name: "Receive" }).click();
+    await expect(cap.getByTestId("stock")).toHaveText("5 / 5");
   });
 
   await test.step("an invalid command shows its problem", async () => {
@@ -102,7 +115,7 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await page.getByRole("button", { name: "Add Wow mug to the basket" }).click();
     await expect(page.getByRole("status")).toHaveText("Added Wow mug to your basket.");
     await page.getByRole("link", { name: "Basket" }).click();
-    await page.getByRole("button", { name: "One mug more" }).click();
+    await page.getByRole("button", { name: "One Wow mug more" }).click();
     await expect(page.getByTestId("quantity")).toHaveText("2");
     await expect(page.getByTestId("total")).toHaveText("$17.00");
   });
@@ -125,7 +138,7 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(page.getByRole("status")).toBeVisible();
     await page.getByRole("link", { name: "Basket" }).click();
     for (let quantity = 2; quantity <= 9; quantity++) {
-      await page.getByRole("button", { name: "One mug more" }).click();
+      await page.getByRole("button", { name: "One Wow mug more" }).click();
       await expect(page.getByTestId("quantity")).toHaveText(String(quantity));
     }
     await page.getByRole("button", { name: "Check out" }).click();
@@ -152,7 +165,7 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     // The server ends the chain at the payment saga's hop, which sent nothing for a declined payment (D212).
     await expect(
       page.getByText(
-        /the chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order/,
+        /The chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order/,
       ),
     ).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(/committed\(eshop-ordering\) will not come/)).toBeVisible();
@@ -170,5 +183,27 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(page.getByTestId("order").filter({ hasText: "alice-2" })).toContainText(
       "CANCELLED",
     );
+  });
+
+  await test.step("a basket of two products reaches each hop once, its results grouped by hop (UI-45)", async () => {
+    await page.goto(web("/"));
+    await actAs(page, "alice");
+    await page.getByRole("button", { name: "Add Wow mug to the basket" }).click();
+    await expect(page.getByRole("status")).toHaveText("Added Wow mug to your basket.");
+    await page.getByRole("button", { name: "Add Wow cap to the basket" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Wow cap" })).toBeVisible();
+    await page.getByRole("link", { name: "Basket" }).click();
+    await expect(page.getByTestId("basket-item")).toHaveCount(2);
+    await page.getByRole("button", { name: "Check out" }).click();
+    await expect(page.getByText("Paid:")).toBeVisible({ timeout: 45_000 });
+    // The order reserves, and confirms, each of its two products: 19 results for the plan's 15 hops.
+    await expect(page.getByText(/15 of 15 hops/)).toBeVisible();
+    const hops = page.getByTestId("checkout-hop");
+    await expect(page.locator('[data-testid="checkout-hop"][data-state="reached"]')).toHaveCount(15);
+    await expect(hops.nth(6)).toContainText("ReserveStock ×2");
+    await expect(hops.nth(8)).toContainText("ConfirmOrderStock ×2");
+    await expect(hops.last()).toContainText("PayOrder");
+    await page.getByRole("link", { name: "alice-3" }).click();
+    await expect(page.getByTestId("order-status")).toHaveText("PAID");
   });
 });

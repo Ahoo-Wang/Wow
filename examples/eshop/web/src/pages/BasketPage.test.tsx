@@ -17,6 +17,7 @@ import { CommandResultStatus, FunctionKind } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { CHECKOUT_TO_PAID } from "@/shop/checkout";
 import checkoutToPaid from "@/test/checkout-to-paid.sse?raw";
+import checkoutTwoProducts from "@/test/checkout-two-products.sse?raw";
 import {
   ALICE,
   ERIN,
@@ -24,6 +25,7 @@ import {
   problemAnswer,
   renderShop,
   result,
+  snapshot,
   stateView,
 } from "@/test/fakeShop";
 
@@ -80,10 +82,10 @@ describe("the basket", () => {
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "One mug more" }));
     await userEvent.click(screen.getByRole("button", { name: "One cap less" }));
-    await waitFor(() =>
-      expect(received.filter((r) => r.method === "POST")).toHaveLength(2),
-    );
-    const [change, remove] = received.filter((r) => r.method === "POST");
+    const commands = () =>
+      received.filter((r) => r.method === "POST" && !r.path.endsWith("/query"));
+    await waitFor(() => expect(commands()).toHaveLength(2));
+    const [change, remove] = commands();
     expect(change.path).toBe("/eshop-basket/basket/change-basket-item-quantity");
     expect(change.body).toEqual({ productId: "mug", quantity: 3 });
     expect(remove.path).toBe("/eshop-basket/basket/remove-basket-item");
@@ -122,6 +124,70 @@ describe("the basket", () => {
     expect(steps.every((step) => step.dataset.state === "reached")).toBe(true);
     expect(within(steps[14]).getByText("Step14")).toBeInTheDocument();
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
+  });
+
+  it("names the products as the catalog does, and keeps the keyboard's place (UI-55, UI-59)", async () => {
+    const { transport } = fakeServices([
+      [
+        "GET",
+        /^\/eshop-basket\/basket\/state$/,
+        () => ({
+          json: stateView("eshop-basket", "basket", "alice", { checkouts: 0, items: ITEMS }, "alice"),
+        }),
+      ],
+      [
+        "POST",
+        /^\/eshop-catalog\/product\/snapshot\/query$/,
+        () => ({ json: [snapshot("mug", { name: "Wow mug", price: 8.5, status: "PUBLISHED" })] }),
+      ],
+      ["POST", /change-basket-item-quantity$/, () => ({ json: result() })],
+    ]);
+    renderShop("/basket", ALICE, transport);
+    const more = await screen.findByRole("button", { name: "One Wow mug more" });
+    // A product the catalog does not name is shown by its id.
+    expect(screen.getByRole("button", { name: "One cap more" })).toBeInTheDocument();
+    more.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(more).toHaveFocus();
+  });
+
+  it("offers no checkout of an empty basket (UI-53)", async () => {
+    const { transport } = basket(() => ({ events: [] }), []);
+    renderShop("/basket", ALICE, transport);
+    expect(await screen.findByText(/Your basket is empty/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check out" })).toBeDisabled();
+  });
+
+  it("groups a basket of two products' results by hop and function, not by their place in the stream (UI-45)", async () => {
+    // What the services streamed for alice-4 in a local run: 19 results for 15
+    // hops, since the order reserves, and confirms, each of its two products.
+    const { transport } = basket(() => ({ stream: checkoutTwoProducts }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
+    expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps.map((step) => step.dataset.state)).toEqual(Array(15).fill("reached"));
+    const badges = (index: number) =>
+      within(steps[index]).queryAllByText(/./, { selector: "[data-slot=badge]" }).map((b) => b.textContent);
+    expect(badges(6)).toEqual(["ReserveStock ×2"]);
+    expect(badges(7)).toEqual(["onReserveCommitted ×2"]);
+    expect(badges(8)).toEqual(["ConfirmOrderStock ×2"]);
+    expect(badges(9)).toEqual(["onOrderStockConfirmed ×2"]);
+    expect(badges(10)).toEqual(["RequestPayment"]);
+    expect(badges(12)).toEqual(["ConfirmPayment"]);
+    expect(badges(14)).toEqual(["PayOrder"]);
+  });
+
+  it("starts afresh for another user: nothing of the last one's checkout shows (UI-46)", async () => {
+    const { transport } = basket(() => ({ stream: checkoutToPaid }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "User" }), "bob");
+    await screen.findByText("The basket of bob, from the basket service.");
+    expect(screen.queryByText(/Paid:/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("checkout-hop")).toHaveLength(0);
   });
 
   it("checks out on the stream as the services wrote it, every hop reached", async () => {
@@ -169,8 +235,11 @@ describe("the basket", () => {
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(
-      await screen.findByText(
-        /the chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order: Step13 sent no further command/,
+      await screen.findByText("The payment was declined, and order", { exact: false }),
+    ).toHaveTextContent("The payment was declined, and order alice-1 was cancelled.");
+    expect(
+      screen.getByText(
+        /The chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order: Step13 sent no further command/,
       ),
     ).toBeInTheDocument();
     expect(screen.getByText(/committed\(eshop-ordering\) will not come/)).toBeInTheDocument();
@@ -192,6 +261,7 @@ describe("the basket", () => {
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(await screen.findByText("eshop-ordering.order.empty")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Order alice-1 was cancelled.");
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps[2].dataset.state).toBe("failed");
     expect(steps[3].dataset.state).toBe("not-reached");
@@ -203,7 +273,6 @@ describe("the basket", () => {
         problemAnswer(422, "Unprocessable Content", "eshop-basket.basket.empty", {
           detail: "An empty basket cannot be checked out.",
         }),
-      [],
     );
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));

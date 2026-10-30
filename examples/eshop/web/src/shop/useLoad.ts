@@ -13,6 +13,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+/** Sets the page's title, `<page> · Wow eShop`, while the page is shown. */
+export function useTitle(page: string): void {
+  useEffect(() => {
+    document.title = `${page} · Wow eShop`;
+    return () => {
+      document.title = "Wow eShop";
+    };
+  }, [page]);
+}
+
 /** A read's state: its value once loaded, or its error. */
 export type Loaded<T> =
   | { readonly status: "loading" }

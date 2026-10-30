@@ -23,10 +23,12 @@ import {
   renderShop,
   result,
   snapshot,
-  stateView,
 } from "@/test/fakeShop";
 
-function catalog(createAnswer = (): Answer => ({ json: result() })) {
+function catalog(
+  createAnswer = (): Answer => ({ json: result() }),
+  publishAnswer = (): Answer => ({ json: result() }),
+) {
   return fakeServices([
     [
       "POST",
@@ -55,28 +57,33 @@ function catalog(createAnswer = (): Answer => ({ json: result() })) {
       }),
     ],
     [
-      "GET",
-      /^\/eshop-inventory\/stock\/mug\/state$/,
-      () => ({
-        json: stateView("eshop-inventory", "stock", "mug", {
-          available: 7,
-          onHand: 10,
-          reservations: {},
-        }),
-      }),
+      "POST",
+      /^\/eshop-inventory\/stock\/snapshot\/query$/,
+      () => ({ json: [snapshot("mug", { available: 7, onHand: 10, reservations: {} })] }),
     ],
     ["POST", /create-product$/, createAnswer],
-    ["POST", /\/(create-brand|create-category|change-product-price|publish-product|receive-stock)$/, () => ({ json: result() })],
+    ["POST", /publish-product$/, publishAnswer],
+    [
+      "POST",
+      /\/(create-brand|create-category|rename-brand|rename-category|change-product-price|update-product|discontinue-product|receive-stock)$/,
+      () => ({ json: result() }),
+    ],
   ]);
 }
 
 describe("the catalog admin", () => {
-  it("shows each product with its brand, category and stock", async () => {
-    const { transport } = catalog();
+  it("shows each product with its brand, category and stock, read in one query", async () => {
+    const { transport, received } = catalog();
     renderShop("/admin", ERIN, transport);
     const row = await screen.findByTestId("admin-product");
     expect(within(row).getByText("mug · Wow · Mugs")).toBeInTheDocument();
     expect(await within(row).findByText("7 / 10")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Stock (available / on hand)" })).toBeInTheDocument();
+    expect(
+      received.filter((r) => r.path.startsWith("/eshop-inventory/")).map((r) => r.path),
+    ).toEqual(["/eshop-inventory/stock/snapshot/query"]);
+    expect(screen.getByRole("list", { name: "Brands" })).toHaveTextContent("Wow");
+    expect(screen.getByRole("list", { name: "Categories" })).toHaveTextContent("Mugs");
   });
 
   it("creates a product as a draft of the brand and category chosen", async () => {
@@ -112,10 +119,12 @@ describe("the catalog admin", () => {
     renderShop("/admin", ERIN, transport);
     const row = await screen.findByTestId("admin-product");
     await userEvent.type(within(row).getByLabelText("New price of mug"), "9");
-    await userEvent.click(within(row).getByRole("button", { name: "Change" }));
-    await userEvent.click(within(row).getByRole("button", { name: "Publish" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Change the price of Wow mug" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Changed the price of Wow mug to $9.00.");
+    expect(within(row).getByLabelText("New price of mug")).toHaveValue(null);
+    await userEvent.click(within(row).getByRole("button", { name: "Publish Wow mug" }));
     await userEvent.type(within(row).getByLabelText("Quantity of mug received"), "5");
-    await userEvent.click(within(row).getByRole("button", { name: "Receive" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Receive stock of Wow mug" }));
     await waitFor(() =>
       expect(received.some((r) => r.path.endsWith("receive-stock"))).toBe(true),
     );
@@ -125,6 +134,61 @@ describe("the catalog admin", () => {
       ["/eshop-catalog/product/mug/publish-product", {}],
       ["/eshop-inventory/stock/mug/receive-stock", { quantity: 5 }],
     ]);
+  });
+
+  it("edits a product's brand and category, and discontinues it (UI-48)", async () => {
+    const { transport, received } = catalog();
+    renderShop("/admin", ERIN, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Wow mug" }));
+    const edit = screen.getByRole("form", { name: "Edit mug" });
+    await userEvent.clear(within(edit).getByLabelText("Name"));
+    await userEvent.type(within(edit).getByLabelText("Name"), "Wow mug XL");
+    await userEvent.selectOptions(within(edit).getByLabelText("Brand"), "");
+    await userEvent.click(within(edit).getByRole("button", { name: "Save Wow mug" }));
+    await waitFor(() =>
+      expect(received.some((r) => r.path.endsWith("update-product"))).toBe(true),
+    );
+    expect(received.find((r) => r.path.endsWith("update-product"))).toMatchObject({
+      path: "/eshop-catalog/product/mug/update-product",
+      body: { name: "Wow mug XL", description: "", brandId: null, categoryId: "mugs" },
+    });
+    const discontinue = screen.getByRole("form", { name: "Discontinue mug" });
+    await userEvent.type(within(discontinue).getByLabelText(/Discontinue for good/), "No longer made");
+    await userEvent.click(within(discontinue).getByRole("button", { name: "Discontinue Wow mug" }));
+    await waitFor(() =>
+      expect(received.find((r) => r.path.endsWith("discontinue-product"))?.body).toEqual({
+        reason: "No longer made",
+      }),
+    );
+  });
+
+  it("renames a brand in place", async () => {
+    const { transport, received } = catalog();
+    renderShop("/admin", ERIN, transport);
+    const brands = await screen.findByRole("list", { name: "Brands" });
+    await userEvent.type(within(brands).getByLabelText("New name of Wow"), "Wow!");
+    await userEvent.click(within(brands).getByRole("button", { name: "Rename Wow" }));
+    await waitFor(() =>
+      expect(received.find((r) => r.path.endsWith("rename-brand"))).toMatchObject({
+        path: "/eshop-catalog/brand/wow/rename-brand",
+        body: { name: "Wow!" },
+      }),
+    );
+    expect(await within(brands).findByRole("status")).toHaveTextContent("Renamed Wow to Wow!.");
+  });
+
+  it("shows a refusal under the row it answers, not at the top of the page (UI-47)", async () => {
+    const { transport } = catalog(undefined, () =>
+      problemAnswer(409, "Incomplete", "eshop-catalog.product.incomplete", {
+        detail: "The product needs a brand and a category.",
+      }),
+    );
+    renderShop("/admin", ERIN, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Publish Wow mug" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("eshop-catalog.product.incomplete");
+    // The alert is in the product table, right after the row: where the employee pressed Publish.
+    expect(screen.getByRole("table", { name: "Catalog products" })).toContainElement(alert);
   });
 
   it("shows an invalid command with its violations", async () => {
@@ -147,7 +211,7 @@ describe("the catalog admin", () => {
   it("tells a buyer the catalog refuses its changes", async () => {
     renderShop("/admin", ALICE, catalog().transport);
     expect(await screen.findByRole("note")).toHaveTextContent(
-      "Only an employee changes the catalog",
+      "Only an employee changes the catalog and the stock",
     );
   });
 });

@@ -18,6 +18,9 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
+import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
 import java.net.http.HttpClient
@@ -74,7 +77,43 @@ class InventoryServerTest {
         }
     }
 
+    @Test
+    fun `a buyer should not change the stock, which an employee receives (UI-49)`() {
+        wowServer<InventoryServer>("dev").use { server ->
+            val refused = server.http.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":3}""", BUYER)
+            refused.status.assert().describedAs(refused.text).isEqualTo(FORBIDDEN)
+            refused.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+            refused.body!!["detail"].asString().assert().contains("Only an employee changes the stock")
+            server.http.post("/eshop-inventory/stock/mug/reserve-stock", """{"orderId":"o-1","quantity":1}""", BUYER)
+                .status.assert().isEqualTo(FORBIDDEN)
+            server.http.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":3}""", EMPLOYEE)
+                .status.assert().isEqualTo(OK)
+        }
+    }
+
+    @Test
+    fun `the scheduled job's commands should be an employee's alone (UI-50)`() {
+        wowServer<InventoryServer>("dev").use { server ->
+            val disable = "/eshop-inventory/wow.schedule/receive-deliveries/disable"
+            for (caller in listOf(emptyMap(), BUYER)) {
+                val refused = server.http.post(disable, "{}", caller)
+                refused.status.assert().describedAs(refused.text).isEqualTo(FORBIDDEN)
+                refused.body!!["detail"].asString().assert().contains("Only an employee sends wow.schedule.Disable")
+            }
+            server.http.post(disable, "{}", EMPLOYEE).status.assert().isEqualTo(OK)
+            server.http.post(
+                "/eshop-inventory/wow.schedule/receive-deliveries/enable",
+                """{"job":"receive-deliveries"}""",
+                EMPLOYEE,
+            ).status.assert().isEqualTo(OK)
+        }
+    }
+
     private companion object {
+        const val OK = 200
+        const val FORBIDDEN = 403
+        val BUYER = mapOf(USER to "alice", OWNER to "alice")
+        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
         const val BAD_REQUEST = 400
     }
 }

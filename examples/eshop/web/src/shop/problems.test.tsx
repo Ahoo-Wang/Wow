@@ -97,6 +97,28 @@ describe("a problem", () => {
     });
   });
 
+  it("says which service did not answer, for a gateway's 502, 503 or 504 (UI-62)", () => {
+    const error = new WowProblemError({ type: "about:blank", title: "Bad Gateway", status: 502 });
+    expect(problemOf(error, "payment")).toEqual({
+      title: "Service unavailable",
+      status: 502,
+      detail: "The payment service did not answer (502 Bad Gateway). Try again in a moment.",
+      violations: [],
+    });
+    expect(problemOf(error).detail).toBe(
+      "The shop's service did not answer (502 Bad Gateway). Try again in a moment.",
+    );
+    // A Wow problem of such a status is that problem, not an unanswered service.
+    const timeout = new WowProblemError({
+      type: "urn:wow:error:wow.query.timeout",
+      title: "Gateway Timeout",
+      status: 504,
+      code: "wow.query.timeout",
+      detail: "The query took too long.",
+    });
+    expect(problemOf(timeout, "catalog").title).toBe("Gateway Timeout");
+  });
+
   it("is anything else's message", () => {
     expect(problemOf(new TypeError("Failed to fetch"))).toEqual({
       title: "Request failed",

@@ -14,6 +14,7 @@
 import {
   CommandResultStatus,
   formatWaitPlan,
+  FunctionKind,
   WaitPlan,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
@@ -25,6 +26,8 @@ import {
   CHECKOUT_TO_PAID,
   isPaid,
   orderIdOf,
+  resultsByStep,
+  stepsReached,
   type CheckoutProgress,
 } from "./checkout";
 
@@ -140,6 +143,40 @@ describe("the checkout", () => {
       code: "eshop-basket.basket.empty",
       status: 422,
     });
+  });
+
+  it("groups the results by hop and function, so a basket of two products reaches each hop once (UI-45)", () => {
+    const at = (step: number, name: string, id = "alice-1") =>
+      result({
+        context: CHECKOUT_TO_PAID[step].hop.context ?? "eshop-basket",
+        aggregate: "order",
+        id,
+        hop: CHECKOUT_TO_PAID[step].hop,
+        function: {
+          kind: FunctionKind.COMMAND,
+          context: CHECKOUT_TO_PAID[step].hop.context ?? "eshop-basket",
+          processor: "order",
+          name,
+        },
+      });
+    // Two reservations and their confirmations, each pair arriving together, then the payment requested once.
+    const results = [
+      at(6, "ReserveStock", "mug"),
+      at(6, "ReserveStock", "cap"),
+      at(7, "onReserveCommitted", "mug"),
+      at(7, "onReserveCommitted", "cap"),
+      at(8, "ConfirmOrderStock"),
+      at(8, "ConfirmOrderStock"),
+      at(10, "RequestPayment"),
+      at(4, "AwaitStockValidation"),
+    ];
+    const steps = resultsByStep(results);
+    expect(steps.map((step) => step.length)).toEqual([0, 0, 0, 0, 1, 0, 2, 2, 2, 0, 1, 0, 0, 0, 0]);
+    // A committed(eshop-ordering) result is the step its command names, wherever it arrived.
+    expect(steps[4][0].function.name).toBe("AwaitStockValidation");
+    expect(stepsReached({ results, done: false })).toBe(5);
+    // A function no step of its hop names takes the first of them that has none yet.
+    expect(resultsByStep([at(14, "Unknown")]).findIndex((step) => step.length > 0)).toBe(2);
   });
 
   it("reads the order id from a result, or from an order's hop", () => {
