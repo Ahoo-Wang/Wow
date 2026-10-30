@@ -15,7 +15,7 @@ package me.ahoo.wow.manifest.tools
 
 import com.fasterxml.jackson.annotation.JsonValue
 import com.github.victools.jsonschema.generator.FieldScope
-import com.github.victools.jsonschema.generator.InstanceAttributeOverrideV2
+import com.github.victools.jsonschema.generator.MemberScope
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.TypeAttributeOverrideV2
 import com.github.victools.jsonschema.generator.TypeScope
@@ -36,7 +36,6 @@ import java.lang.reflect.Modifier
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.jvm.kotlinProperty
 
 /**
  * The `x-wow-*` keywords `manifest-tools` writes into `$defs` from the query field annotations of `wow-query-api`,
@@ -93,9 +92,7 @@ internal data class PropertyIndex(val path: String, val index: QueryIndex)
  * Writes the query keywords of each property ([QueryKeywords]) and collects the `@QueryIndex` declarations of the
  * [states] properties. A `@QueryIndex` anywhere else fails the generation.
  */
-internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
-    InstanceAttributeOverrideV2<FieldScope>,
-    TypeAttributeOverrideV2 {
+internal class QueryFieldKeywords(private val states: Set<Class<*>>) : TypeAttributeOverrideV2 {
     /** The property indexes of each state class, keyed by the property path to collect each field once. */
     private val propertyIndexes = mutableMapOf<Class<*>, MutableMap<String, List<PropertyIndex>>>()
 
@@ -108,13 +105,16 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
         }
     }
 
-    override fun overrideInstanceAttributes(
-        attributes: ObjectNode,
-        scope: FieldScope,
-        context: SchemaGenerationContext,
-    ) {
+    /**
+     * The query keywords of the property [scope] is: a field, read with its getter's annotations, or the getter of a
+     * computed property.
+     */
+    fun overrideMemberAttributes(attributes: ObjectNode, scope: MemberScope<*, *>) {
         if (scope.isFakeContainerItemScope) return
-        val members = listOfNotNull<AnnotatedElement>(scope.rawMember, scope.findGetter()?.rawMember)
+        val members = when (scope) {
+            is FieldScope -> listOfNotNull<AnnotatedElement>(scope.rawMember, scope.findGetter()?.rawMember)
+            else -> listOfNotNull<AnnotatedElement>(scope.rawMember as? AnnotatedElement)
+        }
         val annotations = members.flatMap { it.annotations.asList() }
         val field = "${scope.declaringType.erasedType.name}.${scope.declaredName}"
         writeSensitive(attributes, scope, annotations, field)
@@ -163,7 +163,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
 
     private fun writeSensitive(
         attributes: ObjectNode,
-        scope: FieldScope,
+        scope: MemberScope<*, *>,
         annotations: List<Annotation>,
         field: String,
     ) {
@@ -198,7 +198,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
         }
     }
 
-    private fun collectIndexes(scope: FieldScope, indexes: List<QueryIndex>, field: String) {
+    private fun collectIndexes(scope: MemberScope<*, *>, indexes: List<QueryIndex>, field: String) {
         if (indexes.isEmpty()) return
         val declaringType = scope.declaringType.erasedType
         check(declaringType in states) {
@@ -264,10 +264,7 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
          * underlying type on the JVM; Kotlin reflection also types a Java field), unwrapped through maps,
          * collections and arrays down to their values.
          */
-        fun FieldScope.valueType(): Class<*> {
-            val kotlinType = runCatching { rawMember.kotlinProperty?.returnType }.getOrNull()
-            return kotlinType?.valueClass() ?: type.erasedType
-        }
+        fun MemberScope<*, *>.valueType(): Class<*> = KotlinMembers.typeOf(this)?.valueClass() ?: type.erasedType
 
         fun KType.valueClass(): Class<*>? {
             var current: KType = this

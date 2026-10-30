@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest.tools
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.manifest.AggregateManifest
@@ -296,6 +298,41 @@ class StateViewSourcesTest {
         failure(mapOf("type" to "null")).assert().contains("its type is null")
         failure(mapOf("type" to "string", "x-wow-class" to "shop.domain.CartStateView"))
             .assert().contains("whose simple name another copied class of the view has")
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+    @JsonSubTypes(
+        JsonSubTypes.Type(Shape.Circle::class, name = "circle"),
+        JsonSubTypes.Type(Shape.Square::class, name = "square"),
+    )
+    sealed interface Shape {
+        data class Circle(val radius: Int) : Shape
+
+        data class Square(val side: Int) : Shape
+    }
+
+    class PlanState(val id: String) {
+        var main: Shape = Shape.Circle(1)
+        var spare: Shape? = null
+        var shapes: List<Shape> = emptyList()
+        val sides: Int get() = shapes.size
+    }
+
+    @Test
+    fun `a polymorphic class on the api's class path should be referenced, and a computed property held`() {
+        val contract = contract(PlanState::class.java, "plan")
+        val onClassPath = { name: String -> name == Shape::class.java.name || name.startsWith("java.") }
+        views(contract, onClassPath).single().text.assert()
+            .contains("    val main: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape,")
+            .contains("    val spare: me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape? = null,")
+            .contains("    val shapes: List<me.ahoo.wow.manifest.tools.StateViewSourcesTest.Shape>,")
+            // The published state holds what Jackson writes: a computed property too.
+            .contains("    val sides: Int,")
+        // A view cannot copy a class hierarchy.
+        assertThrows<IllegalStateException> { views(contract) }.message.assert().contains(
+            "${PlanState::class.java.name}.main",
+            "the polymorphic class ${Shape::class.java.name}, which is not on the api's class path",
+        )
     }
 
     @Test
