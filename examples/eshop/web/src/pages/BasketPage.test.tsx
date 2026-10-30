@@ -16,6 +16,7 @@ import userEvent from "@testing-library/user-event";
 import { CommandResultStatus, FunctionKind } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { CHECKOUT_TO_PAID } from "@/shop/checkout";
+import checkoutToPaid from "@/test/checkout-to-paid.sse?raw";
 import {
   ALICE,
   ERIN,
@@ -120,6 +121,22 @@ describe("the basket", () => {
     expect(steps).toHaveLength(15);
     expect(steps.every((step) => step.dataset.state === "reached")).toBe(true);
     expect(within(steps[14]).getByText("Step14")).toBeInTheDocument();
+    expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
+  });
+
+  it("checks out on the stream as the services wrote it, every hop reached", async () => {
+    // The 15 results the services streamed for alice's checkout in an
+    // end-to-end run, byte for byte, each `succeeded` as Wow spells it on the
+    // wire. The results of `hops` come from the client's own constants, so they
+    // cannot tell when the page and the server spell a status apart.
+    const { transport } = basket(() => ({ stream: checkoutToPaid }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps.map((step) => step.dataset.state)).toEqual(Array(15).fill("reached"));
+    expect(within(steps[14]).getByText("PayOrder")).toBeInTheDocument();
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
   });
 
