@@ -589,3 +589,4 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-33 | 历史状态读的回放上限：`wow.query.state.max-replay` 的含义与调高的时机，超限的 `replay-too-long`，事件历史经 events 查询模型读取；某个旧版本的状态须从第一个版本回放 | reference/configuration、guide 的历史状态与 trace 一节、operate/troubleshooting | D376 | 最终重写 |
 | DG-34 | 租户级聚合（`Ownership.TENANT`）的读取授权：调用者的所有者不限制它的读取，同一租户里登录的调用者都读得到；要按角色限制，服务须自带读取策略（`QueryPolicy`），如 ops 的 `ReaderRole`、目录的 `AnalyticsCatalogQueryPolicy` | guide 的归属与读取、operate/security | D189、UI-1（#5223） | 最终重写 |
 | DG-35 | 定时页：`@OnSchedule` 处理器取可选的 `SagaContext`（`JobContext` 已删，D372 S11），发送的命令以 `@Sends` 声明（S12），任务的设置在 `wow.schedules.<任务>` 下、键名 `cron`（S17） | guide/scheduling（中英文） | D372 PR 4a、4c | 最终重写 |
+| DG-36 | 按订阅的配置键带上下文：`wow.subscriptions.[<context>.<processor.function>]`（D372 S5），用户页上还写着不带上下文的旧形 | guide/published-streams、guide/failures、operate/configuration（中英文） | D372 S5（#5198） | 最终重写 |
