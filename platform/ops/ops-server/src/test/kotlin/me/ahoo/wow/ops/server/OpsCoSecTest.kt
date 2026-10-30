@@ -121,6 +121,29 @@ class OpsCoSecTest {
     }
 
     @Test
+    fun `a principal with neither ops role should read nothing, refused as forbidden (UI-1)`() {
+        val id = ops.publish(entry("shop-roleless", "p-1"))
+        val operator = signedIn("alice", OpsRoles.OPERATOR)
+        eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
+        val everything = """{"op":"match-all"}"""
+        // A principal with no role, and one with a role of another service: owner-level callers, whose owner does not
+        // restrict an entry of their tenant (the entries are the tenant's, Ownership.TENANT).
+        listOf(signedIn("nobody"), signedIn("stranger", "someone.else")).forEach { reader ->
+            ops.post(QUERY, """{"kind":"count","filter":$everything}""", reader)
+                .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.post(QUERY, """{"kind":"list","filter":$everything}""", reader)
+                .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.post("/ops/parked/events/query", """{"kind":"list","filter":{"op":"eq","field":"aggregateId",
+                "value":"$id"}}""", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state/trace", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        }
+        // A viewer and an operator read them.
+        ops.post(QUERY, """{"kind":"count","filter":$everything}""", signedIn("victor", "ops.viewer")).assertOk()
+        ops.get("/ops/parked/$id/state", signedIn("victor", "ops.viewer")).assertOk()
+    }
+
+    @Test
     fun `a request without an identity should be answered 401`() {
         val id = ops.publish(entry("shop-anonymous", "p-1"))
         val operator = signedIn("alice", OpsRoles.OPERATOR)
@@ -134,6 +157,7 @@ class OpsCoSecTest {
 
     private companion object {
         const val DEFAULT_TENANT = "(0)"
+        const val QUERY = "/ops/parked/snapshot/query"
         const val SAGA = "PaymentSaga.onOrderPlaced"
         const val FAILED_AT = 1_700_000_000_000L
         const val OK = 200

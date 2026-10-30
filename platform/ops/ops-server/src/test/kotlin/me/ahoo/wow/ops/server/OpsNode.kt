@@ -65,6 +65,12 @@ data class Who(val headers: Map<String, String>) {
         /** A caller of the tenant that reads the entries, and may not act on them. */
         val VIEWER: Who = Who(mapOf(USER to "victor", ROLES to "viewer"))
 
+        /** A caller of the tenant with no role. */
+        val ROLELESS: Who = Who(mapOf(USER to "nora"))
+
+        /** A caller of the tenant with a role of another service alone. */
+        val STRANGER: Who = Who(mapOf(USER to "sam", ROLES to "someone.else"))
+
         /** A caller of another tenant. */
         val OUTSIDER: Who = Who(
             mapOf(USER to "olga", TENANT to "t-other", ROLES to OpsRoles.OPERATOR),

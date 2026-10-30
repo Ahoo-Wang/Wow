@@ -283,6 +283,18 @@ abstract class OpsContract {
     }
 
     @Test
+    fun `a caller with neither ops role should read nothing (UI-1)`() {
+        val context = context()
+        val id = ops.publish(entry(context, "p-1"))
+        eventually("$id recorded") { state(id) != null }
+
+        listOf(Who.ROLELESS, Who.STRANGER).forEach { reader ->
+            query(eq("state.context", context), reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.get("/ops/parked/$id/state", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        }
+    }
+
+    @Test
     fun `the node's own parked entries should be an operator's to read`() {
         ops.get("/wow/ops/parked", Who.OPERATOR).assertOk().json["entries"].isArray.assert().isTrue()
     }
