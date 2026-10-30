@@ -220,6 +220,7 @@ export function WriteOutcome({
           }}
           commands={commands}
           title={title}
+          local={commands.can.local === true}
           // The copy is how this conflict ends, so the write it came out of
           // is settled here rather than left pending: the host is about to
           // open the copy, which releases this runtime, and a pending write

@@ -66,6 +66,7 @@ export type ActionForm = Readonly<Record<string, ActionFormField>>;
 
 // @public
 export interface ActionFormField {
+    check?(value: unknown): Availability;
     initial?: string | number | boolean;
     input?: 'text' | 'number' | 'boolean';
     // (undocumented)
@@ -2226,6 +2227,7 @@ export class MemoryViewStore implements ViewStore {
     // (undocumented)
     getPreferences(definitionId: string): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+    readonly local?: boolean;
     // (undocumented)
     readonly permissions?: (definitionId: string) => ViewPermissions;
     // (undocumented)
@@ -2240,6 +2242,7 @@ export class MemoryViewStore implements ViewStore {
 export interface MemoryViewStoreOptions {
     // (undocumented)
     instances?: ViewInstance[];
+    local?: boolean;
     pageSize?: number;
     // (undocumented)
     permissions?: (definitionId: string) => ViewPermissions;
@@ -2703,6 +2706,7 @@ export interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+    readonly done?: string;
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
     readonly id: string;
@@ -3673,6 +3677,7 @@ export interface ViewPermissions {
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
+    local?: boolean;
     // (undocumented)
     reorder: boolean;
     // (undocumented)
@@ -3841,6 +3846,7 @@ export interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+    readonly local?: boolean;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)

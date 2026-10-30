@@ -205,6 +205,8 @@ export interface InstancePermissions {
 
 运行时加一个写入动作「改受众」，走同一套写入账本（冲突、结局未知、重试）；管理器每一行加「设为共享」或「设为个人」。
 
+另有一个只读的标记 `local?: boolean`：视图只存在这个浏览器里（`MemoryViewStore` 配 `localStorageSnapshot`，给没有视图服务的宿主，如运维控制台）。别人看不到这里的视图，所以引擎一概不共享——`createShared` 与每个 `changeAudience` 都按拒绝读，不管 `permissions` 怎么答；另存时不问给谁看，改说「保存在这个浏览器里」；存下的视图不给「复制链接」（它的地址在别处打不开，系统视图的照给）。`ViewPermissions.local` 由引擎据此填，store 不答（UI 走查 UI-3；见 test/moreViewActions.test.tsx「shares nothing, whatever the permissions answer」「saves a copy without asking who it is for, and says it stays here」）。
+
 ### 6.2 **@ahoo-wang/wow-view-store**
 
 ```ts

@@ -191,7 +191,7 @@ describe('RenderBoundary', () => {
       </MessagesProvider>,
     );
     expect(screen.getByText('这一块没能画出来')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重新加载' })).toBeTruthy();
   });
 });
 

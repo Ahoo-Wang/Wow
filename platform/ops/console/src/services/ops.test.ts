@@ -71,16 +71,43 @@ describe("the ops services", () => {
     await expect(services.history("p-1")).rejects.toThrow();
     expect(callers.get()).toBeNull();
     expect(tokens.authenticated).toBe(false);
+    // The sign-in page says why: a token still valid was refused.
+    expect(callers.signedOut()).toBe("refused");
+    // Naming a caller again clears it.
+    callers.set(VIEWER);
+    expect(callers.signedOut()).toBeNull();
   });
 
-  it("keep a caller of headers the service refuses: it names another", async () => {
+  it("say a token that ran out was refused for that", async () => {
+    service(401);
+    const tokens = new TokenStorage();
+    const callers = new CallerStore(null, tokens);
+    const services = createOpsServices(tokens, callers);
+    const now = Date.now();
+    callers.signIn(accessToken({ sub: "alice" }, Math.floor(now / 1000) + 60));
+    vi.useFakeTimers({ now: now + 120_000, toFake: ["Date"] });
+    try {
+      await expect(services.history("p-1")).rejects.toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(callers.get()).toBeNull();
+    expect(callers.signedOut()).toBe("expired");
+  });
+
+  it("sign out a caller of headers the service refuses: a deployment reads none", async () => {
     const fetch = service(401);
     const callers = new CallerStore(null, new TokenStorage());
     const services = createOpsServices(undefined, callers);
     callers.set(VIEWER);
     await expect(services.history("p-1")).rejects.toThrow();
-    expect(callers.get()).toEqual(VIEWER);
-    expect(sent(fetch)).toMatchObject({ [DevelopmentCallerHeaders.USER]: "victor" });
+    expect(sent(fetch)).toMatchObject({
+      [DevelopmentCallerHeaders.USER]: "victor",
+    });
+    // Ten panels saying "no credentials accepted here" under a caller
+    // still shown as signed in told the operator nothing.
+    expect(callers.get()).toBeNull();
+    expect(callers.signedOut()).toBe("headers-refused");
   });
 
   it("refresh no token: the operator signs in again", async () => {

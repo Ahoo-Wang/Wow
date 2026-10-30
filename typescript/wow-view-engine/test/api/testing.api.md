@@ -52,6 +52,7 @@ type ActionForm = Readonly<Record<string, ActionFormField>>;
 
 // @public
 interface ActionFormField {
+    check?(value: unknown): Availability;
     initial?: string | number | boolean;
     input?: 'text' | 'number' | 'boolean';
     // (undocumented)
@@ -1505,6 +1506,7 @@ interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+    readonly done?: string;
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
     readonly id: string;

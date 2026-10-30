@@ -157,7 +157,15 @@ class ParkedSpec {
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
             // A parking the operator saw before the one the entry records now is stale.
-            whenCommand(Retry("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
+            whenCommand(Retry("fixed", failedAt = 99)) {
+                // Both parkings named as instants an operator reads, never as epoch milliseconds.
+                expectRejected(ParkedRejections.STALE) {
+                    message.assert().contains(
+                        "again at 1970-01-01T00:00:00.100Z",
+                        "parking at 1970-01-01T00:00:00.099Z"
+                    )
+                }
+            }
             whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
             whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", claimTtl = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))

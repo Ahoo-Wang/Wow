@@ -33,6 +33,23 @@ describe("the console's language", () => {
     expect(resolveLocale("zh-CN", ["en-US"])).toBe("zh-CN");
     expect(resolveLocale("fr", ["zh-TW"])).toBe("zh-CN");
     expect(resolveLocale(null, ["en-GB"])).toBe("en");
+    // The browser's order decides: a second language is not the first.
+    expect(resolveLocale(null, ["en-US", "en-CN", "zh-Hans-CN"])).toBe("en");
+    expect(resolveLocale(null, ["fr-FR", "zh-CN", "en-US"])).toBe("zh-CN");
+    expect(resolveLocale(null, ["fr-FR"])).toBe("en");
+  });
+
+  it("is the page's language and names the page", () => {
+    render(
+      <I18nProvider initial="zh-CN">
+        <Probe />
+      </I18nProvider>,
+    );
+    expect(document.documentElement.lang).toBe("zh-CN");
+    expect(document.title).toBe("Wow 运维控制台");
+    act(() => screen.getByRole("button").click());
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("Wow Ops Console");
   });
 
   it("fills a sentence's values, and leaves an unknown one", () => {
@@ -56,7 +73,7 @@ describe("the console's language", () => {
 
   it("is the engine's too, with the definitions' words", () => {
     expect(engineMessages("en")["parked.title"]).toBe("Parked entries");
-    expect(engineMessages("zh-CN")["parked.title"]).toBe("搁置条目");
+    expect(engineMessages("zh-CN")["parked.title"]).toBe("停放条目");
     expect(engineMessages("zh-CN")["parkedActions.retry"]).toBe("重试");
   });
 });

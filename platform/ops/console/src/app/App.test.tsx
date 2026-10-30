@@ -173,7 +173,11 @@ describe("the console", () => {
       `Bearer ${accessToken({ sub: "alice", roles: ["ops.operator"] })}`,
     );
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(callers.get()).toEqual({ ...OPERATOR, via: "cosec" });
+    expect(callers.get()).toEqual({
+      ...OPERATOR,
+      via: "cosec",
+      expiresAt: expect.any(Number),
+    });
     expect(
       await screen.findByRole("table", { name: "Needs attention" }),
     ).toBeVisible();
@@ -199,7 +203,7 @@ describe("the console", () => {
     expect(
       await screen.findByRole("table", { name: "需要处理" }),
     ).toBeVisible();
-    expect(screen.getAllByText("搁置条目").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("停放条目").length).toBeGreaterThan(0);
   });
 
   it("changes and clears the caller on its own page", async () => {

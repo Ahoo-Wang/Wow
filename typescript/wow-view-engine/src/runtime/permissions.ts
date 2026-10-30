@@ -181,13 +181,26 @@ export class PermissionGuard {
    * one reading the manager's buttons and this guard share (D4).
    */
   of(definitionId: string): ViewPermissions {
-    const permissions = this.store.permissions?.(definitionId) ?? ALLOW_ALL;
+    const answered = this.store.permissions?.(definitionId) ?? ALLOW_ALL;
+    // Kept in this browser alone: nothing is shared, whatever was answered.
+    const permissions: ViewPermissions = this.store.local
+      ? {
+          ...answered,
+          createShared: false,
+          local: true,
+          instance: id => ({
+            ...answered.instance(id),
+            changeAudience: false,
+          }),
+        }
+      : answered;
     if (this.store.changeAudience) return permissions;
     return {
       createPersonal: permissions.createPersonal,
       createShared: permissions.createShared,
       reorder: permissions.reorder,
       setDefault: permissions.setDefault,
+      ...(permissions.local === undefined ? {} : { local: permissions.local }),
       ...(permissions.editSystem === undefined
         ? {}
         : { editSystem: permissions.editSystem }),

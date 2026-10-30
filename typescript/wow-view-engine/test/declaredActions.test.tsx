@@ -75,6 +75,9 @@ const WORDS = {
   'orders.same': 'Already that priority.',
   'orders.note': 'Add a note',
   'orders.noteField': 'Note',
+  'orders.noteShort': 'At least 3 characters.',
+  'orders.sent': '{count} sent to the warehouse',
+  'orders.sent-one': '{record} sent to the warehouse',
 };
 
 type Order = { status?: string; priority?: string };
@@ -404,6 +407,70 @@ describe('a record’s declared actions', () => {
     );
   });
 
+  it('refuses a value its field’s check refuses, saying why there, and answers on Enter', async () => {
+    const run = vi.fn(() => Promise.resolve());
+    await open(
+      actions([
+        ship(),
+        {
+          id: 'note',
+          label: text('orders.note'),
+          form: {
+            note: {
+              label: text('orders.noteField'),
+              check: value =>
+                typeof value === 'string' && value.trim().length >= 3
+                  ? true
+                  : text('orders.noteShort'),
+            },
+          },
+          run,
+        },
+      ]),
+    );
+    await userEvent.click(
+      within(rowOf('o-1')).getByRole('button', { name: 'Actions for o-1' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('menuitem', { name: 'Add a note' }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Add a note: o-1',
+    });
+    const note = within(dialog).getByLabelText('Note');
+    fireEvent.change(note, { target: { value: 'ab' } });
+    // Enter in a typed field answers, as in any form: refused by the check,
+    // the field is marked with why, and nothing is sent.
+    fireEvent.keyDown(note, { key: 'Enter' });
+    await waitFor(() => expect(note.getAttribute('aria-invalid')).toBe('true'));
+    expect(described(note)).toBe('At least 3 characters.');
+    expect(document.activeElement).toBe(note);
+    expect(run).not.toHaveBeenCalled();
+
+    fireEvent.change(note, { target: { value: 'Call first' } });
+    fireEvent.keyDown(note, { key: 'Enter' });
+    await waitFor(() =>
+      expect(run).toHaveBeenCalledWith(
+        expect.objectContaining({ key: 'o-1' }),
+        { note: 'Call first' },
+        { signal: expect.any(AbortSignal) },
+      ),
+    );
+  });
+
+  it('says what was done in the action’s own words, where 「done」 says more than happened', async () => {
+    await open(actions([{ ...ship(), done: text('orders.sent') }]));
+    await userEvent.click(
+      within(rowOf('o-1')).getByRole('button', { name: 'Ship' }),
+    );
+    await waitFor(() =>
+      expect(status()?.textContent).toContain(
+        'Ship · o-1 sent to the warehouse',
+      ),
+    );
+    expect(status()?.textContent).not.toContain('done');
+  });
+
   it('draws the host’s slot after the declared actions, and runs its command on the same line', async () => {
     const each = vi.fn(() => Promise.resolve());
     await open(actions([ship()]), {
@@ -442,9 +509,10 @@ describe('a selection’s declared actions', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: 'Ship 1/2' }),
     );
-    // No question of the host's own: the engine's, with the count.
+    // No question of the host's own: the engine's, for what will be sent —
+    // the one record that takes it, named; the other is listed below.
     const dialog = await screen.findByRole('dialog', {
-      name: 'Run “Ship” on 2 records?',
+      name: 'Run “Ship” on o-1?',
     });
     // The answer counts what will be sent.
     expect(within(dialog).getByRole('button', { name: 'Ship 1' })).toBeTruthy();
@@ -511,8 +579,11 @@ describe('a selection’s declared actions', () => {
       ),
     );
     // Left selected, the bar's button says none of it takes the action,
-    // held off with why.
-    const bar = await screen.findByRole('button', { name: 'Ship 1' });
+    // held off with why — and counts nothing, since nothing would be sent.
+    const bar = await within(await screen.findByRole('toolbar')).findByRole(
+      'button',
+      { name: 'Ship' },
+    );
     expect(held(bar)).toBe(true);
     expect(described(bar)).toBe('Already shipped.');
     expect(run).toHaveBeenCalledTimes(1);
@@ -573,6 +644,21 @@ describe('the detail’s declared actions', () => {
     expect(
       within(panel).queryByRole('button', { name: 'Actions for o-1' }),
     ).toBeNull();
+  });
+
+  it('says how a command pressed in the detail went, in the detail', async () => {
+    await open(actions([ship()]));
+    fireEvent.keyDown(rowOf('o-1'), { key: 'Enter' });
+    const panel = await screen.findByRole('dialog');
+    await userEvent.click(
+      await within(panel).findByRole('button', { name: 'Ship' }),
+    );
+    // Not only under the rows the panel covers.
+    await waitFor(() =>
+      expect(
+        panel.querySelector('[data-slot="bulk-status"]')?.textContent,
+      ).toContain('Ship · o-1 done'),
+    );
   });
 });
 

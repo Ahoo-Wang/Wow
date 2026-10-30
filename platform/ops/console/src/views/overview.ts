@@ -31,6 +31,7 @@ import {
   PARKED,
   REFRESH_SECONDS,
   status,
+  STATUS_COLORS,
 } from "./parked.ts";
 import { textKeys, type Words } from "./words.ts";
 
@@ -51,7 +52,7 @@ export const OVERVIEW_WORDS = {
     inWindow: "Parked, failed in range",
     allParked: "All parked",
     attention: "Needs attention",
-    retrying: "Retrying",
+    retrying: "Scheduled",
     unrecoverable: "Unrecoverable",
     resolved: "Resolved, failed in range",
     overTime: "Parked over time, by status",
@@ -63,15 +64,15 @@ export const OVERVIEW_WORDS = {
   },
   "zh-CN": {
     title: "概览",
-    board: "搁置条目概览",
+    board: "停放条目概览",
     window: "失败时间",
-    inWindow: "搁置中（范围内失败）",
-    allParked: "全部搁置中",
+    inWindow: "范围内停放",
+    allParked: "全部停放",
     attention: "需要处理",
-    retrying: "重试中",
+    retrying: "计划重试",
     unrecoverable: "不可恢复",
-    resolved: "已解决（范围内失败）",
-    overTime: "搁置趋势（按状态）",
+    resolved: "范围内已解决",
+    overTime: "停放趋势（按状态）",
     byStatus: "按状态",
     clusters: "失败集群 · 前 10 个",
     byContext: "按上下文",
@@ -106,6 +107,10 @@ function byStatus(): AnalysisViewConfig {
       chart: {
         type: "pie",
         pie: { category: "status", value: "count", donut: true },
+        // Four statuses fit beside the donut; under it one showed and
+        // "3 more".
+        legend: "right",
+        colors: STATUS_COLORS,
       },
     },
     [],

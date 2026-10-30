@@ -539,6 +539,12 @@ describe('the address: `?id=`, the record a bound resource’s detail holds', ()
     await waitFor(() => expect(at().search).toBe('?view=orders-1&id=o-2'));
     const opened = await screen.findByRole('dialog');
     expect(within(opened).getByText('Order o-2')).toBeTruthy();
+    // Opened from the list, a step of its own: Back closes it, and stays on
+    // the view rather than leaving it.
+    expect(router.state.historyAction).toBe('PUSH');
+    await act(() => router.navigate(-1));
+    await waitFor(() => expect(at().search).toBe('?view=orders-1'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('leaves a detail the host holds itself alone', async () => {

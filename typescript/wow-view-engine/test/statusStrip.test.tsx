@@ -534,7 +534,7 @@ describe('QueryStrip', () => {
     expect(line.textContent).toContain('查询失败 · 显示的是上一次成功的结果');
     // Nothing is folded: the one thing it had to add is already said.
     expect(within(line).queryByRole('button', { name: /还有/ })).toBeNull();
-    expect(within(line).getByRole('button', { name: '重试' })).toBeTruthy();
+    expect(within(line).getByRole('button', { name: '重新加载' })).toBeTruthy();
   });
 
   it('says the failure alone when nothing came back before it', () => {

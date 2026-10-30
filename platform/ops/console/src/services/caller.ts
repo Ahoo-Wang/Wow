@@ -31,6 +31,8 @@ export interface OpsCaller {
   roles: readonly string[];
   /** `cosec` when the caller is a CoSec token's; a caller of headers otherwise. */
   via?: "cosec";
+  /** When a CoSec token's caller stops being one (its `exp`), epoch milliseconds. */
+  expiresAt?: number;
 }
 
 /** The role that acts on the entries (`OpsRoles.OPERATOR`). */
@@ -89,10 +91,20 @@ export function tokenCaller(tokens: TokenStorage | null): OpsCaller | null {
     tenant: payload.tenantId || DEFAULT_TENANT,
     roles: Array.isArray(payload.roles) ? payload.roles : [],
     via: "cosec",
+    ...(typeof payload.exp === "number"
+      ? { expiresAt: payload.exp * 1000 }
+      : {}),
   };
 }
 
 const STORAGE_KEY = "wow-ops-console.caller";
+
+/**
+ * Why the console was signed out, to say on the sign-in page: the CoSec
+ * token expired, the gateway or the service refused it, or the service is
+ * not a development run and reads no caller from headers.
+ */
+export type SignedOut = "expired" | "refused" | "headers-refused";
 
 /**
  * The caller in force, and who listens for a change: the CoSec token's when
@@ -103,6 +115,7 @@ const STORAGE_KEY = "wow-ops-console.caller";
 export class CallerStore {
   private headers: OpsCaller | null;
   private caller: OpsCaller | null;
+  private why: SignedOut | null = null;
   private readonly listeners = new Set<() => void>();
 
   constructor(
@@ -114,6 +127,28 @@ export class CallerStore {
   }
 
   get = (): OpsCaller | null => this.caller;
+
+  /** Why the console was last signed out, until a caller is named again. */
+  signedOut = (): SignedOut | null => this.why;
+
+  /**
+   * Signs out after the service answered 401: the caller in force, CoSec's
+   * or of headers, is let go, and `why` is said on the sign-in page.
+   */
+  refused(): void {
+    const caller = this.caller;
+    if (!caller) return;
+    const why: SignedOut =
+      caller.via !== "cosec"
+        ? "headers-refused"
+        : caller.expiresAt !== undefined && caller.expiresAt <= Date.now()
+          ? "expired"
+          : "refused";
+    this.tokens?.signOut();
+    this.keep(null);
+    this.why = why;
+    this.changed();
+  }
 
   /** Whether a CoSec token can be signed in with here. */
   get signsIn(): boolean {
@@ -127,6 +162,7 @@ export class CallerStore {
   set(caller: OpsCaller | null): void {
     this.tokens?.signOut();
     this.keep(caller);
+    this.why = null;
     this.changed();
   }
 
@@ -139,8 +175,10 @@ export class CallerStore {
     if (!this.tokens) return false;
     this.tokens.signIn({ accessToken, refreshToken: accessToken });
     const signedIn = tokenCaller(this.tokens) !== null;
-    if (signedIn) this.keep(null);
-    else this.tokens.signOut();
+    if (signedIn) {
+      this.keep(null);
+      this.why = null;
+    } else this.tokens.signOut();
     this.changed();
     return signedIn;
   }

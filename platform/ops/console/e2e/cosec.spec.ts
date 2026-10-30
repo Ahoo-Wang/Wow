@@ -148,3 +148,23 @@ test("a token the gateway refuses signs the console out", async ({ page }) => {
     page.getByRole("link", { name: /Caller: No caller/ }),
   ).toBeVisible();
 });
+
+test("a token the gateway refuses later signs the console out, saying so", async ({
+  page,
+}) => {
+  await open(page);
+  // Well formed and unexpired, so the console takes it; signed with another
+  // secret, so the gateway answers 401.
+  await signIn(
+    page,
+    accessToken("mallory", ["ops.operator"], 3600, "a-secret-the-gateway-does-not-know"),
+  );
+  await expect(
+    page.getByText(
+      "Your CoSec access token was refused (401): sign in with another.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Caller: No caller/ }),
+  ).toBeVisible();
+});
