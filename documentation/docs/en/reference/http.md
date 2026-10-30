@@ -21,10 +21,10 @@ A service's public port serves these routes, materialized from its Manifest. [Se
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`, body `{"ownerId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `TransferSpace`, body `{"spaceId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags` | `ApplyTags`, body `{"tags": {"name": ["value"]}}`, replacing the applied tags |
-| `POST /<context>/snapshot/<aggregate>/wow.snapshot.rebuild` | A rebuild of the snapshots of `{"ids": [...]}` |
-| `POST /<context>/schedule/{job}/wow.schedule.<command>` | A job command: `enable`, `reschedule`, `disable` |
+| `POST /<context>/<aggregate>/wow.snapshot.rebuild` | A rebuild of the snapshots of `{"ids": [...]}` |
+| `POST /<context>/wow.schedule/{job}/<command>` | A job command: `enable`, `reschedule`, `disable` |
 
-Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`.
+Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`. The snapshot rebuild and the job commands are system commands of Wow's built-in aggregates: a service without a command authorizer refuses them on this port (403 `wow.auth.forbidden`), never allowing them by default ([Authorize commands](../operate/security#authorize-commands)).
 
 **Reads**
 

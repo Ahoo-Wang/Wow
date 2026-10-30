@@ -134,7 +134,7 @@ dependencies {
 
 这些钩子大多是列表：宿主取该类型的每个 Bean，按 Bean 的顺序（`@Order`、`Ordered` 或 `@Priority`，这是唯一的排序方式）。授权器、变换器、校验器、观察者、失败分类器，以及查询的策略、过滤器和观察者，都是这样的列表：
 
-- **授权器全部询问。** 只有每个 `CommandAuthorizer` 都允许，命令才被允许；按顺序第一个拒绝的就是答案，其余的不再询问。允许的意思是没有异议，而不是推翻其他授权器，也没有弃权：只管一类事的授权器（比如服务身份可以调用哪些命令，`caller.service`）对它管辖之外的命令一律允许。开启 `wow.cosec.authorizer.enabled` 后，CoSec 的授权器也是其中之一。
+- **授权器全部询问。** 只有每个 `CommandAuthorizer` 都允许，命令才被允许；按顺序第一个拒绝的就是答案，其余的不再询问。允许的意思是没有异议，而不是推翻其他授权器，也没有弃权：只管一类事的授权器（比如服务身份可以调用哪些命令，`caller.service`）对它管辖之外的命令一律允许。开启 `wow.cosec.authorizer.enabled` 后，CoSec 的授权器也是其中之一。一个授权器都没有时，命令被允许，但 Wow 内置聚合的系统命令（定时任务的命令和快照重建）除外，公开端口这时拒绝它们（[授权命令](../operate/security#authorize-commands)）。
 - **观察者全部通知。** 每个 `Observer` 都按顺序看到每个阶段和事件。某个观察者失败时会被记录日志并在这次调用中跳过；它绝不会让命令失败，也不会妨碍其他观察者收到通知。
 
 少数几个是单值接缝，节点只取一个 Bean：`CallerResolver`、`GlobalIdGenerator`、`MaskStrategyResolver`、`DatasetVisibility`、`CommandCaller` 和 `QueryCountCache`。同一个接缝有两个 Bean 时启动失败，并指出接缝和这两个 Bean。把节点应取的那个标为 `@Primary`：这是在多个之中选定一个的唯一方式。

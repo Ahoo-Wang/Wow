@@ -50,6 +50,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -139,7 +140,8 @@ import jakarta.validation.Validator as JakartaValidator
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout]).
  * - **Admission**: every [CommandAuthorizer] bean, all asked in their order, the first denial the answer
- *   ([CommandAuthorizer.allOf]); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
+ *   ([CommandAuthorizer.allOf]); without one, the public port refuses the system commands of Wow's built-in
+ *   aggregates, the jobs' and the snapshot rebuild's (403 `wow.auth.forbidden`); the [CommandTransformer]s and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider, the id generators: the [GlobalIdGenerator] bean
  *   (UUIDv7 unless the application gives one; wow-cosid gives aggregate ids alone) and, per aggregate type,
  *   the [AggregateIdGenerator] bean
@@ -528,7 +530,8 @@ class WowAutoConfiguration {
                 transport = sourceTopics?.producer != null,
             ),
             admission = AdmissionPlugins(
-                authorizer = CommandAuthorizer.allOf(authorizers.orderedStream().toList()),
+                authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }
+                    ?.let(CommandAuthorizer::allOf),
                 transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = IdGenerators(
@@ -833,22 +836,31 @@ class WowAutoConfiguration {
         routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
         commands: ObjectProvider<CommandClient>,
         queryApi: ObjectProvider<NodeQueryApi>,
-    ): RouterFunction<ServerResponse> = wowRoutes(
-        manifest,
-        node.gateway,
-        reads,
-        callers,
-        options,
-        queries.getIfAvailable { HttpQueries.NONE },
-        masks,
-        routes.scope,
-        ServiceRoutes(
-            handlers = models.providers.flatMap { it.routes(dependencies) },
-            authorizers = routeAuthorizers.orderedStream().toList(),
-            commands = commands.getIfAvailable(),
-            queries = queryApi.getIfAvailable(),
-        ),
-    )
+    ): RouterFunction<ServerResponse> {
+        if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
+            logger.info {
+                "No CommandAuthorizer bean: the public port refuses Wow's system commands of its built-in aggregates " +
+                    "(wow.schedule.*, wow.snapshot.Rebuild) with 403 until the application gives one; the jobs, the " +
+                    "sagas and the internal port's calls send them as before."
+            }
+        }
+        return wowRoutes(
+            manifest,
+            node.gateway,
+            reads,
+            callers,
+            options,
+            queries.getIfAvailable { HttpQueries.NONE },
+            masks,
+            routes.scope,
+            ServiceRoutes(
+                handlers = models.providers.flatMap { it.routes(dependencies) },
+                authorizers = routeAuthorizers.orderedStream().toList(),
+                commands = commands.getIfAvailable(),
+                queries = queryApi.getIfAvailable(),
+            ),
+        )
+    }
 
     /**
      * The operator's routes over the parked entries, when `wow.http.ops.enabled`: authenticated by the
@@ -909,6 +921,12 @@ class WowAutoConfiguration {
         @Bean
         @JvmStatic
         internal fun wowSingleSeams(): BeanFactoryPostProcessor = SingleSeams()
+
+        /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
+        internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
+            context.commands.isNotEmpty() ||
+                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD } }
+        }
 
         /** The service of the peer [context], as its contract on the class path names it. */
         internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers

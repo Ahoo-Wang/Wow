@@ -110,7 +110,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 The host overrides a job's rule without a new build, with `wow.schedules.<name>.expression`, `zone` and `misfire`, and `wow.schedules.<name>.enabled: false` keeps a `SYSTEM` job's instances disabled at startup. A tenant's own rule of a `TENANT` job comes before the host's.
 
-The job's instances also take commands over HTTP, `POST /<context>/schedule/{id}/wow.schedule.<command>`: `enable`, `reschedule`, `disable`.
+The job's instances also take commands over HTTP, `POST /<context>/wow.schedule/{id}/<command>`: `enable`, `reschedule`, `disable`, the job's name as the id. They are Wow's system commands, so the public port never allows them by default: a service without a command authorizer refuses them (403 `wow.auth.forbidden`), and with one, the authorizer decides. Under CoSec the action is `<context>:wow.schedule.Enable` (and the other job commands) on `schedule/<job>`, which a policy grants to the operators ([Action names](../operate/security#action-names)). The jobs' own commands, the sagas' and the commands ops sends on the internal port are not refused.
 
 ## Test it
 

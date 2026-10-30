@@ -16,8 +16,10 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
@@ -30,18 +32,44 @@ import org.springframework.test.web.reactive.server.WebTestClient
 
 /**
  * The snapshot rebuild route of a context (decision D172), sent through the gateway like any command, and the
- * `Wow-Rebuilding` header of the snapshot queries and descriptors while their snapshots are being rebuilt.
+ * `Wow-Rebuilding` header of the snapshot queries and descriptors while their snapshots are being rebuilt. The rebuild
+ * is a system command of a built-in aggregate: the public port refuses it on a node without an authorizer (UI-50).
  */
 class SnapshotRebuildRoutesTest {
     @Test
     fun `a rebuild request of an aggregate type's snapshots is a command of the rebuild aggregate`() {
-        val node = HttpNode(rebuilds = true)
-        val requested = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1","c-2"]}""")
+        val node = HttpNode(rebuilds = true, authorizer = operatorsOnly)
+        val requested = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1","c-2"]}""", user = OPERATOR)
         requested.status.assert().withFailMessage { requested.body.toString() }.isEqualTo(200)
         requested.body!!["ref"]["id"].asString().assert().isEqualTo("cart")
-        val unknown = node.post("/shop/order/wow.snapshot.rebuild", """{"ids":["o-1"]}""")
+        val unknown = node.post("/shop/order/wow.snapshot.rebuild", """{"ids":["o-1"]}""", user = OPERATOR)
         unknown.status.assert().isEqualTo(404)
-        node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":[]}""").status.assert().isEqualTo(400)
+        node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":[]}""", user = OPERATOR).status.assert().isEqualTo(400)
+        val buyer = node.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = "alice")
+        buyer.status.assert().isEqualTo(403)
+        buyer.body!!["detail"].asString().assert().contains("Only an operator sends wow.snapshot.Rebuild")
+    }
+
+    @Test
+    fun `without an authorizer the public port refuses a rebuild request to every caller`() {
+        val bare = HttpNode(rebuilds = true)
+        listOf(
+            HttpNode(rebuilds = true, callers = CallerResolver.ANONYMOUS)
+                .post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = null),
+            bare.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = "alice"),
+            bare.post("/shop/cart/wow.snapshot.rebuild", """{"ids":["c-1"]}""", user = OPERATOR),
+        ).forEach { refused ->
+            refused.status.assert().withFailMessage { refused.body.toString() }.isEqualTo(403)
+            refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+            refused.body!!["detail"].asString().assert()
+                .isEqualTo(
+                    "wow.snapshot.Rebuild is refused on the public port: the service has no CommandAuthorizer for " +
+                        "Wow's system commands (CoSec's, wow.cosec.authorizer.enabled, or the application's own).",
+                )
+        }
+        // The cart's own commands are no system commands of a built-in aggregate: a node without an authorizer
+        // allows them.
+        bare.post("/shop/cart/c-1/add-item", """{"sku":"s-1","quantity":1}""").status.assert().isEqualTo(200)
     }
 
     @Test
