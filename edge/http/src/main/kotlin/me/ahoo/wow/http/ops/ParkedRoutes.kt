@@ -130,6 +130,9 @@ object OpsPaths {
      * by its key, `<context>.<name>`.
      */
     const val PARKED: String = "/wow/ops/parked"
+
+    /** The node's subscriptions, read-only ([subscriptionRoutes]). */
+    const val SUBSCRIPTIONS: String = "/wow/ops/subscriptions"
     const val RESUME: String = "resume"
     const val SKIP: String = "skip"
     const val MARK_RECOVERABLE: String = "mark-recoverable"
@@ -469,7 +472,7 @@ private const val CURSOR_PARTS = 6
  * 500 problem that says nothing of its cause, which is logged.
  */
 @Suppress("TooGenericExceptionCaught") // Whatever else a route throws is answered as a problem, not a bare 500.
-private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
+internal suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
     block()
 } catch (problem: ProblemException) {
     problem.problem.respond()

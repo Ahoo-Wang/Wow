@@ -84,6 +84,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions` | class | `wow-clickhouse` |
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
+| `me.ahoo.wow.http.ops.subscriptionRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueryModels.datasets` | fun | `wow-client` |
 

@@ -45,17 +45,22 @@ import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
+import me.ahoo.wow.runtime.node.NodeSample
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SourcedSubscription
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.node.SubscriptionView
 import me.ahoo.wow.runtime.node.accountModel
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.node.subscriptionsView
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
@@ -173,6 +178,40 @@ class SourcedNodeTest {
             eventually { decided.size == 2 }
             node.stop()
             subscriptions.runtime.assert().isNull()
+        }
+
+    @Test
+    fun `the operator's view should list a topic subscription's partitions only while they are held back (D372 S7)`(): Unit =
+        runBlocking {
+            val down = ProcessorBinding.project<OrderTotal?>(
+                "Board",
+                "onOrder",
+                OrderTotal::class.java,
+                aggregates = listOf("sales.order"),
+                nullableState = true,
+            ) { _, _ -> throw StorageUnavailableException("The board's store is down.") }
+            val node = node(bindings = SubscriptionBindings(mapOf(BANK to listOf(down, payout))))
+            val subscriptions = node.topicSubscriptions.getValue(TOPIC)
+            node.start()
+            subscriptions.awaitStarted()
+            suspend fun topic() = node.subscriptionsView(NodeSample.EMPTY, maxParked = 10).subscriptions
+                .filter { it.group == subscriptions.group.name }
+            topic().map { it.id }.assert().containsExactly(
+                SubscriptionId(BANK, "Board.onOrder"),
+                SubscriptionId(BANK, "Payout.onOrder"),
+            )
+            topic().map { it.source }.toSet().assert().containsExactly(SubscriptionView.Source.TOPIC)
+            topic().flatMap { it.partitions }.assert().isEmpty()
+
+            topics.publish(orderRecord("o-1", 1), topic = TOPIC)
+            eventually { subscriptions.paused().isNotEmpty() }
+
+            val board = topic().single { it.id.name == "Board.onOrder" }.partitions.single()
+            board.partition.assert().isEqualTo(subscriptions.paused().single().partition)
+            board.runs.assert().isTrue()
+            board.paused!!.reason.assert().isNotBlank()
+            board.head.assert().isNull()
+            topic().single { it.id.name == "Payout.onOrder" }.partitions.assert().isEmpty()
         }
 
     @Test

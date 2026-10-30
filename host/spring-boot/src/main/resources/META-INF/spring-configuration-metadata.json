@@ -114,7 +114,7 @@
   }, {
     "name" : "wow.http.ops",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$HttpOps",
-    "description" : "The operator's routes of the parked entries.",
+    "description" : "The operator's routes of the node: its parked entries and its subscriptions.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.internal",
@@ -635,7 +635,7 @@
   }, {
     "name" : "wow.http.ops.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port.",
+    "description" : "Serves the operator's routes on the public port: the parked entries under `/wow/ops/parked`, and the read of the node's subscriptions, `GET /wow/ops/subscriptions`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http$HttpOps",
     "defaultValue" : false
   }, {

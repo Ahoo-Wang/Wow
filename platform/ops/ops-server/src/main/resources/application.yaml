@@ -20,8 +20,8 @@ wow:
     port: 9098
   http:
     ops:
-      # The operator's routes over this node's own parked entries (/wow/ops/parked): the ops saga's sends to an owning
-      # context that failed park here.
+      # The operator's routes over this node (/wow/ops): its own parked entries (/wow/ops/parked), where the ops saga's
+      # sends to an owning context that failed park, and its subscriptions (/wow/ops/subscriptions).
       enabled: true
 ---
 # CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's credential and

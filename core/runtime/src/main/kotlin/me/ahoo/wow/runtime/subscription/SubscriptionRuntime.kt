@@ -81,6 +81,12 @@ class SubscriptionRuntime internal constructor(
     private val observer: Observer = Observer.NONE,
     /** How its subscriptions classify their handlers' failures. */
     private val classification: FailureClassification = RuntimeFailures.DEFAULT,
+    /**
+     * Whether its first start warns of the group's [orphans]: false for a runtime whose group's checkpoints another
+     * runtime of the same name holds too, which tells them (a context's command intake shares its default log
+     * group's), since the other's subscriptions are none of its own.
+     */
+    private val tellsOrphans: Boolean = true,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -157,7 +163,7 @@ class SubscriptionRuntime internal constructor(
             // beginning only when none did, whichever partition or subscription starts first.
             val saved = checkpoints.list(group)
             run.joined = saved.mapTo(HashSet()) { it.subscription }
-            if (!orphansTold) {
+            if (tellsOrphans && !orphansTold) {
                 orphansTold = true
                 tellOrphans(saved)
             }
@@ -365,25 +371,38 @@ class SubscriptionRuntime internal constructor(
         options.starts[subscription.id]
             ?: SubscriptionStart.of(subscription.startFrom, joined = joined.any { it != subscription.name })
 
+    /** The checkpoints saved in the group: of each subscription of its name that has read its stream. */
+    internal suspend fun saved(): List<Checkpoint> = checkpoints.list(group)
+
     /**
-     * Warns of the checkpoints in [saved] of an application's subscription the group no longer has, with their
-     * positions and the entries parked under the name: what a subscription renamed, or removed, left behind. A
-     * subscription's name is its identity, so a renamed one starts again as its start says; pinning its `@Name` to the
-     * old name keeps its position. Wow's own subscriptions (`wow.…`) are left out: those it ends, such as a finished
-     * rebuild's, are its own to keep.
+     * The checkpoints in [saved] of an application's subscription the group no longer has, each with the entries parked
+     * under the name, counted up to [maxParked]: what a subscription renamed, or removed, left behind, ordered by name.
+     * Wow's own subscriptions (`wow.…`) are left out: those it ends, such as a finished rebuild's, are its own to keep.
+     * The first start warns of them, and the operator reads them ([me.ahoo.wow.runtime.node.subscriptionsView]).
      */
-    private suspend fun tellOrphans(saved: List<Checkpoint>) {
-        val orphans = saved.filter { !directory.containsKey(it.subscription) && !it.subscription.startsWith(RESERVED) }
+    internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> {
+        require(maxParked >= 1) { "At least one parked entry is counted." }
+        return saved.filter { !directory.containsKey(it.subscription) && !it.subscription.startsWith(RESERVED) }
             .groupBy { it.subscription }
             .toSortedMap()
+            .map { (name, positions) ->
+                OrphanCheckpoints(group, name, positions.sortedBy { it.partition }, ledger.count(name, maxParked))
+            }
+    }
+
+    /**
+     * Warns of the [orphans] in [saved]: a subscription's name is its identity, so a renamed one starts again as its
+     * start says; pinning its `@Name` to the old name keeps its position.
+     */
+    private suspend fun tellOrphans(saved: List<Checkpoint>) {
+        val orphans = orphans(saved, ORPHAN_COUNT)
         if (orphans.isEmpty()) {
             return
         }
-        val described = orphans.map { (name, positions) ->
-            val at = positions.sortedBy { it.partition }.joinToString { "partition ${it.partition} at ${it.position}" }
-            val parked = ledger.count(name, ORPHAN_COUNT)
-            val held = if (parked >= ORPHAN_COUNT) "$ORPHAN_COUNT or more" else "$parked"
-            "$name ($at; $held parked)"
+        val described = orphans.map { orphan ->
+            val at = orphan.positions.joinToString { "partition ${it.partition} at ${it.position}" }
+            val held = if (orphan.parked >= ORPHAN_COUNT) "$ORPHAN_COUNT or more" else "${orphan.parked}"
+            "${orphan.name} ($at; $held parked)"
         }
         logger.warn {
             "Subscription group $group has checkpoints of subscriptions it no longer has: " +
@@ -529,6 +548,19 @@ class SubscriptionRuntime internal constructor(
  */
 @InternalWowApi
 data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
+
+/**
+ * The checkpoints a subscription of [group] left behind: [name], a name the group no longer has, saved its [positions],
+ * one per partition, and has [parked] entries under it, counted up to a limit. A checkpoint holds a subscription's name
+ * alone, without its context.
+ */
+@InternalWowApi
+data class OrphanCheckpoints(
+    val group: String,
+    val name: String,
+    val positions: List<Checkpoint>,
+    val parked: Int,
+)
 
 private val logger = KotlinLogging.logger {}
 

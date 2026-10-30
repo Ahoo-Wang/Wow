@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import com.sun.net.httpserver.HttpServer
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -180,6 +181,28 @@ class HostParkedOpsTest {
         host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null).status.assert().isEqualTo(404)
     }
 
+    @Test
+    fun `an operator who reaches every tenant reads the node's subscriptions over HTTP`() {
+        val id = openAccount()
+        eventually { host.get(entry(BROKEN, id)).status == 200 }
+        // The anonymous caller is its tenant's alone: the view is the whole service's.
+        host.get(OpsPaths.SUBSCRIPTIONS).status.assert().isEqualTo(403)
+
+        val read = host.get(OpsPaths.SUBSCRIPTIONS, mapOf(OPERATOR to "root"))
+
+        read.status.assert().isEqualTo(200)
+        read.body!!["node"].asString().assert().isEqualTo(host.node.node)
+        val subscriptions = read.body!!["subscriptions"].toList().associateBy { it["subscription"].asString() }
+        subscriptions.keys.assert().contains("$BANK.$FLAKY", "$BANK.$BROKEN", "$BANK.wow.snapshot")
+        val broken = subscriptions.getValue("$BANK.$BROKEN")
+        broken["source"].asString().assert().isEqualTo("log")
+        broken["group"].asString().assert().isEqualTo("bank-service/$BANK")
+        // The one node runs every partition of its log.
+        broken["partitions"].toList().all { it["runs"].asBoolean() }.assert().isTrue()
+        broken["partitions"].toList().size.assert().isEqualTo(host.node.context(BANK).backends.log.partitions)
+        read.body!!["orphans"].toList().assert().isEmpty()
+    }
+
     /** The application's two failing subscriptions of the bank's accounts. */
     @Configuration(proxyBeanMethods = false)
     class FailingSubscriptions {
@@ -191,6 +214,12 @@ class HostParkedOpsTest {
         /** The operator's actions are refused without an authorizer (review A3-3): this host allows them all. */
         @Bean
         fun operators(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
+
+        /** The anonymous caller, or with [OPERATOR] an operator who acts across every tenant. */
+        @Bean
+        fun callers(): CallerResolver = CallerResolver { request ->
+            request.headers().firstHeader(OPERATOR)?.let { Caller(subject = it, crossScope = true) } ?: Caller.ANONYMOUS
+        }
 
         @Bean
         fun failingSubscriptionFactory(): SubscriptionFactory = SubscriptionFactory { context ->
@@ -212,6 +241,7 @@ class HostParkedOpsTest {
     private companion object {
         const val FLAKY = "HostOps.flaky"
         const val BROKEN = "HostOps.broken"
+        const val OPERATOR = "X-Operator"
         val mapper: JsonMapper = JsonMapper.builder().build()
     }
 }

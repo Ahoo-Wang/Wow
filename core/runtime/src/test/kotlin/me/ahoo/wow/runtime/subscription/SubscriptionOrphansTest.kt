@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.Checkpoint
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 
@@ -79,6 +80,39 @@ class SubscriptionOrphansTest {
             runtime.stop()
         }.assert().isEmpty()
     }
+
+    @Test
+    fun `the orphans hold their positions and parked entries up to a limit, and a runtime sharing its group's checkpoints tells none`(): Unit =
+        runBlocking {
+            checkpoints.save(GROUP, "Cart.onAdded", 0, 4)
+            checkpoints.save(GROUP, "Old.onAdded", 1, 9)
+            repeat(3) { ledger.park(ParkedAggregate("Old.onAdded", cart("x$it"), 0, 1, "failed", 0)) }
+            val runtime = SubscriptionRuntime(
+                GROUP,
+                log,
+                checkpoints,
+                ledger,
+                listOf(Subscription("Cart.onAdded", SubscriptionFilter("shop")) { }),
+                testOptions(),
+            )
+            runtime.orphans(runtime.saved(), maxParked = 2).assert().containsExactly(
+                OrphanCheckpoints(GROUP, "Old.onAdded", listOf(Checkpoint.of("Old.onAdded", 1, 9)), 2),
+            )
+            // A context's intake runs in its default log group's name, whose runtime tells the group's orphans.
+            val intake = SubscriptionRuntime(
+                GROUP,
+                LogSource(log),
+                checkpoints,
+                ledger,
+                listOf(Subscription("wow.commands", SubscriptionFilter("shop")) { }),
+                testOptions(),
+                tellsOrphans = false,
+            )
+            logged {
+                intake.start(setOf(0))
+                intake.stop()
+            }.assert().isEmpty()
+        }
 
     /** The warnings of the subscription runtime while [block] runs. */
     private suspend fun logged(block: suspend () -> Unit): List<String> {

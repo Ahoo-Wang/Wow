@@ -1158,12 +1158,15 @@ class WowProperties {
         /** The OpenAPI document of the routes. */
         var openapi: OpenApi = OpenApi()
 
-        /** The operator's routes of the parked entries. */
+        /** The operator's routes of the node: its parked entries and its subscriptions. */
         var ops: HttpOps = HttpOps()
 
         @InternalWowApi
         class HttpOps {
-            /** Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. */
+            /**
+             * Serves the operator's routes on the public port: the parked entries under `/wow/ops/parked`, and the read
+             * of the node's subscriptions, `GET /wow/ops/subscriptions`.
+             */
             var enabled: Boolean = false
         }
 

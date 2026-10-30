@@ -269,11 +269,11 @@ The springdoc bridge, when the application has springdoc.
 
 ## `wow.http.ops`
 
-The operator's routes of the parked entries.
+The operator's routes of the node: its parked entries and its subscriptions.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.http.ops.enabled` | `Boolean` | `false` | Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. |
+| `wow.http.ops.enabled` | `Boolean` | `false` | Serves the operator's routes on the public port: the parked entries under `/wow/ops/parked`, and the read of the node's subscriptions, `GET /wow/ops/subscriptions`. |
 
 ## `wow.internal`
 
