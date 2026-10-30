@@ -16,6 +16,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: `include: Array<KClass<*>> = []`, `exclude: Array<KClass<*>> = []`
 
+## `@AggregateId`
+
+[AggregateId](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateId.kt): The property of a command that holds the id of the aggregate the command acts on, its target: a `String` the command's class declares, or an interface it implements does, stored or computed from other properties.
+
+- 目标: `PROPERTY`, `FIELD`
+- 参数: 无。
+
 ## `@AggregateRoot`
 
 [AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.

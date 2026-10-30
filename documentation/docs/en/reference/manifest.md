@@ -64,6 +64,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `mounted`: left out when absent or at its default
 - `system`: left out when absent or at its default
 - `transformsTo`
+- `idProperty`
 - `description`
 
 ## `Error`

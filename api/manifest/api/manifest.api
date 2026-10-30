@@ -34,6 +34,7 @@ public final class me/ahoo/wow/manifest/CommandManifest {
 	public final fun getAliases ()Ljava/util/List;
 	public final fun getCreation ()Lme/ahoo/wow/manifest/Creation;
 	public final fun getDescription ()Ljava/lang/String;
+	public final fun getIdProperty ()Ljava/lang/String;
 	public final fun getMounted ()Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getProduces ()Ljava/util/List;

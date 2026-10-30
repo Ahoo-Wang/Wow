@@ -24,6 +24,7 @@ import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
+import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
@@ -85,6 +86,12 @@ internal class AggregateAnalyzer(
         val mounted = mountedOf(aggregateName, commands, problems)
         val ownership = AggregateRootArguments.ownership(root)
         val idSource = AggregateRootArguments.idSource(root, ownership, problems)
+        if (idSource == AggregateIdSource.OWNER.name) {
+            commands.filter { it.aggregateId != null }.forEach { command ->
+                problems += "command ${AliasCheck.simpleName(command.type)} has an @AggregateId property, but " +
+                    "${root.simpleName.asString()}'s id is its owner's (idSource = OWNER): its commands name no aggregate"
+            }
+        }
         val retiredEvents = RetiredEvents.of(root)
         problems += RetiredEvents.problems(retiredEvents, aggregateName, context(), commands, sourcing, mounted)
         return AggregateBinding(
@@ -224,7 +231,9 @@ internal class AggregateAnalyzer(
     ): List<String> = (
         AnnotationSet.problemsOfType(root, "aggregate root", state = state == root) +
             (if (state != root) AnnotationSet.problemsOfType(state, "state", state = true) else emptyList()) +
-            commands.distinct().filterNot { it.isFramework() }.flatMap { AnnotationSet.problemsOfType(it, "command") } +
+            commands.distinct().filterNot { it.isFramework() }.flatMap {
+                AnnotationSet.problemsOfType(it, "command", command = true)
+            } +
             events.distinct().filterNot { it.isFramework() }.flatMap { AnnotationSet.problemsOfType(it, "event") }
         ).distinct()
 
@@ -286,6 +295,12 @@ internal class AggregateAnalyzer(
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
         }
+        val creation = when {
+            command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
+            command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
+            else -> "NONE"
+        }
+        val unaddressed = command.hasAnnotation(Unaddressed::class.java.name)
         return CommandBinding(
             command = commandType.render(),
             commandName = command.getAnnotationsByType(Name::class).firstOrNull()?.value,
@@ -295,12 +310,9 @@ internal class AggregateAnalyzer(
             arguments = parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
-            creation = when {
-                command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
-                command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
-                else -> "NONE"
-            },
-            unaddressed = command.hasAnnotation(Unaddressed::class.java.name),
+            creation = creation,
+            unaddressed = unaddressed,
+            aggregateId = AggregateIdResolver.of(command, creation, unaddressed, problems),
             type = command.binaryName(),
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,

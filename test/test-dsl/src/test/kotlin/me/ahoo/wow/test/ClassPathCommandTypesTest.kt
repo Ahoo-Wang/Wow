@@ -39,6 +39,7 @@ class ClassPathCommandTypesTest {
     data class Note(val text: String)
     data class Import(val text: String)
     data class Place(val orderId: String)
+    data class Restock(val productId: String)
 
     private val stock = AggregateType("inventory", "stock")
     private val order = AggregateType("shop", "order")
@@ -58,6 +59,9 @@ class ClassPathCommandTypesTest {
         types.aggregatesOf(Import::class.java).assert().isEmpty()
         types.aggregatesOf(String::class.java).assert().isEmpty()
         types.nameOf(stock, Reserve::class.java).assert().isEqualTo("inventory.stock.Reserve")
+        // A command whose contract reads its aggregate's id from its body.
+        types.aggregateIdOf(stock, Restock("mug")).assert().isEqualTo("mug")
+        types.aggregateIdOf(stock, Reserve("o-1")).assert().isNull()
     }
 
     @Test
@@ -82,6 +86,23 @@ class ClassPathCommandTypesTest {
                 ),
             ),
         ).assert().isEmpty()
+        ClassPathCommandTypes.idPropertiesOf(
+            mapOf(
+                "contexts" to listOf(
+                    mapOf(
+                        "aggregates" to listOf(
+                            mapOf(
+                                "commands" to listOf(
+                                    mapOf("idProperty" to "id"),
+                                    mapOf("schema" to "#/\$defs/A"),
+                                    mapOf("schema" to "#/\$defs/B", "idProperty" to "bId"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ).assert().isEqualTo(mapOf("#/\$defs/B" to "bId"))
     }
 
     @Test
@@ -93,16 +114,24 @@ class ClassPathCommandTypesTest {
                 "OrderSaga",
                 "onPlaced",
                 String::class.java,
-                derives = listOf(Reserve::class.java, Place::class.java),
+                derives = listOf(Reserve::class.java, Place::class.java, Restock::class.java),
             ) { event, context ->
-                listOf(CommandRequest.of(Reserve(event.ref.id), "product-1"), CommandRequest.of(Place("next")))
+                listOf(
+                    CommandRequest.of(Reserve(event.ref.id), "product-1"),
+                    CommandRequest.of(Place("next")),
+                    CommandRequest.of(Restock("mug")),
+                )
             }
             val placed = StateEvent(order.ref("acme", "o-1"), 1, "c-1", "r-1", "shop.order.Place", 1L, listOf("p"), "s")
             sagaSpec(listOf(saga)) {
                 whenEvent(placed) {
                     commands.map { it.ref }.assert()
-                        .containsExactly(stock.ref("acme", "product-1"), order.unassigned("acme"))
-                    expectCommands(Reserve("o-1"), Place("next"))
+                        .containsExactly(
+                            stock.ref("acme", "product-1"),
+                            order.unassigned("acme"),
+                            stock.ref("acme", "mug"),
+                        )
+                    expectCommands(Reserve("o-1"), Place("next"), Restock("mug"))
                     expectDeterministic()
                 }
             }

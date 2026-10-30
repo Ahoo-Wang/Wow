@@ -2611,6 +2611,10 @@
               "type" : "string"
             }
           },
+          "idProperty" : {
+            "type" : "string",
+            "description" : "The property of the command's body that holds its aggregate's id."
+          },
           "description" : {
             "type" : "string"
           }

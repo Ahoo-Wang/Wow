@@ -225,7 +225,7 @@ class AnnotationSetTest {
     }
 
     @Test
-    fun `a command carries no identity in its body`() {
+    fun `a command carries no tenant, owner or version in its body, its aggregate id alone`() {
         val kotlinCommands = SourceFile.kotlin(
             "Wallet.kt",
             """
@@ -245,7 +245,7 @@ class AnnotationSetTest {
                 @OwnerId val ownerId: String,
                 @AggregateVersion val version: Int?,
             )
-            data class Opened(val id: String)
+            data class Opened(@AggregateId val id: String)
 
             @AggregateRoot
             class Wallet(private val state: WalletState) {
@@ -273,13 +273,16 @@ class AnnotationSetTest {
         )
         val (_, result) = compileModel("generate", kotlinCommands, javaCommand)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        val identity = "which Wow 10 removed: a command carries no identity: it is Command.ref"
+        val identity = "which Wow 10 removed: a command carries no tenant, owner or version"
+        val commandOnly = "which only a property of a command an aggregate decides takes"
         result.messages.assert()
-            .contains("command Open's field id is annotated @AggregateId, $identity")
             .contains("command Open's field tenantId is annotated @TenantId, $identity")
             .contains("command Open's field ownerId is annotated @OwnerId, $identity")
             .contains("command Open's field version is annotated @AggregateVersion, $identity")
-            .contains("command Close's field id is annotated @AggregateId, $identity")
+            // The aggregate id is a command's body's, Kotlin's and Java's alike, and no event's.
+            .doesNotContain("command Open's field id is annotated @AggregateId")
+            .doesNotContain("command Close's field id is annotated @AggregateId")
+            .contains("event Opened's field id is annotated @AggregateId, $commandOnly")
     }
 
     private val processors = SourceFile.kotlin(

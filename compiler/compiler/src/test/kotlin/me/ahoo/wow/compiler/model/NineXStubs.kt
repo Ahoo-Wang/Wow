@@ -20,9 +20,9 @@ import com.tschuchort.compiletesting.SourceFile
  * without 9.x `wow-api` on the classpath: a project may not reach both `wow-api` modules (decisions D85, D90).
  */
 object NineXStubs {
-    /** The 9.x annotations Wow 10 removed (decisions D67, D68). */
+    /** The 9.x annotations Wow 10 removed (decisions D67, D68); `@AggregateId` it kept (D378). */
     val REMOVED_ANNOTATIONS = listOf(
-        "AggregateId", "AggregateName", "AggregateRoute", "AggregateVersion", "CommandRoute", "EntityObject", "Event",
+        "AggregateName", "AggregateRoute", "AggregateVersion", "CommandRoute", "EntityObject", "Event",
         "Generated", "OnError", "OnStateEvent", "Order", "OwnerId", "Spaced", "StatelessSaga", "TenantId",
         "ValueObject", "VoidCommand",
     )

@@ -37,7 +37,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  * [routes] gives the HTTP side: CoSec's route map (`cosec-routes.json`) of the command and service routes of a
  * Manifest. A route that names no aggregate id (a creation, a mounted or `@Unaddressed` command) is on `<aggregate>`
  * alone, the id being the server's to choose: a policy for such a command names the aggregate type both with and
- * without an id. The query and state routes
+ * without an id. So is the route of a command whose body names its aggregate (`@AggregateId`), whose action the
+ * authorizer then decides on `<aggregate>/<id>`, the id its body names. The query and state routes
  * are not mapped: CoSec reads them as `http:<METHOD>` on their path.
  */
 @ExperimentalWowApi

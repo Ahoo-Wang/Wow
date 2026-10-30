@@ -92,6 +92,35 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a command whose body names its aggregate should come back with its id's property, and another leave it out`() {
+        val restock = CommandManifest(
+            name = "Restock",
+            schema = Manifest.schemaRef("sample.Restock"),
+            routes = listOf(CommandRoutes.unaddressed("shop", "stock", "Restock")),
+            idProperty = "productId",
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "stock",
+                            state = StateManifest(Manifest.schemaRef("sample.Stock")),
+                            commands = listOf(restock, CommandManifest("Count", schema = "#/\$defs/C")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val json = mapper.writeValueAsString(ManifestTree.write(manifest))
+        json.assert().contains("\"idProperty\":\"productId\"")
+        json.indexOf("\"idProperty\"").assert().isEqualTo(json.lastIndexOf("\"idProperty\""))
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
+            .assert().containsExactly(restock, CommandManifest("Count", schema = "#/\$defs/C"))
+    }
+
+    @Test
     fun `the tree should name the fields as the design does and leave out absent values`() {
         val fragment = Manifests.fragment().copyWith(
             contexts = Manifests.fragment().contexts.map { it.copyWith(description = null) },

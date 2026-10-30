@@ -57,6 +57,7 @@ import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.json.BodyAggregateIds
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
@@ -93,7 +94,10 @@ import kotlin.time.Duration
  *      it takes the id of the aggregate its request id already created in [committed], within the caller's scope,
  *      else a new one from [ids]' generator of the aggregate type, so a retry keeps it. A
  *      request of a type one of [transformers] takes, a mounted command among them, may name none: its transformer
- *      finds the aggregate;
+ *      finds the aggregate. A command whose body names its aggregate
+ *      ([AggregateId][me.ahoo.wow.api.annotation.AggregateId]) has its body decoded here, as step 4 says, and its
+ *      aggregate id is the body's: a request that names it too names the same one, and a blank one is
+ *      [FrameworkCodes.COMMAND_MALFORMED]; a creation whose body names none is given one as above;
  *    - the command id is always a new global one from [ids]; the request id is the request's, or the command id;
  *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator]): its subject in its
  *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
@@ -105,7 +109,7 @@ import kotlin.time.Duration
  *      the caller and within the default wait timeout ([WaitCoordinator.call]);
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
- * 3. Authorize the action with [authorizer], before the body is decoded.
+ * 3. Authorize the action with [authorizer], before the body is decoded, unless it names the aggregate.
  *    An id longer than 256 characters (a request, aggregate, tenant or space id) is [FrameworkCodes.COMMAND_MALFORMED]
  *    ([AdmissionLimits]).
  * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
@@ -409,7 +413,8 @@ class CommandGateway @InternalWowApi constructor(
         // 2. The identity.
         val creation = decider?.creation ?: Creation.NONE
         val owned = model.idSource == AggregateIdSource.OWNER
-        identityConflict(request, creation, transformed = transformer != null || owned)?.let {
+        val fromBody = decider != null && model.idFromBody(commandType.type)
+        identityConflict(request, creation, transformed = transformer != null || owned || fromBody)?.let {
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }
         val call = request.call
@@ -426,6 +431,14 @@ class CommandGateway @InternalWowApi constructor(
         tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
+        // A command whose body names its aggregate is read now, so that its authorization names that aggregate.
+        val early = if (fromBody) {
+            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            decode(request.body, commandType.type)
+                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
+        } else {
+            null
+        }
         val inputId = if (owned) {
             when (val id = ownId(request.aggregateId, scope, request.caller)) {
                 is OwnId.Refused -> {
@@ -434,6 +447,16 @@ class CommandGateway @InternalWowApi constructor(
                 }
 
                 is OwnId.Of -> id.id
+            }
+        } else if (early != null) {
+            val named = bodyId(commandType.name, request.aggregateId, creation) { model.aggregateIdOf(early.value) }
+            when (named) {
+                is BodyId.Refused -> {
+                    facts.ref = facts.type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
+                    return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, named.message)
+                }
+
+                is BodyId.Of -> named.id ?: creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
             }
         } else {
             request.aggregateId ?: if (transformer == null) {
@@ -447,10 +470,12 @@ class CommandGateway @InternalWowApi constructor(
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 3. Action-level authorization.
         authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
-        // 4. The body.
-        bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val decoded = decode(request.body, commandType.type)
-            ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
+        // 4. The body, unless it was read for its aggregate.
+        val decoded = early ?: run {
+            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            decode(request.body, commandType.type)
+                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${commandType.name}.")
+        }
         // 5. The transformation.
         val headers = headersOf(request)
         var command = Resolved(model, commandType, decoded.value, headers)
@@ -548,7 +573,8 @@ class CommandGateway @InternalWowApi constructor(
      * whose contract the class path carries ([peers]) is checked as a command of this node is, up to its wait plan, and
      * sent to that context's command topic; any other is [FrameworkCodes.COMMAND_UNHANDLED]. Its command type is resolved
      * from the contract; its identity is decided as for this node's own aggregates, an aggregate id left out only for
-     * a command that creates its aggregate, which the peer's intake then gives one; the caller is
+     * a command that creates its aggregate, which the peer's intake then gives one, and read from the body by the
+     * property the contract names for a command whose body names its aggregate; the caller is
      * authorized and the body decoded and validated here. The peer runs no transformer of this node, and a synchronous
      * call goes to the context that serves the aggregate, not through here. Its plan
      * ([peerPlanProblem]) waits for ACCEPTED, or for the peer's COMMITTED, the default.
@@ -572,7 +598,8 @@ class CommandGateway @InternalWowApi constructor(
                 "topic, and this node has no command transport.",
         )
         // 2. The identity.
-        identityConflict(request, peer.creation, transformed = false)?.let {
+        val idProperty = peer.idProperty
+        identityConflict(request, peer.creation, transformed = idProperty != null)?.let {
             return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it)
         }
         if (request.call != null) {
@@ -594,14 +621,33 @@ class CommandGateway @InternalWowApi constructor(
         val origin = CallerAdmission.of(request.caller, target)
         val scope = origin.scope
         facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
+        // A command whose body names its aggregate is read now, by the property its contract names.
+        val early = if (idProperty != null) {
+            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            val decoded = decode(request.body, commandType.type)
+                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
+            val named = bodyId(peer.name, request.aggregateId, peer.creation) {
+                BodyAggregateIds.of(mapper.valueToTree(decoded.value), idProperty)
+            }
+            when (named) {
+                is BodyId.Refused -> return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, named.message)
+                // A creation that names none is given its id by the peer's intake.
+                is BodyId.Of -> named.id?.let { facts.ref = type.ref(tenantId, it) }
+            }
+            decoded
+        } else {
+            null
+        }
         AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
             ?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
         // 3. Action-level authorization.
         authorize(request, CommandAction(commandType, facts.ref, scope, peer.creation))?.let { return facts.refuse(it) }
-        // 4. The body.
-        bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
-        val decoded = decode(request.body, commandType.type)
-            ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
+        // 4. The body, unless it was read for its aggregate.
+        val decoded = early ?: run {
+            bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, it) }
+            decode(request.body, commandType.type)
+                ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
+        }
         // 6. Validation.
         val violations = validators.flatMap { it.validate(commandType, decoded.value) }
         if (violations.isNotEmpty()) {
@@ -721,6 +767,39 @@ class CommandGateway @InternalWowApi constructor(
         class Of(val id: String) : OwnId
 
         class Refused(val code: String, val message: String) : OwnId
+    }
+
+    /**
+     * The aggregate a request of [command] names in its body, [read] from it (`@AggregateId`), beside the one it
+     * names elsewhere, [requested] (a ref beside the body; null for none): the body's, which [requested] may repeat but
+     * not contradict, an identity fact given twice; [requested] when the body leaves it out; null when neither names one
+     * and the command is a [creation], which is given an id. A blank one, or one that cannot be read, is refused.
+     */
+    // A computed @AggregateId property may throw whatever its code does on the fields it was given.
+    @Suppress("TooGenericExceptionCaught")
+    private fun bodyId(command: String, requested: String?, creation: Creation, read: () -> String?): BodyId {
+        val inBody = try {
+            read()
+        } catch (failure: RuntimeException) {
+            return BodyId.Refused("The aggregate the body of $command names cannot be read: ${failure.message}")
+        }
+        return when {
+            inBody != null && inBody.isBlank() -> BodyId.Refused("The body of $command names a blank aggregate id.")
+            inBody != null && requested != null && inBody != requested ->
+                BodyId.Refused("The request names the aggregate $requested, but the body of $command names $inBody.")
+
+            inBody == null && requested == null && creation == Creation.NONE ->
+                BodyId.Refused("The body of $command names no aggregate.")
+
+            else -> BodyId.Of(inBody ?: requested)
+        }
+    }
+
+    /** The aggregate [bodyId] finds, or why it refuses the request. */
+    private sealed interface BodyId {
+        class Of(val id: String?) : BodyId
+
+        class Refused(val message: String) : BodyId
     }
 
     /** Why [request]'s identity facts cannot be decided, or null when they can. */
@@ -898,6 +977,10 @@ class CommandGateway @InternalWowApi constructor(
                 }
                 require(type == null || type.type == input.type) {
                     "${transformer.javaClass.name} takes ${input.name} as ${input.type.name}, but it is a ${type!!.type.name}."
+                }
+                require(registry.models.none { it.idFromBody(input.type) }) {
+                    "${transformer.javaClass.name} takes ${input.name}, whose body names its aggregate (@AggregateId): " +
+                        "no transformer finds the aggregate of such a command."
                 }
             }
             val byName = transformers.associateBy { it.input.name }

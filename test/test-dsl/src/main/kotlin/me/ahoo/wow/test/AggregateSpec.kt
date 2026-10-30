@@ -431,6 +431,9 @@ class AggregateSpec<S : Any> private constructor(
      * [headers] adds request facts (a scheduled command's [me.ahoo.wow.api.schedule.ScheduleContext.headers], say)
      * and [operator] replaces the caller's. Without a caller, the command is an anonymous one in [scope], none by
      * default.
+     *
+     * A command whose body names its aggregate ([me.ahoo.wow.api.annotation.AggregateId]) names the specification's,
+     * or none: one that names another fails the specification, as admission refuses it.
      */
     @Suppress("LongParameterList")
     fun whenCommand(
@@ -464,6 +467,11 @@ class AggregateSpec<S : Any> private constructor(
         operator: Operator?,
         caller: Caller?,
     ): Command<Any> {
+        val inBody = model.aggregateIdOf(body)
+        require(inBody == null || inBody == ref.id) {
+            "${body.javaClass.simpleName} names the aggregate $inBody in its body, but the specification is of " +
+                "${ref.id}: admission refuses it as malformed."
+        }
         val sender = caller ?: this.caller
         // A scope other than the sender's own is one it acts in elsewhere.
         val target = scope?.takeIf { sender != null && it != sender.scope }?.let { TargetScope.of(ref.tenantId, it) }

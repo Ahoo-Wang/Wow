@@ -25,12 +25,14 @@ import me.ahoo.wow.manifest.StateManifest
 
 /**
  * A peer's contract declaring [commands] on [type], each named by its class's simple name and routed by id and
- * without one (a command that may create its aggregate), as a domain's would.
+ * without one (a command that may create its aggregate), as a domain's would; one whose body names its aggregate in
+ * [idProperty] by its route without an id alone.
  */
 fun contractOf(
     type: AggregateType,
     vararg commands: Class<*>,
     creation: Creation = Creation.ALLOWED,
+    idProperty: String? = null,
 ): List<ManifestFragment> {
     val aggregate = AggregateManifest(
         type.name,
@@ -40,7 +42,12 @@ fun contractOf(
                 it.simpleName,
                 schema = Manifest.schemaRef(it.name),
                 creation = creation,
-                routes = CommandRoutes.of(type.context, type.name, it.simpleName, creation),
+                routes = if (idProperty == null) {
+                    CommandRoutes.of(type.context, type.name, it.simpleName, creation)
+                } else {
+                    listOf(CommandRoutes.unaddressed(type.context, type.name, it.simpleName))
+                },
+                idProperty = idProperty,
             )
         },
     )

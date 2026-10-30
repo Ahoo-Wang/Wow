@@ -62,6 +62,8 @@ class ManifestSchemaTest {
                 commands = aggregate.commands.mapIndexed { index, command ->
                     if (index == 0) {
                         command.copyWith(mounted = true, transformsTo = listOf("shop.cart.PutItem"), description = "d")
+                    } else if (index == 1) {
+                        command.copyWith(idProperty = "cartId")
                     } else {
                         command
                     }
