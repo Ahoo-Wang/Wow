@@ -90,6 +90,8 @@
 | X-33 | P2 | `:spring-boot` 的传输推导、`InMemoryTopics` | M5 Max 上的 Axon 对比（#5225）里，「Kafka 关闭」的会话用空的 `--wow.kafka.bootstrap-servers=`；基准节点的内部端口在回环地址上，算开发模式，`TransportSelection` 于是选了内存传输，而 `InMemoryTopics` 留着每一条记录，1 GB 堆在并发 256 时耗尽，W 与 W32 的扫描作废（本机与 M4 Pro 的两次对比没有这样）。生产环境不受影响：开发模式之外，需要主题的节点不能启动。两处缺陷：内存主题没有上限；开发模式下没有「不要主题」的写法（`wow.transport` 没有 `none`） | 内存主题有上限（各读者都读过的记录即丢弃，或按分区封顶并告警一次）；接受 `wow.transport=none`；基准的「Kafka 关闭」改用它 | 已修（#5231：内存主题按分区封顶，默认 1,000 条、超出丢最旧并告警一次，键 `wow.memory.topic-retention`；`wow.transport=none` 在任何配置下都不要主题；基准的「Kafka 关闭」改用它） |
 | X-34 | P2 | 集群路由、内核的冲突重试 | M5 Max 饱和快照（#5224）里 3 节点同机、PostgreSQL、并发 1024 时，E1 有 7 条、E3 有 9 条命令答 409 `wow.command.contended`（并发写者一再抢占版本号）；按设计一个聚合只有属主在写，疑为单机过载下租约交接、转发失败后退回本地执行而两个节点同写；该运行没有保留节点日志 | 在 Actions 的多机集群运行（L4 的 `e5-*`）与 GA E2E 中核查是否出现；出现则保留节点日志定位 | 待查 |
 | X-35 | P2 | Kotlin 的 ABI 转储 | 全部参数有默认值、主构造器标 `@InternalWowApi` 的类，Kotlin 生成的无参构造器在干净编译下可能丢掉该标记，转储多出一个公开的 `<init>()`；增量编译保留标记，故本地通过而 CI 失败（4c 的 `ParkedRetryOptions`，#5227） | 内部改用该类的 `@InternalWowApi copyWith`，不在别处调用其构造器；转储中出现意外的公开无参构造器时先疑此因 | 已绕开（#5227），记作已知现象 |
+| X-36 | P2 | `:runtime` 测试 | `SubscriptionOrphansTest` 偶发 `ConcurrentModificationException`（PA-2、PA-3 的全量检查中出现一次，重跑三次都通过）：疑为告知无主检查点时遍历的集合与并发注册的订阅共享 | 查明被并发修改的集合与线程；若产品代码在启动时并发读写同一集合，即改为快照或加锁，测试稳定复现后再修 | 待查 |
+| X-37 | P2 | 测试工具的开关 | 重新生成快照与金样的开关借用 `wow.` 前缀（如 `-Dwow.snapshot.update=true`）；整套检查带上它时，Spring 宿主把它当作未知的 `wow.*` 键拒绝启动（D302），宿主测试全部失败 | 测试工具的开关移出 `wow.` 命名空间（如 `wow-test.snapshot.update`），或只由各测试读取而不进 Spring 环境 | 待派 |
 
 ## 4. 第三轮架构审查 R3（2026-10-19，基线 `751c87569d`，只读）
 
