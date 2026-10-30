@@ -298,12 +298,12 @@
 
 | 编号 | 级别 | 位置 | 现象 | 去向 | 状态 |
 |---|---|---|---|---|---|
-| PA-1 | P0 | 内核的溯源函数（只收事件）、`@Upgrade`（只见载荷）、`DecideScope`（无时钟） | 9.x 的溯源可读事件的 `createTime` 与操作人（项目 A 有 15 个这样的函数）；`migrate-data` 把它们导入为提交时间与操作人，但 Wow 10 的溯源读不到、升级也注入不了，凡这类聚合重建后都丢这些字段，`compare` 必然有差异 | 编程模型的决定，待与用户讨论（推荐：溯源函数可选第二个参数取事件已记录的事实——提交时间、操作人、版本；`DecideScope.now` 由节点时钟给出、测试 DSL 可控） | 待决 |
+| PA-1 | P0 | 内核的溯源函数（只收事件）、`@Upgrade`（只见载荷）、`DecideScope`（无时钟） | 9.x 的溯源可读事件的 `createTime` 与操作人（项目 A 有 15 个这样的函数）；`migrate-data` 把它们导入为提交时间与操作人，但 Wow 10 的溯源读不到、升级也注入不了，凡这类聚合重建后都丢这些字段，`compare` 必然有差异 | 编程模型的决定，待与用户讨论（推荐：溯源函数可选第二个参数取事件已记录的事实——提交时间、操作人、版本；`DecideScope.now` 由节点时钟给出、测试 DSL 可控） | 已定 D377（用户 2026-10-30），待派 |
 | PA-2 | P1 | `manifest-tools` 的 `SchemaIntrospector`、查询准入 | 状态 schema 漏掉 Jackson 会写进快照的只读计算属性；查询它们被拒为未知字段，生成的 `<State>Properties` 与 `<State>View` 也缺它们；9.x 可按它们查询与排序 | schema 收录 Jackson 写出的只读属性（`readOnly`），可查询（协调者定） | 待派 |
 | PA-3 | P1 | `StateViewSources.kt:154-158`、`SchemaIntrospector` | 多态的 api 类型（`@JsonTypeInfo`/`@JsonSubTypes`）写成没有基类 `x-wow-class` 的裸 `anyOf`，`generateWowContractSources` 失败并挡住全部测试；绕开只能关掉 `publishState`，对端与 CoCache 就没有视图 | 多态节点写出基类的 `x-wow-class`，类路径上有时引用它 | 待派 |
 | PA-4 | P1 | `migrate-data` 的迁移映射 | 没有起草映射的工具：项目 A 要约 250 条事件与命令映射，几乎都是由 9.x 存储与 Manifest 可推出的 `snake_case → ClassName` | `migrate-data draft-map`：按名字起草，只留例外给人（协调者定） | 待派 |
-| PA-5 | P1 | 命令转换（D182） | 9.x 可由命令体推出聚合 ID（项目 A 有 9 个聚合、几十种命令这样做）；Wow 10 没有 `@AggregateId`，每种命令要手写一个 `CommandTransformer`，Saga 也要自己给出 ID | 编程模型的决定，待与用户讨论（推荐：声明式地由命令体给出目标 ID） | 待决 |
+| PA-5 | P1 | 命令转换（D182） | 9.x 可由命令体推出聚合 ID（项目 A 有 9 个聚合、几十种命令这样做）；Wow 10 没有 `@AggregateId`，每种命令要手写一个 `CommandTransformer`，Saga 也要自己给出 ID | 编程模型的决定，待与用户讨论（推荐：声明式地由命令体给出目标 ID） | 已定 D378（用户 2026-10-30），待派 |
 | PA-6 | P1 | 决定函数的依赖、测试 DSL | 决定函数里查询很常见（项目 A 有 53 处）；`QueryApi` 在 `:api`，按命令的调用者 `of(caller)` 查询是正路，但没写进文档；测试 DSL 的 `memoryQueries()` 对模型带依赖的聚合不能按类型读 | 写进技能与指南；核实宿主可把 `QueryApi` 注入领域依赖；`memoryQueries` 能按类型读 Manifest 里的每个状态 | 待派 |
 | PA-7～PA-11 | P2 | 编译器、KSP、决定内的查询错误、`GlobalIdGenerator` 的 KDoc、查询类型 | 返回非密封接口时被当作一个事件类（PA-7）；KSP2 不认源集的 `exclude`（PA-8，写进文档）；决定函数内的查询准入错误成了命令的拒绝 `wow.command.invalid`，客户端看到 400（PA-9：应为故障）；KDoc 仍说 wow-cosid 给全局 ID，api 里的静态 ID 无替代说明（PA-10）；`PagedList` 等不能子类化（PA-11，写进技能） | 编译器提示、决定内查询错误归为故障、KDoc 与技能 | 待派 |
-| PA-12 | P1 | 9.x 与 Wow 10 的服务群 | 项目 A 与几个仍是 Wow 9 的服务互相消费事件与调用（api 模块之间还有环）；Wow 10 读不了 9.x 的主题，9.x 消费 Wow 10 的路径已放弃（G-4），api jar 不能混用：整个服务群必须一起切换 | 待与用户讨论（推荐：先写服务群级的切换顺序与环检查文档；9.x 主题桥只在真实服务群需要时再定） | 待决 |
+| PA-12 | P1 | 9.x 与 Wow 10 的服务群 | 项目 A 与几个仍是 Wow 9 的服务互相消费事件与调用（api 模块之间还有环）；Wow 10 读不了 9.x 的主题，9.x 消费 Wow 10 的路径已放弃（G-4），api jar 不能混用：整个服务群必须一起切换 | 待与用户讨论（推荐：先写服务群级的切换顺序与环检查文档；9.x 主题桥只在真实服务群需要时再定） | 已定 D379（用户 2026-10-30），待派 |
 | PA-13～PA-21 | P1～P2 | `skills/wow-migrate/references/v9-to-v10.md`、`migrate/*`、09 | 缺：外部调度到 `@OnSchedule` 的映射与不能映射的情形（逐个等待、固定速率）；持久化在事件与状态里的 9.x 类型（`Condition`、`Sort`）的升级；Kotlin 链式 `aggregateVerifier` 的映射；Gradle 9 与生成工厂的参数；`@MountedCommand` 须在领域模块；09 里 `wow-cocache` 仍写放弃（D364 已恢复）与按索引、联接的缓存；查询 schema 覆盖、读请求头的查询策略、直接聚合快照集合；带日期前缀的号段生成器与 cosid-migration；用 `DomainEventCompensator` 回填改为新订阅从头读 | 由做审查的子会话补技能与文档 | 待派 |
