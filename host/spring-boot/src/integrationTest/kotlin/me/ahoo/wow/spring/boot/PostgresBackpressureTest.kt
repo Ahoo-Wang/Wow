@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -109,7 +110,7 @@ class PostgresBackpressureTest {
         eventually { saga.handled.containsAll(ids) }
         eventually { host.node.throttled.isEmpty() }
         host.node.pauses.paused().assert().isEmpty()
-        runBlocking { host.node.parked.list(OverloadedSaga.SAGA) }.entries.assert().isEmpty()
+        runBlocking { host.node.parked.list(SubscriptionId(BANK, OverloadedSaga.SAGA)) }.entries.assert().isEmpty()
     }
 
     private fun openAccount(owner: String): String {
