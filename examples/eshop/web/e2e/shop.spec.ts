@@ -12,6 +12,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import { attachServerDiagnostics } from "./diagnostics";
 
 /** The UI, as the global setup started it. */
 function web(path = "/"): string {
@@ -40,6 +41,11 @@ async function submit(
 }
 
 test.describe.configure({ mode: "serial" });
+
+// A failed test carries what the services' JVM was doing then: its threads and its logs. Playwright reads a
+// hook's fixtures from an object pattern, an empty one here.
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => attachServerDiagnostics(testInfo));
 
 test("the shop end to end: catalog, basket, checkout to payment, orders, shipping", async ({
   page,

@@ -26,15 +26,19 @@
  *   process even when the teardown does not run.
  * - the UI's dev server, on a free port, its proxies pointed at those ports.
  *
- * The teardown stops both. ESHOP_WEB_URL is the UI's address for the tests.
+ * The teardown stops both. ESHOP_WEB_URL is the UI's address for the tests. The JVM's whole output and its GC and
+ * safepoint log go to files of their own, which e2e/diagnostics.ts attaches to a failed test with thread dumps of
+ * the JVM, its pid and those files named in the environment.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdtempSync, readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import { ESHOP_LOCAL_GC_LOG, ESHOP_LOCAL_LOG, ESHOP_LOCAL_PID, jdkTool } from "./diagnostics";
 
 const WEB = fileURLToPath(new URL("..", import.meta.url));
 const CLASSPATH = join(WEB, "../e2e/build/eshop-local/classpath.txt");
@@ -45,13 +49,11 @@ const STOP_DEADLINE_MS = 20_000;
 /** The last output kept for a failure's message. */
 const TAIL = 6_000;
 
-function java(): string {
-  const home = process.env.JAVA_HOME;
-  return home ? join(home, "bin", "java") : "java";
-}
-
-/** Starts the services; answers their public ports by context. */
-function startServices(): Promise<{
+/** Starts the services, their output written to [log] and their GC and safepoints to [gcLog]; answers their public ports by context. */
+function startServices(
+  log: string,
+  gcLog: string,
+): Promise<{
   child: ChildProcess;
   ports: Record<string, number>;
 }> {
@@ -61,9 +63,10 @@ function startServices(): Promise<{
         "./gradlew :eshop-e2e:eshopLocalClasspath",
     );
   const child = spawn(
-    java(),
+    jdkTool("java"),
     [
       "-Xmx768m",
+      `-Xlog:gc,safepoint:file=${gcLog}:uptime,time`,
       "-Deshop.local.ports=random",
       "-Deshop.local.exit-on-stdin-eof=true",
       "-cp",
@@ -72,6 +75,10 @@ function startServices(): Promise<{
     ],
     { stdio: ["pipe", "pipe", "pipe"] },
   );
+  const written = createWriteStream(log);
+  // Both into one file: neither ends it, so a stream that closes first loses nothing of the other.
+  child.stdout!.pipe(written, { end: false });
+  child.stderr!.pipe(written, { end: false });
   let output = "";
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -79,7 +86,7 @@ function startServices(): Promise<{
       reject(new Error(`The eShop did not start:\n${output.slice(-TAIL)}`));
     }, START_DEADLINE_MS);
     const read = (chunk: Buffer) => {
-      // Only the tail is kept: the services log warnings only, but run long.
+      // Only the tail is kept here, for the message: the whole output is in the log.
       output = (output + chunk.toString()).slice(-TAIL);
       const ready = READY.exec(output);
       if (ready) {
@@ -103,7 +110,13 @@ function startServices(): Promise<{
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  const { child, ports } = await startServices();
+  const logs = mkdtempSync(join(tmpdir(), "eshop-local-"));
+  const log = join(logs, "eshop-local.log");
+  const gcLog = join(logs, "eshop-local-gc.log");
+  const { child, ports } = await startServices(log, gcLog);
+  process.env[ESHOP_LOCAL_PID] = String(child.pid);
+  process.env[ESHOP_LOCAL_LOG] = log;
+  process.env[ESHOP_LOCAL_GC_LOG] = gcLog;
   for (const [context, port] of Object.entries(ports))
     process.env[`ESHOP_${context.toUpperCase()}_URL`] = `http://127.0.0.1:${port}`;
   const server = await createServer({
