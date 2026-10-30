@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.naming.TypeNames
+import me.ahoo.wow.api.read.EventStream
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
 inline fun <reified S : Any> aggregate(
@@ -62,6 +63,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val commandNames = LinkedHashMap<Class<*>, String>()
     private val afterFunctions = ArrayList<AfterFunction<S>>()
     private val evolvers = LinkedHashMap<Class<*>, (S, Any) -> S>()
+    private val commitEvolvers = LinkedHashMap<Class<*>, (S, Any, EventStream) -> S>()
     private val eventNames = LinkedHashMap<Class<*>, Pair<String, Int>>()
     private val upgrades = HashMap<Class<*>, MutableMap<Int, EventUpgrade>>()
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
@@ -224,6 +226,33 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         addEvolver(E::class.java, name, revision, evolve as (S, Any) -> S)
     }
 
+    /**
+     * Evolves the state in place, reading the commit the event belongs to ([EventStream]: its time, operator and
+     * version, as the log records them), which a rebuild reads again alike.
+     */
+    inline fun <reified E : Any> evolve(
+        name: String = defaultName(E::class.java),
+        revision: Int = 1,
+        noinline evolve: S.(E, EventStream) -> Unit,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val mutate = evolve as S.(Any, EventStream) -> Unit
+        addCommitEvolver(E::class.java, name, revision) { state, event, commit ->
+            state.mutate(event, commit)
+            state
+        }
+    }
+
+    /** Evolves an immutable state by returning a new one, reading the commit the event belongs to. */
+    inline fun <reified E : Any> evolveTo(
+        name: String = defaultName(E::class.java),
+        revision: Int = 1,
+        noinline evolve: (S, E, EventStream) -> S,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        addCommitEvolver(E::class.java, name, revision, evolve as (S, Any, EventStream) -> S)
+    }
+
     /** Reads revision [from] payloads of event [E] as revision `from + 1` ones. */
     inline fun <reified E : Any> upgrade(from: Int, upgrade: EventUpgrade) {
         addUpgrade(E::class.java, from, upgrade)
@@ -337,7 +366,15 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
 
     fun addEvolver(eventClass: Class<*>, name: String, revision: Int, evolver: (S, Any) -> S) {
         requireAnnotatedName("event", eventClass, name)
-        require(evolvers.putIfAbsent(eventClass, evolver) == null) {
+        require(eventClass !in commitEvolvers && evolvers.putIfAbsent(eventClass, evolver) == null) {
+            "$type declares two evolve functions for ${eventClass.name}."
+        }
+        eventNames[eventClass] = name to revision
+    }
+
+    fun addCommitEvolver(eventClass: Class<*>, name: String, revision: Int, evolver: (S, Any, EventStream) -> S) {
+        requireAnnotatedName("event", eventClass, name)
+        require(eventClass !in evolvers && commitEvolvers.putIfAbsent(eventClass, evolver) == null) {
             "$type declares two evolve functions for ${eventClass.name}."
         }
         eventNames[eventClass] = name to revision
@@ -368,6 +405,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         initial = requireNotNull(initial) { "$type needs an initial state." },
         deciders = deciders.toMap(),
         evolvers = evolvers.toMap(),
+        commitEvolvers = commitEvolvers.toMap(),
         eventTypes = eventNames.map { (eventClass, nameAndRevision) ->
             EventType(
                 name = nameAndRevision.first,

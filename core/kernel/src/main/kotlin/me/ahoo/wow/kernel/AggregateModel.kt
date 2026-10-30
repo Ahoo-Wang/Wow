@@ -18,12 +18,16 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.MountedCommand
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.read.CommittedEvent
+import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.schedule.Schedules
 import tools.jackson.databind.JsonNode
 
@@ -263,6 +267,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     retiredEvents: Collection<String> = emptyList(),
     private val tags: ((S) -> Map<String, Collection<String>>)? = null,
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
+    /**
+     * The evolve functions that also read the commit their event belongs to ([EventStream]: its time, operator and
+     * version, as the log records them), by event class; the others are in [evolvers].
+     */
+    commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = emptyMap(),
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
@@ -281,6 +290,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
+    private val commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = commitEvolvers
+
+    /**
+     * Whether an evolve function reads the commit its event belongs to: the kernel then gives each event its commit
+     * ([evolve]), as the log records it, whether it evolves after a decision or replays the log.
+     */
+    val readsCommits: Boolean = commitEvolvers.isNotEmpty()
     private val eventTypes: List<EventType> = eventTypes + SYSTEM_EVENTS
         .filterValues { event -> eventTypes.none { it.type == event } }
         .map { (name, event) -> EventType(name, 1, event) }
@@ -336,7 +352,10 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
         val names = this.eventTypes.flatMap { it.aliases + it.name }
         require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
-        val missing = this.eventTypes.map { it.type } - this.evolvers.keys
+        require(this.evolvers.keys.none { it in this.commitEvolvers }) {
+            "$type declares two evolve functions for ${this.commitEvolvers.keys.first { it in this.evolvers }.name}."
+        }
+        val missing = this.eventTypes.map { it.type } - this.evolvers.keys - this.commitEvolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
         val commandNames = (this.commandTypes + this.mountedCommandTypes).flatMap { it.aliases + it.name }
         require(commandNames.size == commandNames.toSet().size) {
@@ -397,11 +416,47 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         return effective
     }
 
-    /** Applies [event] to [state]. */
-    fun evolve(state: S, event: Any): S {
+    /**
+     * Applies [event] to [state]. [commit] is the commit the event belongs to, which an evolve function may read
+     * ([readsCommits]): the kernel gives it, from the log or from the decision being committed.
+     */
+    fun evolve(state: S, event: Any, commit: EventStream? = null): S {
+        commitEvolvers[event.javaClass]?.let { evolver ->
+            requireNotNull(commit) {
+                "The evolve function of ${event.javaClass.name} of $type reads the commit of its event: give it."
+            }
+            return evolver(state, event, commit)
+        }
         val evolver = requireNotNull(evolvers[event.javaClass]) { "$type cannot evolve ${event.javaClass.name}." }
         return evolver(state, event)
     }
+
+    /**
+     * The commit [events] make, as an evolve function reads it ([readsCommits]): [ref] at [version], at
+     * [commitTime], of the command [commandId] ([requestId], [commandType]) in the name of [operator], in [scope].
+     */
+    @Suppress("LongParameterList") // One parameter per fact of the commit.
+    internal fun commitOf(
+        ref: AggregateRef,
+        version: Int,
+        commitTime: Long,
+        commandId: String,
+        requestId: String,
+        commandType: String,
+        scope: Scope,
+        operator: Operator?,
+        events: List<Any>,
+    ): EventStream = EventStream(
+        ref,
+        version,
+        commitTime,
+        commandId,
+        requestId,
+        commandType,
+        scope,
+        operator,
+        events.map { event -> eventType(event.javaClass).let { CommittedEvent(it.name, it.revision, event) } },
+    )
 
     /** The log name and revision of [eventClass]. */
     fun eventType(eventClass: Class<*>): EventType =

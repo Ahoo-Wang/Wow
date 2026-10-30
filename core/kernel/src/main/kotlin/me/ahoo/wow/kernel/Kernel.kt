@@ -342,7 +342,8 @@ class Kernel(
         if (repeated || admissible(decider, command, current, model.ownsById) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         val wait = entry.wait.beyondCommitted()
-        val attempt = AttemptScope(command, ids, current, reservations, options.reservationTtl, wait, observer, encode)
+        val attempt =
+            AttemptScope(command, ids, clock(), current, reservations, options.reservationTtl, wait, observer, encode)
         val prepared = try {
             prepare(model, decider, attempt, current, command, commandType.name)
         } catch (cancelled: CancellationException) {
@@ -465,6 +466,7 @@ class Kernel(
                 AttemptScope(
                     command,
                     ids,
+                    clock(),
                     loaded,
                     reservations,
                     options.reservationTtl,
@@ -637,9 +639,26 @@ class Kernel(
         check(domain.isNotEmpty() || version > 0) {
             "${command.ref} does not exist: a decision that only schedules needs an aggregate that exists."
         }
-        val commitTime = clock()
-        val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
+        // The decision's own time: what it read as `now` is the time its events are committed at.
+        val commitTime = scope.now
         val applied = metadataAfter(loaded, command, events)
+        // An evolve function that reads its commit reads it as the log records it, so a rebuild reads the same.
+        val commit = if (model.readsCommits) {
+            model.commitOf(
+                command.ref,
+                version + 1,
+                commitTime,
+                command.id,
+                command.requestId,
+                commandType,
+                applied.scope,
+                command.operator,
+                events,
+            )
+        } else {
+            null
+        }
+        val evolved = events.fold(state) { current, event -> model.evolve(current, event, commit) }
         // The keys the state derives override the applied tags, derived again from the evolved state.
         val metadata = applied.copy(tags = model.tagsOf(evolved, applied.tags))
         val stream = EventStreamRecord(
@@ -1042,16 +1061,34 @@ class Kernel(
         @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
         var state = current.state as S
         var metadata = current.metadata
-        stream.events.forEach { record ->
-            // A retired event is skipped: the stream still counts as a version, the state stays as it is.
-            val event = try {
+        // A retired event is skipped: the stream still counts as a version, the state stays as it is.
+        val decoded = stream.events.mapNotNull { record ->
+            try {
                 codec.decodeUnlessRetired(model, record)
             } catch (@Suppress("TooGenericExceptionCaught") unreadable: RuntimeException) {
                 // An event the model cannot read, an upgrade that refuses a record among them, names its aggregate.
                 throw UnreadableEventException(stream.ref, stream.version, record.name, record.revision, unreadable)
-            } ?: return@forEach
+            }
+        }
+        // The commit as the log records it, which an evolve function that reads it reads alike on every rebuild.
+        val commit = if (model.readsCommits) {
+            model.commitOf(
+                stream.ref,
+                stream.version,
+                stream.commitTime,
+                stream.commandId,
+                stream.requestId,
+                stream.commandType,
+                stream.scope,
+                stream.operator,
+                decoded,
+            )
+        } else {
+            null
+        }
+        decoded.forEach { event ->
             events?.add(event)
-            state = model.evolve(state, event)
+            state = model.evolve(state, event, commit)
             metadata = KernelLifecycle.evolve(metadata, event)
         }
         return current.with(
