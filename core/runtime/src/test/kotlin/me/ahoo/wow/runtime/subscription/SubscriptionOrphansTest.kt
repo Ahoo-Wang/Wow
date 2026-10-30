@@ -114,7 +114,10 @@ class SubscriptionOrphansTest {
             }.assert().isEmpty()
         }
 
-    /** The warnings of the subscription runtime while [block] runs. */
+    /**
+     * The warnings of the subscription runtime while [block] runs. A coroutine of the stopping runtime may still be
+     * logging when [block] returns, so the events are read under the appender's lock, which each append takes.
+     */
     private suspend fun logged(block: suspend () -> Unit): List<String> {
         val logger = LoggerFactory.getLogger(SubscriptionRuntime::class.java.packageName) as Logger
         val appender = ListAppender<ILoggingEvent>().apply { start() }
@@ -124,7 +127,8 @@ class SubscriptionOrphansTest {
         } finally {
             logger.detachAppender(appender)
         }
-        return appender.list.filter { it.level == Level.WARN && "no longer has" in it.formattedMessage }
+        val events = synchronized(appender) { appender.list.toList() }
+        return events.filter { it.level == Level.WARN && "no longer has" in it.formattedMessage }
             .map { it.formattedMessage }
     }
 
