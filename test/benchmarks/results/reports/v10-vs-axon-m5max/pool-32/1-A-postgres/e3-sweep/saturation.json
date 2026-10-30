@@ -1,0 +1,40 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 0.0,
+  "saturationConcurrency": 1,
+  "generatorCores": 0.002093265237735739,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 0.0,
+      "ok": 0,
+      "errors": {
+        "http-504-timeout": 3
+      },
+      "p50Ms": 0.0,
+      "p99Ms": 0.0,
+      "generatorCores": 0.002093265237735739
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "15",
+    "settleSeconds": "26",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-vs-axon-m5max/pool-32/1-A-postgres/up"
+  }
+}
