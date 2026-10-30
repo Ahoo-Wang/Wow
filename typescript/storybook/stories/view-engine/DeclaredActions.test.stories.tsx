@@ -299,8 +299,9 @@ export const BulkPartialAvailability: Story = {
     await userEvent.click(
       await canvas.findByRole('button', { name: '发货 3/4 条' }),
     );
+    // The question counts what will be sent: the three that take it.
     const dialog = within(
-      await body().findByRole('dialog', { name: '发出 4 张订单？' }),
+      await body().findByRole('dialog', { name: '发出 3 张订单？' }),
     );
     await seen(dialog.getByText('4 条里 3 条能发货。'));
     await seen(dialog.getByText('金额不足 1000，先走人工审核（1 项）'));
@@ -351,7 +352,7 @@ export const BulkLandsBeforeTheWindowCloses: Story = {
       await canvas.findByRole('button', { name: '发货 3/4 条' }),
     );
     const dialog = within(
-      await body().findByRole('dialog', { name: '发出 4 张订单？' }),
+      await body().findByRole('dialog', { name: '发出 3 张订单？' }),
     );
     await userEvent.click(
       dialog.getByRole('button', { name: '只选能做的 3 条' }),
