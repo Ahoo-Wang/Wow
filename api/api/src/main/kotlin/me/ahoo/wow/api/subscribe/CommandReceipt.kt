@@ -36,9 +36,12 @@ import me.ahoo.wow.api.result.ErrorInfo
  * [commandId].
  *
  * A handler of both receipts of a command takes a `CommandReceipt<C>` and carries both `@OnRejected` and
- * `@OnCommitted`: each annotation declares its own path, and each path keeps its own retry rule. A rejection is a
- * business outcome, which is never retried as such; a commit's receipt is handled in the receipts subscription of the
- * saga's context, retried as the host retries it. Neither path takes `@Retry`.
+ * `@OnCommitted`: each annotation declares its own path. A rejection is a business outcome, never retried as such.
+ * A receipt of the saga's own context is handled inside the handling of the `@OnEvent` handler that derived the
+ * command: under that handler's (or its processor's) `@Retry` budget, parked under that handler's subscription, and a
+ * retry runs that handler again, whose deterministic ids make it harmless. A receipt from another context is handled in
+ * the context's receipts subscription, `wow.receipts.<context>`, under the host's retry for that name. Neither handler
+ * takes `@Retry`.
  *
  * Fields may be added: the runtime builds a receipt, and a test hands one to a saga with the test DSL's
  * `whenRejected` or `whenCommitted`; the constructors are internal to Wow.

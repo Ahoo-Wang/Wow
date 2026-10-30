@@ -392,7 +392,9 @@ class CommittedManifestTest {
                 "handler BrokenSaga.rejectedTakesCommitted is @OnRejected but takes a CommandReceipt.Committed<C>: " +
                     "annotate it @OnCommitted instead, or take a CommandReceipt.Rejected<C>",
             )
-            .contains("handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler runs in")
+            .contains(
+                "handler BrokenSaga.retried is annotated @Retry: an @OnCommitted handler takes the budget of where"
+            )
             .contains(
                 "handler BrokenSaga.wrongFirst is @OnCommitted but takes a CommandReceipt.Rejected<C>: annotate it " +
                     "@OnRejected instead, or take a CommandReceipt.Committed<C>",

@@ -186,7 +186,9 @@ class RetryBindingTest {
             .contains("handler Shaky.onEvent is annotated @Retry(maxBackoff = \"-1s\"): it is never negative")
             .contains("handler Shaky.onEvent is annotated @Retry(timeout = \"0s\"): it is positive")
             .contains("handler Shaky.onEvent is annotated @Retry(multiplier = 0.5): a backoff never shrinks")
-            .contains("handler Compensating.onRejected is annotated @Retry: an @OnRejected handler compensates")
+            .contains(
+                "handler Compensating.onRejected is annotated @Retry: an @OnRejected handler takes the budget of where"
+            )
     }
 
     @Test

@@ -19,7 +19,10 @@ import kotlin.reflect.KClass
  * The in-process retry budget of a subscription handler (in place of 9.x `@Retry`): how often a
  * failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the
  * aggregate is parked in the failure ledger. A [Projection], [Reactor] or [Saga] class carries it for all its
- * [OnEvent] handlers; a handler's own overrides it, setting by setting.
+ * [OnEvent] handlers, and a saga's for its [OnSchedule] handlers too; a handler's own overrides it, setting by setting.
+ * A saga's [OnRejected] and [OnCommitted] handlers take none: a receipt of the saga's own context is handled under the
+ * budget of the [OnEvent] handler that derived the command, one from another context under the host's retry of the
+ * context's receipts subscription, `wow.receipts.<context>`.
  *
  * ```kotlin
  * @Reactor

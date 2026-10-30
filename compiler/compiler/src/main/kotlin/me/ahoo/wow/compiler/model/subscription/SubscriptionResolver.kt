@@ -267,8 +267,10 @@ internal object SubscriptionResolver {
         }
         functions.filter { it.isHandler(RETRY) }.forEach {
             add(
-                "handler $name.${it.simpleName.asString()} is annotated @Retry: ${receipt.retryReason}; @Retry goes " +
-                    "on an @OnEvent handler or its processor",
+                "handler $name.${it.simpleName.asString()} is annotated @Retry: an ${receipt.label} handler takes " +
+                    "the budget of where its receipt arrives, the @OnEvent handler that derived the command for one " +
+                    "of the saga's own context, the host's retry of wow.receipts.<context> for one from another " +
+                    "context; @Retry goes on that @OnEvent handler or its processor",
             )
         }
         if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
@@ -278,13 +280,6 @@ internal object SubscriptionResolver {
             )
         }
     }
-
-    /** Why a handler of this kind takes no `@Retry`. */
-    private val Receipt.retryReason: String
-        get() = when (this) {
-            Receipt.REJECTED -> "an @OnRejected handler compensates a business outcome, which is not retried"
-            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
-        }
 
     /**
      * Whether [function] is an `@OnEvent` handler (or overrides one), and no receipt handler: `@OnEvent` alone declares
