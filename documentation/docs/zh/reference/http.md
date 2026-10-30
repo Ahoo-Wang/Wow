@@ -21,10 +21,10 @@ outline: deep
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`，请求体为 `{"ownerId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `TransferSpace`，请求体为 `{"spaceId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags` | `ApplyTags`，请求体为 `{"tags": {"name": ["value"]}}`，替换已应用的标签 |
-| `POST /<context>/snapshot/<aggregate>/wow.snapshot.rebuild` | 重建 `{"ids": [...]}` 的快照 |
-| `POST /<context>/schedule/{job}/wow.schedule.<command>` | 任务命令：`enable`、`reschedule`、`disable` |
+| `POST /<context>/<aggregate>/wow.snapshot.rebuild` | 重建 `{"ids": [...]}` 的快照 |
+| `POST /<context>/wow.schedule/{job}/<command>` | 任务命令：`enable`、`reschedule`、`disable` |
 
-只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。
+只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。快照重建和任务命令是 Wow 内置聚合的系统命令：没有命令授权器的服务在这个端口上拒绝它们（403 `wow.auth.forbidden`），默认从不放行（[授权命令](../operate/security#authorize-commands)）。
 
 **读取**
 

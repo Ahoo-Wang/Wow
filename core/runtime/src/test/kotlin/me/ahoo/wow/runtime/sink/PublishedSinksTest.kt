@@ -38,16 +38,20 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
+import me.ahoo.wow.spi.subscription.ImportCutover
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -75,7 +79,10 @@ class PublishedSinksTest {
         )
     }
 
-    private fun node(producer: TopicProducer = topics): ServiceNode =
+    private fun node(
+        producer: TopicProducer = topics,
+        subscriptions: SubscriptionFactory = PublishedSinks.topics(manifest, producer, topicPrefix = "dev.").factory,
+    ): ServiceNode =
         ServiceNode(
             SHOP_SERVICE,
             "node-${nodes.size + 1}",
@@ -85,8 +92,25 @@ class PublishedSinksTest {
             backends,
             LoopbackClusterChannel(),
             options = fastNodeOptions(),
-            subscriptions = PublishedSinks.topics(manifest, producer, topicPrefix = "dev.").factory,
+            subscriptions = subscriptions,
         ).also { nodes += it }
+
+    /**
+     * The history migrate-data would have imported: [ids]' orders placed by a node that publishes nothing, then the
+     * cut-over recorded at the log's heads as the import records it.
+     */
+    private suspend fun imported(vararg ids: String) {
+        val history = node(subscriptions = SubscriptionFactory { emptyList() })
+        history.start()
+        ids.forEach { history.place(it) }
+        history.stop()
+        val stores = backends.opened.getValue(SHOP)
+        (0 until stores.log.partitions).forEach { partition ->
+            stores.log.head(partition)?.let {
+                stores.checkpoints.save(ImportCutover.groupOf(SHOP), ImportCutover.SUBSCRIPTION, partition, it)
+            }
+        }
+    }
 
     @AfterEach
     fun stop(): Unit = runBlocking { nodes.forEach { it.stop() } }
@@ -132,6 +156,41 @@ class PublishedSinksTest {
         val cart = records("dev.custom.cart").single()
         cart.ref.assert().isEqualTo(CART.ref(TENANT, "alice"))
         cart.state.assert().isNull()
+    }
+
+    @Test
+    fun `a migrated log should publish its history up to the cut-over marked imported, and V10's commits unmarked`(): Unit =
+        runBlocking {
+            imported("o-1", "o-2")
+            val node = node()
+            node.start()
+            node.place("o-3")
+            eventually { topics.messages("dev.wow.shop.order.state").size == 3 }
+            records("dev.wow.shop.order.state").associate { it.ref.id to it.imported }.assert()
+                .isEqualTo(mapOf("o-1" to true, "o-2" to true, "o-3" to false))
+        }
+
+    @Test
+    fun `a log never migrated should publish every commit unmarked`(): Unit = runBlocking {
+        val node = node()
+        node.start()
+        node.place("o-1")
+        eventually { topics.messages("dev.wow.shop.order.state").size == 1 }
+        records("dev.wow.shop.order.state").single().imported.assert().isFalse()
+    }
+
+    @Test
+    fun `a sink of data should take the imported history as every commit, marked`(): Unit = runBlocking {
+        imported("o-1")
+        val written = CopyOnWriteArrayList<StateEventRecord>()
+        val data = PublishedSinks(PublishedSinks.publishedOf(manifest), "analytics-sink") { _, _ ->
+            Sink { written += it }
+        }
+        val node = node(subscriptions = data.factory)
+        node.start()
+        node.place("o-2")
+        eventually { written.size == 2 }
+        written.associate { it.ref.id to it.imported }.assert().isEqualTo(mapOf("o-1" to true, "o-2" to false))
     }
 
     @Test

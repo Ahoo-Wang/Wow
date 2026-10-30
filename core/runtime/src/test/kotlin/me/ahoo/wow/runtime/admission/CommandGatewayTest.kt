@@ -409,6 +409,15 @@ class CommandGatewayTest {
     }
 
     @Test
+    fun `a gateway without an authorizer allows every action and says it has none`(): Unit = runBlocking {
+        val bare = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to coordinator))
+        bare.authorizes.assert().isFalse()
+        bare.execute(request()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        // An authorizer given, even one that allows everything, is the node's: the public port leaves it to decide.
+        gateway(authorizer = CommandAuthorizer.ALLOW_ALL).authorizes.assert().isTrue()
+    }
+
+    @Test
     fun `a body that does not decode as the command is malformed`(): Unit = runBlocking {
         val gateway = gateway()
         gateway.execute(request(body = "{not json")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)

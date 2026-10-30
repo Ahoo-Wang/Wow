@@ -55,6 +55,10 @@ fun onOrderStockConfirmed(
 
 服务读取主题时不使用 Kafka 消费组：偏移量保存在它自己的检查点存储里，与它其他订阅的位置放在一起。
 
+## 从 9.x 导入的历史 {#history-imported-from-9x}
+
+从 9.x 迁移过来的服务也会发布 `migrate-data` 导入到它日志里的历史，让对端的投影能用它构建读模型。导入记下的切换点及之前的每条记录都标为导入的（[状态事件](../reference/protocols#state-event)里的 `imported`）。Saga 或反应器像跳过它不处理的事件一样跳过这样的记录，因为 9.x 已经对它采取过行动；投影以及任何读取这个主题的系统都会处理它。从未迁移过的服务不会发布带这个标记的记录。
+
 ## 回应上游 {#answer-the-upstream}
 
 对对端事件作出反应的 Saga，常常用一条发往那个对端的命令来回应：支付网关批准付款后，payment 为订单付款。

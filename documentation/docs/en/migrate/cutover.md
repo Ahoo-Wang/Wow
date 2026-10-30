@@ -94,6 +94,8 @@ Two paths, never confused:
 
 Only event streams go back: reservations V10 made, entries it parked and its projections' views have no 9.x form, and are reconciled by hand. 9.x's snapshots show the state before the exported streams until 9.x writes the instance again or regenerates them. Redeploying 9.x is not a rollback once V10 has written.
 
+Cutting over again after a rollback by export imports what 9.x wrote since and records the cut-over again, past the streams V10 wrote in its first window. A stream of that window the transport sink had not published before V10 stopped then goes out marked imported, and peers' sagas pass over it. Before stopping V10 for the rollback, let every subscription's backlog reach zero (`wow.subscription.backlog`).
+
 ## Cut over an estate
 
 An estate is a set of 9.x services that cannot run on two major versions: each consumes another's events, sends it commands, calls its routes or depends on its api jar. The estate cuts over as one: one write stop for every service, every service's data imported, every node activated, and one decision to roll back. A service with no such link to the others cuts over on its own.
@@ -154,20 +156,11 @@ The estate shares one write stop. Each service still chooses [offline or online]
 
 1. **Stop every 9.x writer of the estate.** Stop ingress to every service: gateways, front ends, scheduled jobs, external producers. Let the estate drain until no 9.x consumer group of the estate lags on any topic (`kafka-consumer-groups --describe` shows each group's `LAG`), and look again until a pass finds none, since a command a saga sends makes events that others consume. Then stop every 9.x node and every compensation service, and record when the last writer stopped: the **stop instant**.
 
-   V10 does not take up what 9.x had not handled: a saga or reactor of its own context starts at the end of its log, and one of another context's stream starts at the stop instant (step 4). An event a 9.x consumer had not handled when writes stopped is handled by no one.
+   V10 does not take up what 9.x had not handled: a saga or reactor of its own context starts at the end of its log, and one of another context's stream passes over the imported history (step 4). An event a 9.x consumer had not handled when writes stopped is handled by no one.
 
 2. **Take and verify the backup** of every 9.x store of the estate.
 3. **Import every service.** Each V10 log store is a `migrate-data` run of its own, with its own configuration, map and checkpoint, so the runs go side by side: `check` and `import` offline, `import --final` online. Then, per service, the gate: `compare` shows only the signed-off kinds of difference; then `snapshot` and `backfill-tags`. A service that fails its gate stops the estate: restart every 9.x service, since no V10 service has written.
-4. **Set where the subscriptions to other contexts start.** Once a service is active, its sink publishes its whole imported history to its published streams, and a saga or reactor of another context's stream starts at the beginning of the topic when it has no checkpoint ([Published Streams](../guide/published-streams#where-it-starts)): it would act on that history again and send its commands for the past. Before the first start, set each such subscription to start at the stop instant:
-
-   ```yaml
-   wow:
-     subscriptions:
-       "[payment.OrderPaymentSaga.onOrderCreated]":
-         start: "2026-11-07T22:00:00Z"
-   ```
-
-   Every imported stream keeps its 9.x commit time, before the stop instant, and everything V10 commits comes after it. A projection of another context's stream still starts at the beginning and builds its read model from the published history: give the published topics a retention that holds it.
+4. **Give the published topics room for the history.** Each import records where the imported history ends in the service's log, its cut-over. Once a service is active, its transport sink publishes its whole history, each record up to the cut-over marked imported ([Published Streams](../guide/published-streams#history-imported-from-9x)). A peer's saga or reactor passes over the imported records, since 9.x already acted on them, and a peer's projection builds its read model from them. Give the published topics a retention that holds that history.
 
 5. **Start every V10 node on standby**, the offline services' too (`wow.node.standby=true`), and probe each service's reads and queries against the imported data.
 6. **Move the external consumers** of every service's 9.x topics to the V10 published streams.

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
@@ -31,6 +32,8 @@ import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.ImportCutover
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -54,6 +57,7 @@ class MigrateDataTest {
     private val store = InMemorySnapshotStore()
     private val prepared = InMemoryNineXReservationSource()
     private val reservationStore = InMemoryReservationStore()
+    private val checkpointStore = InMemoryCheckpointStore()
     private var nineXCompensation: NineXCompensationSource? = null
     private val ledger = InMemoryFailureLedger()
     private val exportTarget = InMemoryNineXEventTarget(source)
@@ -70,6 +74,8 @@ class MigrateDataTest {
         override val reservations: NineXReservationSource get() = prepared
 
         override fun reservationStore(): ReservationStore = reservationStore
+
+        override fun checkpointStore(): CheckpointStore = checkpointStore
 
         override val compensation: NineXCompensationSource? get() = nineXCompensation
 
@@ -240,7 +246,42 @@ class MigrateDataTest {
         printed.assert().contains("Dry run done: nothing was appended.")
         (0 until log.partitions).all { log.head(it) == null }.assert().isTrue()
         Files.exists(directory.resolve("migrate-data.checkpoint.json")).assert().isFalse()
+        cutover().assert().isEmpty()
     }
+
+    /** The cut-over the import recorded in the target's checkpoint store, by partition. */
+    private suspend fun cutover(): Map<Int, Long> =
+        checkpointStore.list(ImportCutover.groupOf("example")).associate { it.partition to it.position }
+
+    /** The log's head of each partition that holds an entry. */
+    private suspend fun heads(): Map<Int, Long> =
+        (0 until log.partitions).mapNotNull { partition -> log.head(partition)?.let { partition to it } }.toMap()
+
+    @Test
+    fun `each pass that appends records where the imported history ends, moving it with the log's heads`(): Unit =
+        runBlocking {
+            val config = config().toString()
+            run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+            val imported = heads()
+            imported.assert().isNotEmpty()
+            cutover().assert().isEqualTo(imported)
+            printed.assert().contains("CUTOVER example: the imported history ends at the log's head in")
+            run("tail", "--config", config, "--once").assert().isEqualTo(MigrateData.OK)
+            // 9.x commits once more before it stops: the final pass appends it, and the cut-over follows.
+            val last = NineXExample.stream("order-stream-v4.json")
+            source.add(
+                last.copy(
+                    id = "late",
+                    version = 5,
+                    commandId = "late",
+                    requestId = "late",
+                    createTime = System.currentTimeMillis(),
+                ),
+            )
+            run("import", "--config", config, "--final").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            heads().assert().isNotEqualTo(imported)
+            cutover().assert().isEqualTo(heads())
+        }
 
     @Test
     fun `a failed check stops the import`(): Unit = runBlocking {
@@ -494,6 +535,8 @@ class MigrateDataTest {
             override val reservations: NineXReservationSource get() = prepared
 
             override fun reservationStore(): ReservationStore = reservationStore
+
+            override fun checkpointStore(): CheckpointStore = checkpointStore
 
             override fun close() = Unit
         }

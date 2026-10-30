@@ -106,6 +106,19 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `an imported commit should carry the mark, which a commit of V10 leaves out of the payload`() {
+        val imported = record().copyWith(transport = null, imported = true)
+        listOf(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(imported)), EnvelopeCodec.message(imported).value)
+            .forEach { bytes ->
+                tree(String(bytes))["payload"]["imported"].booleanValue().assert().isTrue()
+                EnvelopeCodec.stateEventOf(bytes).assert().isEqualTo(imported)
+            }
+        val made = record().copyWith(transport = null)
+        tree(String(EnvelopeCodec.message(made).value))["payload"].has("imported").assert().isFalse()
+        EnvelopeCodec.stateEventOf(EnvelopeCodec.message(made).value).imported.assert().isFalse()
+    }
+
+    @Test
     fun `a message should be keyed by the aggregate ref and repeat the envelope in its headers`() {
         val message = EnvelopeCodec.message(record())
         message.key.assert().isEqualTo("shop.order/t1/o-1")

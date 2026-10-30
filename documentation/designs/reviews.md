@@ -300,7 +300,7 @@
 | UI-50 | P1 | 框架：内置聚合的系统命令在公开端口上的授权 | `wow.schedule.*`（任务的 Enable、Reschedule、Disable）在公开端口上，买家与匿名调用者都能执行：两者都停掉了库存服务的 `receive-deliveries` 任务；租户级资源的作用域检查对同一租户的任何调用者都放行 | 协调者定：Wow 内置聚合的系统命令在公开端口上，除非有 `CommandAuthorizer` 放行，一律拒绝（403 `wow.auth.forbidden`，与运维路由「默认从不放行」同一规则）；有授权器时由它判定（CoSec 动作 `wow.schedule:<命令>`）；排查其他在公开端口上路由的内置系统命令；文档写明 | 待派 |
 | UI-53～UI-62 | P2 | eShop Web | 空购物篮结账显示开发者文字（UI-53）；拒付与缺货的措辞（UI-54）；商品以 ID 显示（UI-55）；搜索、筛选与分页不进 URL、默认的 404 页（UI-56）；管理页按钮名不分行（UI-57）；双击「发货」得到 409（UI-58）；购物篮按钮失去键盘焦点（UI-59）；375 宽度下跳列表拥挤（UI-60）；深色模式没有 `color-scheme`（UI-61）；裸 502 与缺失读取的控制台噪声（UI-62） | eShop 一批修 | 待派 |
 | UI-63、UI-65 | P2 | 框架：OpenAPI | 五个服务的 Swagger UI 每次都显示红色的 `jsonSchemaDialect` 告警（UI-63）；开发配置下的全局 `security` 是五个任选其一的方案，生成的客户端可能只发第一个（UI-65） | 随 UI-50 的会话修 | 待派 |
-| UI-64 | P2 | 框架：Manifest 与 OpenAPI 的 schema | 命令的 Jakarta 约束（`@Positive`、`@NotBlank` 等）没有写进 schema，示例请求体因此不合法 | 需要 victools 的 Jakarta 校验模块，属新增依赖，待用户决定 | 待决 |
+| UI-64 | P2 | 框架：Manifest 与 OpenAPI 的 schema | 命令的 Jakarta 约束（`@Positive`、`@NotBlank` 等）没有写进 schema，示例请求体因此不合法 | D380：引入 victools 的 Jakarta 校验模块，约束写进 Manifest 与 OpenAPI 的 schema | 已定 D380，待派 |
 
 ## 11. v9 真实项目的迁移审查：项目 A（2026-10-30，只读审查加临时副本试迁移）
 

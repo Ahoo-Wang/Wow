@@ -55,6 +55,10 @@ A subscription to another context's stream starts at the beginning of the topic 
 
 The service reads the topic without a Kafka consumer group: its offsets are in its own checkpoint store, beside its other subscriptions' positions.
 
+## History imported from 9.x {#history-imported-from-9x}
+
+A service migrated from 9.x publishes the history `migrate-data` imported into its log too, so its peers' projections can build their read models from it. Each record up to the cut-over the import recorded is marked imported (`imported` in the [state event](../reference/protocols#state-event)). A saga or a reactor passes over such a record as it passes over an event it does not handle, since 9.x already acted on it; a projection, and any system reading the topic, takes it. A service that was never migrated publishes no record so marked.
+
 ## Answer the upstream
 
 A saga that reacts to a peer's event often answers with a command to that peer: the payment pays the order once its gateway approves the payment.

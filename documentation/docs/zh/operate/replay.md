@@ -32,12 +32,12 @@ outline: deep
 因为其他原因出错的快照，例如因为一个后来修复了的缺陷，可以按请求从日志重写：
 
 ```bash
-curl -X POST "http://<service>/<context>/snapshot/<aggregate>/wow.snapshot.rebuild" \
+curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild" \
   -H "Content-Type: application/json" \
   -d '{"ids": ["alice-1", "alice-2"]}'
 ```
 
-这个路由把系统命令 `wow.snapshot.Rebuild` 发给上下文内置的重建聚合，像任何命令一样经过准入，所以由授权器决定谁能发送它。随后一个内置的订阅从日志重写每个指定的快照，写入每个目标存储。
+这个路由把系统命令 `wow.snapshot.Rebuild` 发给上下文内置的重建聚合，像任何命令一样经过准入，所以由授权器决定谁能发送它；没有命令授权器的服务在公开端口上拒绝它（403 `wow.auth.forbidden`），默认从不放行（[授权命令](./security#authorize-commands)）。随后一个内置的订阅从日志重写每个指定的快照，写入每个目标存储。
 
 ## 新的快照存储 {#a-new-snapshot-store}
 

@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.ImportCutover
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -87,6 +88,12 @@ class SubscriptionRuntime internal constructor(
      * group's), since the other's subscriptions are none of its own.
      */
     private val tellsOrphans: Boolean = true,
+    /**
+     * The checkpoint group of the log's import cut-over ([ImportCutover.groupOf]): the entries up to it are handed
+     * over as imported ([SubscribedEntry.imported]). Null for a runtime that reads a topic; a context that was never
+     * migrated has no row in it, so none of its entries is.
+     */
+    private val cutover: String? = null,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -102,6 +109,7 @@ class SubscriptionRuntime internal constructor(
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         observer: Observer = Observer.NONE,
         classification: FailureClassification = RuntimeFailures.DEFAULT,
+        cutover: String? = null,
     ) : this(
         group,
         LogSource(log),
@@ -115,6 +123,7 @@ class SubscriptionRuntime internal constructor(
         notifier,
         observer,
         classification,
+        cutover = cutover,
     )
 
     private val lifecycle = Mutex()
@@ -129,6 +138,9 @@ class SubscriptionRuntime internal constructor(
 
     /** Whether the first start told of the checkpoints no subscription of the group has. */
     private var orphansTold = false
+
+    /** Per partition, the sequence up to which the log holds imported history ([cutover]); 0 for none. */
+    private val importedThrough = ConcurrentHashMap<Int, Long>()
 
     init {
         require(group.isNotBlank()) { "A subscription group needs a name." }
@@ -471,10 +483,22 @@ class SubscriptionRuntime internal constructor(
             classification = classification,
             checkpoint = checkpoint,
             parked = parked[partition].orEmpty(),
+            importedThrough = importedThrough(partition),
         ).also {
             part.workers += it
             run.workers[subscription.name to partition] = it
         }
+    }
+
+    /**
+     * The sequence up to which [partition] holds the history migrate-data imported: its [cutover] row, read once per
+     * partition (the cut-over does not move once V10 runs); 0 when the context was never migrated.
+     */
+    private suspend fun importedThrough(partition: Int): Long {
+        val group = cutover ?: return 0L
+        importedThrough[partition]?.let { return it }
+        val through = checkpoints.load(group, ImportCutover.SUBSCRIPTION, partition) ?: 0L
+        return importedThrough.putIfAbsent(partition, through) ?: through
     }
 
     /**

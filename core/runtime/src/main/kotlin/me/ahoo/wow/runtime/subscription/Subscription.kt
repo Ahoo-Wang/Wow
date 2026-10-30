@@ -352,6 +352,9 @@ data class SubscriptionFilter(
  * An entry of a topic of commands or receipts (–) carries the [message] it was read as: the command
  * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
  * aggregate whose lane it runs in; nothing was committed.
+ *
+ * [imported] marks history migrate-data imported from 9.x: a log entry at or before the context's cut-over
+ * ([me.ahoo.wow.spi.subscription.ImportCutover]), or a record a peer published as imported. 9.x already acted on it.
  */
 @InternalWowApi
 data class SubscribedEntry(
@@ -362,6 +365,7 @@ data class SubscribedEntry(
     private val states: SharedStateReader? = null,
     val published: StateEventRecord? = null,
     val message: Any? = null,
+    val imported: Boolean = false,
 ) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version

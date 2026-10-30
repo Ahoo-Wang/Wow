@@ -54,6 +54,8 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 
 运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
+Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任务的命令（`POST /<context>/wow.schedule/{id}/enable`、`reschedule` 和 `disable`）以及聚合类型的快照重建（`POST /<context>/<aggregate>/wow.snapshot.rebuild`）。没有命令授权器时，公开端口对所有调用方（包括匿名调用方）都拒绝它们（403 `wow.auth.forbidden`），宿主在启动时说明这一点。有授权器时由授权器决定：在 CoSec 下，由策略把它们的动作（[见下文](#action-names)）授予运维人员。网关模式的服务没有 CoSec 授权器，需要自己的授权器才能放行它们。只有公开端口拒绝它们：任务自己的命令、Saga 发出的命令，以及其他服务（如 ops）在内部端口调用的命令照常发送。聚合的生命周期命令（`wow.lifecycle.*`）作用于聚合本身，与它的领域命令一样授权并检查作用域。
+
 ### 动作名称 {#action-names}
 
 一条命令、一个服务路由在 CoSec 中只有一个名字，无论是 CoSec 决定 HTTP 请求，还是授权器在进程内决定命令，所以一条策略同时守住两者：
@@ -76,7 +78,7 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 - **在自己做决定的服务中**（`cosec.pipeline.mode` 为 `enforce`，CoSec 的默认值），CoSec 的管道读取宿主根据服务 Manifest 构建的路由映射：它的命令路由和服务路由，使用上面的名字，取代 `cosec-routes.json`。应用自己声明了 `RouteMap` Bean 时保留它。这样的服务持有 CoSec 的签名密钥，并从 CoSec 的 Redis 读取文档（[CoSec 快速开始](https://cosec.ahoo.me/guide/quick-start)）。
 - **在 CoSec 网关之后**（`wow.cosec.mode: gateway`），由网关决定。网关不加载路由映射，所以它的策略写的是请求路径上的 `http:<METHOD>` 动作，服务自己不按策略决定任何事（[以网关模式运行服务](#run-services-in-gateway-mode)）。
 
-设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式的服务没有它，这个开关在那里不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
+设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式的服务没有它，这个开关在那里不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许，上面内置聚合的系统命令除外。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
 
 不由请求携带的命令，CoSec 的授权器不提出异议：Saga、定时器或补偿发出的命令，定时任务的命令，以及其他服务在内部端口上的调用。CoSec 没有属于它们的请求可以决定。这样的命令带着根命令的作用域和操作人，而根命令在根请求到达时已经由准入授权过；节点的其他授权器仍然作用于它，服务在内部端口上的调用由它的调用方列表决定（[关上内部端口](#close-the-internal-port)）。
 

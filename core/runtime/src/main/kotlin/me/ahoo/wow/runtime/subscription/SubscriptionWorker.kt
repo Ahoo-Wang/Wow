@@ -31,6 +31,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.kernel.HandlerTimeoutException
@@ -92,6 +93,11 @@ import kotlin.random.Random
  *
  * Each handling of an entry, its retries included, is observed by [observer], in the trace the entry
  * carries ([me.ahoo.wow.spi.log.Transport.trace]): what the handler does goes on in that trace.
+ *
+ * History migrate-data imported from 9.x is handed over as imported ([SubscribedEntry.imported]): a log entry at or
+ * before [importedThrough], or a record a peer published so. A saga or a reactor passes over an imported record of a
+ * peer's topic as it passes over an entry outside its filter, since 9.x already acted on it; a projection takes it,
+ * and so does every subscription of the log, a compensation's parked retry of an imported entry among them.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -112,8 +118,13 @@ internal class SubscriptionWorker(
     private val classification: FailureClassification = RuntimeFailures.DEFAULT,
     /** The jitter of the backpressure backoff. */
     private val random: Random = Random.Default,
+    /** The sequence up to which the partition of the log holds imported history; 0 for none, and for a topic. */
+    private val importedThrough: Long = 0L,
 ) {
     private val permits = Semaphore(options.maxInFlight)
+
+    /** Whether the handler acts on what it reads, so passes over a peer's imported records: a saga's or a reactor's. */
+    private val actsOnEntries = subscription.kind == FunctionKind.SAGA || subscription.kind == FunctionKind.REACT
 
     /** Whether the partition is paused on a systemic failure, and the gate of each attempt. */
     private val pause = PartitionPause(group, subscription.name, partition, options.systemic, clock, observer)
@@ -211,7 +222,7 @@ internal class SubscriptionWorker(
         val slot = Slot(entry.position.sequence)
         pending.addLast(slot)
         outstanding.set(pending.size)
-        if (!subscription.takes(stream) || skippedOnAdmit(entry)) {
+        if (!subscription.takes(stream) || skippedOnAdmit(entry) || passesOver(entry)) {
             complete(slot)
             if (waitsHere(entry)) {
                 val parked = parkedAt(entry)
@@ -221,6 +232,9 @@ internal class SubscriptionWorker(
             enqueue(stream.ref, Item.Live(entry, slot), first = false)
         }
     }
+
+    /** Whether [entry] is a record a peer published as imported, which a saga or a reactor passes over. */
+    private fun passesOver(entry: SourcedEntry): Boolean = actsOnEntries && entry.published?.imported == true
 
     /** A parked aggregate's entries from its parked one on, and copies of what a retry handled, are skipped. */
     private fun skippedOnAdmit(entry: SourcedEntry): Boolean {
@@ -529,10 +543,11 @@ internal class SubscriptionWorker(
     private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry {
         (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.reason) }
         val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
-        val entry = if (sourced.published == null && sourced.message == null) {
+        val imported = sourced.published?.imported ?: (sourced.position.sequence <= importedThrough)
+        val entry = if (sourced.published == null && sourced.message == null && !imported) {
             decoded
         } else {
-            decoded.copy(published = sourced.published, message = sourced.message)
+            decoded.copy(published = sourced.published, message = sourced.message, imported = imported)
         }
         return subscription.handle(entry)
     }
@@ -658,7 +673,7 @@ internal class SubscriptionWorker(
                     // A copy the topic holds twice.
                     continue
                 }
-                val failure = if (subscription.takes(entry.stream)) {
+                val failure = if (subscription.takes(entry.stream) && !passesOver(entry)) {
                     handle(entry).exceptionOrNull()
                 } else {
                     null

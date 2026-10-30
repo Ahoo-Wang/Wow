@@ -67,6 +67,7 @@ Lines that need attention start with a marker:
 | `CONFLICT` | `export` found a stream 9.x holds at the same version with another command or tenant. Nothing is exported. |
 | `VERDICT` | `export --dry-run`'s conclusion for a context: switch back, export N streams, or no rollback by export since a given time. |
 | `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10. |
+| `CUTOVER` | After a pass that appended to a context's log (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history now ends: the cut-over, recorded at the log's head in each partition. |
 
 ## Configuration file
 
@@ -266,5 +267,7 @@ The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, 
 Beside it, `<checkpoint>.reservations.jsonl` records each key the import reserved, before reserving it, so a later import can release a key 9.x gave up. Keep the two files together.
 
 Commands may run at the same time over one checkpoint file, such as `tail` beside `compare`: each change holds a lock on `<checkpoint>.lock` and replaces the file atomically, so none loses another's progress. A stopped run repeats at most one page.
+
+The cut-over is kept in the V10 target, beside the log: one checkpoint row per partition, in the group `wow.migrate/<context>` under the name `cutover`, which each pass moves forward and never back. The service's subscriptions see the entries up to it as imported, and its transport sink publishes them marked so ([History imported from 9.x](../guide/published-streams#history-imported-from-9x)). A dry run records none.
 
 Reserved keys and parked entries imported before the tool recorded their origin cannot be told from V10's own: import into a fresh V10 target, or remove them before an `import --restart`.

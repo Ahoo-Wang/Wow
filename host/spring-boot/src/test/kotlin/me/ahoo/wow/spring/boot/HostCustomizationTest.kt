@@ -116,6 +116,12 @@ class HostCustomizationTest {
     }
 
     @Test
+    fun `the application's command authorizer should be the node's`() {
+        // With one, the public port leaves the built-in aggregates' system commands to it (UI-50).
+        host.node.gateway.authorizes.assert().isTrue()
+    }
+
+    @Test
     fun `the default caller resolver should be the anonymous caller of the default tenant`() {
         host.context.getBean(CallerResolver::class.java).assert().isNotSameAs(CallerResolver.ANONYMOUS)
     }

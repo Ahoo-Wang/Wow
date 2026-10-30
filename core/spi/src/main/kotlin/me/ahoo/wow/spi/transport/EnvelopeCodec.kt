@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.transport
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -39,7 +40,8 @@ import tools.jackson.databind.JsonNode
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
  *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, tags, causation,
- *   headers, operator}` (`operator`, an addition within format 1) with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   headers, operator, imported}` (`operator` and `imported`, additions within format 1; `imported` only when true)
+ *   with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
@@ -124,6 +126,7 @@ object EnvelopeCodec {
         causation = record.causation,
         headers = record.headers,
         operator = record.operator,
+        imported = record.imported,
     )
 
     /** The record [envelope] holds, with the envelope's transport. */
@@ -146,6 +149,7 @@ object EnvelopeCodec {
             headers = wire.headers,
             operator = wire.operator,
             transport = envelope.transport,
+            imported = wire.imported,
         )
     }
 
@@ -189,5 +193,7 @@ object EnvelopeCodec {
         val causation: Causation? = null,
         val headers: Map<String, String> = emptyMap(),
         val operator: Operator? = null,
+        // Written only when true, so a commit V10 made keeps the payload it had before the field.
+        @field:JsonInclude(JsonInclude.Include.NON_DEFAULT) val imported: Boolean = false,
     )
 }

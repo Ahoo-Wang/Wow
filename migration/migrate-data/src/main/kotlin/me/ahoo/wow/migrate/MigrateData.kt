@@ -179,6 +179,9 @@ internal class MigrateData(
         }
         val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
         plan.aggregates.keys.forEach { importer.importAll(it) }
+        if (!dryRun) {
+            recordCutover(plan, connections)
+        }
         val reservations = ReservationImporter(
             source = connections.source,
             reservations = connections.reservations,
@@ -233,6 +236,7 @@ internal class MigrateData(
             return FAILED
         }
         plan.aggregates.keys.forEach { importer.tailOnce(it) }
+        recordCutover(plan, connections)
         ReservationImporter(
             source = connections.source,
             reservations = connections.reservations,
@@ -460,6 +464,7 @@ internal class MigrateData(
         )
         do {
             plan.aggregates.keys.forEach { importer.tailOnce(it) }
+            recordCutover(plan, connections)
             if (!once) {
                 delay(config.pollIntervalMillis)
             }
@@ -475,6 +480,12 @@ internal class MigrateData(
         )
         missing.values.forEach { appendLine("  $it") }
         append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
+    }
+
+    /** Records where the imported history ends in each context's log, after a pass that appended to it. */
+    private suspend fun recordCutover(plan: MigrationPlan, connections: MigrationConnections) {
+        val recorder = CutoverRecorder.of(plan, connections)
+        out.println(recorder.render(recorder.record()))
     }
 
     /** The keys the reservation import confirmed, beside the checkpoint file. */
