@@ -85,13 +85,25 @@ class Dataset(private val state: DatasetState) {
         return DatasetDrafted(body.context, body.name, body.definition, sourcesOf(body.definition), body.title)
     }
 
-    @OnCommand
-    suspend fun onRevise(command: ReviseDataset, sources: DatasetSources): DatasetRevised? {
+    /**
+     * Replaces the definition and title, checked as a draft's are. A dataset that needs revision says, from then on,
+     * what is wrong with the revised definition rather than with the one it replaced: none of it once the revision
+     * compiles, which a publication then serves.
+     */
+    @OnCommand(produces = [DatasetRevised::class, DatasetNeedsRevision::class])
+    suspend fun onRevise(command: ReviseDataset, sources: DatasetSources, policy: DatasetPolicy): Decision {
         if (command.definition == state.definition && command.title == state.title) {
-            return null
+            return Decision.NoOp
         }
         rejectUnbound(command.definition, sources)
-        return DatasetRevised(command.definition, sourcesOf(command.definition), command.title)
+        val revised = DatasetRevised(command.definition, sourcesOf(command.definition), command.title)
+        if (state.status != DatasetStatus.NEEDS_REVISION) return Decision.events(revised)
+        val problems = when (val compiled = compiled(command.definition, sources, policy)) {
+            is DatasetCompilation.Invalid -> compiled.problems
+            is DatasetCompilation.Compiled -> emptyList()
+        }
+        if (problems == state.problems) return Decision.events(revised)
+        return Decision.events(revised, DatasetNeedsRevision(problems, state.stillServing))
     }
 
     // Decision: a publication or a request for its approval, two kinds of event.

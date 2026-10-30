@@ -115,7 +115,7 @@ export class DatasetCommandClient {
   /**
    * Revise a dataset's definition
    * `ReviseDataset`: `POST /analytics-catalog/dataset/{id}/revise-dataset`.
-   * Produces `DatasetRevised`.
+   * Produces `DatasetNeedsRevision`, `DatasetRevised`.
    */
   reviseDataset(id: string, body: ReviseDataset, options?: CommandOptions): Promise<CommandResult> {
     return this.client.wait({ ...options, command: 'analytics-catalog.dataset.ReviseDataset', body, id });

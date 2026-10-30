@@ -69,7 +69,8 @@ test("an analyst signs in with a CoSec token and drafts a source in its name", a
   await signIn(page, EDITOR);
   await expect(page.getByRole("link", { name: /Caller: eve/ })).toBeVisible();
   const form = page.getByRole("form", { name: "Draft a source" });
-  await form.getByLabel("Connection").fill(CONNECTION);
+  // The catalog's own connection, read from its settings.
+  await expect(form.getByLabel("Connection")).toHaveValue(CONNECTION);
   await form.getByLabel("Database").fill(DATABASE);
   await form.getByLabel("Table").fill(table);
   await form.getByRole("button", { name: "Draft" }).click();
@@ -87,6 +88,31 @@ test("a token the gateway refuses signs the console out", async ({ page }) => {
     ),
   );
   await expect(page.getByText("Sign in to read the catalog")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Caller: No caller/ }),
+  ).toBeVisible();
+});
+
+test("a token the gateway refuses later signs the console out, saying so", async ({
+  page,
+}) => {
+  await open(page);
+  // Well formed and unexpired, so the console takes it; signed with another
+  // secret, so the gateway answers 401.
+  await signIn(
+    page,
+    accessToken(
+      "mallory",
+      ["analytics.catalog.admin"],
+      3600,
+      "a-secret-the-gateway-does-not-know",
+    ),
+  );
+  await expect(
+    page.getByText(
+      "Your CoSec access token was refused (401): sign in with another.",
+    ),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: /Caller: No caller/ }),
   ).toBeVisible();

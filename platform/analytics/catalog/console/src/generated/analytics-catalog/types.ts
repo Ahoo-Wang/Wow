@@ -22,6 +22,15 @@ export interface ApproveSensitivityChange {
  */
 export type ApproveSource = Record<string, unknown>;
 
+/** - key: `me.ahoo.wow.analytics.catalog.server.CatalogSettings` */
+export interface CatalogSettings {
+  connection: string;
+  requirePublicationApproval: boolean;
+  requireSourceApproval: boolean;
+  rolesDecide: boolean;
+}
+
+
 /** - key: `me.ahoo.wow.api.result.CommandResult` */
 export interface CommandResult {
   chainEnded?: boolean;

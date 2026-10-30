@@ -16,8 +16,17 @@ import {
   type RecordActions,
   type RecordRow,
 } from "@ahoo-wang/wow-view-engine";
+import { ADMIN_ROLE, APPROVER_ROLE } from "@/services/caller.ts";
 import type { CatalogCommands } from "./catalogCommands.ts";
-import { idOf, said, stateOf } from "./actionSupport.ts";
+import {
+  firstRefusal,
+  holds,
+  idOf,
+  said,
+  stateOf,
+  UNKNOWN_ROLES,
+  type CallerRoles,
+} from "./actionSupport.ts";
 import { textKeys, type Words } from "./words.ts";
 
 /** The words of the actions on a source, per language. */
@@ -46,6 +55,10 @@ export const SOURCE_ACTION_WORDS = {
     tableGone: "Its table is gone.",
     analystTable:
       "An analyst's table: no wow_catalog row lowers its protection.",
+    nothingPending: "No lower protection awaits an approver.",
+    reviewersOnly:
+      "Takes the role analytics.catalog.approver or analytics.catalog.admin.",
+    approversOnly: "Takes the role analytics.catalog.approver.",
   },
   "zh-CN": {
     markReviewed: "标记已审查",
@@ -67,6 +80,10 @@ export const SOURCE_ACTION_WORDS = {
     alreadyApproved: "已经审批。",
     tableGone: "其表已不在。",
     analystTable: "分析师的表：没有 wow_catalog 行会降低其保护。",
+    nothingPending: "没有待审批的降低保护。",
+    reviewersOnly:
+      "需要 analytics.catalog.approver 或 analytics.catalog.admin 角色。",
+    approversOnly: "需要 analytics.catalog.approver 角色。",
   },
 } satisfies Words;
 
@@ -76,42 +93,62 @@ function analyst(row: RecordRow): true | string {
   return stateOf(row).kind === "WOW" ? t.wowTable : true;
 }
 
+/** Whether a Wow table's row lowered a protection an approver has not yet accepted. */
+function lowered(row: RecordRow): true | string {
+  const pending = stateOf(row).pending;
+  return Array.isArray(pending) && pending.length > 0 ? true : t.nothingPending;
+}
+
 /**
  * A data owner's actions on a source (D241, D251 ②): an approver marks an
- * analyst's table reviewed, approves a source
- * for the datasets, and accepts the lower protection a Wow table's row now
- * gives. The service keeps the last word: a role the action needs, a source
- * that is not complete, are its refusals, said in its words.
+ * analyst's table reviewed, approves a source for the datasets, and accepts
+ * the lower protection a Wow table's row now gives. What the caller's roles
+ * or the source rule out is offered disabled, with why; the service keeps
+ * the last word: a source that is not complete is its refusal, said in its
+ * words.
  */
-export function sourceActions(commands: CatalogCommands): RecordActions {
+export function sourceActions(
+  commands: CatalogCommands,
+  roles: CallerRoles = UNKNOWN_ROLES,
+): RecordActions {
+  const reviewer = () =>
+    holds(roles, [APPROVER_ROLE, ADMIN_ROLE], t.reviewersOnly);
+  const approver = () => holds(roles, [APPROVER_ROLE], t.approversOnly);
   return actions([
     {
       id: "markReviewed",
       label: t.markReviewed,
       primary: true,
-      available: (row) => {
-        const kind = analyst(row);
-        if (kind !== true) return kind;
-        if (stateOf(row).missing === true) return t.tableGone;
-        return stateOf(row).status === "DRAFT" ? true : t.notDraft;
-      },
+      available: (row) =>
+        firstRefusal(reviewer, () => {
+          const kind = analyst(row);
+          if (kind !== true) return kind;
+          if (stateOf(row).missing === true) return t.tableGone;
+          return stateOf(row).status === "DRAFT" ? true : t.notDraft;
+        }),
       confirm: { title: t.markReviewedConfirm, body: t.markReviewedBody },
       run: (row) => said(commands.markReviewed(idOf(row))),
     },
     {
       id: "approve",
       label: t.approve,
-      available: (row) => {
-        if (stateOf(row).status === "DRAFT") return t.draft;
-        return stateOf(row).approved === true ? t.alreadyApproved : true;
-      },
+      available: (row) =>
+        firstRefusal(approver, () => {
+          if (stateOf(row).status === "DRAFT") return t.draft;
+          return stateOf(row).approved === true ? t.alreadyApproved : true;
+        }),
       confirm: { title: t.approveConfirm, body: t.approveBody },
       run: (row) => said(commands.approveSource(idOf(row))),
     },
     {
       id: "approveLower",
       label: t.approveLower,
-      available: (row) => (stateOf(row).kind === "WOW" ? true : t.analystTable),
+      available: (row) =>
+        firstRefusal(
+          approver,
+          () => (stateOf(row).kind === "WOW" ? true : t.analystTable),
+          () => lowered(row),
+        ),
       confirm: {
         title: t.approveLowerConfirm,
         body: t.approveLowerBody,

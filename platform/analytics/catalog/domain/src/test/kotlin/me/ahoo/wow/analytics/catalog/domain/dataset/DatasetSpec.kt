@@ -353,6 +353,33 @@ class DatasetSpec {
         }
 
     @Test
+    fun `a revision should say what is wrong with the revised definition, not with the one it replaced`() = spec {
+        drafted()
+        givenCommands(PublishDataset)
+        catalog[REGIONS_ID] = null
+        givenCommands(RecompileDataset)
+        // Revised to read the orders alone: nothing is wrong with it any more, and a publication serves it.
+        val fewer = DEFINITION.copy(
+            sources = DEFINITION.sources.take(1),
+            joins = emptyList(),
+            columns = DEFINITION.columns.take(2),
+            identity = null,
+            eventTime = null
+        )
+        whenCommand(ReviseDataset(fewer)) {
+            expectEvents(DatasetRevised(fewer, listOf(ORDERS_ID)), DatasetNeedsRevision(emptyList(), serving = true))
+            expectState {
+                status.assert().isEqualTo(DatasetStatus.NEEDS_REVISION)
+                problems.assert().isEmpty()
+            }
+        }
+        whenCommand(PublishDataset) {
+            expectEventTypes(DatasetPublished::class)
+            expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
+        }
+    }
+
+    @Test
     fun `a recompilation into other columns, or one the warehouse cannot describe or create, should need revision`() =
         spec {
             drafted()

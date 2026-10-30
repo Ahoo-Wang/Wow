@@ -19,7 +19,12 @@ import {
   emptyDashboardConfig,
   type DataViewDefinition,
 } from "@ahoo-wang/wow-view-engine";
-import { catalogEngine, EDITOR, renderConsole } from "@/app/testing.tsx";
+import {
+  catalogEngine,
+  EDITOR,
+  renderConsole,
+  SETTINGS,
+} from "@/app/testing.tsx";
 import { BOARDS } from "@/views/boards.ts";
 
 const SERVED = [
@@ -57,12 +62,45 @@ describe("the draft page", () => {
         "default:shop:orders",
       ),
     );
+    // Said once, with the way to the source drafted: open on its page.
     expect(
       await within(form).findByText(/Drafted default:shop:orders/),
     ).toBeVisible();
-    expect(within(form).getByRole("link", { name: "Sources" })).toHaveAttribute(
+    expect(within(form).queryByText("Saved.")).toBeNull();
+    expect(within(form).getByRole("link", { name: "Open it" })).toHaveAttribute(
       "href",
-      "/sources",
+      "/sources?id=default%3Ashop%3Aorders",
+    );
+  });
+
+  it("starts from the catalog's own connection, named by its label alone", async () => {
+    const { commands } = renderConsole(EDITOR, {
+      path: "/draft",
+      settings: { ...SETTINGS, connection: "warehouse" },
+    });
+    const form = await screen.findByRole("form", { name: "Draft a source" });
+    const connection = within(form).getByRole("textbox", {
+      name: "Connection",
+    });
+    expect(connection).toHaveValue("warehouse");
+    expect(connection).toHaveAccessibleDescription(
+      /The catalog's warehouse connection/,
+    );
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Database" }),
+      "analytics",
+    );
+    await userEvent.type(
+      within(form).getByRole("textbox", { name: "Table" }),
+      "shipments",
+    );
+    await userEvent.click(within(form).getByRole("button", { name: "Draft" }));
+    await waitFor(() =>
+      expect(commands.draftSource).toHaveBeenCalledWith(
+        "analytics",
+        "shipments",
+        "warehouse:analytics:shipments",
+      ),
     );
   });
 
@@ -81,10 +119,14 @@ describe("the draft page", () => {
       within(form).getByRole("textbox", { name: "Title" }),
       "Orders",
     );
-    const editor = within(form).getByRole("textbox", { name: /Definition/ });
+    // Named by its label, not by the JSON it holds.
+    const editor = within(form).getByRole("textbox", { name: "Definition" });
+    expect(editor).toHaveAccessibleDescription(/^JSON: subject, sources/);
     await userEvent.type(editor, "x");
+    const lines = String((editor as HTMLTextAreaElement).value).split("\n");
+    // Where, in the console's words, whatever the browser's parser says.
     expect(within(form).getByRole("alert")).toHaveTextContent(
-      "The definition is not JSON",
+      `The definition is not JSON: look at line ${lines.length}, column 2.`,
     );
     await userEvent.type(editor, "{Backspace}");
     await userEvent.click(within(form).getByRole("button", { name: "Draft" }));
@@ -99,6 +141,10 @@ describe("the draft page", () => {
     expect(
       await within(form).findByText(/Drafted shop.order_wide/),
     ).toBeVisible();
+    expect(within(form).getByRole("link", { name: "Open it" })).toHaveAttribute(
+      "href",
+      "/datasets?id=shop.order_wide",
+    );
   });
 });
 
@@ -198,7 +244,7 @@ describe("the boards page", () => {
     expect(
       (await screen.findAllByText("All orders, saved")).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: "Boards" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Dashboards" })).toHaveAttribute(
       "aria-current",
       "page",
     );

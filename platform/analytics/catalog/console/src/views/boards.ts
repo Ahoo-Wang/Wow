@@ -19,8 +19,9 @@ export const BOARDS = "analytics-catalog-boards";
 
 /** Every word the definition shows, per language. */
 export const BOARD_WORDS = {
-  en: { title: "Boards" },
-  "zh-CN": { title: "看板" },
+  // The engine's word for a board, in its own messages too.
+  en: { title: "Dashboards" },
+  "zh-CN": { title: "仪表盘" },
 } satisfies Words;
 
 const t = textKeys("boards", BOARD_WORDS.en);

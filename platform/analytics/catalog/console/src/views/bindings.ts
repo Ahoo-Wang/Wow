@@ -23,7 +23,7 @@ import {
 import { datasetDetail } from "@/detail/datasetDetail.tsx";
 import { sourceDetail } from "@/detail/sourceDetail.tsx";
 import type { CatalogCommands } from "./catalogCommands.ts";
-import { datasetActions } from "./datasetActions.ts";
+import { datasetActions, type DatasetActionOptions } from "./datasetActions.ts";
 import { BOARDS } from "./boards.ts";
 import { DATASETS } from "./datasets.ts";
 import { sourceActions } from "./sourceActions.ts";
@@ -50,6 +50,9 @@ export const CALLER_PATH = "/caller";
 /** The open view of the workbench, in its address. */
 export const VIEW_PARAM = "view";
 
+/** The record open in a page's detail, in its address (the engine's). */
+export const RECORD_PARAM = "id";
+
 /** The served dataset the rows page reads, in its address. */
 export const DATASET_PARAM = "dataset";
 
@@ -75,6 +78,16 @@ export function datasetsPath(view: string | null): string {
   return pathOf(DATASETS_PATH, view);
 }
 
+/** The sources' page with the source `id` open. */
+export function sourcePath(id: string): string {
+  return pathOf(SOURCES_PATH, null, { [RECORD_PARAM]: id });
+}
+
+/** The datasets' page with the dataset `id` open. */
+export function datasetPath(id: string): string {
+  return pathOf(DATASETS_PATH, null, { [RECORD_PARAM]: id });
+}
+
 /** The boards' page on `board`, or on the first one (`null`). */
 export function boardsPath(board: string | null): string {
   return pathOf(BOARDS_PATH, board);
@@ -90,23 +103,26 @@ export function rowsPath(dataset: string, view: string | null): string {
  * the sources' and the datasets' pages, how one is read, and the data
  * owner's actions, which the engine places on every record view over them;
  * then each dataset served, read on the rows page, with the actions its rows
- * offer on the aggregates they refer to (`rowActions`).
+ * offer on the aggregates they refer to (`rowActions`). The data owner's
+ * actions are offered as the caller's roles and the catalog's settings
+ * allow (`access`).
  */
 export function consoleBindings(
   commands: CatalogCommands,
   served: readonly DatasetResource[] = [],
   rowActions: (id: string) => RecordActions | undefined = () => undefined,
+  access: DatasetActionOptions = {},
 ): ViewBinding[] {
   return [
     bind(SOURCES, {
       route: sourcesPath,
       reading: sourceDetail,
-      actions: sourceActions(commands),
+      actions: sourceActions(commands, access.roles),
     }),
     bind(DATASETS, {
       route: datasetsPath,
       reading: datasetDetail,
-      actions: datasetActions(commands),
+      actions: datasetActions(commands, access),
     }),
     ...datasetBindings(served, {
       route: ({ id }, view) => rowsPath(id, view),
