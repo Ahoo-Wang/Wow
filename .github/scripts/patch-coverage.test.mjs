@@ -268,6 +268,18 @@ test('ci.yml judges the patch in the coverage job and ci-gate reads its verdict'
     workflow.indexOf('\n  coverage-trend:\n'),
   );
   assert.match(coverage, /fetch-depth: 0/);
+  // One artifact or many, each report lands in coverage/<artifact>/ (#5202: a single artifact unpacked into coverage/).
+  assert.match(
+    coverage,
+    /pattern: coverage-\*\n\s+path: coverage\n\s+merge-multiple: true\n/,
+  );
+  const kept = [
+    ...workflow.matchAll(
+      /ARTIFACT: (coverage-[^\n]+)\n\s+run: mkdir -p "coverage-artifact\/\$ARTIFACT" && cp .+? "coverage-artifact\/\$ARTIFACT\/"\n[\s\S]*?name: (coverage-[^\n]+)\n\s+path: coverage-artifact\/\n/g,
+    ),
+  ];
+  assert.equal(kept.length, 4);
+  for (const [, staged, uploaded] of kept) assert.equal(staged, uploaded);
   assert.match(coverage, /BASE=\$\(git merge-base origin\/main "\$HEAD_SHA"\)/);
   assert.match(
     coverage,

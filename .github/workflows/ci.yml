@@ -138,10 +138,14 @@ jobs:
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
       # The coverage job uploads it, once the parent commit's run has uploaded.
       - name: Keep the unit test coverage
+        env:
+          ARTIFACT: coverage-jvm-unit-${{ matrix.shard }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml "coverage-artifact/$ARTIFACT/"
+      - name: Upload keep the unit test coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-jvm-unit-${{ matrix.shard }}
-          path: ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
+          path: coverage-artifact/
           retention-days: 1
           if-no-files-found: error
 
@@ -215,10 +219,14 @@ jobs:
       - name: Drop the closing-brace lines of the integration test coverage
         run: node .github/scripts/jacoco-braces.mjs ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
       - name: Keep the integration test coverage
+        env:
+          ARTIFACT: coverage-integration-${{ matrix.shard }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml "coverage-artifact/$ARTIFACT/"
+      - name: Upload keep the integration test coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-integration-${{ matrix.shard }}
-          path: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
+          path: coverage-artifact/
           retention-days: 1
           if-no-files-found: error
       # A failed or cancelled shard keeps its evidence: the test reports and, for a test that hung, the jstacks the
@@ -346,10 +354,15 @@ jobs:
         run: pnpm --filter "@ahoo-wang/$PACKAGE" test
       - name: Keep the coverage
         if: matrix.node-version == 24
+        env:
+          ARTIFACT: coverage-typescript-${{ matrix.package }}
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/${{ matrix.package }}/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
+      - name: Upload keep the coverage
+        if: matrix.node-version == 24
         uses: actions/upload-artifact@v7
         with:
           name: coverage-typescript-${{ matrix.package }}
-          path: ./typescript/${{ matrix.package }}/coverage/coverage-final.json
+          path: coverage-artifact/
           retention-days: 1
           if-no-files-found: error
 
@@ -505,10 +518,14 @@ jobs:
         working-directory: typescript/wow-view-engine
         run: pnpm test:type
       - name: Keep the view-engine coverage
+        env:
+          ARTIFACT: coverage-typescript-wow-view-engine
+        run: mkdir -p "coverage-artifact/$ARTIFACT" && cp ./typescript/wow-view-engine/coverage/coverage-final.json "coverage-artifact/$ARTIFACT/"
+      - name: Upload keep the view-engine coverage
         uses: actions/upload-artifact@v7
         with:
           name: coverage-typescript-wow-view-engine
-          path: ./typescript/wow-view-engine/coverage/coverage-final.json
+          path: coverage-artifact/
           retention-days: 1
           if-no-files-found: error
 
@@ -1081,10 +1098,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # Each artifact holds its report under a directory of its own name, and they
+      # merge into `coverage/<artifact>/`: a run with a single artifact gets the
+      # same layout as one with many, which download-artifact otherwise
+      # unpacks into the path itself.
       - uses: actions/download-artifact@v7
         with:
           pattern: coverage-*
           path: coverage
+          merge-multiple: true
       - name: Judge the patch coverage
         id: patch
         if: github.event_name == 'pull_request'
