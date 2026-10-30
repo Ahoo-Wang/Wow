@@ -160,8 +160,9 @@ test("a principal with neither ops role reads nothing: the service refuses its r
       "This caller has neither ops.viewer nor ops.operator: the service shows it no entry.",
     ),
   ).toBeVisible();
+  // The workbench's query is refused (403): the view says so, and lists nothing.
   await expect(
-    page.getByText("needs ops.viewer or ops.operator").first(),
+    page.getByText("You do not have permission to view this data.").first(),
   ).toBeVisible();
   await expect(row(page, exhausted)).toHaveCount(0);
   await expect(row(page, unrecoverable)).toHaveCount(0);

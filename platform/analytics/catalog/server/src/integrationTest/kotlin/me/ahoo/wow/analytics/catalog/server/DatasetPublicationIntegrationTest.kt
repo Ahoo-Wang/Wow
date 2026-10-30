@@ -174,8 +174,8 @@ class DatasetPublicationIntegrationTest {
             row["order_phone"].asString().assert().startsWith("139").endsWith("5678").isNotEqualTo("13912345678")
             row["customer_phone"].asString().assert().startsWith("150").isNotEqualTo("15011112222")
             val t2 = Who(mapOf(USER to "reader", TENANT to "t2"))
-            // The catalog itself stays the catalog's roles'.
-            node.sources(t1).status.assert().isEqualTo(BAD_REQUEST)
+            // The catalog itself stays the catalog's roles': anyone else is refused it (UI-35).
+            node.sources(t1).assertProblem(FORBIDDEN, "wow.auth.forbidden")
             node.post(QUERY, query, t2).assertOk().json.values().map { it["order_id"].asString() }.toList()
                 .assert().containsExactly("o2")
 
@@ -237,6 +237,7 @@ class DatasetPublicationIntegrationTest {
         const val QUERY = "/wow/dataset/shop/order_customers/query"
         const val OK = 200
         const val BAD_REQUEST = 400
+        const val FORBIDDEN = 403
         const val NOT_FOUND = 404
         const val CONFLICT = 409
     }
