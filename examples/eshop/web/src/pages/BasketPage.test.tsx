@@ -140,6 +140,23 @@ describe("the basket", () => {
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
   });
 
+  it("shows a status the client does not know as itself, never as a failure", async () => {
+    // The same stream from a server that spells its statuses otherwise: the
+    // page stops at the first hop, which it cannot read as success, and says
+    // what the server sent.
+    const stream = checkoutToPaid.replaceAll('"status":"succeeded"', '"status":"SUCCEEDED"');
+    const { transport } = basket(() => ({ stream }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent('Unknown status "SUCCEEDED"');
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paid:/)).not.toBeInTheDocument();
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps[0].dataset.state).toBe("unknown");
+    expect(steps[1].dataset.state).toBe("not-reached");
+    expect(screen.getByText(/1 of 15 hops/)).toBeInTheDocument();
+  });
+
   it("says when the chain ends short of the paid order, as the server says", async () => {
     // A declined payment: OrderPaymentSaga.onPaymentSucceeded sends nothing, and the chain ends there (D212).
     const events = hops(14);

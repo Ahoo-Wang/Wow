@@ -57,6 +57,13 @@ describe("a problem", () => {
     expect(problemOf(result({ status: CommandResultStatus.FAILED, error: null })).title).toBe("Failed");
   });
 
+  it("names a status this client does not know as itself, not as a failure", () => {
+    expect(problemOf(result({ status: "SUCCEEDED", error: null }))).toEqual({
+      title: 'Unknown status "SUCCEEDED"',
+      violations: [],
+    });
+  });
+
   it("is read from a rejection: the problem it came in, else its result", () => {
     const rejected = result({
       status: CommandResultStatus.REJECTED,
