@@ -57,7 +57,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * ([TenantPolicy.confinedTo]), else 403 `wow.auth.forbidden`: the view is the whole service's, of no aggregate and no
  * tenant's data, so neither a command's authorization on an aggregate nor a tenant's filter applies to it. Then
  * [authorizer], the node's [ServiceRouteAuthorizer], decides the route of the reserved context `wow` named
- * `ops.subscriptions` ([RouteAction]), which CoSec decides as `wow:ops.subscriptions`. Errors are problems as on the
+ * `ops.subscriptions` ([RouteAction]), which CoSec decides as `wow:ops.subscriptions`; with none, as on a service
+ * route, every such caller reads it. Errors are problems as on the
  * other public routes, a store that is unavailable `wow.storage.unavailable` with `Retry-After`.
  */
 @ExperimentalWowApi
