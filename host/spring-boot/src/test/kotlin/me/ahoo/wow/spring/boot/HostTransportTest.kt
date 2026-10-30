@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
@@ -63,6 +64,16 @@ class HostTransportTest {
             .assert().isEqualTo(TransportSelection.MEMORY)
         TransportSelection.of(environment("wow.transport" to "Kafka"), providers, beans = false)
             .assert().isEqualTo(TransportSelection.PROVIDER)
+        // No topics, said explicitly (X-33): over a configured transport, a provider bean and development alike.
+        TransportSelection.of(
+            environment(
+                "wow.transport" to "None",
+                "wow.kafka.bootstrap-servers" to "k:9092",
+                profiles = arrayOf("dev")
+            ),
+            providers,
+            beans = true,
+        ).assert().isEqualTo(TransportSelection.NONE)
     }
 
     @Test
@@ -141,9 +152,29 @@ class HostTransportTest {
     }
 
     @Test
-    fun `a node in development should keep its topics in its JVM`() {
+    fun `a node in development should keep its topics in its JVM, each partition its last messages`() {
         startHost().use { host ->
             host.context.getBean(SourceTopics::class.java).intake.assert().isTrue()
+            host.context.getBean(InMemoryTopics::class.java).retention.assert()
+                .isEqualTo(InMemoryTopics.DEFAULT_RETENTION)
+        }
+        startHost("wow.memory-topic-retention" to 50).use { host ->
+            host.context.getBean(InMemoryTopics::class.java).retention.assert().isEqualTo(50)
+        }
+    }
+
+    @Test
+    fun `none in development should give the node no topics, and refuse it when it needs some (X-33)`() {
+        startHost("wow.transport" to "none").use { host ->
+            host.context.getBeanProvider(SourceTopics::class.java).ifAvailable.assert().isNull()
+            host.context.getBeanProvider(InMemoryTopics::class.java).ifAvailable.assert().isNull()
+        }
+        val failure = assertThrows<Exception> {
+            startHost("wow.transport" to "none", "wow.aggregates.[$BANK.account].routing" to "topic").close()
+        }
+        generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first().also {
+            it.key.assert().isEqualTo("wow.transport")
+            it.message.assert().contains("wow.transport is none", "routes $BANK.account through Kafka")
         }
     }
 
