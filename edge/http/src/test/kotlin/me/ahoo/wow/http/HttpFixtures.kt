@@ -56,6 +56,8 @@ import me.ahoo.wow.manifest.SystemCommands
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.admission.Authorization
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -207,6 +209,21 @@ val headerCallers = CallerResolver { request ->
     )
 }
 
+/** The operator [operatorsOnly] lets send Wow's system commands. */
+const val OPERATOR = "olivia"
+
+/**
+ * An application's authorizer of Wow's system commands (`wow.*`): only [OPERATOR] sends them. It has no objection to
+ * any other command, as an authorizer of one concern.
+ */
+val operatorsOnly = CommandAuthorizer { caller, action ->
+    if (action.type.name.startsWith("wow.") && caller.subject != OPERATOR) {
+        Authorization.Denied.of("Only an operator sends ${action.type.name}.")
+    } else {
+        Authorization.Allowed
+    }
+}
+
 /** A projection that never signals: a wait for it times out. */
 private val auditDirectory = object : SubscriptionDirectory {
     override fun kindOf(context: String, subscription: String): FunctionKind? =
@@ -245,6 +262,8 @@ class HttpNode(
     serviceRoutes: ServiceRoutes = ServiceRoutes.NONE,
     /** The node's aggregates besides the cart, which [manifest] then declares. */
     aggregates: List<AggregateModel<*>> = emptyList(),
+    /** The node's authorizer; none by default, as a node without the application's. */
+    authorizer: CommandAuthorizer? = null,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -308,6 +327,7 @@ class HttpNode(
     val gateway = CommandGateway(
         models,
         mapOf(CONTEXT to coordinator),
+        authorizer = authorizer,
         transformers = transformers,
         validators = validators,
         ids = ids,

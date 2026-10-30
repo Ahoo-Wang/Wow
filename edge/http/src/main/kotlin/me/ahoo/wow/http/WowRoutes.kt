@@ -101,7 +101,9 @@ import reactor.core.publisher.Mono
  *
  * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). A command
  * request that carries `Wow-Call` is refused (403 `wow.auth.forbidden`) whatever its credential: the services'
- * synchronous calls are taken on the internal port alone ([callRoutes]). Errors are
+ * synchronous calls are taken on the internal port alone ([callRoutes]). So is a system command of a built-in
+ * aggregate, a job's or the snapshot rebuild's, on a node without an authorizer ([CommandGateway.authorizes]): never
+ * allowed by default, it needs an authorizer that allows it. Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). A context's service
  * routes ([ServiceRoutes]) are mounted from the Manifest too, each with the handler its module binds:
  * a route without one, or a handler of no route, fails here, so the node does not start. The host serves other
@@ -426,7 +428,9 @@ private fun CoRouterFunctionDsl.route(
  * [context]: a lifecycle command to the aggregate of the path's id; the snapshot rebuild to the instance of the
  * built-in rebuild aggregate named by [aggregate], whose snapshots it rebuilds; a job command to the instance of the
  * built-in job aggregate the path's id names. Each is sent through the gateway like any command, so its authorizer
- * (CoSec's, by the action of the route) decides who may send it in their tenant.
+ * (CoSec's, by the action of the route) decides who may send it in their tenant. The built-in aggregates' commands, the
+ * rebuild and the jobs', need one on the public port: a node without an authorizer refuses them there
+ * ([CommandTarget.builtIn]), as it refuses the operator's actions.
  */
 private fun systemTarget(
     context: String,
@@ -434,10 +438,16 @@ private fun systemTarget(
     name: String,
     byId: Boolean = true
 ): CommandTarget = when {
-    name == SnapshotRebuilds.REBUILD ->
-        CommandTarget(context, SnapshotRebuilds.AGGREGATE, name, byId = false, id = checkNotNull(aggregate))
+    name == SnapshotRebuilds.REBUILD -> CommandTarget(
+        context,
+        SnapshotRebuilds.AGGREGATE,
+        name,
+        byId = false,
+        id = checkNotNull(aggregate),
+        builtIn = true,
+    )
 
-    name in ScheduleJobs.COMMANDS -> CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true)
+    name in ScheduleJobs.COMMANDS -> CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true, builtIn = true)
     else -> CommandTarget(
         context,
         checkNotNull(aggregate) { "The system command $name has no aggregate." },

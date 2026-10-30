@@ -411,11 +411,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
 /**
  * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway], and the
  * [tenants] of its aggregate types. [ids] are the node's id generators: admission's
- * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take.
+ * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take. [authorizer] is null when
+ * the application gives none ([me.ahoo.wow.runtime.admission.CommandGateway.authorizes]).
  */
 @InternalWowApi
 data class AdmissionPlugins(
-    val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
+    val authorizer: CommandAuthorizer? = null,
     val transformers: List<CommandTransformer> = emptyList(),
     val validators: List<CommandValidator> = emptyList(),
     val ids: IdGenerators = IdGenerators.DEFAULT,
