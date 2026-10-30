@@ -46,6 +46,9 @@ internal object ModelNames {
     const val DECIDE_SCOPE = "me.ahoo.wow.api.decide.DecideScope"
     const val COMMAND = "me.ahoo.wow.api.decide.Command"
 
+    /** The commit of an event, a sourcing function's optional second parameter. */
+    const val EVENT_STREAM = "me.ahoo.wow.api.read.EventStream"
+
     /** Packages of 9.x framework types; Wow's own platform domains live under `me.ahoo.wow` too. */
     val FRAMEWORK_PACKAGES = listOf(
         "me.ahoo.wow.api.",

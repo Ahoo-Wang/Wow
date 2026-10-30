@@ -183,12 +183,16 @@ internal object ModelSource {
         sourcing.forEach { binding ->
             val name = binding.eventName?.let { "name = \"\$type.$it\", " }.orEmpty() +
                 if (binding.revision == 1) "" else "revision = ${binding.revision}, "
+            val (commit, read) = if (binding.commit) ", commit" to "(event, commit)" else "" to "(event)"
             if (binding.returnsState) {
                 appendLine(
-                    "        evolveTo<${binding.event}>(${name}evolve = { state, event -> state.${binding.function}(event) })"
+                    "        evolveTo<${binding.event}>(${name}evolve = { state, event$commit -> " +
+                        "state.${binding.function}$read })"
                 )
             } else {
-                appendLine("        evolve<${binding.event}>(${name}evolve = { event -> ${binding.function}(event) })")
+                appendLine(
+                    "        evolve<${binding.event}>(${name}evolve = { event$commit -> ${binding.function}$read })"
+                )
             }
         }
         sourcing.forEach { binding ->

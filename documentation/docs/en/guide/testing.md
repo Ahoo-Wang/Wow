@@ -67,7 +67,7 @@ class AccountSpec {
 
 | Step | Does |
 | --- | --- |
-| `given(vararg events, scope = null)` | Commits the events as one stream, as if an earlier command had produced them; `scope` leaves the aggregate in that owner and space. |
+| `given(vararg events, scope = null, operator = null, commitTime = now)` | Commits the events as one stream, as if an earlier command had produced them; `scope` leaves the aggregate in that owner and space. `operator` and `commitTime` are the facts of the commit a sourcing function reads ([Read the commit](./aggregates#read-the-commit)). |
 | `givenState(state, version, scope)`, `givenState(version, scope) { … }` | Starts the aggregate in a state at a version, without replaying a history; the block form changes the initial state. The first step of a spec. |
 | `givenReservation(namespace, key, owner)` | Gives a reserved key to another aggregate of the same type, so a command that reserves it is refused. |
 | `givenCommands(vararg commands)` | Sends the commands as the scenario's setup; one that is rejected or throws fails the spec, naming it. |
@@ -78,7 +78,7 @@ class AccountSpec {
 | `ref(name)`, `fork(name, from) { … }` | Marks a point; runs a scenario on a copy of the aggregate, now or from a marked point. |
 | `holds(namespace, key)` | Whether the aggregate holds a reserved key. |
 
-Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTime` moves it. Ids a decide function takes are sequential: `id-1`, `id-2`, and so on.
+Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTime` moves it: a decision reads it as `scope.now`, and its commit is recorded at it. Ids a decide function takes are sequential: `id-1`, `id-2`, and so on.
 
 ### Expect
 
@@ -243,7 +243,7 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(services…)` in its package. It constructs only that processor, with the services the test passes (`orderSummaryProjectionHandlers(summaries = …)`; none for a processor that takes none).
 
-`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's state, its api's generated view (`OrderStateView`), which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
+`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event, each committed at 2026-01-01T00:00:00Z. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's state, its api's generated view (`OrderStateView`), which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 

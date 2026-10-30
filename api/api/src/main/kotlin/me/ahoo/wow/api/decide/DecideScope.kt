@@ -38,8 +38,8 @@ interface DecideScope {
     /**
      * The time of this decision, epoch milliseconds, from the node's clock: the commit time its events are recorded
      * at, which a sourcing function reads back as `EventStream.commitTime`. A decision computes a deadline or an
-     * expiry from it, not from the system clock, so a test sets it (the test DSL's `givenTime`). A decision decided
-     * again, after a version conflict, reads the clock anew.
+     * expiry from it, not from the system clock, so a test sets it: the test DSL's time starts at its `start` and
+     * moves with `advanceTime`. A decision decided again, after a version conflict, reads the clock anew.
      */
     val now: Long
 

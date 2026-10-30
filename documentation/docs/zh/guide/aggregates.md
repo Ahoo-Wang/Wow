@@ -220,6 +220,7 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 | 成员 | 作用 |
 | --- | --- |
 | `command` | 正在决定的命令，类型为 `Command<*>` |
+| `now` | 这次决定在节点时钟上的时间（纪元毫秒）：它的事件被记录的提交时间。用它而不是系统时钟计算截止时间或过期时间，测试就能设定它（[测试](./testing#arrange-and-act)） |
 | `ids` | 节点的 ID 生成器，用于决定需要的 ID |
 | `putResult(key, value)` | 往事件追加之后给调用方的回答里加一个值。它不存储：重复的请求不会再得到它 |
 | `reject(code, message)` | 用一个错误码拒绝命令，可以附带用于 problem 的 `extensions`（[拒绝](./rejections#reject-with-a-code)） |
@@ -302,6 +303,24 @@ fun onSourcing(event: OrderSubmitted) {
 - 原地修改状态的演化函数不返回任何东西。返回状态类型的演化函数则返回新的状态，用于不可变状态。
 - 在第一个事件之前就给每个属性一个值。内核按状态的原样序列化它，用于快照和发布的事件流。
 - 命令函数从不修改状态，只读取它。测试 DSL 比较每次决定前后的状态，若有改变就让测试失败。
+
+### 读取提交 {#read-the-commit}
+
+演化函数可以在事件之后再接收该事件所属的提交：一个 `EventStream`，带有日志记录的提交时间、操作人、版本和命令的 ID。内核在决定时和重放时（从日志，或从快照及其后的事件流）给出同一个提交，所以之后重建的状态是同一个状态。要保存时间的状态从提交读取它，绝不从时钟读取：
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onSourcing(event: OrderPaid, commit: EventStream) {
+    paidAt = commit.commitTime
+    paidBy = commit.operator?.id
+}
+```
+
+- 不可变状态以同样的方式接收它：`fun onSourcing(event: OrderPaid, commit: EventStream): OrderState`。
+- 以代码编写模型时，写作 `evolve<OrderPaid> { event, commit -> … }` 或 `evolveTo<OrderPaid> { state, event, commit -> … }`。
+- 提交时间就是这次决定的 `scope.now`：决定据此计算的截止时间与状态读到的时间一致。
+- 从 9.x 导入的历史把每条流的创建时间和操作人保留为其提交的提交时间和操作人（[迁移](../migrate/source#events-and-state)）。
 
 ## 在每条命令之后运行代码 {#run-code-after-every-command}
 

@@ -441,6 +441,7 @@ public abstract interface class me/ahoo/wow/api/decide/DecideScope {
 	public abstract fun cancelSchedule (Ljava/lang/String;)V
 	public abstract fun getCommand ()Lme/ahoo/wow/api/decide/Command;
 	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;
+	public abstract fun getNow ()J
 	public abstract fun onAppendFailure (Lkotlin/jvm/functions/Function1;)V
 	public abstract fun putResult (Ljava/lang/String;Ljava/lang/Object;)V
 	public fun reject (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Void;

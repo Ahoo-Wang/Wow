@@ -122,7 +122,7 @@ A rejection carries a code and a message: 9.x `bindingErrors` go into the messag
 - **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value before creation (no `lateinit`). A 9.x `StateAggregateTagsExtractor` is a `@Tags` member of the state.
 - **Deleted events** are retired: delete the class and its sourcing function, list the stored name in `retiredEvents`, and map it with `"retire": true`.
 - **Wow types in events and state.** A stored `Condition`, `Sort` or `Projection` (a saved filter, say) has no V10 form: the `Condition` protocol is gone, the kernel's JSON has no codec for the query protocol, and its enumerations are lower case now. Store a type of your own, and upgrade the 9.x JSON into it with an `@Upgrade` function and a test.
-- **The event's envelope.** A 9.x sourcing function that read `DomainEvent.createTime` or the operator has no V10 form today: a sourcing function takes its event only. Put the value in the event; states rebuilt from 9.x history lack it, and `compare` reports it. How V10 exposes the envelope is a pending decision.
+- **The event's envelope.** A 9.x sourcing function that took `DomainEvent<E>` to read `createTime` or the operator takes the event and, second, the commit it belongs to (`commit: EventStream`): `createTime` is `commit.commitTime`, `header.operator` is `commit.operator?.id`, `version` is `commit.version` ([Read the commit](../guide/aggregates#read-the-commit)). The data migration imports each 9.x stream's create time and operator as its commit's, so states rebuilt from 9.x history read what 9.x recorded. A command function that read the system clock reads `scope.now` instead.
 
 ## Processors
 

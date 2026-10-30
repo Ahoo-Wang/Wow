@@ -220,6 +220,7 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | Member | Does |
 | --- | --- |
 | `command` | The command being decided, as `Command<*>` |
+| `now` | The time of the decision on the node's clock, in epoch milliseconds: the commit time its events are recorded at. Compute a deadline or an expiry from it, not from the system clock, so that a test sets it ([Testing](./testing#arrange-and-act)) |
 | `ids` | The node's id generators, for an id the decision needs |
 | `putResult(key, value)` | Adds a value to what the caller is answered once the events are appended. It is not stored: a repeated request is not answered it again |
 | `reject(code, message)` | Rejects the command with a code, optionally with `extensions` for the problem ([Rejections](./rejections#reject-with-a-code)) |
@@ -302,6 +303,24 @@ fun onSourcing(event: OrderSubmitted) {
 - A sourcing function that changes the state in place returns nothing. One that returns the state type returns the new state instead, for an immutable state.
 - Give every property a value before the first event. The kernel serializes the state as it is, for snapshots and for the published stream.
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
+
+### Read the commit
+
+A sourcing function may take, after its event, the commit the event belongs to: an `EventStream`, with the commit time, the operator, the version and the command's ids, as the log records them. The kernel gives the same commit when it decides and when it replays, from the log or from a snapshot and the streams after it, so a state rebuilt later is the same state. A state that keeps a time reads it from the commit, never from a clock:
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onSourcing(event: OrderPaid, commit: EventStream) {
+    paidAt = commit.commitTime
+    paidBy = commit.operator?.id
+}
+```
+
+- An immutable state takes it the same way: `fun onSourcing(event: OrderPaid, commit: EventStream): OrderState`.
+- Written as code, the model takes it as `evolve<OrderPaid> { event, commit -> … }`, or `evolveTo<OrderPaid> { state, event, commit -> … }`.
+- The commit time is the decision's `scope.now`: a deadline the decision computes from it and the time the state reads agree.
+- History imported from 9.x keeps each stream's create time and operator as its commit's ([Migrate](../migrate/source#events-and-state)).
 
 ## Run code after every command
 
