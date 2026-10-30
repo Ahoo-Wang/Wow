@@ -1,0 +1,3580 @@
+[2026-10-30 04:59:20] =========================================================
+[2026-10-30 04:59:20] Wow V10 Milestone Saturation Snapshot Benchmark on Apple M5 Max
+[2026-10-30 04:59:20] Commit: cebdb88d0 (cebdb88d01e87a81fb23ff90fbd4d301ed1e7da8)
+[2026-10-30 04:59:20] Branch: bench/m5max-snapshot
+[2026-10-30 04:59:20] Java: openjdk version "21.0.13" 2026-10-20 LTS
+[2026-10-30 04:59:20] OrbStack: 2.2.5, Engine: 29.8.2 (16 CPUs, 32 GB)
+[2026-10-30 04:59:20] Machine: Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB RAM
+[2026-10-30 04:59:20] =========================================================
+[2026-10-30 04:59:20] >>> Starting Section 1: Cost and Saturation (1-S-postgres, 1-S-mongo)
+[2026-10-30 04:59:20] Starting Section 1: Cost and Saturation
+[2026-10-30 04:59:20] === Section 1: Starting Backend postgres (Session 1-S-postgres) ===
+[2026-10-30 04:59:20] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 
+[bench] starting kafka and postgres
+ Image postgres:17-alpine Pulling 
+ Image confluentinc/cp-kafka:7.4.0 Pulling 
+ 2b0701f72a22 Pulling fs layer 0B
+ 857999023185 Pulling fs layer 0B
+ bc8b41da5c5d Pulling fs layer 0B
+ 87c7f3691cfd Pulling fs layer 0B
+ d3531b7a4f21 Pulling fs layer 0B
+ abcdc69e2fc2 Pulling fs layer 0B
+ fdff7ba04ec2 Pulling fs layer 0B
+ de04653bc6d3 Pulling fs layer 0B
+ b0726ede4e61 Pulling fs layer 0B
+ c25a734515da Pulling fs layer 0B
+ a7e1f90ee181 Download complete 0B
+ 3331a1ebee6b Download complete 0B
+ 87c7f3691cfd Download complete 0B
+ 2b0701f72a22 Download complete 0B
+ bc8b41da5c5d Download complete 0B
+ de04653bc6d3 Download complete 0B
+ 857999023185 Downloading 1.049MB
+ b0726ede4e61 Download complete 0B
+ 857999023185 Downloading 1.049MB
+ 857999023185 Downloading 2.097MB
+ 857999023185 Downloading 2.097MB
+ 857999023185 Downloading 2.097MB
+ 857999023185 Downloading 3.146MB
+ 857999023185 Downloading 3.146MB
+ 857999023185 Downloading 4.194MB
+ 857999023185 Downloading 4.194MB
+ 857999023185 Downloading 4.194MB
+ d3531b7a4f21 Downloading 1.049MB
+ 857999023185 Downloading 4.194MB
+ d3531b7a4f21 Downloading 2.097MB
+ d3531b7a4f21 Downloading 2.097MB
+ 857999023185 Downloading 5.243MB
+ d3531b7a4f21 Downloading 2.097MB
+ 857999023185 Downloading 5.243MB
+ 857999023185 Downloading 5.243MB
+ d3531b7a4f21 Downloading 2.097MB
+ 857999023185 Downloading 5.243MB
+ d3531b7a4f21 Downloading 2.097MB
+ 857999023185 Downloading 7.34MB
+ d3531b7a4f21 Downloading 3.146MB
+ 857999023185 Downloading 7.34MB
+ d3531b7a4f21 Download complete 0B
+ d3531b7a4f21 Extracting 1B
+ 857999023185 Downloading 7.34MB
+ 87c7f3691cfd Pull complete 0B
+ d3531b7a4f21 Pull complete 0B
+ 857999023185 Downloading 8.389MB
+ 857999023185 Downloading 9.437MB
+ 857999023185 Downloading 9.437MB
+ abcdc69e2fc2 Download complete 0B
+ 857999023185 Downloading 10.49MB
+ 857999023185 Downloading 10.49MB
+ 857999023185 Downloading 11.53MB
+ 857999023185 Downloading 11.53MB
+ 857999023185 Downloading 12.58MB
+ c25a734515da Download complete 0B
+ 857999023185 Downloading 13.63MB
+ 857999023185 Downloading 13.63MB
+ 857999023185 Downloading 14.68MB
+ 857999023185 Downloading 14.68MB
+ 857999023185 Downloading 15.73MB
+ fdff7ba04ec2 Download complete 0B
+ b0726ede4e61 Pull complete 0B
+ fdff7ba04ec2 Pull complete 0B
+ 857999023185 Downloading 16.78MB
+ 857999023185 Downloading 16.78MB
+ 857999023185 Downloading 16.78MB
+ 857999023185 Downloading 17.83MB
+ 857999023185 Downloading 17.83MB
+ 857999023185 Downloading 19.92MB
+ 857999023185 Downloading 19.92MB
+ 857999023185 Downloading 19.92MB
+ 857999023185 Downloading 20.97MB
+ 857999023185 Downloading 20.97MB
+ 857999023185 Downloading 23.07MB
+ 857999023185 Downloading 24.12MB
+ 857999023185 Downloading 24.12MB
+ 857999023185 Downloading 25.17MB
+ 857999023185 Downloading 25.17MB
+ 857999023185 Downloading 26.21MB
+ 857999023185 Downloading 27.26MB
+ 857999023185 Downloading 28.31MB
+ 857999023185 Downloading 28.31MB
+ 857999023185 Downloading 28.31MB
+ 857999023185 Downloading 31.46MB
+ 857999023185 Downloading 31.46MB
+ 734c82f14444 Pulling fs layer 0B
+ 11c3fd17c9d0 Pulling fs layer 0B
+ 012120744492 Pulling fs layer 0B
+ 6aa2ad5c2509 Pulling fs layer 0B
+ 6f1217feaafa Pulling fs layer 0B
+ c6193bc97b03 Pulling fs layer 0B
+ 4a545a007254 Pulling fs layer 0B
+ ee7c6c4138ac Pulling fs layer 0B
+ b03faae2ed2a Pulling fs layer 0B
+ 2bafef137428 Pulling fs layer 0B
+ e44bd8ab44d9 Pulling fs layer 0B
+ 857999023185 Downloading 32.51MB
+ 857999023185 Downloading 33.55MB
+ 857999023185 Downloading 33.55MB
+ 857999023185 Downloading 33.55MB
+ 857999023185 Downloading 35.65MB
+ 857999023185 Downloading 36.7MB
+ 857999023185 Downloading 36.7MB
+ 857999023185 Downloading 37.75MB
+ 857999023185 Downloading 37.75MB
+ 857999023185 Downloading 39.85MB
+ 857999023185 Downloading 40.89MB
+ 857999023185 Downloading 40.89MB
+ 857999023185 Downloading 41.94MB
+ 857999023185 Downloading 41.94MB
+ e44bd8ab44d9 Download complete 0B
+ 857999023185 Downloading 45.09MB
+ 857999023185 Downloading 46.14MB
+ 857999023185 Downloading 46.14MB
+ 857999023185 Downloading 46.14MB
+ 857999023185 Downloading 46.14MB
+ 857999023185 Downloading 49.28MB
+ 11c3fd17c9d0 Download complete 0B
+ 857999023185 Downloading 50.33MB
+ 857999023185 Downloading 50.33MB
+ 857999023185 Downloading 51.38MB
+ 857999023185 Downloading 51.38MB
+ 857999023185 Downloading 52.43MB
+ 012120744492 Download complete 0B
+ 857999023185 Downloading 54.53MB
+ 857999023185 Downloading 55.57MB
+ 857999023185 Downloading 55.57MB
+ 857999023185 Downloading 55.57MB
+ 857999023185 Downloading 56.62MB
+ 6aa2ad5c2509 Download complete 0B
+ 857999023185 Downloading 57.67MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 59.77MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 59.77MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 60.82MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 60.82MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 62.91MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 63.96MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 63.96MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 65.01MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 65.01MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 65.01MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 65.01MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 68.16MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 1.049MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 69.21MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 70.25MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 72.35MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 74.45MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 74.45MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 74.45MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 75.5MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 75.5MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 78.64MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 78.64MB
+ 734c82f14444 Downloading 2.097MB
+ 857999023185 Downloading 79.69MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 79.69MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 81.79MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 82.84MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 82.84MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 83.89MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 83.89MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 84.93MB
+ 734c82f14444 Downloading 3.146MB
+ 857999023185 Downloading 87.03MB
+ 734c82f14444 Downloading 4.194MB
+ 857999023185 Downloading 88.08MB
+ 734c82f14444 Downloading 4.194MB
+ 857999023185 Downloading 88.08MB
+ 734c82f14444 Downloading 4.194MB
+ 857999023185 Downloading 88.08MB
+ 734c82f14444 Downloading 4.194MB
+ 857999023185 Downloading 89.13MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 91.23MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 92.27MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 92.27MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 93.32MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 93.32MB
+ 734c82f14444 Downloading 4.194MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 95.42MB
+ 6f1217feaafa Downloading 1.049MB
+ 734c82f14444 Downloading 5.243MB
+ 857999023185 Downloading 96.47MB
+ 734c82f14444 Downloading 5.243MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 96.47MB
+ 734c82f14444 Downloading 5.243MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 97.52MB
+ 734c82f14444 Downloading 5.243MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 97.52MB
+ 734c82f14444 Downloading 5.243MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 99.61MB
+ 734c82f14444 Downloading 6.291MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 100.7MB
+ 734c82f14444 Downloading 6.291MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 100.7MB
+ 734c82f14444 Downloading 6.291MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 101.7MB
+ 6f1217feaafa Downloading 1.049MB
+ 734c82f14444 Downloading 6.291MB
+ 857999023185 Downloading 101.7MB
+ 734c82f14444 Downloading 6.291MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 102.8MB
+ 734c82f14444 Downloading 7.34MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 103.8MB
+ 734c82f14444 Downloading 7.34MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 104.9MB
+ 734c82f14444 Downloading 7.34MB
+ 6f1217feaafa Downloading 1.049MB
+ 857999023185 Downloading 104.9MB
+ 734c82f14444 Downloading 7.34MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Downloading 104.9MB
+ 734c82f14444 Downloading 7.34MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Downloading 105.9MB
+ 734c82f14444 Downloading 8.389MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Downloading 108MB
+ 734c82f14444 Downloading 8.389MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Downloading 109.1MB
+ 734c82f14444 Downloading 8.389MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Downloading 109.1MB
+ 6f1217feaafa Downloading 2.097MB
+ 734c82f14444 Downloading 8.389MB
+ 734c82f14444 Downloading 8.389MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Download complete 0B
+ 857999023185 Extracting 1B
+ 6f1217feaafa Downloading 2.097MB
+ 734c82f14444 Downloading 9.437MB
+ 857999023185 Extracting 1B
+ 6f1217feaafa Downloading 2.097MB
+ 734c82f14444 Downloading 9.437MB
+ 857999023185 Extracting 1B
+ 734c82f14444 Downloading 9.437MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Extracting 1B
+ 734c82f14444 Downloading 9.437MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Extracting 1B
+ 734c82f14444 Downloading 10.49MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Extracting 1B
+ 734c82f14444 Downloading 10.49MB
+ 6f1217feaafa Downloading 2.097MB
+ 857999023185 Extracting 1B
+ 734c82f14444 Downloading 10.49MB
+ 6f1217feaafa Downloading 3.146MB
+ 857999023185 Pull complete 0B
+ 734c82f14444 Downloading 11.53MB
+ 6f1217feaafa Downloading 3.146MB
+ 2b0701f72a22 Pull complete 0B
+ bc8b41da5c5d Pull complete 0B
+ de04653bc6d3 Pull complete 0B
+ abcdc69e2fc2 Pull complete 0B
+ c25a734515da Pull complete 0B
+ Image postgres:17-alpine Pulled 
+ 734c82f14444 Downloading 11.53MB
+ 6f1217feaafa Downloading 3.146MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 11.53MB
+ 734c82f14444 Downloading 11.53MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 12.58MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 12.58MB
+ 6f1217feaafa Downloading 3.146MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 12.58MB
+ 734c82f14444 Downloading 13.63MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 13.63MB
+ 6f1217feaafa Downloading 3.146MB
+ 734c82f14444 Downloading 13.63MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 14.68MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 14.68MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 14.68MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 14.68MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 15.73MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 15.73MB
+ 6f1217feaafa Downloading 4.194MB
+ 734c82f14444 Downloading 16.78MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 16.78MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 16.78MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 16.78MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 17.83MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 17.83MB
+ 6f1217feaafa Downloading 5.243MB
+ c6193bc97b03 Download complete 0B
+ 734c82f14444 Downloading 17.83MB
+ 6f1217feaafa Downloading 5.243MB
+ 734c82f14444 Downloading 18.87MB
+ 6f1217feaafa Downloading 6.291MB
+ 734c82f14444 Downloading 18.87MB
+ 6f1217feaafa Downloading 6.291MB
+ 734c82f14444 Downloading 19.92MB
+ 6f1217feaafa Downloading 6.291MB
+ 734c82f14444 Downloading 19.92MB
+ 6f1217feaafa Downloading 6.291MB
+ 734c82f14444 Downloading 19.92MB
+ 6f1217feaafa Downloading 6.291MB
+ 734c82f14444 Downloading 20.97MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 20.97MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 22.02MB
+ 6f1217feaafa Downloading 7.34MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 22.02MB
+ 734c82f14444 Downloading 22.02MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 23.07MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 23.07MB
+ 6f1217feaafa Downloading 7.34MB
+ 734c82f14444 Downloading 23.07MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 24.12MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 25.17MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 25.17MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 25.17MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 25.17MB
+ 6f1217feaafa Downloading 8.389MB
+ 734c82f14444 Downloading 26.21MB
+ 6f1217feaafa Downloading 9.437MB
+ 6f1217feaafa Downloading 9.437MB
+ 734c82f14444 Downloading 27.26MB
+ 6f1217feaafa Downloading 9.437MB
+ 734c82f14444 Downloading 27.26MB
+ 734c82f14444 Downloading 27.26MB
+ 6f1217feaafa Downloading 9.437MB
+ 734c82f14444 Downloading 27.26MB
+ 6f1217feaafa Downloading 9.437MB
+ 734c82f14444 Downloading 29.36MB
+ 6f1217feaafa Downloading 10.49MB
+ 734c82f14444 Downloading 29.36MB
+ 6f1217feaafa Downloading 10.49MB
+ 734c82f14444 Downloading 29.36MB
+ 6f1217feaafa Downloading 10.49MB
+ 734c82f14444 Downloading 30.41MB
+ 6f1217feaafa Downloading 10.49MB
+ 734c82f14444 Downloading 30.41MB
+ 6f1217feaafa Downloading 10.49MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Downloading 31.46MB
+ 6f1217feaafa Downloading 11.53MB
+ 734c82f14444 Downloading 32.51MB
+ 6f1217feaafa Downloading 11.53MB
+ 4a545a007254 Downloading 1.049MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Downloading 32.51MB
+ 6f1217feaafa Downloading 11.53MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Downloading 32.51MB
+ 6f1217feaafa Downloading 12.58MB
+ 734c82f14444 Downloading 32.51MB
+ 6f1217feaafa Downloading 12.58MB
+ 4a545a007254 Downloading 1.049MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Downloading 33.55MB
+ 6f1217feaafa Downloading 12.58MB
+ 734c82f14444 Downloading 34.6MB
+ 6f1217feaafa Downloading 13.63MB
+ 4a545a007254 Downloading 1.049MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Download complete 0B
+ 6f1217feaafa Downloading 13.63MB
+ 734c82f14444 Extracting 1B
+ 6f1217feaafa Downloading 13.63MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Extracting 1B
+ 6f1217feaafa Downloading 13.63MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Extracting 1B
+ 6f1217feaafa Downloading 14.68MB
+ 4a545a007254 Downloading 1.049MB
+ 734c82f14444 Pull complete 0B
+ 6f1217feaafa Downloading 14.68MB
+ 4a545a007254 Downloading 1.049MB
+ 6f1217feaafa Downloading 14.68MB
+ 4a545a007254 Downloading 2.097MB
+ 4a545a007254 Downloading 2.097MB
+ 6f1217feaafa Downloading 14.68MB
+ 6f1217feaafa Downloading 15.73MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 1.049MB
+ 6f1217feaafa Downloading 15.73MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 1.049MB
+ 6f1217feaafa Downloading 15.73MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 3.146MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 3.146MB
+ 6f1217feaafa Downloading 16.78MB
+ ee7c6c4138ac Downloading 3.146MB
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 2.097MB
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 4.194MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 4.194MB
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 2.097MB
+ ee7c6c4138ac Downloading 6.291MB
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 3.146MB
+ ee7c6c4138ac Downloading 6.291MB
+ 6f1217feaafa Downloading 16.78MB
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 3.146MB
+ ee7c6c4138ac Download complete 0B
+ 6f1217feaafa Downloading 16.78MB
+ 4a545a007254 Downloading 3.146MB
+ 6f1217feaafa Downloading 17.83MB
+ 4a545a007254 Downloading 3.146MB
+ 4a545a007254 Downloading 3.146MB
+ 6f1217feaafa Downloading 17.83MB
+ 4a545a007254 Downloading 3.146MB
+ b03faae2ed2a Download complete 0B
+ 6f1217feaafa Downloading 17.83MB
+ 4a545a007254 Downloading 3.146MB
+ 6f1217feaafa Downloading 18.87MB
+ 6f1217feaafa Downloading 18.87MB
+ 4a545a007254 Downloading 3.146MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 18.87MB
+ 6f1217feaafa Downloading 19.92MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 19.92MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 19.92MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 19.92MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 20.97MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 20.97MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 4.194MB
+ 6f1217feaafa Downloading 20.97MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 5.243MB
+ 6f1217feaafa Downloading 22.02MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 5.243MB
+ 6f1217feaafa Downloading 22.02MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 5.243MB
+ 4a545a007254 Downloading 5.243MB
+ 6f1217feaafa Downloading 22.02MB
+ 2bafef137428 Downloading 1.049MB
+ 6f1217feaafa Downloading 22.02MB
+ 2bafef137428 Downloading 1.049MB
+ 4a545a007254 Downloading 5.243MB
+ 6f1217feaafa Downloading 23.07MB
+ 2bafef137428 Downloading 3.146MB
+ 4a545a007254 Downloading 6.291MB
+ 4a545a007254 Downloading 6.291MB
+ 6f1217feaafa Downloading 24.12MB
+ 2bafef137428 Downloading 3.146MB
+ 4a545a007254 Downloading 6.291MB
+ 6f1217feaafa Downloading 24.12MB
+ 2bafef137428 Downloading 4.194MB
+ 6f1217feaafa Downloading 24.12MB
+ 2bafef137428 Downloading 4.194MB
+ 4a545a007254 Downloading 6.291MB
+ 4a545a007254 Downloading 6.291MB
+ 6f1217feaafa Downloading 24.12MB
+ 2bafef137428 Downloading 4.194MB
+ 6f1217feaafa Downloading 25.17MB
+ 2bafef137428 Downloading 5.243MB
+ 4a545a007254 Downloading 6.291MB
+ 6f1217feaafa Downloading 26.21MB
+ 2bafef137428 Downloading 7.34MB
+ 4a545a007254 Downloading 7.34MB
+ 6f1217feaafa Downloading 26.21MB
+ 2bafef137428 Downloading 8.389MB
+ 4a545a007254 Downloading 7.34MB
+ 6f1217feaafa Downloading 26.21MB
+ 2bafef137428 Downloading 8.389MB
+ 4a545a007254 Downloading 7.34MB
+ 6f1217feaafa Downloading 26.21MB
+ 2bafef137428 Downloading 8.389MB
+ 4a545a007254 Downloading 7.34MB
+ 6f1217feaafa Downloading 26.21MB
+ 2bafef137428 Downloading 8.389MB
+ 4a545a007254 Downloading 7.34MB
+ 6f1217feaafa Downloading 27.26MB
+ 2bafef137428 Downloading 11.53MB
+ 4a545a007254 Downloading 8.389MB
+ 6f1217feaafa Downloading 28.31MB
+ 2bafef137428 Downloading 12.58MB
+ 4a545a007254 Downloading 8.389MB
+ 2bafef137428 Downloading 12.58MB
+ 4a545a007254 Downloading 8.389MB
+ 6f1217feaafa Downloading 28.31MB
+ 6f1217feaafa Downloading 28.31MB
+ 2bafef137428 Downloading 12.58MB
+ 4a545a007254 Downloading 8.389MB
+ 6f1217feaafa Downloading 28.31MB
+ 2bafef137428 Downloading 12.58MB
+ 4a545a007254 Downloading 8.389MB
+ 4a545a007254 Downloading 9.437MB
+ 6f1217feaafa Downloading 29.36MB
+ 2bafef137428 Downloading 13.63MB
+ 6f1217feaafa Downloading 30.41MB
+ 2bafef137428 Downloading 15.73MB
+ 4a545a007254 Downloading 9.437MB
+ 6f1217feaafa Downloading 30.41MB
+ 2bafef137428 Downloading 15.73MB
+ 4a545a007254 Downloading 9.437MB
+ 6f1217feaafa Downloading 30.41MB
+ 2bafef137428 Downloading 16.78MB
+ 4a545a007254 Downloading 9.437MB
+ 4a545a007254 Downloading 10.49MB
+ 6f1217feaafa Downloading 30.41MB
+ 2bafef137428 Downloading 16.78MB
+ 6f1217feaafa Downloading 31.46MB
+ 2bafef137428 Downloading 16.78MB
+ 4a545a007254 Downloading 10.49MB
+ 6f1217feaafa Downloading 32.51MB
+ 2bafef137428 Downloading 19.92MB
+ 4a545a007254 Downloading 11.53MB
+ 6f1217feaafa Downloading 32.51MB
+ 2bafef137428 Downloading 19.92MB
+ 4a545a007254 Downloading 11.53MB
+ 4a545a007254 Downloading 11.53MB
+ 6f1217feaafa Downloading 32.51MB
+ 2bafef137428 Downloading 20.97MB
+ 6f1217feaafa Downloading 32.51MB
+ 2bafef137428 Downloading 20.97MB
+ 4a545a007254 Downloading 11.53MB
+ 4a545a007254 Downloading 11.53MB
+ 6f1217feaafa Downloading 34.6MB
+ 2bafef137428 Downloading 20.97MB
+ 6f1217feaafa Downloading 34.6MB
+ 2bafef137428 Downloading 20.97MB
+ 4a545a007254 Downloading 12.58MB
+ 6f1217feaafa Downloading 35.65MB
+ 2bafef137428 Downloading 23.07MB
+ 4a545a007254 Downloading 12.58MB
+ 2bafef137428 Downloading 23.07MB
+ 4a545a007254 Downloading 12.58MB
+ 6f1217feaafa Downloading 35.65MB
+ 6f1217feaafa Downloading 35.65MB
+ 2bafef137428 Downloading 23.07MB
+ 4a545a007254 Downloading 12.58MB
+ 6f1217feaafa Downloading 35.65MB
+ 2bafef137428 Downloading 23.07MB
+ 4a545a007254 Downloading 12.58MB
+ 4a545a007254 Downloading 13.63MB
+ 6f1217feaafa Downloading 37.75MB
+ 2bafef137428 Downloading 24.12MB
+ 2bafef137428 Downloading 24.12MB
+ 4a545a007254 Downloading 14.68MB
+ 6f1217feaafa Downloading 37.75MB
+ 6f1217feaafa Downloading 37.75MB
+ 2bafef137428 Downloading 24.12MB
+ 4a545a007254 Downloading 14.68MB
+ 6f1217feaafa Downloading 38.8MB
+ 2bafef137428 Downloading 25.17MB
+ 4a545a007254 Downloading 14.68MB
+ 6f1217feaafa Downloading 38.8MB
+ 2bafef137428 Downloading 25.17MB
+ 4a545a007254 Downloading 14.68MB
+ 6f1217feaafa Downloading 39.85MB
+ 2bafef137428 Downloading 25.17MB
+ 4a545a007254 Downloading 15.73MB
+ 6f1217feaafa Downloading 40.89MB
+ 2bafef137428 Downloading 28.31MB
+ 4a545a007254 Downloading 15.73MB
+ 2bafef137428 Downloading 28.31MB
+ 4a545a007254 Downloading 15.73MB
+ 6f1217feaafa Downloading 40.89MB
+ 6f1217feaafa Downloading 40.89MB
+ 2bafef137428 Downloading 28.31MB
+ 4a545a007254 Downloading 15.73MB
+ 6f1217feaafa Downloading 40.89MB
+ 2bafef137428 Downloading 28.31MB
+ 4a545a007254 Downloading 15.73MB
+ 6f1217feaafa Downloading 41.94MB
+ 2bafef137428 Downloading 28.31MB
+ 4a545a007254 Downloading 16.78MB
+ 4a545a007254 Downloading 17.83MB
+ 6f1217feaafa Downloading 42.99MB
+ 2bafef137428 Downloading 31.46MB
+ 6f1217feaafa Downloading 42.99MB
+ 2bafef137428 Downloading 31.46MB
+ 4a545a007254 Downloading 17.83MB
+ 4a545a007254 Downloading 17.83MB
+ 6f1217feaafa Downloading 42.99MB
+ 2bafef137428 Downloading 31.46MB
+ 6f1217feaafa Downloading 42.99MB
+ 2bafef137428 Downloading 31.46MB
+ 4a545a007254 Downloading 17.83MB
+ 6f1217feaafa Downloading 44.04MB
+ 2bafef137428 Downloading 32.51MB
+ 4a545a007254 Downloading 18.87MB
+ 4a545a007254 Downloading 19.92MB
+ 6f1217feaafa Downloading 45.09MB
+ 2bafef137428 Downloading 32.51MB
+ 6f1217feaafa Downloading 45.09MB
+ 2bafef137428 Downloading 34.6MB
+ 4a545a007254 Downloading 19.92MB
+ 6f1217feaafa Downloading 45.09MB
+ 2bafef137428 Downloading 34.6MB
+ 4a545a007254 Downloading 19.92MB
+ 6f1217feaafa Downloading 45.09MB
+ 2bafef137428 Downloading 34.6MB
+ 4a545a007254 Downloading 19.92MB
+ 6f1217feaafa Downloading 46.14MB
+ 2bafef137428 Downloading 34.6MB
+ 4a545a007254 Downloading 20.97MB
+ 6f1217feaafa Downloading 47.19MB
+ 2bafef137428 Downloading 34.6MB
+ 4a545a007254 Downloading 22.02MB
+ 6f1217feaafa Downloading 47.19MB
+ 2bafef137428 Download complete 0B
+ 4a545a007254 Downloading 22.02MB
+ 6f1217feaafa Downloading 47.19MB
+ 4a545a007254 Downloading 22.02MB
+ 6f1217feaafa Downloading 47.19MB
+ 4a545a007254 Downloading 23.07MB
+ 6f1217feaafa Downloading 48.23MB
+ 4a545a007254 Downloading 23.07MB
+ 6f1217feaafa Downloading 49.28MB
+ 4a545a007254 Downloading 24.12MB
+ 4a545a007254 Downloading 25.17MB
+ 6f1217feaafa Downloading 49.28MB
+ 4a545a007254 Downloading 25.17MB
+ 6f1217feaafa Downloading 49.28MB
+ 4a545a007254 Downloading 25.17MB
+ 6f1217feaafa Downloading 50.33MB
+ 4a545a007254 Downloading 25.17MB
+ 6f1217feaafa Downloading 50.33MB
+ 4a545a007254 Downloading 27.26MB
+ 6f1217feaafa Downloading 51.38MB
+ 4a545a007254 Downloading 27.26MB
+ 6f1217feaafa Downloading 51.38MB
+ 4a545a007254 Downloading 28.31MB
+ 6f1217feaafa Downloading 51.38MB
+ 6f1217feaafa Downloading 52.43MB
+ 4a545a007254 Downloading 28.31MB
+ 4a545a007254 Downloading 28.31MB
+ 6f1217feaafa Downloading 52.43MB
+ 6f1217feaafa Downloading 53.48MB
+ 4a545a007254 Downloading 30.41MB
+ 6f1217feaafa Downloading 53.48MB
+ 4a545a007254 Downloading 30.41MB
+ 4a545a007254 Downloading 31.46MB
+ 6f1217feaafa Downloading 54.53MB
+ 4a545a007254 Downloading 31.46MB
+ 6f1217feaafa Downloading 54.53MB
+ 6f1217feaafa Downloading 54.53MB
+ 4a545a007254 Downloading 31.46MB
+ 6f1217feaafa Downloading 54.53MB
+ 4a545a007254 Downloading 32.51MB
+ 6f1217feaafa Downloading 55.57MB
+ 4a545a007254 Downloading 34.6MB
+ 4a545a007254 Downloading 34.6MB
+ 6f1217feaafa Downloading 56.62MB
+ 6f1217feaafa Downloading 56.62MB
+ 4a545a007254 Downloading 34.6MB
+ 6f1217feaafa Downloading 56.62MB
+ 4a545a007254 Downloading 35.65MB
+ 6f1217feaafa Downloading 56.62MB
+ 4a545a007254 Downloading 35.65MB
+ 6f1217feaafa Downloading 57.67MB
+ 4a545a007254 Downloading 37.75MB
+ 4a545a007254 Downloading 38.8MB
+ 6f1217feaafa Downloading 58.72MB
+ 4a545a007254 Downloading 38.8MB
+ 6f1217feaafa Downloading 58.72MB
+ 6f1217feaafa Downloading 58.72MB
+ 4a545a007254 Downloading 38.8MB
+ 6f1217feaafa Downloading 58.72MB
+ 4a545a007254 Downloading 39.85MB
+ 6f1217feaafa Downloading 59.77MB
+ 4a545a007254 Downloading 41.94MB
+ 6f1217feaafa Downloading 60.82MB
+ 4a545a007254 Downloading 41.94MB
+ 4a545a007254 Downloading 42.99MB
+ 6f1217feaafa Downloading 60.82MB
+ 6f1217feaafa Downloading 60.82MB
+ 4a545a007254 Downloading 42.99MB
+ 4a545a007254 Downloading 42.99MB
+ 6f1217feaafa Downloading 60.82MB
+ 6f1217feaafa Downloading 61.87MB
+ 4a545a007254 Downloading 44.04MB
+ 4a545a007254 Downloading 46.14MB
+ 6f1217feaafa Downloading 62.91MB
+ 4a545a007254 Downloading 46.14MB
+ 6f1217feaafa Downloading 62.91MB
+ 6f1217feaafa Downloading 62.91MB
+ 4a545a007254 Downloading 47.19MB
+ 6f1217feaafa Downloading 62.91MB
+ 4a545a007254 Downloading 47.19MB
+ 6f1217feaafa Downloading 62.91MB
+ 4a545a007254 Downloading 49.28MB
+ 4a545a007254 Downloading 49.28MB
+ 6f1217feaafa Downloading 62.91MB
+ 6f1217feaafa Downloading 63.96MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 63.96MB
+ 4a545a007254 Downloading 50.33MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 65.01MB
+ 6f1217feaafa Downloading 65.01MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 66.06MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 66.06MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 66.06MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 67.11MB
+ 4a545a007254 Downloading 50.33MB
+ 6f1217feaafa Downloading 67.11MB
+ 4a545a007254 Downloading 51.38MB
+ 4a545a007254 Downloading 53.48MB
+ 6f1217feaafa Downloading 68.16MB
+ 4a545a007254 Downloading 54.53MB
+ 6f1217feaafa Downloading 68.16MB
+ 4a545a007254 Downloading 54.53MB
+ 6f1217feaafa Downloading 68.16MB
+ 6f1217feaafa Downloading 69.21MB
+ 4a545a007254 Downloading 54.53MB
+ 6f1217feaafa Downloading 69.21MB
+ 4a545a007254 Downloading 54.53MB
+ 6f1217feaafa Downloading 70.25MB
+ 4a545a007254 Downloading 56.62MB
+ 6f1217feaafa Downloading 70.25MB
+ 4a545a007254 Downloading 57.67MB
+ 6f1217feaafa Downloading 70.25MB
+ 4a545a007254 Downloading 58.72MB
+ 4a545a007254 Downloading 58.72MB
+ 6f1217feaafa Downloading 71.3MB
+ 4a545a007254 Downloading 58.72MB
+ 6f1217feaafa Downloading 71.3MB
+ 4a545a007254 Downloading 59.77MB
+ 6f1217feaafa Downloading 71.3MB
+ 6f1217feaafa Downloading 72.35MB
+ 4a545a007254 Downloading 61.87MB
+ 6f1217feaafa Downloading 73.4MB
+ 4a545a007254 Downloading 62.91MB
+ 6f1217feaafa Downloading 73.4MB
+ 4a545a007254 Downloading 62.91MB
+ 6f1217feaafa Downloading 73.4MB
+ 4a545a007254 Downloading 62.91MB
+ 6f1217feaafa Downloading 73.4MB
+ 4a545a007254 Downloading 63.96MB
+ 4a545a007254 Downloading 66.06MB
+ 6f1217feaafa Downloading 74.45MB
+ 4a545a007254 Downloading 67.11MB
+ 6f1217feaafa Downloading 75.5MB
+ 6f1217feaafa Downloading 75.5MB
+ 4a545a007254 Downloading 67.11MB
+ 6f1217feaafa Downloading 75.5MB
+ 4a545a007254 Downloading 68.16MB
+ 6f1217feaafa Downloading 75.5MB
+ 4a545a007254 Downloading 68.16MB
+ 4a545a007254 Downloading 69.21MB
+ 6f1217feaafa Downloading 76.55MB
+ 6f1217feaafa Downloading 76.55MB
+ 4a545a007254 Downloading 71.3MB
+ 4a545a007254 Downloading 72.35MB
+ 6f1217feaafa Downloading 77.59MB
+ 4a545a007254 Downloading 72.35MB
+ 6f1217feaafa Downloading 77.59MB
+ 6f1217feaafa Downloading 77.59MB
+ 4a545a007254 Downloading 72.35MB
+ 4a545a007254 Downloading 75.5MB
+ 6f1217feaafa Downloading 77.59MB
+ 4a545a007254 Downloading 75.5MB
+ 6f1217feaafa Downloading 79.69MB
+ 6f1217feaafa Downloading 79.69MB
+ 4a545a007254 Downloading 76.55MB
+ 4a545a007254 Downloading 76.55MB
+ 6f1217feaafa Downloading 79.69MB
+ 6f1217feaafa Downloading 79.69MB
+ 4a545a007254 Downloading 76.55MB
+ 4a545a007254 Downloading 77.59MB
+ 6f1217feaafa Downloading 79.69MB
+ 6f1217feaafa Downloading 81.79MB
+ 4a545a007254 Downloading 79.69MB
+ 4a545a007254 Downloading 80.74MB
+ 6f1217feaafa Downloading 81.79MB
+ 6f1217feaafa Downloading 81.79MB
+ 4a545a007254 Downloading 80.74MB
+ 6f1217feaafa Downloading 81.79MB
+ 4a545a007254 Downloading 81.79MB
+ 6f1217feaafa Downloading 82.84MB
+ 4a545a007254 Downloading 81.79MB
+ 4a545a007254 Downloading 84.93MB
+ 6f1217feaafa Downloading 83.89MB
+ 6f1217feaafa Downloading 84.93MB
+ 4a545a007254 Downloading 85.98MB
+ 4a545a007254 Downloading 85.98MB
+ 6f1217feaafa Downloading 84.93MB
+ 6f1217feaafa Downloading 84.93MB
+ 4a545a007254 Downloading 85.98MB
+ 6f1217feaafa Downloading 84.93MB
+ 4a545a007254 Downloading 87.03MB
+ 6f1217feaafa Downloading 87.03MB
+ 4a545a007254 Downloading 87.03MB
+ 4a545a007254 Downloading 89.13MB
+ 6f1217feaafa Downloading 88.08MB
+ 6f1217feaafa Downloading 88.08MB
+ 4a545a007254 Downloading 90.18MB
+ 4a545a007254 Downloading 90.18MB
+ 6f1217feaafa Downloading 88.08MB
+ 6f1217feaafa Downloading 88.08MB
+ 4a545a007254 Downloading 90.18MB
+ 6f1217feaafa Downloading 90.18MB
+ 4a545a007254 Downloading 91.23MB
+ 6f1217feaafa Downloading 90.18MB
+ 4a545a007254 Downloading 93.32MB
+ 6f1217feaafa Downloading 91.23MB
+ 4a545a007254 Downloading 93.32MB
+ 4a545a007254 Downloading 94.37MB
+ 6f1217feaafa Downloading 91.23MB
+ 6f1217feaafa Downloading 91.23MB
+ 4a545a007254 Downloading 94.37MB
+ 4a545a007254 Downloading 95.42MB
+ 6f1217feaafa Downloading 91.23MB
+ 6f1217feaafa Downloading 93.32MB
+ 4a545a007254 Downloading 97.52MB
+ 6f1217feaafa Downloading 94.37MB
+ 4a545a007254 Downloading 98.57MB
+ 6f1217feaafa Downloading 94.37MB
+ 4a545a007254 Downloading 98.57MB
+ 6f1217feaafa Downloading 94.37MB
+ 4a545a007254 Downloading 98.57MB
+ 6f1217feaafa Downloading 94.37MB
+ 4a545a007254 Downloading 99.61MB
+ 4a545a007254 Downloading 101.7MB
+ 6f1217feaafa Downloading 96.47MB
+ 6f1217feaafa Downloading 96.47MB
+ 4a545a007254 Downloading 102.8MB
+ 6f1217feaafa Downloading 96.47MB
+ 4a545a007254 Downloading 102.8MB
+ 6f1217feaafa Downloading 97.52MB
+ 4a545a007254 Downloading 102.8MB
+ 6f1217feaafa Downloading 97.52MB
+ 4a545a007254 Downloading 103.8MB
+ 4a545a007254 Downloading 103.8MB
+ 6f1217feaafa Downloading 97.52MB
+ 6f1217feaafa Downloading 98.57MB
+ 4a545a007254 Downloading 107MB
+ 4a545a007254 Downloading 107MB
+ 6f1217feaafa Downloading 98.57MB
+ 4a545a007254 Downloading 107MB
+ 6f1217feaafa Downloading 99.61MB
+ 4a545a007254 Downloading 107MB
+ 6f1217feaafa Downloading 99.61MB
+ 6f1217feaafa Downloading 100.7MB
+ 4a545a007254 Downloading 109.1MB
+ 6f1217feaafa Downloading 101.7MB
+ 4a545a007254 Downloading 110.1MB
+ 4a545a007254 Downloading 111.1MB
+ 6f1217feaafa Downloading 101.7MB
+ 6f1217feaafa Downloading 101.7MB
+ 4a545a007254 Downloading 111.1MB
+ 4a545a007254 Downloading 111.1MB
+ 6f1217feaafa Downloading 101.7MB
+ 4a545a007254 Downloading 112.2MB
+ 6f1217feaafa Downloading 101.7MB
+ 6f1217feaafa Downloading 103.8MB
+ 4a545a007254 Downloading 114.3MB
+ 4a545a007254 Downloading 115.3MB
+ 6f1217feaafa Downloading 103.8MB
+ 6f1217feaafa Downloading 103.8MB
+ 4a545a007254 Downloading 115.3MB
+ 6f1217feaafa Downloading 103.8MB
+ 4a545a007254 Downloading 115.3MB
+ 6f1217feaafa Downloading 104.9MB
+ 4a545a007254 Downloading 116.4MB
+ 6f1217feaafa Downloading 105.9MB
+ 4a545a007254 Downloading 118.5MB
+ 6f1217feaafa Downloading 105.9MB
+ 4a545a007254 Downloading 119.5MB
+ 6f1217feaafa Downloading 105.9MB
+ 4a545a007254 Downloading 119.5MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 119.5MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 120.6MB
+ 4a545a007254 Downloading 122.7MB
+ 6f1217feaafa Downloading 107MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 123.7MB
+ 4a545a007254 Downloading 123.7MB
+ 6f1217feaafa Downloading 107MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 124.8MB
+ 4a545a007254 Downloading 124.8MB
+ 6f1217feaafa Downloading 107MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 127.9MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 127.9MB
+ 4a545a007254 Downloading 129MB
+ 6f1217feaafa Downloading 107MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 130MB
+ 4a545a007254 Downloading 130MB
+ 6f1217feaafa Downloading 107MB
+ 4a545a007254 Downloading 132.1MB
+ 6f1217feaafa Downloading 107.6MB
+ 4a545a007254 Downloading 133.2MB
+ 6f1217feaafa Download complete 0B
+ 4a545a007254 Downloading 134.2MB
+ 4a545a007254 Downloading 134.2MB
+ 4a545a007254 Downloading 134.2MB
+ 4a545a007254 Downloading 135.3MB
+ 4a545a007254 Downloading 137.4MB
+ 4a545a007254 Downloading 138.4MB
+ 4a545a007254 Downloading 138.4MB
+ 4a545a007254 Downloading 139.5MB
+ 4a545a007254 Downloading 139.5MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 142.6MB
+ 4a545a007254 Downloading 144.7MB
+ 4a545a007254 Downloading 144.7MB
+ 4a545a007254 Downloading 145.8MB
+ 4a545a007254 Downloading 145.8MB
+ 4a545a007254 Downloading 147.8MB
+ 4a545a007254 Downloading 148.9MB
+ 4a545a007254 Downloading 149.9MB
+ 4a545a007254 Downloading 149.9MB
+ 4a545a007254 Downloading 149.9MB
+ 4a545a007254 Downloading 152MB
+ 4a545a007254 Downloading 154.1MB
+ 4a545a007254 Downloading 155.2MB
+ 4a545a007254 Downloading 155.2MB
+ 4a545a007254 Downloading 156.2MB
+ 4a545a007254 Downloading 156.2MB
+ 4a545a007254 Downloading 159.4MB
+ 4a545a007254 Downloading 160.4MB
+ 4a545a007254 Downloading 160.4MB
+ 4a545a007254 Downloading 161.5MB
+ 4a545a007254 Downloading 161.5MB
+ 4a545a007254 Downloading 162.5MB
+ 4a545a007254 Downloading 164.6MB
+ 4a545a007254 Downloading 165.7MB
+ 4a545a007254 Downloading 165.7MB
+ 4a545a007254 Downloading 165.7MB
+ 4a545a007254 Downloading 168.8MB
+ 4a545a007254 Downloading 169.9MB
+ 4a545a007254 Downloading 170.9MB
+ 4a545a007254 Downloading 170.9MB
+ 4a545a007254 Downloading 170.9MB
+ 4a545a007254 Downloading 172MB
+ 4a545a007254 Downloading 174.1MB
+ 4a545a007254 Downloading 176.2MB
+ 4a545a007254 Downloading 176.2MB
+ 4a545a007254 Downloading 176.2MB
+ 4a545a007254 Downloading 177.2MB
+ 4a545a007254 Downloading 179.3MB
+ 4a545a007254 Downloading 180.4MB
+ 4a545a007254 Downloading 181.4MB
+ 4a545a007254 Downloading 181.4MB
+ 4a545a007254 Downloading 181.4MB
+ 4a545a007254 Downloading 184.5MB
+ 4a545a007254 Downloading 185.6MB
+ 4a545a007254 Downloading 185.6MB
+ 4a545a007254 Downloading 186.6MB
+ 4a545a007254 Downloading 186.6MB
+ 4a545a007254 Downloading 186.6MB
+ 4a545a007254 Downloading 188.7MB
+ 4a545a007254 Downloading 188.7MB
+ 4a545a007254 Downloading 189.8MB
+ 4a545a007254 Downloading 189.8MB
+ 4a545a007254 Downloading 189.8MB
+ 4a545a007254 Downloading 192.9MB
+ 4a545a007254 Downloading 192.9MB
+ 4a545a007254 Downloading 192.9MB
+ 4a545a007254 Downloading 194MB
+ 4a545a007254 Downloading 195MB
+ 4a545a007254 Downloading 197.1MB
+ 4a545a007254 Downloading 198.2MB
+ 4a545a007254 Downloading 198.2MB
+ 4a545a007254 Downloading 199.2MB
+ 4a545a007254 Downloading 199.2MB
+ 4a545a007254 Downloading 202.4MB
+ 4a545a007254 Downloading 203.4MB
+ 4a545a007254 Downloading 203.4MB
+ 4a545a007254 Downloading 204.5MB
+ 4a545a007254 Downloading 204.5MB
+ 4a545a007254 Downloading 205.5MB
+ 4a545a007254 Downloading 207.6MB
+ 4a545a007254 Downloading 207.6MB
+ 4a545a007254 Downloading 208.7MB
+ 4a545a007254 Downloading 208.7MB
+ 4a545a007254 Downloading 209.7MB
+ 4a545a007254 Downloading 211.8MB
+ 4a545a007254 Downloading 212.9MB
+ 4a545a007254 Downloading 212.9MB
+ 4a545a007254 Downloading 213.9MB
+ 4a545a007254 Downloading 213.9MB
+ 4a545a007254 Downloading 216MB
+ 4a545a007254 Downloading 217.1MB
+ 4a545a007254 Downloading 217.1MB
+ 4a545a007254 Downloading 218.1MB
+ 4a545a007254 Downloading 218.1MB
+ 4a545a007254 Downloading 221.2MB
+ 4a545a007254 Downloading 222.3MB
+ 4a545a007254 Downloading 223.3MB
+ 4a545a007254 Downloading 223.3MB
+ 4a545a007254 Downloading 223.3MB
+ 4a545a007254 Downloading 226.5MB
+ 4a545a007254 Downloading 227.5MB
+ 4a545a007254 Downloading 227.5MB
+ 4a545a007254 Downloading 228.6MB
+ 4a545a007254 Downloading 228.6MB
+ 4a545a007254 Downloading 229.6MB
+ 4a545a007254 Downloading 230.7MB
+ 4a545a007254 Downloading 231.7MB
+ 4a545a007254 Downloading 231.7MB
+ 4a545a007254 Downloading 232.8MB
+ 4a545a007254 Downloading 233.8MB
+ 4a545a007254 Downloading 233.8MB
+ 4a545a007254 Downloading 233.8MB
+ 4a545a007254 Downloading 233.8MB
+ 4a545a007254 Downloading 233.8MB
+ 4a545a007254 Downloading 234.9MB
+ 4a545a007254 Downloading 237MB
+ 4a545a007254 Downloading 238MB
+ 4a545a007254 Downloading 238MB
+ 4a545a007254 Downloading 239.1MB
+ 4a545a007254 Downloading 239.1MB
+ 4a545a007254 Downloading 239.1MB
+ 4a545a007254 Downloading 241.2MB
+ 4a545a007254 Downloading 241.2MB
+ 4a545a007254 Downloading 242.2MB
+ 4a545a007254 Downloading 242.2MB
+ 4a545a007254 Downloading 242.2MB
+ 4a545a007254 Downloading 243.3MB
+ 4a545a007254 Download complete 0B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 1B
+ 4a545a007254 Extracting 2B
+ 4a545a007254 Extracting 2B
+ 4a545a007254 Extracting 2B
+ 4a545a007254 Extracting 2B
+ 4a545a007254 Extracting 2B
+ 4a545a007254 Extracting 2B
+ ee7c6c4138ac Pull complete 0B
+ b03faae2ed2a Pull complete 0B
+ 2bafef137428 Extracting 1B
+ 4a545a007254 Pull complete 0B
+ e44bd8ab44d9 Extracting 1B
+ 2bafef137428 Pull complete 0B
+ e44bd8ab44d9 Pull complete 0B
+ 11c3fd17c9d0 Pull complete 0B
+ 012120744492 Pull complete 0B
+ 6aa2ad5c2509 Pull complete 0B
+ 6f1217feaafa Extracting 1B
+ 6f1217feaafa Extracting 1B
+ 6f1217feaafa Extracting 1B
+ c6193bc97b03 Pull complete 0B
+ 6f1217feaafa Pull complete 0B
+ Image confluentinc/cp-kafka:7.4.0 Pulled 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 25.8s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (38.2 ms)
+[check] E2: ok (19.7 ms)
+[check] E3: ok (14.4 ms)
+[check] E1-large: ok (5.5 ms)
+[check] E4-state: ok (1.9 ms)
+[check] E4-list: ok (52.5 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 7.3s, 0 failed
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.04
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 05:01:43] Session successfully started: backend=postgres heap=1g 
+[2026-10-30 05:01:43] [postgres] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=1063.3/s p50=0ms errors={}
+[saturate] E1: concurrency=4 throughput=2404.7/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=5787.4/s p50=2ms errors={}
+[saturate] E1: concurrency=64 throughput=11756.3/s p50=4ms errors={}
+[saturate] E1: concurrency=256 throughput=16348.4/s p50=15ms errors={}
+[saturate] E1: concurrency=1024 throughput=25688.0/s p50=39ms errors={}
+[saturate] E1: concurrency=4096 throughput=33179.8/s p50=120ms errors={}
+[saturate] saturation: 33179.8/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-sweep
+[2026-10-30 05:06:27] [postgres] Running E1 zipf sweep (to 4096)...
+[settle] 1s: node-1 0.04
+[settle] 2s: node-1 0.03
+[settle] 3s: node-1 0.01
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=935.8/s p50=0ms errors={}
+[saturate] E1: concurrency=4 throughput=2330.5/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=5186.8/s p50=2ms errors={}
+[saturate] E1: concurrency=64 throughput=10788.8/s p50=5ms errors={}
+[saturate] E1: concurrency=256 throughput=15338.7/s p50=15ms errors={}
+[saturate] E1: concurrency=1024 throughput=15863.1/s p50=18ms errors={}
+[saturate] E1: concurrency=4096 throughput=19598.9/s p50=59ms errors={http-429-wow.command.busy=82807}
+[saturate] saturation: 19598.9/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-zipf-sweep
+[2026-10-30 05:11:26] [postgres] Running E1 hot sweep (to 4096)...
+[settle] 1s: node-1 0.62
+[settle] 2s: node-1 0.54
+[settle] 3s: node-1 0.65
+[settle] 4s: node-1 0.48
+[settle] 5s: node-1 0.57
+[settle] 6s: node-1 0.57
+[settle] 7s: node-1 0.51
+[settle] 8s: node-1 0.45
+[settle] 9s: node-1 0.56
+[settle] 10s: node-1 0.71
+[settle] 11s: node-1 0.46
+[settle] 12s: node-1 0.48
+[settle] 13s: node-1 0.53
+[settle] 14s: node-1 0.47
+[settle] 15s: node-1 0.52
+[settle] 16s: node-1 0.40
+[settle] 17s: node-1 0.40
+[settle] 18s: node-1 0.53
+[settle] 19s: node-1 0.44
+[settle] 20s: node-1 0.47
+[settle] 21s: node-1 0.58
+[settle] 22s: node-1 0.59
+[settle] 23s: node-1 0.38
+[settle] 24s: node-1 0.57
+[settle] 25s: node-1 0.49
+[settle] 26s: node-1 0.39
+[settle] 27s: node-1 0.61
+[settle] 28s: node-1 0.46
+[settle] 29s: node-1 0.44
+[settle] 30s: node-1 0.33
+[settle] 31s: node-1 0.34
+[settle] 32s: node-1 0.43
+[settle] 33s: node-1 0.52
+[settle] 34s: node-1 0.47
+[settle] 35s: node-1 0.36
+[settle] 36s: node-1 0.46
+[settle] 37s: node-1 0.49
+[settle] 38s: node-1 0.34
+[settle] 39s: node-1 0.46
+[settle] 40s: node-1 0.45
+[settle] 41s: node-1 0.39
+[settle] 42s: node-1 0.33
+[settle] 43s: node-1 0.48
+[settle] 44s: node-1 0.37
+[settle] 45s: node-1 0.44
+[settle] 46s: node-1 0.37
+[settle] 47s: node-1 0.48
+[settle] 48s: node-1 0.38
+[settle] 49s: node-1 0.71
+[settle] 50s: node-1 0.37
+[settle] 51s: node-1 0.41
+[settle] 52s: node-1 0.39
+[settle] 53s: node-1 0.45
+[settle] 54s: node-1 0.43
+[settle] 55s: node-1 0.45
+[settle] 56s: node-1 0.45
+[settle] 57s: node-1 0.38
+[settle] 58s: node-1 0.33
+[settle] 59s: node-1 0.50
+[settle] 60s: node-1 0.38
+[settle] 61s: node-1 0.35
+[settle] 62s: node-1 0.45
+[settle] 63s: node-1 0.39
+[settle] 64s: node-1 0.46
+[settle] 65s: node-1 0.37
+[settle] 66s: node-1 0.41
+[settle] 67s: node-1 0.41
+[settle] 68s: node-1 0.43
+[settle] 69s: node-1 0.30
+[settle] 70s: node-1 0.44
+[settle] 71s: node-1 0.40
+[settle] 72s: node-1 0.32
+[settle] 73s: node-1 0.36
+[settle] 74s: node-1 0.43
+[settle] 75s: node-1 0.33
+[settle] 76s: node-1 0.53
+[settle] 77s: node-1 0.38
+[settle] 78s: node-1 0.36
+[settle] 79s: node-1 0.38
+[settle] 80s: node-1 0.32
+[settle] 81s: node-1 0.38
+[settle] 82s: node-1 0.36
+[settle] 83s: node-1 0.47
+[settle] 84s: node-1 0.28
+[settle] 85s: node-1 0.44
+[settle] 86s: node-1 0.40
+[settle] 87s: node-1 0.38
+[settle] 88s: node-1 0.31
+[settle] 89s: node-1 0.44
+[settle] 90s: node-1 0.39
+[settle] 91s: node-1 0.36
+[settle] 92s: node-1 0.35
+[settle] 93s: node-1 0.39
+[settle] 94s: node-1 0.39
+[settle] 95s: node-1 0.33
+[settle] 96s: node-1 0.40
+[settle] 97s: node-1 0.36
+[settle] 98s: node-1 0.40
+[settle] 99s: node-1 0.28
+[settle] 100s: node-1 0.34
+[settle] 101s: node-1 0.28
+[settle] 102s: node-1 0.37
+[settle] 103s: node-1 0.27
+[settle] 104s: node-1 0.37
+[settle] 105s: node-1 0.34
+[settle] 106s: node-1 0.31
+[settle] 107s: node-1 0.30
+[settle] 108s: node-1 0.36
+[settle] 109s: node-1 0.55
+[settle] 110s: node-1 0.31
+[settle] 111s: node-1 0.32
+[settle] 112s: node-1 0.27
+[settle] 113s: node-1 0.41
+[settle] 114s: node-1 0.30
+[settle] 115s: node-1 0.30
+[settle] 116s: node-1 0.33
+[settle] 117s: node-1 0.34
+[settle] 118s: node-1 0.29
+[settle] 119s: node-1 0.30
+[settle] 120s: node-1 0.35
+[settle] 121s: node-1 0.28
+[settle] 122s: node-1 0.31
+[settle] 123s: node-1 0.36
+[settle] 124s: node-1 0.26
+[settle] 125s: node-1 0.36
+[settle] 126s: node-1 0.31
+[settle] 127s: node-1 0.33
+[settle] 128s: node-1 0.39
+[settle] 129s: node-1 0.34
+[settle] 130s: node-1 0.30
+[settle] 131s: node-1 0.30
+[settle] 132s: node-1 0.35
+[settle] 133s: node-1 0.27
+[settle] 134s: node-1 0.30
+[settle] 135s: node-1 0.29
+[settle] 136s: node-1 0.34
+[settle] 137s: node-1 0.25
+[settle] 138s: node-1 0.31
+[settle] 139s: node-1 0.27
+[settle] 140s: node-1 0.28
+[settle] 141s: node-1 0.27
+[settle] 142s: node-1 0.35
+[settle] 143s: node-1 0.31
+[settle] 144s: node-1 0.28
+[settle] 145s: node-1 0.26
+[settle] 146s: node-1 0.24
+[settle] 147s: node-1 0.31
+[settle] 148s: node-1 0.25
+[settle] 149s: node-1 0.21
+[settle] 150s: node-1 0.31
+[settle] 151s: node-1 0.47
+[settle] 152s: node-1 0.23
+[settle] 153s: node-1 0.26
+[settle] 154s: node-1 0.27
+[settle] 155s: node-1 0.27
+[settle] 156s: node-1 0.21
+[settle] 157s: node-1 0.29
+[settle] 158s: node-1 0.22
+[settle] 159s: node-1 0.32
+[settle] 160s: node-1 0.22
+[settle] 161s: node-1 0.28
+[settle] 162s: node-1 0.31
+[settle] 163s: node-1 0.24
+[settle] 164s: node-1 0.20
+[settle] 165s: node-1 0.22
+[settle] quiet after 167s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=1050.5/s p50=0ms errors={}
+[saturate] E1: concurrency=4 throughput=2272.1/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=5137.9/s p50=2ms errors={}
+[saturate] E1: concurrency=64 throughput=10280.4/s p50=5ms errors={}
+[saturate] E1: concurrency=256 throughput=10983.9/s p50=28ms errors={}
+[saturate] E1: concurrency=1024 throughput=11970.1/s p50=142ms errors={}
+[saturate] E1: concurrency=4096 throughput=21190.7/s p50=91ms errors={http-429-wow.command.busy=590131}
+[saturate] saturation: 21190.7/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-hot-sweep
+[2026-10-30 05:18:55] [postgres] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.12
+[settle] 2s: node-1 0.14
+[settle] 3s: node-1 0.15
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=494.9/s p50=1ms errors={}
+[saturate] E3: concurrency=4 throughput=1000.9/s p50=3ms errors={}
+[saturate] E3: concurrency=16 throughput=2069.0/s p50=7ms errors={}
+[saturate] E3: concurrency=64 throughput=4227.2/s p50=15ms errors={}
+[saturate] E3: concurrency=256 throughput=5123.9/s p50=49ms errors={}
+[saturate] E3: concurrency=1024 throughput=9100.6/s p50=109ms errors={}
+[saturate] E3: concurrency=4096 throughput=5818.5/s p50=309ms errors={http-429-wow.command.busy=301588, http-504-wow.wait.timeout=791}
+[saturate] saturation: 9100.6/s at concurrency 1024
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e3-sweep
+[2026-10-30 05:23:41] [postgres] Sweep peaks: E1=33179.8/s, E3=9100.566666666668/s
+[2026-10-30 05:23:41] [postgres] E1 open-loop rates: 25%=8295, 50%=16590, 75%=24885
+[2026-10-30 05:23:41] [postgres] E3 open-loop rates: 25%=2275, 50%=4550, 75%=6825
+[2026-10-30 05:23:41] [postgres] Running E1 at 8295/s (e1-25)...
+[settle] 1s: node-1 0.83
+[settle] 2s: node-1 0.11
+[settle] 3s: node-1 0.09
+[settle] 4s: node-1 1.17
+[settle] 5s: node-1 0.29
+[settle] 6s: node-1 0.11
+[settle] 7s: node-1 0.10
+[settle] 8s: node-1 0.12
+[settle] quiet after 8s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 8295/s
+[run] E1 @ 8295.0/s: warm-up
+[run] E1 @ 8295.0/s: measure
+[run] E1 @ 8295.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 9, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 8295.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 8295.0/s | 497700 | 0 | 4.6 ms | 45.8 ms | 139.3 ms | 193.5 ms | 285.1 ms | 207.9 ms |
+
+Load generator: 1.90 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.97 | 1392 MB | 836 MB | 166 | 0.364 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 41.5% | 150.1% | 1.133GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 128.5% | 334.9% | 757.8MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.958 to 60.04): {epoch=60.998069047927856, xact_commit=187525, xact_rollback=0, tup_inserted=502522, tup_updated=961304, tup_deleted=11, tup_fetched=3777148, tup_returned=11277100, blks_read=1624364, blks_hit=23766994, wal_records=4426867, wal_fpi=1571, wal_bytes=617000129, wal_buffers_full=0, wal_write=66660, wal_sync=66660, wal_write_time=593.7340000000004, wal_sync_time=53418.44499999995}
+Store operations, kafkaEndOffsets (seconds -29.805 to 61.952): {wow.transfer.account.state=822829, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 3074, WAL flushes 1093, WAL flush time 876 ms (max 1165 ms), WAL write time 10 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-25
+[2026-10-30 05:25:23] [postgres] Running E1 at 16590/s (e1-50)...
+[settle] 1s: node-1 0.04
+[settle] 2s: node-1 0.06
+[settle] 3s: node-1 0.06
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 16590/s
+[run] E1 @ 16590.0/s: warm-up
+[run] E1 @ 16590.0/s: measure
+[run] E1 @ 16590.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 16590.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 16340.5/s | 980428 | 14972 | 23.3 ms | 63.7 ms | 157.7 ms | 497.7 ms | 682.8 ms | 647.2 ms |
+
+Errors: {generator-overload=14972}
+
+Load generator: 2.54 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 3.80 | 1395 MB | 842 MB | 165 | 0.472 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 44.7% | 144.0% | 1.255GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 177.0% | 192.3% | 725.5MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.063 to 60.937): {epoch=61.00020790100098, xact_commit=95007, xact_rollback=0, tup_inserted=978224, tup_updated=1308921, tup_deleted=0, tup_fetched=2757747, tup_returned=2764242, blks_read=513273, blks_hit=26248938, wal_records=6773418, wal_fpi=151, wal_bytes=1092680793, wal_buffers_full=0, wal_write=49108, wal_sync=49108, wal_write_time=752.7270000000008, wal_sync_time=49370.1810000001}
+Store operations, kafkaEndOffsets (seconds -30.03 to 61.995): {wow.transfer.account.state=1453152, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 1557, WAL flushes 805, WAL flush time 809 ms (max 986 ms), WAL write time 12 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-50
+[2026-10-30 05:27:01] [postgres] Running E1 at 24885/s (e1-75)...
+[settle] 1s: node-1 0.05
+[settle] 2s: node-1 0.06
+[settle] 3s: node-1 0.05
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 24885/s
+[run] E1 @ 24885.0/s: warm-up
+[run] E1 @ 24885.0/s: measure
+[run] E1 @ 24885.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 24885.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 24235.2/s | 1454112 | 38987 | 52.5 ms | 86.0 ms | 126.0 ms | 532.5 ms | 658.4 ms | 581.6 ms |
+
+Errors: {generator-overload=38987}
+
+Load generator: 2.99 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 4.85 | 1395 MB | 845 MB | 254 | 0.846 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 46.6% | 150.6% | 1.126GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 223.3% | 241.3% | 622.6MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.054 to 60.946): {epoch=60.99933385848999, xact_commit=36361, xact_rollback=0, tup_inserted=1459030, tup_updated=1608074, tup_deleted=0, tup_fetched=3345334, tup_returned=3350827, blks_read=912021, blks_hit=35755086, wal_records=9292106, wal_fpi=1251, wal_bytes=1580601630, wal_buffers_full=0, wal_write=20332, wal_sync=20332, wal_write_time=651.1620000000003, wal_sync_time=38409.50399999996}
+Store operations, kafkaEndOffsets (seconds -30.044 to 62.019): {wow.transfer.account.state=2147268, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 596, WAL flushes 333, WAL flush time 630 ms (max 1203 ms), WAL write time 11 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e1-75
+[2026-10-30 05:28:38] [postgres] Running E3 at 2275/s (e3-25)...
+[settle] 1s: node-1 0.06
+[settle] 2s: node-1 0.05
+[settle] 3s: node-1 0.06
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 2275/s
+[run] E3 @ 2275.0/s: warm-up
+[run] E3 @ 2275.0/s: measure
+[run] E3 @ 2275.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 2275.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2275.0/s | 136500 | 0 | 8.5 ms | 329.7 ms | 581.6 ms | 798.7 ms | 901.9 ms | 843.8 ms |
+
+Load generator: 0.43 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 1.97 | 1385 MB | 831 MB | 55 | 0.149 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 36.1% | 133.0% | 1.143GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 97.8% | 134.4% | 734.9MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.053 to 60.947): {epoch=61.0004301071167, xact_commit=154847, xact_rollback=0, tup_inserted=410288, tup_updated=763284, tup_deleted=0, tup_fetched=1608961, tup_returned=1617016, blks_read=695833, blks_hit=12899344, wal_records=3604142, wal_fpi=847, wal_bytes=568297483, wal_buffers_full=0, wal_write=60628, wal_sync=60628, wal_write_time=501.54899999999907, wal_sync_time=55271.601999999955}
+Store operations, kafkaEndOffsets (seconds -30.039 to 61.939): {wow.transfer.account.state=617116, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 2539, WAL flushes 994, WAL flush time 906 ms (max 1309 ms), WAL write time 8 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e3-25
+[2026-10-30 05:30:15] [postgres] Running E3 at 4550/s (e3-50)...
+[settle] 1s: node-1 0.05
+[settle] 2s: node-1 0.05
+[settle] 3s: node-1 0.07
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 4550/s
+[run] E3 @ 4550.0/s: warm-up
+[run] E3 @ 4550.0/s: measure
+[run] E3 @ 4550.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 4550.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 4214.6/s | 252873 | 20127 | 56.6 ms | 585.7 ms | 708.6 ms | 897.0 ms | 959.1 ms | 929.8 ms |
+
+Errors: {generator-overload=20127}
+
+Load generator: 0.86 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.33 | 1367 MB | 844 MB | 110 | 0.308 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 37.0% | 125.5% | 1.131GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 136.2% | 178.2% | 675MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.052 to 60.953): {epoch=61.00497508049011, xact_commit=71329, xact_rollback=0, tup_inserted=767069, tup_updated=1026634, tup_deleted=0, tup_fetched=2197114, tup_returned=2208248, blks_read=882731, blks_hit=20184882, wal_records=5303083, wal_fpi=112194, wal_bytes=1337529774, wal_buffers_full=0, wal_write=38596, wal_sync=38596, wal_write_time=581.3989999999994, wal_sync_time=47133.498999999836}
+Store operations, kafkaEndOffsets (seconds -30.031 to 61.971): {wow.transfer.account.state=1131632, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 1169, WAL flushes 633, WAL flush time 773 ms (max 1317 ms), WAL write time 10 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e3-50
+[2026-10-30 05:31:53] [postgres] Running E3 at 6825/s (e3-75)...
+[settle] 1s: node-1 0.05
+[settle] 2s: node-1 0.06
+[settle] 3s: node-1 0.06
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 6825/s
+[run] E3 @ 6825.0/s: warm-up
+[run] E3 @ 6825.0/s: measure
+[run] E3 @ 6825.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation.
+
+Open loop at 6825.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5372.4/s | 322343 | 87157 | 99.3 ms | 716.8 ms | 798.7 ms | 872.4 ms | 995.3 ms | 905.2 ms |
+
+Errors: {generator-overload=87157}
+
+Load generator: 1.17 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.78 | 1369 MB | 834 MB | 209 | 0.582 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 37.6% | 134.1% | 1.218GiB / 31.36GiB |
+| wow-e2e-bench-postgres | 154.4% | 251.1% | 674.7MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.058 to 60.943): {epoch=61.00064992904663, xact_commit=36815, xact_rollback=0, tup_inserted=971367, tup_updated=1113394, tup_deleted=12, tup_fetched=2625760, tup_returned=2639418, blks_read=1235226, blks_hit=23841301, wal_records=6294548, wal_fpi=1846, wal_bytes=1221514040, wal_buffers_full=0, wal_write=21080, wal_sync=21080, wal_write_time=430.7440000000006, wal_sync_time=45198.956000000006}
+Store operations, kafkaEndOffsets (seconds -30.037 to 62.001): {wow.transfer.account.state=1447708, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 603, WAL flushes 346, WAL flush time 741 ms (max 1536 ms), WAL write time 7 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-postgres/e3-75
+[2026-10-30 05:33:30] Stopping session...
+[2026-10-30 05:33:45] === Section 1: Backend postgres Complete ===
+[2026-10-30 05:33:45] === Section 1: Starting Backend mongo (Session 1-S-mongo) ===
+[2026-10-30 05:33:45] Attempting up (attempt 1/2): backend=mongo heap=1g accounts=100000 
+[bench] starting kafka and mongo
+ Image mongo:7.0 Pulling 
+error getting credentials - err: exit status 1, out: `User canceled the operation. (-128)`
+[2026-10-30 05:33:55] Attempt 1 failed for backend=mongo heap=1g. Tearing down and retrying...
+[2026-10-30 05:34:01] Attempting up (attempt 2/2): backend=mongo heap=1g accounts=100000 
+[bench] starting kafka and mongo
+ Image mongo:7.0 Pulling 
+ 235f996274b7 Pulling fs layer 0B
+ 771eed73ee82 Pulling fs layer 0B
+ 17fe8025a9eb Pulling fs layer 0B
+ 5a2f494adbe3 Pulling fs layer 0B
+ 468debf69ee9 Pulling fs layer 0B
+ 53ff66f996f2 Pulling fs layer 0B
+ 6cf8446071d2 Pulling fs layer 0B
+ bb371a8e9e66 Pulling fs layer 0B
+ 3002c75f5580 Download complete 0B
+ 123428bb562c Downloading 1.049MB
+ 17fe8025a9eb Download complete 0B
+ 123428bb562c Downloading 1.049MB
+ 123428bb562c Downloading 1.049MB
+ 123428bb562c Downloading 1.049MB
+ 123428bb562c Downloading 2.097MB
+ 235f996274b7 Download complete 0B
+ 123428bb562c Downloading 2.097MB
+ 123428bb562c Downloading 2.097MB
+ 123428bb562c Download complete 0B
+ 6cf8446071d2 Download complete 0B
+ 771eed73ee82 Downloading 1.049MB
+ 771eed73ee82 Downloading 1.049MB
+ 771eed73ee82 Downloading 1.049MB
+ 771eed73ee82 Downloading 1.049MB
+ 468debf69ee9 Download complete 0B
+ 771eed73ee82 Downloading 2.097MB
+ 771eed73ee82 Downloading 2.097MB
+ 771eed73ee82 Downloading 3.146MB
+ 771eed73ee82 Downloading 3.146MB
+ 5a2f494adbe3 Download complete 0B
+ 771eed73ee82 Downloading 3.146MB
+ 53ff66f996f2 Download complete 0B
+ 771eed73ee82 Downloading 4.194MB
+ 771eed73ee82 Downloading 4.194MB
+ 771eed73ee82 Downloading 5.243MB
+ 771eed73ee82 Downloading 5.243MB
+ 771eed73ee82 Downloading 6.291MB
+ 771eed73ee82 Downloading 6.291MB
+ bb371a8e9e66 Downloading 2.097MB
+ 771eed73ee82 Downloading 6.291MB
+ 771eed73ee82 Downloading 8.389MB
+ bb371a8e9e66 Downloading 2.097MB
+ bb371a8e9e66 Downloading 3.146MB
+ 771eed73ee82 Downloading 8.389MB
+ bb371a8e9e66 Downloading 3.146MB
+ 771eed73ee82 Downloading 9.437MB
+ bb371a8e9e66 Downloading 3.146MB
+ 771eed73ee82 Downloading 9.437MB
+ bb371a8e9e66 Downloading 3.146MB
+ 771eed73ee82 Downloading 9.437MB
+ bb371a8e9e66 Downloading 5.243MB
+ 771eed73ee82 Downloading 10.49MB
+ bb371a8e9e66 Downloading 6.291MB
+ 771eed73ee82 Downloading 11.53MB
+ bb371a8e9e66 Downloading 6.291MB
+ 771eed73ee82 Downloading 11.53MB
+ bb371a8e9e66 Downloading 6.291MB
+ 771eed73ee82 Downloading 11.53MB
+ 771eed73ee82 Downloading 12.58MB
+ bb371a8e9e66 Downloading 7.34MB
+ bb371a8e9e66 Downloading 8.389MB
+ 771eed73ee82 Downloading 14.68MB
+ 771eed73ee82 Downloading 15.73MB
+ bb371a8e9e66 Downloading 9.437MB
+ 771eed73ee82 Downloading 15.73MB
+ bb371a8e9e66 Downloading 9.437MB
+ 771eed73ee82 Downloading 15.73MB
+ bb371a8e9e66 Downloading 9.437MB
+ bb371a8e9e66 Downloading 10.49MB
+ 771eed73ee82 Downloading 15.73MB
+ 771eed73ee82 Downloading 17.83MB
+ bb371a8e9e66 Downloading 11.53MB
+ bb371a8e9e66 Downloading 12.58MB
+ 771eed73ee82 Downloading 18.87MB
+ bb371a8e9e66 Downloading 12.58MB
+ 771eed73ee82 Downloading 18.87MB
+ bb371a8e9e66 Downloading 12.58MB
+ 771eed73ee82 Downloading 19.92MB
+ bb371a8e9e66 Downloading 12.58MB
+ 771eed73ee82 Downloading 19.92MB
+ bb371a8e9e66 Downloading 15.73MB
+ 771eed73ee82 Downloading 19.92MB
+ bb371a8e9e66 Downloading 17.83MB
+ 771eed73ee82 Downloading 22.02MB
+ bb371a8e9e66 Downloading 17.83MB
+ 771eed73ee82 Downloading 23.07MB
+ bb371a8e9e66 Downloading 18.87MB
+ 771eed73ee82 Downloading 23.07MB
+ 771eed73ee82 Downloading 23.07MB
+ bb371a8e9e66 Downloading 18.87MB
+ bb371a8e9e66 Downloading 19.92MB
+ 771eed73ee82 Downloading 24.12MB
+ bb371a8e9e66 Downloading 22.02MB
+ 771eed73ee82 Downloading 26.21MB
+ bb371a8e9e66 Downloading 24.12MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 24.12MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 24.12MB
+ bb371a8e9e66 Downloading 25.17MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 25.43MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 28.31MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 28.31MB
+ bb371a8e9e66 Downloading 29.36MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 29.36MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 30.41MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 31.46MB
+ bb371a8e9e66 Downloading 31.46MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 32.51MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 32.51MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 32.51MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 35.65MB
+ bb371a8e9e66 Downloading 35.65MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 36.7MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 37.75MB
+ 771eed73ee82 Downloading 27.26MB
+ 771eed73ee82 Downloading 27.26MB
+ bb371a8e9e66 Downloading 37.75MB
+ bb371a8e9e66 Downloading 37.75MB
+ 771eed73ee82 Downloading 27.68MB
+ 771eed73ee82 Download complete 0B
+ bb371a8e9e66 Downloading 37.75MB
+ 771eed73ee82 Extracting 1B
+ bb371a8e9e66 Downloading 37.75MB
+ 771eed73ee82 Extracting 1B
+ bb371a8e9e66 Downloading 37.75MB
+ 53ff66f996f2 Pull complete 0B
+ 771eed73ee82 Pull complete 0B
+ bb371a8e9e66 Downloading 38.8MB
+ 17fe8025a9eb Pull complete 0B
+ 6cf8446071d2 Pull complete 0B
+ 468debf69ee9 Pull complete 0B
+ 5a2f494adbe3 Pull complete 0B
+ bb371a8e9e66 Downloading 38.8MB
+ bb371a8e9e66 Downloading 39.85MB
+ bb371a8e9e66 Downloading 39.85MB
+ bb371a8e9e66 Downloading 39.85MB
+ bb371a8e9e66 Downloading 40.89MB
+ bb371a8e9e66 Downloading 40.89MB
+ bb371a8e9e66 Downloading 40.89MB
+ bb371a8e9e66 Downloading 40.89MB
+ bb371a8e9e66 Downloading 41.94MB
+ bb371a8e9e66 Downloading 41.94MB
+ bb371a8e9e66 Downloading 41.94MB
+ bb371a8e9e66 Downloading 42.99MB
+ bb371a8e9e66 Downloading 42.99MB
+ bb371a8e9e66 Downloading 42.99MB
+ bb371a8e9e66 Downloading 44.04MB
+ bb371a8e9e66 Downloading 44.04MB
+ bb371a8e9e66 Downloading 45.09MB
+ bb371a8e9e66 Downloading 45.09MB
+ bb371a8e9e66 Downloading 45.09MB
+ bb371a8e9e66 Downloading 46.14MB
+ bb371a8e9e66 Downloading 46.14MB
+ bb371a8e9e66 Downloading 46.14MB
+ bb371a8e9e66 Downloading 47.19MB
+ bb371a8e9e66 Downloading 47.19MB
+ bb371a8e9e66 Downloading 48.23MB
+ bb371a8e9e66 Downloading 48.23MB
+ bb371a8e9e66 Downloading 48.23MB
+ bb371a8e9e66 Downloading 49.28MB
+ bb371a8e9e66 Downloading 50.33MB
+ bb371a8e9e66 Downloading 50.33MB
+ bb371a8e9e66 Downloading 50.33MB
+ bb371a8e9e66 Downloading 51.38MB
+ bb371a8e9e66 Downloading 51.38MB
+ bb371a8e9e66 Downloading 52.43MB
+ bb371a8e9e66 Downloading 52.43MB
+ bb371a8e9e66 Downloading 53.48MB
+ bb371a8e9e66 Downloading 53.48MB
+ bb371a8e9e66 Downloading 54.53MB
+ bb371a8e9e66 Downloading 54.53MB
+ bb371a8e9e66 Downloading 55.57MB
+ bb371a8e9e66 Downloading 55.57MB
+ bb371a8e9e66 Downloading 56.62MB
+ bb371a8e9e66 Downloading 56.62MB
+ bb371a8e9e66 Downloading 56.62MB
+ bb371a8e9e66 Downloading 58.72MB
+ bb371a8e9e66 Downloading 58.72MB
+ bb371a8e9e66 Downloading 59.77MB
+ bb371a8e9e66 Downloading 59.77MB
+ bb371a8e9e66 Downloading 59.77MB
+ bb371a8e9e66 Downloading 60.82MB
+ bb371a8e9e66 Downloading 61.87MB
+ bb371a8e9e66 Downloading 62.91MB
+ bb371a8e9e66 Downloading 62.91MB
+ bb371a8e9e66 Downloading 63.96MB
+ bb371a8e9e66 Downloading 63.96MB
+ bb371a8e9e66 Downloading 66.06MB
+ bb371a8e9e66 Downloading 67.11MB
+ bb371a8e9e66 Downloading 67.11MB
+ bb371a8e9e66 Downloading 67.11MB
+ bb371a8e9e66 Downloading 67.11MB
+ bb371a8e9e66 Downloading 69.21MB
+ bb371a8e9e66 Downloading 70.25MB
+ bb371a8e9e66 Downloading 70.25MB
+ bb371a8e9e66 Downloading 70.25MB
+ bb371a8e9e66 Downloading 70.25MB
+ bb371a8e9e66 Downloading 70.25MB
+ bb371a8e9e66 Downloading 71.3MB
+ bb371a8e9e66 Downloading 71.3MB
+ bb371a8e9e66 Downloading 71.3MB
+ bb371a8e9e66 Downloading 72.35MB
+ bb371a8e9e66 Downloading 72.35MB
+ bb371a8e9e66 Downloading 74.71MB
+ bb371a8e9e66 Downloading 75.5MB
+ bb371a8e9e66 Downloading 76.55MB
+ bb371a8e9e66 Downloading 76.55MB
+ bb371a8e9e66 Downloading 76.55MB
+ bb371a8e9e66 Downloading 79.69MB
+ bb371a8e9e66 Downloading 80.74MB
+ bb371a8e9e66 Downloading 80.74MB
+ bb371a8e9e66 Downloading 81.79MB
+ bb371a8e9e66 Downloading 81.79MB
+ bb371a8e9e66 Downloading 83.89MB
+ bb371a8e9e66 Downloading 84.93MB
+ bb371a8e9e66 Downloading 84.93MB
+ bb371a8e9e66 Downloading 85.98MB
+ bb371a8e9e66 Downloading 85.98MB
+ bb371a8e9e66 Downloading 87.03MB
+ bb371a8e9e66 Downloading 89.13MB
+ bb371a8e9e66 Downloading 90.18MB
+ bb371a8e9e66 Downloading 90.18MB
+ bb371a8e9e66 Downloading 90.18MB
+ bb371a8e9e66 Downloading 91.23MB
+ bb371a8e9e66 Downloading 93.32MB
+ bb371a8e9e66 Downloading 94.37MB
+ bb371a8e9e66 Downloading 94.37MB
+ bb371a8e9e66 Downloading 95.42MB
+ bb371a8e9e66 Downloading 95.42MB
+ bb371a8e9e66 Downloading 97.52MB
+ bb371a8e9e66 Downloading 98.57MB
+ bb371a8e9e66 Downloading 99.61MB
+ bb371a8e9e66 Downloading 99.61MB
+ bb371a8e9e66 Downloading 99.61MB
+ bb371a8e9e66 Downloading 100.7MB
+ bb371a8e9e66 Downloading 102.8MB
+ bb371a8e9e66 Downloading 103.8MB
+ bb371a8e9e66 Downloading 103.8MB
+ bb371a8e9e66 Downloading 103.8MB
+ bb371a8e9e66 Downloading 104.9MB
+ bb371a8e9e66 Downloading 107MB
+ bb371a8e9e66 Downloading 108MB
+ bb371a8e9e66 Downloading 108MB
+ bb371a8e9e66 Downloading 109.1MB
+ bb371a8e9e66 Downloading 109.1MB
+ bb371a8e9e66 Downloading 111.1MB
+ bb371a8e9e66 Downloading 113.2MB
+ bb371a8e9e66 Downloading 113.2MB
+ bb371a8e9e66 Downloading 113.2MB
+ bb371a8e9e66 Downloading 114.3MB
+ bb371a8e9e66 Downloading 116.4MB
+ bb371a8e9e66 Downloading 117.4MB
+ bb371a8e9e66 Downloading 117.4MB
+ bb371a8e9e66 Downloading 118.5MB
+ bb371a8e9e66 Downloading 118.5MB
+ bb371a8e9e66 Downloading 120.6MB
+ bb371a8e9e66 Downloading 121.6MB
+ bb371a8e9e66 Downloading 122.7MB
+ bb371a8e9e66 Downloading 122.7MB
+ bb371a8e9e66 Downloading 122.7MB
+ bb371a8e9e66 Downloading 123.7MB
+ bb371a8e9e66 Downloading 125.8MB
+ bb371a8e9e66 Downloading 126.9MB
+ bb371a8e9e66 Downloading 126.9MB
+ bb371a8e9e66 Downloading 127.9MB
+ bb371a8e9e66 Downloading 127.9MB
+ bb371a8e9e66 Downloading 131.1MB
+ bb371a8e9e66 Downloading 132.1MB
+ bb371a8e9e66 Downloading 132.1MB
+ bb371a8e9e66 Downloading 132.1MB
+ bb371a8e9e66 Downloading 133.2MB
+ bb371a8e9e66 Downloading 135.3MB
+ bb371a8e9e66 Downloading 136.3MB
+ bb371a8e9e66 Downloading 137.4MB
+ bb371a8e9e66 Downloading 138.4MB
+ bb371a8e9e66 Downloading 138.4MB
+ bb371a8e9e66 Downloading 141.6MB
+ bb371a8e9e66 Downloading 141.6MB
+ bb371a8e9e66 Downloading 142.6MB
+ bb371a8e9e66 Downloading 142.6MB
+ bb371a8e9e66 Downloading 142.6MB
+ bb371a8e9e66 Downloading 143.7MB
+ bb371a8e9e66 Downloading 145.8MB
+ bb371a8e9e66 Downloading 146.8MB
+ bb371a8e9e66 Downloading 146.8MB
+ bb371a8e9e66 Downloading 147.8MB
+ bb371a8e9e66 Downloading 147.8MB
+ bb371a8e9e66 Downloading 148.9MB
+ bb371a8e9e66 Downloading 151MB
+ bb371a8e9e66 Downloading 151MB
+ bb371a8e9e66 Downloading 152MB
+ bb371a8e9e66 Downloading 152MB
+ bb371a8e9e66 Downloading 152MB
+ bb371a8e9e66 Downloading 155.2MB
+ bb371a8e9e66 Downloading 155.2MB
+ bb371a8e9e66 Downloading 156.2MB
+ bb371a8e9e66 Downloading 156.2MB
+ bb371a8e9e66 Downloading 156.2MB
+ bb371a8e9e66 Downloading 158.3MB
+ bb371a8e9e66 Downloading 159.4MB
+ bb371a8e9e66 Downloading 159.4MB
+ bb371a8e9e66 Downloading 159.4MB
+ bb371a8e9e66 Downloading 160.4MB
+ bb371a8e9e66 Downloading 160.4MB
+ bb371a8e9e66 Downloading 162.5MB
+ bb371a8e9e66 Downloading 162.5MB
+ bb371a8e9e66 Downloading 162.5MB
+ bb371a8e9e66 Downloading 164.6MB
+ bb371a8e9e66 Downloading 165.7MB
+ bb371a8e9e66 Downloading 165.7MB
+ bb371a8e9e66 Downloading 165.7MB
+ bb371a8e9e66 Downloading 166.7MB
+ bb371a8e9e66 Downloading 166.7MB
+ bb371a8e9e66 Downloading 168.8MB
+ bb371a8e9e66 Downloading 169.9MB
+ bb371a8e9e66 Downloading 169.9MB
+ bb371a8e9e66 Downloading 170.9MB
+ bb371a8e9e66 Downloading 170.9MB
+ bb371a8e9e66 Downloading 173MB
+ bb371a8e9e66 Downloading 174.1MB
+ bb371a8e9e66 Downloading 174.1MB
+ bb371a8e9e66 Downloading 175.1MB
+ bb371a8e9e66 Downloading 175.1MB
+ bb371a8e9e66 Downloading 177.2MB
+ bb371a8e9e66 Downloading 178.3MB
+ bb371a8e9e66 Downloading 178.3MB
+ bb371a8e9e66 Downloading 178.3MB
+ bb371a8e9e66 Downloading 179.3MB
+ bb371a8e9e66 Downloading 179.3MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 182.5MB
+ bb371a8e9e66 Downloading 183.5MB
+ bb371a8e9e66 Downloading 183.5MB
+ bb371a8e9e66 Downloading 184.5MB
+ bb371a8e9e66 Downloading 184.5MB
+ bb371a8e9e66 Downloading 187.7MB
+ bb371a8e9e66 Downloading 187.7MB
+ bb371a8e9e66 Downloading 188.7MB
+ bb371a8e9e66 Downloading 189.8MB
+ bb371a8e9e66 Downloading 189.8MB
+ bb371a8e9e66 Downloading 191.9MB
+ bb371a8e9e66 Downloading 192.9MB
+ bb371a8e9e66 Downloading 194MB
+ bb371a8e9e66 Downloading 194MB
+ bb371a8e9e66 Downloading 194MB
+ bb371a8e9e66 Downloading 195MB
+ bb371a8e9e66 Downloading 197.1MB
+ bb371a8e9e66 Downloading 198.2MB
+ bb371a8e9e66 Downloading 198.2MB
+ bb371a8e9e66 Downloading 199.2MB
+ bb371a8e9e66 Downloading 199.2MB
+ bb371a8e9e66 Downloading 202.4MB
+ bb371a8e9e66 Downloading 202.4MB
+ bb371a8e9e66 Downloading 202.4MB
+ bb371a8e9e66 Downloading 203.4MB
+ bb371a8e9e66 Downloading 203.4MB
+ bb371a8e9e66 Downloading 205.5MB
+ bb371a8e9e66 Downloading 206.6MB
+ bb371a8e9e66 Downloading 207.6MB
+ bb371a8e9e66 Downloading 208.7MB
+ bb371a8e9e66 Downloading 208.7MB
+ bb371a8e9e66 Downloading 210.8MB
+ bb371a8e9e66 Downloading 211.8MB
+ bb371a8e9e66 Downloading 211.8MB
+ bb371a8e9e66 Downloading 211.8MB
+ bb371a8e9e66 Downloading 212.9MB
+ bb371a8e9e66 Downloading 213.9MB
+ bb371a8e9e66 Downloading 215MB
+ bb371a8e9e66 Downloading 216MB
+ bb371a8e9e66 Downloading 216MB
+ bb371a8e9e66 Downloading 216MB
+ bb371a8e9e66 Downloading 219.2MB
+ bb371a8e9e66 Downloading 219.2MB
+ bb371a8e9e66 Downloading 219.2MB
+ bb371a8e9e66 Downloading 219.2MB
+ bb371a8e9e66 Downloading 219.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 220.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 221.2MB
+ bb371a8e9e66 Downloading 223.3MB
+ bb371a8e9e66 Downloading 223.3MB
+ bb371a8e9e66 Downloading 223.3MB
+ bb371a8e9e66 Downloading 223.3MB
+ bb371a8e9e66 Downloading 224.4MB
+ bb371a8e9e66 Downloading 224.4MB
+ bb371a8e9e66 Downloading 227.5MB
+ bb371a8e9e66 Downloading 228.6MB
+ bb371a8e9e66 Downloading 228.6MB
+ bb371a8e9e66 Downloading 229.6MB
+ bb371a8e9e66 Downloading 229.6MB
+ bb371a8e9e66 Downloading 230.7MB
+ bb371a8e9e66 Downloading 232.8MB
+ bb371a8e9e66 Downloading 233.8MB
+ bb371a8e9e66 Downloading 233.8MB
+ bb371a8e9e66 Downloading 233.8MB
+ bb371a8e9e66 Downloading 234.9MB
+ bb371a8e9e66 Downloading 237MB
+ bb371a8e9e66 Downloading 238MB
+ bb371a8e9e66 Downloading 238MB
+ bb371a8e9e66 Downloading 239.1MB
+ bb371a8e9e66 Downloading 239.1MB
+ bb371a8e9e66 Downloading 241.2MB
+ bb371a8e9e66 Downloading 242.2MB
+ bb371a8e9e66 Downloading 243.3MB
+ bb371a8e9e66 Downloading 243.3MB
+ bb371a8e9e66 Downloading 243.3MB
+ bb371a8e9e66 Downloading 244.3MB
+ bb371a8e9e66 Downloading 246.4MB
+ bb371a8e9e66 Downloading 247.5MB
+ bb371a8e9e66 Downloading 247.5MB
+ bb371a8e9e66 Downloading 247.5MB
+ bb371a8e9e66 Downloading 248.5MB
+ bb371a8e9e66 Downloading 251.7MB
+ bb371a8e9e66 Downloading 251.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Downloading 252.7MB
+ bb371a8e9e66 Download complete 0B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 1B
+ bb371a8e9e66 Extracting 2B
+ bb371a8e9e66 Extracting 2B
+ bb371a8e9e66 Extracting 2B
+ bb371a8e9e66 Extracting 2B
+ bb371a8e9e66 Extracting 2B
+ 235f996274b7 Pull complete 0B
+ bb371a8e9e66 Pull complete 0B
+ Image mongo:7.0 Pulled 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on mongo
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 15.4s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (37.9 ms)
+[check] E2: ok (31.0 ms)
+[check] E3: ok (18.5 ms)
+[check] E1-large: ok (8.6 ms)
+[check] E4-state: ok (2.0 ms)
+[check] E4-list: ok (59.0 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 8.5s, 0 failed
+[settle] 1s: node-1 0.04
+[settle] 2s: node-1 0.04
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=mongo;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 05:35:37] Session successfully started: backend=mongo heap=1g 
+[2026-10-30 05:35:37] [mongo] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=348.7/s p50=2ms errors={}
+[saturate] E1: concurrency=4 throughput=1373.5/s p50=2ms errors={}
+[saturate] E1: concurrency=16 throughput=3706.2/s p50=3ms errors={}
+[saturate] E1: concurrency=64 throughput=8460.3/s p50=6ms errors={}
+[saturate] E1: concurrency=256 throughput=14015.0/s p50=17ms errors={}
+[saturate] E1: concurrency=1024 throughput=19359.8/s p50=52ms errors={}
+[saturate] E1: concurrency=4096 throughput=22745.3/s p50=174ms errors={}
+[saturate] saturation: 22745.3/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-sweep
+[2026-10-30 05:40:21] [mongo] Running E1 zipf sweep (to 4096)...
+[settle] 1s: node-1 0.04
+[settle] 2s: node-1 0.03
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=342.4/s p50=2ms errors={}
+[saturate] E1: concurrency=4 throughput=1383.4/s p50=2ms errors={}
+[saturate] E1: concurrency=16 throughput=3491.8/s p50=3ms errors={}
+[saturate] E1: concurrency=64 throughput=8036.0/s p50=7ms errors={}
+[saturate] E1: concurrency=256 throughput=14671.2/s p50=15ms errors={}
+[saturate] E1: concurrency=1024 throughput=15475.1/s p50=19ms errors={}
+[saturate] E1: concurrency=4096 throughput=17871.0/s p50=70ms errors={http-429-wow.command.busy=81031}
+[saturate] saturation: 17871.0/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-zipf-sweep
+[2026-10-30 05:45:19] [mongo] Running E1 hot sweep (to 4096)...
+[settle] 1s: node-1 0.52
+[settle] 2s: node-1 0.45
+[settle] 3s: node-1 0.47
+[settle] 4s: node-1 0.44
+[settle] 5s: node-1 0.65
+[settle] 6s: node-1 0.41
+[settle] 7s: node-1 0.39
+[settle] 8s: node-1 0.49
+[settle] 9s: node-1 0.40
+[settle] 10s: node-1 0.45
+[settle] 11s: node-1 0.39
+[settle] 12s: node-1 0.45
+[settle] 13s: node-1 0.39
+[settle] 14s: node-1 0.44
+[settle] 15s: node-1 0.54
+[settle] 16s: node-1 0.35
+[settle] 17s: node-1 0.41
+[settle] 18s: node-1 0.35
+[settle] 19s: node-1 0.41
+[settle] 20s: node-1 0.33
+[settle] 21s: node-1 0.38
+[settle] 22s: node-1 0.62
+[settle] 23s: node-1 0.39
+[settle] 24s: node-1 0.42
+[settle] 25s: node-1 0.41
+[settle] 26s: node-1 0.31
+[settle] 27s: node-1 0.41
+[settle] 28s: node-1 0.36
+[settle] 29s: node-1 0.38
+[settle] 30s: node-1 0.44
+[settle] 31s: node-1 0.36
+[settle] 32s: node-1 0.36
+[settle] 33s: node-1 0.38
+[settle] 34s: node-1 0.48
+[settle] 35s: node-1 0.35
+[settle] 36s: node-1 0.33
+[settle] 37s: node-1 0.38
+[settle] 38s: node-1 0.39
+[settle] 39s: node-1 0.40
+[settle] 40s: node-1 0.39
+[settle] 41s: node-1 0.36
+[settle] 42s: node-1 0.36
+[settle] 43s: node-1 0.39
+[settle] 44s: node-1 0.34
+[settle] 45s: node-1 0.51
+[settle] 46s: node-1 0.57
+[settle] 47s: node-1 0.31
+[settle] 48s: node-1 0.37
+[settle] 49s: node-1 0.40
+[settle] 50s: node-1 0.31
+[settle] 51s: node-1 0.32
+[settle] 52s: node-1 0.32
+[settle] 53s: node-1 0.34
+[settle] 54s: node-1 0.35
+[settle] 55s: node-1 0.39
+[settle] 56s: node-1 0.42
+[settle] 57s: node-1 0.32
+[settle] 58s: node-1 0.37
+[settle] 59s: node-1 0.34
+[settle] 60s: node-1 0.39
+[settle] 61s: node-1 0.36
+[settle] 62s: node-1 0.32
+[settle] 63s: node-1 0.32
+[settle] 64s: node-1 0.49
+[settle] 65s: node-1 0.35
+[settle] 66s: node-1 0.31
+[settle] 67s: node-1 0.33
+[settle] 68s: node-1 0.40
+[settle] 69s: node-1 0.33
+[settle] 70s: node-1 0.32
+[settle] 71s: node-1 0.40
+[settle] 72s: node-1 0.33
+[settle] 73s: node-1 0.36
+[settle] 74s: node-1 0.36
+[settle] 75s: node-1 0.59
+[settle] 76s: node-1 0.33
+[settle] 77s: node-1 0.31
+[settle] 78s: node-1 0.31
+[settle] 79s: node-1 0.40
+[settle] 80s: node-1 0.33
+[settle] 81s: node-1 0.29
+[settle] 82s: node-1 0.30
+[settle] 83s: node-1 0.34
+[settle] 84s: node-1 0.28
+[settle] 85s: node-1 0.27
+[settle] 86s: node-1 0.37
+[settle] 87s: node-1 0.26
+[settle] 88s: node-1 0.29
+[settle] 89s: node-1 0.29
+[settle] 90s: node-1 0.33
+[settle] 91s: node-1 0.31
+[settle] 92s: node-1 0.32
+[settle] 93s: node-1 0.25
+[settle] 94s: node-1 0.34
+[settle] 95s: node-1 0.32
+[settle] 96s: node-1 0.31
+[settle] 97s: node-1 0.30
+[settle] 98s: node-1 0.39
+[settle] 99s: node-1 0.35
+[settle] 100s: node-1 0.25
+[settle] 101s: node-1 0.36
+[settle] 102s: node-1 0.29
+[settle] 103s: node-1 0.31
+[settle] 104s: node-1 0.28
+[settle] 105s: node-1 0.38
+[settle] 106s: node-1 0.25
+[settle] 107s: node-1 0.28
+[settle] 108s: node-1 0.25
+[settle] 109s: node-1 0.31
+[settle] 110s: node-1 0.55
+[settle] 111s: node-1 0.32
+[settle] 112s: node-1 0.26
+[settle] 113s: node-1 0.32
+[settle] 114s: node-1 0.38
+[settle] 115s: node-1 0.21
+[settle] 116s: node-1 0.31
+[settle] 117s: node-1 0.29
+[settle] 118s: node-1 0.26
+[settle] 119s: node-1 0.23
+[settle] 120s: node-1 0.29
+[settle] 121s: node-1 0.23
+[settle] 122s: node-1 0.26
+[settle] 123s: node-1 0.17
+[settle] 124s: node-1 0.25
+[settle] 125s: node-1 0.24
+[settle] 126s: node-1 0.24
+[settle] 127s: node-1 0.19
+[settle] quiet after 128s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=344.5/s p50=2ms errors={}
+[saturate] E1: concurrency=4 throughput=1244.4/s p50=2ms errors={}
+[saturate] E1: concurrency=16 throughput=3302.1/s p50=4ms errors={}
+[saturate] E1: concurrency=64 throughput=7526.7/s p50=7ms errors={}
+[saturate] E1: concurrency=256 throughput=9472.3/s p50=31ms errors={}
+[saturate] E1: concurrency=1024 throughput=9467.9/s p50=169ms errors={}
+[saturate] E1: concurrency=4096 throughput=18986.8/s p50=153ms errors={http-429-wow.command.busy=558260}
+[saturate] saturation: 18986.8/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-hot-sweep
+[2026-10-30 05:52:09] [mongo] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.11
+[settle] 2s: node-1 0.13
+[settle] 3s: node-1 0.42
+[settle] 4s: node-1 0.12
+[settle] 5s: node-1 0.13
+[settle] 6s: node-1 0.11
+[settle] quiet after 6s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=202.3/s p50=4ms errors={}
+[saturate] E3: concurrency=4 throughput=598.9/s p50=6ms errors={}
+[saturate] E3: concurrency=16 throughput=1547.0/s p50=9ms errors={}
+[saturate] E3: concurrency=64 throughput=3126.9/s p50=19ms errors={}
+[saturate] E3: concurrency=256 throughput=4717.2/s p50=52ms errors={}
+[saturate] E3: concurrency=1024 throughput=6755.3/s p50=146ms errors={}
+[saturate] E3: concurrency=4096 throughput=3343.0/s p50=618ms errors={http-429-wow.command.busy=202247, http-504-wow.wait.timeout=2535}
+[saturate] saturation: 6755.3/s at concurrency 1024
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-sweep
+[2026-10-30 05:57:01] [mongo] Sweep peaks: E1=22745.266666666666/s, E3=6755.333333333333/s
+[2026-10-30 05:57:01] [mongo] E1 open-loop rates: 25%=5686, 50%=11373, 75%=17059
+[2026-10-30 05:57:01] [mongo] E3 open-loop rates: 25%=1689, 50%=3378, 75%=5066
+[2026-10-30 05:57:01] [mongo] Running E1 at 5686/s (e1-25)...
+[2026-10-30 05:57:01] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-25/mongo-stats-before.json
+[settle] 1s: node-1 0.10
+[settle] 2s: node-1 0.08
+[settle] 3s: node-1 0.08
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 5686/s
+[run] E1 @ 5686.0/s: warm-up
+[run] E1 @ 5686.0/s: measure
+[run] E1 @ 5686.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 5686.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5686.0/s | 341160 | 0 | 5.8 ms | 17.3 ms | 127.5 ms | 290.8 ms | 373.7 ms | 342.0 ms |
+
+Load generator: 1.23 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 1.96 | 1599 MB | 802 MB | 100 | 0.206 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 38.2% | 134.3% | 1.144GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 221.8% | 333.3% | 2.798GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.74 to 60.509): {epoch=61.24900007247925, insert=345451, query=1145, update=377091, delete=0, getmore=182, command=2283}
+Store operations, kafkaEndOffsets (seconds -29.838 to 61.964): {wow.transfer.account.state=515583, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-25
+[2026-10-30 05:58:39] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-25/mongo-stats-after.json
+[2026-10-30 05:58:39] [mongo] Running E1 at 11373/s (e1-50)...
+[settle] 1s: node-1 0.06
+[settle] 2s: node-1 0.07
+[settle] 3s: node-1 0.07
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 11373/s
+[run] E1 @ 11373.0/s: warm-up
+[run] E1 @ 11373.0/s: measure
+[run] E1 @ 11373.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 11373.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 11306.9/s | 678413 | 3967 | 16.5 ms | 44.5 ms | 119.3 ms | 385.0 ms | 465.1 ms | 430.1 ms |
+
+Errors: {generator-overload=3967}
+
+Load generator: 2.17 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.76 | 1599 MB | 853 MB | 110 | 0.376 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 44.7% | 145.2% | 1.147GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 404.5% | 485.9% | 2.884GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.674 to 60.606): {epoch=61.28000020980835, insert=686205, query=1147, update=719699, delete=0, getmore=215, command=3680}
+Store operations, kafkaEndOffsets (seconds -30.035 to 62.011): {wow.transfer.account.state=1010870, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-50
+[2026-10-30 06:00:16] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-50/mongo-stats-after.json
+[2026-10-30 06:00:16] [mongo] Running E1 at 17059/s (e1-75)...
+[settle] 1s: node-1 0.06
+[settle] 2s: node-1 0.05
+[settle] 3s: node-1 0.08
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 17059/s
+[run] E1 @ 17059.0/s: warm-up
+[run] E1 @ 17059.0/s: measure
+[run] E1 @ 17059.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 17059.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 16840.1/s | 1010403 | 13137 | 49.2 ms | 103.9 ms | 158.7 ms | 337.9 ms | 457.5 ms | 409.6 ms |
+
+Errors: {generator-overload=13137}
+
+Load generator: 2.43 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 3.43 | 1599 MB | 838 MB | 168 | 0.681 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 45.3% | 152.3% | 1.146GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 509.5% | 591.4% | 3.053GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.632 to 60.687): {epoch=61.319000005722046, insert=1021569, query=1180, update=1056176, delete=0, getmore=219, command=5060}
+Store operations, kafkaEndOffsets (seconds -30.039 to 62.034): {wow.transfer.account.state=1488819, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-75
+[2026-10-30 06:01:54] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e1-75/mongo-stats-after.json
+[2026-10-30 06:01:54] [mongo] Running E3 at 1689/s (e3-25)...
+[2026-10-30 06:01:54] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-25/mongo-stats-before.json
+[settle] 1s: node-1 0.05
+[settle] 2s: node-1 0.06
+[settle] 3s: node-1 0.08
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 1689/s
+[run] E3 @ 1689.0/s: warm-up
+[run] E3 @ 1689.0/s: measure
+[run] E3 @ 1689.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 1689.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1689.0/s | 101340 | 0 | 9.9 ms | 20.2 ms | 59.6 ms | 118.3 ms | 151.4 ms | 133.1 ms |
+
+Load generator: 0.30 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 1.63 | 1599 MB | 838 MB | 50 | 0.132 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 35.3% | 119.4% | 1.161GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 190.9% | 278.5% | 3.217GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.748 to 60.476): {epoch=61.223999977111816, insert=307777, query=1179, update=339771, delete=0, getmore=200, command=2344}
+Store operations, kafkaEndOffsets (seconds -30.035 to 61.949): {wow.transfer.account.state=462896, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-25
+[2026-10-30 06:03:32] [mongo] Running E3 at 3378/s (e3-50)...
+[2026-10-30 06:03:32] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-50/mongo-stats-before.json
+[settle] 1s: node-1 0.07
+[settle] 2s: node-1 0.05
+[settle] 3s: node-1 0.07
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 3378/s
+[run] E3 @ 3378.0/s: warm-up
+[run] E3 @ 3378.0/s: measure
+[run] E3 @ 3378.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 3378.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3378.0/s | 202680 | 0 | 20.7 ms | 74.2 ms | 256.0 ms | 520.2 ms | 618.2 ms | 573.4 ms |
+
+Load generator: 0.69 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.18 | 1599 MB | 827 MB | 89 | 0.263 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 40.1% | 115.9% | 1.164GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 320.0% | 439.8% | 3.397GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.755 to 60.505): {epoch=61.25999999046326, insert=615724, query=1084, update=648861, delete=0, getmore=209, command=3619}
+Store operations, kafkaEndOffsets (seconds -30.038 to 61.967): {wow.transfer.account.state=908273, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-50
+[2026-10-30 06:05:09] [mongo] Running E3 at 5066/s (e3-75)...
+[2026-10-30 06:05:09] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-75/mongo-stats-before.json
+[settle] 1s: node-1 0.06
+[settle] 2s: node-1 0.06
+[settle] 3s: node-1 0.07
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E3 at 5066/s
+[run] E3 @ 5066.0/s: warm-up
+[run] E3 @ 5066.0/s: measure
+[run] E3 @ 5066.0/s: drain
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 9, settleSeconds 4, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-053401-run-mongo-n1-saturation.
+
+Open loop at 5066.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 4999.1/s | 299947 | 4013 | 78.3 ms | 172.0 ms | 434.2 ms | 1056.8 ms | 1169.1 ms | 1105.9 ms |
+
+Errors: {generator-overload=4013}
+
+Load generator: 1.00 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 2.66 | 1599 MB | 814 MB | 127 | 0.452 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 41.9% | 138.6% | 1.15GiB / 31.36GiB |
+| wow-e2e-bench-mongo | 462.9% | 550.9% | 3.594GiB / 31.36GiB |
+
+Store operations, mongo (seconds -0.697 to 60.565): {epoch=61.26200008392334, insert=911304, query=2690, update=945587, delete=0, getmore=528, command=4926}
+Store operations, kafkaEndOffsets (seconds -30.035 to 61.978): {wow.transfer.account.state=1337143, wow.transfer.commands=0}
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-75
+[2026-10-30 06:06:46] Warning: wow-e2e-bench-mongo is not running, skipping mongo stats dump to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/1-S-mongo/e3-75/mongo-stats-after.json
+[2026-10-30 06:06:46] Stopping session...
+[2026-10-30 06:07:00] === Section 1: Backend mongo Complete ===
+[2026-10-30 06:07:00] Section 1 Finished
+[2026-10-30 06:07:00] >>> Section 1 finished in 4060 s.
+[2026-10-30 06:07:00] >>> Starting Section 2: PostgreSQL A/A Validation (2-S-postgres, 3-S-postgres)
+[2026-10-30 06:07:00] === Section 2: PostgreSQL E1 A/A Validation ===
+[2026-10-30 06:07:00] PostgreSQL E1 50% rate: 16590/s (from peak 33179.8/s)
+[2026-10-30 06:07:00] Starting A/A Round 2 (Session 2-S-postgres)...
+[2026-10-30 06:07:00] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 26.7s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (40.6 ms)
+[check] E2: ok (18.6 ms)
+[check] E3: ok (13.0 ms)
+[check] E1-large: ok (5.8 ms)
+[check] E4-state: ok (1.9 ms)
+[check] E4-list: ok (52.9 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 7.2s, 0 failed
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:07:51] Session successfully started: backend=postgres heap=1g 
+[2026-10-30 06:07:51] Running e1-aa at rate 16590/s...
+[settle] 1s: node-1 0.04
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.01
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 16590/s
+[run] E1 @ 16590.0/s: warm-up
+[run] E1 @ 16590.0/s: measure
+[run] E1 @ 16590.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 7, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-060700-run-postgres-n1-saturation.
+
+Open loop at 16590.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 16336.5/s | 980192 | 15208 | 15.9 ms | 49.2 ms | 176.1 ms | 219.1 ms | 262.6 ms | 226.3 ms |
+
+Errors: {generator-overload=15208}
+
+Load generator: 2.56 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 3.83 | 1474 MB | 833 MB | 148 | 0.469 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 43.0% | 153.6% | 992.1MiB / 31.36GiB |
+| wow-e2e-bench-postgres | 157.1% | 189.8% | 840.8MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.062 to 60.942): {epoch=61.003814935684204, xact_commit=102837, xact_rollback=0, tup_inserted=985176, tup_updated=1417022, tup_deleted=7, tup_fetched=2745372, tup_returned=3728121, blks_read=2123, blks_hit=23015967, wal_records=7363545, wal_fpi=3, wal_bytes=1109158435, wal_buffers_full=0, wal_write=49056, wal_sync=49056, wal_write_time=524.53, wal_sync_time=52230.56}
+Store operations, kafkaEndOffsets (seconds -29.831 to 62.015): {wow.transfer.account.state=1461319, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 1686, WAL flushes 804, WAL flush time 856 ms (max 1143 ms), WAL write time 9 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/2-S-postgres/e1-aa
+[2026-10-30 06:09:28] Stopping session...
+[2026-10-30 06:09:37] A/A Round 2 Complete
+[2026-10-30 06:09:37] Starting A/A Round 3 (Session 3-S-postgres)...
+[2026-10-30 06:09:37] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 26.9s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (33.9 ms)
+[check] E2: ok (18.1 ms)
+[check] E3: ok (12.5 ms)
+[check] E1-large: ok (4.9 ms)
+[check] E4-state: ok (1.6 ms)
+[check] E4-list: ok (70.2 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 7.2s, 0 failed
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:10:28] Session successfully started: backend=postgres heap=1g 
+[2026-10-30 06:10:28] Running e1-aa at rate 16590/s...
+[settle] 1s: node-1 0.08
+[settle] 2s: node-1 0.03
+[settle] 3s: node-1 0.01
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] running E1 at 16590/s
+[run] E1 @ 16590.0/s: warm-up
+[run] E1 @ 16590.0/s: measure
+[run] E1 @ 16590.0/s: drain
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 8, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-060937-run-postgres-n1-saturation.
+
+Open loop at 16590.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 16523.4/s | 991405 | 3995 | 14.1 ms | 39.7 ms | 72.2 ms | 199.7 ms | 245.7 ms | 215.0 ms |
+
+Errors: {generator-overload=3995}
+
+Load generator: 2.61 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 3.99 | 1483 MB | 859 MB | 150 | 0.483 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 43.9% | 155.0% | 993.3MiB / 31.36GiB |
+| wow-e2e-bench-postgres | 158.7% | 179.6% | 861.7MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.07 to 60.93): {epoch=61.00044298171997, xact_commit=113935, xact_rollback=0, tup_inserted=1001252, tup_updated=1482577, tup_deleted=7, tup_fetched=2875770, tup_returned=3346378, blks_read=2132, blks_hit=22981919, wal_records=7592676, wal_fpi=3, wal_bytes=1131834751, wal_buffers_full=0, wal_write=53791, wal_sync=53791, wal_write_time=543.545, wal_sync_time=52318.601}
+Store operations, kafkaEndOffsets (seconds -29.855 to 61.992): {wow.transfer.account.state=1472135, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 1868, WAL flushes 882, WAL flush time 858 ms (max 997 ms), WAL write time 9 ms
+
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/3-S-postgres/e1-aa
+[2026-10-30 06:12:05] Stopping session...
+[2026-10-30 06:12:13] A/A Round 3 Complete
+[2026-10-30 06:12:13] === Section 2 Complete ===
+[2026-10-30 06:12:13] >>> Section 2 finished in 313 s.
+[2026-10-30 06:12:13] >>> Starting Section 3: Disk vs RAM tmpfs Comparison (4-T-postgres, 4-T-mongo)
+[2026-10-30 06:12:13] Starting Section 3: Disk vs RAM (tmpfs) Comparison
+[2026-10-30 06:12:13] === Section 3: Starting tmpfs comparison for postgres (Session 4-T-postgres) ===
+[2026-10-30 06:12:13] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 --tmpfs
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 24.1s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (30.3 ms)
+[check] E2: ok (16.3 ms)
+[check] E3: ok (10.3 ms)
+[check] E1-large: ok (3.9 ms)
+[check] E4-state: ok (1.6 ms)
+[check] E4-list: ok (47.1 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 5.0s, 0 failed
+[settle] 1s: node-1 0.05
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:12:59] Session successfully started: backend=postgres heap=1g --tmpfs
+[2026-10-30 06:12:59] [postgres tmpfs] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.01
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=3198.0/s p50=0ms errors={}
+[saturate] E1: concurrency=4 throughput=5649.5/s p50=0ms errors={}
+[saturate] E1: concurrency=16 throughput=10440.1/s p50=1ms errors={}
+[saturate] E1: concurrency=64 throughput=19733.8/s p50=2ms errors={}
+[saturate] E1: concurrency=256 throughput=23171.4/s p50=10ms errors={}
+[saturate] E1: concurrency=1024 throughput=29956.0/s p50=34ms errors={}
+[saturate] E1: concurrency=4096 throughput=36019.9/s p50=109ms errors={}
+[saturate] saturation: 36019.9/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/4-T-postgres/e1-sweep
+[2026-10-30 06:17:44] [postgres tmpfs] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.04
+[settle] 3s: node-1 0.01
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=1475.2/s p50=0ms errors={}
+[saturate] E3: concurrency=4 throughput=2252.7/s p50=1ms errors={}
+[saturate] E3: concurrency=16 throughput=4530.0/s p50=3ms errors={}
+[saturate] E3: concurrency=64 throughput=6798.0/s p50=9ms errors={}
+[saturate] E3: concurrency=256 throughput=6509.7/s p50=41ms errors={}
+[saturate] E3: concurrency=1024 throughput=11337.1/s p50=89ms errors={}
+[saturate] E3: concurrency=4096 throughput=5397.4/s p50=329ms errors={http-429-wow.command.busy=514379, http-504-wow.wait.timeout=226}
+[saturate] saturation: 11337.1/s at concurrency 1024
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/4-T-postgres/e3-sweep
+[2026-10-30 06:22:30] Stopping session...
+[2026-10-30 06:22:38] === Section 3: postgres tmpfs complete ===
+[2026-10-30 06:22:38] === Section 3: Starting tmpfs comparison for mongo (Session 4-T-mongo) ===
+[2026-10-30 06:22:38] Attempting up (attempt 1/2): backend=mongo heap=1g accounts=100000 --tmpfs
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on mongo
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 19.8s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (34.6 ms)
+[check] E2: ok (23.9 ms)
+[check] E3: ok (17.9 ms)
+[check] E1-large: ok (7.3 ms)
+[check] E4-state: ok (2.1 ms)
+[check] E4-list: ok (55.4 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 6.8s, 0 failed
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.03
+[settle] 3s: node-1 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=mongo;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:23:23] Session successfully started: backend=mongo heap=1g --tmpfs
+[2026-10-30 06:23:23] [mongo tmpfs] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.01
+[settle] 2s: node-1 0.03
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=450.6/s p50=2ms errors={}
+[saturate] E1: concurrency=4 throughput=1866.1/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=4912.1/s p50=2ms errors={}
+[saturate] E1: concurrency=64 throughput=11196.0/s p50=5ms errors={}
+[saturate] E1: concurrency=256 throughput=17716.3/s p50=14ms errors={}
+[saturate] E1: concurrency=1024 throughput=23243.4/s p50=44ms errors={}
+[saturate] E1: concurrency=4096 throughput=25618.2/s p50=153ms errors={}
+[saturate] saturation: 25618.2/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/4-T-mongo/e1-sweep
+[2026-10-30 06:28:07] [mongo tmpfs] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.08
+[settle] 2s: node-1 0.04
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=306.9/s p50=3ms errors={}
+[saturate] E3: concurrency=4 throughput=838.8/s p50=4ms errors={}
+[saturate] E3: concurrency=16 throughput=2109.0/s p50=7ms errors={}
+[saturate] E3: concurrency=64 throughput=4464.6/s p50=13ms errors={}
+[saturate] E3: concurrency=256 throughput=6463.0/s p50=39ms errors={}
+[saturate] E3: concurrency=1024 throughput=8724.6/s p50=115ms errors={}
+[saturate] E3: concurrency=4096 throughput=6034.7/s p50=382ms errors={http-429-wow.command.busy=334822, http-504-wow.wait.timeout=2042}
+[saturate] saturation: 8724.6/s at concurrency 1024
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/4-T-mongo/e3-sweep
+[2026-10-30 06:32:55] Stopping session...
+[2026-10-30 06:33:03] === Section 3: mongo tmpfs complete ===
+[2026-10-30 06:33:03] Section 3 Finished
+[2026-10-30 06:33:03] >>> Section 3 finished in 1250 s.
+[2026-10-30 06:33:03] >>> Starting Section 4: L1 Component Scaling
+[2026-10-30 06:33:03] === Section 4: L1 Component Scaling ===
+[2026-10-30 06:33:03] Running L1: backend=postgres scenario=E1 concurrency=16...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:33:10.803-07:00  WARN 44440 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:33:10.830-07:00  WARN 44440 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:33:11.849-07:00  WARN 44440 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":16,"seedSeconds":41.26324,"seconds":2.92204725,"throughput":6844.516289050425,"failed":{},"latencyMs":{"p50":2.221917,"p99":4.9945,"max":10.032792},"storeRoundTripsPerOp":1.0083,"storeRoundTripsByCommand":{"commit":0.39895,"statement insert wow_lease_member":5.0E-5,"statement select wow_lease":1.5E-4,"statement select wow_lease_member":1.5E-4,"statement select wow_timer_aggregate":1.5E-4,"statement set wow_checkpoint":1.5E-4,"statement set wow_snapshot__transfer__account":0.39885,"statement update wow_lease":5.0E-5,"statement with wow_log__transfer__account":0.2098},"allocatedBytesPerOp":66341.5032,"gcCollections":2,"gcMillis":7,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E1-16
+[2026-10-30 06:33:59] Stopping session...
+[2026-10-30 06:34:02] Running L1: backend=postgres scenario=E1 concurrency=64...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:34:09.973-07:00  WARN 45250 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:34:09.999-07:00  WARN 45250 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:34:11.018-07:00  WARN 45250 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":64,"seedSeconds":30.197823708,"seconds":1.62234325,"throughput":12327.847389878807,"failed":{},"latencyMs":{"p50":4.718084,"p99":11.887083,"max":18.535375},"storeRoundTripsPerOp":0.3894,"storeRoundTripsByCommand":{"commit":0.15625,"statement insert wow_lease_member":5.0E-5,"statement select wow_lease":5.0E-5,"statement select wow_lease_member":5.0E-5,"statement select wow_snapshot_table":5.0E-5,"statement select wow_timer_aggregate":1.0E-4,"statement set wow_checkpoint":1.0E-4,"statement set wow_snapshot__transfer__account":0.15615,"statement with wow_log__transfer__account":0.0766},"allocatedBytesPerOp":60662.4544,"gcCollections":2,"gcMillis":11,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E1-64
+[2026-10-30 06:34:45] Stopping session...
+[2026-10-30 06:34:49] Running L1: backend=postgres scenario=E1 concurrency=256...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:34:56.528-07:00  WARN 45367 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:34:56.554-07:00  WARN 45367 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:34:57.562-07:00  WARN 45367 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":256,"seedSeconds":28.308365334,"seconds":1.092562459,"throughput":18305.589612062628,"failed":{},"latencyMs":{"p50":12.328042,"p99":27.59775,"max":31.389167},"storeRoundTripsPerOp":0.15515,"storeRoundTripsByCommand":{"commit":0.0639,"statement insert wow_lease_member":5.0E-5,"statement select wow_failure_ledger":5.0E-5,"statement select wow_lease":5.0E-5,"statement select wow_lease_member":5.0E-5,"statement select wow_timer_aggregate":5.0E-5,"statement set wow_checkpoint":5.0E-5,"statement set wow_snapshot__transfer__account":0.06375,"statement update wow_lease":5.0E-5,"statement with wow_log__transfer__account":0.02715},"allocatedBytesPerOp":59996.8272,"gcCollections":2,"gcMillis":9,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E1-256
+[2026-10-30 06:35:30] Stopping session...
+[2026-10-30 06:35:33] Running L1: backend=postgres scenario=E1 concurrency=1024...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:35:40.838-07:00  WARN 45488 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:35:40.864-07:00  WARN 45488 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:35:41.874-07:00  WARN 45488 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":1024,"seedSeconds":26.835933125,"seconds":0.579206959,"throughput":34529.97186796577,"failed":{},"latencyMs":{"p50":29.121792,"p99":51.497875,"max":69.946},"storeRoundTripsPerOp":0.0454,"storeRoundTripsByCommand":{"commit":0.01985,"statement select wow_lease":5.0E-5,"statement select wow_lease_member":5.0E-5,"statement set wow_checkpoint":5.0E-5,"statement set wow_snapshot__transfer__account":0.01985,"statement with wow_log__transfer__account":0.00555},"allocatedBytesPerOp":60496.3884,"gcCollections":2,"gcMillis":8,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E1-1024
+[2026-10-30 06:36:12] Stopping session...
+[2026-10-30 06:36:15] Running L1: backend=postgres scenario=E3 concurrency=16...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:36:23.207-07:00  WARN 45606 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:36:23.233-07:00  WARN 45606 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:36:24.234-07:00  WARN 45606 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":16,"seedSeconds":37.712550084,"seconds":7.29058325,"throughput":2743.2647449708497,"failed":{},"latencyMs":{"p50":5.524208,"p99":10.902042,"max":29.71975},"storeRoundTripsPerOp":2.3881,"storeRoundTripsByCommand":{"commit":0.94745,"statement insert wow_lease_member":2.0E-4,"statement select wow_failure_ledger":9.5E-4,"statement select wow_lease":3.5E-4,"statement select wow_lease_member":4.0E-4,"statement select wow_log__transfer__partition":0.00325,"statement select wow_snapshot_table":1.0E-4,"statement select wow_timer_aggregate":3.5E-4,"statement set wow_checkpoint":3.5E-4,"statement set wow_snapshot__transfer__account":0.9471,"statement update wow_lease":1.0E-4,"statement with wow_log__transfer__account":0.4875},"allocatedBytesPerOp":205044.8064,"gcCollections":7,"gcMillis":22,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E3-16
+[2026-10-30 06:37:13] Stopping session...
+[2026-10-30 06:37:16] Running L1: backend=postgres scenario=E3 concurrency=64...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:37:24.045-07:00  WARN 45735 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:37:24.072-07:00  WARN 45735 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:37:25.121-07:00  WARN 45735 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":64,"seedSeconds":28.939123292,"seconds":4.370279875,"throughput":4576.365947272428,"failed":{},"latencyMs":{"p50":13.433917,"p99":25.735875,"max":47.044416},"storeRoundTripsPerOp":1.064,"storeRoundTripsByCommand":{"commit":0.4316,"statement insert wow_lease_member":1.0E-4,"statement select wow_failure_ledger":5.0E-4,"statement select wow_lease":2.0E-4,"statement select wow_lease_member":2.5E-4,"statement select wow_log__transfer__partition":0.00325,"statement select wow_snapshot_table":5.0E-5,"statement select wow_timer_aggregate":2.5E-4,"statement set wow_checkpoint":2.5E-4,"statement set wow_snapshot__transfer__account":0.4315,"statement update wow_lease":5.0E-5,"statement with wow_log__transfer__account":0.196},"allocatedBytesPerOp":196180.6324,"gcCollections":6,"gcMillis":24,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E3-64
+[2026-10-30 06:38:01] Stopping session...
+[2026-10-30 06:38:05] Running L1: backend=postgres scenario=E3 concurrency=256...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:38:12.561-07:00  WARN 45859 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:38:12.588-07:00  WARN 45859 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:38:13.634-07:00  WARN 45859 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":256,"seedSeconds":27.653618084,"seconds":3.224983084,"throughput":6201.582916581896,"failed":{},"latencyMs":{"p50":40.99425,"p99":70.595625,"max":92.639833},"storeRoundTripsPerOp":0.40175,"storeRoundTripsByCommand":{"commit":0.16615,"statement insert wow_lease_member":1.0E-4,"statement select wow_failure_ledger":4.5E-4,"statement select wow_lease":2.0E-4,"statement select wow_lease_member":2.0E-4,"statement select wow_snapshot_table":5.0E-5,"statement select wow_timer_aggregate":1.5E-4,"statement set wow_checkpoint":1.5E-4,"statement set wow_snapshot__transfer__account":0.16605,"statement update wow_lease":5.0E-5,"statement with wow_log__transfer__account":0.0682},"allocatedBytesPerOp":193711.3848,"gcCollections":7,"gcMillis":23,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E3-256
+[2026-10-30 06:38:47] Stopping session...
+[2026-10-30 06:38:51] Running L1: backend=postgres scenario=E3 concurrency=1024...
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on postgres
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:38:58.642-07:00  WARN 45981 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:38:58.669-07:00  WARN 45981 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:38:59.698-07:00  WARN 45981 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":1024,"seedSeconds":25.505753875,"seconds":1.544793875,"throughput":12946.711094384678,"failed":{},"latencyMs":{"p50":77.371833,"p99":110.733292,"max":137.248375},"storeRoundTripsPerOp":0.11355,"storeRoundTripsByCommand":{"commit":0.0506,"statement insert wow_lease_member":5.0E-5,"statement select wow_lease":1.0E-4,"statement select wow_lease_member":1.0E-4,"statement select wow_timer_aggregate":5.0E-5,"statement set wow_checkpoint":5.0E-5,"statement set wow_snapshot__transfer__account":0.05075,"statement update wow_lease":5.0E-5,"statement with wow_log__transfer__account":0.0118},"allocatedBytesPerOp":197185.752,"gcCollections":9,"gcMillis":32,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"postgres"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/postgres-E3-1024
+[2026-10-30 06:39:29] Stopping session...
+[2026-10-30 06:39:33] Running L1: backend=mongo scenario=E1 concurrency=16...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:39:40.689-07:00  WARN 46101 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:39:40.716-07:00  WARN 46101 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:39:41.928-07:00  WARN 46101 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":16,"seedSeconds":42.438217375,"seconds":4.416972084,"throughput":4527.988771413752,"failed":{},"latencyMs":{"p50":2.951584,"p99":10.196084,"max":21.848333},"storeRoundTripsPerOp":0.6285,"storeRoundTripsByCommand":{"aggregate":2.5E-4,"find":6.0E-4,"findAndModify":0.0032,"insert":0.2194,"update":0.40505},"allocatedBytesPerOp":88093.5868,"gcCollections":3,"gcMillis":13,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E1-16
+[2026-10-30 06:40:32] Stopping session...
+[2026-10-30 06:40:36] Running L1: backend=mongo scenario=E1 concurrency=64...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:40:43.586-07:00  WARN 46229 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:40:43.612-07:00  WARN 46229 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:40:44.851-07:00  WARN 46229 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":64,"seedSeconds":17.539435,"seconds":1.971515083,"throughput":10144.482369146552,"failed":{},"latencyMs":{"p50":5.177291,"p99":21.3765,"max":34.723125},"storeRoundTripsPerOp":0.20855,"storeRoundTripsByCommand":{"aggregate":0.00385,"find":7.5E-4,"findAndModify":0.0032,"insert":0.06815,"ping":5.0E-5,"update":0.13255},"allocatedBytesPerOp":73896.5676,"gcCollections":3,"gcMillis":19,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E1-64
+[2026-10-30 06:41:08] Stopping session...
+[2026-10-30 06:41:11] Running L1: backend=mongo scenario=E1 concurrency=256...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:41:19.003-07:00  WARN 46345 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:41:19.030-07:00  WARN 46345 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:41:20.245-07:00  WARN 46345 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":256,"seedSeconds":21.430417,"seconds":1.041490042,"throughput":19203.25609795893,"failed":{},"latencyMs":{"p50":11.5985,"p99":39.17975,"max":47.606875},"storeRoundTripsPerOp":0.0743,"storeRoundTripsByCommand":{"aggregate":1.0E-4,"find":1.5E-4,"findAndModify":0.0032,"insert":0.0244,"update":0.04645},"allocatedBytesPerOp":68373.4804,"gcCollections":3,"gcMillis":12,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E1-256
+[2026-10-30 06:41:46] Stopping session...
+[2026-10-30 06:41:50] Running L1: backend=mongo scenario=E1 concurrency=1024...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E1 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:41:57.382-07:00  WARN 46460 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:41:57.409-07:00  WARN 46460 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:41:58.615-07:00  WARN 46460 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E1","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":1024,"seedSeconds":11.45656425,"seconds":0.586170958,"throughput":34119.73883564529,"failed":{},"latencyMs":{"p50":24.310417,"p99":109.935708,"max":125.286209},"storeRoundTripsPerOp":0.0219,"storeRoundTripsByCommand":{"aggregate":5.0E-5,"find":5.0E-5,"findAndModify":0.0032,"insert":0.00555,"update":0.01305},"allocatedBytesPerOp":65281.9208,"gcCollections":2,"gcMillis":9,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E1-1024
+[2026-10-30 06:42:14] Stopping session...
+[2026-10-30 06:42:18] Running L1: backend=mongo scenario=E3 concurrency=16...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:42:25.731-07:00  WARN 46568 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:42:25.757-07:00  WARN 46568 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:42:26.949-07:00  WARN 46568 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":16,"seedSeconds":42.897540417,"seconds":11.080224333,"throughput":1805.0176060456122,"failed":{},"latencyMs":{"p50":8.115042,"p99":20.595959,"max":39.573},"storeRoundTripsPerOp":1.46445,"storeRoundTripsByCommand":{"aggregate":0.0043,"find":0.0019,"findAndModify":0.0118,"insert":0.5042,"ping":5.0E-5,"update":0.9422},"allocatedBytesPerOp":267794.616,"gcCollections":9,"gcMillis":32,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E3-16
+[2026-10-30 06:43:26] Stopping session...
+[2026-10-30 06:43:29] Running L1: backend=mongo scenario=E3 concurrency=64...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:43:36.765-07:00  WARN 46698 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:43:36.792-07:00  WARN 46698 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:43:38.012-07:00  WARN 46698 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":64,"seedSeconds":17.802930959,"seconds":5.098286625,"throughput":3922.8865442613283,"failed":{},"latencyMs":{"p50":14.529,"p99":43.348542,"max":64.836333},"storeRoundTripsPerOp":0.4949,"storeRoundTripsByCommand":{"aggregate":2.5E-4,"find":0.0011,"findAndModify":0.0118,"insert":0.16235,"update":0.3194},"allocatedBytesPerOp":233761.934,"gcCollections":10,"gcMillis":34,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E3-64
+[2026-10-30 06:44:05] Stopping session...
+[2026-10-30 06:44:08] Running L1: backend=mongo scenario=E3 concurrency=256...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:44:16.160-07:00  WARN 46813 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:44:16.187-07:00  WARN 46813 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:44:17.470-07:00  WARN 46813 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":256,"seedSeconds":20.2954865,"seconds":3.046021791,"throughput":6565.941208658937,"failed":{},"latencyMs":{"p50":33.364167,"p99":108.363666,"max":201.817917},"storeRoundTripsPerOp":0.1903,"storeRoundTripsByCommand":{"aggregate":1.5E-4,"find":3.5E-4,"findAndModify":0.0118,"insert":0.0565,"update":0.1215},"allocatedBytesPerOp":221511.7612,"gcCollections":10,"gcMillis":37,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E3-256
+[2026-10-30 06:44:45] Stopping session...
+[2026-10-30 06:44:48] Running L1: backend=mongo scenario=E3 concurrency=1024...
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] component E3 on mongo
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-30T06:44:55.986-07:00  WARN 46930 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'componentCounters' of type [me.ahoo.wow.benchmark.transfer.ComponentCounters] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). The currently created BeanPostProcessor [componentDataSourceCounter] is declared through a non-static factory method on that class; consider declaring it as static instead.
+2026-10-30T06:44:56.012-07:00  WARN 46930 --- [transfer-service] [           main] trationDelegate$BeanPostProcessorChecker : Bean 'storeCounter' of type [me.ahoo.wow.benchmark.transfer.StoreCounter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying). Is this bean getting eagerly injected/applied to a currently created BeanPostProcessor [componentDataSourceCounter]? Check the corresponding BeanPostProcessor declaration and its dependencies/advisors. If this bean does not have to be post-processed, declare it with ROLE_INFRASTRUCTURE.
+2026-10-30T06:44:57.188-07:00  WARN 46930 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+{"schema":"wow-e2e-bench/component/1","scenario":"E3","accounts":100000,"ops":20000,"warmUpOps":2000,"concurrency":1024,"seedSeconds":11.310424292,"seconds":1.74263325,"throughput":11476.884192356596,"failed":{},"latencyMs":{"p50":74.985958,"p99":194.068958,"max":298.085958},"storeRoundTripsPerOp":0.06345,"storeRoundTripsByCommand":{"aggregate":1.0E-4,"find":3.5E-4,"findAndModify":0.01175,"insert":0.01215,"update":0.0391},"allocatedBytesPerOp":213372.71,"gcCollections":8,"gcMillis":28,"note":"Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips include the node's background work (tails, snapshots, leases) over the measured phase.","backend":"mongo"}
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/l1/mongo-E3-1024
+[2026-10-30 06:45:14] Stopping session...
+[2026-10-30 06:45:17] === Section 4 Complete ===
+[2026-10-30 06:45:17] >>> Section 4 finished in 734 s.
+[2026-10-30 06:45:17] >>> Starting Section 5: 3-Node Cluster (5-N3-postgres, 5-N3-mongo)
+[2026-10-30 06:45:17] Starting Section 5: 3-Node Cluster (5-N3-*)
+[2026-10-30 06:45:17] === Section 5: Starting 3-node cluster for postgres (Session 5-N3-postgres) ===
+[2026-10-30 06:45:17] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 --nodes=3
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] starting node 2 on postgres
+[bench] starting node 3 on postgres
+[bench] nodes up; settling 15s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 19.9s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (34.9 ms)
+[check] E2: ok (18.8 ms)
+[check] E3: ok (18.4 ms)
+[check] E1-large: ok (5.6 ms)
+[check] E4-state: ok (1.9 ms)
+[check] E4-list: ok (49.1 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 9.6s, 0 failed
+[settle] 1s: node-1 0.00, node-2 0.01, node-3 0.02
+[settle] 2s: node-1 0.02, node-2 0.03, node-3 0.02
+[settle] 3s: node-1 0.01, node-2 0.02, node-3 0.01
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=3;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:46:21] Session successfully started: backend=postgres heap=1g --nodes=3
+[2026-10-30 06:46:21] [postgres 3nodes] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.01, node-2 0.01, node-3 0.02
+[settle] 2s: node-1 0.02, node-2 0.02, node-3 0.02
+[settle] 3s: node-1 0.01, node-2 0.01, node-3 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=898.3/s p50=1ms errors={}
+[saturate] E1: concurrency=4 throughput=2268.9/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=4552.5/s p50=3ms errors={}
+[saturate] E1: concurrency=64 throughput=7863.8/s p50=7ms errors={}
+[saturate] E1: concurrency=256 throughput=15039.4/s p50=16ms errors={}
+[saturate] E1: concurrency=1024 throughput=5864.3/s p50=28ms errors={http-503-wow.command.unknown=3028, http-504-wow.wait.timeout=667, http-409-wow.command.contended=7}
+[saturate] saturation: 15039.4/s at concurrency 256
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/5-N3-postgres/e1-sweep
+[2026-10-30 06:50:32] [postgres 3nodes] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.01, node-2 0.01, node-3 3.60
+[settle] 2s: node-1 0.01, node-2 0.01, node-3 3.62
+[settle] 3s: node-1 0.01, node-2 0.01, node-3 2.77
+[settle] 4s: node-1 0.01, node-2 0.00, node-3 0.01
+[settle] 5s: node-1 0.01, node-2 0.01, node-3 0.02
+[settle] 6s: node-1 0.01, node-2 0.01, node-3 0.03
+[settle] quiet after 6s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=313.5/s p50=3ms errors={}
+[saturate] E3: concurrency=4 throughput=844.1/s p50=4ms errors={}
+[saturate] E3: concurrency=16 throughput=1655.6/s p50=8ms errors={}
+[saturate] E3: concurrency=64 throughput=3453.0/s p50=17ms errors={}
+[saturate] E3: concurrency=256 throughput=5621.7/s p50=40ms errors={http-503-wow.command.unknown=58, http-504-wow.wait.timeout=63}
+[saturate] E3: concurrency=1024 throughput=2619.4/s p50=71ms errors={http-503-wow.command.unknown=2734, http-504-wow.wait.timeout=1467, http-409-wow.command.contended=9}
+[saturate] saturation: 5621.7/s at concurrency 256
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/5-N3-postgres/e3-sweep
+[2026-10-30 06:54:56] Stopping session...
+[2026-10-30 06:55:04] === Section 5: postgres 3-node complete ===
+[2026-10-30 06:55:04] === Section 5: Starting 3-node cluster for mongo (Session 5-N3-mongo) ===
+[2026-10-30 06:55:04] Attempting up (attempt 1/2): backend=mongo heap=1g accounts=100000 --nodes=3
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on mongo
+[bench] starting node 2 on mongo
+[bench] starting node 3 on mongo
+[bench] nodes up; settling 15s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 24.5s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (34.8 ms)
+[check] E2: ok (25.8 ms)
+[check] E3: ok (18.2 ms)
+[check] E1-large: ok (5.2 ms)
+[check] E4-state: ok (1.9 ms)
+[check] E4-list: ok (50.4 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 10.8s, 0 failed
+[settle] 1s: node-1 0.02, node-2 0.02, node-3 0.02
+[settle] 2s: node-1 0.02, node-2 0.01, node-3 0.01
+[settle] 3s: node-1 0.02, node-2 0.02, node-3 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=mongo;nodes=3;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 06:56:15] Session successfully started: backend=mongo heap=1g --nodes=3
+[2026-10-30 06:56:15] [mongo 3nodes] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.01, node-2 0.02, node-3 0.01
+[settle] 2s: node-1 0.02, node-2 0.03, node-3 0.02
+[settle] 3s: node-1 0.01, node-2 0.02, node-3 0.02
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=334.8/s p50=2ms errors={}
+[saturate] E1: concurrency=4 throughput=1443.5/s p50=2ms errors={}
+[saturate] E1: concurrency=16 throughput=3619.1/s p50=4ms errors={}
+[saturate] E1: concurrency=64 throughput=7080.9/s p50=7ms errors={}
+[saturate] E1: concurrency=256 throughput=12036.8/s p50=19ms errors={}
+[saturate] E1: concurrency=1024 throughput=1371.0/s p50=688ms errors={http-503-wow.command.unknown=1917}
+[saturate] saturation: 12036.8/s at concurrency 256
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/5-N3-mongo/e1-sweep
+[2026-10-30 07:00:21] [mongo 3nodes] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.03, node-2 0.09, node-3 0.17
+[settle] 2s: node-1 0.08, node-2 0.06, node-3 0.47
+[settle] 3s: node-1 0.05, node-2 0.02, node-3 0.18
+[settle] 4s: node-1 0.05, node-2 0.02, node-3 0.17
+[settle] 5s: node-1 0.04, node-2 0.01, node-3 0.20
+[settle] quiet after 5s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=1.2/s p50=12ms errors={}
+[saturate] E3: concurrency=4 throughput=540.1/s p50=6ms errors={}
+[saturate] E3: concurrency=16 throughput=1210.9/s p50=10ms errors={}
+[saturate] E3: concurrency=64 throughput=1565.1/s p50=21ms errors={}
+[saturate] E3: concurrency=256 throughput=1219.4/s p50=34ms errors={http-503-wow.command.unknown=55, http-504-wow.wait.timeout=122}
+[saturate] E3: concurrency=1024 throughput=614.0/s p50=58ms errors={http-503-wow.command.unknown=315, http-504-wow.wait.timeout=1057}
+[saturate] saturation: 1565.1/s at concurrency 64
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/5-N3-mongo/e3-sweep
+[2026-10-30 07:04:48] Stopping session...
+[2026-10-30 07:04:56] === Section 5: mongo 3-node complete ===
+[2026-10-30 07:04:56] Section 5 Finished
+[2026-10-30 07:04:56] >>> Section 5 finished in 1179 s.
+[2026-10-30 07:04:56] >>> Starting Section 6: JDK 25 Runtime (6-J25-postgres)
+[2026-10-30 07:04:56] Starting Section 6: JDK 25 Runtime (6-J25-postgres)
+[2026-10-30 07:04:56] === Section 6: Starting JDK 25 Runtime on PostgreSQL (Session 6-J25-postgres) ===
+[2026-10-30 07:04:56] Switched JAVA_HOME to JDK 25: openjdk version "25.0.5" 2026-10-20 LTS
+[2026-10-30 07:04:56] Attempting up (attempt 1/2): backend=postgres heap=1g accounts=100000 
+[bench] starting kafka and postgres
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-postgres Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-postgres Created 
+ Container wow-e2e-bench-postgres Starting 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-postgres Started 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-postgres Waiting 
+ Container wow-e2e-bench-postgres Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on postgres
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 26.0s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (35.3 ms)
+[check] E2: ok (17.8 ms)
+[check] E3: ok (11.9 ms)
+[check] E1-large: ok (5.3 ms)
+[check] E4-state: ok (1.6 ms)
+[check] E4-list: ok (48.0 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 6.9s, 0 failed
+[settle] 1s: node-1 0.02
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=postgres;nodes=1;accounts=100000;heap=1g;install=;args=; measure with --reuse, stop with bench.sh down
+[2026-10-30 07:05:46] Session successfully started: backend=postgres heap=1g 
+[2026-10-30 07:05:46] [JDK 25 postgres] Running E1 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.06
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E1: concurrency=1 throughput=1150.7/s p50=0ms errors={}
+[saturate] E1: concurrency=4 throughput=2452.8/s p50=1ms errors={}
+[saturate] E1: concurrency=16 throughput=5855.2/s p50=2ms errors={}
+[saturate] E1: concurrency=64 throughput=11933.9/s p50=4ms errors={}
+[saturate] E1: concurrency=256 throughput=16745.1/s p50=15ms errors={}
+[saturate] E1: concurrency=1024 throughput=24873.6/s p50=40ms errors={}
+[saturate] E1: concurrency=4096 throughput=34212.9/s p50=117ms errors={}
+[saturate] saturation: 34212.9/s at concurrency 4096
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/6-J25-postgres/e1-sweep
+[2026-10-30 07:10:31] [JDK 25 postgres] Running E3 uniform sweep (to 4096)...
+[settle] 1s: node-1 0.03
+[settle] 2s: node-1 0.02
+[settle] 3s: node-1 0.03
+[settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=525.2/s p50=1ms errors={}
+[saturate] E3: concurrency=4 throughput=1063.6/s p50=3ms errors={}
+[saturate] E3: concurrency=16 throughput=2512.2/s p50=5ms errors={}
+[saturate] E3: concurrency=64 throughput=4193.6/s p50=14ms errors={}
+[saturate] E3: concurrency=256 throughput=5495.9/s p50=46ms errors={}
+[saturate] E3: concurrency=1024 throughput=10049.4/s p50=100ms errors={}
+[saturate] E3: concurrency=4096 throughput=7133.3/s p50=290ms errors={http-429-wow.command.busy=303288, http-504-wow.wait.timeout=1547}
+[saturate] saturation: 10049.4/s at concurrency 1024
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/6-J25-postgres/e3-sweep
+[2026-10-30 07:15:17] Stopping session...
+[2026-10-30 07:15:26] === Section 6: JDK 25 Runtime Complete, restored JAVA_HOME ===
+[2026-10-30 07:15:26] Section 6 Finished
+[2026-10-30 07:15:26] >>> Section 6 finished in 630 s.
+[2026-10-30 07:15:26] >>> Generating COMPARE.md...
+/Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/harness/bench.sh: line 441: pnpm: command not found
+[2026-10-30 07:15:26] Failed to generate COMPARE.md
+[2026-10-30 07:15:26] >>> Generating SUMMARY.md...
+Summary written to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/reports/v10-m5max-snapshot/SUMMARY.md
+[2026-10-30 07:15:26] =========================================================
+[2026-10-30 07:15:26] All benchmark snapshot runs completed successfully!
+[2026-10-30 07:15:26] Branch: bench/m5max-snapshot
+[2026-10-30 07:15:26] Final Commit SHA: cebdb88d01e87a81fb23ff90fbd4d301ed1e7da8
+[2026-10-30 07:15:26] Total Elapsed Time: 136 min 6 s (8166 s)
+[2026-10-30 07:15:26] =========================================================
+[2026-10-30 07:15:26] Stopping session...
