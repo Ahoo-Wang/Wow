@@ -1,6 +1,6 @@
 # 订阅侧定形：D372 的实施设计
 
-日期：2026-10-29。状态：已定（D372，协调者按「默认按推荐」定），实施中。上位：[决策台账](decisions.md) D372、[订阅](04-subscriptions.md)、[编程模型](01-programming-model.md)。
+日期：2026-10-29。状态：已实施（D372，协调者按「默认按推荐」定；全部落地于 2026-10-30）。上位：[决策台账](decisions.md) D372、[订阅](04-subscriptions.md)、[编程模型](01-programming-model.md)。
 
 来源：订阅侧公开 API 的只读审查 S1～S28（批 2，基线 main `2935ead694`，七个质量维度）。本文把 D372 的每一项写到可以直接实施、不会走样的程度：问题、决定、改动范围、验收、明确不做的，以及 PR 拆分与状态。证据里的路径以仓库为根，`…` 代表 `src/main/kotlin/me/ahoo/wow`，行号是审查时的位置，仅作起点。
 
@@ -18,9 +18,9 @@
 | PR 1 台账与运维 | S1～S4 | 已合并 #5194 |
 | 测试 DSL | S19～S24 | 已合并 #5195 |
 | PR 3 身份与运维面 | S5～S9，以及 #5194 带来的两处技能说明 | 已合并 #5198（2026-10-30） |
-| PR 4a Saga 处理器 | S10、S11、S12、S16 | 进行中 #5215 |
-| PR 4b 失败 | S13、S14（已定：保留内联、写明规则）、S15，以及失败分类规则移到后端 | 未开始（#5215 合并后） |
-| PR 4c 形状与编译期检查 | S17、S18、S25 的 `JOIN`、S27 | 未开始 |
+| PR 4a Saga 处理器 | S10、S11、S12、S16 | 已合并 #5215 |
+| PR 4b 失败 | S13、S14（已定：保留内联、写明规则）、S15，以及失败分类规则移到后端 | 已合并 #5218 |
+| PR 4c 形状与编译期检查 | S17、S18、S25 的 `JOIN`、S27 | 已合并 #5227 |
 
 顺序：PR 3 → CosId 5（#5165，在 CoSec 8 #5167 之后）→ PR 4a → 4b → 4c，同一会话依次做（批 2）。PR 4a 改动回执类型时，在同一个 PR 里同步测试 DSL。
 
@@ -150,6 +150,14 @@
 
 - 决定：`PaymentGatewaySaga` 的「只告警一次」（`private val warned = AtomicBoolean()`，`:49`）移入缓存适配器，处理器不留状态；以 `@Sends(derives)` 取代为返回 `CommandRequest<*>` 而写的变通；保留显式的空 `@OnRejected`（表达「接受这个拒绝」的意图）。失败路径的测试随测试 DSL（已合并）补上：网关不可用而停放、`SupplierDeliverySaga` 的来源失败、`OrderPaymentSaga` 停放的 `CancelOrder`（#5195 已加）、`ShipmentNotifier` 的 `@Retry(timeout)`；`SupplierDeliverySagaTest.kt:51` 改用 `expectCommands`。
 - 不做：`@OnRejected(accept = […])` 之类声明式接受。
+
+### 4b、4c 实施中定下的细则（协调者 2026-10-30）
+
+- 失败分类器的注册（4b）：各技术的 `FailureClassifier` 由所属模块（`:postgres`、`:client`）在 `META-INF/services` 中声明、经 `ServiceLoader` 发现，与 `StoreProvider` 等端口同法；内核的 `FailureClassification` 加载它们，测试 DSL 与运行时分类一致。顺序：处理器的 `@Retry`、应用的分类器、各模块的分类器、运行时自己的、内核内置的 Wow SPI 规则。立即停放的异常为 `UnrecoverableHandlingException`，`@Retry(systemic)` 另列系统性故障。
+- 定时任务（4c，S17）：一个任务的全部设置（规则 `cron`、`zone`、`misfire`、`enabled`，以及运行它的订阅的 `retry.*`、`parked.*`）都在 `wow.schedules.<任务>` 下；在 `wow.subscriptions.[…]` 里写任务的订阅即启动失败并指向前者；`expression` 改名 `cron`（`JobRule` 同名）；分片任务的订阅按其各分区实例的 ID 过滤节拍。
+- `@Retry` 的继承（4c，S18）：处理器类上的 `@Retry` 取自身的，否则取最近的父类的，整体继承、不逐项合并；实现带 `@Retry` 的接口是编译错误（接口没有唯一的最近者）。
+- 测试 DSL 执行处理器的 `@Retry(timeout)`（4c，S27 的方案 B）：与 `SubscriptionWorker` 一样按真实时间以 `withTimeoutOrNull` 取消，`@Blocking` 处理器在虚拟线程上；`HandlerTimeoutException` 移入 `:kernel`；示例只核对处理器的预算，超时路径由 DSL 自己的测试以短超时证明（不用虚拟时间：`@Blocking` 处理器在真实线程上等待）。
+- 「只告警一次」移入 CoCache 的 `StateViewCaches` 适配器（4c，S27）：每次中断告警一次，处理器不留状态。
 
 ## 7. 测试 DSL（已落地 #5195）
 
