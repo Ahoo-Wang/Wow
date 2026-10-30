@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 269 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 277 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -20,7 +20,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 269 个，由宿主
 | `wow.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. |
 | `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start. |
 | `wow.routing` | `CommandRouting` | `auto` | Where commands run (CommandRouting): `auto`, on the owner of the aggregate's partition, or here on the memory backend, which cannot route across nodes; `partitioned`; `local`; or `topic`, through each context's command topic. An aggregate type's `wow.aggregates.[<context>.<aggregate>].routing` comes before it. |
-| `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
+| `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's subscription configured under `wow.subscriptions`. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique within its context alone. |
@@ -566,14 +566,22 @@ How a `list` streamed as server-sent events reads its chunks and how long it run
 
 ## `wow.schedules.<name>`
 
-Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start.
+Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's subscription configured under `wow.subscriptions`.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.schedules.<name>.enabled` | `Boolean` | `true` | Whether a SYSTEM job's instances run; false disables them at startup. |
-| `wow.schedules.<name>.expression` | `String` |  | The job's cron expression, over its annotation's. |
+| `wow.schedules.<name>.cron` | `String` |  | The job's cron, six fields, over its annotation's. |
+| `wow.schedules.<name>.enabled` | `Boolean` | `true` | Whether a SYSTEM or a SHARDED job's instances run; false disables them at startup. |
 | `wow.schedules.<name>.misfire` | `Misfire` |  | What a firing missed while no node ran it does, over its annotation's. |
-| `wow.schedules.<name>.zone` | `String` |  | The time zone its expression is read in, over its annotation's. |
+| `wow.schedules.<name>.parked.claim-ttl` | `Duration` |  | How long a retry's claim on the entry holds, over `wow.subscription.parked`'s. |
+| `wow.schedules.<name>.parked.initial-backoff` | `Duration` |  | The wait before the first automatic retry, over `wow.subscription.parked`'s. |
+| `wow.schedules.<name>.parked.max-retries` | `Integer` |  | How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s. |
+| `wow.schedules.<name>.retry.initial-backoff` | `Duration` |  | The wait after the first failure. |
+| `wow.schedules.<name>.retry.max-attempts` | `Integer` |  | The most attempts of the handler in all, before its aggregate parks. |
+| `wow.schedules.<name>.retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
+| `wow.schedules.<name>.retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
+| `wow.schedules.<name>.retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
+| `wow.schedules.<name>.zone` | `String` |  | The time zone its cron is read in, over its annotation's. |
 
 ## `wow.shared-states`
 

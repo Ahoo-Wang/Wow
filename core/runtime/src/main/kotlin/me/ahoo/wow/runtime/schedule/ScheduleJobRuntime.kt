@@ -27,28 +27,37 @@ import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.runtime.subscription.SubscriptionId
+import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 
 /**
- * The host's override of a job's default rule, `wow.schedules.<job>.*`: each part that is null keeps
- * the annotation's; [enabled] false disables a [JobScope.SYSTEM] job's instances at startup (a [JobScope.TENANT] job's
- * instances are each tenant's to enable or disable).
+ * The host's settings of a job, `wow.schedules.<job>.*`, the only place a job is configured: its rule ([cron],
+ * [zone], [misfire]), each part null to keep the annotation's; [enabled] false disables a [JobScope.SYSTEM] or a
+ * [JobScope.SHARDED] job's instances at startup (a [JobScope.TENANT] job's instances are each tenant's to enable or
+ * disable); and the in-process [retry] and the [parked] retries of the subscriptions that run it, null to keep the
+ * handler's `@Retry` and the global parked retries.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class JobOptions @InternalWowApi constructor(
-    val expression: String? = null,
+    val cron: String? = null,
     val zone: String? = null,
     val misfire: Misfire? = null,
     val enabled: Boolean = true,
+    val retry: HandlerRetry? = null,
+    val parked: ParkedRetrySpec? = null,
 ) {
     /** The parts it overrides, as a rule over the annotation's. */
-    val rule: JobRule get() = JobRule(expression, zone, misfire)
+    val rule: JobRule get() = JobRule(cron, zone, misfire)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is JobOptions && valueFields() == other.valueFields()
@@ -56,9 +65,9 @@ class JobOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "JobOptions(expression=$expression, zone=$zone, misfire=$misfire, enabled=$enabled)"
+        "JobOptions(cron=$cron, zone=$zone, misfire=$misfire, enabled=$enabled, retry=$retry, parked=$parked)"
 
-    private fun valueFields(): List<Any?> = listOf(expression, zone, misfire, enabled)
+    private fun valueFields(): List<Any?> = listOf(cron, zone, misfire, enabled, retry, parked)
 }
 
 /**
@@ -99,10 +108,50 @@ internal object ScheduleJobRuntime {
     }
 
     /**
-     * The commands that bring the [JobScope.SYSTEM] [jobs] of [context] in line with the host's configuration at
-     * startup: `wow.schedule.Enable` of each instance (one per partition of [partitions] for a sharded job) when the
-     * job is enabled, which its instance decides as a no-op when nothing changed and reschedules when its default did;
-     * `wow.schedule.Disable` otherwise.
+     * [subscription] with each job's own settings in [options] (`wow.schedules.<job>.retry.*` and `.parked.*`) as
+     * those of the subscriptions that run it: [declared] are the jobs of each context, by the name of the subscription
+     * that runs each. A job is configured under its name alone: its subscription configured under
+     * `wow.subscriptions.[<context>.<name>]` fails.
+     */
+    @JvmStatic
+    fun subscriptionOptions(
+        subscription: SubscriptionOptions,
+        options: Map<String, JobOptions>,
+        declared: Map<String, Map<String, ScheduleJob>>,
+    ): SubscriptionOptions {
+        val jobs = declared.flatMap { (context, jobs) ->
+            jobs.map { (name, job) -> SubscriptionId(context, name) to job.name }
+        }.toMap()
+        val configured = subscription.starts.keys + subscription.retries.keys + subscription.parked.specs.keys
+        configured.firstOrNull { it in jobs }?.let {
+            val job = jobs.getValue(it)
+            throw WowConfigurationException(
+                "wow.subscriptions.[$it]",
+                null,
+                "The subscription $it runs the job $job, which is configured under wow.schedules.$job alone.",
+                "Move its settings to wow.schedules.$job.retry.* and wow.schedules.$job.parked.*.",
+            )
+        }
+        val retries = jobs.mapNotNull { (id, job) -> options[job]?.retry?.let { id to it } }.toMap()
+        val specs = jobs.mapNotNull { (id, job) -> options[job]?.parked?.let { id to it } }.toMap()
+        if (retries.isEmpty() && specs.isEmpty()) {
+            return subscription
+        }
+        return subscription.copyWith(
+            retries = subscription.retries + retries,
+            parked = ParkedRetryOptions(
+                subscription.parked.spec,
+                subscription.parked.specs + specs,
+                subscription.parked.scanInterval,
+            ),
+        )
+    }
+
+    /**
+     * The commands that bring the [JobScope.SYSTEM] and [JobScope.SHARDED] [jobs] of [context] in line with the host's
+     * configuration at startup: `wow.schedule.Enable` of each instance (one per partition of [partitions] for a
+     * SHARDED job) when the job is enabled, which its instance decides as a no-op when nothing changed and reschedules
+     * when its default did; `wow.schedule.Disable` otherwise.
      */
     @JvmStatic
     fun startup(
@@ -110,10 +159,10 @@ internal object ScheduleJobRuntime {
         jobs: List<ScheduleJob>,
         options: Map<String, JobOptions>,
         partitions: Int,
-    ): List<Pair<AggregateRef, Any>> = jobs.filter { it.scope == JobScope.SYSTEM }.flatMap { job ->
+    ): List<Pair<AggregateRef, Any>> = jobs.filter { it.scope != JobScope.TENANT }.flatMap { job ->
         val enabled = options[job.name]?.enabled ?: true
-        val instances = if (job.sharded) {
-            (0 until partitions).map { partition -> ScheduleJobModel.shardRef(context, job.name, partition, partitions) to partition }
+        val instances = if (job.scope == JobScope.SHARDED) {
+            (0 until partitions).map { ScheduleJobModel.shardRef(context, job.name, it, partitions) to it }
         } else {
             listOf(ScheduleJobModel.refOf(context, job.name) to null)
         }

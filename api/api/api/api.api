@@ -164,7 +164,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnSchedule
 	public abstract fun misfire ()Lme/ahoo/wow/api/schedule/Misfire;
 	public abstract fun name ()Ljava/lang/String;
 	public abstract fun scope ()Lme/ahoo/wow/api/schedule/JobScope;
-	public abstract fun sharded ()Z
 	public abstract fun zone ()Ljava/lang/String;
 }
 
@@ -1379,7 +1378,7 @@ public final class me/ahoo/wow/api/schedule/JobRescheduled$Companion {
 public final class me/ahoo/wow/api/schedule/JobRule {
 	public static final field Companion Lme/ahoo/wow/api/schedule/JobRule$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getExpression ()Ljava/lang/String;
+	public final fun getCron ()Ljava/lang/String;
 	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
 	public final fun getZone ()Ljava/lang/String;
 	public fun hashCode ()I
@@ -1400,6 +1399,7 @@ public final class me/ahoo/wow/api/schedule/JobRule$Companion {
 }
 
 public final class me/ahoo/wow/api/schedule/JobScope : java/lang/Enum {
+	public static final field SHARDED Lme/ahoo/wow/api/schedule/JobScope;
 	public static final field SYSTEM Lme/ahoo/wow/api/schedule/JobScope;
 	public static final field TENANT Lme/ahoo/wow/api/schedule/JobScope;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;

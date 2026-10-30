@@ -77,7 +77,8 @@ internal class NodeAssembly(
     val channel: ClusterChannel,
     /** Sends signals to the other nodes of the service; a single node needs none. */
     remoteSignals: SignalSender = SignalSender.NONE,
-    val options: ServiceNodeOptions = ServiceNodeOptions(),
+    /** The host's options, which [options] completes with each job's settings. */
+    configured: ServiceNodeOptions = ServiceNodeOptions(),
     val admission: AdmissionPlugins = AdmissionPlugins(),
     subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
     /** The kernel's codec, shared with the snapshot subscriptions. */
@@ -111,6 +112,22 @@ internal class NodeAssembly(
      */
     val queries: ContextQueries = ContextQueries.NONE,
 ) {
+    /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
+    private val declaredJobs: Map<String, Map<String, ScheduleJob>> =
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { subscriptions.jobs(it) }
+
+    /**
+     * The host's [configured] options, each job's own settings (`wow.schedules.<job>.retry`, `.parked`) those of the
+     * subscriptions that run it ([ScheduleJobRuntime.subscriptionOptions]).
+     */
+    val options: ServiceNodeOptions = configured.copyWith(
+        subscription = ScheduleJobRuntime.subscriptionOptions(
+            configured.subscription,
+            configured.schedules,
+            declaredJobs,
+        ),
+    )
+
     /** How every subscription of the node classifies its handler's failures. */
     private val classification = RuntimeFailures.of(failureClassifiers)
 
@@ -139,7 +156,7 @@ internal class NodeAssembly(
      * [ServiceNodeOptions.schedules]: each context with jobs gets the built-in job aggregate `<context>.schedule`.
      */
     val jobs: Map<String, List<ScheduleJob>> = ScheduleJobRuntime.configured(
-        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { subscriptions.jobs(it) },
+        declaredJobs.mapValues { (_, jobs) -> jobs.values.toList() },
         options.schedules,
     )
 

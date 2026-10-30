@@ -32,6 +32,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.ReplyTo
@@ -82,8 +83,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   with the others to that target; the command they schedule is named by the context's models and Manifests
  *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
  * - **Jobs**: a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the
- *   context's built-in job aggregate, `<context>.schedule`, which the node adds for the [jobs] its handlers run: each
- *   tick of its job is handed to it, and what it derives is executed as any saga's.
+ *   context's built-in job aggregate, `<context>.schedule`, which the node adds for the [jobs] its handlers run: its
+ *   subscription reads its job's instances alone, by their ids ([ScheduleJobModel.instanceIds]), each tick is handed
+ *   to it, and what it derives is executed as any saga's.
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]); a handler's `@Retry`
  *   ([ProcessorBinding.retry]) is its subscription's own budget ([Subscription.retry]).
@@ -106,7 +108,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
     }
 
-    override fun jobs(context: String): List<ScheduleJob> = processors[context].orEmpty().mapNotNull { it.job }
+    override fun jobs(context: String): Map<String, ScheduleJob> =
+        processors[context].orEmpty().mapNotNull { handler -> handler.job?.let { handler.name to it } }.toMap()
 
     override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
         stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }
@@ -129,6 +132,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val filter = SubscriptionFilter(
                 context.context,
                 read(handler, context.models).mapTo(LinkedHashSet()) { it.type.name },
+                // A job's subscription reads its job's instances alone, not every job's ticks.
+                ids = handler.job?.let {
+                    ScheduleJobModel.instanceIds(context.context, it, context.backends.log.partitions)
+                }.orEmpty(),
             )
             val decoder = EntryDecoder.stateEvents(context.stateReader(name))
             if (handler.kind == FunctionKind.SAGA) {

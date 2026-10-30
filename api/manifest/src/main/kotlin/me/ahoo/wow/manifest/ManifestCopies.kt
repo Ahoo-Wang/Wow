@@ -180,9 +180,8 @@ fun JobManifest.copyWith(
     cron: String = this.cron,
     zone: String = this.zone,
     scope: String = this.scope,
-    sharded: Boolean = this.sharded,
     misfire: String = this.misfire,
-): JobManifest = JobManifest(name, cron, zone, scope, sharded, misfire)
+): JobManifest = JobManifest(name, cron, zone, scope, misfire)
 
 @InternalWowApi
 fun RetryManifest.copyWith(

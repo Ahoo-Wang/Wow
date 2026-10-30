@@ -207,7 +207,6 @@ public final class me/ahoo/wow/manifest/JobManifest {
 	public final fun getMisfire ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getScope ()Ljava/lang/String;
-	public final fun getSharded ()Z
 	public final fun getZone ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -467,13 +466,15 @@ public final class me/ahoo/wow/manifest/SubscriptionStart : java/lang/Enum {
 	public static final field BEGINNING Lme/ahoo/wow/manifest/SubscriptionStart;
 	public static final field Companion Lme/ahoo/wow/manifest/SubscriptionStart$Companion;
 	public static final field END Lme/ahoo/wow/manifest/SubscriptionStart;
+	public static final field JOIN Lme/ahoo/wow/manifest/SubscriptionStart;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/SubscriptionStart;
 	public static fun values ()[Lme/ahoo/wow/manifest/SubscriptionStart;
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionStart$Companion {
-	public final fun defaultFor (Lme/ahoo/wow/manifest/SubscriptionKind;)Lme/ahoo/wow/manifest/SubscriptionStart;
+	public final fun defaultFor (Lme/ahoo/wow/manifest/SubscriptionKind;Z)Lme/ahoo/wow/manifest/SubscriptionStart;
+	public static synthetic fun defaultFor$default (Lme/ahoo/wow/manifest/SubscriptionStart$Companion;Lme/ahoo/wow/manifest/SubscriptionKind;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionStart;
 }
 
 public final class me/ahoo/wow/manifest/SystemCommands {

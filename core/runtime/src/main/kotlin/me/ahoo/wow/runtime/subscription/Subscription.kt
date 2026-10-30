@@ -295,16 +295,18 @@ internal class HandlerTimeoutException(
 
 /**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of
- * the context when empty), holding at least one event whose stored name is in [events] (any event when empty).
+ * the context when empty), of the aggregates whose id is in [ids] (any id when empty: a job's subscription reads its
+ * job's instances alone), holding at least one event whose stored name is in [events] (any event when empty).
  * Event names are the names the log stores (`context.aggregate.Event`). Without models a renamed event must be listed
  * under its former names too; [resolve] adds them from the models. An entry outside the filter still moves the
- * checkpoint.
+ * checkpoint, its state never read.
  */
 @InternalWowApi
 data class SubscriptionFilter(
     val context: String,
     val aggregates: Set<String> = emptySet(),
     val events: Set<String> = emptySet(),
+    val ids: Set<String> = emptySet(),
 ) {
     init {
         require(context.isNotBlank()) { "A subscription filter needs a context." }
@@ -314,6 +316,7 @@ data class SubscriptionFilter(
         val type = stream.ref.type
         return type.context == context &&
             (aggregates.isEmpty() || type.name in aggregates) &&
+            (ids.isEmpty() || stream.ref.id in ids) &&
             (events.isEmpty() || stream.events.any { it.name in events })
     }
 

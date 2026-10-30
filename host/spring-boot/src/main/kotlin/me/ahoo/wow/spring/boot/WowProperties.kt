@@ -142,8 +142,9 @@ class WowProperties {
     var timers: Timers = Timers()
 
     /**
-     * Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the
-     * node runs fails its start.
+     * Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` holds all of the job's settings, its rule and the
+     * retries of the subscriptions that run it. A job no handler of the node runs fails its start, and so does a job's
+     * subscription configured under `wow.subscriptions`.
      */
     var schedules: MutableMap<String, Schedule> = LinkedHashMap()
     var tenant: Tenant = Tenant()
@@ -865,7 +866,8 @@ class WowProperties {
      * kind's default (a projection from the beginning, a reactor or a saga from the end). A subscription that has a
      * checkpoint goes on from it. [parked] is how its parked entries are retried, over `wow.subscription.parked`.
      * [retry] is its in-process retry budget before it parks, over its handler's `@Retry` and `wow.subscription.retry`.
-     * A name the node has no subscription of is refused at startup.
+     * A name the node has no subscription of is refused at startup, and so is the subscription of an `@OnSchedule` job,
+     * whose settings are its job's, `wow.schedules.<job>.*`.
      */
     @InternalWowApi
     class SubscriptionSettings {
@@ -1028,25 +1030,35 @@ class WowProperties {
     }
 
     /**
-     * The host's override of an `@OnSchedule` job's default rule: its cron [expression], its time
-     * [zone] and its [misfire] policy, each unset to keep the annotation's; [enabled] false disables a SYSTEM job's
-     * instances at startup. A tenant's own rule of a TENANT job comes before it.
+     * An `@OnSchedule` job's settings, the only place it is configured: its rule, the [cron], the time [zone] and the
+     * [misfire] policy, each unset to keep the annotation's (a tenant's own rule of a TENANT job comes before it);
+     * [enabled] false disables a SYSTEM or a SHARDED job's instances at startup; and the [retry] and [parked] retries
+     * of the subscriptions that run it, over its handler's `@Retry` and `wow.subscription.retry`, and over
+     * `wow.subscription.parked`.
      */
     @InternalWowApi
     class Schedule {
-        /** The job's cron expression, over its annotation's. */
-        var expression: String? = null
+        /** The job's cron, six fields, over its annotation's. */
+        var cron: String? = null
 
-        /** The time zone its expression is read in, over its annotation's. */
+        /** The time zone its cron is read in, over its annotation's. */
         var zone: String? = null
 
         /** What a firing missed while no node ran it does, over its annotation's. */
         var misfire: Misfire? = null
 
-        /** Whether a SYSTEM job's instances run; false disables them at startup. */
+        /** Whether a SYSTEM or a SHARDED job's instances run; false disables them at startup. */
         var enabled: Boolean = true
 
-        fun options(): JobOptions = JobOptions(expression, zone, misfire, enabled)
+        /** The in-process retry budget of the subscriptions that run it, before they park. */
+        var retry: RetrySpec = RetrySpec()
+
+        /** How their parked entries are retried. */
+        var parked: ParkedSpec = ParkedSpec()
+
+        /** These settings, the parked retries over [parkedBase], `wow.subscription.parked`'s. */
+        fun options(parkedBase: ParkedRetrySpec): JobOptions =
+            JobOptions(cron, zone, misfire, enabled, retry.handlerRetry(), parked.specOver(parkedBase))
     }
 
     /**

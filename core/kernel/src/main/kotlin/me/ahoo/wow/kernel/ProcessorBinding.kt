@@ -53,8 +53,8 @@ import me.ahoo.wow.kernel.schedule.ScheduleJob
  * - [commits] are a saga's `@OnCommitted` handlers, likewise: the runtime hands the success receipt of
  *   a command this handler derived to the one [committedHandlerOf] its class, and only such a command asks for one.
  *
- * - [job] is the job of a saga's `@OnSchedule` handler ([schedule]): its subscription reads the
- *   context's built-in job aggregate (`<context>.schedule`, [JobState]) and hands each tick of its job over as a
+ * - [job] is the job of a saga's `@OnSchedule` handler ([schedule]): its subscription reads the job's instances of
+ *   the context's built-in job aggregate (`<context>.schedule`, [JobState]) and hands each of their ticks over as a
  *   [ScheduleTick].
  *
  * Built with [project], [react] or [saga], one per kind, or [schedule] for a saga's job.
@@ -303,9 +303,10 @@ class ProcessorBinding<S> private constructor(
         /**
          * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job]: a saga handler of
          * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
-         * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips. [context] is the
-         * bounded context its job runs in, as the compiler knew it. It sends what [derives], [schedules] and [calls]
-         * list, as a saga's handler does.
+         * a [ScheduleTick], and returns the commands it derives. Its subscription reads [job]'s instances alone, by
+         * their ids ([me.ahoo.wow.kernel.schedule.ScheduleJobModel.instanceIds]). [context] is the bounded context its
+         * job runs in, as the compiler knew it. It sends what [derives], [schedules] and [calls] list, as a saga's
+         * handler does.
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -339,21 +340,16 @@ class ProcessorBinding<S> private constructor(
                 sends = SagaSends(derives, schedules, calls),
                 context = context,
             ) { event, subscription ->
-                val state = event.state
-                if (state.job != job.name) {
-                    emptyList()
-                } else {
-                    event.events.filterIsInstance<Ticked>().flatMap { ticked ->
-                        val tick = ScheduleTick(
-                            tenantId = event.ref.tenantId,
-                            job = job.name,
-                            slot = ticked.slot,
-                            skipped = ticked.skipped,
-                            due = ticked.due,
-                            partition = state.partition,
-                        )
-                        handle(tick, subscription as SagaContext)
-                    }
+                event.events.filterIsInstance<Ticked>().flatMap { ticked ->
+                    val tick = ScheduleTick(
+                        tenantId = event.ref.tenantId,
+                        job = job.name,
+                        slot = ticked.slot,
+                        skipped = ticked.skipped,
+                        due = ticked.due,
+                        partition = event.state.partition,
+                    )
+                    handle(tick, subscription as SagaContext)
                 }
             }
     }

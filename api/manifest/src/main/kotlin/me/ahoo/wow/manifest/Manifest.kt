@@ -615,9 +615,9 @@ class SubscriptionManifest @InternalWowApi constructor(
 
 /**
  * A job of an `@OnSchedule` handler: its [name], its default rule ([cron] read in [zone], missed slots
- * handled as [misfire] says: `coalesce` or `catch-up`), its [scope] (`system` or `tenant`) and whether it is [sharded],
- * each value spelled as Wow writes its enumerations.
- * The host's `wow.schedules.<name>.*` overrides the rule.
+ * handled as [misfire] says: `coalesce` or `catch-up`) and its [scope] (`system`, `tenant` or `sharded`), each value
+ * spelled as Wow writes its enumerations.
+ * The host configures the job under `wow.schedules.<name>.*`: its rule, and the retries of its subscriptions.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -626,7 +626,6 @@ class JobManifest @InternalWowApi constructor(
     val cron: String,
     val zone: String = "UTC",
     val scope: String = SYSTEM,
-    val sharded: Boolean = false,
     val misfire: String = COALESCE,
 ) {
     override fun equals(other: Any?): Boolean =
@@ -634,10 +633,9 @@ class JobManifest @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String =
-        "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, sharded=$sharded, misfire=$misfire)"
+    override fun toString(): String = "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, misfire=$misfire)"
 
-    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, sharded, misfire)
+    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, misfire)
 
     companion object {
         /** The [scope] of a job of the whole system, the default. */
@@ -647,7 +645,7 @@ class JobManifest @InternalWowApi constructor(
         const val COALESCE: String = "coalesce"
 
         /** The values of [scope], the programming model's job scopes by their wire names. */
-        val SCOPES: List<String> = listOf(SYSTEM, "tenant")
+        val SCOPES: List<String> = listOf(SYSTEM, "tenant", "sharded")
 
         /** The values of [misfire], the programming model's misfires by their wire names. */
         val MISFIRES: List<String> = listOf(COALESCE, "catch-up")

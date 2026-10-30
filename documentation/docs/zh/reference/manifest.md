@@ -140,6 +140,5 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
   - `cron`
   - `zone`
   - `scope`
-  - `sharded`
   - `misfire`
 

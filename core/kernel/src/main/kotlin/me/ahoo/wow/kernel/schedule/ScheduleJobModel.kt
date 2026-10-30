@@ -40,17 +40,15 @@ import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * A job of an [me.ahoo.wow.api.annotation.OnSchedule] handler: its [name], its default [rule] (the
- * annotation's, overridden by the host's `wow.schedules.<name>.*`), its [scope] and whether it is [sharded].
+ * annotation's, overridden by the host's `wow.schedules.<name>.*`) and its [scope].
  */
 class ScheduleJob @InternalWowApi constructor(
     val name: String,
     val rule: ScheduleRule.Cron,
     val scope: JobScope = JobScope.SYSTEM,
-    val sharded: Boolean = false,
 ) {
     init {
         require(ScheduleJobs.isJobName(name)) { "Job \"$name\" is named with letters, digits, '_' and '-' only." }
-        require(!sharded || scope == JobScope.SYSTEM) { "Job $name is sharded: only a SYSTEM job is." }
         ScheduleSlots.validate(rule)
     }
 
@@ -59,9 +57,9 @@ class ScheduleJob @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ScheduleJob(name=$name, rule=$rule, scope=$scope, sharded=$sharded)"
+    override fun toString(): String = "ScheduleJob(name=$name, rule=$rule, scope=$scope)"
 
-    private fun valueFields(): List<Any?> = listOf(name, rule, scope, sharded)
+    private fun valueFields(): List<Any?> = listOf(name, rule, scope)
 
     /** This ScheduleJob with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
@@ -69,27 +67,22 @@ class ScheduleJob @InternalWowApi constructor(
         name: String = this.name,
         rule: ScheduleRule.Cron = this.rule,
         scope: JobScope = this.scope,
-        sharded: Boolean = this.sharded,
-    ): ScheduleJob = ScheduleJob(name, rule, scope, sharded)
+    ): ScheduleJob = ScheduleJob(name, rule, scope)
 
     companion object {
         /** A ScheduleJob of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(
-            name: String,
-            rule: ScheduleRule.Cron,
-            scope: JobScope = JobScope.SYSTEM,
-            sharded: Boolean = false
-        ): ScheduleJob = ScheduleJob(name, rule, scope, sharded)
+        fun of(name: String, rule: ScheduleRule.Cron, scope: JobScope = JobScope.SYSTEM): ScheduleJob =
+            ScheduleJob(name, rule, scope)
     }
 }
 
 /**
- * The state of one job instance, the aggregate `<context>.schedule`: the [job] it runs, by [rule],
- * whose own part is [override] (null: the job's default); whether it is [enabled]; the log [partition] of a sharded
- * job's instance; and the last tick: the [timer] and [slot] it ran, due at [due], with how many [ticks] and how many
- * slots [skipped] in all.
+ * The state of one job instance, the aggregate `<context>.schedule`: the [job] it runs, by [rule], whose own part is
+ * [override] (null: the job's default); whether it is [enabled]; the log [partition] of a [JobScope.SHARDED] job's
+ * instance; and the last tick: the [timer] and [slot] it ran, due at [due], with how many [ticks] and how many slots
+ * [skipped] in all.
  */
 class JobState {
     var job: String? = null
@@ -105,9 +98,10 @@ class JobState {
 }
 
 /**
- * The built-in aggregate that keeps a context's jobs: `<context>.schedule`, one instance per job in its
- * tenant (the default tenant for a [JobScope.SYSTEM] job), whose id is the job's name, or, for a sharded job, one per
- * log partition ([shardRef]). It belongs to its tenant (no owner), has no lifecycle commands, and decides:
+ * The built-in aggregate that keeps a context's jobs: `<context>.schedule`, one instance per job in its tenant (the
+ * default tenant for a [JobScope.SYSTEM] job), whose id is the job's name, or, for a [JobScope.SHARDED] job, one per
+ * log partition in the default tenant ([shardRef]): [instanceIds] are a job's instances' ids. It belongs to its tenant
+ * (no owner), has no lifecycle commands, and decides:
  *
  * - `wow.schedule.Enable(job, rule?)`: creates the instance or enables it again, with the job's default rule under its
  *   own override (the command's, else the one it kept); unchanged, nothing. It schedules its own `wow.schedule.Tick`
@@ -120,8 +114,8 @@ class JobState {
  *   override a part follows a change of the default from its next tick. A tick of a job the node no longer has
  *   disables the instance.
  *
- * An Enable that names an unknown job, a job of another scope (a SYSTEM job outside the default tenant), another
- * instance's id, or an invalid rule, and a Reschedule of an instance that is not enabled, are rejected with
+ * An Enable that names an unknown job, a job of another scope (a SYSTEM or a SHARDED job outside the default tenant),
+ * another instance's id, or an invalid rule, and a Reschedule of an instance that is not enabled, are rejected with
  * [FrameworkCodes.SCHEDULE_JOB_INVALID].
  */
 @InternalWowApi
@@ -168,8 +162,8 @@ object ScheduleJobModel {
         ScheduleJobs.typeOf(context).ref(tenantId, job)
 
     /**
-     * The instance of the sharded [job] of [context] for the log partition [partition] of [partitions]: the first id
-     * `<job>~<partition>~<n>` that lies in that partition, so its ticks run on the partition's owner.
+     * The instance of the [JobScope.SHARDED] [job] of [context] for the log partition [partition] of [partitions]: the
+     * first id `<job>~<partition>~<n>` that lies in that partition, so its ticks run on the partition's owner.
      */
     @JvmStatic
     fun shardRef(context: String, job: String, partition: Int, partitions: Int): AggregateRef {
@@ -178,6 +172,19 @@ object ScheduleJobModel {
             .map { refOf(context, "$job~$partition~$it") }
             .first { Partitioner.partitionOf(it, partitions) == partition }
     }
+
+    /**
+     * The ids of [job]'s instances in [context], whose log has [partitions] partitions: its name, in each tenant, or,
+     * for a [JobScope.SHARDED] job, its instance's id in each partition ([shardRef]). Its subscription reads these
+     * aggregates alone.
+     */
+    @JvmStatic
+    fun instanceIds(context: String, job: ScheduleJob, partitions: Int): Set<String> =
+        if (job.scope == JobScope.SHARDED) {
+            (0 until partitions).mapTo(LinkedHashSet()) { shardRef(context, job.name, it, partitions).id }
+        } else {
+            setOf(job.name)
+        }
 
     private fun DecideScope.enable(jobs: Map<String, ScheduleJob>, state: JobState, body: EnableJob): Decision {
         val job = jobs[body.job] ?: return invalid("No job ${body.job} in ${command.ref.type.context}.")
@@ -193,19 +200,19 @@ object ScheduleJobModel {
 
     /** Why [body] cannot enable [job] on the instance [ref] in [state]; null when it can. */
     private fun problemOf(job: ScheduleJob, ref: AggregateRef, state: JobState, body: EnableJob): String? = when {
-        job.scope == JobScope.SYSTEM && ref.tenantId != Caller.DEFAULT_TENANT ->
-            "Job ${job.name} is a SYSTEM job: its instance is in the default tenant, not ${ref.tenantId}."
+        job.scope != JobScope.TENANT && ref.tenantId != Caller.DEFAULT_TENANT ->
+            "Job ${job.name} is a ${job.scope} job: its instance is in the default tenant, not ${ref.tenantId}."
 
         state.job != null && state.job != job.name -> "Instance ${ref.id} runs the job ${state.job}, not ${job.name}."
-        job.sharded -> when {
-            body.partition == null -> "Job ${job.name} is sharded: its instance names its partition."
+        job.scope == JobScope.SHARDED -> when {
+            body.partition == null -> "Job ${job.name} is SHARDED: its instance names its partition."
             !ref.id.startsWith("${job.name}~${body.partition}~") ->
                 "Instance ${ref.id} is not the instance of ${job.name} for partition ${body.partition}."
 
             else -> null
         }
 
-        body.partition != null -> "Job ${job.name} is not sharded: its instance has no partition."
+        body.partition != null -> "Job ${job.name} is not SHARDED: its instance has no partition."
         ref.id != job.name -> "The instance of job ${job.name} has the id ${job.name}, not ${ref.id}."
         else -> null
     }
