@@ -176,9 +176,10 @@ spec:
                 name: cosec-jwt
           env:
             # The image's start script sets -Xms2048M -Xmx2048M and 512M of direct memory; JAVA_OPTS comes after it
-            # and wins.
+            # and wins. Heap, direct memory, metaspace and threads fit the 768Mi limit below, as main's CoSec 6
+            # gateway did: the mongo arm's single kind node has no room for more.
             - name: JAVA_OPTS
-              value: -Xms256m -Xmx384m -XX:MaxDirectMemorySize=192m -Djava.net.preferIPv4Stack=true
+              value: -Xms256m -Xmx384m -XX:MaxDirectMemorySize=128m -Djava.net.preferIPv4Stack=true
           ports:
             - name: http
               containerPort: 8080
@@ -206,7 +207,7 @@ spec:
               cpu: 100m
               memory: 512Mi
             limits:
-              memory: 1Gi
+              memory: 768Mi
       volumes:
         - name: config
           configMap:
