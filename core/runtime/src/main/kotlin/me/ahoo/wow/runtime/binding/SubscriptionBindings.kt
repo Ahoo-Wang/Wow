@@ -393,14 +393,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             // The receipts carry the commands' chain on past their commit, through the @OnCommitted handler's hop.
             val next = wait?.afterCommitted()
             executed.committed.forEach { committed ->
-                receipts.committed(committed.toCommandCommitted(execution), committed.command.body.javaClass, next)
+                receipts.committed(committed.toReceipt(execution), committed.command.body.javaClass, next)
             }
             if (executed.rejected.isEmpty()) {
                 return HandledEntry(executed.executed)
             }
             val unhandled = ArrayList<DerivedCommands.Rejected>()
             val compensations = executed.rejected.flatMap { rejected ->
-                receipts.rejected(rejected.toCommandRejected(execution), rejected.command.body.javaClass)
+                receipts.rejected(rejected.toReceipt(execution), rejected.command.body.javaClass)
                     ?: emptyList<String>().also { unhandled += rejected }
             }
             unhandled.parking()?.let { throw it }

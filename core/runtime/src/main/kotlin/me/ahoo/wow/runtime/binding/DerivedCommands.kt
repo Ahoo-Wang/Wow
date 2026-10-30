@@ -202,7 +202,7 @@ internal class DerivedCommands(
          * The commit as the saga's `@OnCommitted` handler takes it, from the saga's [execution] that
          * derived it: on the aggregate the result names, the one a creation without an id got.
          */
-        fun toCommandCommitted(execution: ExecutionId): CommandReceipt.Committed<Any> = CommandReceipt.Committed(
+        fun toReceipt(execution: ExecutionId): CommandReceipt.Committed<Any> = CommandReceipt.Committed(
             commandId = command.id,
             commandType = commandType,
             ref = result.ref,
@@ -230,7 +230,7 @@ internal class DerivedCommands(
         val error: ErrorInfo get() = rejection.toError()
 
         /** The rejection as the saga's `@OnRejected` handler takes it, from the saga's [execution] that derived it. */
-        fun toCommandRejected(execution: ExecutionId): CommandReceipt.Rejected<Any> = CommandReceipt.Rejected(
+        fun toReceipt(execution: ExecutionId): CommandReceipt.Rejected<Any> = CommandReceipt.Rejected(
             commandId = command.id,
             commandType = commandType,
             ref = command.ref,

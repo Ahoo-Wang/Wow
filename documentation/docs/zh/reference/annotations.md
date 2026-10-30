@@ -95,7 +95,7 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 ## `@OnCommitted`
 
-[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandCommitted` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `ReceiptContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
+[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Committed` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: 无。
@@ -105,18 +105,18 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 [OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
-- 参数: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
+- 参数: `aggregates: Array<String> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 
-[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived: it takes a `me.ahoo.wow.api.subscribe.CommandRejected` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `ReceiptContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
+[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived or called: it takes a `me.ahoo.wow.api.subscribe.CommandReceipt.Rejected` of the command's type (or of `*`, for every command the saga sends) and, optionally, the `SagaContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: 无。
 
 ## `@OnSchedule`
 
-[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `JobContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
+[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
 - 目标: `FUNCTION`, `ANNOTATION_CLASS`
 - 参数: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `sharded: Boolean = false`, `misfire: Misfire = Misfire.COALESCE`
@@ -162,6 +162,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 - 目标: `CLASS`
 - 参数: 无。
+
+## `@Sends`
+
+[Sends](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Sends.kt): What a `Saga`'s handler sends, by the commands' classes: any of its handlers, `@OnEvent`, `@OnRejected`, `@OnCommitted` or `@OnSchedule`, may carry it, and nothing else does: the compiler refuses it on a `Projection`'s or a `Reactor`'s handler, or on a function that is no handler.
+
+- 目标: `FUNCTION`, `ANNOTATION_CLASS`
+- 参数: `derives: Array<KClass<*>> = []`, `schedules: Array<KClass<*>> = []`, `calls: Array<KClass<*>> = []`
 
 ## `@ServiceRoute`
 

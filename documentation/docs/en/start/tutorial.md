@@ -84,7 +84,8 @@ The basket context does not create orders: the ordering context owns them. A sag
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
-@OnEvent(calls = [SubmitOrder::class])
+@OnEvent
+@Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(

@@ -183,7 +183,7 @@ class DerivedCommandsTest {
         rejection.commandType.assert().isEqualTo("shop.cart.RemoveItems")
         log.findByRequestId(CART, TENANT, "c-3").assert().isNotNull()
         val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
-        val handed = rejection.toCommandRejected(execution)
+        val handed = rejection.toReceipt(execution)
         handed.commandId.assert().isEqualTo("c-2")
         handed.commandType.assert().isEqualTo("shop.cart.RemoveItems")
         handed.ref.assert().isEqualTo(rejected.ref)
@@ -218,7 +218,7 @@ class DerivedCommandsTest {
         val executed = derived.execute(listOf(added, removed), null)
         val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
         val propagated = mapOf(RequestFacts.APP_ID to "console")
-        executed.committed.single().toCommandCommitted(execution).headers.assert().isEqualTo(propagated)
-        executed.rejected.single().toCommandRejected(execution).headers.assert().isEqualTo(propagated)
+        executed.committed.single().toReceipt(execution).headers.assert().isEqualTo(propagated)
+        executed.rejected.single().toReceipt(execution).headers.assert().isEqualTo(propagated)
     }
 }

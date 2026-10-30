@@ -84,7 +84,8 @@ basket 上下文不创建订单：订单归 ordering 上下文所有。basket �
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
-@OnEvent(calls = [SubmitOrder::class])
+@OnEvent
+@Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(

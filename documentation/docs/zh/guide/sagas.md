@@ -106,7 +106,7 @@ fun onOrderSubmitted(
 /** A product the inventory reserved confirms it on the order that asked for it. */
 @OnCommitted
 fun onReserveCommitted(
-    committed: CommandCommitted<ReserveStock>
+    committed: CommandReceipt.Committed<ReserveStock>
 ): CommandRequest<ConfirmOrderStock> =
     CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 ```
@@ -124,7 +124,7 @@ fun onReserveCommitted(
 ```kotlin
 /** A product the inventory cannot reserve cancels the order that asked for it. */
 @OnRejected
-fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<CancelOrder> =
+fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandRequest<CancelOrder> =
     CommandRequest.of(
         CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
         rejected.source.id,
@@ -145,7 +145,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>): CommandRequest<C
  */
 @Suppress("UnusedParameter")
 @OnRejected
-fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
+fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
 ```
 
 `CommandRejected<*>` 和 `CommandCommitted<*>` 接收 Saga 派生的每一条命令。
@@ -157,7 +157,8 @@ fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSaga.kt#call -->
 
 ```kotlin
-@OnEvent(calls = [SubmitOrder::class])
+@OnEvent
+@Sends(calls = [SubmitOrder::class])
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
