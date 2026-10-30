@@ -17,7 +17,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
-import me.ahoo.wow.ops.api.parked.Resume
+import me.ahoo.wow.ops.api.parked.Retry
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -28,7 +28,7 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`. The owning services' ledgers publish the
  * first two through `wow.ops.commands`, whose intake no authorizer guards, and the saga derives the last from an owning
  * service's refusal: none may be forged. Every other command it has no objection to, as one of the node's authorizers
- * (each must allow a command): an operator's action on an entry (`ops.parked.Resume`, `Skip`, `MarkRecoverable`,
+ * (each must allow a command): an operator's action on an entry (`ops.parked.Retry`, `Skip`, `MarkRecoverable`,
  * `ApplyRetrySpec`) and the framework's own system commands (`wow.*`) are decided by who the operators are, CoSec's
  * policies of their actions where CoSec decides the commands, else [OperatorRole].
  */
@@ -51,7 +51,7 @@ class OpsAuthorizer : CommandAuthorizer {
         /** An operator's actions on an entry, by their command's name. */
         @JvmField
         val ACTIONS: Set<String> = setOf(
-            commandOf(Resume::class.java),
+            commandOf(Retry::class.java),
             commandOf(Skip::class.java),
             commandOf(MarkRecoverable::class.java),
             commandOf(ApplyRetrySpec::class.java),

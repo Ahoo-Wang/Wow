@@ -146,7 +146,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The inventory's `application.yaml` sets `beginning` for both handlers.
 - **Proposed fix**: Let the annotation declare the start (`@OnEvent(start = ...)`), with host configuration overriding it. Or default subscriptions of another context's stream to `beginning`.
 - **Blocks M7**: yes. The default loses data silently for a new service.
-- **Resolved**: by #4419 (decision D194). A handler that reads another context's stream starts at its beginning by default; one of its own context's log keeps its kind's default. `@OnEvent(start = BEGINNING | END)` declares another start, which the compiler writes into the Manifest, and `wow.subscriptions.[<name>].start` still overrides it; only a first join without a checkpoint reads it. The inventory, ordering and payment servers no longer configure `start: beginning`.
+- **Resolved**: by #4419 (decision D194). A handler that reads another context's stream starts at its beginning by default; one of its own context's log keeps its kind's default. `@OnEvent(start = BEGINNING | END)` declares another start, which the compiler writes into the Manifest, and `wow.subscriptions.[<context>.<name>].start` still overrides it; only a first join without a checkpoint reads it. The inventory, ordering and payment servers no longer configure `start: beginning`.
 
 ### G11. The command topic must be created by hand with exactly the log's partitions (resolved)
 

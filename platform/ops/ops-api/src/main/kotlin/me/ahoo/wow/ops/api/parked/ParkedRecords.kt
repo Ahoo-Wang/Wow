@@ -30,12 +30,12 @@ data class EntryAggregate(val context: String, val name: String, val tenantId: S
 
 /**
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [initialBackoff] after the
- * failure, each allowed [timeout] (durations); [applied] when an operator applied it.
+ * failure, each claiming the entry for [claimTtl] (durations); [applied] when an operator applied it.
  */
 data class EntryRetrySpec(
     val maxRetries: Int,
     val initialBackoff: String,
-    val timeout: String,
+    val claimTtl: String,
     val applied: Boolean = false,
 )
 
@@ -72,7 +72,7 @@ data class ParkedEntry(
 
 /**
  * [subscription] of [service] no longer parks [aggregate], as of [resolvedAt]: the parking that failed at [failedAt]
- * came to [outcome] ([RESUMED], [SKIPPED], [RESOLVED] or [NOT_PARKED]).
+ * came to [outcome] ([RETRIED], [SKIPPED], [RESOLVED] or [NOT_PARKED]).
  */
 data class ParkedResolution(
     val service: String,
@@ -84,7 +84,7 @@ data class ParkedResolution(
     val resolvedAt: Long,
 ) {
     companion object {
-        const val RESUMED: String = "resumed"
+        const val RETRIED: String = "retried"
         const val SKIPPED: String = "skipped"
         const val RESOLVED: String = "resolved"
         const val NOT_PARKED: String = "not-parked"

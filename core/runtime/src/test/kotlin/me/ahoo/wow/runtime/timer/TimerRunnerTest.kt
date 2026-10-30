@@ -150,7 +150,7 @@ class TimerRunnerTest {
     }
 
     @Test
-    fun `a technical failure is retried after its backoff, then parked, resumed and skipped`(): Unit = runBlocking {
+    fun `a technical failure is retried after its backoff, then parked, retried and skipped`(): Unit = runBlocking {
         answers["pay"] = IllegalStateException("down")
         val due = timer("pay").dueAt
         store.put(timer("pay"))
@@ -175,11 +175,11 @@ class TimerRunnerTest {
         fired.size.assert().isEqualTo(3)
 
         answers.remove("pay")
-        runner.resume(order("o-1")).assert().isEqualTo(1)
+        runner.retry(order("o-1")).assert().isEqualTo(1)
         ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
-        // Every attempt, retried or resumed, was sent for the slot's own due time, and the slot fired as due then.
+        // Every attempt, retried or retried, was sent for the slot's own due time, and the slot fired as due then.
         sentDue.assert().hasSize(4).allMatch { it == due }
         status("pay").dueAt.assert().isEqualTo(due)
         status("pay").slotDueAt.assert().isEqualTo(due)

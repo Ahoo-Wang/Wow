@@ -139,9 +139,14 @@ describe('wait plans', () => {
       'accepted > committed > snapshot > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering) > snapshot(eshop-ordering) > handled(OrderProcessSaga.onOrderSubmitted) > accepted(eshop-inventory)';
     expect(formatWaitPlan(plan)).toBe(spelled);
     expect(parseWaitPlan(spelled).hops).toEqual(plan.hops);
-    expect(parseWaitPlan(' committed(ctx) >handled( snapshot )').hops).toEqual([
+    expect(
+      parseWaitPlan(
+        ' committed(ctx) >handled( wow.snapshot ) > handled(snapshot)',
+      ).hops,
+    ).toEqual([
       wait.committed('ctx'),
       wait.snapshot(),
+      wait.handled('snapshot'),
     ]);
   });
 

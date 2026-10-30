@@ -122,7 +122,7 @@ class RecordValuesTest {
         failedAt = 1L,
         retries = retries,
         retrySpec = ParkedRetrySpec.of(3, 1.seconds, 2.seconds),
-        request = LedgerRequest.RESUME,
+        request = LedgerRequest.RETRY,
     )
 
     private fun stateEvent(version: Int = 1) = StateEventRecord.of(
@@ -238,11 +238,11 @@ class RecordValuesTest {
             ParkedAmendment.ApplyRetrySpec.of(null)
         )
         valueSemantics(
-            { ParkedAmendment.Request.of(LedgerRequest.RESUME) },
+            { ParkedAmendment.Request.of(LedgerRequest.RETRY) },
             ParkedAmendment.Request.of(LedgerRequest.SKIP)
         )
         valueSemantics(
-            { ParkedAmendment.TakeRequest.of(LedgerRequest.RESUME) },
+            { ParkedAmendment.TakeRequest.of(LedgerRequest.RETRY) },
             ParkedAmendment.TakeRequest.of(LedgerRequest.SKIP),
         )
         valueSemantics({ Lease.of("g", 0, "node-1", 1L, 9L) }, Lease.of("g", 0, "node-1", 2L, 9L))

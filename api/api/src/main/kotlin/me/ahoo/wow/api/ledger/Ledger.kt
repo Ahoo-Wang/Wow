@@ -27,8 +27,8 @@ import me.ahoo.wow.api.caller.Caller
  *   ([OPS_CONTEXT] by default), through that context's command topic: [RECORD_PARKED] with the [LedgerEntry] as its
  *   member [ENTRY] while the entry is parked, [RECORD_RESOLVED] with the [LedgerResolution] as its member [RESOLUTION]
  *   once it is not. The aggregate's id is [parkedId]: one per service, subscription and parked aggregate.
- * - **Acting**: the ops context sends the system commands [RESUME], [SKIP], [MARK_RECOVERABLE] and [APPLY_RETRY_SPEC]
- *   ([ResumeParked], [SkipParked], [MarkParkedRecoverable], [ApplyParkedRetrySpec]) to the command topic of the
+ * - **Acting**: the ops context sends the system commands [RETRY], [SKIP], [MARK_RECOVERABLE] and [APPLY_RETRY_SPEC]
+ *   ([RetryParked], [SkipParked], [MarkParkedRecoverable], [ApplyParkedRetrySpec]) to the command topic of the
  *   context that holds the entry ([LedgerEntry.context]), addressed to [targetOf] that context and the entry's ops id.
  *   The owning service authorizes each as the system command of that name on the parked aggregate, as it does the
  *   same action on its own operator routes, and runs it.
@@ -39,7 +39,7 @@ object Ledger {
     /** The namespace of the ledger's system commands. */
     const val NAMESPACE: String = "wow.ledger"
 
-    const val RESUME: String = "$NAMESPACE.Resume"
+    const val RETRY: String = "$NAMESPACE.Retry"
     const val SKIP: String = "$NAMESPACE.Skip"
     const val MARK_RECOVERABLE: String = "$NAMESPACE.MarkRecoverable"
     const val APPLY_RETRY_SPEC: String = "$NAMESPACE.ApplyRetrySpec"
@@ -63,7 +63,7 @@ object Ledger {
     /** The ledger's system commands, by their names. */
     @JvmField
     val COMMANDS: Map<String, Class<out LedgerCommand>> = mapOf(
-        RESUME to ResumeParked::class.java,
+        RETRY to RetryParked::class.java,
         SKIP to SkipParked::class.java,
         MARK_RECOVERABLE to MarkParkedRecoverable::class.java,
         APPLY_RETRY_SPEC to ApplyParkedRetrySpec::class.java,
@@ -76,15 +76,17 @@ object Ledger {
     fun nameOf(type: Class<*>): String? = NAMES[type]
 
     /**
-     * The id of the ops aggregate recording [subscription]'s entry of [ref] in [service]:
-     * `<service>:<subscription>:<context>.<aggregate>:<tenant>:<id>`, so one service's entry of one aggregate is one
-     * ops aggregate, whichever node publishes it.
+     * The id of the ops aggregate recording the entry of [ref] that [subscription], of [context], parked in [service]:
+     * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, so one service's entry of one
+     * aggregate is one ops aggregate, whichever node publishes it, and two contexts' subscriptions of one name keep
+     * entries of their own.
      */
     @JvmStatic
-    fun parkedId(service: String, subscription: String, ref: AggregateRef): String {
+    fun parkedId(service: String, context: String, subscription: String, ref: AggregateRef): String {
         require(service.isNotBlank()) { "A ledger entry names its service." }
+        require(context.isNotBlank()) { "A ledger entry names its subscription's context." }
         require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
-        return "$service:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
+        return "$service:$context:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
     }
 
     /**
@@ -117,11 +119,11 @@ sealed interface LedgerCommand {
 }
 
 /**
- * Handles the parked aggregate again from where it is parked ([Ledger.RESUME]).
+ * Handles the parked aggregate again from where it is parked ([Ledger.RETRY]).
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-class ResumeParked @InternalWowApi constructor(
+class RetryParked @InternalWowApi constructor(
     override val subscription: String,
     override val context: String,
     override val aggregate: String,
@@ -131,23 +133,23 @@ class ResumeParked @InternalWowApi constructor(
      * When the entry acted on was parked (epoch milliseconds, the entry's `failedAt`), as the caller saw it: the owning
      * service refuses the action as [me.ahoo.wow.api.result.FrameworkCodes.LEDGER_STALE] when the entry it holds was
      * parked at another time, resolved and parked again since. Null acts on the entry it holds, whatever its parking: a
-     * resume only handles the parked streams again, so acting on the current parking loses nothing.
+     * retry only handles the parked streams again, so acting on the current parking loses nothing.
      */
     val failedAt: Long? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
-        this === other || other is ResumeParked && valueFields() == other.valueFields()
+        this === other || other is RetryParked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "ResumeParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, " +
+        "RetryParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, " +
             "failedAt=$failedAt)"
 
     private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id, failedAt)
 
     companion object {
-        /** A ResumeParked of the given fields; parameters added later come last, with a default. */
+        /** A RetryParked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
         fun of(
@@ -157,17 +159,17 @@ class ResumeParked @InternalWowApi constructor(
             tenantId: String,
             id: String,
             failedAt: Long? = null,
-        ): ResumeParked = ResumeParked(subscription, context, aggregate, tenantId, id, failedAt)
+        ): RetryParked = RetryParked(subscription, context, aggregate, tenantId, id, failedAt)
 
-        /** A ResumeParked of [subscription]'s entry of [ref], of the parking at [failedAt] when given. */
+        /** A RetryParked of [subscription]'s entry of [ref], of the parking at [failedAt] when given. */
         @JvmStatic
         @JvmOverloads
         fun of(
             subscription: String,
             ref: AggregateRef,
             failedAt: Long? = null,
-        ): ResumeParked =
-            ResumeParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, failedAt)
+        ): RetryParked =
+            RetryParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, failedAt)
     }
 }
 
@@ -272,7 +274,7 @@ class MarkParkedRecoverable @InternalWowApi constructor(
 
 /**
  * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
- * automatic retries, the first [initialBackoff] after the failure, each allowed to run [timeout]
+ * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl]
  * (durations). A member left out keeps the value the entry is retried by now.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
@@ -285,14 +287,14 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
     override val id: String,
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
-    val timeout: String? = null,
+    val claimTtl: String? = null,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is ApplyParkedRetrySpec && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, timeout=$timeout)"
+    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, initialBackoff=$initialBackoff, claimTtl=$claimTtl)"
 
     private fun valueFields(): List<Any?> = listOf(
         subscription,
@@ -302,7 +304,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
         id,
         maxRetries,
         initialBackoff,
-        timeout
+        claimTtl
     )
 
     companion object {
@@ -317,7 +319,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             id: String,
             maxRetries: Int? = null,
             initialBackoff: String? = null,
-            timeout: String? = null,
+            claimTtl: String? = null,
         ): ApplyParkedRetrySpec = ApplyParkedRetrySpec(
             subscription,
             context,
@@ -326,10 +328,10 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             id,
             maxRetries,
             initialBackoff,
-            timeout
+            claimTtl
         )
 
-        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [initialBackoff], [timeout]. */
+        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [initialBackoff], [claimTtl]. */
         @JvmStatic
         @JvmOverloads
         fun of(
@@ -337,7 +339,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
             ref: AggregateRef,
             maxRetries: Int? = null,
             initialBackoff: String? = null,
-            timeout: String? = null,
+            claimTtl: String? = null,
         ): ApplyParkedRetrySpec =
             ApplyParkedRetrySpec(
                 subscription,
@@ -347,7 +349,7 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
                 ref.id,
                 maxRetries,
                 initialBackoff,
-                timeout
+                claimTtl
             )
     }
 }

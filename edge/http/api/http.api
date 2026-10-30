@@ -36,9 +36,10 @@ public final class me/ahoo/wow/http/ops/OpsPaths {
 	public static final field MARK_RECOVERABLE Ljava/lang/String;
 	public static final field PARKED Ljava/lang/String;
 	public static final field READ Ljava/lang/String;
-	public static final field RESUME Ljava/lang/String;
+	public static final field RETRY Ljava/lang/String;
 	public static final field SKIP Ljava/lang/String;
 	public static final field SUBSCRIPTION Ljava/lang/String;
+	public static final field SUBSCRIPTIONS Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/http/ops/WebhookNotifier : me/ahoo/wow/runtime/subscription/ParkedNotifier {

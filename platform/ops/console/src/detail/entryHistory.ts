@@ -46,7 +46,7 @@ export type HistoryKind =
   | "parkedAgain"
   | "retried"
   | "updated"
-  | "resumeRequested"
+  | "retryRequested"
   | "skipRequested"
   | "markRecoverableRequested"
   | "applyRetrySpecRequested"
@@ -77,7 +77,7 @@ export interface HistoryFacts {
   recoverable: string;
   outcome: string;
   initialBackoff: string;
-  timeout: string;
+  claimTtl: string;
   /** The ledger's system command an owning service refused, and the code it refused it with. */
   refusedAction: string;
   refusalCode: string;
@@ -118,9 +118,9 @@ function step(
   switch (event.name) {
     case "ops.parked.ParkedRecorded":
       return recorded(event.body, last);
-    case "ops.parked.ResumeRequested":
+    case "ops.parked.RetryRequested":
       return {
-        kind: "resumeRequested",
+        kind: "retryRequested",
         facts: { reason: event.body.reason ?? undefined },
       };
     case "ops.parked.SkipRequested":
@@ -139,7 +139,7 @@ function step(
         facts: {
           maxRetries: event.body.maxRetries ?? undefined,
           initialBackoff: event.body.initialBackoff ?? undefined,
-          timeout: event.body.timeout ?? undefined,
+          claimTtl: event.body.claimTtl ?? undefined,
         },
       };
     case "ops.parked.ActionRefused":

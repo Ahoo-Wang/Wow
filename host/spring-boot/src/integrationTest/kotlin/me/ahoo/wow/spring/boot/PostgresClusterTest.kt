@@ -75,7 +75,7 @@ class PostgresClusterTest {
         second.post("/bank/account/$warmUp/open-account", """{"owner":"oleg"}""").status.assert().isEqualTo(200)
         val opened = first.post("/bank/account/$id/open-account", """{"owner":"olga"}""")
         opened.status.assert().isEqualTo(200)
-        opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("wow.snapshot")
         opened.body!!["status"].asString().assert().isEqualTo("succeeded")
         second.decided.ids.assert().contains(id)
         first.decided.ids.assert().doesNotContain(id)

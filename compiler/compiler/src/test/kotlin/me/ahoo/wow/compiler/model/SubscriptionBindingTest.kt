@@ -414,6 +414,31 @@ class SubscriptionBindingTest {
     }
 
     @Test
+    fun `a processor named with Wow's reserved prefix should fail the compilation`() {
+        val reserved = SourceFile.kotlin(
+            "Reserved.kt",
+            """
+            package sample.reserved
+
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Projection
+            @Name("wow.snapshot")
+            class ReservedProjection {
+                @OnEvent
+                fun onEvent(event: StateEvent<*>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", options, reserved)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("processor ReservedProjection is named 'wow.snapshot'")
+    }
+
+    @Test
     fun `a handler's blank @Name should fail the compilation`() {
         val blank = SourceFile.kotlin(
             "Blank.kt",

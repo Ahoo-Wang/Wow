@@ -17,9 +17,9 @@ data:
   WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
   # eshop.payment.gateway.outage-file: the ops loop creates it in every payment pod to fail the charges.
   ESHOP_PAYMENT_GATEWAY_OUTAGEFILE: /tmp/gateway.down
-  # wow.subscriptions.[PaymentGatewaySaga.onPaymentRequested].parked.max-retries=0: a failed charge waits for an
-  # operator. A map key with a dash has no environment variable form.
-  SPRING_APPLICATION_JSON: '{"wow":{"subscriptions":{"[PaymentGatewaySaga.onPaymentRequested]":{"parked":{"max-retries":0}}}}}'
+  # wow.subscriptions.[eshop-payment.PaymentGatewaySaga.onPaymentRequested].parked.max-retries=0: a failed charge
+  # waits for an operator. A map key with a dash has no environment variable form.
+  SPRING_APPLICATION_JSON: '{"wow":{"subscriptions":{"[eshop-payment.PaymentGatewaySaga.onPaymentRequested]":{"parked":{"max-retries":0}}}}}'
   # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,
   # on its Prometheus endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
   OTEL_METRICS_EXPORTER: prometheus

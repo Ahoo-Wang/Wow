@@ -255,7 +255,7 @@ class ConfigurationKeys(
             CheckedMap("wow.peers", "<context>", WowProperties.PeerTarget::class.java),
             CheckedMap("wow.aggregates", "[<context>.<aggregate>]", WowProperties.Aggregate::class.java),
             CheckedMap("wow.stores", "<name>", WowProperties.Store::class.java),
-            CheckedMap("wow.subscriptions", "[<subscription>]", WowProperties.SubscriptionSettings::class.java),
+            CheckedMap("wow.subscriptions", "[<context>.<name>]", WowProperties.SubscriptionSettings::class.java),
             CheckedMap("wow.schedules", "<name>", WowProperties.Schedule::class.java),
             CheckedMap("wow.http.errors", "[<code>]", WowProperties.Http.Error::class.java),
         )

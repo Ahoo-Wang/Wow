@@ -94,7 +94,7 @@ class HostKafkaSinkTest {
         // The application's own subscription runs beside the sink.
         beans.handled.first().assert().isEqualTo(record.ref.toString())
         host.context.getBeansOfType(KafkaTopicProducer::class.java).assert().isEmpty()
-        host.node.context(BANK).views.readers.keys.assert().contains("transport-sink.account")
+        host.node.context(BANK).views.readers.keys.assert().contains("wow.transport-sink.account")
     }
 
     @Test

@@ -21,7 +21,7 @@ import kotlin.time.Duration
 /**
  * A subscription's own in-process retry budget: the settings it gives, each null when it gives none,
  * which then come from the budget below it ([over]). A handler's `@Retry` gives one ([of]), the host's
- * `wow.subscriptions.[<name>].retry.*` another, over it; both fall back to `wow.subscription.retry`.
+ * `wow.subscriptions.[<context>.<name>].retry.*` another, over it; both fall back to `wow.subscription.retry`.
  *
  * - [maxAttempts]: the calls in all, at least 1.
  * - [initialBackoff]: the wait after the first failure; [maxBackoff]: the longest wait; [multiplier]: how much

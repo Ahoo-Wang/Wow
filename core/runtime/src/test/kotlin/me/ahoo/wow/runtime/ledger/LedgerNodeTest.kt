@@ -22,7 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.admission.Authorization
@@ -63,8 +63,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A service's failure ledger and the ops context end to end on one node (decision D141), over [InMemoryTopics]: the
- * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.Resume`
- * on the stock context's command topic, as the ops context sends it, resumes the item there and is published resolved.
+ * stock context's intake parks an item, its node publishes the entry to `wow.ops.commands`, and a `wow.ledger.Retry`
+ * on the stock context's command topic, as the ops context sends it, retries the item there and is published resolved.
  */
 class LedgerNodeTest {
     private val topics = InMemoryTopics(2).also {
@@ -103,7 +103,7 @@ class LedgerNodeTest {
 
     /** [type] with [body], as the saga of [source] derives it for [operator]. */
     private suspend fun ledgerCommand(type: String, body: Any, parked: AggregateRef, operator: String, source: String) {
-        val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked))
+        val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, parked))
         val entry = AggregateType(source, "parked").ref(TENANT, "entry-1")
         val wire = CommandWire(
             type = type,
@@ -119,7 +119,7 @@ class LedgerNodeTest {
     }
 
     @Test
-    fun `a parked entry is published to ops, and a resume from ops resolves it on the owning service`(): Unit =
+    fun `a parked entry is published to ops, and a retry from ops resolves it on the owning service`(): Unit =
         runBlocking {
             node.ledgerPublisher.assert().isNotNull()
             node.start()
@@ -139,7 +139,7 @@ class LedgerNodeTest {
             parked.fromPosition.assert().isEqualTo(0L)
             val target = topics.messages(OPS_COMMANDS).first()
             target.key.assert().isEqualTo(
-                "ops.parked/(0)/" + Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, broken.ref)
+                "ops.parked/(0)/" + Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, broken.ref)
             )
 
             // A ledger command another context's saga sends: the owning service refuses it, with a receipt to the
@@ -157,8 +157,8 @@ class LedgerNodeTest {
             stock.broken = false
             // The ops context's saga: taken by its source, though the node's authorizer allows no operator.
             ledgerCommand(
-                Ledger.RESUME,
-                ResumeParked.of(CommandIntake.NAME, broken.ref),
+                Ledger.RETRY,
+                RetryParked.of(CommandIntake.NAME, broken.ref),
                 broken.ref,
                 "alice",
                 source = Ledger.OPS_CONTEXT,
@@ -166,7 +166,7 @@ class LedgerNodeTest {
             eventually { !ledger.isParked(CommandIntake.NAME, broken.ref) }
             stock.decided.assert().contains(broken.id)
             eventually { records(Ledger.RECORD_RESOLVED).isNotEmpty() }
-            records(Ledger.RECORD_RESOLVED).first()["outcome"].asString().assert().isEqualTo(LedgerResolution.RESUMED)
+            records(Ledger.RECORD_RESOLVED).first()["outcome"].asString().assert().isEqualTo(LedgerResolution.RETRIED)
         }
 
     @Test
@@ -205,7 +205,7 @@ class LedgerNodeTest {
                         type = Ledger.SKIP,
                         id = "l-$asks",
                         requestId = "l-$asks",
-                        ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked)),
+                        ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, STOCK, CommandIntake.NAME, parked)),
                         body = ClusterCodec.mapper.valueToTree(
                             SkipParked.of(CommandIntake.NAME, parked, REFUSED_FAILED_AT)
                         ),

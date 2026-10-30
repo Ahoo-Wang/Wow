@@ -32,7 +32,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.parked.RecordParked
-import me.ahoo.wow.ops.api.parked.Resume
+import me.ahoo.wow.ops.api.parked.Retry
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -45,8 +45,8 @@ import java.util.function.Supplier
 
 @OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
 class OpsConfigurationTest {
-    private val resume = CommandAction(
-        CommandType("ops.parked.Resume", Resume::class.java),
+    private val retry = CommandAction(
+        CommandType("ops.parked.Retry", Retry::class.java),
         AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, "p-1"),
         Scope.NONE,
         Creation.NONE,
@@ -83,7 +83,7 @@ class OpsConfigurationTest {
         checker: AuthorizationChecker?,
         authorizerEnabled: Boolean,
         caller: Caller = granted,
-        action: CommandAction = resume,
+        action: CommandAction = retry,
         security: SecurityContext? = request(caller.subject!!),
     ): Authorization {
         val properties = mapOf<String, Any>("wow.cosec.authorizer.enabled" to authorizerEnabled)

@@ -227,7 +227,7 @@ abstract class FailureLedgerSpec {
             listOf(
                 ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
                 ParkedAmendment.ApplyRetrySpec(SPEC),
-                ParkedAmendment.Request(LedgerRequest.RESUME),
+                ParkedAmendment.Request(LedgerRequest.RETRY),
             ).forEachIndexed { index, change ->
                 val scheduled = at + 10 + index
                 ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, scheduled))!!.nextAttemptAt
@@ -235,7 +235,7 @@ abstract class FailureLedgerSpec {
                 ledger.amend(subscription, ref("a"), change)!!.nextAttemptAt.assert().isNull()
             }
             // Taking the request keeps the entry unscheduled, for the owner to look at again.
-            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RESUME))!!.nextAttemptAt
+            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RETRY))!!.nextAttemptAt
                 .assert().isNull()
             val reparked = entry(ref("a"), 4)
             ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, at + 50))
@@ -264,7 +264,7 @@ abstract class FailureLedgerSpec {
             retryAt = FAILED_AT + 100,
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
-            request = LedgerRequest.RESUME,
+            request = LedgerRequest.RETRY,
             nextAttemptAt = FAILED_AT + 500,
         )
         ledger.park(parked).assert().isTrue()
@@ -344,9 +344,9 @@ abstract class FailureLedgerSpec {
     @Test
     fun `a request is left for the owner and taken once`(): Unit = runBlocking {
         ledger.park(entry(ref("a"), 1))
-        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RESUME)).assert().isNull()
-        ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.RESUME))!!
-            .request.assert().isEqualTo(LedgerRequest.RESUME)
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RETRY)).assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.RETRY))!!
+            .request.assert().isEqualTo(LedgerRequest.RETRY)
         ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
         ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))!!
             .request.assert().isEqualTo(LedgerRequest.SKIP)
@@ -363,9 +363,9 @@ abstract class FailureLedgerSpec {
             ParkedAmendment.ClaimRetry(0, FAILED_AT),
             ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
             ParkedAmendment.ApplyRetrySpec(SPEC),
-            ParkedAmendment.Request(LedgerRequest.RESUME),
+            ParkedAmendment.Request(LedgerRequest.RETRY),
             ParkedAmendment.Schedule(0, null, FAILED_AT),
-            ParkedAmendment.TakeRequest(LedgerRequest.RESUME),
+            ParkedAmendment.TakeRequest(LedgerRequest.RETRY),
         ).forEach { amendment ->
             ledger.amend(subscription, ref("a"), amendment).assert().isNull()
             ledger.amend(subscription, ref("b"), amendment).assert().isNull()
@@ -377,6 +377,6 @@ abstract class FailureLedgerSpec {
     protected companion object {
         const val FAILED_AT = 1_700_000_000_000L
         const val CONCURRENT_PARKS = 12
-        val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, timeout = 2.minutes)
+        val SPEC = ParkedRetrySpec(maxRetries = 4, initialBackoff = 1500.milliseconds, claimTtl = 2.minutes)
     }
 }

@@ -35,6 +35,7 @@ import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -194,11 +195,11 @@ class NineXCompensationImportTest {
             // 9.x's next retry for the first; the second's by its applied spec, after its retry started.
             page.entries.map { it.nextRetryAt }.assert()
                 .containsExactly(FAILED_AT + 180_000, FAILED_AT + 180_000 + 120_000, null)
-            ops.markRecoverable(ORDER_STATE, ref, Recoverable.RECOVERABLE)!!.status.assert()
+            ops.markRecoverable(SubscriptionId(NineXExample.CONTEXT, ORDER_STATE), ref, Recoverable.RECOVERABLE)!!.status.assert()
                 .isEqualTo(ParkedView.Status.SCHEDULED)
             runtime.start((0 until PARTITIONS).toSet())
             try {
-                ops.resume(CART_SAGA, ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+                ops.retry(SubscriptionId(NineXExample.CONTEXT, CART_SAGA), ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
             } finally {
                 runtime.stop()
             }

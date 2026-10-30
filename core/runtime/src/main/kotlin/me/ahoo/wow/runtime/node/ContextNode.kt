@@ -81,7 +81,7 @@ class ContextNode internal constructor(
     val sender: CommandSender? = null,
     /**
      * The built-in `timers` subscription and the context's timer runner, when its backends have a
-     * timer store: the runner's [TimerRunner.resume] and [TimerRunner.skip] serve an operator.
+     * timer store: the runner's [TimerRunner.retry] and [TimerRunner.skip] serve an operator.
      */
     val timers: ContextTimers? = null,
     /** The node's id generators, the ids its sagas take. */

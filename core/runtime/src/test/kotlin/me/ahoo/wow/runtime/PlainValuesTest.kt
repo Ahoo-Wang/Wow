@@ -119,10 +119,10 @@ class PlainValuesTest {
             "SnapshotPlacement("
         )
         val entry = ParkedAggregate("s", ref, 0, 1, "failed", 1L)
-        val notice = ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 1L)
+        val notice = ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 1L)
         checks(
             notice,
-            ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 1L),
+            ParkedNotice.of(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 1L),
             notice.copyWith(kind = ParkedNotice.Kind.EXHAUSTED),
             "ParkedNotice("
         )

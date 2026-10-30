@@ -30,7 +30,7 @@ data class RecordParked(val entry: ParkedEntry)
 data class RecordResolved(val resolution: ParkedResolution)
 
 /**
- * The owning service refused the ledger's system command [action] (`wow.ledger.Resume`, ...) the ops saga sent it for
+ * The owning service refused the ledger's system command [action] (`wow.ledger.Retry`, ...) the ops saga sent it for
  * an operator's request on the entry, with the error [code] and [reason] of its rejection: its receipt
  * came back to the saga, which records it here, so the console shows why the request came to nothing.
  */
@@ -43,15 +43,15 @@ data class RecordActionRefused(val action: String, val code: String, val reason:
  */
 
 /**
- * Handles the parked aggregate again from where it is parked (`wow.ledger.Resume`): the parking at [failedAt], the
+ * Handles the parked aggregate again from where it is parked (`wow.ledger.Retry`): the parking at [failedAt], the
  * entry's `failedAt` as the console showed it, when given; another parking refuses it as stale.
  */
-@Summary("Resume a parked entry")
-data class Resume(val reason: String? = null, val failedAt: Long? = null)
+@Summary("Retry a parked entry")
+data class Retry(val reason: String? = null, val failedAt: Long? = null)
 
 /**
  * Resolves the entry without handling what was parked (`wow.ledger.Skip`): the parking at [failedAt], as for
- * [Resume].
+ * [Retry].
  */
 @Summary("Skip a parked entry")
 data class Skip(val reason: String? = null, val failedAt: Long? = null)
@@ -65,12 +65,12 @@ data class MarkRecoverable(val recoverable: String)
 
 /**
  * Applies a retry spec to the entry (`wow.ledger.ApplyRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
- * automatic retries, the first [initialBackoff] after the failure, each allowed [timeout] (`PT3M` or `3m`). A
- * member left out keeps the value the entry is retried by now.
+ * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl] (`PT3M` or
+ * `3m`). A member left out keeps the value the entry is retried by now.
  */
 @Summary("Apply a retry spec to a parked entry")
 data class ApplyRetrySpec(
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
-    val timeout: String? = null,
+    val claimTtl: String? = null,
 )

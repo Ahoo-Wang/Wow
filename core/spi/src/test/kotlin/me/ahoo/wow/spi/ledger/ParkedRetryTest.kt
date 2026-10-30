@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ParkedRetryTest {
-    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 10.seconds, timeout = 30.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 3, initialBackoff = 10.seconds, claimTtl = 30.seconds)
     private val entry = ParkedAggregate("sub", AggregateType("shop", "cart").ref("t", "x"), 0, 1, "boom", FAILED_AT)
 
     @Test
@@ -41,14 +41,14 @@ class ParkedRetryTest {
         val defaults = ParkedRetrySpec()
         defaults.maxRetries.assert().isEqualTo(10)
         defaults.initialBackoff.assert().isEqualTo(3.minutes)
-        defaults.timeout.assert().isEqualTo(2.minutes)
+        defaults.claimTtl.assert().isEqualTo(2.minutes)
     }
 
     @Test
     fun `a spec is never negative nor infinite`() {
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(maxRetries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(initialBackoff = (-1).seconds) }
-        assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(timeout = Duration.INFINITE) }
+        assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(claimTtl = Duration.INFINITE) }
         assertThrownBy<IllegalArgumentException> { entry.copyWith(retries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.ClaimRetry(-1, 0) }
     }
@@ -61,7 +61,7 @@ class ParkedRetryTest {
     }
 
     @Test
-    fun `a later retry is due its backoff after the last one started, not before its timeout`() {
+    fun `a later retry is due its backoff after the last one started, not before its claim expires`() {
         val retried = entry.copyWith(retries = 1, retryAt = FAILED_AT + 10_000)
         retried.nextRetryAt(spec).assert().isEqualTo(FAILED_AT + 10_000 + 30_000)
         val later = entry.copyWith(retries = 2, retryAt = FAILED_AT + 40_000)
@@ -87,10 +87,10 @@ class ParkedRetryTest {
         entry.amended(ParkedAmendment.ApplyRetrySpec(spec))!!.retrySpec.assert().isEqualTo(spec)
         entry.amended(ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))!!
             .recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
-        val requested = entry.amended(ParkedAmendment.Request(LedgerRequest.RESUME))!!
-        requested.request.assert().isEqualTo(LedgerRequest.RESUME)
+        val requested = entry.amended(ParkedAmendment.Request(LedgerRequest.RETRY))!!
+        requested.request.assert().isEqualTo(LedgerRequest.RETRY)
         requested.amended(ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
-        requested.amended(ParkedAmendment.TakeRequest(LedgerRequest.RESUME)).assert().isEqualTo(entry)
+        requested.amended(ParkedAmendment.TakeRequest(LedgerRequest.RETRY)).assert().isEqualTo(entry)
     }
 
     private companion object {

@@ -39,7 +39,9 @@ class HeaderGrammarTest {
         WaitHeader.parse("handled(audit)").hops.assert().containsExactly(Hop.handled("audit"))
         WaitHeader.parse("handled(payment/order-saga.onPaid)").hops
             .assert().containsExactly(Hop.handled("order-saga.onPaid", "payment"))
-        WaitHeader.parse("handled(snapshot)").hops.assert().containsExactly(Hop.snapshot())
+        // The snapshot subscription's name is reserved under wow.; a subscription named snapshot is an application's.
+        WaitHeader.parse("handled(wow.snapshot)").hops.assert().containsExactly(Hop.snapshot())
+        WaitHeader.parse("handled(snapshot)").hops.assert().containsExactly(Hop.handled("snapshot"))
     }
 
     @Test

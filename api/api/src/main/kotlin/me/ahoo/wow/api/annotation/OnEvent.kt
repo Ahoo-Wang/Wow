@@ -43,9 +43,10 @@ import kotlin.reflect.KClass
  *   declare. A called command needs no command topic, and is not one the handler derives. A command of the handler's
  *   own context is derived, never called. A projection or a reactor calls none.
  * @param start where the handler's subscription starts in a partition it has no checkpoint in yet,
- *   which the compiler writes into the Manifest; the host's `wow.subscriptions.[<processor.function>].start` overrides
- *   it. [Start.DEFAULT] starts a projection at the [Start.BEGINNING]; a reactor or a saga of its own context's stream
- *   at the [Start.END], so deploying it does not act on the history again; a reactor's or a saga's handler of another
+ *   which the compiler writes into the Manifest; the host's
+ *   `wow.subscriptions.[<context>.<processor.function>].start` overrides it. [Start.DEFAULT] starts a projection at
+ *   the [Start.BEGINNING]; a reactor or a saga of its own context's stream at the [Start.END], so deploying it does
+ *   not act on the history again; a reactor's or a saga's handler of another
  *   context's stream where its service joins the stream: at the [Start.BEGINNING] when no other subscription of the
  *   service reads it yet, so a service that joins later still gets what was published before, else at the
  *   [Start.END], so a handler added later does not act on it again. A subscription that has a checkpoint goes on

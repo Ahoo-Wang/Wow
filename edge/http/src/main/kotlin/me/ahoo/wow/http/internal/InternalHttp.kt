@@ -34,11 +34,11 @@ object InternalHttp {
     /** Takes a [WaitSignal] for a wait started on this node; answers 204. */
     const val SIGNALS_PATH: String = "/wow/internal/signals"
 
-    /** Whether the node is on standby, and when and by whom it was resumed. */
+    /** Whether the node is on standby, and when and by whom it was activated. */
     const val STANDBY_PATH: String = "/wow/node/standby"
 
-    /** Resumes a node started on standby, at a migration's cut-over: the operator's act, audited. */
-    const val RESUME_PATH: String = "/wow/node/resume"
+    /** Activates a node started on standby, at a migration's cut-over: the operator's act, audited. */
+    const val ACTIVATE_PATH: String = "/wow/node/activate"
 
     const val JSON: String = "application/json"
 

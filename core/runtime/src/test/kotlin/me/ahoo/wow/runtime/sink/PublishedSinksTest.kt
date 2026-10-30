@@ -139,12 +139,12 @@ class PublishedSinksTest {
         val sinks = PublishedSinks.topics(manifest, topics)
         val models = listOf(orderModel(), cartModel())
         sinks.factory.stateReaders(SHOP, models).assert()
-            .isEqualTo(mapOf("transport-sink.order" to setOf(ORDER), "transport-sink.cart" to setOf(CART)))
+            .isEqualTo(mapOf("wow.transport-sink.order" to setOf(ORDER), "wow.transport-sink.cart" to setOf(CART)))
         sinks.factory.viewTypes(SHOP, models).assert().containsExactly(ORDER, CART)
         sinks.factory.stateReaders("other", models).assert().isEmpty()
-        sinks.toString().assert().isEqualTo("PublishedSinks(transport-sink)")
+        sinks.toString().assert().isEqualTo("PublishedSinks(wow.transport-sink)")
         val node = node()
-        node.context(SHOP).views.readers.keys.assert().contains("transport-sink.order", "transport-sink.cart")
+        node.context(SHOP).views.readers.keys.assert().contains("wow.transport-sink.order", "wow.transport-sink.cart")
     }
 
     @Test
@@ -165,9 +165,9 @@ class PublishedSinksTest {
         eventually { waiting.get() >= 1 }
         // Well past the checkpoint interval: still not acknowledged, so not passed.
         delay(100.milliseconds)
-        (checkpoint("transport-sink.order", position.partition) ?: 0L).assert().isLessThan(position.sequence)
+        (checkpoint("wow.transport-sink.order", position.partition) ?: 0L).assert().isLessThan(position.sequence)
         gate.complete(Unit)
-        eventually { (checkpoint("transport-sink.order", position.partition) ?: 0L) >= position.sequence }
+        eventually { (checkpoint("wow.transport-sink.order", position.partition) ?: 0L) >= position.sequence }
         records("dev.wow.shop.order.state").single().version.assert().isEqualTo(1)
     }
 
@@ -187,7 +187,7 @@ class PublishedSinksTest {
         records("dev.wow.shop.order.state").map { it.id }.assert().containsExactly("shop.order/t/o-1@1")
         backends.opened.getValue(
             SHOP
-        ).ledger.isParked("transport-sink.order", ORDER.ref(TENANT, "o-1")).assert().isFalse()
+        ).ledger.isParked("wow.transport-sink.order", ORDER.ref(TENANT, "o-1")).assert().isFalse()
     }
 
     @Test
@@ -197,7 +197,7 @@ class PublishedSinksTest {
         first.place("o-1")
         eventually { topics.messages("dev.wow.shop.order.state").size == 1 }
         val position = backends.opened.getValue(SHOP).log.positionOf(ORDER.ref(TENANT, "o-1"), 1)!!
-        eventually { (checkpoint("transport-sink.order", position.partition) ?: 0L) >= position.sequence }
+        eventually { (checkpoint("wow.transport-sink.order", position.partition) ?: 0L) >= position.sequence }
         first.stop()
         val second = node()
         second.start()

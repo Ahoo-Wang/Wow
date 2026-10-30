@@ -52,14 +52,19 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     suspend fun publish(entry: ParkedEntry): String {
-        val id = Ledger.parkedId(entry.service, entry.subscription, entry.aggregate.toRef())
+        val id = Ledger.parkedId(entry.service, entry.context, entry.subscription, entry.aggregate.toRef())
         record(id, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to entry))
         return id
     }
 
     /** Publishes that [resolution]'s entry is resolved, as the owning service's ledger does; the entry's id. */
     suspend fun resolve(resolution: ParkedResolution): String {
-        val id = Ledger.parkedId(resolution.service, resolution.subscription, resolution.aggregate.toRef())
+        val id = Ledger.parkedId(
+            resolution.service,
+            resolution.context,
+            resolution.subscription,
+            resolution.aggregate.toRef()
+        )
         record(id, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution))
         return id
     }

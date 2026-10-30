@@ -69,14 +69,14 @@ function commands() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the operator's commands", () => {
-  it("resume and skip the entry with a reason, waiting for its snapshot", async () => {
+  it("retry and skip the entry with a reason, waiting for its snapshot", async () => {
     const sent = service(OK);
-    await commands().resume(ID, "  The gateway is back. ");
+    await commands().retry(ID, "  The gateway is back. ");
     await commands().skip(ID, "   ");
     expect(
       sent.map(({ url, method }) => [method, decodeURIComponent(url)]),
     ).toEqual([
-      ["POST", `/ops/parked/${ID}/resume`],
+      ["POST", `/ops/parked/${ID}/retry`],
       ["POST", `/ops/parked/${ID}/skip`],
     ]);
     expect(sent[0].body).toEqual({ reason: "The gateway is back." });
@@ -86,7 +86,7 @@ describe("the operator's commands", () => {
 
   it("name the parking the operator saw", async () => {
     const sent = service(OK);
-    await commands().resume(ID, undefined, "1760000000000");
+    await commands().retry(ID, undefined, "1760000000000");
     await commands().skip(ID, "done", "1760000000000");
     // The client writes the long as a JSON number.
     expect(sent[0].body).toEqual({ failedAt: 1760000000000 });

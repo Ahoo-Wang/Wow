@@ -79,7 +79,7 @@ import kotlin.random.Random
  * ledger is not written meanwhile.
  *
  * The [source] is the context's log or another context's topic. A park records where the entry lies
- * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a resume re-scans from there,
+ * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a retry re-scans from there,
  * and one whose position the topic no longer retains marks the entry unrecoverable ([ParkedAggregate.UNRECOVERABLE]),
  * so it can only be skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
  * an aggregate's version it handled already, as long as it remembers the aggregate ([REMEMBERED] of them, the most
@@ -87,7 +87,7 @@ import kotlin.random.Random
  *
  * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
  * commands or receipts (–), whose entries commit nothing, their offset. Parking, copies and
- * resumes go by it.
+ * retries go by it.
  *
  * Each handling of an entry, its retries included, is observed by [observer], in the trace the entry
  * carries ([me.ahoo.wow.spi.log.Transport.trace]): what the handler does goes on in that trace.
@@ -141,8 +141,8 @@ internal class SubscriptionWorker(
     private val active = HashMap<AggregateRef, Lane>()
     private val parkStates = HashMap<AggregateRef, ParkState>(parked.mapValues { ParkState.Parked(it.value) })
 
-    /** Per aggregate, the ordinal of the last entry [resume] handled: a later copy of one of those is skipped. */
-    private val resumedThrough = HashMap<AggregateRef, Long>()
+    /** Per aggregate, the ordinal of the last entry [retry] handled: a later copy of one of those is skipped. */
+    private val retriedThrough = HashMap<AggregateRef, Long>()
 
     /** Of a source that [EntrySource.repeats], the last ordinal handled of the aggregates handled most recently. */
     private val handledThrough: LinkedHashMap<AggregateRef, Long>? = if (source.repeats) {
@@ -159,7 +159,7 @@ internal class SubscriptionWorker(
     @Volatile
     private var saved = checkpoint
 
-    /** Set by [abandon] under the monitor: the lanes are cancelled, so a resume would never run. */
+    /** Set by [abandon] under the monitor: the lanes are cancelled, so a retry would never run. */
     private var abandoned = false
 
     /** The sequence of the last entry taken. */
@@ -221,15 +221,15 @@ internal class SubscriptionWorker(
         }
     }
 
-    /** A parked aggregate's entries from its parked one on, and copies of what a resume handled, are skipped. */
+    /** A parked aggregate's entries from its parked one on, and copies of what a retry handled, are skipped. */
     private fun skippedOnAdmit(entry: SourcedEntry): Boolean {
         val ref = entry.stream.ref
         val state = parkStates[ref]
         if (parkedAt(entry)) {
             return true
         }
-        val resumed = resumedThrough[ref]
-        return state == null && resumed != null && source.ordinalOf(entry) <= resumed
+        val retried = retriedThrough[ref]
+        return state == null && retried != null && source.ordinalOf(entry) <= retried
     }
 
     /** Called under the monitor: whether [entry]'s aggregate is parked at or before it. */
@@ -326,7 +326,7 @@ internal class SubscriptionWorker(
             } ?: return
             when (item) {
                 is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
-                is Item.Resume -> runResume(ref, item)
+                is Item.Retry -> runRetry(ref, item)
             }
         }
     }
@@ -400,12 +400,12 @@ internal class SubscriptionWorker(
         if (handled != null && ordinal <= handled) {
             return true
         }
-        val resumed = resumedThrough[ref] ?: return false
-        if (ordinal <= resumed) {
+        val retried = retriedThrough[ref] ?: return false
+        if (ordinal <= retried) {
             return true
         }
-        // Every later entry of the aggregate is newer than what the resume read.
-        resumedThrough.remove(ref)
+        // Every later entry of the aggregate is newer than what the retry read.
+        retriedThrough.remove(ref)
         return false
     }
 
@@ -581,15 +581,16 @@ internal class SubscriptionWorker(
             val notice = ParkedNotice(
                 ParkedNotice.Kind.PARKED,
                 group,
+                subscription.context,
                 entry,
-                options.parked.specOf(entry),
+                options.parked.specOf(entry, subscription.context),
                 entry.failedAt,
             )
             lanes.launch { notifier.notifyQuietly(notice) }
         }
         synchronized(this) {
             val state = parkStates[stream.ref]
-            if (state !is ParkState.Resuming) {
+            if (state !is ParkState.Retrying) {
                 // As a restart reads it back from the ledger: an undecodable message parks from the first version.
                 val ordinal = source.ordinalOf(entry)
                 val from = (state as? ParkState.Parked)?.fromOrdinal?.coerceAtMost(ordinal) ?: ordinal
@@ -601,20 +602,20 @@ internal class SubscriptionWorker(
     /**
      * Handles [ref]'s streams again from its parked version and resolves its ledger entry.
      *
-     * The resume runs in the aggregate's lane, ahead of everything queued there, and the aggregate is marked
-     * resuming in the same step, so from then on its new entries queue behind the resume instead of being skipped.
-     * The resume reads every stream committed by the time it runs; an entry of one of those streams that the tail
-     * delivers later is skipped as a copy, and every newer one is handled after the resume, in version order.
+     * The retry runs in the aggregate's lane, ahead of everything queued there, and the aggregate is marked
+     * retrying in the same step, so from then on its new entries queue behind the retry instead of being skipped.
+     * The retry reads every stream committed by the time it runs; an entry of one of those streams that the tail
+     * delivers later is skipped as a copy, and every newer one is handled after the retry, in version order.
      *
      * @return true when the aggregate was handled up to its last stream and is no longer parked; false when it was
      * not parked, or failed again and stays parked from where it was.
      */
-    suspend fun resume(ref: AggregateRef): Boolean {
+    suspend fun retry(ref: AggregateRef): Boolean {
         val entry = ledger.parked(subscription.name, ref)
         val result = synchronized(this) {
             check(!abandoned) { "Subscription ${subscription.name} stopped in partition $partition." }
             when (val state = parkStates[ref]) {
-                is ParkState.Resuming -> state.result
+                is ParkState.Retrying -> state.result
                 else -> {
                     if (entry == null) {
                         parkStates.remove(ref)
@@ -623,8 +624,8 @@ internal class SubscriptionWorker(
                     if (entry.unrecoverable) {
                         return false
                     }
-                    val item = Item.Resume(entry, CompletableDeferred())
-                    parkStates[ref] = ParkState.Resuming(item.result)
+                    val item = Item.Retry(entry, CompletableDeferred())
+                    parkStates[ref] = ParkState.Retrying(item.result)
                     enqueue(ref, item, first = true)
                     item.result
                 }
@@ -633,16 +634,16 @@ internal class SubscriptionWorker(
         return result.await()
     }
 
-    @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of resume; the aggregate stays parked.
-    private suspend fun runResume(ref: AggregateRef, item: Item.Resume) {
+    @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of retry; the aggregate stays parked.
+    private suspend fun runRetry(ref: AggregateRef, item: Item.Retry) {
         var parked = item.parked
         try {
-            // A lower entry may have failed and been parked while this resume waited in the lane.
+            // A lower entry may have failed and been parked while this retry waited in the lane.
             ledger.parked(subscription.name, ref)?.takeIf { source.ordinalOf(it) < source.ordinalOf(parked) }?.let {
                 parked = it
             }
             val entries = try {
-                source.resume(ref, parked.fromVersion, parked.fromPosition).toList()
+                source.retryEntries(ref, parked.fromVersion, parked.fromPosition).toList()
             } catch (gone: UnrecoverableException) {
                 unrecoverable(parked, gone)
                 restoreParked(ref, item, parked)
@@ -667,7 +668,7 @@ internal class SubscriptionWorker(
                     parked = repark(entry, failure)
                     if (last != null) {
                         // Copies of the entries handled here that the tail delivers later are skipped.
-                        synchronized(this) { resumedThrough[ref] = last }
+                        synchronized(this) { retriedThrough[ref] = last }
                     }
                     restoreParked(ref, item, parked)
                     item.result.complete(false)
@@ -679,7 +680,7 @@ internal class SubscriptionWorker(
             synchronized(this) {
                 parkStates.remove(ref)
                 if (last != null) {
-                    resumedThrough[ref] = last
+                    retriedThrough[ref] = last
                 }
             }
             item.result.complete(true)
@@ -694,7 +695,7 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Records in the ledger that a resume failed again at [sourced], from where the aggregate is now parked; returns
+     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked; returns
      * the entry.
      */
     private suspend fun repark(sourced: SourcedEntry, failure: Throwable): ParkedAggregate {
@@ -714,12 +715,12 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Records in the ledger that [parked]'s aggregate can no longer be resumed, only skipped: the source does not
+     * Records in the ledger that [parked]'s aggregate can no longer be retried, only skipped: the source does not
      * hold what it is parked from any more ([gone]).
      */
     private suspend fun unrecoverable(parked: ParkedAggregate, gone: UnrecoverableException) {
         logger.error {
-            "Subscription ${subscription.name} cannot resume ${parked.ref}: ${gone.message} It can only be skipped."
+            "Subscription ${subscription.name} cannot retry ${parked.ref}: ${gone.message} It can only be skipped."
         }
         val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
         repark(parked.copyWith(reason = reason, failedAt = clock.millis()))
@@ -730,8 +731,8 @@ internal class SubscriptionWorker(
         retryForever(options.readRetry, { "repark ${entry.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 
-    private fun restoreParked(ref: AggregateRef, item: Item.Resume, parked: ParkedAggregate) = synchronized(this) {
-        if ((parkStates[ref] as? ParkState.Resuming)?.result === item.result) {
+    private fun restoreParked(ref: AggregateRef, item: Item.Retry, parked: ParkedAggregate) = synchronized(this) {
+        if ((parkStates[ref] as? ParkState.Retrying)?.result === item.result) {
             parkStates[ref] = ParkState.Parked(source.ordinalOf(parked))
         }
     }
@@ -739,10 +740,10 @@ internal class SubscriptionWorker(
     /**
      * Resolves [ref]'s ledger entry without handling what was skipped: from now on its new entries are handled.
      *
-     * @return true when the aggregate was parked; false when it was not, or a resume of it is running.
+     * @return true when the aggregate was parked; false when it was not, or a retry of it is running.
      */
     suspend fun skip(ref: AggregateRef): Boolean {
-        if (synchronized(this) { parkStates[ref] is ParkState.Resuming }) {
+        if (synchronized(this) { parkStates[ref] is ParkState.Retrying }) {
             return false
         }
         val removed = ledger.resolve(subscription.name, ref)
@@ -784,10 +785,10 @@ internal class SubscriptionWorker(
         outstanding.awaitZero()
     }
 
-    /** Fails the resumes still queued: their lanes were cancelled by a stop. */
+    /** Fails the retries still queued: their lanes were cancelled by a stop. */
     fun abandon() = synchronized(this) {
         abandoned = true
-        active.values.flatMap { it.items }.filterIsInstance<Item.Resume>().forEach {
+        active.values.flatMap { it.items }.filterIsInstance<Item.Retry>().forEach {
             it.result.cancel(CancellationException("The subscription runtime stopped."))
         }
         active.clear()
@@ -805,12 +806,12 @@ internal class SubscriptionWorker(
 
     private sealed interface Item {
         class Live(val entry: SourcedEntry, val slot: Slot) : Item
-        class Resume(val parked: ParkedAggregate, val result: CompletableDeferred<Boolean>) : Item
+        class Retry(val parked: ParkedAggregate, val result: CompletableDeferred<Boolean>) : Item
     }
 
     private sealed interface ParkState {
         class Parked(val fromOrdinal: Long) : ParkState
-        class Resuming(val result: CompletableDeferred<Boolean>) : ParkState
+        class Retrying(val result: CompletableDeferred<Boolean>) : ParkState
     }
 }
 

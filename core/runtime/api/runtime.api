@@ -446,11 +446,8 @@ public final class me/ahoo/wow/runtime/ledger/LedgerPublisher {
 	public static final field Companion Lme/ahoo/wow/runtime/ledger/LedgerPublisher$Companion;
 	public static final field OPERATOR Lme/ahoo/wow/api/caller/Operator;
 	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/node/ParkedOps;Lkotlin/jvm/functions/Function2;Ljava/time/Clock;Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function1;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun acting (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun getNotifier ()Lme/ahoo/wow/runtime/subscription/ParkedNotifier;
 	public final fun getOpen ()Z
-	public final fun resolved (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun resolved$default (Lme/ahoo/wow/runtime/ledger/LedgerPublisher;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun scan (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun start ()V
 	public final fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -812,18 +809,19 @@ public final class me/ahoo/wow/runtime/subscription/ParkedNotice {
 	public static final field Companion Lme/ahoo/wow/runtime/subscription/ParkedNotice$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAt ()J
+	public final fun getContext ()Ljava/lang/String;
 	public final fun getEntry ()Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 	public final fun getGroup ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;
 	public final fun getNextRetryAt ()Ljava/lang/Long;
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
+	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/subscription/ParkedNotice$Companion {
-	public final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
+	public final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 }
 
 public final class me/ahoo/wow/runtime/subscription/ParkedNotice$Kind : java/lang/Enum {
@@ -852,8 +850,7 @@ public final class me/ahoo/wow/runtime/subscription/ParkedRetryOptions {
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun getSpecs ()Ljava/util/Map;
 	public fun hashCode ()I
-	public final fun specOf (Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
-	public final fun specOf (Lme/ahoo/wow/spi/ledger/ParkedAggregate;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun specOf (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public fun toString ()Ljava/lang/String;
 }
 

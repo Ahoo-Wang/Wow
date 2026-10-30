@@ -27,7 +27,7 @@ const KIND_WORDS: Record<HistoryKind, Message> = {
   parkedAgain: "historyParkedAgain",
   retried: "historyRetried",
   updated: "historyUpdated",
-  resumeRequested: "historyResumeRequested",
+  retryRequested: "historyRetryRequested",
   skipRequested: "historySkipRequested",
   markRecoverableRequested: "historyMarkRecoverableRequested",
   applyRetrySpecRequested: "historyApplyRetrySpecRequested",
@@ -41,7 +41,7 @@ const KIND_TONE: Partial<Record<HistoryKind, string>> = {
   parked: "bg-destructive",
   parkedAgain: "bg-destructive",
   resolved: "bg-emerald-600",
-  resumeRequested: "bg-primary",
+  retryRequested: "bg-primary",
   skipRequested: "bg-primary",
   markRecoverableRequested: "bg-primary",
   applyRetrySpecRequested: "bg-primary",
@@ -69,8 +69,8 @@ function Step({ item }: { item: HistoryItem }) {
   else if (facts.maxRetries !== undefined)
     details.push(`${words.maxRetries} ${facts.maxRetries}`);
   if (facts.initialBackoff) details.push(`${words.initialBackoff} ${facts.initialBackoff}`);
-  if (facts.timeout)
-    details.push(`${words.timeout} ${facts.timeout}`);
+  if (facts.claimTtl)
+    details.push(`${words.claimTtl} ${facts.claimTtl}`);
   if (facts.recoverable)
     details.push(optionWord(locale, "recoverable", facts.recoverable));
   if (facts.outcome) details.push(optionWord(locale, "outcome", facts.outcome));

@@ -82,7 +82,7 @@ test("a request without a token or with an expired one is answered 401, and no i
   expect(refused.status()).toBe(401);
 });
 
-test("an operator signs in with a CoSec token and resumes an entry in its name", async ({
+test("an operator signs in with a CoSec token and retries an entry in its name", async ({
   page,
   request,
 }) => {
@@ -91,16 +91,16 @@ test("an operator signs in with a CoSec token and resumes an entry in its name",
   await expect(row(page, exhausted)).toBeVisible();
   await expect(page.getByRole("link", { name: /Caller: alice/ })).toBeVisible();
 
-  await row(page, exhausted).getByRole("button", { name: "Resume" }).click();
+  await row(page, exhausted).getByRole("button", { name: "Retry" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Reason").fill("The gateway is back.");
-  await dialog.getByRole("button", { name: "Resume" }).click();
+  await dialog.getByRole("button", { name: "Retry" }).click();
   await expect(dialog).toHaveCount(0);
   await expect
     .poll(async () =>
       (await ledgerCommands(request, context)).map((it) => [it.type, it.id]),
     )
-    .toContainEqual(["wow.ledger.Resume", exhausted.id]);
+    .toContainEqual(["wow.ledger.Retry", exhausted.id]);
 
   // Its history names the operator the gateway forwarded.
   await row(page, exhausted)
@@ -118,11 +118,11 @@ test("a viewer reads the entries, and the service refuses its actions", async ({
     page.getByText("This caller has no ops.operator role"),
   ).toBeVisible();
   await row(page, unrecoverable)
-    .getByRole("button", { name: "Resume" })
+    .getByRole("button", { name: "Retry" })
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Resume" })
+    .getByRole("button", { name: "Retry" })
     .click();
   await expect(
     page

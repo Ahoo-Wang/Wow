@@ -36,7 +36,7 @@ const ROWS = [
 
 function commands() {
   return {
-    resume: vi.fn<ParkedCommands["resume"]>(async () => ({})),
+    retry: vi.fn<ParkedCommands["retry"]>(async () => ({})),
     skip: vi.fn(async () => ({})),
     markRecoverable: vi.fn(async () => ({})),
     applyRetrySpec: vi.fn(async () => ({})),
@@ -44,10 +44,10 @@ function commands() {
 }
 
 describe("the operator's actions", () => {
-  it("offer resume in the row and the rest behind its menu, everywhere", () => {
+  it("offer retry in the row and the rest behind its menu, everywhere", () => {
     const harness = actionHarness(parkedActions(commands()), ROWS);
     expect(harness.ids).toEqual([
-      "resume",
+      "retry",
       "skip",
       "markRecoverable",
       "applyRetrySpec",
@@ -94,7 +94,7 @@ describe("the operator's actions", () => {
 
   it("ask first, an unrecoverable mark and a skip as the dangerous ones", () => {
     const harness = actionHarness(parkedActions(commands()), ROWS);
-    expect(harness.asks("resume", "row").asks).toBe(true);
+    expect(harness.asks("retry", "row").asks).toBe(true);
     expect(
       harness.asks("markRecoverable", "row", { recoverable: "unrecoverable" })
         .confirm,
@@ -103,18 +103,18 @@ describe("the operator's actions", () => {
       harness.asks("markRecoverable", "row", { recoverable: "recoverable" })
         .confirm?.tone,
     ).toBeUndefined();
-    expect(harness.missing("resume", {})).toEqual([]);
+    expect(harness.missing("retry", {})).toEqual([]);
     expect(harness.form("applyRetrySpec")?.map((field) => field.name)).toEqual([
       "maxRetries",
       "initialBackoff",
-      "timeout",
+      "claimTtl",
     ]);
   });
 
   it("send each command for the entry, with what the form says", async () => {
     const sent = commands();
     const harness = actionHarness(parkedActions(sent), ROWS);
-    await harness.run("resume", "exhausted", { reason: " back " });
+    await harness.run("retry", "exhausted", { reason: " back " });
     await harness.run("skip", "exhausted", { reason: "" });
     await harness.run("markRecoverable", "exhausted", {
       recoverable: "unrecoverable",
@@ -122,11 +122,11 @@ describe("the operator's actions", () => {
     await harness.run("applyRetrySpec", "exhausted", {
       maxRetries: 5,
       initialBackoff: " 2m ",
-      timeout: "",
+      claimTtl: "",
     });
     // Each names the parking the row shows, which the service refuses once
     // the entry was parked again (`ops.parked.stale`).
-    expect(sent.resume).toHaveBeenCalledWith(
+    expect(sent.retry).toHaveBeenCalledWith(
       "exhausted",
       "back",
       "1760000000000",
@@ -148,18 +148,18 @@ describe("the operator's actions", () => {
 
   it("report the service's refusal in its own words", async () => {
     const sent = commands();
-    sent.resume.mockRejectedValue(
+    sent.retry.mockRejectedValue(
       new WowProblemError({
         type: "urn:wow:error:wow.auth.forbidden",
         title: "Forbidden",
         status: 403,
-        detail: "victor may not wow.ledger.Resume: it needs ops.operator.",
+        detail: "victor may not wow.ledger.Retry: it needs ops.operator.",
         code: "wow.auth.forbidden",
       }),
     );
     const harness = actionHarness(parkedActions(sent), ROWS);
-    await expect(harness.run("resume", "exhausted")).rejects.toThrow(
-      "victor may not wow.ledger.Resume: it needs ops.operator. (wow.auth.forbidden)",
+    await expect(harness.run("retry", "exhausted")).rejects.toThrow(
+      "victor may not wow.ledger.Retry: it needs ops.operator. (wow.auth.forbidden)",
     );
   });
 });
@@ -167,9 +167,9 @@ describe("the operator's actions", () => {
 describe("the retry spec of the form", () => {
   it("leaves out what was left blank", () => {
     expect(retrySpecOf({})).toEqual({});
-    expect(retrySpecOf({ maxRetries: "7", timeout: "PT3M" })).toEqual({
+    expect(retrySpecOf({ maxRetries: "7", claimTtl: "PT3M" })).toEqual({
       maxRetries: 7,
-      timeout: "PT3M",
+      claimTtl: "PT3M",
     });
     expect(retrySpecOf({ maxRetries: Number.NaN, initialBackoff: "  " })).toEqual(
       {},

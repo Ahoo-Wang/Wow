@@ -23,7 +23,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 269 个，由宿主
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
-| `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
+| `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique within its context alone. |
 | `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
 
 ## `wow.aggregates.[<context>.<aggregate>]`
@@ -269,11 +269,11 @@ The springdoc bridge, when the application has springdoc.
 
 ## `wow.http.ops`
 
-The operator's routes of the parked entries.
+The operator's routes of the node: its parked entries and its subscriptions.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.http.ops.enabled` | `Boolean` | `false` | Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. |
+| `wow.http.ops.enabled` | `Boolean` | `false` | Serves the operator's routes on the public port: the parked entries under `/wow/ops/parked`, and the read of the node's subscriptions, `GET /wow/ops/subscriptions`. |
 
 ## `wow.internal`
 
@@ -337,7 +337,7 @@ This node's identity among the nodes of the service, and where they reach it.
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
 | `wow.node.max-parked` | `Integer` | `10000` | How many parked entries of one subscription a sample counts at most: a count past it reads as the cap, so a flood of parked entries costs one bounded read per sample. The health's `parked-degraded-at` is at most it. |
 | `wow.node.sample-interval` | `Duration` | `PT10S` | How often the node samples what is read rather than heard: for its health, the logs' heads, the subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress. |
-| `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
+| `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator activates it on the internal port (`POST /wow/node/activate` from a node of its service, naming who activates it). A subscription that starts at the end of its stream starts where the stream ends at the activation. |
 
 ## `wow.observability`
 
@@ -669,10 +669,10 @@ How the parked entries are retried automatically, over minutes and hours.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `wow.subscription.parked.claim-ttl` | `Duration` | `PT2M` | How long a retry's claim on the entry holds before another retry may start, such as on the partition's next owner: it cancels nothing. |
 | `wow.subscription.parked.initial-backoff` | `Duration` | `PT3M` | The wait before the first retry after the failure; each next one waits twice as long after the previous one started. |
 | `wow.subscription.parked.max-retries` | `Integer` | `10` | The most automatic retries of a parked entry; 0 turns them off. |
 | `wow.subscription.parked.scan-interval` | `Duration` | `PT10S` | How often each node scans its subscriptions' parked entries for retries that are due. |
-| `wow.subscription.parked.timeout` | `Duration` | `PT2M` | How long a retry may run before the partition's next owner may start another. |
 
 ## `wow.subscription.read-retry`
 
@@ -687,7 +687,7 @@ How a failing read of the log, or write of a store, is retried: until the node s
 
 ## `wow.subscription.retry`
 
-How a failing handler is retried in process before its aggregate is parked; a subscription's `wow.subscriptions.[<subscription>].retry.*` and its handler's `@Retry` come before it.
+How a failing handler is retried in process before its aggregate is parked; a subscription's `wow.subscriptions.[<context>.<name>].retry.*` and its handler's `@Retry` come before it.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -708,21 +708,21 @@ When a partition pauses on a systemic failure, such as a database that is down, 
 | `wow.subscription.systemic.max-backoff` | `Duration` | `PT30S` | The longest wait between two probes of a paused partition. |
 | `wow.subscription.systemic.window` | `Duration` | `PT10S` | The window in which `failing-aggregates` failures pause the partition. |
 
-## `wow.subscriptions.[<subscription>]`
+## `wow.subscriptions.[<context>.<name>]`
 
-Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`).
+Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique within its context alone.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.subscriptions.[<subscription>].parked.initial-backoff` | `Duration` |  | The wait before the first automatic retry, over `wow.subscription.parked`'s. |
-| `wow.subscriptions.[<subscription>].parked.max-retries` | `Integer` |  | How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s. |
-| `wow.subscriptions.[<subscription>].parked.timeout` | `Duration` |  | How long a retry may run, over `wow.subscription.parked`'s. |
-| `wow.subscriptions.[<subscription>].retry.initial-backoff` | `Duration` |  | The wait after the first failure. |
-| `wow.subscriptions.[<subscription>].retry.max-attempts` | `Integer` |  | The most attempts of the handler in all, before its aggregate parks. |
-| `wow.subscriptions.[<subscription>].retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
-| `wow.subscriptions.[<subscription>].retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
-| `wow.subscriptions.[<subscription>].retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
-| `wow.subscriptions.[<subscription>].start` | `String` |  | Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant. |
+| `wow.subscriptions.[<context>.<name>].parked.claim-ttl` | `Duration` |  | How long a retry's claim on the entry holds, over `wow.subscription.parked`'s. |
+| `wow.subscriptions.[<context>.<name>].parked.initial-backoff` | `Duration` |  | The wait before the first automatic retry, over `wow.subscription.parked`'s. |
+| `wow.subscriptions.[<context>.<name>].parked.max-retries` | `Integer` |  | How many automatic retries a parked entry of the subscription gets, over `wow.subscription.parked`'s. |
+| `wow.subscriptions.[<context>.<name>].retry.initial-backoff` | `Duration` |  | The wait after the first failure. |
+| `wow.subscriptions.[<context>.<name>].retry.max-attempts` | `Integer` |  | The most attempts of the handler in all, before its aggregate parks. |
+| `wow.subscriptions.[<context>.<name>].retry.max-backoff` | `Duration` |  | The longest wait between two attempts. |
+| `wow.subscriptions.[<context>.<name>].retry.multiplier` | `Double` |  | How many times longer each wait is than the one before; at least 1. |
+| `wow.subscriptions.[<context>.<name>].retry.timeout` | `Duration` |  | How long one attempt may run before it is cancelled and counts as failed. |
+| `wow.subscriptions.[<context>.<name>].start` | `String` |  | Where the subscription starts in a partition it has no checkpoint in: `beginning`, `end` or an instant. |
 
 ## `wow.tenant`
 

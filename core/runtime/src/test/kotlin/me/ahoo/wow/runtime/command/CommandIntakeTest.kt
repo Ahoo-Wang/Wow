@@ -392,7 +392,7 @@ class CommandIntakeTest {
         }
 
     @Test
-    fun `a technical failure should park the aggregate at the command's offset until it is resumed`(): Unit =
+    fun `a technical failure should park the aggregate at the command's offset until it is retried`(): Unit =
         runBlocking {
             val node = stockNode().also { it.start() }
             val broken = reserve("c-broken", BREAKING, item = "i-b")
@@ -409,10 +409,10 @@ class CommandIntakeTest {
             eventually { checkpoint(node, broken.ref) == end }
             stock.decided.assert().doesNotContain(broken.id, after.id)
             stock.broken = false
-            node.context(STOCK).intake!!.resume(CommandIntake.NAME, broken.ref).assert().isTrue()
+            node.context(STOCK).intake!!.retry(CommandIntake.NAME, broken.ref).assert().isTrue()
             stock.decided.assert().contains(broken.id, after.id)
             ledger.isParked(CommandIntake.NAME, broken.ref).assert().isFalse()
-            // A command of the aggregate after the resume runs as any other.
+            // A command of the aggregate after the retry runs as any other.
             val later = reserve("c-later", 1, item = "i-b")
             eventually { later.id in stock.decided }
         }

@@ -17,7 +17,7 @@ export const OpsManifest: RoutingManifest = {
             { name: 'RecordActionRefused', routes: [{ method: 'POST', path: '/ops/parked/{id}/record-action-refused' }] },
             { name: 'RecordParked', routes: [{ method: 'POST', path: '/ops/parked/{id}/record-parked' }, { method: 'POST', path: '/ops/parked/record-parked' }] },
             { name: 'RecordResolved', routes: [{ method: 'POST', path: '/ops/parked/{id}/record-resolved' }] },
-            { name: 'Resume', routes: [{ method: 'POST', path: '/ops/parked/{id}/resume' }] },
+            { name: 'Retry', routes: [{ method: 'POST', path: '/ops/parked/{id}/retry' }] },
             { name: 'Skip', routes: [{ method: 'POST', path: '/ops/parked/{id}/skip' }] },
           ],
         },

@@ -24,7 +24,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
@@ -62,7 +62,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * The wire forms of the command and receipts topics (design 08 §8), how a command is named and partitioned when it is
- * sent (decisions D135, D157), and how their entries are read, resumed and handed to a saga's handler.
+ * sent (decisions D135, D157), and how their entries are read, retried and handed to a saga's handler.
  */
 class CommandMessagesTest {
     private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
@@ -342,7 +342,7 @@ class CommandMessagesTest {
         }
 
     @Test
-    fun `the entries of a command topic should be ordered, parked and resumed by offset`(): Unit = runBlocking {
+    fun `the entries of a command topic should be ordered, parked and retried by offset`(): Unit = runBlocking {
         val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
         val partition = Partitioner.partitionOf(ref, PARTITIONS)
         val wire: (String) -> CommandWire = { id ->
@@ -355,23 +355,23 @@ class CommandMessagesTest {
         entries.partitionOf(ref).assert().isEqualTo(partition)
         entries.checkpointOf(SubscriptionStart.End, partition).assert().isEqualTo(3L)
         entries.checkpointOf(SubscriptionStart.Beginning, partition).assert().isEqualTo(0L)
-        val resumed = entries.resume(ref, 1, 1).toList()
-        resumed.map { (it.message as CommandWire).id }.assert().containsExactly("b", "c")
-        resumed.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
-        resumed.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
-        resumed.first().stream.version.assert().isEqualTo(1)
+        val retried = entries.retryEntries(ref, 1, 1).toList()
+        retried.map { (it.message as CommandWire).id }.assert().containsExactly("b", "c")
+        retried.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
+        retried.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
+        retried.first().stream.version.assert().isEqualTo(1)
         entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0, 1)).assert().isEqualTo(2L)
         entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0)).assert().isEqualTo(0L)
         entries.positionOf(ref, 1).assert().isNull()
-        assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, null) } }
+        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, null) } }
         topics.retain(COMMANDS, partition, 2)
-        assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 1) } }
+        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 1) } }
             .message.assert().contains("no longer retains offset 1")
         assertThrows<IllegalArgumentException> { entries.requirePartition(PARTITIONS) }
     }
 
     @Test
-    fun `a resume should not resolve an aggregate whose parked message moved to another partition`(): Unit =
+    fun `a retry should not resolve an aggregate whose parked message moved to another partition`(): Unit =
         runBlocking {
             // Review R2.1-4: a topic that gained partitions maps the key elsewhere; the re-scan finds nothing there.
             val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
@@ -385,15 +385,19 @@ class CommandMessagesTest {
             // Parked at offset 0 of the partition its key mapped to before.
             topics.send(COMMANDS, CommandMessages.command(wire("parked", ref), before))
             // Nothing at that offset in the partition it maps to now.
-            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 0).toList() } }
                 .message.assert().contains("partitions changed")
             // Another aggregate's message at that offset there.
             topics.send(COMMANDS, CommandMessages.command(wire("other", other), partition))
-            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 0).toList() } }
                 .message.assert().contains("partitions changed")
             // Where the message is, the re-scan goes on.
             topics.send(COMMANDS, CommandMessages.command(wire("own", ref), partition))
-            entries.resume(ref, 1, 1).toList().map { (it.message as CommandWire).id }.assert().containsExactly("own")
+            entries.retryEntries(
+                ref,
+                1,
+                1
+            ).toList().map { (it.message as CommandWire).id }.assert().containsExactly("own")
         }
 
     @Test
@@ -421,8 +425,8 @@ class CommandMessagesTest {
         receipts.handle(rejected)
         handled.assert().containsExactly("c-1" to Reserve::class.java)
         // A ledger command no Manifest declares, refused back to the ops saga that sent it (decision D226).
-        receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RESUME))
-        handled.last().assert().isEqualTo("c-ledger" to ResumeParked::class.java)
+        receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RETRY))
+        handled.last().assert().isEqualTo("c-ledger" to RetryParked::class.java)
         handled.removeLast()
         // No handler takes it: logged and passed over, once.
         answer = null

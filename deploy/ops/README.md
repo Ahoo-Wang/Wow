@@ -47,7 +47,7 @@ kubectl rollout status deployment/ops-service
 
 Open the console through the CoSec gateway's route, and sign in with an access token your CoSec issued (the console's sign-in page; a CoSec single sign-on that stored its token in this browser signs the console in too). Reached around the gateway (a `kubectl port-forward` to the service, say), every request is anonymous and answered 401. The service reads the operator from the identity the gateway forwards:
 
-- **Roles.** `ops.operator` acts on the entries (resume, skip, mark recoverable, apply a retry spec); `ops.viewer` only reads them. A principal with neither reads nothing: both are tenant-level roles (`wow.cosec.tenant-level.roles` in the `cosec` profile), whose scope has no owner.
+- **Roles.** `ops.operator` acts on the entries (retry, skip, mark recoverable, apply a retry spec); `ops.viewer` only reads them. A principal with neither reads nothing: both are tenant-level roles (`wow.cosec.tenant-level.roles` in the `cosec` profile), whose scope has no owner.
 - **Tenant.** The services' ledgers publish to Wow's default tenant, `(0)`, which a principal of CoSec's default tenant is in.
 - **Application.** The console calls as `CoSec-App-Id: ops-console`, the app the gateway decides the request in. The ops service does not use it to decide anything.
 

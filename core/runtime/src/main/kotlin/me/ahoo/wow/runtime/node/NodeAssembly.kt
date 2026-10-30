@@ -398,16 +398,16 @@ internal class NodeAssembly(
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op.
         val names = contexts.values.flatMapTo(HashSet()) { context ->
-            applicationSubscriptions.getValue(context).map { it.name } +
-                context.snapshotSubscriptions.map { it.subscription.name } +
+            applicationSubscriptions.getValue(context).map { it.id } +
+                context.snapshotSubscriptions.map { it.subscription.id } +
                 listOfNotNull(
-                    context.snapshotMaintenance?.rebuildSubscription?.name,
-                    context.reservations?.subscription?.name,
-                    context.timers?.subscription?.subscription?.name,
+                    context.snapshotMaintenance?.rebuildSubscription?.id,
+                    context.reservations?.subscription?.id,
+                    context.timers?.subscription?.subscription?.id,
                 ) +
-                listOfNotNull(intakes[context]?.subscription?.name)
+                listOfNotNull(intakes[context]?.subscription?.id)
         }
-        topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.name } }
+        topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.id } }
         NodeChecks.subscriptionsNamed(node, names, options.subscription)
     }
 

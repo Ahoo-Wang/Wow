@@ -17,13 +17,13 @@
     "hop": {
       "stage": "handled",
       "context": "bank",
-      "subscription": "snapshot"
+      "subscription": "wow.snapshot"
     },
     "function": {
       "kind": "snapshot",
       "context": "bank",
-      "processor": "snapshot",
-      "name": "snapshot"
+      "processor": "wow.snapshot",
+      "name": "wow.snapshot"
     },
     "status": "succeeded",
     "version": 2,

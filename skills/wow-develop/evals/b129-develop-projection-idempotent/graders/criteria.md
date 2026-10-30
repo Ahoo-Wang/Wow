@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Writes a `@Projection` whose handler upserts with a guard by the commit's version, because a commit can be handled more than once (retries, a resume after parking, a rebuild)
+1. Writes a `@Projection` whose handler upserts with a guard by the commit's version, because a commit can be handled more than once (retries, an operator's retry after parking, a rebuild)
 2. Marks the JDBC handler `@Blocking` (or makes it non-blocking), since a synchronous handler otherwise runs on the shared worker
 3. Notes that a new projection starts from the beginning of the log by default, rebuilding the table from history
 4. Tests with `projectionSpec` through a fake of the table port: the same commit twice and an older version after a newer one leave the newer row

@@ -318,7 +318,7 @@ class ServiceNode @InternalWowApi constructor(
      * With [standby] (the dual-run window of a migration's cut-over) the node starts serving
      * reads only: it registers the subscriptions but joins no lease group, so no subscription handles anything, no
      * parked entry is retried and no job or schedule runs, and its gateway refuses every command
-     * ([FrameworkCodes.NODE_STANDBY]). [resume] then joins the groups, at the cut-over: a subscription that starts at
+     * ([FrameworkCodes.NODE_STANDBY]). [activate] then joins the groups, at the cut-over: a subscription that starts at
      * the end of its stream starts where the stream ends then, not where it ended when the node booted.
      */
     suspend fun start(): Unit = start(standby = false)
@@ -326,24 +326,24 @@ class ServiceNode @InternalWowApi constructor(
     /** Starts the node as [start] does, on standby when [standby] says so (see [start]). */
     suspend fun start(standby: Boolean): Unit = lifecycle.start(standby)
 
-    /** Whether the node is on standby: started with `standby` and not [resume]d yet. */
+    /** Whether the node is on standby: started with `standby` and not [activate]d yet. */
     @InternalWowApi
     val standby: Boolean get() = lifecycle.standby
 
-    /** When and by whom the node was resumed from standby; null while it is on standby or never was. */
+    /** When and by whom the node was activated from standby; null while it is on standby or never was. */
     @InternalWowApi
-    val resumption: Resumption? get() = lifecycle.resumption
+    val activation: Activation? get() = lifecycle.activation
 
     /**
-     * Resumes a node started on standby, at a migration's cut-over: joins every context's lease group and every topic's,
+     * Activates a node started on standby, at a migration's cut-over: joins every context's lease group and every topic's,
      * starting the subscriptions there (one that starts at the end of its stream starts where the stream ends now),
      * the retries of the parked entries, the jobs and the snapshot maintenance, and then admits commands. It is the
-     * operator's act, recorded for the audit: [by] names who resumed it and [reason] why, both logged with the time.
-     * A node not on standby is left as it is: the answer says when it was resumed, if it ever was. A resume that fails
-     * stops the node and throws.
+     * operator's act, recorded for the audit: [by] names who activated it and [reason] why, both logged with the time.
+     * A node not on standby is left as it is: the answer says when it was activated, if it ever was. An activation
+     * that fails stops the node and throws.
      */
     @InternalWowApi
-    suspend fun resume(by: String, reason: String? = null): Resumption = lifecycle.resume(by, reason)
+    suspend fun activate(by: String, reason: String? = null): Activation = lifecycle.activate(by, reason)
 
     /** Leaves the cluster and closes the node, in the order [NodeLifecycle] describes. Stopping twice does nothing. */
     suspend fun stop(): Unit = lifecycle.stop()

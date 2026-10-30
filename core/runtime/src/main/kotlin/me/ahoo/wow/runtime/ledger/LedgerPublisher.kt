@@ -38,6 +38,7 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.ledger.LedgerAggregate
 import me.ahoo.wow.spi.ledger.LedgerEntry
@@ -156,7 +157,7 @@ class LedgerPublisher internal constructor(
 
     /** Hears when an entry parks or spends its retries, and publishes it as it now stands. */
     val notifier: ParkedNotifier = ParkedNotifier { notice: ParkedNotice ->
-        parked(ParkedView(notice.entry, notice.spec, parked.get(notice.entry.subscription, notice.entry.ref)?.context))
+        parked(ParkedView(notice.entry, notice.spec, notice.context, notice.group))
     }
 
     /** Publishes [view]'s entry as parked. */
@@ -166,10 +167,10 @@ class LedgerPublisher internal constructor(
     }
 
     /** Publishes that [subscription] no longer parks [ref], since [outcome]; [failedAt] the parking's, when known. */
+    @InternalWowApi
     suspend fun resolved(
-        subscription: String,
+        subscription: SubscriptionId,
         ref: AggregateRef,
-        context: String?,
         outcome: String,
         failedAt: Long? = null,
     ): Unit = if (!open) {
@@ -178,7 +179,7 @@ class LedgerPublisher internal constructor(
         lock.withLock {
             val key = ParkedKey(subscription, ref)
             val known = published.remove(key)?.record
-            publishResolved(key, context ?: known?.context ?: ref.type.context, failedAt ?: known?.failedAt, outcome)
+            publishResolved(key, failedAt ?: known?.failedAt, outcome)
         }
     }
 
@@ -187,7 +188,8 @@ class LedgerPublisher internal constructor(
      * the scans leave the entry alone: a scan between the action resolving the entry and publishing its outcome would
      * otherwise publish it as [LedgerResolution.RESOLVED] first, and the ops view keeps the first resolution.
      */
-    suspend fun <T> acting(subscription: String, ref: AggregateRef, action: suspend () -> T): T {
+    @InternalWowApi
+    suspend fun <T> acting(subscription: SubscriptionId, ref: AggregateRef, action: suspend () -> T): T {
         val key = ParkedKey(subscription, ref)
         acting.merge(key, 1, Int::plus)
         try {
@@ -210,7 +212,7 @@ class LedgerPublisher internal constructor(
             do {
                 val page = parked.list(after = after, limit = ParkedOps.MAX_LIMIT)
                 page.entries.forEach { view ->
-                    val key = ParkedKey(view.entry.subscription, view.entry.ref)
+                    val key = ParkedKey(view.id, view.entry.ref)
                     if (parked.owns(key.subscription, key.ref)) {
                         seen += key
                         if (!acting.containsKey(key)) {
@@ -224,7 +226,7 @@ class LedgerPublisher internal constructor(
                 val gone = published.getValue(key).record
                 // An entry whose partition moved to another node is that node's to publish now.
                 if (parked.get(key.subscription, key.ref) == null) {
-                    publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
+                    publishResolved(key, gone.failedAt, LedgerResolution.RESOLVED)
                 }
                 published.remove(key)
             }
@@ -298,11 +300,11 @@ class LedgerPublisher internal constructor(
 
     private suspend fun publishParked(view: ParkedView) {
         val entry = view.entry
-        val key = ParkedKey(entry.subscription, entry.ref)
+        val key = ParkedKey(view.id, entry.ref)
         val now = clock.millis()
         val record = LedgerEntry(
             service = service,
-            context = view.context ?: entry.ref.type.context,
+            context = view.context,
             subscription = entry.subscription,
             aggregate = LedgerAggregate.of(entry.ref),
             fromVersion = entry.fromVersion,
@@ -314,7 +316,7 @@ class LedgerPublisher internal constructor(
             retrySpec = LedgerRetrySpec(
                 maxRetries = view.spec.maxRetries,
                 initialBackoff = view.spec.initialBackoff.toIsoString(),
-                timeout = view.spec.timeout.toIsoString(),
+                claimTtl = view.spec.claimTtl.toIsoString(),
                 applied = entry.retrySpec != null,
             ),
             recoverable = WireNames.of(entry.recoverable),
@@ -330,11 +332,11 @@ class LedgerPublisher internal constructor(
         trySend(key, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to record), requestId)
     }
 
-    private suspend fun publishResolved(key: ParkedKey, context: String, failedAt: Long?, outcome: String) {
+    private suspend fun publishResolved(key: ParkedKey, failedAt: Long?, outcome: String) {
         val record = LedgerResolution(
             service = service,
-            context = context,
-            subscription = key.subscription,
+            context = key.subscription.context,
+            subscription = key.subscription.name,
             aggregate = LedgerAggregate.of(key.ref),
             failedAt = failedAt,
             outcome = outcome,
@@ -348,7 +350,7 @@ class LedgerPublisher internal constructor(
     /** Sends [body], the record under its member, as the command [command] of [key]'s ops aggregate; a failure is logged, the next scan sends it again. */
     private suspend fun trySend(key: ParkedKey, command: String, body: Any, requestId: String) {
         val target = AggregateType(options.context, Ledger.PARKED)
-            .ref(Caller.DEFAULT_TENANT, Ledger.parkedId(service, key.subscription, key.ref))
+            .ref(Caller.DEFAULT_TENANT, parkedIdOf(key))
         val wire = CommandWire(
             type = "${target.type}.$command",
             id = ids.next(),
@@ -366,9 +368,12 @@ class LedgerPublisher internal constructor(
         }
     }
 
+    private fun parkedIdOf(key: ParkedKey): String =
+        Ledger.parkedId(service, key.subscription.context, key.subscription.name, key.ref)
+
     private fun digest(key: ParkedKey, content: String, at: Long): String {
         val bytes = MessageDigest.getInstance("SHA-256")
-            .digest("${Ledger.parkedId(service, key.subscription, key.ref)}\n$content\n$at".toByteArray())
+            .digest("${parkedIdOf(key)}\n$content\n$at".toByteArray())
         return "${Ledger.NAMESPACE}:" + bytes.joinToString("") { "%02x".format(it) }
     }
 

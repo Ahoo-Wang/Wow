@@ -156,7 +156,7 @@ class HostTest {
         val result = answer.body!!
         result["status"].asString().assert().isEqualTo("succeeded")
         result["hop"]["stage"].asString().assert().isEqualTo("handled")
-        result["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        result["hop"]["subscription"].asString().assert().isEqualTo("wow.snapshot")
         val id = result["ref"]["id"].asString()
         UUID.fromString(id).version().assert().isEqualTo(7)
         host.decided.ids.assert().contains(id)

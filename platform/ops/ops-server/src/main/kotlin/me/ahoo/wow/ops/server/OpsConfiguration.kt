@@ -36,7 +36,7 @@ import org.springframework.context.annotation.Configuration
  * policies of each action when CoSec decides the requests itself (its `AuthorizationChecker`, which a service behind
  * the gateway has none of) and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else the operator's
  * role among its CoSec roles ([OperatorRole]). An operator's
- * action is authorized here, as `ops.parked.Resume` and the others: the owning service runs the ledger command
+ * action is authorized here, as `ops.parked.Retry` and the others: the owning service runs the ledger command
  * the saga sends it through its command topic, and guards its own operator routes (`/wow/ops/parked`) itself.
  */
 @Configuration(proxyBeanMethods = false)

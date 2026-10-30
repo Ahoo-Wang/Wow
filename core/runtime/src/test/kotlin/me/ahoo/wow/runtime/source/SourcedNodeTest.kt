@@ -45,17 +45,22 @@ import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
+import me.ahoo.wow.runtime.node.NodeSample
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SourcedSubscription
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.node.SubscriptionView
 import me.ahoo.wow.runtime.node.accountModel
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.node.subscriptionsView
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
@@ -176,6 +181,40 @@ class SourcedNodeTest {
         }
 
     @Test
+    fun `the operator's view should list a topic subscription's partitions only while they are held back (D372 S7)`(): Unit =
+        runBlocking {
+            val down = ProcessorBinding.project<OrderTotal?>(
+                "Board",
+                "onOrder",
+                OrderTotal::class.java,
+                aggregates = listOf("sales.order"),
+                nullableState = true,
+            ) { _, _ -> throw StorageUnavailableException("The board's store is down.") }
+            val node = node(bindings = SubscriptionBindings(mapOf(BANK to listOf(down, payout))))
+            val subscriptions = node.topicSubscriptions.getValue(TOPIC)
+            node.start()
+            subscriptions.awaitStarted()
+            suspend fun topic() = node.subscriptionsView(NodeSample.EMPTY, maxParked = 10).subscriptions
+                .filter { it.group == subscriptions.group.name }
+            topic().map { it.id }.assert().containsExactly(
+                SubscriptionId(BANK, "Board.onOrder"),
+                SubscriptionId(BANK, "Payout.onOrder"),
+            )
+            topic().map { it.source }.toSet().assert().containsExactly(SubscriptionView.Source.TOPIC)
+            topic().flatMap { it.partitions }.assert().isEmpty()
+
+            topics.publish(orderRecord("o-1", 1), topic = TOPIC)
+            eventually { subscriptions.paused().isNotEmpty() }
+
+            val board = topic().single { it.id.name == "Board.onOrder" }.partitions.single()
+            board.partition.assert().isEqualTo(subscriptions.paused().single().partition)
+            board.runs.assert().isTrue()
+            board.paused!!.reason.assert().isNotBlank()
+            board.head.assert().isNull()
+            topic().single { it.id.name == "Payout.onOrder" }.partitions.assert().isEmpty()
+        }
+
+    @Test
     fun `a topic still joining should make the node not ready until it reads it (R3-H)`(): Unit = runBlocking {
         val gated = object : PartitionedSource by topics {
             @Volatile
@@ -217,7 +256,7 @@ class SourcedNodeTest {
     }
 
     @Test
-    fun `a node on standby should be ready, its topics marked standby until it is resumed`(): Unit = runBlocking {
+    fun `a node on standby should be ready, its topics marked standby until it is activated`(): Unit = runBlocking {
         val node = node()
         val health = NodeHealth(node, NodeSampler(node), HealthOptions(storeDownAfter = Duration.ZERO))
         node.start(standby = true)
@@ -228,7 +267,7 @@ class SourcedNodeTest {
         topic.details["state"].assert().isEqualTo("STOPPED")
         topic.details["standby"].assert().isEqualTo(true)
 
-        node.resume("operator")
+        node.activate("operator")
         node.topicSubscriptions.getValue(TOPIC).awaitStarted()
         eventually { health.readiness().status == HealthStatus.UP }
         health.readiness().component(NodeHealth.TOPICS)!!.components.single().details.keys.assert()
@@ -303,9 +342,9 @@ class SourcedNodeTest {
         ).state
         tree.toString().assert().isEqualTo("""{"total":1}""")
         SubscriptionBindings.publishedStateEventOf(entry, any, node.context(BANK)).state.assert().isNull()
-        // A ledger entry with no offset to re-scan from cannot be resumed.
+        // A ledger entry with no offset to re-scan from cannot be retried.
         assertThrows<IllegalStateException> {
-            runBlocking { TopicEntries(TOPIC, topics, 2).resume(order("o-1"), 1, null) }
+            runBlocking { TopicEntries(TOPIC, topics, 2).retryEntries(order("o-1"), 1, null) }
         }.message.assert().contains("no offset")
     }
 

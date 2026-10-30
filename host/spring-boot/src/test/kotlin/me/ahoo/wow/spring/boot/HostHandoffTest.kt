@@ -59,7 +59,7 @@ fun Host.assertHandoff(commands: Int = 10) {
         val answer = post("/bank/account/open-account", """{"owner":"handoff-$it"}""")
         answer.status.assert().isEqualTo(200)
         answer.body!!["status"].asString().assert().isEqualTo("succeeded")
-        answer.body!!["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        answer.body!!["hop"]["subscription"].asString().assert().isEqualTo("wow.snapshot")
     }
 
     logs.sumOf { it.storeReads }.assert().isEqualTo(reads)

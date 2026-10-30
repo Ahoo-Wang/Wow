@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.log.Partitioner
@@ -233,16 +234,16 @@ class LogGroupsTest {
         }
 
     @Test
-    fun `a parked aggregate of a group is in its group's ledger, and resumed there`(): Unit = runBlocking {
+    fun `a parked aggregate of a group is in its group's ledger, and retried there`(): Unit = runBlocking {
         val node = node("node-1").also { it.start() }
         val poison = INVOICE.ref(TENANT, POISON)
         node.send(poison, Issue(delayMillis = 60_000))
         eventually { stores.invoices.ledger.isParked(PROJECTOR, poison) }
         stores.default.ledger.isParked(PROJECTOR, poison).assert().isFalse()
-        node.parked.get(PROJECTOR, poison)?.entry?.ref.assert().isEqualTo(poison)
-        node.parked.list(PROJECTOR).entries.map { it.entry.ref }.assert().containsExactly(poison)
-        val failedAt = node.parked.get(PROJECTOR, poison)!!.entry.failedAt
-        node.parked.skip(PROJECTOR, poison, failedAt).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        node.parked.get(PROJECTOR_ID, poison)?.entry?.ref.assert().isEqualTo(poison)
+        node.parked.list(PROJECTOR_ID).entries.map { it.entry.ref }.assert().containsExactly(poison)
+        val failedAt = node.parked.get(PROJECTOR_ID, poison)!!.entry.failedAt
+        node.parked.skip(PROJECTOR_ID, poison, failedAt).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         stores.invoices.ledger.isParked(PROJECTOR, poison).assert().isFalse()
     }
 
@@ -333,6 +334,7 @@ class LogGroupsTest {
         const val DEFAULT_STORE = "orders-store"
         const val INVOICE_STORE = "invoices-store"
         const val PROJECTOR = "Projector.onEvent"
+        val PROJECTOR_ID = SubscriptionId(CONTEXT, PROJECTOR)
         const val POISON = "poison"
         const val DUE = "due"
         const val NUMBERS = "number"

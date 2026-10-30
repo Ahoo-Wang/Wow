@@ -1957,7 +1957,7 @@
       "aliases": []
     },
     {
-      "path": "state.retrySpec.timeout",
+      "path": "state.retrySpec.claimTtl",
       "types": [
         "string"
       ],

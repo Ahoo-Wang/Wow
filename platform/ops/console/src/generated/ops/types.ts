@@ -17,9 +17,9 @@ export interface ActionRefused {
  * - key: `me.ahoo.wow.ops.api.parked.ApplyRetrySpec`
  */
 export interface ApplyRetrySpec {
+  claimTtl?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
-  timeout?: string | null;
 }
 
 
@@ -28,9 +28,9 @@ export interface ApplyRetrySpec {
  * - key: `me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested`
  */
 export interface ApplyRetrySpecRequested {
+  claimTtl?: string | null;
   initialBackoff?: string | null;
   maxRetries?: number | null;
-  timeout?: string | null;
 }
 
 
@@ -46,9 +46,9 @@ export interface EntryAggregate {
 /** - key: `me.ahoo.wow.ops.api.parked.EntryRetrySpec` */
 export interface EntryRetrySpec {
   applied?: boolean;
+  claimTtl: string;
   initialBackoff: string;
   maxRetries: number;
-  timeout: string;
 }
 
 
@@ -169,20 +169,20 @@ export interface RecordResolved {
 
 
 /**
- * Resume a parked entry
- * - key: `me.ahoo.wow.ops.api.parked.Resume`
+ * Retry a parked entry
+ * - key: `me.ahoo.wow.ops.api.parked.Retry`
  */
-export interface Resume {
+export interface Retry {
   failedAt?: string | null;
   reason?: string | null;
 }
 
 
 /**
- * A resume was requested
- * - key: `me.ahoo.wow.ops.api.parked.ResumeRequested`
+ * A retry was requested
+ * - key: `me.ahoo.wow.ops.api.parked.RetryRequested`
  */
-export interface ResumeRequested {
+export interface RetryRequested {
   failedAt?: string | null;
   reason?: string | null;
 }

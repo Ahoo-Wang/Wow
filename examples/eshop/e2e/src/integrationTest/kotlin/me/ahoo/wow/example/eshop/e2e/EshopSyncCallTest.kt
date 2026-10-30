@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *   there; the order belongs to its buyer, who is its operator.
  * - **Target down.** While the ordering is down (its address answers 503, as a load balancer in front of a down
  *   service does), the saga is retried within its subscription's budget, then the basket parks. Once the ordering is
- *   back and an operator resumes the basket, the order is submitted, once; the same call again is the same request,
+ *   back and an operator retries the basket, the order is submitted, once; the same call again is the same request,
  *   answered with the same order.
  * - **Trust boundary.** Only a service that names itself, and only on the ordering's internal port, may assert the
  *   root command a call acts for (`Wow-Call`): the public port refuses it even naming the basket service, and the
@@ -95,18 +95,18 @@ class EshopSyncCallTest {
             checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
 
             // Retried within the subscription's budget, then parked.
-            val parked = "/wow/ops/parked/$CHECKOUT_SAGA/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
+            val parked = "/wow/ops/parked/$CHECKOUT_KEY/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
             eventually("the basket parked") { basket.get(parked).status == OK }
             down.calls.assert().isEqualTo(MAX_ATTEMPTS)
             basket.get(parked).body!!["reason"].asString().assert().contains("503")
             down.close()
 
             ordering(port).use { ordering ->
-                val resumed = basket.post("$parked/resume", """{"reason":"The ordering is back."}""", emptyMap())
-                resumed.status.assert().describedAs(resumed.text).isEqualTo(OK)
+                val retried = basket.post("$parked/retry", """{"reason":"The ordering is back."}""", emptyMap())
+                retried.status.assert().describedAs(retried.text).isEqualTo(OK)
                 eventually("bob-1 submitted") { ordering.ownerOf("bob-1") != null }
                 ordering.ownerOf("bob-1").assert().isEqualTo("bob")
-                eventually("the basket resumed") { basket.get(parked).status == NOT_FOUND }
+                eventually("the basket retried") { basket.get(parked).status == NOT_FOUND }
 
                 // The saga's call again (a replay of the checkout's commit, version 2) is the same request: the
                 // ordering answers it with the same order, which it does not submit twice.
@@ -278,6 +278,9 @@ class EshopSyncCallTest {
         const val MAX_ATTEMPTS = 3
         const val ORDERING = "eshop-ordering"
         const val CHECKOUT_SAGA = "BasketCheckoutSaga.onBasketCheckedOut"
+
+        /** The checkout saga as the configuration and the operator's routes name it: `<context>.<name>`. */
+        const val CHECKOUT_KEY = "eshop-basket.$CHECKOUT_SAGA"
         const val CHECKOUT_TO_ORDER = EshopStack.CHECKOUT_TO_ORDER
 
         /** The basket service's name, which it states on the ordering's internal port. */
@@ -302,7 +305,7 @@ class EshopSyncCallTest {
 
         /**
          * The basket service, calling the ordering at its internal [orderingPort] as itself; its checkout saga makes
-         * [retries] attempts 50 ms apart, then parks until an operator resumes it.
+         * [retries] attempts 50 ms apart, then parks until an operator retries it.
          */
         fun basket(orderingPort: Int, retries: Int = 5): Service = start(
             BasketServer::class.java,
@@ -312,10 +315,10 @@ class EshopSyncCallTest {
                 "wow.peers.eshop-ordering.url" to "http://127.0.0.1:$orderingPort",
                 "wow.peer.timeout" to "5s",
                 "wow.http.ops.enabled" to true,
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts" to retries,
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff" to "50ms",
-                "wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff" to "50ms",
-                "wow.subscriptions.[$CHECKOUT_SAGA].parked.max-retries" to 0,
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.max-attempts" to retries,
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.initial-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_KEY].retry.max-backoff" to "50ms",
+                "wow.subscriptions.[$CHECKOUT_KEY].parked.max-retries" to 0,
             ),
             // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
             OperatorActions::class.java,

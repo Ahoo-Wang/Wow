@@ -139,7 +139,7 @@ class WaitCoordinatorTest {
     private var sagaGate: CompletableDeferred<Unit>? = null
     private val snapshotted = CopyOnWriteArrayList<String>()
 
-    private val snapshot = Subscription("snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
+    private val snapshot = Subscription("wow.snapshot", SubscriptionFilter("shop"), kind = FunctionKind.SNAPSHOT) {
         snapshotGate?.await()
         snapshotted += "${it.ref.id}@${it.version}"
     }

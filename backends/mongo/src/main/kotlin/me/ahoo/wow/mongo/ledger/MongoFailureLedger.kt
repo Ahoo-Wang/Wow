@@ -277,7 +277,7 @@ class MongoFailureLedger(
             ParkedRetrySpec(
                 maxRetries = spec.getInteger(MAX_RETRIES),
                 initialBackoff = spec.getLong(INITIAL_BACKOFF).milliseconds,
-                timeout = spec.getLong(TIMEOUT).milliseconds,
+                claimTtl = spec.getLong(CLAIM_TTL).milliseconds,
             )
         },
         recoverable = Recoverable.valueOf(document.getString(RECOVERABLE)),
@@ -289,7 +289,7 @@ class MongoFailureLedger(
     private fun specOf(spec: ParkedRetrySpec?): Document? = spec?.let {
         Document(MAX_RETRIES, it.maxRetries)
             .append(INITIAL_BACKOFF, it.initialBackoff.inWholeMilliseconds)
-            .append(TIMEOUT, it.timeout.inWholeMilliseconds)
+            .append(CLAIM_TTL, it.claimTtl.inWholeMilliseconds)
     }
 
     private companion object {
@@ -300,9 +300,10 @@ class MongoFailureLedger(
 
         /**
          * The layout version of the collection: format 1 keyed entries by service; format 2 adds each entry's
-         * partition and next attempt, and the due and tenant indexes.
+         * partition and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
+         * `claim_ttl_millis` and an operator's request to retry `RETRY`.
          */
-        const val FORMAT = 2
+        const val FORMAT = 3
         const val LEDGER_KEY = "ledger_key"
         const val DUE_INDEX = "ledger_due"
         const val TENANT_INDEX = "ledger_tenant"
@@ -321,7 +322,7 @@ class MongoFailureLedger(
         const val RETRY_SPEC = "retry_spec"
         const val MAX_RETRIES = "max_retries"
         const val INITIAL_BACKOFF = "initial_backoff_millis"
-        const val TIMEOUT = "timeout_millis"
+        const val CLAIM_TTL = "claim_ttl_millis"
         const val RECOVERABLE = "recoverable"
         const val REQUEST = "request"
         const val PARTITION = "partition"

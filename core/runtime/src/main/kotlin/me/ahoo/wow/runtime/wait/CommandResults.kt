@@ -57,7 +57,7 @@ object ResultCodes {
     /** The wait plan is not a chain the runtime can follow, so the command was not executed. */
     const val WAIT_INVALID = FrameworkErrors.WAIT_INVALID
 
-    /** A subscription on the chain parked the aggregate: the hop will not be reached until it is resumed. */
+    /** A subscription on the chain parked the aggregate: the hop will not be reached until it is retried. */
     const val SUBSCRIPTION_PARKED = FrameworkErrors.SUBSCRIPTION_PARKED
 
     /** The aggregate's lane on the executor is full, so the command was not taken; it may be retried. */

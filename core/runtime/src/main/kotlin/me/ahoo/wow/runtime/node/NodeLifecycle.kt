@@ -160,7 +160,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         if (standby) {
             logger.warn {
                 "Node $node of $service started on standby: it serves reads, refuses commands and handles no " +
-                    "subscription until it is resumed. Contexts ${contexts.keys}."
+                    "subscription until it is activated. Contexts ${contexts.keys}."
             }
         } else {
             work()
@@ -168,25 +168,25 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
     }
 
-    /** Whether the node is on standby: started with `standby` and not [resume]d yet. */
+    /** Whether the node is on standby: started with `standby` and not [activate]d yet. */
     val standby: Boolean
         get() = gateway.standby
 
-    /** When and by whom the node was resumed from standby; null while it is on standby or never was. */
+    /** When and by whom the node was activated from standby; null while it is on standby or never was. */
     @Volatile
-    var resumption: Resumption? = null
+    var activation: Activation? = null
         private set
 
-    /** Resumes a node started on standby ([ServiceNode.resume]). */
-    suspend fun resume(by: String, reason: String? = null): Resumption = lock.withLock {
-        check(state == ServiceNode.State.RUNNING) { "Node $node is $state; only a running node resumes." }
+    /** Activates a node started on standby ([ServiceNode.activate]). */
+    suspend fun activate(by: String, reason: String? = null): Activation = lock.withLock {
+        check(state == ServiceNode.State.RUNNING) { "Node $node is $state; only a running node is activated." }
         if (!standby) {
-            return@withLock resumption ?: Resumption(node, null, by, reason, resumed = false)
+            return@withLock activation ?: Activation(node, null, by, reason, activated = false)
         }
         try {
             join()
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
-            logger.error(failure) { "Node $node of $service failed to resume from standby; stopping." }
+            logger.error(failure) { "Node $node of $service failed to activate from standby; stopping." }
             try {
                 shutdown()
             } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
@@ -196,10 +196,10 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
         work()
         gateway.standby = false
-        Resumption(node, assembly.clock.millis(), by, reason, resumed = true).also {
-            resumption = it
+        Activation(node, assembly.clock.millis(), by, reason, activated = true).also {
+            activation = it
             logger.warn {
-                "Node $node of $service resumed from standby by [$by]${reason?.let { r -> " ($r)" }.orEmpty()} at " +
+                "Node $node of $service activated from standby by [$by]${reason?.let { r -> " ($r)" }.orEmpty()} at " +
                     "${java.time.Instant.ofEpochMilli(checkNotNull(it.at))}: it handles its subscriptions and admits " +
                     "commands. Contexts ${contexts.keys}."
             }
@@ -345,9 +345,9 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 }
 
 /**
- * The resumption of a node started on standby ([ServiceNode.resume]): the [node], when it was resumed ([at], epoch
- * milliseconds; null for a node that never was), [by] whom and why ([reason]). [resumed] is false when the node was
+ * The activation of a node started on standby ([ServiceNode.activate]): the [node], when it was activated ([at], epoch
+ * milliseconds; null for a node that never was), [by] whom and why ([reason]). [activated] is false when the node was
  * not on standby, so the call changed nothing.
  */
 @InternalWowApi
-data class Resumption(val node: String, val at: Long?, val by: String, val reason: String?, val resumed: Boolean)
+data class Activation(val node: String, val at: Long?, val by: String, val reason: String?, val activated: Boolean)

@@ -73,7 +73,7 @@ class WowCoCacheAutoConfigurationTest {
                 context.startupFailure.assert().isNull()
                 context.getBean(
                     PublishedSinks::class.java
-                ).toString().assert().isEqualTo("PublishedSinks(cocache-sink)")
+                ).toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
             }
     }
 
@@ -96,7 +96,7 @@ class WowCoCacheAutoConfigurationTest {
         val views = mapOf(ORDER to OrderView::class.java)
         fun sinksOf(publish: String, views: Map<AggregateType, Class<*>>) =
             runCatching { WowCoCacheAutoConfiguration.sinksOf(listOf(publish), null, shopManifest(), views, caches) }
-        sinksOf("shop.order", views).getOrThrow().toString().assert().isEqualTo("PublishedSinks(cocache-sink)")
+        sinksOf("shop.order", views).getOrThrow().toString().assert().isEqualTo("PublishedSinks(wow.cocache-sink)")
         (sinksOf("shop.order", emptyMap()).exceptionOrNull() as WowConfigurationException).message.assert()
             .contains("no contract on the class path")
         (sinksOf("order", views).exceptionOrNull() as WowConfigurationException).message.assert()

@@ -30,8 +30,8 @@ import me.ahoo.wow.ops.api.parked.ParkedStatus
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.RecordResolved
-import me.ahoo.wow.ops.api.parked.Resume
-import me.ahoo.wow.ops.api.parked.ResumeRequested
+import me.ahoo.wow.ops.api.parked.Retry
+import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
 import me.ahoo.wow.spi.json.WowJson
@@ -89,17 +89,17 @@ class ParkedSpec {
             // The resolution of an earlier parking of the aggregate.
             whenCommand(RecordResolved(resolution(failedAt = 50))) { expectUnchanged() }
             whenCommand(RecordResolved(RESOLUTION)) {
-                expectEvents(ParkedResolved(ParkedResolution.RESUMED, 100, 400))
+                expectEvents(ParkedResolved(ParkedResolution.RETRIED, 100, 400))
                 expectState {
                     resolved.assert().isTrue()
                     status.assert().isEqualTo(ParkedStatus.RESOLVED)
-                    outcome.assert().isEqualTo(ParkedResolution.RESUMED)
+                    outcome.assert().isEqualTo(ParkedResolution.RETRIED)
                     resolvedAt.assert().isEqualTo(400L)
                 }
             }
             whenCommand(RecordResolved(resolution(outcome = ParkedResolution.RESOLVED))) { expectUnchanged() }
             whenCommand(RecordParked(entry("recordedAt" to 500))) { expectUnchanged() }
-            whenCommand(Resume()) { expectRejected(ParkedRejections.RESOLVED) }
+            whenCommand(Retry()) { expectRejected(ParkedRejections.RESOLVED) }
             // The aggregate parks again: a new parking.
             val again = entry("failedAt" to 600, "recordedAt" to 610)
             whenCommand(RecordParked(again)) {
@@ -143,9 +143,9 @@ class ParkedSpec {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
             // Each names the parking it acts on, the one the entry records.
-            whenCommand(Resume("fixed")) {
-                expectEvents(ResumeRequested("fixed", 100))
-                expectState { requested.assert().isEqualTo(ParkedState.RESUME) }
+            whenCommand(Retry("fixed")) {
+                expectEvents(RetryRequested("fixed", 100))
+                expectState { requested.assert().isEqualTo(ParkedState.RETRY) }
             }
             whenCommand(Skip(failedAt = 100)) {
                 expectEvents(SkipRequested(failedAt = 100))
@@ -157,19 +157,19 @@ class ParkedSpec {
             }
             whenCommand(MarkRecoverable("maybe")) { expectRejected(ParkedRejections.INVALID) }
             // A parking the operator saw before the one the entry records now is stale.
-            whenCommand(Resume("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
+            whenCommand(Retry("fixed", failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
             whenCommand(Skip(failedAt = 99)) { expectRejected(ParkedRejections.STALE) }
-            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", timeout = "30s")) {
+            whenCommand(ApplyRetrySpec(maxRetries = 3, initialBackoff = "PT1M", claimTtl = "30s")) {
                 expectEvents(ApplyRetrySpecRequested(3, "PT1M", "30s"))
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
             whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
             whenCommand(ApplyRetrySpec(maxRetries = -1)) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(initialBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(timeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(timeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(claimTtl = "-1m")) { expectRejected(ParkedRejections.INVALID) }
+            whenCommand(ApplyRetrySpec(claimTtl = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.
-            whenCommand(RecordParked(entry("request" to "resume", "recordedAt" to 700))) {
+            whenCommand(RecordParked(entry("request" to "retry", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }
             }
         }
@@ -178,19 +178,19 @@ class ParkedSpec {
     @Test
     fun `a refusal of the owning service is recorded on the entry until the next request (D226)`() {
         parkedSpec {
-            given(ParkedRecorded(ENTRY), ResumeRequested("fixed"))
-            whenCommand(RecordActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga.")) {
-                expectEvents(ActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga."))
+            given(ParkedRecorded(ENTRY), RetryRequested("fixed"))
+            whenCommand(RecordActionRefused(Ledger.RETRY, "wow.auth.forbidden", "Not from the ops saga.")) {
+                expectEvents(ActionRefused(Ledger.RETRY, "wow.auth.forbidden", "Not from the ops saga."))
                 expectState {
                     requested.assert().isNull()
-                    refusedAction.assert().isEqualTo(Ledger.RESUME)
+                    refusedAction.assert().isEqualTo(Ledger.RETRY)
                     refusalCode.assert().isEqualTo("wow.auth.forbidden")
                     refusalReason.assert().isEqualTo("Not from the ops saga.")
                 }
             }
             // The service's next record leaves the refusal shown.
             whenCommand(RecordParked(entry("retries" to 1, "recordedAt" to 700))) {
-                expectState { refusedAction.assert().isEqualTo(Ledger.RESUME) }
+                expectState { refusedAction.assert().isEqualTo(Ledger.RETRY) }
             }
             // A new request clears it.
             whenCommand(Skip()) {
@@ -207,7 +207,7 @@ class ParkedSpec {
     @Test
     fun `a refusal of a resolved entry changes nothing`() {
         parkedSpec {
-            given(ParkedRecorded(ENTRY), ParkedResolved(ParkedResolution.RESUMED, 100, 400))
+            given(ParkedRecorded(ENTRY), ParkedResolved(ParkedResolution.RETRIED, 100, 400))
             whenCommand(RecordActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No.")) { expectUnchanged() }
         }
         // A resolution clears a refusal.
@@ -222,7 +222,7 @@ class ParkedSpec {
     companion object {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
         val AGGREGATE = EntryAggregate("eshop-payment", "payment", "(0)", "alice-1")
-        const val ID = "eshop-payment-service:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
+        const val ID = "eshop-payment-service:eshop-payment:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
 
         /**
          * The fields of the entry the tests record. A [ParkedEntry] is a wire record whose constructor is Wow's own
@@ -247,7 +247,7 @@ class ParkedSpec {
             WowJson.mapper.convertValue(ENTRY_FIELDS + changes, ParkedEntry::class.java)
 
         val ENTRY = entry()
-        fun resolution(failedAt: Long? = 100, outcome: String = ParkedResolution.RESUMED): ParkedResolution =
+        fun resolution(failedAt: Long? = 100, outcome: String = ParkedResolution.RETRIED): ParkedResolution =
             ParkedResolution(
                 service = "eshop-payment-service",
                 context = "eshop-payment",

@@ -3,7 +3,7 @@
 # state and receipts topics take any count. No doc lists the whole eShop's topics (a gap the PR reports): this list is
 # the union of operate/kafka.md's table and the topics the eShop's end-to-end tests create (EshopStack,
 # EshopLedgerOpsTest), with the command topic of every context that publishes its failure ledger, which takes the
-# ledger's commands from it (the payment's resume in the ops loop; the basket's since F19), and ops' receipts topic,
+# ledger's commands from it (the payment's retry in the ops loop; the basket's since F19), and ops' receipts topic,
 # which an ops node validates (its saga sends the ledger's commands; run 2 found it).
 apiVersion: batch/v1
 kind: Job

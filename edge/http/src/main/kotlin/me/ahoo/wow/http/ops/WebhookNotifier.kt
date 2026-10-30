@@ -84,7 +84,7 @@ class WebhookNotifier(
             "service" to service,
             "group" to notice.group,
             "at" to Instant.ofEpochMilli(notice.at).toString(),
-            "entry" to viewOf(ParkedView(notice.entry, notice.spec)),
+            "entry" to viewOf(ParkedView(notice.entry, notice.spec, notice.context, notice.group)),
             "text" to textOf(notice),
         )
 
@@ -100,7 +100,7 @@ class WebhookNotifier(
         }
         val next = notice.nextRetryAt?.let { "next retry at ${Instant.ofEpochMilli(it)}" } ?: "no automatic retry left"
         return buildString {
-            append("**${entry.subscription} $title: ${entry.ref}**\n")
+            append("**${notice.subscription} $title: ${entry.ref}**\n")
             service?.let { append("> service: $it\n") }
             append("> group: ${notice.group}\n")
             append("> from version: ${entry.fromVersion}")

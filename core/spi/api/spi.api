@@ -213,7 +213,7 @@ public final class me/ahoo/wow/spi/ledger/FailureLedgerKt {
 }
 
 public final class me/ahoo/wow/spi/ledger/LedgerRequest : java/lang/Enum {
-	public static final field RESUME Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public static final field RETRY Lme/ahoo/wow/spi/ledger/LedgerRequest;
 	public static final field SKIP Lme/ahoo/wow/spi/ledger/LedgerRequest;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/LedgerRequest;
@@ -356,9 +356,9 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun backoff-5sfh64U (I)J
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClaimTtl-UwyO8pc ()J
 	public final fun getInitialBackoff-UwyO8pc ()J
 	public final fun getMaxRetries ()I
-	public final fun getTimeout-UwyO8pc ()J
 	public fun hashCode ()I
 	public static final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public static final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
@@ -368,8 +368,8 @@ public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion {
+	public final fun getDEFAULT_CLAIM_TTL-UwyO8pc ()J
 	public final fun getDEFAULT_INITIAL_BACKOFF-UwyO8pc ()J
-	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun of ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of (I)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;

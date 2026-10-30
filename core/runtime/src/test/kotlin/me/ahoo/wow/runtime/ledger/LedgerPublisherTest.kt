@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
@@ -61,7 +62,7 @@ class LedgerPublisherTest {
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
         error("${entry.ref.id} is broken")
     }
-    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, timeout = 1.seconds)
+    private val spec = ParkedRetrySpec(maxRetries = 2, initialBackoff = 1.hours, claimTtl = 1.seconds)
     private val runtime = SubscriptionRuntime(
         "group",
         log,
@@ -87,7 +88,7 @@ class LedgerPublisherTest {
             parkAll("x1")
             publisher.scan()
             val wire = sent.single()
-            val target = Ledger.parkedId(SERVICE, NAME, cart("x1"))
+            val target = Ledger.parkedId(SERVICE, "shop", NAME, cart("x1"))
             wire.type.assert().isEqualTo("ops.parked.RecordParked")
             wire.ref.assert().isEqualTo(
                 me.ahoo.wow.api.aggregate.AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, target)
@@ -119,11 +120,11 @@ class LedgerPublisherTest {
         val (first, again) = sent
         again.requestId.assert().isEqualTo(first.requestId)
         again.id.assert().isNotEqualTo(first.id)
-        ops.markRecoverable(NAME, cart("x1"), Recoverable.UNRECOVERABLE)
+        ops.markRecoverable(ID, cart("x1"), Recoverable.UNRECOVERABLE)
         publisher.scan()
         ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).status
             .assert().isEqualTo("unrecoverable")
-        ops.markRecoverable(NAME, cart("x1"), Recoverable.UNKNOWN)
+        ops.markRecoverable(ID, cart("x1"), Recoverable.UNKNOWN)
         publisher.scan()
         sent.map { it.requestId }.toSet().size.assert().isEqualTo(3)
         runtime.stop()
@@ -135,7 +136,7 @@ class LedgerPublisherTest {
         publisher.scan()
         sent.clear()
         ops.skip(
-            NAME,
+            ID,
             cart("x1"),
             ledger.parked(NAME, cart("x1"))!!.failedAt
         ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
@@ -161,12 +162,12 @@ class LedgerPublisherTest {
         publisher.scan()
         sent.clear()
         ops.skip(
-            NAME,
+            ID,
             cart("x1"),
             ledger.parked(NAME, cart("x1"))!!.failedAt
         ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        publisher.acting(NAME, cart("x1")) {
-            publisher.acting(NAME, cart("x1")) { publisher.scan() }
+        publisher.acting(ID, cart("x1")) {
+            publisher.acting(ID, cart("x1")) { publisher.scan() }
             publisher.scan()
         }.assert().isEqualTo(Unit)
         sent.assert().isEmpty()
@@ -179,26 +180,25 @@ class LedgerPublisherTest {
     fun `a notice and an action publish at once`(): Unit = runBlocking {
         parkAll("x1")
         val entry = ledger.parked(NAME, cart("x1"))!!
-        publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 0))
+        publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", "shop", entry, spec, 0))
         ClusterCodec.mapper.treeToValue(
             sent.single().record,
             LedgerEntry::class.java
         ).context.assert().isEqualTo("shop")
-        publisher.resolved(NAME, cart("x1"), null, LedgerResolution.RESUMED)
+        publisher.resolved(ID, cart("x1"), LedgerResolution.RETRIED)
         val known = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         known.failedAt.assert().isEqualTo(entry.failedAt)
         known.context.assert().isEqualTo("shop")
-        known.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
-        // An entry it never published: what the caller says, else the aggregate's context.
-        publisher.resolved(NAME, cart("y1"), null, LedgerResolution.NOT_PARKED)
+        known.outcome.assert().isEqualTo(LedgerResolution.RETRIED)
+        // An entry it never published: its subscription's context.
+        publisher.resolved(ID, cart("y1"), LedgerResolution.NOT_PARKED)
         val unknown = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         unknown.failedAt.assert().isNull()
         unknown.context.assert().isEqualTo("shop")
-        publisher.resolved(NAME, cart("y2"), "sales", LedgerResolution.SKIPPED, failedAt = 3)
-        ClusterCodec.mapper.treeToValue(
-            sent.last().record,
-            LedgerResolution::class.java
-        ).failedAt.assert().isEqualTo(3L)
+        publisher.resolved(SubscriptionId("sales", NAME), cart("y2"), LedgerResolution.SKIPPED, failedAt = 3)
+        val sales = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
+        sales.failedAt.assert().isEqualTo(3L)
+        sales.context.assert().isEqualTo("sales")
         runtime.stop()
     }
 
@@ -259,8 +259,8 @@ class LedgerPublisherTest {
             )
             gated.open.assert().isFalse()
             gated.scan()
-            gated.parked(ops.list(NAME).entries.first())
-            gated.resolved(NAME, cart("x1"), "shop", LedgerResolution.RESOLVED)
+            gated.parked(ops.list(ID).entries.first())
+            gated.resolved(ID, cart("x1"), LedgerResolution.RESOLVED)
             sent.assert().isEmpty()
             gated.refresh { deployed.get() }
             sent.assert().isEmpty()
@@ -342,5 +342,6 @@ class LedgerPublisherTest {
     private companion object {
         const val SERVICE = "shop-service"
         const val NAME = "Projector.onCart"
+        val ID = SubscriptionId("shop", NAME)
     }
 }

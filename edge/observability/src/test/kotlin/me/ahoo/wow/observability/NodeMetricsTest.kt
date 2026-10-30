@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -131,7 +132,7 @@ class NodeMetricsTest {
     fun `a sample should gauge the parked entries and where each subscription stands`(): Unit = runBlocking {
         node.start()
         listOf("good-1", "good-2", "bad-1", "bad-2").forEach { place(it) }
-        eventually { node.parked.list(BOARD).entries.size == 2 }
+        eventually { node.parked.list(SubscriptionId(SALES, BOARD)).entries.size == 2 }
         val runtime = node.context(SALES).logGroups.single().subscriptions
         val heads = (0 until 2).associateWith { node.context(SALES).backends.log.head(it) ?: 0L }
         eventually { runtime.positions().filter { it.subscription == BOARD }.all { it.watermark == heads[it.partition] } }
@@ -175,7 +176,7 @@ class NodeMetricsTest {
             eventually { node.pauses.paused().isEmpty() }
             metrics.sample()
             gauge(WowMetrics.PAUSED_PARTITIONS.name, *board).assert().containsOnly(0.0)
-            node.parked.list(BOARD).entries.assert().isEmpty()
+            node.parked.list(SubscriptionId(SALES, BOARD)).entries.assert().isEmpty()
         }
 
     @Test
@@ -195,7 +196,7 @@ class NodeMetricsTest {
             eventually { node.throttled.isEmpty() }
             metrics.sample()
             gauge(WowMetrics.THROTTLED_PARTITIONS.name, *board).assert().containsOnly(0.0)
-            node.parked.list(BOARD).entries.assert().isEmpty()
+            node.parked.list(SubscriptionId(SALES, BOARD)).entries.assert().isEmpty()
         }
 
     @Test
@@ -204,7 +205,7 @@ class NodeMetricsTest {
             // Review A3-13: a partition handed off leaves no stale gauge, and one node reports the service's ledger.
             node.start()
             listOf("good-1", "bad-1").forEach { place(it) }
-            eventually { node.parked.list(BOARD).entries.size == 1 }
+            eventually { node.parked.list(SubscriptionId(SALES, BOARD)).entries.size == 1 }
             val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
             metrics.reportsParked().assert().isTrue()
             metrics.sample()

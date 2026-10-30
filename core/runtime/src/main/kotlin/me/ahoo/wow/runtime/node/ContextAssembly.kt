@@ -119,6 +119,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 observer = observer,
                 classification = classification,
                 clock = clock,
+                // The default log group's runtime has the group's name and checkpoints too, and tells their orphans.
+                tellsOrphans = false,
             )
         }
 

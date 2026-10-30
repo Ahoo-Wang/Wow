@@ -281,7 +281,7 @@
   }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
-    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried."
   }, {
     "code" : "wow.wait.timeout",
     "status" : 504,

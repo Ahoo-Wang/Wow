@@ -21,7 +21,7 @@ data class ParkedRecorded(val entry: ParkedEntry)
 
 /**
  * The owning service published that its entry is no longer parked, as of [resolvedAt]: the parking that failed at
- * [failedAt] came to [outcome] (`resumed`, `skipped`, `resolved` or `not-parked`).
+ * [failedAt] came to [outcome] (`retried`, `skipped`, `resolved` or `not-parked`).
  */
 @Summary("A parked entry was resolved")
 data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val resolvedAt: Long)
@@ -33,9 +33,9 @@ data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val r
 @Summary("An action was refused")
 data class ActionRefused(val action: String, val code: String, val reason: String)
 
-/** An operator asked the owning service to resume the entry's parking at [failedAt], for [reason]. */
-@Summary("A resume was requested")
-data class ResumeRequested(val reason: String? = null, val failedAt: Long? = null)
+/** An operator asked the owning service to retry the entry's parking at [failedAt], for [reason]. */
+@Summary("A retry was requested")
+data class RetryRequested(val reason: String? = null, val failedAt: Long? = null)
 
 /** An operator asked the owning service to skip the entry's parking at [failedAt], for [reason]. */
 @Summary("A skip was requested")
@@ -50,7 +50,7 @@ data class MarkRecoverableRequested(val recoverable: String)
 data class ApplyRetrySpecRequested(
     val maxRetries: Int? = null,
     val initialBackoff: String? = null,
-    val timeout: String? = null,
+    val claimTtl: String? = null,
 )
 
 /** Where an entry is, as the ops view shows it: its ledger's status while parked, then [RESOLVED]. */

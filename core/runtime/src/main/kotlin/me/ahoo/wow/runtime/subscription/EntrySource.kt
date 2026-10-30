@@ -72,15 +72,15 @@ internal interface EntrySource {
     /** The partition [ref]'s entries are in. */
     suspend fun partitionOf(ref: AggregateRef): Int
 
-    /** Where [entry] lies in the source when it cannot be read by aggregate: what a park records to resume from. */
+    /** Where [entry] lies in the source when it cannot be read by aggregate: what a park records to retry from. */
     fun sourcePosition(entry: SourcedEntry): Long?
 
     /**
-     * [ref]'s entries from [fromVersion] on, as they stand now, for a resume: read by version from the
+     * [ref]'s entries from [fromVersion] on, as they stand now, for a retry: read by version from the
      * log, or by re-scanning the topic's partition from [fromPosition]. It completes. Throws an
      * [UnrecoverableException] when the source no longer holds them.
      */
-    suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry>
+    suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry>
 
     /** The log position of [ref]'s stream at [version], for a duplicate request; null for a topic. */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
@@ -91,7 +91,7 @@ internal interface EntrySource {
     /**
      * Where [entry] stands among the entries of its aggregate, the order a subscription runs them in: its version,
      * unless the source orders them otherwise (a topic of commands or receipts: by offset). While the aggregate is
-     * parked, an entry at or after the parked one's ordinal is skipped; one at or before the last a resume handled is
+     * parked, an entry at or after the parked one's ordinal is skipped; one at or before the last a retry handled is
      * a copy.
      */
     fun ordinalOf(entry: SourcedEntry): Long = entry.stream.version.toLong()
@@ -100,7 +100,7 @@ internal interface EntrySource {
     fun ordinalOf(parked: ParkedAggregate): Long = parked.fromVersion.toLong()
 }
 
-/** The source no longer holds what a parked aggregate is resumed from: it can only be skipped. */
+/** The source no longer holds what a parked aggregate is retried from: it can only be skipped. */
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
 
 /**
@@ -112,7 +112,7 @@ internal class UnrecoverableException(message: String) : IllegalStateException(m
  * with what it skipped. A message no longer retained cannot be checked: the re-scan goes on.
  *
  * The ledger records the parked message's offset only, not its partition ([ParkedAggregate.fromPosition]); recording
- * the partition would let the resume follow the message, at the cost of a field in every backend's ledger.
+ * the partition would let the retry follow the message, at the cost of a field in every backend's ledger.
  */
 internal fun Flow<SourceMessage>.parkedAt(
     topic: String,
@@ -153,7 +153,7 @@ internal class LogSource(private val log: EventLog) : EntrySource {
 
     override fun sourcePosition(entry: SourcedEntry): Long? = null
 
-    override suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> =
+    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> =
         log.readEntries(ref, fromVersion).map(::SourcedEntry)
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = log.positionOf(ref, version)

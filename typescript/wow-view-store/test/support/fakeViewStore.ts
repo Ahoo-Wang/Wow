@@ -367,7 +367,7 @@ export function fakeViewStore(
       hop: {
         stage: Stage.HANDLED,
         context: 'view-store',
-        subscription: 'snapshot',
+        subscription: 'wow.snapshot',
       },
       function: {
         kind: FunctionKind.SNAPSHOT,

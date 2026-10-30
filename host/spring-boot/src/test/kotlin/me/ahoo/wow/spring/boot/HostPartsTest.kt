@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.subscription.BackpressureOptions
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
@@ -331,47 +332,56 @@ class WowPropertiesTest {
     }
 
     @Test
-    fun `a subscription's start should bind by its name (D154)`() {
+    fun `a subscription's start should bind by its context and name (D154)`() {
         val properties = bind(
-            "wow.subscriptions.[CartSaga.onOrderCreated].start" to "beginning",
-            "wow.subscriptions.[Audit.onEvent].start" to "2026-10-01T00:00:00Z",
-            "wow.subscriptions.[Mail.send].start" to "end",
-            "wow.subscriptions.[View.onEvent].start" to "",
+            "wow.subscriptions.[shop.CartSaga.onOrderCreated].start" to "beginning",
+            "wow.subscriptions.[shop.Audit.onEvent].start" to "2026-10-01T00:00:00Z",
+            "wow.subscriptions.[shop.Mail.send].start" to "end",
+            "wow.subscriptions.[shop.View.onEvent].start" to "",
         )
         properties.subscriptions.keys.assert()
-            .containsExactlyInAnyOrder("CartSaga.onOrderCreated", "Audit.onEvent", "Mail.send", "View.onEvent")
+            .containsExactlyInAnyOrder(
+                "shop.CartSaga.onOrderCreated",
+                "shop.Audit.onEvent",
+                "shop.Mail.send",
+                "shop.View.onEvent",
+            )
         properties.subscription.options(properties.subscriptions).starts.assert().isEqualTo(
             mapOf(
-                "CartSaga.onOrderCreated" to SubscriptionStart.Beginning,
-                "Audit.onEvent" to SubscriptionStart.At(Instant.parse("2026-10-01T00:00:00Z")),
-                "Mail.send" to SubscriptionStart.End,
+                SubscriptionId("shop", "CartSaga.onOrderCreated") to SubscriptionStart.Beginning,
+                SubscriptionId("shop", "Audit.onEvent") to SubscriptionStart.At(Instant.parse("2026-10-01T00:00:00Z")),
+                SubscriptionId("shop", "Mail.send") to SubscriptionStart.End,
             ),
         )
         properties.subscription.options().starts.assert().isEmpty()
-        val invalid = bind("wow.subscriptions.[Mail.send].start" to "soon")
+        val invalid = bind("wow.subscriptions.[shop.Mail.send].start" to "soon")
         assertThrows<IllegalArgumentException> { invalid.subscription.options(invalid.subscriptions) }
             .message.assert().contains("soon")
+        // A name is unique within its context alone: a key without one names no subscription.
+        val bare = bind("wow.subscriptions.[Mail].start" to "end")
+        assertThrows<IllegalArgumentException> { bare.subscription.options(bare.subscriptions) }
+            .message.assert().contains("wow.subscriptions.[Mail]", "<context>.<name>")
     }
 
     @Test
-    fun `a subscription's retry budget should bind by its name, over the global one (P3)`() {
+    fun `a subscription's retry budget should bind by its context and name, over the global one (P3)`() {
         val properties = bind(
             "wow.subscription.retry.max-attempts" to "4",
             "wow.subscription.retry.timeout" to "30s",
-            "wow.subscriptions.[Mail.send].retry.max-attempts" to "2",
-            "wow.subscriptions.[Mail.send].retry.timeout" to "500ms",
-            "wow.subscriptions.[Audit.onEvent].retry.initial-backoff" to "1s",
-            "wow.subscriptions.[Audit.onEvent].retry.max-backoff" to "1m",
-            "wow.subscriptions.[Audit.onEvent].retry.multiplier" to "3.0",
-            "wow.subscriptions.[View.onEvent].start" to "end",
+            "wow.subscriptions.[shop.Mail.send].retry.max-attempts" to "2",
+            "wow.subscriptions.[shop.Mail.send].retry.timeout" to "500ms",
+            "wow.subscriptions.[shop.Audit.onEvent].retry.initial-backoff" to "1s",
+            "wow.subscriptions.[shop.Audit.onEvent].retry.max-backoff" to "1m",
+            "wow.subscriptions.[shop.Audit.onEvent].retry.multiplier" to "3.0",
+            "wow.subscriptions.[shop.View.onEvent].start" to "end",
         )
         val options = properties.subscription.options(properties.subscriptions)
         options.retry.maxAttempts.assert().isEqualTo(4)
         options.retry.timeout.assert().isEqualTo(30.seconds)
         options.retries.assert().isEqualTo(
             mapOf(
-                "Mail.send" to HandlerRetry(maxAttempts = 2, timeout = 500.milliseconds),
-                "Audit.onEvent" to HandlerRetry(initialBackoff = 1.seconds, maxBackoff = 1.minutes, multiplier = 3.0),
+                SubscriptionId("shop", "Mail.send") to HandlerRetry(maxAttempts = 2, timeout = 500.milliseconds),
+                SubscriptionId("shop", "Audit.onEvent") to HandlerRetry(initialBackoff = 1.seconds, maxBackoff = 1.minutes, multiplier = 3.0),
             ),
         )
         WowProperties().subscription.retry.timeout.assert().isNull()

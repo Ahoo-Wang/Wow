@@ -29,9 +29,9 @@ class LedgerCommandsJavaTest {
 
     @Test
     void buildsTheCommandsFromPlainFieldsOrARef() {
-        ResumeParked resume = ResumeParked.of("OrderSaga.onPlaced", "sales", "order", "tenant", "o-1");
-        assertThat(resume).isEqualTo(ResumeParked.of("OrderSaga.onPlaced", ref));
-        assertThat(resume.toRef()).isEqualTo(ref);
+        RetryParked retry = RetryParked.of("OrderSaga.onPlaced", "sales", "order", "tenant", "o-1");
+        assertThat(retry).isEqualTo(RetryParked.of("OrderSaga.onPlaced", ref));
+        assertThat(retry.toRef()).isEqualTo(ref);
         assertThat(SkipParked.of("s", ref, 1L).getAggregate()).isEqualTo("order");
         assertThat(MarkParkedRecoverable.of("s", ref, "RECOVERABLE").getRecoverable()).isEqualTo("RECOVERABLE");
         assertThat(ApplyParkedRetrySpec.of("s", ref).getInitialBackoff()).isNull();

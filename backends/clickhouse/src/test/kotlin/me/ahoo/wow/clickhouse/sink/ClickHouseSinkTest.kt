@@ -164,7 +164,7 @@ class ClickHouseSinkTest {
         sinks.toString().assert().isEqualTo("ClickHouseSinks(analytics)")
         assertThrows<IllegalArgumentException> { sinks.sinkOf("shop", "cart") }
         assertThrows<IllegalArgumentException> { sinks.schemaOf(AggregateType("billing", "order")) }
-        ClickHouseSinks.PROCESSOR.assert().isEqualTo("clickhouse-sink")
+        ClickHouseSinks.PROCESSOR.assert().isEqualTo("wow.clickhouse-sink")
     }
 
     @Test

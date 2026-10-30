@@ -33,7 +33,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * The order belongs to the buyer: the call carries the basket's scope, whose owner is its buyer, and the buyer as its
  * operator, which the ordering service trusts because the call reaches its internal port, which only the platform's
  * own services reach, from the basket service, which names itself. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
- * then the basket parks until an operator resumes it.
+ * then the basket parks until an operator retries it.
  *
  * `@OnEvent(calls)` declares the call: the Manifest lists it, so a wait chain may follow the saga into
  * the ordering context, and the node does not start without the ordering's URL. The saga derives nothing (`Unit`).

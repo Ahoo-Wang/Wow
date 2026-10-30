@@ -35,9 +35,9 @@ import java.util.concurrent.ConcurrentHashMap
  * ([FailureLedger.due]): those the ledger holds no next attempt for, and those whose next attempt has come. For each:
  *
  * - an operator's request is taken from the ledger ([ParkedAmendment.TakeRequest]) and run: a skip,
- *   or a resume, which runs whatever the retry spec says and counts no retry;
+ *   or a retry, which runs whatever the retry spec says and spends none of its retries;
  * - otherwise, once its next retry is due ([ParkedAggregate.nextRetryAt]), the retry is claimed in the ledger
- *   ([ParkedAmendment.ClaimRetry]) and the aggregate resumed. A resume that fails again leaves the entry parked from
+ *   ([ParkedAmendment.ClaimRetry]) and the aggregate retried. A retry that fails again leaves the entry parked from
  *   where it failed; when that was the last retry the spec allows, the entry is exhausted, and the notifier hears it;
  * - an entry whose retry is not due yet, or that is not retried automatically, is scheduled
  *   ([ParkedAmendment.Schedule]): its next retry, or [ParkedAggregate.NEVER], so the next scans pass it over until
@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Claims and takes are conditional on what was read, so when an owner hands a partition off while it retries, the
  * next owner neither claims the same retry again nor runs a request twice; it starts the next retry once its backoff
- * and the last one's execution timeout have passed. A retry the stop cancelled was claimed but did not resolve the
+ * and the last one's claim TTL have passed. A retry the stop cancelled was claimed but did not resolve the
  * entry, which stays parked: a cancelled retry counts. One entry is run at most once at a time on a node.
  */
 internal class ParkedRetries(
@@ -54,8 +54,13 @@ internal class ParkedRetries(
     private val options: ParkedRetryOptions,
     private val clock: Clock,
     private val notifier: ParkedNotifier,
+    /** The context of a subscription of the runtime, by its name, whose retry spec its entries take; null when none. */
+    private val contextOf: (String) -> String?,
 ) {
     private val running: MutableSet<Pair<String, AggregateRef>> = ConcurrentHashMap.newKeySet()
+
+    private fun specOf(entry: ParkedAggregate) =
+        contextOf(entry.subscription)?.let { options.specOf(entry, it) } ?: entry.retrySpec ?: options.spec
 
     /**
      * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
@@ -90,7 +95,7 @@ internal class ParkedRetries(
         now: Long,
         workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
     ) {
-        val next = entry.nextRetryAt(options.specOf(entry))
+        val next = entry.nextRetryAt(specOf(entry))
         if (entry.request != null || next != null && now >= next) {
             workerOf(entry.subscription, entry.ref)?.let { dispatch(scope, it, entry) }
             return
@@ -128,7 +133,7 @@ internal class ParkedRetries(
         try {
             when (entry.request) {
                 LedgerRequest.SKIP -> skip(worker, entry)
-                LedgerRequest.RESUME -> resume(worker, entry)
+                LedgerRequest.RETRY -> retryOnRequest(worker, entry)
                 null -> retry(worker, entry)
             }
         } catch (cancelled: CancellationException) {
@@ -144,15 +149,15 @@ internal class ParkedRetries(
 
     private suspend fun skip(worker: SubscriptionWorker, entry: ParkedAggregate) {
         if (take(entry, LedgerRequest.SKIP) && !worker.skip(entry.ref)) {
-            // A resume of it runs: the skip waits for the next scan.
+            // A retry of it runs: the skip waits for the next scan.
             ledger.amend(entry.subscription, entry.ref, ParkedAmendment.Request(LedgerRequest.SKIP))
         }
     }
 
-    private suspend fun resume(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        if (take(entry, LedgerRequest.RESUME)) {
-            logger.info { "Subscription ${entry.subscription} resumes ${entry.ref} as an operator asked." }
-            worker.resume(entry.ref)
+    private suspend fun retryOnRequest(worker: SubscriptionWorker, entry: ParkedAggregate) {
+        if (take(entry, LedgerRequest.RETRY)) {
+            logger.info { "Subscription ${entry.subscription} retries ${entry.ref} as an operator asked." }
+            worker.retry(entry.ref)
         }
     }
 
@@ -160,14 +165,14 @@ internal class ParkedRetries(
         ledger.amend(entry.subscription, entry.ref, ParkedAmendment.TakeRequest(request)) != null
 
     private suspend fun retry(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        val spec = options.specOf(entry)
+        val spec = specOf(entry)
         val now = clock.millis()
         val claimed = ledger.amend(entry.subscription, entry.ref, ParkedAmendment.ClaimRetry(entry.retries, now))
             ?: return
         logger.info {
             "Subscription ${entry.subscription} retries ${entry.ref}: retry ${claimed.retries} of ${spec.maxRetries}."
         }
-        if (worker.resume(entry.ref) || !claimed.exhausted(spec)) {
+        if (worker.retry(entry.ref) || !claimed.exhausted(spec)) {
             return
         }
         val exhausted = ledger.parked(entry.subscription, entry.ref) ?: return
@@ -175,7 +180,10 @@ internal class ParkedRetries(
             "Subscription ${entry.subscription} spent the ${spec.maxRetries} retries of ${entry.ref}: it waits for " +
                 "an operator."
         }
-        notifier.notifyQuietly(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, exhausted, spec, clock.millis()))
+        val context = contextOf(entry.subscription) ?: return
+        notifier.notifyQuietly(
+            ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, context, exhausted, spec, clock.millis())
+        )
     }
 }
 

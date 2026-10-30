@@ -16,7 +16,7 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.ResumeParked
+import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
@@ -26,8 +26,8 @@ import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.RecordParked
-import me.ahoo.wow.ops.api.parked.Resume
-import me.ahoo.wow.ops.api.parked.ResumeRequested
+import me.ahoo.wow.ops.api.parked.Retry
+import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
 import me.ahoo.wow.test.ProcessorSpec
@@ -47,10 +47,10 @@ class ParkedOperationSagaTest {
     )
 
     @Test
-    fun `a resume and a skip go to the context that holds the entry`() = sagaSpec(handlers) {
+    fun `a retry and a skip go to the context that holds the entry`() = sagaSpec(handlers) {
         recorded()
-        whenEvent(ResumeRequested(), by = Resume::class) {
-            expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
+        whenEvent(RetryRequested(), by = Retry::class) {
+            expectCommand(RetryParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef()), to = target)
             expectDeterministic()
         }
         // A skip always names a parking: without the one the operator saw, the one the entry records.
@@ -64,8 +64,8 @@ class ParkedOperationSagaTest {
         whenEvent(SkipRequested(failedAt = 100), by = Skip::class) {
             expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
         }
-        whenEvent(ResumeRequested(failedAt = 100), by = Resume::class) {
-            expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
+        whenEvent(RetryRequested(failedAt = 100), by = Retry::class) {
+            expectCommand(RetryParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE.toRef(), 100), to = target)
         }
     }
 
@@ -89,11 +89,11 @@ class ParkedOperationSagaTest {
     @Test
     fun `a command the owning service refuses is recorded on the entry (D226)`() = sagaSpec(handlers) {
         val parked = recorded()
-        whenEvent(ResumeRequested(), by = Resume::class) {
-            val resume = commands.single()
-            whenRejected(resume, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga.", commandType = Ledger.RESUME) {
+        whenEvent(RetryRequested(), by = Retry::class) {
+            val retry = commands.single()
+            whenRejected(retry, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga.", commandType = Ledger.RETRY) {
                 expectCommand(
-                    RecordActionRefused(Ledger.RESUME, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga."),
+                    RecordActionRefused(Ledger.RETRY, FrameworkCodes.AUTH_FORBIDDEN, "Not from the ops saga."),
                     to = parked.ref,
                 )
             }

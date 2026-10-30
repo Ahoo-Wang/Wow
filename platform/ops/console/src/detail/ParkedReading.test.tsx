@@ -48,12 +48,12 @@ const PARKED = rowOf({
   retrySpec: {
     maxRetries: 3,
     initialBackoff: "PT1M",
-    timeout: "PT2M",
+    claimTtl: "PT2M",
     applied: true,
   },
   recoverable: "recoverable",
   status: "exhausted",
-  requested: "resume",
+  requested: "retry",
 });
 
 function read(row: RecordRow, locale: Locale = "en") {
@@ -79,7 +79,7 @@ describe("a parked entry's reading", () => {
     expect(reading).toHaveTextContent("Applied by an operator");
     expect(reading).toHaveTextContent("Exhausted");
     expect(reading).toHaveTextContent("Recoverable");
-    expect(reading).toHaveTextContent("RequestedResume");
+    expect(reading).toHaveTextContent("RequestedRetry");
     expect(reading).toHaveTextContent("Sent to the owning service");
     expect(reading).not.toHaveTextContent("Outcome");
   });

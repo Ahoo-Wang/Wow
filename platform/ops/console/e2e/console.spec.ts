@@ -189,41 +189,41 @@ test("an entry's detail reads its cause, attempts, retry spec and owning aggrega
   await expect(page).toHaveURL(/id=/);
 });
 
-test("an operator resumes an entry, it goes back to the owning service, and the resolution shows up on its own", async ({
+test("an operator retries an entry, it goes back to the owning service, and the resolution shows up on its own", async ({
   page,
   request,
 }) => {
   await open(page, OPERATOR);
-  await row(page, exhausted).getByRole("button", { name: "Resume" }).click();
+  await row(page, exhausted).getByRole("button", { name: "Retry" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Reason").fill("The gateway is back.");
-  await dialog.getByRole("button", { name: "Resume" }).click();
+  await dialog.getByRole("button", { name: "Retry" }).click();
   await expect(dialog).toHaveCount(0);
 
   // The request is recorded on the entry, and the saga sends it to the owning context.
-  await expect(row(page, exhausted)).toContainText("Resume");
+  await expect(row(page, exhausted)).toContainText("Retry");
   await expect
     .poll(async () =>
       (await ledgerCommands(request, context)).map((it) => [it.type, it.id]),
     )
-    .toContainEqual(["wow.ledger.Resume", exhausted.id]);
+    .toContainEqual(["wow.ledger.Retry", exhausted.id]);
 
-  // The owning service resumed it: the open view reads the entries again on
+  // The owning service retried it: the open view reads the entries again on
   // its own and lets the resolved one go.
-  await resolve(request, exhausted, "resumed");
+  await resolve(request, exhausted, "retried");
   await expect(row(page, exhausted)).toHaveCount(0, { timeout: 30_000 });
   await view(page, "Resolved");
   await expect(row(page, exhausted)).toContainText("Resolved");
 
-  // Its history, newest first: resolved, the operator's resume, parked.
+  // Its history, newest first: resolved, the operator's retry, parked.
   await row(page, exhausted)
     .getByText(exhausted.aggregateId, { exact: true })
     .click();
   const steps = page.getByTestId("parked-history").getByRole("listitem");
   await expect(steps).toHaveCount(3);
   await expect(steps.nth(0)).toContainText("Resolved");
-  await expect(steps.nth(0)).toContainText("Resumed");
-  await expect(steps.nth(1)).toContainText("Resume requested");
+  await expect(steps.nth(0)).toContainText("Retried");
+  await expect(steps.nth(1)).toContainText("Retry requested");
   await expect(steps.nth(1)).toContainText("The gateway is back.");
   await expect(steps.nth(1)).toContainText("by alice");
   await expect(steps.nth(2)).toContainText("Parked");
@@ -279,11 +279,11 @@ test("a caller without ops.operator reads the entries, and the service's refusal
     page.getByText("This caller has no ops.operator role"),
   ).toBeVisible();
   await row(page, unrecoverable)
-    .getByRole("button", { name: "Resume" })
+    .getByRole("button", { name: "Retry" })
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Resume" })
+    .getByRole("button", { name: "Retry" })
     .click();
   // The problem's own words and code (application/problem+json), said on
   // the outcome line.

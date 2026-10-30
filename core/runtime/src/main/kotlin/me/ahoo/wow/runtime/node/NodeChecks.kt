@@ -18,6 +18,7 @@ import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -104,13 +105,13 @@ internal object NodeChecks {
      * A start, a parked retry spec or a retry budget configured in [options] for a subscription the node does not have
      * ([names]) is a typo, not a no-op.
      */
-    fun subscriptionsNamed(node: String, names: Set<String>, options: SubscriptionOptions) {
+    fun subscriptionsNamed(node: String, names: Set<SubscriptionId>, options: SubscriptionOptions) {
         configured(node, names, "start", options.starts.keys)
         configured(node, names, "parked retry spec", options.parked.specs.keys)
         configured(node, names, "retry budget", options.retries.keys)
     }
 
-    private fun configured(node: String, names: Set<String>, what: String, keys: Set<String>) {
+    private fun configured(node: String, names: Set<SubscriptionId>, what: String, keys: Set<SubscriptionId>) {
         keys.firstOrNull { it !in names }?.let {
             throw IllegalArgumentException(
                 "A $what is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",

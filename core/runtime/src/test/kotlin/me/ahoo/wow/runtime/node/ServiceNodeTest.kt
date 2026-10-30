@@ -57,6 +57,7 @@ import me.ahoo.wow.runtime.contract.ContractFixtures
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
@@ -453,28 +454,33 @@ class ServiceNodeTest {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun starts(vararg names: String) = fastNodeOptions().let {
             it.copyWith(
-                subscription = it.subscription.copyWith(starts = names.associateWith { SubscriptionStart.Beginning })
+                subscription = it.subscription.copyWith(
+                    starts = names.map { SubscriptionId(BANK, it) }.associateWith { SubscriptionStart.Beginning }
+                )
             )
         }
         // The application's subscriptions and the built-in ones may be configured (decision D154).
-        node("node-1", options = starts("plain", "snapshot"), subscriptions = plain)
+        node("node-1", options = starts("plain", "wow.snapshot"), subscriptions = plain)
         assertThrows<IllegalArgumentException> {
             node("node-2", options = starts("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("subscription Plain.typo", "plain")
+        }.message.assert().contains("subscription $BANK.Plain.typo", "plain")
     }
 
     @Test
     fun `a parked retry spec configured for a subscription the node does not have is refused`() {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun specs(vararg names: String) = fastNodeOptions().let {
-            val parked = ParkedRetryOptions(specs = names.associateWith { ParkedRetrySpec(maxRetries = 1) })
+            val parked =
+                ParkedRetryOptions(
+                    specs = names.map { SubscriptionId(BANK, it) }.associateWith { ParkedRetrySpec(maxRetries = 1) }
+                )
             it.copyWith(subscription = it.subscription.copyWith(parked = parked))
         }
-        val node = node("node-1", options = specs("plain", "snapshot"), subscriptions = plain)
-        node.parked.subscriptions.assert().contains("snapshot")
+        val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
+        node.parked.subscriptions.assert().contains(SubscriptionId(BANK, "wow.snapshot"))
         assertThrows<IllegalArgumentException> {
             node("node-2", options = specs("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("parked retry spec", "subscription Plain.typo", "plain")
+        }.message.assert().contains("parked retry spec", "subscription $BANK.Plain.typo", "plain")
     }
 
     @Test
@@ -482,13 +488,15 @@ class ServiceNodeTest {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun retries(vararg names: String) = fastNodeOptions().let {
             it.copyWith(
-                subscription = it.subscription.copyWith(retries = names.associateWith { HandlerRetry(maxAttempts = 1) })
+                subscription = it.subscription.copyWith(
+                    retries = names.map { SubscriptionId(BANK, it) }.associateWith { HandlerRetry(maxAttempts = 1) }
+                )
             )
         }
-        node("node-1", options = retries("plain", "snapshot"), subscriptions = plain)
+        node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)
         assertThrows<IllegalArgumentException> {
             node("node-2", options = retries("Plain.typo"), subscriptions = plain)
-        }.message.assert().contains("retry budget", "subscription Plain.typo", "plain")
+        }.message.assert().contains("retry budget", "subscription $BANK.Plain.typo", "plain")
     }
 
     @Test

@@ -120,12 +120,12 @@ class RetryPolicy @InternalWowApi constructor(
  * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops.
  *   Its [RetryPolicy.maxAttempts] is the attempts after which the failure is logged as an error and retried at the
  *   maximum backoff ([retryForever]).
- * - [starts]: by subscription name, where a subscription without a checkpoint in a partition starts instead of where
- *   its handler says (a projection from the beginning, a reactor or a saga from the end), as
- *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
+ * - [starts]: by subscription ([SubscriptionId]), where a subscription without a checkpoint in a partition starts
+ *   instead of where its handler says (a projection from the beginning, a reactor or a saga from the end), as
+ *   `wow.subscriptions.[<context>.<name>].start` configures it. A subscription with a checkpoint goes on from it.
  * - [parked]: how the parked entries are retried over the long horizon.
- * - [retries]: by subscription name, the in-process retry budget the host gives it, as
- *   `wow.subscriptions.[<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
+ * - [retries]: by subscription ([SubscriptionId]), the in-process retry budget the host gives it, as
+ *   `wow.subscriptions.[<context>.<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
  *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
  * - [systemic]: when a subscription takes its failures for systemic and pauses its partition instead of charging and
  *   parking the aggregates.
@@ -145,9 +145,9 @@ class SubscriptionOptions @InternalWowApi constructor(
         initialBackoff = 100.milliseconds,
         maxBackoff = 5.seconds
     ),
-    val starts: Map<String, SubscriptionStart> = emptyMap(),
+    val starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
-    val retries: Map<String, HandlerRetry> = emptyMap(),
+    val retries: Map<SubscriptionId, HandlerRetry> = emptyMap(),
     val systemic: SystemicFailureOptions = SystemicFailureOptions(),
     val backpressure: BackpressureOptions = BackpressureOptions(),
 ) {
@@ -163,7 +163,7 @@ class SubscriptionOptions @InternalWowApi constructor(
      */
     @InternalWowApi
     fun retryOf(subscription: Subscription): RetryPolicy {
-        val configured = retries[subscription.name]
+        val configured = retries[subscription.id]
         val own = configured?.over(subscription.retry) ?: subscription.retry
         return try {
             retry.with(own)
@@ -183,9 +183,9 @@ class SubscriptionOptions @InternalWowApi constructor(
         checkpointInterval: Duration = this.checkpointInterval,
         stopTimeout: Duration = this.stopTimeout,
         readRetry: RetryPolicy = this.readRetry,
-        starts: Map<String, SubscriptionStart> = this.starts,
+        starts: Map<SubscriptionId, SubscriptionStart> = this.starts,
         parked: ParkedRetryOptions = this.parked,
-        retries: Map<String, HandlerRetry> = this.retries,
+        retries: Map<SubscriptionId, HandlerRetry> = this.retries,
         systemic: SystemicFailureOptions = this.systemic,
         backpressure: BackpressureOptions = this.backpressure,
     ): SubscriptionOptions = SubscriptionOptions(
@@ -323,18 +323,19 @@ class SystemicFailureOptions @InternalWowApi constructor(
 /**
  * How a [SubscriptionRuntime] retries its parked entries over the long horizon (9.x
  * `CompensationScheduler`): every [scanInterval] it reads its subscriptions' ledger entries and, in each partition it
- * runs, resumes those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
+ * runs, retries those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
  * requests an operator left on them.
  *
- * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by name, as
- * `wow.subscriptions.[<name>].parked.*` configures it), else [spec] (`wow.subscription.parked.*`).
+ * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by
+ * [SubscriptionId], as `wow.subscriptions.[<context>.<name>].parked.*` configures it), else [spec]
+ * (`wow.subscription.parked.*`).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class ParkedRetryOptions @InternalWowApi constructor(
     val spec: ParkedRetrySpec = ParkedRetrySpec(),
-    val specs: Map<String, ParkedRetrySpec> = emptyMap(),
+    val specs: Map<SubscriptionId, ParkedRetrySpec> = emptyMap(),
     val scanInterval: Duration = 10.seconds,
 ) {
     init {
@@ -342,10 +343,12 @@ class ParkedRetryOptions @InternalWowApi constructor(
     }
 
     /** The retry spec of [subscription]'s entries that no operator applied one to. */
-    fun specOf(subscription: String): ParkedRetrySpec = specs[subscription] ?: spec
+    @InternalWowApi
+    fun specOf(subscription: SubscriptionId): ParkedRetrySpec = specs[subscription] ?: spec
 
-    /** The retry spec [entry] is retried by: its own, else its subscription's. */
-    fun specOf(entry: ParkedAggregate): ParkedRetrySpec = entry.retrySpec ?: specOf(entry.subscription)
+    /** The retry spec [entry], parked by a subscription of [context], is retried by: its own, else its subscription's. */
+    fun specOf(entry: ParkedAggregate, context: String): ParkedRetrySpec =
+        entry.retrySpec ?: specOf(SubscriptionId(context, entry.subscription))
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ParkedRetryOptions && valueFields() == other.valueFields()

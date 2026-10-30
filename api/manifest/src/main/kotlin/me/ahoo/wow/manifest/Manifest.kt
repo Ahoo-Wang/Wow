@@ -561,7 +561,7 @@ class EventManifest @InternalWowApi constructor(
  * - [schedules] names the commands a saga's handler may schedule, each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it:
- *   null when neither does. The host's `wow.subscriptions.[<name>].retry.*` overrides it, setting by setting.
+ *   null when neither does. The host's `wow.subscriptions.[<context>.<name>].retry.*` overrides it, setting by setting.
  * - [job] is the job of a saga's `@OnSchedule` handler: its subscription reads the context's built-in
  *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
  *   handler.

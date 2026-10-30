@@ -26,10 +26,10 @@ import { textKeys, type Words } from "./words.ts";
 /** The words of the actions, per language; a `-one` form where English counts one apart. */
 export const PARKED_ACTION_WORDS = {
   en: {
-    resume: "Resume",
-    resumeConfirm: "Resume {count} entries?",
-    "resumeConfirm-one": "Resume {count} entry?",
-    resumeBody:
+    retry: "Retry",
+    retryConfirm: "Retry {count} entries?",
+    "retryConfirm-one": "Retry {count} entry?",
+    retryBody:
       "The owning service handles each parked aggregate again from where it is parked.",
     skip: "Skip",
     skipConfirm: "Skip {count} entries?",
@@ -52,15 +52,15 @@ export const PARKED_ACTION_WORDS = {
       "A value left blank keeps the one the entry is retried by now. Durations read PT3M or 3m.",
     maxRetries: "Max retries",
     initialBackoff: "Initial backoff",
-    timeout: "Execution timeout",
+    claimTtl: "Claim TTL",
     resolved: "This entry is resolved: nothing is parked to act on.",
     alreadyMarked: "Already marked so.",
   },
   "zh-CN": {
-    resume: "恢复",
-    resumeConfirm: "恢复 {count} 个条目？",
-    "resumeConfirm-one": "恢复 {count} 个条目？",
-    resumeBody: "所属服务从搁置处重新处理每个聚合。",
+    retry: "重试",
+    retryConfirm: "重试 {count} 个条目？",
+    "retryConfirm-one": "重试 {count} 个条目？",
+    retryBody: "所属服务从搁置处重新处理每个聚合。",
     skip: "跳过",
     skipConfirm: "跳过 {count} 个条目？",
     "skipConfirm-one": "跳过 {count} 个条目？",
@@ -79,7 +79,7 @@ export const PARKED_ACTION_WORDS = {
     applyBody: "留空的值保持条目当前的重试规格。时长写作 PT3M 或 3m。",
     maxRetries: "最大重试次数",
     initialBackoff: "初始退避",
-    timeout: "执行超时",
+    claimTtl: "认领租期",
     resolved: "此条目已解决，没有可操作的搁置内容。",
     alreadyMarked: "已经是这个标记。",
   },
@@ -116,7 +116,7 @@ function idOf(row: RecordRow): string {
 
 /**
  * When the parking the row shows was parked (epoch milliseconds, as Wow's
- * JSON writes a long: a string), which a resume or a skip names.
+ * JSON writes a long: a string), which a retry or a skip names.
  */
 function failedAtOf(row: RecordRow): string | undefined {
   const failedAt = ((row.data.state ?? {}) as Record<string, unknown>)
@@ -143,8 +143,8 @@ export function retrySpecOf(input: ActionInput): ApplyRetrySpec {
     spec.maxRetries = Number(maxRetries);
   const initialBackoff = textOf(input, "initialBackoff");
   if (initialBackoff) spec.initialBackoff = initialBackoff;
-  const timeout = textOf(input, "timeout");
-  if (timeout) spec.timeout = timeout;
+  const claimTtl = textOf(input, "claimTtl");
+  if (claimTtl) spec.claimTtl = claimTtl;
   return spec;
 }
 
@@ -162,7 +162,7 @@ async function said<T>(command: Promise<T>): Promise<T> {
 
 /**
  * An operator's actions on a parked entry (D141), as the 9.x dashboard
- * offers them on a failed execution: resume in the row, the rest behind its
+ * offers them on a failed execution: retry in the row, the rest behind its
  * menu, all four over a selection and in the detail. Each asks first and
  * reports its outcome; the service keeps the last word (an entry resolved
  * meanwhile is refused with `ops.parked.resolved`, a caller without
@@ -171,15 +171,15 @@ async function said<T>(command: Promise<T>): Promise<T> {
 export function parkedActions(commands: ParkedCommands): RecordActions {
   return actions([
     {
-      id: "resume",
-      label: t.resume,
+      id: "retry",
+      label: t.retry,
       primary: true,
       available: parked,
       form: { reason: { label: t.reason, required: false } },
-      confirm: { title: t.resumeConfirm, body: t.resumeBody },
+      confirm: { title: t.retryConfirm, body: t.retryBody },
       run: (row, input) =>
         said(
-          commands.resume(idOf(row), textOf(input, "reason"), failedAtOf(row)),
+          commands.retry(idOf(row), textOf(input, "reason"), failedAtOf(row)),
         ),
     },
     {
@@ -223,7 +223,7 @@ export function parkedActions(commands: ParkedCommands): RecordActions {
       form: {
         maxRetries: { label: t.maxRetries, input: "number", required: false },
         initialBackoff: { label: t.initialBackoff, required: false },
-        timeout: { label: t.timeout, required: false },
+        claimTtl: { label: t.claimTtl, required: false },
       },
       confirm: { title: t.applyConfirm, body: t.applyBody },
       run: (row, input) =>

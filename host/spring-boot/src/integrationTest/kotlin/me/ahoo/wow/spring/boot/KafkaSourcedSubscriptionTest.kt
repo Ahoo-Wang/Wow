@@ -57,7 +57,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Kafka-sourced subscriptions on a real broker (decision D134): two nodes share a topic's partitions by their leases,
  * with no consumer group, each through one consumer for the topic; every record is handled once, the checkpoints are
- * the offsets read, and a parked aggregate is resumed by re-scanning its partition from the offset parked.
+ * the offsets read, and a parked aggregate is retried by re-scanning its partition from the offset parked.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaSourcedSubscriptionTest {
@@ -177,7 +177,7 @@ class KafkaSourcedSubscriptionTest {
     }
 
     @Test
-    fun `a parked aggregate should be resumed by re-scanning its partition from the offset parked`(): Unit =
+    fun `a parked aggregate should be retried by re-scanning its partition from the offset parked`(): Unit =
         runBlocking {
             val topic = newTopic(PARTITIONS)
             val node = start("node-1", topic)
@@ -191,7 +191,7 @@ class KafkaSourcedSubscriptionTest {
             entry.fromPosition.assert().isNotNull()
             versionsOf(parked).assert().containsExactly(1)
             failing.remove(parked)
-            node.resume(BOARD, parked).assert().isTrue()
+            node.retry(BOARD, parked).assert().isTrue()
             versionsOf(parked).assert().containsExactly(1, 2, 3)
             ledger.parked(BOARD, parked).assert().isNull()
             publish(topic, record(parked, 4))

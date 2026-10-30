@@ -41,7 +41,7 @@ class LedgerRecordsTest {
         recordedAt = 2,
     )
 
-    private fun resolution(outcome: String = LedgerResolution.RESUMED) =
+    private fun resolution(outcome: String = LedgerResolution.RETRIED) =
         LedgerResolution.of("sales-service", "sales", "OrderSaga.onPlaced", aggregate, 1, outcome, 3)
 
     @Test
@@ -69,11 +69,11 @@ class LedgerRecordsTest {
             LedgerRetrySpec.of(3, "PT1M", "PT2M", true),
         )
         LedgerRetrySpec.of(3, "PT1M", "PT2M").toString().assert()
-            .isEqualTo("LedgerRetrySpec(maxRetries=3, initialBackoff=PT1M, timeout=PT2M, applied=false)")
+            .isEqualTo("LedgerRetrySpec(maxRetries=3, initialBackoff=PT1M, claimTtl=PT2M, applied=false)")
         valueSemantics(resolution(), resolution(), resolution(LedgerResolution.SKIPPED))
         resolution().toString().assert().isEqualTo(
             "LedgerResolution(service=sales-service, context=sales, subscription=OrderSaga.onPlaced, " +
-                "aggregate=$aggregate, failedAt=1, outcome=resumed, resolvedAt=3)",
+                "aggregate=$aggregate, failedAt=1, outcome=retried, resolvedAt=3)",
         )
         LedgerResolution.of("s", "c", "p", aggregate, null, LedgerResolution.NOT_PARKED, 2).failedAt.assert().isNull()
         LedgerResolution("s", "c", "p", aggregate, outcome = "skipped", resolvedAt = 2)

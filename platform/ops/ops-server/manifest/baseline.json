@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "a1b336b23f63e95cc673645cecf3bb45c92d198ff4c5f20f7b0197a28be3a87f"
+        "fingerprint" : "b73ee8eacc4c226f32bdea7f8ee9191e27609538f3e297f442fd5023ec256a37"
       },
       "snapshot" : {
         "enabled" : true
@@ -76,16 +76,16 @@
         } ],
         "description" : "Record a resolved entry"
       }, {
-        "name" : "Resume",
+        "name" : "Retry",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.Resume",
+        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.Retry",
         "creation" : "none",
-        "produces" : [ "ResumeRequested" ],
+        "produces" : [ "RetryRequested" ],
         "routes" : [ {
           "method" : "POST",
-          "path" : "/ops/parked/{id}/resume"
+          "path" : "/ops/parked/{id}/retry"
         } ],
-        "description" : "Resume a parked entry"
+        "description" : "Retry a parked entry"
       }, {
         "name" : "Skip",
         "aliases" : [ ],
@@ -139,11 +139,11 @@
         "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.ParkedResolved",
         "description" : "A parked entry was resolved"
       }, {
-        "name" : "ResumeRequested",
+        "name" : "RetryRequested",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.ResumeRequested",
-        "description" : "A resume was requested"
+        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.RetryRequested",
+        "description" : "A retry was requested"
       }, {
         "name" : "SkipRequested",
         "aliases" : [ ],
@@ -201,7 +201,7 @@
         "processor" : "ParkedOperationSaga",
         "name" : "onParkedChanged"
       },
-      "derives" : [ "#/$defs/me.ahoo.wow.api.ledger.ApplyParkedRetrySpec", "#/$defs/me.ahoo.wow.api.ledger.MarkParkedRecoverable", "#/$defs/me.ahoo.wow.api.ledger.ResumeParked", "#/$defs/me.ahoo.wow.api.ledger.SkipParked" ],
+      "derives" : [ "#/$defs/me.ahoo.wow.api.ledger.ApplyParkedRetrySpec", "#/$defs/me.ahoo.wow.api.ledger.MarkParkedRecoverable", "#/$defs/me.ahoo.wow.api.ledger.RetryParked", "#/$defs/me.ahoo.wow.api.ledger.SkipParked" ],
       "start" : "end"
     } ],
     "published" : [ {
@@ -340,7 +340,7 @@
   }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
-    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried."
   }, {
     "code" : "wow.wait.timeout",
     "status" : 504,
@@ -413,6 +413,9 @@
         "aggregate" : {
           "type" : "string"
         },
+        "claimTtl" : {
+          "type" : [ "string", "null" ]
+        },
         "context" : {
           "type" : "string"
         },
@@ -431,9 +434,6 @@
         },
         "tenantId" : {
           "type" : "string"
-        },
-        "timeout" : {
-          "type" : [ "string", "null" ]
         }
       },
       "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ],
@@ -464,7 +464,7 @@
       "required" : [ "aggregate", "context", "id", "recoverable", "subscription", "tenantId" ],
       "x-wow-class" : "me.ahoo.wow.api.ledger.MarkParkedRecoverable"
     },
-    "me.ahoo.wow.api.ledger.ResumeParked" : {
+    "me.ahoo.wow.api.ledger.RetryParked" : {
       "type" : "object",
       "properties" : {
         "aggregate" : {
@@ -488,7 +488,7 @@
         }
       },
       "required" : [ "aggregate", "context", "id", "subscription", "tenantId" ],
-      "x-wow-class" : "me.ahoo.wow.api.ledger.ResumeParked"
+      "x-wow-class" : "me.ahoo.wow.api.ledger.RetryParked"
     },
     "me.ahoo.wow.api.ledger.SkipParked" : {
       "type" : "object",
@@ -536,15 +536,15 @@
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpec" : {
       "type" : "object",
       "properties" : {
+        "claimTtl" : {
+          "type" : [ "string", "null" ]
+        },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ],
           "format" : "int32"
-        },
-        "timeout" : {
-          "type" : [ "string", "null" ]
         }
       },
       "description" : "Apply a retry spec to a parked entry",
@@ -553,15 +553,15 @@
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested" : {
       "type" : "object",
       "properties" : {
+        "claimTtl" : {
+          "type" : [ "string", "null" ]
+        },
         "initialBackoff" : {
           "type" : [ "string", "null" ]
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ],
           "format" : "int32"
-        },
-        "timeout" : {
-          "type" : [ "string", "null" ]
         }
       },
       "description" : "A retry spec was requested",
@@ -592,18 +592,18 @@
         "applied" : {
           "type" : "boolean"
         },
+        "claimTtl" : {
+          "type" : "string"
+        },
         "initialBackoff" : {
           "type" : "string"
         },
         "maxRetries" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "timeout" : {
-          "type" : "string"
         }
       },
-      "required" : [ "initialBackoff", "maxRetries", "timeout" ],
+      "required" : [ "claimTtl", "initialBackoff", "maxRetries" ],
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.EntryRetrySpec"
     },
     "me.ahoo.wow.ops.api.parked.MarkRecoverable" : {
@@ -786,7 +786,7 @@
       "description" : "Record a resolved entry",
       "x-wow-class" : "me.ahoo.wow.ops.api.parked.RecordResolved"
     },
-    "me.ahoo.wow.ops.api.parked.Resume" : {
+    "me.ahoo.wow.ops.api.parked.Retry" : {
       "type" : "object",
       "properties" : {
         "failedAt" : {
@@ -797,10 +797,10 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "Resume a parked entry",
-      "x-wow-class" : "me.ahoo.wow.ops.api.parked.Resume"
+      "description" : "Retry a parked entry",
+      "x-wow-class" : "me.ahoo.wow.ops.api.parked.Retry"
     },
-    "me.ahoo.wow.ops.api.parked.ResumeRequested" : {
+    "me.ahoo.wow.ops.api.parked.RetryRequested" : {
       "type" : "object",
       "properties" : {
         "failedAt" : {
@@ -811,8 +811,8 @@
           "type" : [ "string", "null" ]
         }
       },
-      "description" : "A resume was requested",
-      "x-wow-class" : "me.ahoo.wow.ops.api.parked.ResumeRequested"
+      "description" : "A retry was requested",
+      "x-wow-class" : "me.ahoo.wow.ops.api.parked.RetryRequested"
     },
     "me.ahoo.wow.ops.api.parked.Skip" : {
       "type" : "object",

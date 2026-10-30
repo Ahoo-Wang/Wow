@@ -95,14 +95,17 @@ class Hop @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(stage, context, subscription)
 
     companion object {
-        /** The name of the built-in subscription that writes snapshots. */
-        const val SNAPSHOT_SUBSCRIPTION: String = "snapshot"
+        /**
+         * The name of the built-in subscription that writes snapshots. Every built-in subscription's name starts with
+         * `wow.`, a prefix the compiler reserves, so no application subscription takes one.
+         */
+        const val SNAPSHOT_SUBSCRIPTION: String = "wow.snapshot"
 
         /** The name of the built-in subscription that confirms reservations. */
-        const val RESERVATION_SUBSCRIPTION: String = "reservation"
+        const val RESERVATION_SUBSCRIPTION: String = "wow.reservation"
 
         /** The name of the built-in subscription that writes the timers of scheduled commands. */
-        const val TIMERS_SUBSCRIPTION: String = "timers"
+        const val TIMERS_SUBSCRIPTION: String = "wow.timers"
 
         /** [Stage.ACCEPTED] in [context]. */
         @JvmStatic

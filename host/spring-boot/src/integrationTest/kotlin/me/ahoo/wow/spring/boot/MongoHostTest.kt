@@ -73,7 +73,7 @@ class MongoHostTest {
     fun `a command should be served and its state read`() {
         val opened = host.post("/bank/account/open-account", """{"owner":"mona"}""")
         opened.status.assert().isEqualTo(200)
-        opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("snapshot")
+        opened.body!!["hop"]["subscription"].asString().assert().isEqualTo("wow.snapshot")
         val id = opened.body!!["ref"]["id"].asString()
         host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
         val state = host.get("/bank/account/$id/state")

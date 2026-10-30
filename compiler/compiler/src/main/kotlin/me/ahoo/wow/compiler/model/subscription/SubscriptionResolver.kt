@@ -103,6 +103,9 @@ internal object SubscriptionResolver {
     private const val DERIVES = "derives"
     private const val SCHEDULES = "schedules"
     private const val CALLS = "calls"
+
+    /** The prefix of Wow's built-in subscriptions, which no processor's name takes. */
+    private const val RESERVED_PREFIX = "wow."
     private val STATE_EVENT = StateEvent::class.java.name
     private const val ANY = "kotlin.Any"
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
@@ -142,7 +145,7 @@ internal object SubscriptionResolver {
     ): SubscriptionBinding {
         val className = processor.simpleName.asString()
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
-        val problems = AnnotationSet.problems(processor, "processor $className", processor = true).toMutableList()
+        val problems = (AnnotationSet.problems(processor, "processor $className", processor = true) + nameProblems(className, name)).toMutableList()
         val processorRetry = RetryResolver.read(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
@@ -215,6 +218,16 @@ internal object SubscriptionResolver {
         }
 
     /** A processor of none of the kinds, or of more than one. */
+    private fun nameProblems(className: String, name: String): List<String> =
+        if (name == RESERVED_PREFIX.dropLast(1) || name.startsWith(RESERVED_PREFIX)) {
+            listOf(
+                "processor $className is named '$name': its subscriptions would be named $RESERVED_PREFIX…, " +
+                    "the prefix of Wow's built-in subscriptions; give it a @Name of its own",
+            )
+        } else {
+            emptyList()
+        }
+
     private fun kindProblems(className: String, kinds: List<Kind>): List<String> = when {
         kinds.isEmpty() -> listOf(
             "processor $className is none of @Projection, @Reactor, @Saga: its class says which kind its handlers are",

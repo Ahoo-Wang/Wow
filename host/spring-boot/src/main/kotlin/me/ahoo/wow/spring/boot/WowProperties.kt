@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.subscription.BackpressureOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
@@ -132,7 +133,11 @@ class WowProperties {
     var sharedStates: SharedStates = SharedStates()
     var subscription: Subscription = Subscription()
 
-    /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
+    /**
+     * Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name
+     * (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique
+     * within its context alone.
+     */
     var subscriptions: MutableMap<String, SubscriptionSettings> = LinkedHashMap()
     var timers: Timers = Timers()
 
@@ -220,9 +225,9 @@ class WowProperties {
         /**
          * Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of
          * what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no
-         * subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port
-         * (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at
-         * the end of its stream starts where the stream ends at the resume.
+         * subscription, retries no parked entry and runs no job, until its operator activates it on the internal port
+         * (`POST /wow/node/activate` from a node of its service, naming who activates it). A subscription that starts
+         * at the end of its stream starts where the stream ends at the activation.
          */
         var standby: Boolean = false
 
@@ -679,7 +684,7 @@ class WowProperties {
 
         /**
          * How a failing handler is retried in process before its aggregate is parked; a subscription's
-         * `wow.subscriptions.[<subscription>].retry.*` and its handler's `@Retry` come before it.
+         * `wow.subscriptions.[<context>.<name>].retry.*` and its handler's `@Retry` come before it.
          */
         var retry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.retry)
 
@@ -705,31 +710,34 @@ class WowProperties {
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
+            val configured = subscriptions.mapKeys { (key, _) -> subscriptionOf(key) }
             return SubscriptionOptions(
                 maxInFlight = maxInFlight,
                 retry = retry.policy(),
                 checkpointInterval = checkpointInterval.toKotlinDuration(),
                 stopTimeout = stopTimeout.toKotlinDuration(),
                 readRetry = readRetry.policy(),
-                starts = subscriptions.mapNotNull { (name, settings) ->
-                    settings.start?.takeIf { it.isNotBlank() }?.let { name to SubscriptionStart.parse(it) }
+                starts = configured.mapNotNull { (id, settings) ->
+                    settings.start?.takeIf { it.isNotBlank() }?.let { id to SubscriptionStart.parse(it) }
                 }.toMap(),
                 parked = ParkedRetryOptions(
                     spec = spec,
-                    specs = subscriptions.mapNotNull { (name, settings) ->
-                        settings.parked.specOver(
-                            spec
-                        )?.let { name to it }
-                    }
+                    specs = configured.mapNotNull { (id, settings) -> settings.parked.specOver(spec)?.let { id to it } }
                         .toMap(),
                     scanInterval = parked.scanInterval.toKotlinDuration(),
                 ),
-                retries = subscriptions.mapNotNull { (name, settings) ->
-                    settings.retry.handlerRetry()?.let { name to it }
+                retries = configured.mapNotNull { (id, settings) ->
+                    settings.retry.handlerRetry()?.let { id to it }
                 }.toMap(),
                 systemic = systemic.options(),
                 backpressure = backpressure.options(),
             )
+        }
+
+        /** The subscription `wow.subscriptions.[<key>]` configures, refused unless it reads `<context>.<name>`. */
+        private fun subscriptionOf(key: String): SubscriptionId = requireNotNull(SubscriptionId.parse(key)) {
+            "wow.subscriptions.[$key] names no subscription: a subscription is configured by its context and name, " +
+                "wow.subscriptions.[<context>.<name>], such as wow.subscriptions.[shop.CartSaga.onOrderCreated]."
         }
     }
 
@@ -797,7 +805,7 @@ class WowProperties {
 
     /**
      * The automatic retries of parked entries over minutes and hours; per subscription,
-     * `wow.subscriptions.[<subscription>].parked.*` overrides them.
+     * `wow.subscriptions.[<context>.<name>].parked.*` overrides them.
      */
     @InternalWowApi
     class Parked {
@@ -810,14 +818,17 @@ class WowProperties {
          */
         var initialBackoff: Duration = DEFAULT_PARKED.spec.initialBackoff.toJavaDuration()
 
-        /** How long a retry may run before the partition's next owner may start another. */
-        var timeout: Duration = DEFAULT_PARKED.spec.timeout.toJavaDuration()
+        /**
+         * How long a retry's claim on the entry holds before another retry may start, such as on the partition's next
+         * owner: it cancels nothing.
+         */
+        var claimTtl: Duration = DEFAULT_PARKED.spec.claimTtl.toJavaDuration()
 
         /** How often each node scans its subscriptions' parked entries for retries that are due. */
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), timeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), claimTtl.toKotlinDuration())
     }
 
     /**
@@ -831,18 +842,18 @@ class WowProperties {
         /** The wait before the first automatic retry, over `wow.subscription.parked`'s. */
         var initialBackoff: Duration? = null
 
-        /** How long a retry may run, over `wow.subscription.parked`'s. */
-        var timeout: Duration? = null
+        /** How long a retry's claim on the entry holds, over `wow.subscription.parked`'s. */
+        var claimTtl: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && initialBackoff == null && timeout == null) {
+            if (maxRetries == null && initialBackoff == null && claimTtl == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
                 initialBackoff?.toKotlinDuration() ?: base.initialBackoff,
-                timeout?.toKotlinDuration() ?: base.timeout,
+                claimTtl?.toKotlinDuration() ?: base.claimTtl,
             )
         }
     }
@@ -1150,12 +1161,15 @@ class WowProperties {
         /** The OpenAPI document of the routes. */
         var openapi: OpenApi = OpenApi()
 
-        /** The operator's routes of the parked entries. */
+        /** The operator's routes of the node: its parked entries and its subscriptions. */
         var ops: HttpOps = HttpOps()
 
         @InternalWowApi
         class HttpOps {
-            /** Serves the operator's routes of the parked entries under `/wow/ops/parked` on the public port. */
+            /**
+             * Serves the operator's routes on the public port: the parked entries under `/wow/ops/parked`, and the read
+             * of the node's subscriptions, `GET /wow/ops/subscriptions`.
+             */
             var enabled: Boolean = false
         }
 

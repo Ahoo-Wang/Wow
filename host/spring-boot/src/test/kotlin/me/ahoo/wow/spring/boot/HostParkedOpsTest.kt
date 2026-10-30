@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import com.sun.net.httpserver.HttpServer
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -23,6 +24,7 @@ import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -59,9 +61,9 @@ class HostParkedOpsTest {
         "wow.subscription.retry.max-attempts" to 1,
         "wow.subscription.parked.max-retries" to 5,
         "wow.subscription.parked.initial-backoff" to "200ms",
-        "wow.subscription.parked.timeout" to "100ms",
+        "wow.subscription.parked.claim-ttl" to "100ms",
         "wow.subscription.parked.scan-interval" to "50ms",
-        "wow.subscriptions.[$BROKEN].parked.max-retries" to 1,
+        "wow.subscriptions.[$BANK.$BROKEN].parked.max-retries" to 1,
         "wow.http.ops.enabled" to true,
         "wow.ops.webhook.url" to "http://127.0.0.1:${webhook.address.port}/hook",
         "wow.ops.webhook.format" to "generic",
@@ -80,7 +82,7 @@ class HostParkedOpsTest {
     private fun openAccount(): String =
         host.post("/bank/account/open-account", """{"owner":"alice"}""").body!!["ref"]["id"].asString()
 
-    private fun entry(subscription: String, id: String) = "${OpsPaths.PARKED}/$subscription/$BANK/account/" +
+    private fun entry(subscription: String, id: String) = "${OpsPaths.PARKED}/$BANK.$subscription/$BANK/account/" +
         "${Caller.DEFAULT_TENANT}/$id"
 
     private fun eventually(condition: () -> Boolean) {
@@ -96,8 +98,10 @@ class HostParkedOpsTest {
         val parked = host.node.options.subscription.parked
         parked.spec.assert().isEqualTo(ParkedRetrySpec(5, 200.milliseconds, 100.milliseconds))
         parked.scanInterval.assert().isEqualTo(50.milliseconds)
-        parked.specOf(BROKEN).assert().isEqualTo(ParkedRetrySpec(1, 200.milliseconds, 100.milliseconds))
-        parked.specOf(FLAKY).assert().isEqualTo(parked.spec)
+        parked.specOf(
+            SubscriptionId(BANK, BROKEN)
+        ).assert().isEqualTo(ParkedRetrySpec(1, 200.milliseconds, 100.milliseconds))
+        parked.specOf(SubscriptionId(BANK, FLAKY)).assert().isEqualTo(parked.spec)
         host.context.getBean(WebhookNotifier::class.java).toString().assert().contains("GENERIC")
         WowProperties.ParkedSpec().specOver(ParkedRetrySpec()).assert().isNull()
         WowProperties.Parked().spec().assert().isEqualTo(ParkedRetrySpec(10, 3.minutes, 2.minutes))
@@ -126,11 +130,11 @@ class HostParkedOpsTest {
         eventually { host.get(entry(FLAKY, id)).status == 404 }
         failing.handled.assert().contains("$FLAKY:$id")
         val parked = hooks.filter {
-            it["entry"]["aggregate"]["id"].asString() == id && it["entry"]["subscription"].asString() == FLAKY
+            it["entry"]["aggregate"]["id"].asString() == id && it["entry"]["subscription"].asString() == "$BANK.$FLAKY"
         }
         parked.map { it["event"].asString() }.assert().containsExactly("parked")
         parked.single()["service"].asString().assert().isEqualTo("bank-service")
-        parked.single()["entry"]["subscription"].asString().assert().isEqualTo(FLAKY)
+        parked.single()["entry"]["subscription"].asString().assert().isEqualTo("$BANK.$FLAKY")
     }
 
     @Test
@@ -139,7 +143,7 @@ class HostParkedOpsTest {
         eventually { hooks.any { it["event"].asString() == "exhausted" && it["entry"]["aggregate"]["id"].asString() == id } }
         failing.attempts(BROKEN, id).assert().isEqualTo(2)
 
-        val listed = host.get("${OpsPaths.PARKED}?subscription=$BROKEN")
+        val listed = host.get("${OpsPaths.PARKED}?subscription=$BANK.$BROKEN")
         listed.status.assert().isEqualTo(200)
         listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().contains(id)
         val exhausted = host.get(entry(BROKEN, id)).body!!
@@ -147,9 +151,9 @@ class HostParkedOpsTest {
         exhausted["retries"].asInt().assert().isEqualTo(1)
         exhausted["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(1)
 
-        val resumed = host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null)
-        resumed.status.assert().isEqualTo(200)
-        resumed.body!!["outcome"].asString().assert().isEqualTo("parked")
+        val retried = host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null)
+        retried.status.assert().isEqualTo(200)
+        retried.body!!["outcome"].asString().assert().isEqualTo("parked")
         failing.attempts(BROKEN, id).assert().isEqualTo(3)
 
         val marked = host.post(
@@ -168,13 +172,35 @@ class HostParkedOpsTest {
         }
 
         // A skip names the parking it discards, as the operator reads it from the listing.
-        val failedAt = host.get("${OpsPaths.PARKED}?subscription=$BROKEN").body!!["entries"].toList()
+        val failedAt = host.get("${OpsPaths.PARKED}?subscription=$BANK.$BROKEN").body!!["entries"].toList()
             .single { it["aggregate"]["id"].asString() == id }["failedAt"].asLong()
         val skipped = host.post("${entry(BROKEN, id)}/${OpsPaths.SKIP}", """{"failedAt":$failedAt}""")
         skipped.status.assert().isEqualTo(200)
         skipped.body!!["outcome"].asString().assert().isEqualTo("resolved")
         host.get(entry(BROKEN, id)).status.assert().isEqualTo(404)
-        host.post("${entry(BROKEN, id)}/${OpsPaths.RESUME}", null).status.assert().isEqualTo(404)
+        host.post("${entry(BROKEN, id)}/${OpsPaths.RETRY}", null).status.assert().isEqualTo(404)
+    }
+
+    @Test
+    fun `an operator who reaches every tenant reads the node's subscriptions over HTTP`() {
+        val id = openAccount()
+        eventually { host.get(entry(BROKEN, id)).status == 200 }
+        // The anonymous caller is its tenant's alone: the view is the whole service's.
+        host.get(OpsPaths.SUBSCRIPTIONS).status.assert().isEqualTo(403)
+
+        val read = host.get(OpsPaths.SUBSCRIPTIONS, mapOf(OPERATOR to "root"))
+
+        read.status.assert().isEqualTo(200)
+        read.body!!["node"].asString().assert().isEqualTo(host.node.node)
+        val subscriptions = read.body!!["subscriptions"].toList().associateBy { it["subscription"].asString() }
+        subscriptions.keys.assert().contains("$BANK.$FLAKY", "$BANK.$BROKEN", "$BANK.wow.snapshot")
+        val broken = subscriptions.getValue("$BANK.$BROKEN")
+        broken["source"].asString().assert().isEqualTo("log")
+        broken["group"].asString().assert().isEqualTo("bank-service/$BANK")
+        // The one node runs every partition of its log.
+        broken["partitions"].toList().all { it["runs"].asBoolean() }.assert().isTrue()
+        broken["partitions"].toList().size.assert().isEqualTo(host.node.context(BANK).backends.log.partitions)
+        read.body!!["orphans"].toList().assert().isEmpty()
     }
 
     /** The application's two failing subscriptions of the bank's accounts. */
@@ -188,6 +214,12 @@ class HostParkedOpsTest {
         /** The operator's actions are refused without an authorizer (review A3-3): this host allows them all. */
         @Bean
         fun operators(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
+
+        /** The anonymous caller, or with [OPERATOR] an operator who acts across every tenant. */
+        @Bean
+        fun callers(): CallerResolver = CallerResolver { request ->
+            request.headers().firstHeader(OPERATOR)?.let { Caller(subject = it, crossScope = true) } ?: Caller.ANONYMOUS
+        }
 
         @Bean
         fun failingSubscriptionFactory(): SubscriptionFactory = SubscriptionFactory { context ->
@@ -209,6 +241,7 @@ class HostParkedOpsTest {
     private companion object {
         const val FLAKY = "HostOps.flaky"
         const val BROKEN = "HostOps.broken"
+        const val OPERATOR = "X-Operator"
         val mapper: JsonMapper = JsonMapper.builder().build()
     }
 }

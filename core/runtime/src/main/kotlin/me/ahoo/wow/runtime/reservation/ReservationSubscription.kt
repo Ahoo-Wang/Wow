@@ -36,7 +36,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  *
  * Register [subscription] in the context's [me.ahoo.wow.runtime.subscription.SubscriptionRuntime]: it then runs on
  * each partition's owner, checkpoints and parks like any subscription. A store that keeps failing parks the
- * aggregate; resuming it reads the aggregate's entries again with their transport
+ * aggregate; retrying it reads the aggregate's entries again with their transport
  * ([me.ahoo.wow.spi.log.EventLog.readEntries]) and applies what is left.
  *
  * - **Owner and scope**: the entry's aggregate, field by field, and the key's scope in its context and tenant (or

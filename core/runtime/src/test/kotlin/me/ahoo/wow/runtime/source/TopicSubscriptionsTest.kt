@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.subscription.Handled
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionId
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
@@ -46,7 +47,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The subscriptions of another context's published topic (decision D134) over [InMemoryTopics]: partitions leased by
- * HRW in the group `(service, "topic:<name>")`, offsets in the checkpoint store, copies dropped, and parking resumed
+ * HRW in the group `(service, "topic:<name>")`, offsets in the checkpoint store, copies dropped, and parking retried
  * by re-scanning the partition from the offset parked, unless retention passed it.
  */
 class TopicSubscriptionsTest {
@@ -89,7 +90,7 @@ class TopicSubscriptionsTest {
     private suspend fun start(
         node: String,
         subscription: Subscription = board,
-        starts: Map<String, SubscriptionStart> = emptyMap(),
+        starts: Map<SubscriptionId, SubscriptionStart> = emptyMap(),
     ): TopicSubscriptions = TopicSubscriptions(
         service = SERVICE,
         topic = ORDER_TOPIC,
@@ -207,14 +208,14 @@ class TopicSubscriptionsTest {
             // The aggregate's later record waits behind it; the checkpoint moves past both.
             eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 3L }
             handled.versionsOf("o-1").assert().containsExactly(1)
-            // A resume meets it again; a skip resolves it.
-            subscriptions.resume(BOARD, order("o-1")).assert().isFalse()
+            // A retry meets it again; a skip resolves it.
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD, order("o-1")).assert().isNull()
         }
 
     @Test
-    fun `a failing aggregate should be parked at its offset and resumed by re-scanning its partition`(): Unit =
+    fun `a failing aggregate should be parked at its offset and retried by re-scanning its partition`(): Unit =
         runBlocking {
             val (parkedId, otherId) = idsIn(partitionOf("o-1"), 2)
             val subscriptions = start("node-1")
@@ -230,7 +231,7 @@ class TopicSubscriptionsTest {
             eventually { handled.versionsOf(otherId) == listOf(1) }
             handled.versionsOf(parkedId).assert().containsExactly(1)
             failing = null
-            subscriptions.resume(BOARD, order(parkedId)).assert().isTrue()
+            subscriptions.retry(BOARD, order(parkedId)).assert().isTrue()
             handled.versionsOf(parkedId).assert().containsExactly(1, 2, 3)
             ledger.parked(BOARD, order(parkedId)).assert().isNull()
             topics.publish(orderRecord(parkedId, 4))
@@ -238,19 +239,19 @@ class TopicSubscriptionsTest {
         }
 
     @Test
-    fun `a resume that fails again should stay parked from where it failed, at that record's offset`(): Unit =
+    fun `a retry that fails again should stay parked from where it failed, at that record's offset`(): Unit =
         runBlocking {
             val subscriptions = start("node-1")
             failing = "o-1" to 2
             topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
             eventually { ledger.parked(BOARD, order("o-1")) != null }
             failing = "o-1" to 3
-            subscriptions.resume(BOARD, order("o-1")).assert().isFalse()
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             val parked = ledger.parked(BOARD, order("o-1"))!!
             parked.fromVersion.assert().isEqualTo(3)
             parked.fromPosition.assert().isEqualTo(offsetOf("o-1", 3))
             failing = null
-            subscriptions.resume(BOARD, order("o-1")).assert().isTrue()
+            subscriptions.retry(BOARD, order("o-1")).assert().isTrue()
             handled.versionsOf("o-1").assert().containsExactly(1, 2, 3, 4)
         }
 
@@ -264,14 +265,14 @@ class TopicSubscriptionsTest {
             val position = ledger.parked(BOARD, order("o-1"))!!.fromPosition!!
             topics.retain(ORDER_TOPIC, partitionOf("o-1"), position + 1)
             failing = null
-            subscriptions.resume(BOARD, order("o-1")).assert().isFalse()
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             val parked = ledger.parked(BOARD, order("o-1"))!!
             parked.unrecoverable.assert().isTrue()
             parked.reason.assert().startsWith(ParkedAggregate.UNRECOVERABLE)
             parked.fromVersion.assert().isEqualTo(2)
             parked.fromPosition.assert().isEqualTo(position)
-            // Marked once: a resume no longer tries.
-            subscriptions.resume(BOARD, order("o-1")).assert().isFalse()
+            // Marked once: a retry no longer tries.
+            subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
             ledger.parked(BOARD, order("o-1")).assert().isNull()
             topics.publish(orderRecord("o-1", 4))
@@ -293,7 +294,10 @@ class TopicSubscriptionsTest {
     fun `a start the host overrides with an instant should read from the first record committed at or after it`():
         Unit = runBlocking {
         topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
-        start("node-1", starts = mapOf(BOARD to SubscriptionStart.At(Instant.ofEpochMilli(2_500))))
+        start(
+            "node-1",
+            starts = mapOf(SubscriptionId(ORDER.context, BOARD) to SubscriptionStart.At(Instant.ofEpochMilli(2_500)))
+        )
         topics.publish(orderRecord("o-1", 5))
         eventually { handled.size == 3 }
         handled.versionsOf("o-1").assert().containsExactly(3, 4, 5)
@@ -324,7 +328,7 @@ class TopicSubscriptionsTest {
         started += subscriptions
         subscriptions.start()
         subscriptions.runtime.assert().isNull()
-        assertThrows<IllegalStateException> { runBlocking { subscriptions.resume(BOARD, order("o-1")) } }
+        assertThrows<IllegalStateException> { runBlocking { subscriptions.retry(BOARD, order("o-1")) } }
         // Skipping needs no partition: the ledger entry is resolved.
         subscriptions.skip(BOARD, order("o-1")).assert().isFalse()
         empty.ready = true

@@ -67,7 +67,7 @@ export const FrameworkErrorCodes = {
   SCHEDULE_JOB_INVALID: 'wow.schedule.job-invalid',
   /** 409 Stale ledger action: The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it. */
   LEDGER_STALE: 'wow.ledger.stale',
-  /** 500 Subscription parked: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes. */
+  /** 500 Subscription parked: A subscription on the wait chain parked the aggregate; the wait cannot be reached until the aggregate is retried. */
   SUBSCRIPTION_PARKED: 'wow.subscription.parked',
   /** 504 Wait timed out: The wait ran out of time; the command may have committed. The problem carries the last stage reached. */
   WAIT_TIMEOUT: 'wow.wait.timeout',

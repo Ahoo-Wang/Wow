@@ -14,18 +14,27 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.ops.subscriptionRoutes
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.node.NodeSampler
 import me.ahoo.wow.runtime.node.ServiceNode
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
+import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 import kotlin.time.toKotlinDuration
 
 /**
  * The node's one sampler ([NodeSampler]), every `wow.node.sample-interval`, its parked entries counted up to
- * `wow.node.max-parked`: the node's health and its gauges both read its samples, so the ledgers and the logs' heads are
- * read once per interval, whoever reports them.
+ * `wow.node.max-parked`: the node's health, its gauges and the operator's read of its subscriptions all read its
+ * samples, so the ledgers and the logs' heads are read once per interval, whoever reports them.
  */
 @AutoConfiguration(
     after = [WowAutoConfiguration::class],
@@ -38,4 +47,27 @@ class NodeSamplerAutoConfiguration {
     @InternalWowApi
     fun wowNodeSampler(node: ServiceNode, properties: WowProperties): NodeSampler =
         NodeSampler(node, properties.node.sampleInterval.toKotlinDuration(), properties.node.maxParked)
+
+    /**
+     * The operator's read of the node's subscriptions, when `wow.http.ops.enabled`, beside the parked routes:
+     * authenticated by the application's [CallerResolver], read by a caller that reaches every tenant, and authorized
+     * by its [ServiceRouteAuthorizer]s as the route `ops.subscriptions` of the context `wow`.
+     */
+    @Bean
+    @ConditionalOnBean(ServiceNode::class)
+    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.http.ops", name = ["enabled"], havingValue = "true")
+    @InternalWowApi
+    fun wowSubscriptionsRouterFunction(
+        manifest: Manifest,
+        sampler: NodeSampler,
+        callers: CallerResolver,
+        options: WowHttpOptions,
+        routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
+    ): RouterFunction<ServerResponse> = subscriptionRoutes(
+        sampler,
+        manifest,
+        ServiceRouteAuthorizer.allOf(routeAuthorizers.orderedStream().toList()),
+        callers,
+        options,
+    )
 }

@@ -60,7 +60,7 @@
         {
           "stage": "handled",
           "context": "bank",
-          "subscription": "snapshot"
+          "subscription": "wow.snapshot"
         }
       ],
       "deadline": 1760950810000

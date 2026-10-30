@@ -248,7 +248,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
         {
           "stage": "handled",
           "context": "bank",
-          "subscription": "snapshot"
+          "subscription": "wow.snapshot"
         }
       ],
       "deadline": 1760950810000
@@ -388,13 +388,13 @@ Wow 写入 Kafka 的每条消息都是一个信封。
     "hop": {
       "stage": "handled",
       "context": "bank",
-      "subscription": "snapshot"
+      "subscription": "wow.snapshot"
     },
     "function": {
       "kind": "snapshot",
       "context": "bank",
-      "processor": "snapshot",
-      "name": "snapshot"
+      "processor": "wow.snapshot",
+      "name": "wow.snapshot"
     },
     "status": "succeeded",
     "version": 2,

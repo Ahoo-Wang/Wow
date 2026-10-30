@@ -127,6 +127,9 @@ class Subscription private constructor(
      */
     val function: FunctionInfo = subscriptionFunction(kind, context, name)
 
+    /** The subscription by its [context] and [name]: how the host's configuration and the operator name it. */
+    val id: SubscriptionId get() = SubscriptionId(context, name)
+
     init {
         require(name.isNotBlank()) { "A subscription needs a name." }
         require(context.isNotBlank()) { "A subscription belongs to a context." }
@@ -341,7 +344,7 @@ data class SubscriptionFilter(
  * What a handler receives: one committed [stream] (its ref, version, scope and events), at its log [position], with
  * its [events] as the subscription's [EntryDecoder] read them and the [transport] metadata appended with it.
  *
- * [SubscriptionRuntime.resume] hands over the same [position] and [transport] as the tail: it reads the aggregate's
+ * [SubscriptionRuntime.retry] hands over the same [position] and [transport] as the tail: it reads the aggregate's
  * entries by version with [me.ahoo.wow.spi.log.EventLog.readEntries], so the `reservation` subscription confirms the
  * keys of a parked aggregate too. [position] is null only for an entry made by hand. A handler that
  * needs an idempotency key uses (`ref`, `version`).

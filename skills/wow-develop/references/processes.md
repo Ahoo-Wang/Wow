@@ -140,17 +140,17 @@ A reactor calls the outside world with the context's `invocationKey` as the outs
 
 ## Start positions
 
-Without a checkpoint, projections and handlers of another context's stream start from the beginning; reactors and sagas of the own log from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
+Without a checkpoint, projections and handlers of another context's stream start from the beginning; reactors and sagas of the own log from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<context>.<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
 
 ## Failures: retry, then park
 
-1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<name>].retry.*`). An exception classified unrecoverable is not retried.
-2. **Parked:** then the **aggregate** (not the event) is parked in the failure ledger for that subscription: its later commits wait, other aggregates go on. The long-horizon retries follow `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<name>].parked.*`). A resume handles its commits from the failed version on, including ones already handled, so handlers must tolerate redelivery.
+1. **In process:** a failing handler is retried (`@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout, recoverable, unrecoverable)`, over the host's `wow.subscription.retry.*` and `wow.subscriptions.[<context>.<name>].retry.*`). An exception classified unrecoverable is not retried.
+2. **Parked:** then the **aggregate** (not the event) is parked in the failure ledger for that subscription: its later commits wait, other aggregates go on. The long-horizon retries follow `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<context>.<name>].parked.*`). A retry handles its commits from the failed version on, including ones already handled, so handlers must tolerate redelivery.
 3. **Systemic:** when several aggregates fail within a window (`wow.subscription.systemic.*`), the subscription pauses its partition and probes until a handling succeeds, instead of parking everything.
 4. **Backpressure:** a downstream that pushes back (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, a 429 with `Retry-After`) throttles the partition and retries, then parks; it never pauses the partition.
 
-Operators see parked entries with `wow.http.ops.enabled` (`/wow/ops/parked`: list, `resume`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`: `auto` by default, publishing once the ops service is deployed on the same Kafka).
+Operators see parked entries with `wow.http.ops.enabled` (`/wow/ops/parked`: list, `retry`, `skip`, `mark-recoverable`, `apply-retry-spec`, authorized by the host's `CommandAuthorizer`; an entry is `/wow/ops/parked/{<context>.<name>}/{context}/{aggregate}/{tenant}/{id}`; `skip` requires the body `{"failedAt": …}`, the entry's `failedAt`, and `retry` takes it optionally, both refusing a parking since replaced as 409 `wow.ledger.stale`; `GET /wow/ops/subscriptions` reads each subscription's positions, lag, paused partitions and parked count, and the checkpoints left under old names), a webhook (`wow.ops.webhook.*`), and the ops console (`wow.ops.publish.enabled`: `auto` by default, publishing once the ops service is deployed on the same Kafka).
 
 ## Idempotency, summed up
 
-A commit can reach a handler more than once (retries, a resume, a rebuild). Sagas are safe by deterministic command ids; projections by a version guard; reactors by the invocation key. Anything else a handler writes needs its own guard.
+A commit can reach a handler more than once (retries, an operator's retry, a rebuild). Sagas are safe by deterministic command ids; projections by a version guard; reactors by the invocation key. Anything else a handler writes needs its own guard.

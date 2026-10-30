@@ -443,7 +443,7 @@ class SnapshotSubscriptionTest {
         log.reads.clear()
 
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
-        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 2) }, other)
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, fifth) }
         // Evolved from the stored snapshot, never replayed from the first stream.
@@ -469,7 +469,7 @@ class SnapshotSubscriptionTest {
         log.reads.clear()
         val loads = store.loads.get()
 
-        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 1) })
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 1) })
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, committed.stream) }
         store.loads.get().assert().isEqualTo(loads)
@@ -491,7 +491,7 @@ class SnapshotSubscriptionTest {
         log.reads.clear()
         val loads = store.loads.get()
 
-        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 1) })
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 1) })
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
         // Written from the view: neither the store nor the log was read.
@@ -530,7 +530,7 @@ class SnapshotSubscriptionTest {
         log.reads.clear()
         val loads = store.loads.get()
 
-        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 2) }, other)
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
         // The view carries what the kernel loaded of the first stream (work package B.O-4): neither the stored
@@ -599,7 +599,7 @@ class SnapshotSubscriptionTest {
         val restored = elsewhere.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
         log.reads.clear()
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
-        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 4) }, other)
+        val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "wow.snapshot", 0, 4) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, restored.stream) }
         log.reads.assert().isNotEmpty()
