@@ -104,7 +104,7 @@ test('ci.yml drops the brace lines from each JVM report right before it keeps it
     const drop = workflow.indexOf(
       `node .github/scripts/jacoco-braces.mjs ${path}`,
     );
-    const keep = workflow.indexOf(`path: ${path}`);
+    const keep = workflow.indexOf(`cp ${path} `);
     assert.ok(drop > 0, `${report} is normalized`);
     assert.ok(drop < keep, `${report} is normalized before it is kept`);
   }
