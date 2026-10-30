@@ -18,6 +18,8 @@ package me.ahoo.wow.api.client
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Stage
@@ -41,11 +43,11 @@ fun CommandClient.stream(command: Any, id: String? = null): Flow<CommandResult> 
 fun typeOf(request: CommandRequest<*>, candidates: (Class<*>) -> List<AggregateType>): AggregateType {
     request.type?.let { return it }
     val command = request.command.javaClass
-    require(Lifecycle.nameOf(command) == null) {
+    requireUse(Lifecycle.nameOf(command) == null) {
         "${command.simpleName} is a lifecycle command every aggregate takes: set CommandRequest.type."
     }
     val types = candidates(command).distinct()
-    return types.singleOrNull() ?: throw IllegalArgumentException(
+    return types.singleOrNull() ?: throw Misuse.Argument(
         if (types.isEmpty()) {
             "${command.name} is decided by no aggregate the client knows (a context of the service, or a peer whose " +
                 "api module is on the class path): set CommandRequest.type."
@@ -62,7 +64,7 @@ fun typeOf(request: CommandRequest<*>, candidates: (Class<*>) -> List<AggregateT
 @InternalWowApi
 fun sendable(request: CommandRequest<*>): CommandRequest<*> = request.also {
     val wait = request.wait ?: return@also
-    require(wait.hops.size == 1 && wait.hops.single().stage == Stage.ACCEPTED) {
+    requireUse(wait.hops.size == 1 && wait.hops.single().stage == Stage.ACCEPTED) {
         "send answers on acceptance: use wait() for the plan ${WaitHeader.format(wait)}."
     }
 }

@@ -24,16 +24,19 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Creation
@@ -41,6 +44,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -130,9 +134,9 @@ class HttpCommandClientTest {
             val roots = peer.taken.map { CallWires.decode(it.headers.getValue(WowHeaders.CALL)) }
             roots.map { it.tenantId }.assert().containsExactly("t1", "t1", "t2")
             roots.map { it.operator!!.crossScope }.assert().containsExactly(false, false, true)
-            caught<IllegalArgumentException> { runBlocking { client().wait("no command of a contract") } }
+            caught<Misuse.Argument> { runBlocking { client().wait("no command of a contract") } }
                 .message.assert().contains("decided by no aggregate")
-            caught<IllegalArgumentException> { runBlocking { client().wait(DeleteAggregate, "a b") } }
+            caught<Misuse.Argument> { runBlocking { client().wait(DeleteAggregate, "a b") } }
                 .message.assert().contains("lifecycle command")
         }
 
@@ -406,14 +410,14 @@ class HttpCommandClientTest {
 
     @Test
     fun `a context without a URL or a command without a contract should not be sent`() {
-        caught<IllegalStateException> {
+        caught<Misuse.State> {
             runBlocking {
                 client(
                     endpoints = EndpointResolver.NONE
                 ).wait(CommandRequest.to(ref, DeliverItems(emptyList())))
             }
         }.message.assert().contains("wow.peers.mail.url")
-        caught<IllegalStateException> {
+        caught<Misuse.State> {
             runBlocking {
                 client(ClientMode.User(UserCredential.NONE), endpoints = EndpointResolver.NONE)
                     .wait(CommandRequest.to(ref, DeliverItems(emptyList())))
@@ -425,16 +429,37 @@ class HttpCommandClientTest {
         peer.taken.assert().isEmpty()
     }
 
+    data class Seal(val reason: String = "")
+
     @Test
-    fun `a 2xx answer that holds no result should fail`() {
+    fun `a command its contract has no route or no command of should not be sent, the code's mistake`() {
+        // The request names a type whose contract has no command of that class.
+        caught<Misuse.Argument> { runBlocking { client().wait(CommandRequest.to(ref, "no command of a contract")) } }
+            .message.assert().contains("No contract names the command java.lang.String of mail.box")
+        // A command its contract routes by id alone, sent without one.
+        val sealing = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service(SERVICE)
+            .contracts(contractOf(BOX, Seal::class.java, creation = Creation.NONE))
+            .build()
+            .commands
+        caught<Misuse.Argument> { runBlocking { sealing.wait(Seal()) } }
+            .message.assert().contains("lists no route without an aggregate id")
+        peer.taken.assert().isEmpty()
+    }
+
+    @Test
+    fun `a 2xx answer that holds no result should fail as an answer that never came, whether it committed unknown`() {
         peer.reply(Reply(200, mapOf("Content-Type" to "application/json"), "not json".toByteArray()))
-        assertThrownBy<IllegalStateException> {
-            runBlocking {
-                client().wait(
-                    CommandRequest.to(ref, DeliverItems(emptyList()))
-                )
-            }
+        // The wire's or the peer's fault, not the code's: a transport failure, never a Misuse nor a refusal.
+        val unknown = caught<WowProblemException> {
+            runBlocking { client().wait(CommandRequest.to(ref, DeliverItems(emptyList()))) }
         }
+        unknown.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNKNOWN)
+        unknown.retry.assert().isEqualTo(Retry.SAME_REQUEST)
+        unknown.message.assert().contains("whether the command committed is unknown")
+        // In a subscription handler it is retried, with the same request id, as an unanswered command is.
+        FailureClassification.DEFAULT.classify(unknown, null).assert().isEqualTo(FailureClass.RECOVERABLE)
     }
 
     @Test

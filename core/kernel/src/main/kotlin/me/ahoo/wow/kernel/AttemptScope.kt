@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.schedule.ScheduleCancelled
@@ -61,7 +62,7 @@ internal class AttemptScope(
     private var scheduled: LinkedHashMap<String, Any>? = null
 
     override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
-        if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
+        if (key.isBlank()) throw Misuse.Argument("A schedule needs a key.")
         val (type, body) = encode(target, command)
         changes().apply {
             remove(key)
@@ -70,7 +71,7 @@ internal class AttemptScope(
     }
 
     override fun cancelSchedule(key: String) {
-        if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
+        if (key.isBlank()) throw Misuse.Argument("A schedule needs a key.")
         changes().apply {
             // A key set earlier in this decision and not kept before: the set is undone, nothing to cancel.
             val undone = remove(key) is ScheduleSet && key !in loaded.schedules
@@ -113,7 +114,7 @@ internal class AttemptScope(
         reserve(namespace, key, ReservationTenancy.TENANT)
 
     override suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean {
-        val store = reservations ?: throw ScopeMisuse.State("Reserving a key needs a kernel with a ReservationStore.")
+        val store = reservations ?: throw Misuse.State("Reserving a key needs a kernel with a ReservationStore.")
         val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
         if (reserved?.contains(reservation) == true) {
             return true
@@ -136,7 +137,7 @@ internal class AttemptScope(
     override fun release(namespace: String, key: String) = release(namespace, key, ReservationTenancy.TENANT)
 
     override fun release(namespace: String, key: String, tenancy: ReservationTenancy) {
-        val store = reservations ?: throw ScopeMisuse.State("Releasing a key needs a kernel with a ReservationStore.")
+        val store = reservations ?: throw Misuse.State("Releasing a key needs a kernel with a ReservationStore.")
         val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
         if (released?.contains(reservation) == true) {
             return

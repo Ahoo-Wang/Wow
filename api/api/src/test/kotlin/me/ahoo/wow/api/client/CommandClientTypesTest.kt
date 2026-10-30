@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
@@ -124,11 +125,11 @@ class CommandClientTypesTest {
         val other = AggregateType("shop", "basket")
         typeOf(CommandRequest.of(AddItem("a"), type = other)) { listOf(cart) }.assert().isEqualTo(other)
         typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, cart) }.assert().isEqualTo(cart)
-        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(AddItem("a"))) { emptyList() } }
+        assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(AddItem("a"))) { emptyList() } }
             .message.assert().contains("decided by no aggregate", "set CommandRequest.type")
-        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, other) } }
+        assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(AddItem("a"))) { listOf(cart, other) } }
             .message.assert().contains("several aggregates", "shop.basket", "set CommandRequest.type")
-        assertThrows<IllegalArgumentException> { typeOf(CommandRequest.of(DeleteAggregate, "c-1")) { listOf(cart) } }
+        assertThrows<Misuse.Argument> { typeOf(CommandRequest.of(DeleteAggregate, "c-1")) { listOf(cart) } }
             .message.assert().isEqualTo(
                 "DeleteAggregate is a lifecycle command every aggregate takes: set CommandRequest.type."
             )
@@ -172,7 +173,7 @@ class CommandClientTypesTest {
     fun `send takes a request that waits for no more than acceptance`() {
         sendable(CommandRequest.of(AddItem("a"), timeout = 2.seconds)).timeout.assert().isEqualTo(2.seconds)
         sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.ACCEPTED))
-        assertThrows<IllegalArgumentException> { sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.COMMITTED)) }
+        assertThrows<Misuse.Argument> { sendable(CommandRequest.of(AddItem("a"), wait = WaitPlan.COMMITTED)) }
             .message.assert().isEqualTo("send answers on acceptance: use wait() for the plan committed.")
     }
 

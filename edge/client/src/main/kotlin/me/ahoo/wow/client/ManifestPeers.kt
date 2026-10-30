@@ -16,6 +16,8 @@ package me.ahoo.wow.client
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Misuse
+import me.ahoo.wow.api.decide.requireUse
 import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
@@ -47,7 +49,7 @@ internal class ManifestPeers(
 
     /** The Manifest of [context], read as [caller] asserting [call] in service mode, or kept from a read before. */
     suspend fun manifestOf(context: String, caller: Caller, call: CallWire?): Manifest {
-        require(describes(context)) {
+        requireUse(describes(context)) {
             "$context is not described by its Manifest: list it in wow.peers with contract: manifest."
         }
         return reads[context]?.takeIf { it.at.elapsedNow() < ttl }?.manifest ?: fetch(context, caller, call)
@@ -63,7 +65,7 @@ internal class ManifestPeers(
         caller: Caller,
         call: CallWire?,
     ): CommandManifest {
-        require(command.target == type.toString()) {
+        requireUse(command.target == type.toString()) {
             "The named command ${command.type} is not one of $type, the aggregate it is sent to."
         }
         val context = type.context
@@ -72,9 +74,7 @@ internal class ManifestPeers(
         // A Manifest kept from before may not know a command the peer was deployed with since: read it again once.
         return declared(manifest, command, type)
             ?: fresh?.let { declared(fetch(context, caller, call), command, type) }
-            ?: throw IllegalArgumentException(
-                "The Manifest of $context does not declare the command ${command.name} of $type."
-            )
+            ?: throw Misuse.Argument("The Manifest of $context does not declare the command ${command.name} of $type.")
     }
 
     private fun declared(manifest: Manifest, command: NamedCommand, type: AggregateType): CommandManifest? =

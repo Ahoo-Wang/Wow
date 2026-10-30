@@ -27,7 +27,11 @@ import me.ahoo.wow.manifest.StateManifest
  * A peer's contract declaring [commands] on [type], each named by its class's simple name and routed by id and
  * without one (a command that may create its aggregate), as a domain's would.
  */
-fun contractOf(type: AggregateType, vararg commands: Class<*>): List<ManifestFragment> {
+fun contractOf(
+    type: AggregateType,
+    vararg commands: Class<*>,
+    creation: Creation = Creation.ALLOWED,
+): List<ManifestFragment> {
     val aggregate = AggregateManifest(
         type.name,
         state = StateManifest(Manifest.schemaRef("${type}State")),
@@ -35,8 +39,8 @@ fun contractOf(type: AggregateType, vararg commands: Class<*>): List<ManifestFra
             CommandManifest(
                 it.simpleName,
                 schema = Manifest.schemaRef(it.name),
-                creation = Creation.ALLOWED,
-                routes = CommandRoutes.of(type.context, type.name, it.simpleName, Creation.ALLOWED),
+                creation = creation,
+                routes = CommandRoutes.of(type.context, type.name, it.simpleName, creation),
             )
         },
     )

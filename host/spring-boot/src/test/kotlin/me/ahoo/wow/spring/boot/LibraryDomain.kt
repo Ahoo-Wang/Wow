@@ -16,6 +16,8 @@ package me.ahoo.wow.spring.boot
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -52,6 +54,12 @@ const val COUNT_AS_CALLER = "count-as-caller"
 /** The account a book is lent to for which the function counts the books as trusted code, in the command's tenant. */
 const val COUNT_TRUSTED = "count-trusted"
 
+/** The account a book is lent to for which the function sends a command no aggregate of the node decides. */
+const val SEND_UNROUTED = "send-unrouted"
+
+/** A command no aggregate decides. */
+data class Unrouted(val note: String = "")
+
 data class LendBook(val account: String = "")
 
 data class BookLent(val account: String)
@@ -68,7 +76,7 @@ class Book {
  *
  * A book is lent to a bank account the borrower sees: the command function reads the account as the command's
  * caller, and rejects the command when it reads none. It takes the node's read API both as a [QueryApi] and as a
- * [NodeQueryApi], whose trusted queries no policy restricts.
+ * [NodeQueryApi], whose trusted queries no policy restricts, and the node's [CommandClient].
  */
 class LibraryModels : ModelProvider {
     override val context: String = LIBRARY
@@ -78,6 +86,7 @@ class LibraryModels : ModelProvider {
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> {
         val queries = dependencies.get(QueryApi::class.java, null, "the Book model")
         val node = dependencies.get(NodeQueryApi::class.java, null, "the Book model")
+        val commands = dependencies.get(CommandClient::class.java, null, "the Book model")
         return listOf(
             aggregate<Book>(LIBRARY, "book") {
                 initial { Book() }
@@ -94,6 +103,8 @@ class LibraryModels : ModelProvider {
                         // Trusted code reads every tenant: the function keeps to the command's itself.
                         COUNT_TRUSTED -> node.trusted().snapshots(Book::class.java)
                             .count(countQuery { filter { tenantId(command.ref.tenantId) } })
+                        // A command the node cannot route: the code's mistake.
+                        SEND_UNROUTED -> commands.of(caller).send(CommandRequest.of(Unrouted()))
                     }
                     if (accounts.state(body.account) == null) {
                         Decision.reject(NO_ACCOUNT, "No account ${body.account} to lend the book to.")

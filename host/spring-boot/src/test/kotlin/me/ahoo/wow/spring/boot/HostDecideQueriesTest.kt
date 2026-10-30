@@ -26,8 +26,9 @@ import org.springframework.core.io.DefaultResourceLoader
 import java.net.URLClassLoader
 
 /**
- * A command function that queries (review PA-6, PA-9): the model takes the node's `QueryApi` as a dependency, which the
- * host gives it although the node's read API is built from the models, and reads as the command's caller. A read the
+ * A command function that queries and sends (review PA-6, PA-9): the model takes the node's `QueryApi` and
+ * `CommandClient` as dependencies, which the host gives it although the node's APIs are built from the models, and
+ * reads as the command's caller. A read the
  * function gets wrong, or one the read side refuses, fails the command as any unexpected exception does: it is the
  * code's fault, not the caller's, so the caller is not told its command is invalid.
  *
@@ -81,6 +82,15 @@ class HostDecideQueriesTest {
         }
         // A query the read side refuses: a filter on a field the account has not.
         lend("b-4", REFUSED_ACCOUNT).also {
+            it.status.assert().isEqualTo(FAILED)
+            it.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
+        }
+    }
+
+    @Test
+    fun `a command the function sends wrongly should fail the command, not reject it as invalid`() {
+        // A command no aggregate of the node decides: the client cannot route it, the code's mistake.
+        lend("b-7", SEND_UNROUTED).also {
             it.status.assert().isEqualTo(FAILED)
             it.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         }
