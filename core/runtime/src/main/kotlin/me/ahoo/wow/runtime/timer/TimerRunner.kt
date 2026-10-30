@@ -71,7 +71,7 @@ import kotlin.time.TimeSource
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
  *   attempt, so a target that stays busy parks the timer in the end, as a subscription's backpressure does.
  *
- * A claim, a retry or a retry moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
+ * A claim, a send's retry or an operator's retry moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
  * time ([Timer.slotDueAt]), so its target never decides it before then. A recurring timer whose slot is
  * past due by more than one time of its rule when it is claimed is caught up first ([ScheduleSlots.caughtUp]): a
  * coalescing rule sends only the latest slot due, the others counted as skipped; an expired slot of a recurring rule
