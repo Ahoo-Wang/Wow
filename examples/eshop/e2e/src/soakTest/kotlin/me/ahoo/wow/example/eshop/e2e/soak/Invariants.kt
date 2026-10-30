@@ -96,8 +96,10 @@ class Invariants {
     )
     val readModelsConverge = Invariant(
         "read-models.converge",
-        "Once settled, every aggregate's snapshot is at its last logged version, and a sample of snapshots equal " +
-            "a replay of their log (the trace from version 1).",
+        "Once settled, every aggregate's snapshot is at its last logged version, Wow's built-in ones included; every " +
+            "stock's snapshot and a sample of each other type's equal a replay of their whole log (the trace from " +
+            "version 1). The replay covers the types the services' Manifests declare, the application's: a built-in " +
+            "aggregate (a context's schedule) has no trace route, and its replay is not this invariant's subject.",
     )
 
     val all: List<Invariant> = listOf(

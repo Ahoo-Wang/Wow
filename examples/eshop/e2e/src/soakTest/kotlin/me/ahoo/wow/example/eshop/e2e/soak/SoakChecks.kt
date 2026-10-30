@@ -462,11 +462,16 @@ class SoakChecks(
         }
     }
 
-    /** A sample of each type's snapshots, and every stock, compared with a replay of their log through the trace. */
+    /**
+     * A sample of each type's snapshots, and every stock, compared with a replay of their log through the trace: the
+     * types each context's Manifest declares, the application's. Wow's built-in aggregates (a context's `schedule`)
+     * are in its log and snapshots too, but the Manifest declares none of them and no trace route serves them.
+     */
     private fun checkReplays(data: Map<String, ContextData>) {
         val random = Random(config.seed)
         data.forEach { (context, contextData) ->
-            contextData.snapshots.forEach { (aggregate, snapshots) ->
+            val declared = declaredAggregates(context) ?: return@forEach
+            contextData.snapshots.filterKeys { it in declared }.forEach { (aggregate, snapshots) ->
                 val ids = snapshots.keys.sorted().let { ids ->
                     if (aggregate == "stock" || ids.size <= config.replaySample) {
                         ids
@@ -479,6 +484,26 @@ class SoakChecks(
                 ids.forEach { id -> compareReplay(context, aggregate, id, snapshots.getValue(id)) }
             }
         }
+    }
+
+    /**
+     * The aggregate types the Manifest of [context]'s service declares (`/wow/manifest`), as a node of it serves the
+     * Manifest; null, recorded as a violation, when none answers it.
+     */
+    private fun declaredAggregates(context: String): Set<String>? {
+        val answer = stack.nodes(context).firstOrNull()?.let { node ->
+            runCatching { node.service.get(MANIFEST) }.getOrNull()
+        }
+        if (answer == null || answer.status != OK) {
+            invariants.readModelsConverge.violate(
+                linkedMapOf("context" to context, "manifest" to "${answer?.status} ${answer?.body?.take(MAX_TEXT)}"),
+            )
+            return null
+        }
+        return json.readTree(answer.body)["contexts"].values()
+            .filter { it["name"].asString() == "eshop-$context" }
+            .flatMap { it["aggregates"].values().map { aggregate -> aggregate["name"].asString() } }
+            .toSet()
     }
 
     private fun compareReplay(context: String, aggregate: String, id: String, snapshot: JsonNode) {
@@ -552,6 +577,7 @@ class SoakChecks(
         private const val MAX_LISTED = 50
         private const val MAX_TEXT = 2000
         private const val TRACE_PAGE = 1000
+        private const val MANIFEST = "/wow/manifest"
         private const val OK = 200
         private val SETTLE_POLL: Duration = Duration.ofSeconds(5)
         private val SNAPSHOT_DEADLINE: Duration = Duration.ofSeconds(60)

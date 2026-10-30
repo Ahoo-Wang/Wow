@@ -128,8 +128,10 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         val port = freedPorts[context]?.poll() ?: 0
         val internalPort = freedInternalPorts[context]?.poll() ?: 0
         val calls = if (context == "basket") listOf(EshopStack.callOrdering(orderingPort)) else emptyList()
+        // The replay check reads every stock's whole log through its trace, past Wow's default bound (maxReplay).
         val arguments = backendArguments(postgres, kafka, DATABASES.getValue(context), config.partitions) +
-            "--wow.node.id=$id" + "--bench.signals.enabled=true" + calls
+            "--wow.node.id=$id" + "--bench.signals.enabled=true" +
+            "--wow.query.state.max-replay=${config.maxReplay}" + calls
         val service = EshopService.start(
             context,
             MAINS.getValue(context),
