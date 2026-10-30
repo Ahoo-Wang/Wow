@@ -28,6 +28,9 @@ typescript/wow-generator/expected/
 # The storybook walkthrough's descriptor, written byte for byte by edge/http's
 # StorybookOrdersDescriptorTest from the walkthrough's model.
 typescript/storybook/stories/view-engine/integration/ordersDescriptor.json
+# The wire names of Wow's enumerations, written byte for byte by api's
+# TypeScriptWireNamesTest and held by wow-client's wireNames.test.ts.
+typescript/wow-client/test/fixtures/wire-names.json
 # Generated from the view store's Manifest baseline, held byte for byte by
 # typescript/wow-view-store/test/generated.test.ts.
 typescript/wow-view-store/src/generated/

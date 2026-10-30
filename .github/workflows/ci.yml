@@ -260,7 +260,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
       - name: Check documentation layout
         run: node .github/scripts/docs-layout.mjs
       - name: Check documentation samples
@@ -286,7 +286,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - name: Check CI scripts
         run: pnpm test:ci-scripts
@@ -424,7 +424,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - name: Pin fetcher to the floor of the peers range
         run: node .github/scripts/fetcher-floor.mjs pin
@@ -468,7 +468,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build dependencies
@@ -500,7 +500,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # test:type checks the package against its built dependencies.
@@ -575,7 +575,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check changed-file formatting
@@ -604,7 +604,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The site's tests compile the TypeScript samples of its pages and the
@@ -677,7 +677,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build packages
@@ -698,7 +698,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The stories type-check against the packages' built declarations.
@@ -733,7 +733,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # No package build: Storybook resolves the Wow packages to their sources
@@ -787,7 +787,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Compare the screenshots
@@ -833,7 +833,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-eshop-web...
@@ -872,7 +872,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: pnpm
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-eshop-web...
@@ -907,7 +907,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: 'pnpm'
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-ops-console...
@@ -952,7 +952,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: 'pnpm'
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-ops-console...
@@ -992,7 +992,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: 'pnpm'
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-analytics-catalog-console...
@@ -1037,7 +1037,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.22.1
+          node-version: 24.22.2
           cache: 'pnpm'
       - name: Install packages
         run: pnpm install --frozen-lockfile --filter wow-analytics-catalog-console...

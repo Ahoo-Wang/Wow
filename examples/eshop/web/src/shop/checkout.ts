@@ -12,6 +12,7 @@
  */
 
 import {
+  CommandResultStatus,
   formatHop,
   type CommandResult,
   type Hop,
@@ -83,7 +84,10 @@ export interface CheckoutProgress {
   readonly results: readonly CommandResult[];
   /** The order the checkout placed, once a result names it. */
   readonly orderId?: string;
-  /** Set when a hop ended the chain without success. */
+  /**
+   * Set when a hop ended the chain without success: rejected, failed, or with
+   * a status this client does not know, which it cannot read as success.
+   */
   readonly failure?: CommandResult;
   /**
    * Set when the chain ended before its plan did (decision D212): the last
@@ -146,7 +150,8 @@ export async function checkout(
     progress = {
       results: [...results],
       orderId: progress.orderId ?? orderIdOf(value),
-      failure: value.status === "succeeded" ? undefined : value,
+      failure:
+        value.status === CommandResultStatus.SUCCEEDED ? undefined : value,
       ended: value.chainEnded ? value : undefined,
       done: false,
     };

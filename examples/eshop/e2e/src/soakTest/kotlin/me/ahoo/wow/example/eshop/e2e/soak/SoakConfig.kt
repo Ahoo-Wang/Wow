@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.e2e.soak
 
 import java.io.File
 import java.time.Duration
+import kotlin.math.ceil
 
 /**
  * How a soak runs, from the system properties `wow.soak.*` (the Gradle properties of the same names reach the test
@@ -52,6 +53,21 @@ data class SoakConfig(
     val seed: Long,
     val dir: File,
 ) {
+    /**
+     * The services' `wow.query.state.max-replay`, the most commits a state read at a version replays (Wow's default
+     * is 10,000, which a night's hottest stock passes). The replay check pages every stock's trace from version 1, and
+     * a page from version n replays the log up to n - 1 from version 1 (the snapshot is past it), so the bound must
+     * hold the hottest aggregate's whole log: a stock's, of which every order the load starts takes at most two
+     * commits (its reservation, then committed or released), after the seed's one. The clients start at most [rate]
+     * orders a second over the [duration], and one more each. Twice that, for a margin: 57,618 for an hour at the
+     * defaults.
+     */
+    val maxReplay: Int
+        get() {
+            val orders = ceil(rate * duration.toSeconds()).toLong() + clients
+            return ((orders * COMMITS_PER_ORDER + 1) * REPLAY_MARGIN).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        }
+
     fun describe(): Map<String, Any> = linkedMapOf(
         "duration" to duration.toString(),
         "clients" to clients,
@@ -63,6 +79,7 @@ data class SoakConfig(
         "quiescence" to quiescence.toString(),
         "sampleInterval" to sampleInterval.toString(),
         "replaySample" to replaySample,
+        "maxReplay" to maxReplay,
         "heap" to heap,
         "partitions" to partitions,
         "seed" to seed,
@@ -119,6 +136,8 @@ data class SoakConfig(
         private const val DEFAULT_CLIENTS = 4
         private const val DEFAULT_RATE = 4.0
         private const val DEFAULT_REPLAY_SAMPLE = 200
+        private const val COMMITS_PER_ORDER = 2L
+        private const val REPLAY_MARGIN = 2L
         private const val PARTITIONS = 4
         private val DEFAULT_NODES = mapOf("basket" to 1, "ordering" to 2, "inventory" to 2, "payment" to 1)
     }
