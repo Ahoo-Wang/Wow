@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
@@ -594,5 +595,18 @@ class SchemaIntrospectorTest {
         // The fingerprint was the shape Jackson writes all along: computed properties included.
         completed.contexts.single().aggregates.single().state.fingerprint.assert()
             .isEqualTo(StateJson.fingerprint(LedgerState::class.java))
+    }
+
+    class RoutedState(val id: String) {
+        var target: AggregateRef? = null
+        var source: AggregateRef? = null
+    }
+
+    @Test
+    fun `a getter Wow's JSON does not write should be no computed property`() {
+        val completed = introspector.complete(stateFragment(RoutedState::class.java))
+        // Wow writes a ref with a serializer of its own, its derived isAssigned left out.
+        val ref = completed.defs["${AggregateRef::class.java.name}-nullable"] as Map<*, *>
+        (ref["properties"] as Map<*, *>).keys.assert().containsExactlyInAnyOrder("id", "tenantId", "type")
     }
 }

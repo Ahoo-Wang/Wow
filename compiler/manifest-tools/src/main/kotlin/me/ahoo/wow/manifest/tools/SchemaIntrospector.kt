@@ -47,6 +47,7 @@ import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.json.WowEnums
 import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
+import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 import tools.jackson.databind.json.JsonMapper
@@ -55,6 +56,7 @@ import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.KotlinModule
 import java.lang.reflect.Modifier
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KType
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.kotlinProperty
@@ -337,10 +339,14 @@ internal class SchemaIntrospector(
             builder.forMethods().withIgnoreCheck { computed(it) == null }
         }
 
+        /** The names of the properties Wow's JSON writes of each class ([StateJson.mapper]), by class. */
+        private val written = ConcurrentHashMap<Class<*>, Set<String>>()
+
         /**
          * The property Jackson writes by [method], a getter with no field behind it: a computed property, such as a
          * Kotlin `val total: Int get() = ...`, which a snapshot of the state holds. Null for any other method: a
-         * function, a getter Jackson ignores (`@get:JsonIgnore`), the getter of a field.
+         * function, a getter Jackson ignores (`@get:JsonIgnore`), the getter of a field, and a getter Wow's JSON
+         * does not write, of a class it writes with a serializer of its own (an `AggregateRef`'s `isAssigned`).
          */
         fun computed(method: MethodScope): BeanPropertyDefinition? {
             if (method.isFakeContainerItemScope || method.argumentCount != 0 || method.isStatic) return null
@@ -350,7 +356,29 @@ internal class SchemaIntrospector(
             val backed = generateSequence(declaring) { it.superclass }.any { type ->
                 type.declaredFields.any { it.name == property.internalName && !Modifier.isStatic(it.modifiers) }
             }
-            return property.takeIf { it.couldSerialize() && !backed }
+            val writes = property.name in written.computeIfAbsent(declaring, ::writtenNames)
+            return property.takeIf { it.couldSerialize() && !backed && writes }
+        }
+
+        /** The names of the properties Wow's JSON writes of [type]: none when it does not write it as an object. */
+        private fun writtenNames(type: Class<*>): Set<String> {
+            val names = linkedSetOf<String>()
+            StateJson.mapper.acceptJsonFormatVisitor(
+                type,
+                object : JsonFormatVisitorWrapper.Base() {
+                    override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor =
+                        object : JsonObjectFormatVisitor.Base(context) {
+                            override fun property(prop: BeanProperty) {
+                                names += prop.name
+                            }
+
+                            override fun optionalProperty(prop: BeanProperty) {
+                                names += prop.name
+                            }
+                        }
+                },
+            )
+            return names
         }
 
         override fun getPropertyNameOverrideBasedOnJsonPropertyAnnotation(member: MemberScope<*, *>): String? {
