@@ -70,6 +70,12 @@ export interface SaveAbilities {
    * `editSystem` (D81), whose silence is a refusal.
    */
   createSystem: boolean;
+  /**
+   * The views are kept in this browser alone (`ViewStore.local`): a copy is
+   * saved without asking who it is for, and a saved view has no address
+   * that opens it elsewhere.
+   */
+  local?: boolean;
 }
 
 export interface SaveCommandState {
@@ -413,10 +419,17 @@ export function useSaveCommands(
     rename,
     changeAudience,
     // Only where there is a board to put it on: an engine with a dashboard
-    // definition, and a view that is not a board itself.
+    // definition whose boards this reader makes, and a view that is not a
+    // board itself. A host whose only board is a system one (an overview
+    // it ships) offers nothing: the dialog could only say there is none.
     ...(instanceId &&
     runtime?.kind !== 'dashboard' &&
-    [...engine.definitions.values()].some(one => one.kind === 'dashboard')
+    [...engine.definitions.values()].some(
+      one =>
+        one.kind === 'dashboard' &&
+        (engine.permissions(one.id).createPersonal ||
+          engine.permissions(one.id).createShared),
+    )
       ? { boards, addToDashboard }
       : {}),
     delete: remove,
@@ -438,6 +451,7 @@ export function useSaveCommands(
       createPersonal,
       createShared,
       createSystem,
+      ...(permissions?.local === true ? { local: true } : {}),
     },
     state: {
       pending: own.pending,

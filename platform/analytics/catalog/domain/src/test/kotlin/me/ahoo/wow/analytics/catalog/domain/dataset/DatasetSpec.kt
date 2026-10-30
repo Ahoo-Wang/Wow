@@ -37,6 +37,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication
 import me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset
 import me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset
 import me.ahoo.wow.analytics.catalog.api.dataset.RollbackDataset
+import me.ahoo.wow.analytics.catalog.api.source.SourceApproved
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
 import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
@@ -351,6 +352,73 @@ class DatasetSpec {
                 expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
             }
         }
+
+    @Test
+    fun `a revision should say what is wrong with the revised definition, not with the one it replaced`() = spec {
+        drafted()
+        givenCommands(PublishDataset)
+        catalog[REGIONS_ID] = null
+        givenCommands(RecompileDataset)
+        // Revised to read the orders alone: nothing is wrong with it any more, and a publication serves it.
+        val fewer = DEFINITION.copy(
+            sources = DEFINITION.sources.take(1),
+            joins = emptyList(),
+            columns = DEFINITION.columns.take(2),
+            identity = null,
+            eventTime = null
+        )
+        whenCommand(ReviseDataset(fewer)) {
+            expectEvents(DatasetRevised(fewer, listOf(ORDERS_ID)), DatasetNeedsRevision(emptyList(), serving = true))
+            expectState {
+                status.assert().isEqualTo(DatasetStatus.NEEDS_REVISION)
+                problems.assert().isEmpty()
+            }
+        }
+        whenCommand(PublishDataset) {
+            expectEventTypes(DatasetPublished::class)
+            expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
+        }
+    }
+
+    @Test
+    fun `a revision that still does not compile should say what is wrong with it, and nothing new when that is the same`() {
+        policy = policy.copy(approveSources = true)
+        val columns = listOf(SourceColumn("tenant", "String"), SourceColumn("member_id", "String"))
+        fun orders(vararg more: SourceColumn, approved: Boolean) =
+            DatasetFixtures.analyst("orders", columns + more, tenant = "tenant").apply {
+                if (approved) onSourcing(SourceApproved)
+            }
+        catalog[ORDERS_ID] = orders(SourceColumn("phone", "String"), approved = true)
+        val phones = DEFINITION.copy(
+            sources = DEFINITION.sources.take(1),
+            joins = emptyList(),
+            columns = DEFINITION.columns.take(2),
+            filters = emptyList(),
+            identity = null,
+            eventTime = null
+        )
+        spec {
+            givenCommands(DraftDataset("shop", "orders", phones), PublishDataset)
+            // The phone column is gone: the published version needs revision.
+            catalog[ORDERS_ID] = orders(approved = true)
+            givenCommands(RecompileDataset)
+            // Revised to read what is there, from a source no longer approved: it binds, and does not compile.
+            catalog[ORDERS_ID] = orders(approved = false)
+            val members = phones.copy(columns = phones.columns.take(1))
+            whenCommand(ReviseDataset(members)) {
+                expectEventTypes(DatasetRevised::class, DatasetNeedsRevision::class)
+                expectState {
+                    status.assert().isEqualTo(DatasetStatus.NEEDS_REVISION)
+                    problems.single().assert().contains("awaits an approver")
+                }
+            }
+            // Only the title revised: what is wrong is what it was, and is not said again.
+            whenCommand(ReviseDataset(members, title = "Members")) {
+                expectEventTypes(DatasetRevised::class)
+                expectState { problems.single().assert().contains("awaits an approver") }
+            }
+        }
+    }
 
     @Test
     fun `a recompilation into other columns, or one the warehouse cannot describe or create, should need revision`() =

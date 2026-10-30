@@ -499,6 +499,7 @@ export function RecordParts({
           // cards stand in lanes, which no one order reads.
           {...(table.layout === 'kanban' ? {} : { rows: table.rows })}
           actions={surface.detail}
+          status={surface.detailStatus}
           sections={bindSections(
             detailOptions?.sections,
             detail,

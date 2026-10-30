@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import { CONNECTION, DATABASE, putTable, views } from "./warehouse.ts";
 import { DevelopmentCallerHeaders } from "@ahoo-wang/wow-client";
 
@@ -54,6 +59,33 @@ async function act(page: Page, name: string) {
   await dialog.getByRole("button", { name, exact: true }).click();
 }
 
+/** Confirms the action `name` the record's 「⋯」 menu offers, in its dialog. */
+async function actFromMenu(page: Page, record: string, name: string) {
+  await page.getByRole("button", { name: `Actions for ${record}` }).click();
+  await page.getByRole("menuitem", { name, exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name, exact: true })
+    .click();
+}
+
+/** The state of the dataset `id`, as the catalog has it. */
+async function datasetState(
+  request: APIRequestContext,
+  id: string,
+): Promise<{ status: string; current: number; requestReasons: string[] }> {
+  const state = await request.get(
+    `/analytics-catalog/dataset/${encodeURIComponent(id)}/state`,
+    {
+      headers: {
+        [DevelopmentCallerHeaders.USER]: EDITOR.user,
+        [DevelopmentCallerHeaders.ROLES]: EDITOR.roles[0],
+      },
+    },
+  );
+  return ((await state.json()) as { state: never }).state;
+}
+
 let table: string;
 let source: string;
 let dataset: string;
@@ -83,6 +115,16 @@ test("the catalog server serves the console, which asks for a caller first", asy
     page.getByRole("button", { name: "All system", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /Caller: eve/ })).toBeVisible();
+  // The page says its language and its name.
+  await expect(page).toHaveTitle("Wow Analytics Catalog");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  // Without an approver for a source (the default), none awaits one.
+  await expect(
+    page.getByRole("button", { name: "To review system", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Awaiting approval system" }),
+  ).toHaveCount(0);
 });
 
 test("an analyst drafts a source, declares its scope and reviews its columns", async ({
@@ -90,13 +132,20 @@ test("an analyst drafts a source, declares its scope and reviews its columns", a
 }) => {
   await open(page, EDITOR, "/#/draft");
   const form = page.getByRole("form", { name: "Draft a source" });
-  await form.getByLabel("Connection").fill(CONNECTION);
+  // The catalog's own connection, read from its settings: the first draft
+  // is not refused for another one.
+  await expect(form.getByLabel("Connection")).toHaveValue(CONNECTION);
   await form.getByLabel("Database").fill(DATABASE);
   await form.getByLabel("Table").fill(table);
   await form.getByRole("button", { name: "Draft" }).click();
   await expect(form.getByText(`Drafted ${source}.`)).toBeVisible();
+  // Said once, with the way to it.
+  await expect(form.getByText("Saved.")).toHaveCount(0);
+  await form.getByRole("link", { name: "Open it" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`#/sources\\?id=${encodeURIComponent(source)}`),
+  );
 
-  await page.goto(`/#/sources?id=${encodeURIComponent(source)}`);
   const scope = page.getByRole("form", { name: "Scope" });
   await scope.getByRole("combobox", { name: "Tenant column" }).fill("tenant");
   await scope.getByRole("button", { name: "Save" }).click();
@@ -133,7 +182,7 @@ test("an analyst drafts a dataset over it and publishes it", async ({
   const [context, name] = dataset.split(".");
   await form.getByLabel("Context", { exact: true }).fill(context);
   await form.getByLabel("Name", { exact: true }).fill(name);
-  await form.getByRole("textbox", { name: /^Definition/ }).fill(
+  await form.getByRole("textbox", { name: "Definition", exact: true }).fill(
     JSON.stringify({
       subject: "o",
       sources: [{ alias: "o", sourceId: source }],
@@ -145,22 +194,118 @@ test("an analyst drafts a dataset over it and publishes it", async ({
   );
   await form.getByRole("button", { name: "Draft" }).click();
   await expect(form.getByText(`Drafted ${dataset}.`)).toBeVisible();
+  await form.getByRole("link", { name: "Open it" }).click();
 
-  await page.goto(`/#/datasets?id=${encodeURIComponent(dataset)}`);
   await act(page, "Publish");
   await expect
     .poll(() => views(request))
     .toContain(`wow_datasets.ds_${context}_${name}_v1`);
   await expect(page.getByText("PUBLISHED").first()).toBeVisible();
+  // Nothing awaited an approver here; the words cannot know ahead.
+  await expect(
+    page
+      .getByText(/published, or awaiting an approver if it needs one/)
+      .first(),
+  ).toBeVisible();
 });
 
-test("a viewer reads the catalog, and the service's refusal is said", async ({
+test("a publication computing from a sensitive value awaits an approver, and the approver finds it", async ({
+  page,
+  request,
+}) => {
+  const [context, name] = dataset.split(".");
+  await open(page, EDITOR, `/#/datasets?id=${encodeURIComponent(dataset)}`);
+  const definition = page.getByRole("form", { name: "Definition" });
+  await definition.getByRole("textbox", { name: "Definition" }).fill(
+    JSON.stringify({
+      subject: "o",
+      sources: [{ alias: "o", sourceId: source }],
+      columns: [
+        { name: "buyer", from: "o.buyer" },
+        { name: "total", from: "o.total" },
+        {
+          name: "buyer_hint",
+          expression: "concat(substring(o.buyer, 1, 1), '***')",
+        },
+      ],
+    }),
+  );
+  await definition.getByRole("button", { name: "Save" }).click();
+  await expect(definition.getByText("Saved.")).toBeVisible();
+  await act(page, "Publish");
+  await expect
+    .poll(async () => (await datasetState(request, dataset)).requestReasons)
+    .not.toEqual([]);
+  // An editor may not decide it: offered disabled, with why.
+  await page.getByRole("button", { name: `Actions for ${dataset}` }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "Approve publication", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("Takes the role analytics.catalog.approver.").first(),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // The approver, in a page of its own: a hash link to the same page would
+  // not load it again as another caller.
+  const approver = await page.context().newPage();
+  await open(
+    approver,
+    APPROVER,
+    `/#/datasets?view=${encodeURIComponent("system:analytics-catalog-datasets:awaiting-approval")}`,
+  );
+  const list = approver.getByRole("table", { name: "Awaiting approval" });
+  await expect(list.getByText(dataset)).toBeVisible();
+  await approver.goto(`/#/datasets?id=${encodeURIComponent(dataset)}`);
+  await actFromMenu(approver, dataset, "Approve publication");
+  await expect
+    .poll(() => views(request))
+    .toContain(`wow_datasets.ds_${context}_${name}_v2`);
+  await expect
+    .poll(async () => (await datasetState(request, dataset)).current)
+    .toBe(2);
+});
+
+test("an analyst rolls back to a version the detail lists, the serving one first", async ({
+  page,
+  request,
+}) => {
+  await open(page, EDITOR, `/#/datasets?id=${encodeURIComponent(dataset)}`);
+  const versions = page.getByRole("region", { name: "Versions" });
+  await expect(versions.locator("summary").first()).toContainText("v2");
+  await expect(versions.locator("summary").first()).toContainText("Serving");
+  await versions.getByRole("button", { name: "Roll back to v1" }).click();
+  const asked = versions.getByRole("form", { name: "Roll back to v1" });
+  await asked.getByRole("button", { name: "Roll back" }).click();
+  await expect(versions.getByText("Switched back to v1.")).toBeVisible();
+  await expect
+    .poll(async () => (await datasetState(request, dataset)).current)
+    .toBe(1);
+  await expect(versions.locator("summary").first()).toContainText("v1");
+  await expect(versions.locator("summary").first()).toContainText("Serving");
+});
+
+test("a viewer reads the catalog, and is offered no change it may not make", async ({
   page,
 }) => {
   await open(page, VIEWER, `/#/datasets?id=${encodeURIComponent(dataset)}`);
-  await expect(page.getByText(/This caller has neither/)).toBeVisible();
-  await act(page, "Publish");
-  await expect(
-    page.getByRole("alert").filter({ hasText: "(wow.auth.forbidden)" }),
-  ).toBeVisible();
+  await expect(page.getByText(/This caller only reads the catalog/)).toBeVisible();
+  const publish = page
+    .getByRole("button", { name: "Publish", exact: true })
+    .first();
+  await expect(publish).toHaveAttribute("aria-disabled", "true");
+  await expect(publish).toHaveAccessibleDescription(
+    "Takes the role analytics.catalog.editor or analytics.catalog.admin.",
+  );
+});
+
+test("a node without a dataset backend says it serves no datasets", async ({
+  page,
+}) => {
+  // The suite's server runs on its memory backend, which has none.
+  await open(page, EDITOR, "/#/rows");
+  await expect(page.getByTestId("not-served")).toContainText(
+    "This node serves no datasets",
+  );
+  await expect(page.getByText(/No static resource/)).toHaveCount(0);
 });

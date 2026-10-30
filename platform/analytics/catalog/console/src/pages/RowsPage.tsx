@@ -14,8 +14,12 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 import { DatasetWorkbench } from "@ahoo-wang/wow-view-engine/ui";
+import { Info } from "lucide-react";
 import { CallerGate } from "@/app/CallerGate.tsx";
 import { useServed } from "@/app/served.tsx";
+import { useServing } from "@/app/services.tsx";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useI18n } from "@/i18n.tsx";
 import { callerKey } from "@/services/caller.ts";
 import { DATASET_PARAM, VIEW_PARAM } from "@/views/bindings.ts";
 
@@ -24,10 +28,13 @@ import { DATASET_PARAM, VIEW_PARAM } from "@/views/bindings.ts";
  * node's query policies (D251), in the view engine's standalone dataset view
  * (`DatasetWorkbench`, D238 ⑨). The dataset and the view open are in the
  * address (`?dataset=`, `?view=`); a row offers the commands of the
- * aggregates it refers to (`referenceActions`).
+ * aggregates it refers to (`referenceActions`). A node that serves no
+ * datasets — no dataset query backend — is said to, plainly.
  */
 export default function RowsPage() {
+  const { t } = useI18n();
   const served = useServed();
+  const serving = useServing();
   const [params, setParams] = useSearchParams();
   const onDatasetChange = useCallback(
     (dataset: string) => setParams({ [DATASET_PARAM]: dataset }),
@@ -45,21 +52,30 @@ export default function RowsPage() {
   );
   return (
     <CallerGate>
-      {(caller) => (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <DatasetWorkbench
-            // Another caller reads other rows: the workbench starts over.
-            key={callerKey(caller)}
-            // It says while they are read, and why a read failed.
-            datasets={served}
-            datasetId={params.get(DATASET_PARAM)}
-            onDatasetChange={onDatasetChange}
-            instanceId={params.get(VIEW_PARAM)}
-            onInstanceChange={onInstanceChange}
-            landmark="region"
-          />
-        </div>
-      )}
+      {(caller) =>
+        serving === false ? (
+          <div className="p-6">
+            <Alert className="max-w-2xl" data-testid="not-served">
+              <Info />
+              <AlertDescription>{t("notServedHere")}</AlertDescription>
+            </Alert>
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <DatasetWorkbench
+              // Another caller reads other rows: the workbench starts over.
+              key={callerKey(caller)}
+              // It says while they are read, and why a read failed.
+              datasets={served}
+              datasetId={params.get(DATASET_PARAM)}
+              onDatasetChange={onDatasetChange}
+              instanceId={params.get(VIEW_PARAM)}
+              onInstanceChange={onInstanceChange}
+              landmark="region"
+            />
+          </div>
+        )
+      }
     </CallerGate>
   );
 }

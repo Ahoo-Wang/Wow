@@ -186,6 +186,16 @@ class InProcessQueryApiTest {
         state = WowJson.mapper.createObjectNode().put("items", 7),
     )
 
+    /**
+     * A read the code gets wrong: an [IllegalArgumentException], as the read API documents, but never the exact class,
+     * which a decide function's `require` throws and its command is rejected as invalid for (decision D314): a decide
+     * function that makes it fails its command instead (review PA-9).
+     */
+    private inline fun misuse(read: () -> Unit) {
+        assertThrows<IllegalArgumentException> { read() }.javaClass.assert()
+            .isNotEqualTo(IllegalArgumentException::class.java)
+    }
+
     @Test
     fun `a caller should read the typed snapshots of its own tenant and owner`(): Unit = runBlocking {
         save("acme", "c-1", "alice", items = 2)
@@ -310,7 +320,13 @@ class InProcessQueryApiTest {
             AggregateIdFilter("c-1"),
             projection = Projection(include = listOf(QueryField("aggregateId")))
         )
-        assertThrows<IllegalArgumentException> { carts.single(projected) }
+        misuse { carts.single(projected) }
+        // A projection that only leaves fields out is refused too.
+        val excluded = SingleQuery(
+            AggregateIdFilter("c-1"),
+            projection = Projection(exclude = listOf(QueryField("state"))),
+        )
+        misuse { carts.single(excluded) }
         val tree = carts.dynamic<ObjectNode>().single(projected)!!
         tree["aggregateId"].asString().assert().isEqualTo("c-1")
         tree.has("state").assert().isFalse()
@@ -344,7 +360,7 @@ class InProcessQueryApiTest {
         carts.state("b").assert().isNull()
         carts.state("missing").assert().isNull()
         carts.state(cart.ref("other", "a")).assert().isNull()
-        assertThrows<IllegalArgumentException> { carts.state(order.ref("acme", "a")) }
+        misuse { carts.state(order.ref("acme", "a")) }
         api.trusted().snapshots<CartState>().state(cart.ref("other", "b"))!!.scope.assert().isEqualTo(Scope("bob"))
     }
 
@@ -365,7 +381,7 @@ class InProcessQueryApiTest {
             carts.state("b", 4).assert().isNull()
             carts.state("missing", 1).assert().isNull()
             carts.state(cart.ref("acme", "a"), 3)!!.state.assert().isEqualTo(CartState(7))
-            assertThrows<IllegalArgumentException> { carts.state("a", 0) }
+            misuse { carts.state("a", 0) }
             MinVersionNotReachedException.CODE.assert().isEqualTo(QueryErrors.MIN_VERSION_NOT_REACHED)
         }
 
@@ -430,10 +446,10 @@ class InProcessQueryApiTest {
     @Test
     fun `a model the node does not serve should be refused when it is asked for`() {
         val api = api()
-        assertThrows<IllegalArgumentException> { api.of(alice).snapshots(order) }
-        assertThrows<IllegalArgumentException> { api.of(alice).events(order) }
-        assertThrows<IllegalArgumentException> { api.of(alice).snapshots<ItemAdded>() }
-        assertThrows<IllegalArgumentException> { api.of(alice).datasets<ObjectNode>(DatasetName.of("shop", "sales")) }
+        misuse { api.of(alice).snapshots(order) }
+        misuse { api.of(alice).events(order) }
+        misuse { api.of(alice).snapshots<ItemAdded>() }
+        misuse { api.of(alice).datasets<ObjectNode>(DatasetName.of("shop", "sales")) }
     }
 
     @Test
@@ -449,7 +465,7 @@ class InProcessQueryApiTest {
         val models = ReadModels(
             listOf(ReadModels.Model(cart, CartState::class.java), ReadModels.Model(order, CartState::class.java)),
         )
-        assertThrows<IllegalArgumentException> { models.typeOf(CartState::class.java) }
+        misuse { models.typeOf(CartState::class.java) }
         models.stateTypeOf(order).assert().isEqualTo(CartState::class.java)
         models.eventTypeOf(order, "x").assert().isNull()
         ReadModels.NONE.stateTypeOf(cart).assert().isNull()

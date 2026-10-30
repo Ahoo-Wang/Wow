@@ -15,7 +15,7 @@ import { WowProblemError } from "@ahoo-wang/wow-client";
 import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
 import { actionHarness } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";
-import { parkedActions, retrySpecOf } from "./parkedActions.ts";
+import { isDuration, parkedActions, retrySpecOf } from "./parkedActions.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
 
 function row(key: string, status: string, recoverable = "unknown"): RecordRow {
@@ -171,8 +171,35 @@ describe("the retry spec of the form", () => {
       maxRetries: 7,
       claimTtl: "PT3M",
     });
-    expect(retrySpecOf({ maxRetries: Number.NaN, initialBackoff: "  " })).toEqual(
-      {},
-    );
+    expect(
+      retrySpecOf({ maxRetries: Number.NaN, initialBackoff: "  " }),
+    ).toEqual({});
+  });
+});
+
+describe("what the console checks before the service would refuse it", () => {
+  it("reads a duration as the service does: ISO-8601 or Kotlin's, never negative", () => {
+    for (const taken of ["PT3M", "P1DT2H", "3m", "1h 30m", "1.5s", "500ms"])
+      expect(isDuration(taken)).toBe(true);
+    for (const refused of ["soon", "-1m", "PT", "P", "INFINITE", "3 m"])
+      expect(isDuration(refused)).toBe(false);
+  });
+
+  it("refuses a negative or fractional retry count and an unreadable duration, in the form", () => {
+    const apply = parkedActions(commands()).find(
+      (action) => action.id === "applyRetrySpec",
+    )!;
+    const { maxRetries, initialBackoff, claimTtl } = apply.form!;
+    expect(maxRetries.check!(-1)).toBe(text("parkedActions.wholeNumber"));
+    expect(maxRetries.check!(1.5)).toBe(text("parkedActions.wholeNumber"));
+    expect(maxRetries.check!("3")).toBe(true);
+    expect(initialBackoff.check!("abc")).toBe(text("parkedActions.duration"));
+    expect(initialBackoff.check!("2m")).toBe(true);
+    expect(claimTtl.check!("PT5M")).toBe(true);
+  });
+
+  it("says an action was sent to the owning service, not done: the service runs it", () => {
+    for (const action of parkedActions(commands()))
+      expect(action.done).toBe(text("parkedActions.sent"));
   });
 });

@@ -3,7 +3,7 @@
 import type { RequestOptions, WowClientOptions } from '@ahoo-wang/wow-client';
 import { ServiceRoutes } from '@ahoo-wang/wow-client/routes';
 import { AnalyticsCatalogManifest } from './manifest.js';
-import type { CommandResult, ReferenceActions } from './types.js';
+import type { CatalogSettings, CommandResult, ReferenceActions } from './types.js';
 
 /** The service routes of `analytics-catalog`: routes whose handler is the service's own code, each called by its Manifest's name. */
 export class AnalyticsCatalogRoutes {
@@ -29,5 +29,13 @@ export class AnalyticsCatalogRoutes {
    */
   sendReferenceAction(dataset: string, field: string, id: string, command: string, body: Record<string, unknown>, options?: RequestOptions): Promise<CommandResult> {
     return this.routes.call('analytics-catalog', 'sendReferenceAction', { path: { dataset, field, id, command }, body }, options) as Promise<CommandResult>;
+  }
+
+  /**
+   * The catalog's settings, as any caller of it reads them.
+   * `GET /analytics-catalog/settings`
+   */
+  settings(options?: RequestOptions): Promise<CatalogSettings> {
+    return this.routes.call('analytics-catalog', 'settings', {}, options) as Promise<CatalogSettings>;
   }
 }

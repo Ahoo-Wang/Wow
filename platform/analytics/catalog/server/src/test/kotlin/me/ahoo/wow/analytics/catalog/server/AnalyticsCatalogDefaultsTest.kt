@@ -29,6 +29,21 @@ class AnalyticsCatalogDefaultsTest {
     }
 
     @Test
+    fun `a console should read the settings it offers by, the connection, the approvals required and who decides`() {
+        startCatalog(
+            "wow.analytics.catalog.watch.enabled" to false,
+            "wow.analytics.catalog.require-source-approval" to true,
+        ).use { node ->
+            val settings = node.get("/analytics-catalog/settings", Who.ADMIN).assertOk().json
+            settings["connection"].asString().assert().isEqualTo(WarehouseCatalog.NONE.connection)
+            settings["requireSourceApproval"].asBoolean().assert().isTrue()
+            settings["requirePublicationApproval"].asBoolean().assert().isFalse()
+            // Without CoSec deciding, the catalog's roles do: a console can tell a caller what its roles rule out.
+            settings["rolesDecide"].asBoolean().assert().isTrue()
+        }
+    }
+
+    @Test
     @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `behind the gateway no request should be served on its headers' word`() {
         startCatalog("wow.analytics.catalog.watch.enabled" to false, profiles = listOf("cosec")).use { node ->

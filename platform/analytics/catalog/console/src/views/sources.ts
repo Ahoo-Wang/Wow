@@ -47,6 +47,7 @@ export const SOURCE_WORDS = {
     missing: "Table gone",
     platform: "Platform dimension",
     approved: "Approved",
+    pending: "Lower protection pending",
     tenantColumn: "Tenant column",
     ownerColumn: "Owner column",
     spaceColumn: "Space column",
@@ -79,6 +80,7 @@ export const SOURCE_WORDS = {
     missing: "表已不在",
     platform: "平台维度",
     approved: "已审批",
+    pending: "待审批的降低保护",
     tenantColumn: "租户列",
     ownerColumn: "所有者列",
     spaceColumn: "空间列",
@@ -108,6 +110,13 @@ const COLUMNS = [
   "state.missing",
 ];
 
+/**
+ * How often a list of sources or datasets is read again, in seconds: the
+ * catalog streams no changes of its snapshots, and a source changes on its
+ * own when the warehouse does, a dataset when another data owner acts on it.
+ */
+export const REFRESH_SECONDS = 15;
+
 /** A record view of the sources `filter` keeps, by database and table. */
 export function sourcesView(
   filter: FilterNode[],
@@ -117,7 +126,7 @@ export function sourcesView(
     kind: "record",
     filter: { op: "and", children: filter },
     filterMode: "simple",
-    refresh: { interval: null },
+    refresh: { interval: REFRESH_SECONDS },
     sort: [
       { field: "state.database", direction: "asc" },
       { field: "state.table", direction: "asc" },
@@ -140,8 +149,21 @@ const eq = (field: string, value: string | boolean): FilterNode => ({
   value,
 });
 
-/** The system views: the sources a data owner works through. */
-export function sourceViews(): SystemView[] {
+/**
+ * The sources an approver has to approve before datasets read them: reviewed
+ * (a draft awaits its review first) and not approved yet.
+ */
+export const AWAITING_APPROVAL: FilterNode[] = [
+  { field: "state.status", operator: "in", value: ["REVIEWED", "ADOPTED"] },
+  eq("state.approved", false),
+];
+
+/**
+ * The system views: the sources a data owner works through. _Awaiting
+ * approval_ only where the catalog takes an approver for a source
+ * (`requireSourceApproval`): elsewhere none awaits one.
+ */
+export function sourceViews({ approval = true } = {}): SystemView[] {
   return [
     { id: "all", title: t.viewAll, config: sourcesView([]) },
     {
@@ -149,11 +171,15 @@ export function sourceViews(): SystemView[] {
       title: t.viewDrafts,
       config: sourcesView([eq("state.status", "DRAFT")]),
     },
-    {
-      id: "unapproved",
-      title: t.viewUnapproved,
-      config: sourcesView([eq("state.approved", false)]),
-    },
+    ...(approval
+      ? [
+          {
+            id: "unapproved",
+            title: t.viewUnapproved,
+            config: sourcesView(AWAITING_APPROVAL),
+          },
+        ]
+      : []),
     {
       id: "wow",
       title: t.viewWow,
@@ -260,6 +286,7 @@ export const sources: DataViewDefinition = {
     yesNo("state.missing", t.missing),
     yesNo("state.platform", t.platform),
     yesNo("state.approved", t.approved),
+    { name: "state.pending", label: t.pending, kind: "array" },
     string("state.tenantColumn", t.tenantColumn),
     string("state.ownerColumn", t.ownerColumn),
     string("state.spaceColumn", t.spaceColumn),
@@ -277,6 +304,7 @@ export const sources: DataViewDefinition = {
       "state.status",
       "state.missing",
       "state.approved",
+      "state.pending",
       "state.platform",
       "state.tenantColumn",
       "state.ownerColumn",
@@ -294,3 +322,16 @@ export const sources: DataViewDefinition = {
   },
   views: sourceViews(),
 };
+
+/**
+ * The sources as the catalog `settings` has them: without an approver for a
+ * source, no view of the sources awaiting one.
+ */
+export function sourcesOf(settings: {
+  requireSourceApproval: boolean;
+}): DataViewDefinition {
+  return {
+    ...sources,
+    views: sourceViews({ approval: settings.requireSourceApproval }),
+  };
+}

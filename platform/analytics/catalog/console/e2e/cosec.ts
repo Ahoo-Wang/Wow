@@ -34,6 +34,7 @@ export function accessToken(
   sub: string,
   roles: string[],
   validFor: number = 3600,
+  secret: string = COSEC_SECRET,
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const unsigned = `${part({ alg: "HS256", typ: "JWT" })}.${part({
@@ -44,7 +45,7 @@ export function accessToken(
     iat: now,
     exp: now + validFor,
   })}`;
-  const signature = createHmac("sha256", COSEC_SECRET)
+  const signature = createHmac("sha256", secret)
     .update(unsigned)
     .digest("base64url");
   return `${unsigned}.${signature}`;

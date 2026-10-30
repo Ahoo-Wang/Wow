@@ -11,8 +11,48 @@
  * limitations under the License.
  */
 
-import type { ActionInput, RecordRow } from "@ahoo-wang/wow-view-engine";
+import type {
+  ActionInput,
+  Availability,
+  RecordRow,
+} from "@ahoo-wang/wow-view-engine";
 import { problemText } from "./catalogCommands.ts";
+
+/**
+ * The roles of the caller in force where the catalog's roles decide who
+ * sends what (`CatalogSettings.rolesDecide`), else `null`: CoSec's policies
+ * decide, or the settings are not read, and the service alone says who may.
+ */
+export type CallerRoles = () => readonly string[] | null;
+
+/** Nobody's roles: the service alone says who may. */
+export const UNKNOWN_ROLES: CallerRoles = () => null;
+
+/**
+ * `true` where the caller holds one of `any`, or the console cannot tell;
+ * else `reason`, so the action is offered disabled with why rather than
+ * refused once confirmed (`wow.auth.forbidden`).
+ */
+export function holds(
+  roles: CallerRoles,
+  any: readonly string[],
+  reason: string,
+): Availability {
+  const held = roles();
+  if (held === null) return true;
+  return any.some((role) => held.includes(role)) ? true : reason;
+}
+
+/** The first rule that refuses, else `true`. */
+export function firstRefusal(
+  ...rules: readonly (() => Availability)[]
+): Availability {
+  for (const rule of rules) {
+    const able = rule();
+    if (able !== true) return able;
+  }
+  return true;
+}
 
 /** The record's aggregate id: every view of the catalog keys its rows by it. */
 export function idOf(row: RecordRow): string {

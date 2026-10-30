@@ -199,6 +199,69 @@ describe("a dataset's detail", () => {
     ).toBeVisible();
   });
 
+  it("lists the serving version first, and switches back to another", async () => {
+    const { commands } = renderConsole(EDITOR, {
+      path: open("datasets", DATASET_ROWS[2].aggregateId),
+    });
+    const versions = await screen.findByRole("region", { name: "Versions" });
+    const listed = Array.from(versions.querySelectorAll("summary"));
+    expect(listed.map((summary) => summary.textContent)).toEqual([
+      expect.stringMatching(/^v2 .*Serving$/),
+      expect.stringMatching(/^v1 /),
+    ]);
+    // Only the other one offers the way back to it.
+    expect(
+      within(versions).getAllByRole("button", { name: /Roll back to/ }),
+    ).toHaveLength(1);
+    await userEvent.click(
+      within(versions).getByRole("button", { name: "Roll back to v1" }),
+    );
+    const asked = within(versions).getByRole("form", {
+      name: "Roll back to v1",
+    });
+    expect(asked).toHaveTextContent("Queries will read v1 again");
+    await userEvent.click(
+      within(asked).getByRole("button", { name: "Roll back" }),
+    );
+    await waitFor(() =>
+      expect(commands.rollback).toHaveBeenCalledWith(
+        DATASET_ROWS[2].aggregateId,
+        1,
+      ),
+    );
+    expect(
+      await within(versions).findByText("Switched back to v1."),
+    ).toBeVisible();
+  });
+
+  it("offers no way back to a caller whose roles rule it out", async () => {
+    renderConsole(
+      { ...EDITOR, roles: ["analytics.catalog.viewer"] },
+      { path: open("datasets", DATASET_ROWS[2].aggregateId) },
+    );
+    const versions = await screen.findByRole("region", { name: "Versions" });
+    expect(
+      within(versions).queryByRole("button", { name: /Roll back to/ }),
+    ).toBeNull();
+  });
+
+  it("says whether it still serves only while it needs revision", async () => {
+    renderConsole(EDITOR, {
+      path: open("datasets", DATASET_ROWS[0].aggregateId),
+    });
+    expect(
+      await screen.findByText("Serving while it needs revision"),
+    ).toBeVisible();
+  });
+
+  it("says nothing of serving while revised of a dataset that needs none", async () => {
+    renderConsole(EDITOR, {
+      path: open("datasets", DATASET_ROWS[2].aggregateId),
+    });
+    await screen.findByRole("region", { name: "Versions" });
+    expect(screen.queryByText("Serving while it needs revision")).toBeNull();
+  });
+
   it("says what awaits an approver", async () => {
     renderConsole(EDITOR, {
       path: open("datasets", DATASET_ROWS[1].aggregateId),

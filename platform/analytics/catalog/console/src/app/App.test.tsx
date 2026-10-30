@@ -16,10 +16,14 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { accessToken } from "@/services/testing.ts";
+import { DATASETS } from "@/views/datasets.ts";
+import { SOURCES } from "@/views/sources.ts";
 import {
+  APPROVER,
   DATASET_ROWS,
   EDITOR,
   renderConsole,
+  SETTINGS,
   SOURCE_ROWS,
 } from "./testing.tsx";
 
@@ -57,7 +61,7 @@ describe("the console", () => {
       `Bearer ${accessToken({ sub: "alice", roles: ["analytics.catalog.editor"] })}`,
     );
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(callers.get()).toEqual({ ...EDITOR, via: "cosec" });
+    expect(callers.get()).toMatchObject({ ...EDITOR, via: "cosec" });
 
     await router.navigate("/caller");
     expect(
@@ -74,7 +78,28 @@ describe("the console", () => {
       tenant: "(platform)",
       roles: ["analytics.catalog.viewer"],
     });
-    expect(await screen.findByText(/This caller has neither/)).toBeVisible();
+    expect(
+      await screen.findByText(/This caller only reads the catalog/),
+    ).toBeVisible();
+    expect(screen.queryByTestId("no-role")).toBeNull();
+  });
+
+  it("says a caller with none of the catalog's roles reads nothing", async () => {
+    renderConsole({ user: "mallory", tenant: "(platform)", roles: [] });
+    expect(await screen.findByTestId("no-role")).toHaveTextContent(
+      "the catalog shows it nothing",
+    );
+    expect(screen.queryByText(/This caller only reads/)).toBeNull();
+  });
+
+  it("says why it signed out", async () => {
+    const { callers } = renderConsole(EDITOR);
+    await screen.findByRole("table", { name: "All" });
+    // A deployment does not read a caller of headers: it answers 401.
+    callers.refused();
+    expect(await screen.findByTestId("signed-out")).toHaveTextContent(
+      "This catalog is not a development run",
+    );
   });
 
   it("names an approver's role in the bar", async () => {
@@ -110,8 +135,32 @@ describe("the console", () => {
     );
   });
 
-  it("marks a draft source reviewed through the engine's action", async () => {
+  it("offers an action the caller's roles rule out disabled, with why", async () => {
     const { commands } = renderConsole(EDITOR, {
+      path: `/sources?id=${encodeURIComponent(SOURCE_ROWS[0].aggregateId)}`,
+    });
+    const press = await screen.findByRole("button", { name: "Mark reviewed" });
+    await waitFor(() => expect(press).toHaveAttribute("aria-disabled", "true"));
+    expect(press).toHaveAccessibleDescription(
+      "Takes the role analytics.catalog.approver or analytics.catalog.admin.",
+    );
+    // Pressed, it asks nothing: the detail is the one dialog open.
+    await userEvent.click(press);
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(commands.markReviewed).not.toHaveBeenCalled();
+  });
+
+  it("offers every action where CoSec's policies decide, which the console cannot read", async () => {
+    renderConsole(EDITOR, {
+      path: `/sources?id=${encodeURIComponent(SOURCE_ROWS[0].aggregateId)}`,
+      settings: { ...SETTINGS, rolesDecide: false },
+    });
+    const press = await screen.findByRole("button", { name: "Mark reviewed" });
+    expect(press).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("marks a draft source reviewed through the engine's action", async () => {
+    const { commands } = renderConsole(APPROVER, {
       path: `/sources?id=${encodeURIComponent(SOURCE_ROWS[0].aggregateId)}`,
     });
     await userEvent.click(
@@ -144,5 +193,49 @@ describe("the console", () => {
         DATASET_ROWS[0].aggregateId,
       ),
     );
+    // A publication may only await an approver: the outcome says so.
+    expect(
+      (await screen.findAllByText(/published, or awaiting an approver/))[0],
+    ).toBeVisible();
+  });
+
+  it("lists the publications awaiting an approver", async () => {
+    renderConsole(APPROVER, {
+      path: `/datasets?view=${encodeURIComponent(`system:${DATASETS}:awaiting-approval`)}`,
+    });
+    const table = await screen.findByRole("table", {
+      name: "Awaiting approval",
+    });
+    expect(await within(table).findByText("Customer contacts")).toBeVisible();
+    expect(within(table).queryByText("Orders")).toBeNull();
+  });
+
+  it("offers the sources awaiting an approver only where a source takes one", async () => {
+    const views = (engine: ReturnType<typeof renderConsole>["engine"]) =>
+      engine.definitions.get(SOURCES)?.views?.map((view) => view.id);
+    const { engine } = renderConsole(EDITOR);
+    await screen.findByRole("table", { name: "All" });
+    expect(views(engine)).toContain("unapproved");
+    localStorage.clear();
+    document.body.innerHTML = "";
+    const without = renderConsole(EDITOR, {
+      settings: { ...SETTINGS, requireSourceApproval: false },
+    });
+    await screen.findByRole("table", { name: "All" });
+    expect(views(without.engine)).not.toContain("unapproved");
+  });
+
+  it("says plainly that a node without a dataset backend serves no datasets", async () => {
+    renderConsole(EDITOR, { path: "/rows", serving: false });
+    expect(await screen.findByTestId("not-served")).toHaveTextContent(
+      "This node serves no datasets",
+    );
+  });
+
+  it("names the page in its language", async () => {
+    renderConsole(EDITOR, { locale: "zh-CN" });
+    await screen.findByRole("table", { name: "全部" });
+    expect(document.documentElement.lang).toBe("zh-CN");
+    expect(document.title).toBe("Wow 数据目录");
   });
 });

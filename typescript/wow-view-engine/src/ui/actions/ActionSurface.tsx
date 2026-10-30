@@ -79,6 +79,12 @@ interface ActionSurface {
   bulk?(context: SelectionContext): ReactNode;
   /** The command's line: how far it has come, what it came to. */
   status: ReactNode;
+  /**
+   * The same line again, for the record's detail: a command pressed there
+   * says how it went where the reader is looking, not under rows the sheet
+   * covers. The keyboard lands on the line under the rows alone.
+   */
+  detailStatus: ReactNode;
   /** The question and the form, while one is waiting. */
   dialog: ReactNode;
 }
@@ -267,6 +273,7 @@ export function useActionSurface({
     ...optional('detail', drawRow('detail')),
     ...optional('bulk', drawBulk),
     status: <BulkStatus ref={line} command={controller} />,
+    detailStatus: <BulkStatus command={controller} />,
     dialog: (
       <ActionDialog
         pending={controller.pending}

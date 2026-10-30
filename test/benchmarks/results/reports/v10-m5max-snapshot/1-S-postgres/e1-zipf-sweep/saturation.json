@@ -1,0 +1,95 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 100000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 19598.9,
+  "saturationConcurrency": 4096,
+  "generatorCores": 1.9850434757684066,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 935.8333333333334,
+      "ok": 28075,
+      "errors": {},
+      "p50Ms": 0.951,
+      "p99Ms": 4.063,
+      "generatorCores": 0.10937579050221903
+    },
+    {
+      "concurrency": 4,
+      "throughput": 2330.5333333333333,
+      "ok": 69916,
+      "errors": {},
+      "p50Ms": 1.615,
+      "p99Ms": 3.407,
+      "generatorCores": 0.27467101662446236
+    },
+    {
+      "concurrency": 16,
+      "throughput": 5186.8,
+      "ok": 155604,
+      "errors": {},
+      "p50Ms": 2.799,
+      "p99Ms": 7.007,
+      "generatorCores": 0.63760273904737
+    },
+    {
+      "concurrency": 64,
+      "throughput": 10788.766666666666,
+      "ok": 323663,
+      "errors": {},
+      "p50Ms": 5.311,
+      "p99Ms": 13.567,
+      "generatorCores": 1.1535089513021899
+    },
+    {
+      "concurrency": 256,
+      "throughput": 15338.666666666666,
+      "ok": 460160,
+      "errors": {},
+      "p50Ms": 15.679,
+      "p99Ms": 41.983,
+      "generatorCores": 1.5876631715855853
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 15863.1,
+      "ok": 475893,
+      "errors": {},
+      "p50Ms": 18.559,
+      "p99Ms": 419.839,
+      "generatorCores": 1.593319742146121
+    },
+    {
+      "concurrency": 4096,
+      "throughput": 19598.9,
+      "ok": 587967,
+      "errors": {
+        "http-429-wow.command.busy": 82807
+      },
+      "p50Ms": 59.135,
+      "p99Ms": 1695.743,
+      "generatorCores": 1.9850434757684066
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "8",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_benchmark_snapshot/test/benchmarks/results/e2e/20261030-045921-run-postgres-n1-saturation"
+  }
+}

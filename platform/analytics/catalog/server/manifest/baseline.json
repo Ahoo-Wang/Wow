@@ -102,7 +102,7 @@
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset",
         "creation" : "none",
-        "produces" : [ "DatasetRevised" ],
+        "produces" : [ "DatasetNeedsRevision", "DatasetRevised" ],
         "routes" : [ {
           "method" : "POST",
           "path" : "/analytics-catalog/dataset/{id}/revise-dataset"
@@ -549,6 +549,16 @@
       },
       "errors" : [ "analytics-catalog.dataset.not-a-reference", "analytics-catalog.dataset.not-served" ],
       "description" : "One of the commands the row's field offers, sent with body to the aggregate id it refers to, as the caller: the owning service's result, or its refusal as it answered it."
+    }, {
+      "name" : "settings",
+      "route" : {
+        "method" : "GET",
+        "path" : "/analytics-catalog/settings"
+      },
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.server.CatalogSettings"
+      },
+      "description" : "The catalog's settings, as any caller of it reads them."
     } ]
   } ],
   "errors" : [ {
@@ -1817,6 +1827,25 @@
       },
       "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "exists", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ],
       "x-wow-class" : "me.ahoo.wow.analytics.catalog.domain.source.SourceState"
+    },
+    "me.ahoo.wow.analytics.catalog.server.CatalogSettings" : {
+      "type" : "object",
+      "properties" : {
+        "connection" : {
+          "type" : "string"
+        },
+        "requirePublicationApproval" : {
+          "type" : "boolean"
+        },
+        "requireSourceApproval" : {
+          "type" : "boolean"
+        },
+        "rolesDecide" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "connection", "requirePublicationApproval", "requireSourceApproval", "rolesDecide" ],
+      "x-wow-class" : "me.ahoo.wow.analytics.catalog.server.CatalogSettings"
     },
     "me.ahoo.wow.analytics.catalog.server.ReferenceActions" : {
       "type" : "object",

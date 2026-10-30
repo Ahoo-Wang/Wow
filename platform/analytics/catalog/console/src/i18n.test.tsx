@@ -33,6 +33,10 @@ describe("the console's language", () => {
     expect(resolveLocale("zh-CN", ["en-US"])).toBe("zh-CN");
     expect(resolveLocale("fr", ["zh-TW"])).toBe("zh-CN");
     expect(resolveLocale(null, ["en-GB"])).toBe("en");
+    // The browser's order: English first, though Chinese follows.
+    expect(resolveLocale(null, ["en-US", "en-CN", "zh-Hans-CN"])).toBe("en");
+    expect(resolveLocale(null, ["fr-FR", "zh-Hans-CN", "en-US"])).toBe("zh-CN");
+    expect(resolveLocale(null, ["fr-FR"])).toBe("en");
   });
 
   it("fills a sentence's values, and leaves an unknown one", () => {

@@ -164,6 +164,55 @@ fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: D
 
 A service may do I/O. A function that blocks its thread, such as one that calls JDBC, is annotated `@Blocking` and runs on a virtual thread. A function may also be `suspend`, or return a Reactor `Mono`, which needs `wow-reactor` on the class path.
 
+### Query the read side
+
+A command function that needs more than its aggregate's state, such as whether an account it refers to exists, takes the node's read API as a service: a `QueryApi`, or a `NodeQueryApi` for trusted reads. Both are in `wow-api` (`me.ahoo.wow.api.read`), so the domain module needs nothing more, and the host gives the model the node's own. When the caller already knows the fact, put it in the command instead (a `CommandTransformer`, or the saga that sends it): a read runs again on every retry after a version conflict, and what it read may change before the events are appended.
+
+Read as the command's caller, rebuilt from the command: its tenant, its owner and space, and its operator. The read sees what that caller sees:
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: LendBook, queries: QueryApi, scope: DecideScope): BookLent {
+    val admitted = scope.command
+    val caller = Caller.of(admitted.ref.tenantId, admitted.scope, admitted.operator?.id)
+    queries.of(caller).snapshots<AccountState>().state(command.accountId)
+        ?: reject("library.book.no-account", "No account ${command.accountId}.")
+    return BookLent(command.accountId)
+}
+```
+
+The rebuilt caller has no roles, policies or ABAC attributes. They live only with the request, and a command may be decided on another node, or taken from its command topic. A query policy that reads them sees none, and one that requires a role refuses the read.
+
+For a read that no policy should restrict, take a `NodeQueryApi` and read with `trusted()`.
+
+::: warning Trusted reads cross tenants
+`trusted()` reads every tenant. In a service with several tenants, the function filters by the command's tenant itself, as the sample does.
+:::
+
+<!-- sample: fragment -->
+
+```kotlin
+@OnCommand
+suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideScope): BookLent {
+    val lent = queries.trusted().snapshots<BookState>().count(
+        countQuery {
+            filter {
+                tenantId(scope.command.ref.tenantId)
+                "state.account" eq command.accountId
+            }
+        },
+    )
+    if (lent.count >= MAX_BOOKS) {
+        reject("library.book.too-many", "Account ${command.accountId} has $MAX_BOOKS books.")
+    }
+    return BookLent(command.accountId)
+}
+```
+
+A read that fails fails the command with `wow.command.failed` (500), as any unexpected exception does. That includes a read the read side refuses, and one the code gets wrong, such as a state class no aggregate has: the fault is the code's, not the caller's. In an aggregate spec, give the model factory `memoryQueries { snapshots(...) }` as its `QueryApi` ([Testing](./testing)).
+
 ## Ask the kernel for more
 
 The `DecideScope` is what a decision can ask of the kernel besides its events:

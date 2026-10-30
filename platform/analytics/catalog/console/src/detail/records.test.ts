@@ -13,7 +13,13 @@
 
 import { describe, expect, it } from "vitest";
 import type { SourceState } from "@/generated/index.ts";
-import { datasetOf, definitionText, parseDefinition } from "./datasetRecord.ts";
+import {
+  datasetOf,
+  definitionText,
+  notJsonAt,
+  parseDefinition,
+  versionsInOrder,
+} from "./datasetRecord.ts";
 import {
   changedSensitivity,
   keyOf,
@@ -121,12 +127,44 @@ describe("a dataset's definition", () => {
   });
 
   it("is refused when it is not a JSON object", () => {
-    expect(parseDefinition("[]")).toEqual({
-      error: "a definition is an object",
+    expect(parseDefinition("[]")).toEqual({ error: { kind: "object" } });
+    expect(parseDefinition("null")).toEqual({ error: { kind: "object" } });
+    expect(parseDefinition("{")).toMatchObject({ error: { kind: "json" } });
+  });
+
+  it("says where it stops being JSON, in the console's words", () => {
+    const where = (text: string) => parseDefinition(text);
+    expect(where('{\n  "subject": "o",\n  "columns": [}\n}')).toEqual({
+      error: { kind: "json", line: 3, column: 15 },
     });
-    expect(parseDefinition("null")).toEqual({
-      error: "a definition is an object",
+    expect(where("")).toEqual({ error: { kind: "json", line: 1, column: 1 } });
+    expect(where('{"a": 1,}')).toEqual({
+      error: { kind: "json", line: 1, column: 9 },
     });
-    expect(parseDefinition("{")).toHaveProperty("error");
+    expect(where('{"a": "b}')).toEqual({
+      error: { kind: "json", line: 1, column: 10 },
+    });
+    expect(where('{"a": tru}')).toEqual({
+      error: { kind: "json", line: 1, column: 7 },
+    });
+    expect(where("{} x")).toEqual({
+      error: { kind: "json", line: 1, column: 4 },
+    });
+    // What it reads as JSON is what the browser reads as JSON.
+    for (const text of [
+      '{"a": [1, -2.5e3, "\\"x\\"", true, null, {}]}',
+      " [] ",
+    ])
+      expect(notJsonAt(text)).toBeNull();
+  });
+
+  it("lists the version serving first, then the newest first", () => {
+    const at = (version: number) => ({ artifact: { version } });
+    const state = datasetOf({
+      state: { current: 2, versions: [at(1), at(2), at(3), at(4)] },
+    });
+    expect(
+      versionsInOrder(state).map(({ artifact }) => artifact.version),
+    ).toEqual([2, 4, 3, 1]);
   });
 });

@@ -62,6 +62,7 @@ type ActionForm = Readonly<Record<string, ActionFormField>>;
 
 // @public
 interface ActionFormField {
+    check?(value: unknown): Availability;
     initial?: string | number | boolean;
     input?: 'text' | 'number' | 'boolean';
     // (undocumented)
@@ -594,6 +595,7 @@ export type BuiltInPreset = (typeof BUILT_IN_PRESETS)[number];
 
 // @public
 interface BulkRun {
+    done?: string;
     each(key: RecordKey, options: {
         signal: AbortSignal;
     }): Promise<unknown>;
@@ -2570,6 +2572,7 @@ export const en: {
     readonly 'label.panel.menu.view': "Data";
     readonly 'label.panel.menu.edit': "Edit panel";
     readonly 'label.panel.open': "Open in the workbench";
+    readonly 'label.panel.open-number': "Open “{name}” in the workbench";
     readonly 'label.panel.refresh': "Refresh this panel";
     readonly 'label.panel.export': "Export data…";
     readonly 'label.panel.rename': "Rename";
@@ -3611,6 +3614,7 @@ export const en: {
     readonly 'label.scope.tag.personal': "personal";
     readonly 'label.scope.tag.shared': "shared";
     readonly 'label.scope.personal.description': "Only you see it.";
+    readonly 'label.scope.local': "Saved in this browser: only you see it, and only here.";
     readonly 'label.scope.shared.description': "Everyone who uses this data sees it.";
     readonly 'label.scope.system.description': "Everyone who uses this data sees it among the system views; only those allowed can change it.";
     readonly 'label.scope.system-stored': "Everyone sees it; only those allowed can change it";
@@ -5794,6 +5798,7 @@ interface RecordAction {
     available?(row: RecordRow, context: ActionContext): Availability;
     changesAt?(row: RecordRow, context: ActionContext): Date | null | undefined;
     readonly confirm?: ActionConfirm | ((input: ActionInput) => ActionConfirm);
+    readonly done?: string;
     readonly form?: ActionForm;
     hidden?(row: RecordRow, context: ActionContext): boolean;
     readonly id: string;
@@ -6631,6 +6636,7 @@ interface SaveAbilities {
     createSystem: boolean;
     // (undocumented)
     delete: boolean;
+    local?: boolean;
     // (undocumented)
     rename: boolean;
     revert: boolean;
@@ -6671,6 +6677,7 @@ export interface SaveAsDialogProps {
     description?: string;
     finalFocus?: FinalFocus;
     intent?: 'copy' | 'first' | 'promote' | 'share' | 'share-system';
+    local?: boolean;
     // (undocumented)
     onOpenChange(open: boolean): void;
     onSaved?(instance: ViewInstance): void;
@@ -8821,6 +8828,7 @@ interface ViewPermissions {
     editSystem?: boolean;
     // (undocumented)
     instance(id: string): InstancePermissions;
+    local?: boolean;
     // (undocumented)
     reorder: boolean;
     // (undocumented)
@@ -8992,6 +9000,7 @@ interface ViewStore {
     // (undocumented)
     getPreferences(definitionId: string, options?: ReadOptions): Promise<ViewPreferences>;
     list(definitionId: string, options?: ViewListOptions): Promise<ViewListPage>;
+    readonly local?: boolean;
     permissions?(definitionId: string): ViewPermissions;
     rename(id: string, title: string, revision: string, options: WriteOptions): Promise<ViewInstance>;
     // (undocumented)

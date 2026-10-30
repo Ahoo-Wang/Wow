@@ -90,7 +90,7 @@ export function BulkStatus({ command, ref }: BulkStatusProps) {
     );
   }
   if (!outcome) return null;
-  const [tone, sentence] = reading(outcome, messages);
+  const [tone, sentence] = reading(outcome, messages, sayWith);
   return (
     <LineAlert
       ref={ref}
@@ -133,7 +133,7 @@ export function outcomeSentence(
   sayWith: SayWith,
 ): string {
   return `${sayWith(outcome.title, outcome.values)} · ${
-    reading(outcome, messages)[1]
+    reading(outcome, messages, sayWith)[1]
   }`;
 }
 
@@ -141,16 +141,22 @@ export function outcomeSentence(
 function reading(
   outcome: BulkOutcome,
   messages: MessageFormatters,
+  sayWith: SayWith,
 ): [AlertTone, string] {
   const { succeeded, failed, refused, unknown, skipped } = outcome;
   const notRun = refused.length + skipped.length;
   const total = succeeded.length + failed.length + unknown.length + notRun;
-  if (total === 1) return one(outcome, messages);
+  if (total === 1) return one(outcome, messages, sayWith);
   // Only what happened is counted: a stop with nothing failed says nothing
   // of failures.
   const parts: string[] = [];
   if (succeeded.length > 0)
-    parts.push(messages.label('label.bulk.done', { done: succeeded.length }));
+    parts.push(
+      // The command's own words where "done" says more than happened.
+      outcome.done === undefined
+        ? messages.label('label.bulk.done', { done: succeeded.length })
+        : sayWith(outcome.done, { count: succeeded.length }),
+    );
   if (failed.length > 0)
     parts.push(messages.label('label.bulk.failed', { failed: failed.length }));
   if (unknown.length > 0)
@@ -180,13 +186,18 @@ function reading(
 function one(
   outcome: BulkOutcome,
   messages: MessageFormatters,
+  sayWith: SayWith,
 ): [AlertTone, string] {
   const { succeeded, failed, refused, unknown, skipped } = outcome;
-  if (succeeded.length > 0)
+  if (succeeded.length > 0) {
+    const record = String(succeeded[0]);
     return [
       'info',
-      messages.label('label.bulk.one-done', { record: String(succeeded[0]) }),
+      outcome.done === undefined
+        ? messages.label('label.bulk.one-done', { record })
+        : sayWith(outcome.done, { count: 1, record }),
     ];
+  }
   if (failed.length > 0)
     return [
       'error',

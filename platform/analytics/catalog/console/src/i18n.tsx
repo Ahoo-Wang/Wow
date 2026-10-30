@@ -16,6 +16,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type PropsWithChildren,
@@ -27,6 +28,7 @@ export type { Locale } from "@/views/words.ts";
 /** The shell's own words; the definitions' are under `views/`. */
 const SHELL = {
   en: {
+    documentTitle: "Wow Analytics Catalog",
     product: "Wow Analytics Catalog",
     language: "Language",
     caller: "Caller",
@@ -36,7 +38,12 @@ const SHELL = {
       "Only a development run of the catalog (a dev profile) reads the caller from request headers, standing in for CoSec: Wow-User names the data owner, Wow-Tenant its tenant, Wow-Roles its roles. An analyst needs analytics.catalog.editor, a reviewer analytics.catalog.approver.",
     signInTitle: "Sign in with CoSec",
     signInDescription:
-      "Paste an access token your CoSec issued. The catalog verifies it and reads the data owner from it: its tenant, its id and its roles. Reading the catalog needs one of the analytics.catalog roles.",
+      "Paste an access token your CoSec issued. The CoSec gateway in front of the catalog verifies it and forwards the data owner it names: its tenant, its id and its roles. Reading the catalog needs one of the analytics.catalog roles.",
+    signedOutExpired: "Your CoSec access token has expired: sign in again.",
+    signedOutRefused:
+      "Your CoSec access token was refused (401): sign in with another.",
+    signedOutHeaders:
+      "This catalog is not a development run: it reads no caller from request headers. Sign in with a CoSec access token.",
     token: "Access token",
     signIn: "Sign in",
     tokenRefused: "This is not a CoSec access token, or it has expired.",
@@ -52,7 +59,10 @@ const SHELL = {
     needCaller:
       "Sign in to read the catalog, or name a caller for a local run: the catalog answers an anonymous request with 401.",
     readOnly:
-      "This caller has neither analytics.catalog.editor nor analytics.catalog.approver: it reads the catalog, and the service refuses its changes.",
+      "This caller only reads the catalog: drafting and publishing take analytics.catalog.editor (or admin), reviews and approvals analytics.catalog.approver.",
+    noRole:
+      "This caller holds none of the catalog's roles (analytics.catalog.viewer, editor, approver or admin): the catalog shows it nothing.",
+    readingSettings: "Reading the catalog's settings…",
     none: "—",
     yes: "Yes",
     no: "No",
@@ -98,19 +108,29 @@ const SHELL = {
     definition: "Definition",
     definitionHint:
       "JSON: subject, sources (alias, sourceId), joins, columns (name, from or expression, sensitivity), filters, identity, eventTime.",
-    definitionInvalid: "The definition is not JSON: {message}",
+    definitionInvalid: "The definition is not JSON.",
+    definitionInvalidAt:
+      "The definition is not JSON: look at line {line}, column {column}.",
+    definitionNotObject: "A definition is a JSON object.",
     requested: "Awaiting approval",
     requestReasons: "Why it takes an approver",
     problems: "Why it needs revision",
     versions: "Versions",
     version: "v{version}",
     serving: "Serving",
+    rollBackTo: "Roll back to v{version}",
+    rollBackAsk:
+      "Queries will read v{version} again; its view is created again if it is gone.",
+    rollBack: "Roll back",
+    rolledBack: "Switched back to v{version}.",
     view: "View",
     sources: "Sources",
     fields: "Fields",
     ddl: "DDL",
     rows: "Rows",
-    boards: "Boards",
+    notServedHere:
+      "This node serves no datasets: it has no dataset query backend (a local run on the memory backend has none). A dataset's rows are read on a node that serves them.",
+    boards: "Dashboards",
     connection: "Connection",
     tableEngine: "Table engine",
     status: "Status",
@@ -123,7 +143,7 @@ const SHELL = {
     aggregate: "Aggregate",
     writer: "Written by",
     time: "Written at",
-    stillServing: "Still served while revised",
+    stillServing: "Serving while it needs revision",
     eventTime: "Event time",
     draftsHint:
       "Drafted sources and datasets open in their pages, where they are reviewed and published.",
@@ -132,8 +152,10 @@ const SHELL = {
     connectionHint:
       "The catalog's warehouse connection (wow.analytics.catalog.connection): the first part of the source's id.",
     drafted: "Drafted {id}.",
+    openDrafted: "Open it",
   },
   "zh-CN": {
+    documentTitle: "Wow 数据目录",
     product: "Wow 数据目录",
     language: "语言",
     caller: "调用者",
@@ -143,7 +165,11 @@ const SHELL = {
       "只有以开发模式运行的数据目录（dev profile）才从请求头读取调用者（代替 CoSec）：Wow-User 为数据负责人，Wow-Tenant 为其租户，Wow-Roles 为其角色。分析师需要 analytics.catalog.editor，审查者需要 analytics.catalog.approver。",
     signInTitle: "使用 CoSec 登录",
     signInDescription:
-      "粘贴 CoSec 签发的访问令牌。数据目录验证令牌并从中读取数据负责人：租户、标识与角色。查看目录需要任一 analytics.catalog 角色。",
+      "粘贴 CoSec 签发的访问令牌。数据目录前的 CoSec 网关验证令牌，并转发它所指的数据负责人：租户、标识与角色。查看目录需要任一 analytics.catalog 角色。",
+    signedOutExpired: "CoSec 访问令牌已过期，请重新登录。",
+    signedOutRefused: "CoSec 访问令牌被拒绝（401），请换一个登录。",
+    signedOutHeaders:
+      "这个数据目录不是开发模式运行，不从请求头读取调用者。请使用 CoSec 访问令牌登录。",
     token: "访问令牌",
     signIn: "登录",
     tokenRefused: "这不是 CoSec 访问令牌，或已过期。",
@@ -159,7 +185,10 @@ const SHELL = {
     needCaller:
       "请先登录，或为本地运行指定调用者：数据目录对匿名请求返回 401。",
     readOnly:
-      "此调用者既没有 analytics.catalog.editor 也没有 analytics.catalog.approver 角色：可以查看目录，但服务会拒绝其修改。",
+      "此调用者只能查看目录：起草与发布需要 analytics.catalog.editor（或 admin）角色，审查与审批需要 analytics.catalog.approver。",
+    noRole:
+      "此调用者没有任何数据目录角色（analytics.catalog.viewer、editor、approver 或 admin）：目录不向它显示任何内容。",
+    readingSettings: "正在读取目录的设置…",
     none: "—",
     yes: "是",
     no: "否",
@@ -205,19 +234,28 @@ const SHELL = {
     definition: "定义",
     definitionHint:
       "JSON：subject、sources（alias、sourceId）、joins、columns（name、from 或 expression、sensitivity）、filters、identity、eventTime。",
-    definitionInvalid: "定义不是合法的 JSON：{message}",
+    definitionInvalid: "定义不是合法的 JSON。",
+    definitionInvalidAt:
+      "定义不是合法的 JSON：请检查第 {line} 行第 {column} 列。",
+    definitionNotObject: "定义须是一个 JSON 对象。",
     requested: "待审批",
     requestReasons: "需要审批的原因",
     problems: "需要修订的原因",
     versions: "版本",
     version: "v{version}",
     serving: "服务中",
+    rollBackTo: "回滚到 v{version}",
+    rollBackAsk: "查询将再次读取 v{version}；其视图如已不在会重新创建。",
+    rollBack: "回滚",
+    rolledBack: "已切回 v{version}。",
     view: "视图",
     sources: "数据源",
     fields: "字段",
     ddl: "DDL",
     rows: "数据行",
-    boards: "看板",
+    notServedHere:
+      "此节点不提供数据集：它没有数据集查询后端（以内存后端本地运行时没有）。数据集的行要在提供它们的节点上读取。",
+    boards: "仪表盘",
     connection: "连接",
     tableEngine: "表引擎",
     status: "状态",
@@ -230,7 +268,7 @@ const SHELL = {
     aggregate: "聚合",
     writer: "写入账户",
     time: "写入时间",
-    stillServing: "修订期间仍在服务",
+    stillServing: "需要修订期间仍在提供",
     eventTime: "事件时间",
     draftsHint: "起草的数据源与数据集在各自页面中审查与发布。",
     openSources: "数据源",
@@ -238,6 +276,7 @@ const SHELL = {
     connectionHint:
       "目录的仓库连接（wow.analytics.catalog.connection）：数据源 ID 的第一部分。",
     drafted: "已起草 {id}。",
+    openDrafted: "打开",
   },
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -268,9 +307,13 @@ export function resolveLocale(
 ): Locale {
   if (stored && (LOCALES as readonly string[]).includes(stored))
     return stored as Locale;
-  return languages.some((language) => language.toLowerCase().startsWith("zh"))
-    ? "zh-CN"
-    : "en";
+  // The first of the browser's languages the console speaks, in its order.
+  for (const language of languages) {
+    const tag = language.toLowerCase();
+    if (tag.startsWith("zh")) return "zh-CN";
+    if (tag.startsWith("en")) return "en";
+  }
+  return "en";
 }
 
 function storedLocale(): string | null {
@@ -300,6 +343,11 @@ export function I18nProvider({
   const [locale, setState] = useState<Locale>(
     () => initial ?? resolveLocale(storedLocale(), navigator.languages ?? []),
   );
+  // The page says its language and its name in it.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.title = translate(locale, "documentTitle");
+  }, [locale]);
   const value = useMemo<I18n>(
     () => ({
       locale,

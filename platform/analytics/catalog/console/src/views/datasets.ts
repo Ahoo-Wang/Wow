@@ -19,6 +19,7 @@ import type {
   RecordViewConfig,
   SystemView,
 } from "@ahoo-wang/wow-view-engine";
+import { REFRESH_SECONDS } from "./sources.ts";
 import { textKeys, type Words } from "./words.ts";
 
 /** The definition's id: what saved views and routes name it by. */
@@ -51,11 +52,13 @@ export const DATASET_WORDS = {
     statusNeedsRevision: "Needs revision",
     statusRetired: "Retired",
     current: "Version served",
-    stillServing: "Still serving",
+    stillServing: "Serving while it needs revision",
+    requestReasons: "Why it takes an approver",
     dropped: "Views dropped",
     viewAll: "All",
     viewPublished: "Published",
     viewNeedsRevision: "Needs revision",
+    viewAwaitingApproval: "Awaiting approval",
     viewDrafts: "Drafts",
     viewRetired: "Retired",
     viewByStatus: "By status",
@@ -73,11 +76,13 @@ export const DATASET_WORDS = {
     statusNeedsRevision: "需要修订",
     statusRetired: "已下线",
     current: "提供的版本",
-    stillServing: "仍在提供",
+    stillServing: "需要修订期间仍在提供",
+    requestReasons: "需要审批的原因",
     dropped: "视图已删除",
     viewAll: "全部",
     viewPublished: "已发布",
     viewNeedsRevision: "需要修订",
+    viewAwaitingApproval: "待审批",
     viewDrafts: "草稿",
     viewRetired: "已下线",
     viewByStatus: "按状态统计",
@@ -86,13 +91,13 @@ export const DATASET_WORDS = {
 
 const t = textKeys("datasets", DATASET_WORDS.en);
 
-const COLUMNS = [
-  "aggregateId",
-  "state.title",
-  "state.status",
-  "state.current",
-  "state.stillServing",
-];
+const COLUMNS = ["aggregateId", "state.title", "state.status", "state.current"];
+
+/**
+ * Whether a dataset that needs revision still serves its published version:
+ * said only of those that need one, where it is the question.
+ */
+const NEEDS_REVISION_COLUMNS = [...COLUMNS, "state.stillServing"];
 
 /** A record view of the datasets `filter` keeps, by name. */
 export function datasetsView(
@@ -103,7 +108,7 @@ export function datasetsView(
     kind: "record",
     filter: { op: "and", children: filter },
     filterMode: "simple",
-    refresh: { interval: null },
+    refresh: { interval: REFRESH_SECONDS },
     sort: [{ field: "aggregateId", direction: "asc" }],
     pageSize: 20,
     layout: "table",
@@ -121,14 +126,36 @@ export function status(...values: DatasetStatus[]): FilterNode {
   return { field: "state.status", operator: "in", value: values };
 }
 
-/** The system views: the datasets a data owner works through. */
+/**
+ * The datasets whose publication awaits an approver: the reasons it takes
+ * one are kept until it is approved or refused.
+ */
+export const AWAITING_APPROVAL: FilterNode = {
+  field: "state.requestReasons",
+  operator: "is-not-null",
+  value: null,
+};
+
+/**
+ * The system views: the datasets a data owner works through, and the
+ * publications an approver decides.
+ */
 export function datasetViews(): SystemView[] {
   return [
     { id: "all", title: t.viewAll, config: datasetsView([]) },
     {
       id: "needs-revision",
       title: t.viewNeedsRevision,
-      config: datasetsView([status("NEEDS_REVISION")]),
+      config: datasetsView([status("NEEDS_REVISION")], {
+        table: {
+          columns: NEEDS_REVISION_COLUMNS.map((field) => ({ field })),
+        },
+      }),
+    },
+    {
+      id: "awaiting-approval",
+      title: t.viewAwaitingApproval,
+      config: datasetsView([AWAITING_APPROVAL]),
     },
     {
       id: "published",
@@ -225,6 +252,7 @@ export const datasets: DataViewDefinition = {
       kind: "boolean",
       sortable: true,
     },
+    { name: "state.requestReasons", label: t.requestReasons, kind: "array" },
     {
       name: "state.dropped",
       label: t.dropped,
@@ -237,7 +265,7 @@ export const datasets: DataViewDefinition = {
     paging: "paged",
     layouts: ["table", "card"],
     // What the actions read to decide what a dataset takes.
-    rowFields: ["state.status", "state.current"],
+    rowFields: ["state.status", "state.current", "state.requestReasons"],
   },
   analysis: {
     count: true,

@@ -88,11 +88,17 @@ function CallerLink() {
       aria-label={`${t("caller")}: ${caller ? caller.user : t("signedOut")}`}
     >
       <UserRound data-icon="inline-start" />
-      {caller ? caller.user : t("signedOut")}
+      <span className="max-w-40 truncate">
+        {caller ? caller.user : t("signedOut")}
+      </span>
       {caller && isApprover(caller) ? (
-        <Badge variant="secondary">{APPROVER_ROLE}</Badge>
+        <Badge variant="secondary" className="max-sm:hidden">
+          {APPROVER_ROLE}
+        </Badge>
       ) : caller && isEditor(caller) ? (
-        <Badge variant="secondary">{EDITOR_ROLE}</Badge>
+        <Badge variant="secondary" className="max-sm:hidden">
+          {EDITOR_ROLE}
+        </Badge>
       ) : null}
     </Button>
   );
@@ -120,15 +126,21 @@ export default function App() {
     <CatalogHost>
       <div className="fve-tokens bg-background text-foreground">
         <div className="flex h-svh flex-col overflow-hidden">
-          <header className="relative z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
+          {/* One bar where it fits; at a phone's width the places fold to a
+              row of their own under the product and the caller, scrolling
+              sideways if they must, so every control stays reachable. */}
+          <header className="relative z-10 flex min-h-13 shrink-0 flex-wrap items-center gap-x-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
             <Link
               to={SOURCES_PATH}
               className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"
             >
               <img src="logo.svg" alt="" className="size-5.5" />
-              {t("product")}
+              <span className="max-sm:sr-only">{t("product")}</span>
             </Link>
-            <nav className="flex h-full gap-1" aria-label={t("product")}>
+            <nav
+              className="order-last -mx-4 flex h-11 w-[calc(100%+2rem)] gap-1 overflow-x-auto px-2 sm:order-none sm:mx-0 sm:h-13 sm:w-auto sm:overflow-visible sm:px-0"
+              aria-label={t("product")}
+            >
               {PLACES.map(([path, label]) => (
                 <NavLink
                   key={path}
@@ -139,7 +151,7 @@ export default function App() {
                 </NavLink>
               ))}
             </nav>
-            <div className="ml-auto flex min-w-0 items-center gap-1.5">
+            <div className="ml-auto flex h-13 min-w-0 items-center gap-1.5">
               <CallerLink />
               <LanguageMenu />
             </div>

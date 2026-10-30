@@ -19,8 +19,9 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from "react";
-import type { CatalogCaller } from "@/services/caller.ts";
+import type { CatalogCaller, SignedOut } from "@/services/caller.ts";
 import type { CatalogServices } from "@/services/catalog.ts";
+import type { CatalogSettings, SettingsState } from "@/services/settings.ts";
 
 const ServicesContext = createContext<CatalogServices | null>(null);
 
@@ -40,6 +41,30 @@ export function useServices(): CatalogServices {
   if (!services)
     throw new Error("No catalog services: render under ServicesProvider.");
   return services;
+}
+
+/** Whether this node serves datasets (`null` until asked), redrawn when it changes. */
+export function useServing(): boolean | null {
+  const { serving } = useServices();
+  return useSyncExternalStore(serving.subscribe, serving.get);
+}
+
+/** Where reading the catalog's settings stands, redrawn when it changes. */
+export function useSettingsState(): SettingsState {
+  const { settings } = useServices();
+  return useSyncExternalStore(settings.subscribe, settings.get);
+}
+
+/** The catalog's settings once read, else `null`. */
+export function useSettings(): CatalogSettings | null {
+  const state = useSettingsState();
+  return state.status === "read" ? state.settings : null;
+}
+
+/** Why the console was last signed out, redrawn when it changes. */
+export function useSignedOut(): SignedOut | null {
+  const { callers } = useServices();
+  return useSyncExternalStore(callers.subscribe, callers.signedOut);
 }
 
 /** The caller in force, redrawn when it changes. */

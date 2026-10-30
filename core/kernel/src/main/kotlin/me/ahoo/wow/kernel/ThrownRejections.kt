@@ -32,7 +32,7 @@ private val logger = KotlinLogging.logger {}
  * - an [IllegalStateException] itself (`check`, `checkNotNull`, `error`): [FrameworkCodes.COMMAND_REFUSED].
  *
  * The last two match the class exactly: a subclass (`CancellationException`, `NumberFormatException`, a library's own
- * exception) is not a refusal, and neither is anything else, a remote call's `IOException` or timeout included: those
+ * exception, a Wow API's [me.ahoo.wow.api.decide.Misuse]) is not a refusal, and neither is anything else, a remote call's `IOException` or timeout included: those
  * stay failures of the command's handling. A [CancellationException] is never one.
  */
 internal object ThrownRejections {
@@ -58,15 +58,4 @@ internal object ThrownRejections {
 
     /** The codes a domain command's thrown `require` and `check` are answered with, which it may not reject with itself. */
     val CODES: Set<String> = setOf(FrameworkCodes.COMMAND_INVALID, FrameworkCodes.COMMAND_REFUSED)
-}
-
-/**
- * A decide function used its [me.ahoo.wow.api.decide.DecideScope] in a way the kernel cannot serve: a blank schedule
- * key, a command no Manifest names, a reservation without a store. A fault of the code or the node, not a refusal of
- * the command, so a subclass ([ThrownRejections] answers only the exact classes as rejections).
- */
-internal sealed interface ScopeMisuse {
-    class Argument(message: String) : IllegalArgumentException(message), ScopeMisuse
-
-    class State(message: String) : IllegalStateException(message), ScopeMisuse
 }
