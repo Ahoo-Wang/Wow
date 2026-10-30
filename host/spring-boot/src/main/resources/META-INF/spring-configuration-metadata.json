@@ -20,7 +20,7 @@
   }, {
     "name" : "wow.cosec",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
-    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.",
+    "description" : "The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.cosec.authorizer",

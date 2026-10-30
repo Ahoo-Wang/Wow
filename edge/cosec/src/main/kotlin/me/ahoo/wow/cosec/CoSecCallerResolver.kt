@@ -18,6 +18,7 @@ import me.ahoo.cosec.api.principal.CoSecPrincipal
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
@@ -37,6 +38,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
+@ExperimentalWowApi
 class CoSecCallerOptions @InternalWowApi constructor(
     val defaultTenant: String = Caller.DEFAULT_TENANT,
     val crossScopeRoles: Set<String> = emptySet(),
@@ -98,6 +100,7 @@ class CoSecCallerOptions @InternalWowApi constructor(
  * - **Attributes**: the principal's roles in its scope ([ROLES]), its policies ([POLICIES]), and its ABAC attributes,
  *   keyed with their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
  */
+@ExperimentalWowApi
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? =
         request.exchange().getSecurityContext()?.let(::callerOf)

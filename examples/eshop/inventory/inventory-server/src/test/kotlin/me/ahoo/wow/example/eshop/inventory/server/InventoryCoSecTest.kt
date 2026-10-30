@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.inventory.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.assertThrows
  */
 class InventoryCoSecTest {
     @Test
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun `behind the gateway the caller should be CoSec's`() {
         wowServer<InventoryServer>("cosec").use { server ->
             server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)

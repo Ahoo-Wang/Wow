@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.server
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
@@ -92,6 +93,7 @@ class ViewStoreConfiguration {
          */
         @Bean
         @JvmStatic
+        @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
         fun reservedScopeCallers(): BeanPostProcessor = object : BeanPostProcessor {
             override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
                 if (bean is CoSecCallerResolver || bean is DevelopmentCallerResolver) {

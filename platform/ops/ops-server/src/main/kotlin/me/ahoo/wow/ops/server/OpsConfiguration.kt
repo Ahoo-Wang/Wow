@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.ops.server
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
@@ -50,6 +51,7 @@ class OpsConfiguration {
      * then having no objection); otherwise the operator role decides ([OperatorRole]).
      */
     @Bean
+    @OptIn(ExperimentalWowApi::class) // wow-cosec is experimental in 10.0
     fun opsOperatorRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): CommandAuthorizer =
         if (cosec.ifAvailable == null) OperatorRole() else CommandAuthorizer.ALLOW_ALL
 

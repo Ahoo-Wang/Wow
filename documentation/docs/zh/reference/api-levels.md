@@ -87,6 +87,13 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.http.ops.subscriptionRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueryModels.datasets` | fun | `wow-client` |
+| `me.ahoo.wow.cosec.CoSecActions` | object | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecCallerOptions` | class | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecCallerResolver` | class | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecCommandAuthorizer` | class | `wow-cosec` |
+| `me.ahoo.wow.cosec.CoSecServiceRouteAuthorizer` | class | `wow-cosec` |
+| `me.ahoo.wow.spring.boot.CoSecAutoConfiguration` | class | `wow-spring-boot` |
+| `me.ahoo.wow.spring.boot.CoSecRouteMapAutoConfiguration` | class | `wow-spring-boot` |
 
 ## SPI 声明 {#spi-declarations}
 

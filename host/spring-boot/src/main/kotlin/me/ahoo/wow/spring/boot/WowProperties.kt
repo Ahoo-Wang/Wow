@@ -171,7 +171,10 @@ class WowProperties {
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
 
-    /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
+    /**
+     * The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are.
+     * Experimental in 10.0 with wow-cosec, which follows CoSec 8's pre-release: they may change within 10.x.
+     */
     var cosec: CoSec = CoSec()
 
     /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
