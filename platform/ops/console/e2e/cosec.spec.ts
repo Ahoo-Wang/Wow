@@ -131,6 +131,42 @@ test("a viewer reads the entries, and the service refuses its actions", async ({
   ).toBeVisible();
 });
 
+test("a principal with neither ops role reads nothing: the service refuses its reads as forbidden (UI-1)", async ({
+  page,
+  request,
+}) => {
+  const query = "/ops/parked/snapshot/query";
+  const state = `/ops/parked/${encodeURIComponent(exhausted.id)}/state`;
+  const everything = { op: "match-all" };
+  for (const token of [
+    accessToken("nobody", []),
+    accessToken("stranger", ["someone.else"]),
+  ]) {
+    const headers = { Authorization: `Bearer ${token}` };
+    for (const answer of [
+      await request.post(query, { headers, data: { kind: "count", filter: everything } }),
+      await request.post(query, { headers, data: { kind: "list", filter: everything } }),
+      await request.get(state, { headers }),
+    ]) {
+      expect(answer.status()).toBe(403);
+      expect((await answer.json()).code).toBe("wow.auth.forbidden");
+    }
+  }
+
+  await open(page);
+  await signIn(page, accessToken("nobody", []));
+  await expect(
+    page.getByText(
+      "This caller has neither ops.viewer nor ops.operator: the service shows it no entry.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("needs ops.viewer or ops.operator").first(),
+  ).toBeVisible();
+  await expect(row(page, exhausted)).toHaveCount(0);
+  await expect(row(page, unrecoverable)).toHaveCount(0);
+});
+
 test("a token the gateway refuses signs the console out", async ({ page }) => {
   await open(page);
   await signIn(
