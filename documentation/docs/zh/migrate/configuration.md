@@ -58,7 +58,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | 9.x | V10 |
 | --- | --- |
 | `wow.cosec.*`、`wow.cosec.abac.*` | `wow.cosec.*`：`mode`、`tenant-level`、`cross-scope`、`authorizer`（[保护部署](../operate/security)）；查询 ABAC 是 `wow.query.abac.*` |
-| `wow.compensation.*`，以及补偿服务自己的配置项 | 每个节点用 `wow.subscription.parked.*`，每个订阅用 `wow.subscriptions.[<processor.function>].parked.*`；运维路由、webhook 以及向运维服务发布用 `wow.ops.*`（[平台服务](./platform)） |
+| `wow.compensation.*`，以及补偿服务自己的配置项 | 每个节点用 `wow.subscription.parked.*`，每个订阅用 `wow.subscriptions.[<context>.<processor.function>].parked.*`；运维路由、webhook 以及向运维服务发布用 `wow.ops.*`（[平台服务](./platform)） |
 | `wow.bi.script.*` | 随 BI 同步一起移除：改用 ClickHouse Sink，`wow.clickhouse.sink.*`（[ClickHouse](../operate/clickhouse)） |
 | 代码中每个聚合固定的租户 | `wow.aggregates.[<context>.<aggregate>].tenant` |
 

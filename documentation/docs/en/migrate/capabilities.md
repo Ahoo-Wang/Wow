@@ -85,7 +85,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Historical state: by version, by time, traced | Kept | `GET …/state?version=`, `?at=` and `…/state/trace`. |
 | Reading one aggregate's event stream | Kept | The `events` query model. |
 | Recovering or skipping failed processing | Replaced | Parking and the failure ledger, operated through the ops service. |
-| Targeted replay of a version range; resending state events in bulk | 10.x | Until then, resume parked aggregates or rebuild a whole subscription. |
+| Targeted replay of a version range; resending state events in bulk | 10.x | Until then, retry parked aggregates or rebuild a whole subscription. |
 | Re-dispatching stored events to one handler (`DomainEventCompensator`), as a backfill | Replaced | A handler of a new name that starts at the beginning of its stream reads the whole history once. See [Rebuild and Replay](../operate/replay). |
 | Domain and state event buses | Replaced | The log is the bus; other contexts read published streams on Kafka. See [The log is the bus](../concepts/event-log). |
 | Creating collections and indexes | Kept | Managed by the stores' DDL setting. |
@@ -188,7 +188,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | --- | --- | --- |
 | Compensation service | Replaced | The ops service and console over the services' failure ledgers. The data tool imports unresolved executions. |
 | Long-horizon automatic retries | Kept | — |
-| Resume, skip, mark recoverable, apply a retry spec | Kept | — |
+| Resume, skip, mark recoverable, apply a retry spec | Kept | Resume is `retry` in V10. |
 | Changing an execution's function; forced prepare | Dropped | — |
 | WeCom (WeChat Work) webhook | Kept | And a generic webhook. |
 | Console links and templates in notifications | 10.x | — |
