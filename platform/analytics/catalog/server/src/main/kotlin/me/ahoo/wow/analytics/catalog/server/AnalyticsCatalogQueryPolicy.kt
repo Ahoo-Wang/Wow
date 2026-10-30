@@ -16,6 +16,7 @@ package me.ahoo.wow.analytics.catalog.server
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.filter.QueryContext
@@ -26,7 +27,8 @@ import me.ahoo.wow.query.schema.QueryModel
 /**
  * Keeps the catalog to the catalog's roles: a query of the catalog's own aggregates (its sources and datasets, their
  * columns, sensitivity and lineage, the control plane) by a caller with none of [AnalyticsCatalogRoles.READERS] is
- * refused ([READER_REQUIRED]); trusted in-process code, which has no caller, is not restricted.
+ * refused as `wow.auth.forbidden` ([READER_REQUIRED]): the query is right, the caller may not run it; trusted
+ * in-process code, which has no caller, is not restricted.
  *
  * The published datasets themselves (the `DATASET` model, the data plane) are not the catalog's to
  * guard: their queries go through the node's other policies as any dataset's do, each caller reading the rows of its
@@ -45,13 +47,14 @@ class AnalyticsCatalogQueryPolicy : QueryPolicy {
             throw QueryRequestException(
                 "${who.subject} reads no source: it needs one of ${AnalyticsCatalogRoles.READERS}.",
                 READER_REQUIRED,
+                problem = FrameworkCodes.AUTH_FORBIDDEN,
             )
         }
         return MatchAllFilter
     }
 
     companion object {
-        /** The code of a query by a caller without a reader's role. */
+        /** The violation code of a query by a caller without a reader's role. */
         const val READER_REQUIRED: String = "READER_REQUIRED"
     }
 }
