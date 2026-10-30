@@ -19,7 +19,7 @@
 | 测试 DSL | S19～S24 | 已合并 #5195 |
 | PR 3 身份与运维面 | S5～S9，以及 #5194 带来的两处技能说明 | 已合并 #5198（2026-10-30） |
 | PR 4a Saga 处理器 | S10、S11、S12、S16 | 进行中 #5215 |
-| PR 4b 失败 | S13、S14、S15，以及失败分类规则移到后端 | 未开始 |
+| PR 4b 失败 | S13、S14（已定：保留内联、写明规则）、S15，以及失败分类规则移到后端 | 未开始（#5215 合并后） |
 | PR 4c 形状与编译期检查 | S17、S18、S25 的 `JOIN`、S27 | 未开始 |
 
 顺序：PR 3 → CosId 5（#5165，在 CoSec 8 #5167 之后）→ PR 4a → 4b → 4c，同一会话依次做（批 2）。PR 4a 改动回执类型时，在同一个 PR 里同步测试 DSL。
@@ -114,10 +114,11 @@
 - 问题：处理器返回 Reactor 发布者时跳过返回类型检查（`SubscriptionResolver.kt:386-388`、`:577`、`ScheduleJobResolver`）；运行时 `DerivedRequests.kt:102` 抛出的 `IllegalStateException` 被归为可恢复，重试后才停放；带 `wait`/`timeout` 的派生请求（`SubscriptionContext.kt:93-94`）也只在运行时拒绝。
 - 决定：检查类型参数：投影与 Reactor 为 `Mono<Void>`/`Mono<Unit>`，Saga 为 `CommandRequest` 的 `Mono`/`Flux`；这类编程错误与带 `wait`/`timeout` 的派生请求归为不可恢复，立即停放。
 
-### S14 回执的重试范围（有条件）
+### S14 回执的重试范围（已定：保留内联）
 
 - 问题：回执处理器上的 `@Retry` 是编译错误（`SubscriptionResolver.kt:277-281`）；同上下文的回执在派生它的 `@OnEvent` 处理里内联执行（`SubscriptionBindings.kt:366,373`），受派生处理器的预算约束，而 `OnRejected.kt:23-24`、`OnCommitted.kt:28` 说「每个处理器是自己的订阅」；类上的 `@Retry` 也作用于 `@OnSchedule`（`SubscriptionResolver.kt:174`），`Retry.kt:21-22` 只说事件处理器。
 - 决定：每个回执经自己的订阅、用自己的 `@Retry`，同上下文也一样，`@Retry` 可标在回执处理器上。**条件**：实施前确认同上下文内联是否是已定的等待链性质（`SagaReceipts.kt:41-42`）；若是，先报协调者，再在「保留内联、文档写明回执继承派生处理器的预算、修正 KDoc」与本决定之间选择。KDoc 一并改正。
+- 核查与裁定（协调者 2026-10-30，PR 4b 实施前的只读核查）：同上下文内联**不是**等待链依赖的性质——`handled(Saga.onX)` 由订阅 worker 按 `HandledEntry.derived` 发信号，派生命令的 `committed` 由其自身提交发出，跨上下文的回执本已经独立订阅 `wow.receipts.<ctx>` 到达（eShop 结账链即依赖它），`WaitState` 缓存早到的结果，顺序无关；没有决定把内联定为等待性质（D192：回执与等待链无关）。但改为每个回执单独订阅的代价实在：同上下文的拒绝不进日志（D47），须先持久写入回执主题才能推进 Saga 的检查点，每条这样的命令多一次传输写入，连只在本上下文内的 Saga（含内存与单节点）也要有回执主题；同一聚合内的顺序变弱（v1 的补偿可能在 Saga 处理 v2 之后才执行）；失败的回执处理器会单独重试与停放，而聚合后续事件照常流向 Saga；`REJECTED` 的 Saga 跳不再在 `derived` 中列出补偿。换来的只是每个处理器自己的重试与停放身份，对等待链无益。**裁定：保留内联，写明规则，不做本节原决定。**规则：同上下文的回执在派生它的 `@OnEvent` 处理之内执行，受该处理器（或处理器类）的 `@Retry` 预算约束，停放记在该订阅名下，重试即重跑该处理，由确定性 ID 保证无害；跨上下文的回执在 `wow.receipts.<ctx>` 中执行，受宿主对该订阅名的重试设置约束；回执处理器上的 `@Retry` 仍为编译错误，于是一个处理器的预算不取决于它的命令发往何处。PR 4b 随之：改正 `OnRejected`、`OnCommitted`、`CommandReceipt` 的 KDoc（去掉「每个处理器是自己的订阅」与 4a 中「4b 之前」的说法），编译器对回执处理器上 `@Retry` 的提示写明两种情形，`Retry.kt` 写明类上的 `@Retry` 也作用于 `@OnSchedule`，并以测试钉住同上下文拒绝处理器抛错时按派生处理器的预算重跑、停放在 `@OnEvent` 订阅名下。
 
 ### S15 失败分类的手段
 
