@@ -38,6 +38,9 @@ export interface OpsCaller {
 /** The role that acts on the entries (`OpsRoles.OPERATOR`). */
 export const OPERATOR_ROLE = "ops.operator";
 
+/** The role that reads the entries and may not act on them (`OpsRoles.VIEWER`). */
+export const VIEWER_ROLE = "ops.viewer";
+
 /** Wow's default tenant: the one the services' ledgers publish to. */
 export const DEFAULT_TENANT = "(0)";
 
@@ -52,6 +55,11 @@ export function parseRoles(value: string): string[] {
 /** Whether `caller` may act on the entries, as the service decides it. */
 export function isOperator(caller: OpsCaller | null): boolean {
   return caller?.roles.includes(OPERATOR_ROLE) ?? false;
+}
+
+/** Whether `caller` may read the entries, as the service decides it: an operator reads what it acts on. */
+export function isReader(caller: OpsCaller | null): boolean {
+  return isOperator(caller) || (caller?.roles.includes(VIEWER_ROLE) ?? false);
 }
 
 /** A caller read back from storage, or `null` for anything else. */

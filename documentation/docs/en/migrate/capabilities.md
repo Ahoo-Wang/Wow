@@ -85,7 +85,8 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Historical state: by version, by time, traced | Kept | `GET …/state?version=`, `?at=` and `…/state/trace`. |
 | Reading one aggregate's event stream | Kept | The `events` query model. |
 | Recovering or skipping failed processing | Replaced | Parking and the failure ledger, operated through the ops service. |
-| Targeted replay of a version range; resending state events in bulk | 10.x | Until then, resume parked aggregates or rebuild a whole subscription. |
+| Targeted replay of a version range; resending state events in bulk | 10.x | Until then, retry parked aggregates or rebuild a whole subscription. |
+| Re-dispatching stored events to one handler (`DomainEventCompensator`), as a backfill | Replaced | A handler of a new name that starts at the beginning of its stream reads the whole history once. See [Rebuild and Replay](../operate/replay). |
 | Domain and state event buses | Replaced | The log is the bus; other contexts read published streams on Kafka. See [The log is the bus](../concepts/event-log). |
 | Creating collections and indexes | Kept | Managed by the stores' DDL setting. |
 
@@ -100,6 +101,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | `@Retry`: attempts, backoff, timeout | Replaced | V10's `@Retry`, configurable per subscription, then long-horizon retries of parked aggregates. |
 | Recoverable and unrecoverable exception classes | Kept | On `@Retry`, plus pluggable failure classifiers. |
 | Where a subscription starts | Kept | New in V10: declared on the handler or configured. |
+| Periodic jobs in an external scheduler (Simba, `@Scheduled`) | Replaced | `@OnSchedule` jobs of a saga, on cron rules, with no external lock. A job that waits for each command's outcome before the next stays outside and sends through the command client. See [Scheduled Commands](../guide/scheduling). |
 | Processor filters, interceptors, `@Order` | Dropped | — |
 | Skipping Kafka messages that do not decode | 10.x | V10 parks them. |
 | Reading other aggregates' state or querying in a handler | Replaced | The typed query API, available to handlers. |
@@ -112,6 +114,9 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Filter expressions, relative time, metadata filters, aggregation windows | Kept | — |
 | The `Condition` protocol | Dropped | Use filter expressions; the Skill rewrites conditions. |
 | Kotlin query DSL and generated `<State>Properties` | Kept | — |
+| Wow query types stored in events or state (`Condition`, `Sort`, `Projection`) | Dropped | The kernel's JSON has no codec for the query protocol: store a type of your own and upgrade the 9.x JSON into it. |
+| Query schema overrides on the classpath (`META-INF/wow/query-schema`) | Dropped | The schema comes from the state classes; move each override onto the state as a field annotation. |
+| Implementing or subclassing the query types (`IPagedList`) | Dropped | The V10 query types are final classes built with their factories or the DSL. |
 | Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |
 | Masking sensitive fields, in queries and state reads | Kept | — |
 | ABAC query policies, CoSec `abac.` attributes | Kept | Off by default. |
@@ -183,7 +188,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | --- | --- | --- |
 | Compensation service | Replaced | The ops service and console over the services' failure ledgers. The data tool imports unresolved executions. |
 | Long-horizon automatic retries | Kept | — |
-| Resume, skip, mark recoverable, apply a retry spec | Kept | — |
+| Resume, skip, mark recoverable, apply a retry spec | Kept | Resume is `retry` in V10. |
 | Changing an execution's function; forced prepare | Dropped | — |
 | WeCom (WeChat Work) webhook | Kept | And a generic webhook. |
 | Console links and templates in notifications | 10.x | — |
@@ -198,9 +203,9 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | 9.x capability | In V10 | Notes |
 | --- | --- | --- |
 | `wow-models` | Kept | — |
-| `wow-cocache` | Dropped | — |
+| `wow-cocache` | Replaced | One shared cache per aggregate type, written by the context that owns it and read as `StateViewCache`; a reader's own index and join caches have no counterpart. |
 | `wow-apiclient` | Replaced | Typed command and query clients that run in-process for the service's own contexts and over HTTP for others. See [Between contexts](../concepts/cross-context#typed-clients). |
-| CosId | Kept | — |
+| CosId | Kept | Through `wow-cosid` on CosId 5, for aggregate ids: segment generators move to CosId 5's configuration, and their state with CosId's migration tool. |
 | Spring integration and starter features | Replaced | One Spring Boot host module, wiring each backend by classpath. |
 
 ## Configuration and operations

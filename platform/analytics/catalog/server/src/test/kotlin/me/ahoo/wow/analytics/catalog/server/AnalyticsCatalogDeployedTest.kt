@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import me.ahoo.cosec.runtime.identity.IdentityCodec
+import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.time.Instant
 
 /**
  * The analytics catalog as it is deployed: outside development, behind the CoSec gateway (the `cosec` profile), without
@@ -29,7 +33,39 @@ class AnalyticsCatalogDeployedTest {
         }
     }
 
+    @Test
+    fun `a principal with none of the catalog's roles should be refused its reads as forbidden (UI-35)`() {
+        startCatalog(*DEPLOYED, profiles = listOf("cosec")).use { node ->
+            listOf(signedIn("nobody"), signedIn("stranger", "someone.else")).forEach { reader ->
+                node.sources(reader).assertProblem(FORBIDDEN, "wow.auth.forbidden").json["detail"].asString().assert()
+                    .contains("reads no source")
+            }
+            node.sources(signedIn("vic", AnalyticsCatalogRoles.VIEWER)).assertOk()
+        }
+    }
+
+    /**
+     * [id] of CoSec's default tenant with [roles], as the CoSec gateway forwards it after verifying its credential: the
+     * service holds no secret and verifies nothing, it believes the header.
+     */
+    private fun signedIn(id: String, vararg roles: String): Who {
+        val now = Instant.now()
+        val identity = Identity(
+            tenant = "(0)",
+            subject = id,
+            app = "",
+            space = "",
+            roles = roles.toSet(),
+            credential = Identity.Credential(Identity.Method.JWT, "token-of-$id", now + Duration.ofHours(1)),
+            issuedAt = now,
+            requestId = "request-of-$id",
+        )
+        return Who(mapOf(IdentityCodec.HEADER to IdentityCodec.encode(identity)))
+    }
+
     private companion object {
+        const val FORBIDDEN = 403
+
         /** Bound to every interface, as a pod is; in memory, so the backend is not what it checks. */
         val DEPLOYED = arrayOf<Pair<String, Any>>(
             "wow.internal.host" to "0.0.0.0",

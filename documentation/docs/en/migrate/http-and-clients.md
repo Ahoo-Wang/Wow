@@ -17,7 +17,7 @@ V10 changes the routes, the headers, the errors and the client packages, and kee
 | `GET …/snapshot/schema` | `GET` on the same query route: the capability descriptor, with its `ETag` |
 | `GET …/{id}/state/{version}`, `…/state/tracing` | `GET /<context>/<aggregate>/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and `…/state/trace` |
 | `PUT …/{id}/snapshot` (regenerate) | `POST /<context>/snapshot/<aggregate>/wow.snapshot.rebuild` with `{"ids": [...]}` |
-| State-event resend, per-version re-dispatch | None until 10.x; a failed version is a parked entry, resumed under `/wow/ops/parked` |
+| State-event resend, per-version re-dispatch | None until 10.x; a failed version is a parked entry, retried under `/wow/ops/parked` |
 | `/wow/command/send`, `/wow/command/wait` | The per-command routes |
 | `/dataset/…` | `GET /wow/dataset`, `POST /wow/dataset/<context>/<dataset>/query` |
 

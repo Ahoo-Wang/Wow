@@ -60,18 +60,19 @@ The operator signs in to the console with a CoSec access token. The service read
 wow:
   cosec:
     mode: gateway
-    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
-    # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
-    # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
+    # The operators and viewers, tenant-level callers (their scope has no owner): an operator acts on the entries, a
+    # viewer reads them, and a principal with neither role reads nothing (403 wow.auth.forbidden). An entry is its
+    # tenant's, so no caller's owner restricts its reads: the roles do. The services' ledgers publish to Wow's
+    # default tenant, (0), which a principal of CoSec's default tenant is in.
     tenant-level:
       roles: ops.operator, ops.viewer
 ```
 
 - `ops.operator` reads the entries and acts on them.
 - `ops.viewer` only reads them.
-- A principal with neither reads nothing. A request without a valid token is answered 401, and the console signs out.
+- A principal with neither reads nothing: its queries of the entries and its state reads are refused with 403 `wow.auth.forbidden`. A request without a valid token is answered 401, and the console signs out.
 
-The services' ledgers publish to Wow's default tenant, `(0)`. Where CoSec decides the ops service's requests itself, with `wow.cosec.authorizer.enabled: true` (not behind the gateway, where the service has no CoSec decision), CoSec's documents decide who is an operator instead of the role, each action by its command's action: `ops:Retry`, `ops:Skip`, `ops:MarkRecoverable` and `ops:ApplyRetrySpec` on `parked/<id>` ([Action names](./security#action-names)). A service that serves its own operator routes (`/wow/ops/parked`, below) judges them as its `wow.ledger.*` commands. Write a policy for each route you expose. Whoever decides, no caller may send the records (`ops.parked.RecordParked`, `RecordResolved`, `RecordActionRefused`): only the services' ledgers and the ops saga produce them.
+The services' ledgers publish to Wow's default tenant, `(0)`. Where CoSec decides the ops service's requests itself, with `wow.cosec.authorizer.enabled: true` (not behind the gateway, where the service has no CoSec decision), CoSec's documents decide who reads the entries and who is an operator instead of the roles, a read by its query route's path and each action by its command's action: `ops:Retry`, `ops:Skip`, `ops:MarkRecoverable` and `ops:ApplyRetrySpec` on `parked/<id>` ([Action names](./security#action-names)). A service that serves its own operator routes (`/wow/ops/parked`, below) judges them as its `wow.ledger.*` commands. Write a policy for each route you expose. Whoever decides, no caller may send the records (`ops.parked.RecordParked`, `RecordResolved`, `RecordActionRefused`): only the services' ledgers and the ops saga produce them.
 
 ## Work with the console
 

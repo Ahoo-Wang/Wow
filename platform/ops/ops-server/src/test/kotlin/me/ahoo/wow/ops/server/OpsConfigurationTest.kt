@@ -30,15 +30,24 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.Retry
+import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.policy.EventsMode
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource
 import reactor.util.context.Context
@@ -87,7 +96,35 @@ class OpsConfigurationTest {
         caller: Caller = granted,
         action: CommandAction = retry,
         security: SecurityContext? = request(caller.subject!!),
-    ): Authorization {
+    ): Authorization = configured(checker, authorizerEnabled) { context ->
+        val authorizers = context.getBeanProvider(CommandAuthorizer::class.java).orderedStream().toList()
+        runBlocking {
+            val reactor = security?.let { Context.of(SecurityContext.KEY, it) } ?: Context.empty()
+            withContext(ReactorContext(reactor)) { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
+        }
+    }
+
+    /** Whether a query of the entries by [caller] passes every query policy the ops service registers. */
+    private fun reads(checker: AuthorizationChecker?, authorizerEnabled: Boolean, caller: Caller = granted): Boolean =
+        configured(checker, authorizerEnabled) { context ->
+            val policies = context.getBeanProvider(QueryPolicy::class.java).orderedStream().toList()
+            runBlocking {
+                try {
+                    policies.forEach { it.evaluate(QueryCaller.of(caller), mockk<QueryContext<*>>()) }
+                    true
+                } catch (refused: QueryRequestException) {
+                    refused.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+                    false
+                }
+            }
+        }
+
+    /** [use] of the ops service's configuration, with CoSec deciding here as [checker] says. */
+    private fun <T> configured(
+        checker: AuthorizationChecker?,
+        authorizerEnabled: Boolean,
+        use: (AnnotationConfigApplicationContext) -> T,
+    ): T {
         val properties = mapOf<String, Any>("wow.cosec.authorizer.enabled" to authorizerEnabled)
         return AnnotationConfigApplicationContext().use { context ->
             context.environment.propertySources.addFirst(MapPropertySource("test", properties))
@@ -95,11 +132,7 @@ class OpsConfigurationTest {
             checker?.let { context.registerBean(AuthorizationChecker::class.java, Supplier { it }) }
             context.register(CoSecAutoConfiguration::class.java, OpsConfiguration::class.java)
             context.refresh()
-            val authorizers = context.getBeanProvider(CommandAuthorizer::class.java).orderedStream().toList()
-            runBlocking {
-                val reactor = security?.let { Context.of(SecurityContext.KEY, it) } ?: Context.empty()
-                withContext(ReactorContext(reactor)) { CommandAuthorizer.allOf(authorizers).authorize(caller, action) }
-            }
+            use(context)
         }
     }
 
@@ -133,5 +166,45 @@ class OpsConfigurationTest {
         authorize(null, authorizerEnabled = true).assert().isInstanceOf(Authorization.Denied::class.java)
         authorize(null, authorizerEnabled = true, security = null).assert()
             .isInstanceOf(Authorization.Denied::class.java)
+    }
+
+    @Test
+    fun `the reader roles should decide who reads, unless CoSec decides and its authorizer is on (UI-1)`() {
+        // A caller with no ops role: CoSec's policies of the query routes may let it read; the roles never do.
+        reads(checker(permits = true), authorizerEnabled = true).assert().isTrue()
+        reads(checker(permits = true), authorizerEnabled = false).assert().isFalse()
+        reads(null, authorizerEnabled = true).assert().isFalse()
+        val viewer = Caller.of(
+            subject = "victor",
+            attributes = mapOf(OpsRoles.ROLES_ATTRIBUTE to listOf(OpsRoles.VIEWER))
+        )
+        reads(null, authorizerEnabled = false, caller = viewer).assert().isTrue()
+    }
+
+    @Test
+    fun `the node's read policy should step aside for CoSec where it decides, else be the reader roles (UI-1)`() {
+        val entries = mockk<QueryContext<*>>()
+        val nobody = QueryCaller.of(Caller.of(subject = "nobody"))
+        configured(checker(permits = true), authorizerEnabled = true) { context ->
+            context.getBeanProvider(CoSecCommandAuthorizer::class.java).ifAvailable.assert().isNotNull()
+            val policy = context.getBean(QueryPolicy::class.java)
+            policy.assert().isSameAs(ReaderRole.COSEC_DECIDES)
+            runBlocking {
+                policy.evaluate(nobody, entries).assert().isEqualTo(MatchAllFilter)
+                policy.evaluate(QueryCaller.IN_PROCESS, entries).assert().isEqualTo(MatchAllFilter)
+            }
+            // It hides no entry, so the entries' events queries need not name their aggregates there either.
+            policy.events.assert().isEqualTo(EventsMode.NONE)
+        }
+        configured(null, authorizerEnabled = true) { context ->
+            context.getBeanProvider(CoSecCommandAuthorizer::class.java).ifAvailable.assert().isNull()
+            val policy = context.getBean(QueryPolicy::class.java)
+            policy.assert().isInstanceOf(ReaderRole::class.java)
+            runBlocking {
+                assertThrows<QueryRequestException> { policy.evaluate(nobody, entries) }
+                // Trusted in-process code, such as the ops saga or the node itself, reads every entry.
+                policy.evaluate(QueryCaller.IN_PROCESS, entries).assert().isEqualTo(MatchAllFilter)
+            }
+        }
     }
 }

@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 269 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 270 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -24,7 +24,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 269 个，由宿主
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its context and name, `<context>.<name>`, bracketed in a property name (`wow.subscriptions.[shop.CartSaga.onOrderCreated]`, `wow.subscriptions.[shop.wow.snapshot]`): a name is unique within its context alone. |
-| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
+| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (topic routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `none` gives the node no topics in any profile, whatever is configured, with the same refusal; `kafka`, or a community provider's type, names the transport. A blank `wow.kafka.bootstrap-servers` is no way to turn the topics off: in development it falls back to the topics in the JVM. |
 
 ## `wow.aggregates.[<context>.<aggregate>]`
 
@@ -314,6 +314,14 @@ The aggregates' logs: their partitions, their store, and how their appends and t
 | `wow.log.partitions` | `Integer` | `64` | The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096, refused at start otherwise. |
 | `wow.log.poll-interval` | `Duration` | `PT0.05S` | How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. |
 | `wow.log.store` | `String` |  | The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set. |
+
+## `wow.memory`
+
+The in-memory provider's settings: the topics it keeps in the JVM.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.memory.topic-retention` | `Integer` | `1000` | The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs. |
 
 ## `wow.mongo`
 

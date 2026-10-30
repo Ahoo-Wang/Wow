@@ -12,11 +12,12 @@
  */
 
 import type { ReactNode } from "react";
-import { Eye, UserRound } from "lucide-react";
+import { Eye, EyeOff, UserRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useI18n, type Message } from "@/i18n.tsx";
 import {
   isOperator,
+  isReader,
   type OpsCaller,
   type SignedOut,
 } from "@/services/caller.ts";
@@ -33,7 +34,8 @@ const SIGNED_OUT = {
 /**
  * A page that reads the entries: without a caller there is nothing to read
  * — the service answers 401 — so it asks for one first; a caller without
- * `ops.operator` is told it only reads.
+ * `ops.operator` is told it only reads, one with neither `ops.viewer` nor
+ * `ops.operator` that the service shows it nothing (403).
  */
 export function CallerGate({
   children,
@@ -65,10 +67,15 @@ export function CallerGate({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {isOperator(caller) ? null : (
+      {isOperator(caller) ? null : isReader(caller) ? (
         <Alert className="mx-3 mt-3 w-auto">
           <Eye />
           <AlertDescription>{t("readOnly")}</AlertDescription>
+        </Alert>
+      ) : (
+        <Alert className="mx-3 mt-3 w-auto">
+          <EyeOff />
+          <AlertDescription>{t("noReader")}</AlertDescription>
         </Alert>
       )}
       {children(caller)}
