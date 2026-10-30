@@ -37,9 +37,10 @@ spring:
 wow:
   cosec:
     mode: gateway
-    # Tenant-level callers: their scope has no owner, so they read every entry of their tenant. An
-    # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
-    # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
+    # The operators and viewers, tenant-level callers (their scope has no owner): an operator acts on the entries, a
+    # viewer reads them, and a principal with neither role reads nothing (403 wow.auth.forbidden). An entry is its
+    # tenant's, so no caller's owner restricts its reads: the roles do. The services' ledgers publish to Wow's
+    # default tenant, (0), which a principal of CoSec's default tenant is in.
     tenant-level:
       roles: ops.operator, ops.viewer
 # endregion

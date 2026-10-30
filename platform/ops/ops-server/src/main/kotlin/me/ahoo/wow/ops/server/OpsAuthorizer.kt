@@ -69,7 +69,7 @@ class OpsAuthorizer : CommandAuthorizer {
  */
 class OperatorRole : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization =
-        if (OpsRoles.OPERATOR in caller.attributes[OpsRoles.ROLES_ATTRIBUTE].orEmpty()) {
+        if (OpsRoles.OPERATOR in OpsRoles.rolesOf(caller)) {
             Authorization.Allowed
         } else {
             Authorization.Denied.of(

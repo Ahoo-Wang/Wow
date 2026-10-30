@@ -115,7 +115,7 @@ class OpsCoSecTest {
     @Test
     fun `a viewer should read the entries and may not act on them`() {
         val id = ops.publish(entry("shop-viewer", "p-1"))
-        val viewer = signedIn("victor", "ops.viewer")
+        val viewer = signedIn("victor", OpsRoles.VIEWER)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", viewer).status == OK }
         ops.post("/ops/parked/$id/skip", "{}", viewer).assertProblem(FORBIDDEN, "wow.auth.forbidden")
     }
@@ -126,6 +126,7 @@ class OpsCoSecTest {
         val operator = signedIn("alice", OpsRoles.OPERATOR)
         eventually("$id recorded") { ops.get("/ops/parked/$id/state", operator).status == OK }
         val everything = """{"op":"match-all"}"""
+        val history = """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}"""
         // A principal with no role, and one with a role of another service: owner-level callers, whose owner does not
         // restrict an entry of their tenant (the entries are the tenant's, Ownership.TENANT).
         listOf(signedIn("nobody"), signedIn("stranger", "someone.else")).forEach { reader ->
@@ -133,14 +134,13 @@ class OpsCoSecTest {
                 .assertProblem(FORBIDDEN, "wow.auth.forbidden")
             ops.post(QUERY, """{"kind":"list","filter":$everything}""", reader)
                 .assertProblem(FORBIDDEN, "wow.auth.forbidden")
-            ops.post("/ops/parked/events/query", """{"kind":"list","filter":{"op":"eq","field":"aggregateId",
-                "value":"$id"}}""", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+            ops.post("/ops/parked/events/query", history, reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
             ops.get("/ops/parked/$id/state", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
             ops.get("/ops/parked/$id/state/trace", reader).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         }
-        // A viewer and an operator read them.
-        ops.post(QUERY, """{"kind":"count","filter":$everything}""", signedIn("victor", "ops.viewer")).assertOk()
-        ops.get("/ops/parked/$id/state", signedIn("victor", "ops.viewer")).assertOk()
+        // A viewer reads them, as the operator did.
+        ops.post(QUERY, """{"kind":"count","filter":$everything}""", signedIn("victor", OpsRoles.VIEWER)).assertOk()
+        ops.get("/ops/parked/$id/state", signedIn("victor", OpsRoles.VIEWER)).assertOk()
     }
 
     @Test

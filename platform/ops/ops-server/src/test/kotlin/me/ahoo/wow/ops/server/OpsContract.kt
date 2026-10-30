@@ -121,7 +121,7 @@ abstract class OpsContract {
         detail["aggregate"]["id"].asString().assert().isEqualTo("p-1")
         detail["reason"].asString().assert().contains("unreachable")
         detail["retrySpec"]["maxRetries"].asInt().assert().isEqualTo(3)
-        // A caller of the tenant reads the entries too; one of another tenant sees none of them.
+        // A viewer of the tenant reads the entries too; one of another tenant sees none of them.
         query(eq("state.context", context), Who.VIEWER).assertOk().ids.assert().hasSize(3)
         query(eq("state.context", context), Who.OUTSIDER).assertOk().ids.assert().isEmpty()
     }
