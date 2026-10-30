@@ -29,6 +29,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 
 /** Decision D149: the runtime-agnostic pieces a generated processor binding builds on. */
@@ -270,13 +271,16 @@ class ProcessorBindingTest {
         requestsOf(setOf<CommandRequest<*>>()).assert().isEmpty()
         requestsOf(sequenceOf(request)).assert().containsExactly(request)
         requestsOf(flowOf(request, request)).assert().containsExactly(request, request)
-        assertThrownBy<IllegalStateException> { runBlocking { requestsOf("x") } }
+        assertThrownBy<InvalidDerivedRequestException> { runBlocking { requestsOf("x") } }
             .hasMessageContaining("A saga derives command requests, not x")
-        assertThrownBy<IllegalStateException> { runBlocking { requestsOf(listOf(request, 1)) } }
+        assertThrownBy<InvalidDerivedRequestException> { runBlocking { requestsOf(listOf(request, 1)) } }
             .hasMessageContaining("A saga derives command requests, not 1")
         val command = Command("c", "r", cart.ref("t", "alice"), "x")
-        assertThrownBy<IllegalStateException> { runBlocking { requestsOf(command) } }
-            .hasMessageContaining("return CommandRequest.to(ref, body)")
+        val returned = assertThrownBy<InvalidDerivedRequestException> { runBlocking { requestsOf(command) } }
+            .hasMessageContaining("return CommandRequest.to(ref, body)").actual()
+        // A defect in the saga, which no retry changes: the aggregate parks at once.
+        FailureClassification.DEFAULT.classify(returned, HandlerRetry(maxAttempts = 5))
+            .assert().isEqualTo(FailureClass.UNRECOVERABLE)
     }
 
     @Test

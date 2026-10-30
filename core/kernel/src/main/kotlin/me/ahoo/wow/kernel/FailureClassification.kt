@@ -112,7 +112,9 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
  * - [FailureClass.UNRECOVERABLE], a value a store or a transport refused for good ([StorageRefusedException],
  *   [TransportRefusedException]): writing it again fails the same way, so the aggregate is parked at once; and a
  *   saga's handler that sends a command its `@Sends` does not declare ([UndeclaredSendException]), which fails the
- *   same way every time; and a failure a handler says no retry changes ([UnrecoverableHandlingException]).
+ *   same way every time, or that derives what is no derived request ([InvalidDerivedRequestException]: no command
+ *   request, or one with a wait or a timeout); and a failure a handler says no retry changes
+ *   ([UnrecoverableHandlingException]).
  *
  * Nothing else is unrecoverable: an entry this version cannot decode, say, is retried and parked, and its parked
  * retries handle it once a version that can runs. A store's timeout ([me.ahoo.wow.spi.StorageTimeoutException]) is the
@@ -137,6 +139,7 @@ internal object BuiltInFailures : FailureClassifier {
         is StorageRefusedException,
         is TransportRefusedException,
         is UndeclaredSendException,
+        is InvalidDerivedRequestException,
         is UnrecoverableHandlingException,
         -> FailureClass.UNRECOVERABLE
         is StorageUnavailableException, is TransportUnavailableException -> FailureClass.SYSTEMIC

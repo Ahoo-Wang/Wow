@@ -18,7 +18,6 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnEvent
@@ -62,7 +61,7 @@ internal object ScheduleJobResolver {
     /**
      * The bindings of the `@OnSchedule` handlers [functions] of the processor class [className], named [processor],
      * of [kind] (`SAGA`, or another kind they are a problem for). A handler with problems is left out, its problems
-     * added to [problems], and so is a job declared twice differently. [returnProblem] checks what a saga returns.
+     * added to [problems], and so is a job declared twice differently. What it returns is checked as a saga's handler's ([SubscriptionResolver.sagaReturnProblem]).
      */
     @Suppress("LongParameterList")
     fun handlers(
@@ -72,9 +71,8 @@ internal object ScheduleJobResolver {
         kind: String?,
         reactorTypes: Set<String>,
         problems: MutableList<String>,
-        returnProblem: (KSType) -> String?,
     ): List<HandlerBinding> {
-        val handlers = functions.mapNotNull { handler(it, processor, kind, reactorTypes, problems, returnProblem) }
+        val handlers = functions.mapNotNull { handler(it, processor, kind, reactorTypes, problems) }
         handlers.mapNotNull { it.job }.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.forEach {
             problems += "processor $className declares the job $it twice, differently: a job has one rule"
         }
@@ -89,7 +87,6 @@ internal object ScheduleJobResolver {
         kind: String?,
         reactorTypes: Set<String>,
         problems: MutableList<String>,
-        returnProblem: (KSType) -> String?,
     ): HandlerBinding? {
         val callee = function.simpleName.asString()
         val where = "handler $processor.$callee"
@@ -98,8 +95,8 @@ internal object ScheduleJobResolver {
         problems += signatureProblems(where, function, kind)
         val returned = function.returnType?.resolve()
         val reactor = returned?.declaration?.qualifiedName?.asString() in reactorTypes
-        if (returned != null && !reactor) {
-            returnProblem(returned)?.let { problems += "$where $it" }
+        if (returned != null) {
+            SubscriptionResolver.sagaReturnProblem(returned, reactor)?.let { problems += "$where $it" }
         }
         val sends = SendsResolver.resolve(function, where, kind == SAGA, null, returned, reactor, problems)
         val annotation = function.annotatedIn(ON_SCHEDULE)!!.getAnnotationsByType(OnSchedule::class).first()

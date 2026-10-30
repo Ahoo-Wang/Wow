@@ -49,15 +49,16 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
  * The aggregate this request derived by the handler [handler] goes to, as
  * [me.ahoo.wow.api.subscribe.SagaContext] describes: its type, else the one [commandTypes] assigns the command's
  * class ([omittedTargetOf]); its target tenant, else [tenantId], the execution's; its id, else none (a creation the
- * target's admission gives one). A request with a wait or a timeout is refused: the subscription waits for none.
+ * target's admission gives one). A request with a wait or a timeout is refused ([InvalidDerivedRequestException]): the
+ * subscription waits for none.
  */
 internal fun CommandRequest<*>.derivedTarget(
     handler: String,
     tenantId: String,
     commandTypes: CommandTypes
 ): AggregateRef {
-    require(wait == null) { refusal(handler, "a wait (CommandRequest.wait)") }
-    require(timeout == null) { refusal(handler, "a timeout (CommandRequest.timeout)") }
+    if (wait != null) throw InvalidDerivedRequestException(refusal(handler, "a wait (CommandRequest.wait)"))
+    if (timeout != null) throw InvalidDerivedRequestException(refusal(handler, "a timeout (CommandRequest.timeout)"))
     val type = type ?: commandTypes.omittedTargetOf(command.javaClass, handler)
     val tenant = targetTenant ?: tenantId
     return id?.let { type.ref(tenant, it) } ?: type.unassigned(tenant)

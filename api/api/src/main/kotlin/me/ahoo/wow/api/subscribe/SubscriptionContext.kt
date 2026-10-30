@@ -91,8 +91,8 @@ interface SubscriptionContext {
  * - its scope is [CommandRequest.targetScope], else the commit's (the receipt's command's), so an aggregate it creates
  *   belongs to the owner the chain acts for; its operator is the commit's, and its causation links it to the commit
  *   (the receipt's command) and to the root of the chain; its [CommandRequest.expectedVersion] is kept;
- * - a request with a [CommandRequest.wait] or a [CommandRequest.timeout] fails the handler with an
- *   [IllegalArgumentException]: the subscription sends derived commands and waits for none.
+ * - a request with a [CommandRequest.wait] or a [CommandRequest.timeout] fails the handler unrecoverable, so the
+ *   aggregate parks at once: the subscription sends derived commands and waits for none.
  *
  * Derived commands are trusted: the target's scope guard does not check one it changes, so a wrong target is not
  * refused; test the targets in a saga spec. A command class no contract assigns, or several aggregates decide, fails

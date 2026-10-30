@@ -154,7 +154,7 @@ class SagaCallTest {
         missing.code.assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         missing.result.assert().isNull()
         // A call waits for its commit, nothing else.
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<InvalidDerivedRequestException> {
             runBlocking {
                 unconfigured.call(
                     CommandRequest.builder(stock.ref("t", "mug"), "reserve").wait(WaitPlan.COMMITTED).build(),
