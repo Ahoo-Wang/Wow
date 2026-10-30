@@ -126,7 +126,7 @@ fun `the morning job should receive yesterday's deliveries`() = scheduleSpec(
 ) {
     enable("receive-deliveries")
     advanceTime(6.hours) {
-        commands.map { it.ref to it.body }.assert().containsExactly(
+        expectCommands(
             stock.ref(TENANT, "mug") to ReceiveStock(40),
             stock.ref(TENANT, "cap") to ReceiveStock(12),
         )
