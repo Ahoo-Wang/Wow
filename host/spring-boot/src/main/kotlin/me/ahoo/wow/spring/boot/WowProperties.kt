@@ -217,17 +217,24 @@ class WowProperties {
      */
     var transport: String = TransportSelection.AUTO
 
-    /**
-     * The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development
-     * without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a
-     * subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the
-     * node runs.
-     */
-    var memoryTopicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
-        set(value) {
-            require(value >= 1) { "wow.memory-topic-retention keeps at least one message: $value." }
-            field = value
-        }
+    /** The in-memory provider's settings: the topics it keeps in the JVM. */
+    var memory: Memory = Memory()
+
+    /** The in-memory provider's settings, `wow.memory.*`, as each provider has its group (`wow.kafka.*`, `wow.mongo.*`). */
+    @InternalWowApi
+    class Memory {
+        /**
+         * The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in
+         * development without a transport), at least one: past it, a partition drops its oldest, as a broker's
+         * retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay
+         * bounded however long the node runs.
+         */
+        var topicRetention: Int = InMemoryTopics.DEFAULT_RETENTION
+            set(value) {
+                require(value >= 1) { "wow.memory.topic-retention keeps at least one message: $value." }
+                field = value
+            }
+    }
 
     @InternalWowApi
     class Node {

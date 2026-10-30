@@ -133,6 +133,14 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `the in-memory topics' retention should be in the in-memory provider's group, wow memory (X-33)`() {
+        keys.unknown(environment("wow.memory.topic-retention" to "50")).assert().isEmpty()
+        keys.unknown(variables("WOW_MEMORY_TOPIC_RETENTION" to "50")).assert().isEmpty()
+        keys.unknown(environment("wow.memory-topic-retention" to "50")).assert()
+            .containsExactly("wow.memory-topic-retention")
+    }
+
+    @Test
     fun `a mistyped key refuses the startup, naming each`() {
         val environment = environment("wow.cluster.forward-timout" to "30s", "wow.clustr.router" to "local")
         keys.unknown(environment).assert().containsExactlyInAnyOrder("wow.cluster.forward-timout", "wow.clustr.router")

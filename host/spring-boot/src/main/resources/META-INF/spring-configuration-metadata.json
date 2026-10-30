@@ -131,6 +131,11 @@
     "description" : "The aggregates' logs: their partitions, their store, and how their appends and tails run.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
+    "name" : "wow.memory",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
+    "description" : "The in-memory provider's settings: the topics it keeps in the JVM.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
     "name" : "wow.mongo",
     "type" : "me.ahoo.wow.mongo.MongoStoreProvider",
     "description" : "The settings of every mongo store; a store's own options override them."
@@ -750,10 +755,10 @@
     "description" : "The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
   }, {
-    "name" : "wow.memory-topic-retention",
+    "name" : "wow.memory.topic-retention",
     "type" : "java.lang.Integer",
     "description" : "The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Memory",
     "defaultValue" : 1000
   }, {
     "name" : "wow.mongo.append-timeout",

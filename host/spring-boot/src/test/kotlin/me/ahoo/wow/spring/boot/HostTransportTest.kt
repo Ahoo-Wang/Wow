@@ -158,7 +158,7 @@ class HostTransportTest {
             host.context.getBean(InMemoryTopics::class.java).retention.assert()
                 .isEqualTo(InMemoryTopics.DEFAULT_RETENTION)
         }
-        startHost("wow.memory-topic-retention" to 50).use { host ->
+        startHost("wow.memory.topic-retention" to 50).use { host ->
             host.context.getBean(InMemoryTopics::class.java).retention.assert().isEqualTo(50)
         }
     }

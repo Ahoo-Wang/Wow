@@ -18,7 +18,6 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 270 个，由宿主
 | `wow.callers` | `Map<String,CallerPermits>` |  | What each service that calls this one may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word. |
 | `wow.ddl` | `Ddl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. |
-| `wow.memory-topic-retention` | `Integer` | `1000` | The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs. |
 | `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service, at its `url` when one is set, else where `wow.peer.discovery` finds the service its contract names (DNS by default). A node whose saga calls a context it cannot reach does not start. |
 | `wow.routing` | `CommandRouting` | `auto` | Where commands run (CommandRouting): `auto`, on the owner of the aggregate's partition, or here on the memory backend, which cannot route across nodes; `partitioned`; `local`; or `topic`, through each context's command topic. An aggregate type's `wow.aggregates.[<context>.<aggregate>].routing` comes before it. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
@@ -315,6 +314,14 @@ The aggregates' logs: their partitions, their store, and how their appends and t
 | `wow.log.partitions` | `Integer` | `64` | The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096, refused at start otherwise. |
 | `wow.log.poll-interval` | `Duration` | `PT0.05S` | How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. |
 | `wow.log.store` | `String` |  | The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name: one of `wow.stores`, the only one when not set. |
+
+## `wow.memory`
+
+The in-memory provider's settings: the topics it keeps in the JVM.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.memory.topic-retention` | `Integer` | `1000` | The messages each partition of the topics in the JVM keeps (`wow.transport` `memory`, or `auto` in development without a transport), at least one: past it, a partition drops its oldest, as a broker's retention does, and a subscription behind them reads on from the oldest kept, an offset gap. The topics stay bounded however long the node runs. |
 
 ## `wow.mongo`
 
