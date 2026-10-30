@@ -27,6 +27,7 @@ import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.test.DEFAULT_TENANT
 import me.ahoo.wow.test.ProcessorExpectations
 import me.ahoo.wow.test.ProcessorSpec
@@ -98,6 +99,17 @@ class PaymentGatewaySagaTest {
         givenAggregate(paymentModel(), OTHER)
         whenEvent(PaymentRequested(OTHER, BigDecimal("200.00")), by = RequestPayment::class) {
             expectCommand<FailPayment> { reason.assert().contains("(order $OTHER)") }
+        }
+    }
+
+    @Test
+    fun `a gateway that is down should be retried, then park the payment`() = sagaSpec(
+        paymentGatewaySagaHandlers(gateway = SimulatedPaymentGateway(BigDecimal("100.00")) { true }, orders = orders),
+    ) {
+        requested("10.00") {
+            // A technical failure, not a decline: the runtime's budget retries it before it parks.
+            expectRetried().message.assert().contains("unreachable")
+            expectParked(attempt = HandlerRetry.DEFAULT_MAX_ATTEMPTS)
         }
     }
 
