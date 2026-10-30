@@ -11,8 +11,8 @@
 | 类 | 数量 |
 |---|---|
 | A 已有 | 76 |
-| B 替代 | 44 |
-| C 放弃 | 26 |
+| B 替代 | 45 |
+| C 放弃 | 25 |
 | D 推迟或计划 | 6 |
 | E 无决定（D229 已定去向） | 8 |
 | 合计 | 160 |
@@ -219,7 +219,7 @@
 | 能力 | 9.x | 类 | V10 位置 / 决定 |
 |---|---|---|---|
 | `wow-models` | 模块 | A | `extensions/models`（D187，P.8） |
-| `wow-cocache` | 模块 | C | D187 |
+| `wow-cocache` | 模块 | B | `extensions/cocache`（D364 修订 D187）：提供方按 `wow.cocache.publish` 写入，读者注入 `StateViewCache<V>`；读者自建的按索引、按联接的缓存无对应（D364 ⑦，迁移 Skill 覆盖） |
 | `wow-apiclient` | 模块 | C | D187、D257（D187 的「生成的客户端」只有 TypeScript；D257 已交付：`:client`（`edge/client`，artifact `wow-client`，JDK HttpClient，无 Spring）提供位置透明的类型化 `CommandClient` 与 `QueryApi`，含 Java 门面；9.x `wow-apiclient` 的迁移映射在迁移 Skill） |
 | CosId | `wow-core` `id` | A | `extensions/cosid` |
 | Spring 集成与 starter 变体 | `wow-spring`、starter features | B | `host/spring-boot` + 每技术一个模块（D44）；Skill 覆盖 |
