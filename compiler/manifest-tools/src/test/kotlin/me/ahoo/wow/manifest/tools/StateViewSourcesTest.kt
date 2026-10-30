@@ -290,6 +290,13 @@ class StateViewSourcesTest {
             .assert().contains("the parameterized class shop.domain.Page(shop.domain.Item)")
         failure(mapOf("type" to "object", "x-wow-class" to "shop.domain.Shape"))
             .assert().contains("shop.domain.Shape, which is not on the api's class path and has no fields")
+        // A polymorphic class of type arguments: a view names no such class.
+        failure(
+            mapOf(
+                "anyOf" to listOf(mapOf("type" to "object"), mapOf("type" to "object")),
+                "x-wow-class" to "shop.domain.Box(shop.domain.Item)",
+            ),
+        ).assert().contains(field, "the parameterized class shop.domain.Box(shop.domain.Item)")
         failure(mapOf("type" to "string", "enum" to listOf("in-stock"), "x-wow-class" to "shop.domain.Stock"))
             .assert().contains("the enumeration shop.domain.Stock has the value in-stock, which is no Kotlin name")
         failure(

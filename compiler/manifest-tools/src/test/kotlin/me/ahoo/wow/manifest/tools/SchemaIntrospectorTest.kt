@@ -550,6 +550,10 @@ class SchemaIntrospectorTest {
 
         /** A field's property whose getter the generator does not pair with its field (`isOpen()`): no computed one. */
         var isOpen: Boolean = true
+
+        /** A public field and no getter: a property Jackson writes by the field alone. */
+        @JvmField
+        var note: String = ""
         val total: Int get() = entries.sumOf { it.subtotal }
         val empty: Boolean get() = entries.isEmpty()
         val initial: String? get() = owner?.take(1)
@@ -568,6 +572,12 @@ class SchemaIntrospectorTest {
         fun compute(): Int = 2
 
         fun entryOf(sku: String): Entry? = entries.firstOrNull { it.sku == sku }
+
+        companion object {
+            /** A static field of the computed property's name, the companion's: it backs no instance property. */
+            @Suppress("unused")
+            val total: Int = 0
+        }
     }
 
     @Test
@@ -581,8 +591,9 @@ class SchemaIntrospectorTest {
         ).propertyNames().asSequence().toSet()
         properties.keys.assert().isEqualTo(written)
         properties.keys.assert().doesNotContain("hidden", "compute", "entryCount", "entryOf")
-        // A field's property is the field's, written once and not read-only.
+        // A field's property is the field's, written once and not read-only, with or without a getter.
         (properties["isOpen"] as Map<*, *>).keys.assert().doesNotContain("readOnly")
+        properties["note"].assert().isEqualTo(mapOf("type" to "string"))
         properties["total"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int32", "readOnly" to true))
         properties["empty"].assert().isEqualTo(mapOf("type" to "boolean", "readOnly" to true))
         properties["count"].assert().isEqualTo(mapOf("type" to "integer", "format" to "int32", "readOnly" to true))
@@ -594,7 +605,7 @@ class SchemaIntrospectorTest {
         (properties["contact"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "confidential"))
         // Written always, so required unless nullable.
         (ledger["required"] as List<*>).assert()
-            .containsExactlyInAnyOrder("id", "entries", "isOpen", "total", "empty", "skus", "contact", "count")
+            .containsExactlyInAnyOrder("id", "entries", "isOpen", "note", "total", "empty", "skus", "contact", "count")
         // Of a nested class too.
         val entry = ((properties["entries"] as Map<*, *>)["items"] as Map<*, *>)
         ((entry["properties"] as Map<*, *>)["subtotal"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
