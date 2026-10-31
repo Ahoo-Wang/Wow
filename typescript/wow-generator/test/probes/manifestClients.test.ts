@@ -294,6 +294,19 @@ describe('Manifest clients', () => {
               routes: route('audit'),
               idProperty: 'thingId',
             },
+            // A schema outside $defs, and one that lists no properties: the id is none the service computes.
+            {
+              name: 'Tag',
+              schema: '#/components/schemas/Tag',
+              routes: route('tag'),
+              idProperty: 'thingId',
+            },
+            {
+              name: 'Mark',
+              schema: schema('a.Mark'),
+              routes: route('mark'),
+              idProperty: 'thingId',
+            },
           ],
         },
         {
@@ -318,6 +331,7 @@ describe('Manifest clients', () => {
             required: ['thingId'],
             properties: { thingId: { type: 'string', readOnly: true } },
           },
+          'a.Mark': { type: 'object' },
         },
       ),
       `import { ThingCommandClient } from './out/index.js';
@@ -325,6 +339,7 @@ describe('Manifest clients', () => {
        void [
          commands.restock({ thingId: 't1', n: 1 }), commands.restockStream({ thingId: 't1', n: 1 }),
          commands.count({ sku: 's' }), commands.countStream({ sku: 's' }), commands.audit(),
+         commands.tag({ thingId: 't1' }), commands.tag(), commands.mark({ thingId: 't1' }),
        ];
        // @ts-expect-error the body names the aggregate, and the method takes no id
        void commands.restock('t1', { thingId: 't1', n: 1 });
@@ -349,6 +364,11 @@ describe('Manifest clients', () => {
     expect(client).toContain(
       "audit(body: Omit<Audit, 'thingId'> = {}, options?: CommandOptions)",
     );
+    expect(client).toContain(
+      'tag(body: object = {}, options?: CommandOptions)',
+    );
+    expect(client).toContain('mark(body: Mark = {}, options?: CommandOptions)');
+    expect(client).not.toContain("Omit<Mark, 'thingId'>");
     expect(read('probe/manifest.ts')).toContain(
       "{ name: 'Restock', routes: [{ method: 'POST', path: '/probe/thing/restock' }], idProperty: 'thingId' },",
     );
