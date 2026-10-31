@@ -54,11 +54,16 @@ export declare class WowViewStore implements ViewStore {
 }
 ```
 
-### The reserved scopes {#scopes}
+### The reserved scopes {#api-SHARED_SCOPE}
 
 A personal view belongs to the caller, so a request for it names no owner. A shared view belongs to the reserved owner `(shared)`, and a stored system view to `(system)` of the tenant `(platform)`, global whatever the caller's tenant. The store acts as those owners by sending `Wow-Scope`, `SHARED_SCOPE` or `SYSTEM_SCOPE`, which the service admits only for a caller holding the role that writes them. The owner ids themselves are the view store contract's and stay internal to the package; a host needs the two scopes only to address those owners through a Wow client of its own.
 
-### Error codes {#error-codes}
+```ts
+export declare const SHARED_SCOPE: TargetScope;
+export declare const SYSTEM_SCOPE: TargetScope;
+```
+
+### Error codes {#api-WowViewStoreErrorCodes}
 
 `WowViewStoreErrorCodes` are the codes of the view store's own problems, generated from its contract; a `ViewStoreError` carries the code the service answered as `detail.code`. They are named apart from the engine's `ViewStoreErrorCode`, the port's codes:
 

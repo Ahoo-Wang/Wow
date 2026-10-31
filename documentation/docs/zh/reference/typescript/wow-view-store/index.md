@@ -54,11 +54,16 @@ export declare class WowViewStore implements ViewStore {
 }
 ```
 
-### 保留的作用域 {#scopes}
+### 保留的作用域 {#api-SHARED_SCOPE}
 
 个人视图属于调用者，所以请求它时不写所有者。共享视图属于保留所有者 `(shared)`，存储的系统视图属于租户 `(platform)` 的 `(system)`，与调用者的租户无关，是全局的。store 通过发送 `Wow-Scope`，即 `SHARED_SCOPE` 或 `SYSTEM_SCOPE`，以这些所有者的身份操作，服务只对持有写它们的角色的调用者放行。所有者 ID 本身属于视图存储的契约，留在包内部；宿主只有在用自己的 Wow 客户端访问这些所有者时，才需要这两个作用域。
 
-### 错误码 {#error-codes}
+```ts
+export declare const SHARED_SCOPE: TargetScope;
+export declare const SYSTEM_SCOPE: TargetScope;
+```
+
+### 错误码 {#api-WowViewStoreErrorCodes}
 
 `WowViewStoreErrorCodes` 是视图存储自己的 problem 错误码，由它的契约生成；`ViewStoreError` 把服务回答的错误码放在 `detail.code`。它们与引擎的 `ViewStoreErrorCode`（端口的错误码）分开命名：
 
