@@ -19,11 +19,13 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
-// `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
+// `documentedQueries`, `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules;
+// each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
   'architecture',
+  'documentedQueries',
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
@@ -667,6 +669,8 @@ test('the command reads the diff and runs everything without a base', () => {
       `jvm=${value}\n` +
       // The base case changes a README, which the design-ID rule reads.
       `architecture=true\n` +
+      // The root README is not one the documented query examples' test reads.
+      `documentedQueries=${value}\n` +
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
@@ -844,6 +848,102 @@ test('a change the design-ID rule reads runs the architecture rules, unless the 
   assert.ok(both.jvm && !both.architecture);
   // The workflow defines the job, so a change to it runs everything.
   assert.ok(scopes(['.github/workflows/ci.yml']).jvm);
+});
+
+test('a query example DocumentedQueriesTest reads runs it, unless the JVM jobs do', () => {
+  // What the test reads that no JVM path covers: the user documentation, the
+  // skills (their evals too) and the READMEs under typescript/ and examples/.
+  for (const path of [
+    'documentation/docs/en/guide/query.md',
+    'documentation/docs/zh/reference/typescript/wow-client/index.md',
+    'skills/wow-data-query/SKILL.md',
+    'skills/wow-client/evals/a104-view-definition-vs-client/prompt.md',
+    'skills/README.md',
+    'typescript/wow-client/README.md',
+    'typescript/README.md',
+    'examples/README.md',
+  ]) {
+    assert.ok(scopes([path]).documentedQueries, path);
+    assert.ok(!scopes([path]).jvm, path);
+  }
+  // The migration pages (9.x queries on purpose), the READMEs it leaves out,
+  // and what is not a page.
+  for (const path of [
+    'documentation/docs/en/migrate/http-and-clients.md',
+    'documentation/docs/zh/migrate/data.md',
+    'skills/wow-migrate/SKILL.md',
+    'typescript/wow-client/README.zh-CN.md',
+    'README.md',
+    'deploy/eshop/README.md',
+    'test/benchmarks/README.md',
+    'documentation/designs/decisions.md',
+    'documentation/docs/public/logo.svg',
+    'skills/plugins.json',
+  ])
+    assert.ok(!scopes([path]).documentedQueries, path);
+  // A skill is no page the design-ID rule reads: the job runs for the query
+  // examples alone.
+  const skill = scopes(['skills/wow-data-query/SKILL.md']);
+  assert.ok(skill.documentedQueries && !skill.architecture);
+  // `:check` runs it with the JVM jobs (a README under platform/ or the eShop
+  // is a JVM path), so the light job stays off.
+  for (const paths of [
+    ['core/runtime/src/main/kotlin/A.kt', 'skills/wow-client/SKILL.md'],
+    ['platform/ops/console/README.md'],
+    ['examples/eshop/README.md'],
+  ]) {
+    const both = scopes(paths);
+    assert.ok(both.jvm && !both.documentedQueries, paths.join(', '));
+  }
+});
+
+// The pages the test reads, from its own source: a directory it adds, or a
+// page it stops leaving out, must keep a docs-only change running it.
+test('every page DocumentedQueriesTest reads runs it or the JVM jobs', () => {
+  const root = new URL('../../', import.meta.url).pathname;
+  const source = readFileSync(
+    join(
+      root,
+      'edge/http/src/test/kotlin/me/ahoo/wow/http/query/DocumentedQueriesTest.kt',
+    ),
+    'utf8',
+  );
+  const list = pattern => {
+    const match = source.match(pattern);
+    assert.ok(match, `${pattern} no longer matches the test's source`);
+    return [...match[1].matchAll(/"([^"]+)"/g)].map(([, value]) => value);
+  };
+  const markdown = list(
+    /listOf\(([^)]*)\)\.flatMap \{ dir -> File\(root, dir\)\.walk\(\)\.filter \{ it\.extension == "md" \}/,
+  );
+  const readmes = list(
+    /listOf\(([^)]*)\)\.flatMap \{ dir ->\s*File\(root, dir\)\.walk\(\)\.onEnter/,
+  );
+  const migration = list(/val MIGRATION = listOf\(([^)]*)\)/);
+  assert.deepEqual(markdown, ['documentation/docs', 'skills']);
+  assert.deepEqual(readmes, ['examples', 'platform', 'typescript']);
+  const read = execFileSync('git', ['ls-files'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(
+      path =>
+        (markdown.some(dir => path.startsWith(`${dir}/`)) &&
+          path.endsWith('.md')) ||
+        (readmes.some(dir => path.startsWith(`${dir}/`)) &&
+          /(?:^|\/)README\.md$/.test(path)),
+    )
+    .filter(path => !migration.some(part => `/${path}`.includes(part)));
+  assert.ok(
+    read.length >= 50,
+    `only ${read.length} pages found; the scan broke`,
+  );
+  const missed = read.filter(path => {
+    const scope = scopes([path]);
+    return !scope.documentedQueries && !scope.jvm;
+  });
+  assert.deepEqual(missed, []);
 });
 
 test('every source a TypeScript test reads selects its job', () => {
