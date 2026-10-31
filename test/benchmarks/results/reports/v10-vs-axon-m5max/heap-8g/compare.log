@@ -1,0 +1,49 @@
+17:49:57 Session 1 (W) up
+17:50:47 Session 1 (W) E1 fixed 2500
+17:51:54 Session 1 (W) E3 fixed 700
+17:53:01 Session 1 (W) E1 sweep (max 4096)
+17:57:45 Session 1 (W) E3 sweep (max 4096)
+18:02:58 Session 1 (W) down
+18:03:40 Session 2 (A) up
+18:04:36 Session 2 (A) E1 fixed 2500
+18:05:43 Session 2 (A) E3 fixed 700
+18:06:50 Session 2 (A) E1 sweep (max 4096)
+18:11:35 Session 2 (A) E3 sweep (max 4096)
+18:16:31 Session 2 (A) down
+18:16:45 Session 3 (A) up
+18:17:38 Session 3 (A) E1 fixed 2500
+18:18:45 Session 3 (A) E3 fixed 700
+18:19:52 Session 3 (A) E1 sweep (max 4096)
+18:24:37 Session 3 (A) E3 sweep (max 4096)
+18:29:30 Session 3 (A) down
+18:29:44 Session 4 (W) up
+18:30:35 Session 4 (W) E1 fixed 2500
+18:31:42 Session 4 (W) E3 fixed 700
+18:32:49 Session 4 (W) E1 sweep (max 4096)
+18:37:33 Session 4 (W) E3 sweep (max 4096)
+18:42:31 Session 4 (W) down
+18:43:13 Session 5 (K) up
+18:44:04 Session 5 (K) E1 fixed 2500
+18:45:10 Session 5 (K) E3 fixed 700
+18:46:17 Session 5 (K) E1 sweep (max 4096)
+18:51:02 Session 5 (K) E3 sweep (max 4096)
+18:55:51 Session 5 (K) down
+18:56:07 Session 6 (K) up
+18:56:59 Session 6 (K) E1 fixed 2500
+18:58:06 Session 6 (K) E3 fixed 700
+18:59:13 Session 6 (K) E1 sweep (max 4096)
+19:03:57 Session 6 (K) E3 sweep (max 4096)
+19:08:44 Session 6 (K) down
+19:09:04 Pool-32 Session 1 (A) up
+19:09:42 Pool-32 Session 1 (A) E1 fixed 2500
+19:10:48 Pool-32 Session 1 (A) E3 fixed 700
+19:11:55 Pool-32 Session 1 (A) E1 sweep (max 4096)
+19:16:40 Pool-32 Session 1 (A) E3 sweep (max 4096)
+19:21:38 Pool-32 Session 1 (A) down
+19:21:52 Pool-32 Session 2 (W) up
+19:22:29 Pool-32 Session 2 (W) E1 fixed 2500
+19:23:36 Pool-32 Session 2 (W) E3 fixed 700
+19:24:43 Pool-32 Session 2 (W) E1 sweep (max 4096)
+19:29:27 Pool-32 Session 2 (W) E3 sweep (max 4096)
+19:34:27 Pool-32 Session 2 (W) down
+19:35:09 All 8 GB sessions completed successfully.
