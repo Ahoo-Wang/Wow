@@ -50,8 +50,8 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 )
 ```
 
-- **A timeline** is a `list` filtered by the aggregate's id (`ID`), sorted by version.
-- **A condition on the events** is an `ELEMENT_MATCH` on `events`: a commit matches when one of its events matches the predicate, written relative to the event (`name`, a field of its body).
+- **A timeline** is a `list` filtered by the aggregate's id (`id`), sorted by version.
+- **A condition on the events** is an `element-match` on `events`: a commit matches when one of its events matches the predicate, written relative to the event (`name`, a field of its body).
 - **Analytics per event** expand the events first: `"elements":[{"path":"events"}]` turns each event into a row of its own for the groups and metrics. A metric over an event field without the expansion is refused, since a commit may hold several events.
 
 Events are read at their current revision, upgraded as the aggregate reads them.
@@ -70,4 +70,4 @@ A query that names its aggregates by id is cheap: it reads each aggregate's stre
 | `wow.stores.<name>.query.events.unpinned` | The aggregate types on one store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | One aggregate type |
 
-A refused query answers `400 wow.query.invalid` (`STORAGE_UNSUPPORTED` on `aggregateId`), and the model's descriptor lists the constraint `AGGREGATE_REQUIRED`, so clients know to pin their queries. On MongoDB, `wow.mongo.query-read-preference` sends events queries to a secondary instead ([Configuration Keys](../reference/configuration#wow-query-events)).
+A refused query answers `400 wow.query.invalid` (`storage-unsupported` on `aggregateId`), and the model's descriptor lists the constraint `aggregate-required`, so clients know to pin their queries. On MongoDB, `wow.mongo.query-read-preference` sends events queries to a secondary instead ([Configuration Keys](../reference/configuration#wow-query-events)).

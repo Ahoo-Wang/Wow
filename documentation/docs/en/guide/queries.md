@@ -30,7 +30,7 @@ rows.map { it.ref.id }.assert().containsExactly(five, seven)
 rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))
 ```
 
-- A `filter { }` block's conditions combine with `AND`; `and { }`, `or { }`, `nor { }` and `not { }` nest. A value is compared as the JSON it writes as, so an enum matches its name.
+- A `filter { }` block's conditions combine with `and`; `and { }`, `or { }`, `nor { }` and `not { }` nest. A value is compared as the JSON it writes as, so an enum matches its name.
 - `ProductStateProperties.STATE__PRICE` is `state.price`; the system fields (`AGGREGATE_ID`, `OWNER_ID`, `VERSION`, `LAST_EVENT_TIME`, `TAGS`, …) come from `SnapshotProperties`.
 - `snapshots<ProductState>()` decodes each row as a `Snapshot<ProductState>`: its `ref`, `version`, `scope`, `tags` and typed `state`. A query that projects fields cannot fill a typed row: run it through `dynamic<Map<String, Any?>>()` instead.
 - `of(caller)` runs the query as that caller sees the model; `trusted()` as trusted code ([Read State](./reading-state#in-kotlin)).
@@ -57,8 +57,8 @@ Each aggregate type serves its snapshot queries at `POST /<context>/<aggregate>/
 ```bash
 curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"paged","filter":{"op":"EQ","field":"state.status","value":"PUBLISHED"},
-       "sort":[{"field":"state.price","direction":"ASC"}],"pagination":{"index":1,"size":20}}'
+  -d '{"kind":"paged","filter":{"op":"eq","field":"state.status","value":"PUBLISHED"},
+       "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
 ```
 
 `GET` on the same path answers the model's capability descriptor: its fields and their types, the operators each takes, and the limits; its version is its `ETag`. Clients and the view engine read it to offer only what the model can answer.
@@ -84,7 +84,7 @@ A query is admitted as its caller:
 
 - The caller's tenant, owner and space are added to every query. A tenant-level caller, without an owner, sees every aggregate of its tenant; an aggregate that belongs to its tenant (`Ownership.TENANT`) is not restricted by owner.
 - With attribute-based access on, the caller's attributes are matched against each aggregate's tags.
-- Deleted aggregates are left out unless the query names their deletion state, `deletion(DeletionState.ALL)` or `DELETED`.
+- Deleted aggregates are left out unless the query names their deletion state, `deletion(DeletionState.ALL)` or `deleted`.
 - A query that is refused answers `400 wow.query.invalid`, its violations naming each rule it broke; a `single` that matches nothing `404 wow.query.not-found`.
 
 ## Bounds

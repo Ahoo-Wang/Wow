@@ -315,7 +315,7 @@ curl -X POST localhost:8080/bank/account/alice/deposit \
 curl localhost:8080/bank/account/alice/state
 curl -X POST localhost:8080/bank/account/snapshot/query \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}'
+  -d '{"kind":"list","filter":{"op":"gte","field":"state.balance","value":100}}'
 ```
 
 第一个请求返回版本和状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice` 的。过滤、排序、分页和其他种类的查询见[查询快照](../guide/queries)。在内存后端上，只有设置了 `wow.query.memory.enabled` 才提供查询；PostgreSQL 和 MongoDB 自己就能提供。

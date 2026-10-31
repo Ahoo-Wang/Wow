@@ -195,6 +195,18 @@ class OrderingServerTest {
         status("order-shipped").assert().isEqualTo("SHIPPED")
     }
 
+    @Test
+    fun `the snapshot rebuild should be an employee's alone (UI-50)`() {
+        val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild"
+        for (caller in listOf(emptyMap(), buyer("alice-rebuilds"))) {
+            val refused = post(rebuild, """{"ids":["order-1"]}""", caller)
+            refused.status.assert().describedAs(refused.text).isEqualTo(FORBIDDEN)
+            refused.body!!["detail"].asString().assert().contains("Only an employee sends wow.snapshot.Rebuild")
+        }
+        post(rebuild, """{"ids":["order-1"]}""", mapOf(USER to "erin", ROLES to "employee"))
+            .status.assert().isEqualTo(OK)
+    }
+
     private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
     private fun submit(id: String, headers: Map<String, String> = emptyMap()) {

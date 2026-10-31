@@ -30,7 +30,7 @@ rows.map { it.ref.id }.assert().containsExactly(five, seven)
 rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))
 ```
 
-- `filter { }` 块中的条件以 `AND` 组合；`and { }`、`or { }`、`nor { }` 和 `not { }` 可以嵌套。值按它写成的 JSON 比较，所以枚举按它的名字匹配。
+- `filter { }` 块中的条件以 `and` 组合；`and { }`、`or { }`、`nor { }` 和 `not { }` 可以嵌套。值按它写成的 JSON 比较，所以枚举按它的名字匹配。
 - `ProductStateProperties.STATE__PRICE` 就是 `state.price`；系统字段（`AGGREGATE_ID`、`OWNER_ID`、`VERSION`、`LAST_EVENT_TIME`、`TAGS` 等）来自 `SnapshotProperties`。
 - `snapshots<ProductState>()` 把每一行解码为 `Snapshot<ProductState>`：它的 `ref`、`version`、`scope`、`tags` 和类型化的 `state`。投影了部分字段的查询无法填充类型化的行：改用 `dynamic<Map<String, Any?>>()` 执行它。
 - `of(caller)` 按调用方所看到的模型执行查询；`trusted()` 以受信任的代码执行（[读取状态](./reading-state#in-kotlin)）。
@@ -57,8 +57,8 @@ Kotlin 用 DSL 构建查询；Java 没有 DSL，用同样类型的工厂方法�
 ```bash
 curl -X POST localhost:8080/eshop-catalog/product/snapshot/query \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"paged","filter":{"op":"EQ","field":"state.status","value":"PUBLISHED"},
-       "sort":[{"field":"state.price","direction":"ASC"}],"pagination":{"index":1,"size":20}}'
+  -d '{"kind":"paged","filter":{"op":"eq","field":"state.status","value":"PUBLISHED"},
+       "sort":[{"field":"state.price","direction":"asc"}],"pagination":{"index":1,"size":20}}'
 ```
 
 对同一路径发 `GET`，返回模型的能力描述：它的字段及其类型、每个字段接受的操作符，以及上限；它的版本就是它的 `ETag`。客户端和视图引擎读取它，只提供模型能回答的东西。
@@ -84,7 +84,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 - 调用方的租户、所有者和空间会加进每个查询。没有所有者的租户级调用方，能看到它租户的每个聚合；属于租户的聚合（`Ownership.TENANT`）不按所有者限制。
 - 打开基于属性的访问后，用调用方的属性匹配每个聚合的标签。
-- 已删除的聚合不包含在内，除非查询指明了它们的删除状态：`deletion(DeletionState.ALL)` 或 `DELETED`。
+- 已删除的聚合不包含在内，除非查询指明了它们的删除状态：`deletion(DeletionState.ALL)` 或 `deleted`。
 - 被拒绝的查询返回 `400 wow.query.invalid`，它的 violations 指明违反的每条规则；什么都没匹配到的 `single` 返回 `404 wow.query.not-found`。
 
 ## 上限 {#bounds}

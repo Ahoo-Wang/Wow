@@ -29,7 +29,7 @@ outline: deep
 }
 ```
 
-该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `UNKNOWN_PROPERTY`；没有 `kind` 或 `kind` 为其他值的请求体，是 `INVALID_VALUE` 或 `UNKNOWN_VALUE`。
+该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `unknown-property`；没有 `kind` 或 `kind` 为其他值的请求体，是 `invalid-value` 或 `unknown-value`。
 
 ## 跨租户 {#across-tenants}
 
@@ -58,9 +58,9 @@ outline: deep
 | `operator`、`firstOperator` | object 或 `null` | 谁发送了最后一条和第一条命令：`{id, tenantId, crossScope}`；匿名调用方为 `null`。按 `operator.id` 过滤 |
 | `state.*` | 由状态 schema 决定 | 状态，按补全后的 Manifest 片段中的状态 schema 描述 |
 
-模型不认识的路径返回 400 `wow.query.invalid`，`UNKNOWN_FIELD`。集合元素的字段只能在对该集合的 `ELEMENT_MATCH` 中、相对于元素来指明（否则为 `ELEMENT_SCOPE_REQUIRED`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。
+模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。
 
-`events` 模型每条已提交的流一条记录：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`、`ownerId`、`spaceId`、`tags`、`operator`，以及 `events`，每个事件为 `{name, revision, body}`。对事件的过滤是在 `events` 上的 `ELEMENT_MATCH`，对事件的聚合要先展开 `events`；两者见[查询事件流](../guide/event-queries)。部署可以要求每个事件查询都指明它的聚合（`wow.query.events.unpinned`）。
+`events` 模型每条已提交的流一条记录：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`、`ownerId`、`spaceId`、`tags`、`operator`，以及 `events`，每个事件为 `{name, revision, body}`。对事件的过滤是在 `events` 上的 `element-match`，对事件的聚合要先展开 `events`；两者见[查询事件流](../guide/event-queries)。部署可以要求每个事件查询都指明它的聚合（`wow.query.events.unpinned`）。
 
 ## 过滤 {#filters}
 
@@ -68,18 +68,18 @@ outline: deep
 
 ### 值 {#values}
 
-值是一个 JSON 标量：字符串、数字、布尔值，或者在操作符允许的地方为 `null`。数字保持它的精度：`1.50` 仍是小数，超过 2^53 的整数是精确的。值必须与状态 schema 中字段的类型相符（否则为 `VALUE_MISMATCH`）：字符串字段与字符串比较，数字字段与数字比较。时间字段（`Instant`、`LocalDate`，或带 `@QueryTemporal` 的整数或字符串）与它自己的编码比较：`Instant` 用纪元毫秒，`LocalDate` 用 `"2026-10-13"`。
+值是一个 JSON 标量：字符串、数字、布尔值，或者在操作符允许的地方为 `null`。数字保持它的精度：`1.50` 仍是小数，超过 2^53 的整数是精确的。值必须与状态 schema 中字段的类型相符（否则为 `value-mismatch`）：字符串字段与字符串比较，数字字段与数字比较。时间字段（`Instant`、`LocalDate`，或带 `@QueryTemporal` 的整数或字符串）与它自己的编码比较：`Instant` 用纪元毫秒，`LocalDate` 用 `"2026-10-13"`。
 
 ### 比较 {#comparisons}
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `EQ` | `field`，`value`：标量或 `null` | 字段等于 `value`；`null` 表示询问字段是否为 null |
-| `NE` | `field`、`value` | 字段不等于 `value` |
-| `GT`、`GTE`、`LT`、`LTE` | `field`，`value`：标量，不能为 `null` | 字段大于、大于等于、小于、小于等于 |
-| `BETWEEN` | `field`，`lowerBound`、`upperBound`：标量，不能为 `null` | `lowerBound <= field <= upperBound`，两端都包含 |
-| `IN` | `field`，`values`：非空的标量数组，不含 `null` | 字段等于 `values` 中的某一个 |
-| `NOT_IN` | `field`、`values` | 字段不等于 `values` 中的任何一个 |
+| `eq` | `field`，`value`：标量或 `null` | 字段等于 `value`；`null` 表示询问字段是否为 null |
+| `ne` | `field`、`value` | 字段不等于 `value` |
+| `gt`、`gte`、`lt`、`lte` | `field`，`value`：标量，不能为 `null` | 字段大于、大于等于、小于、小于等于 |
+| `between` | `field`，`lowerBound`、`upperBound`：标量，不能为 `null` | `lowerBound <= field <= upperBound`，两端都包含 |
+| `in` | `field`，`values`：非空的标量数组，不含 `null` | 字段等于 `values` 中的某一个 |
+| `not-in` | `field`、`values` | 字段不等于 `values` 中的任何一个 |
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/in.json -->
 
@@ -91,19 +91,19 @@ outline: deep
 }
 ```
 
-`IN` 接收 `values`，而不是 `value`；`BETWEEN` 接收 `lowerBound` 和 `upperBound`，而不是一个数组。
+`in` 接收 `values`，而不是 `value`；`between` 接收 `lowerBound` 和 `upperBound`，而不是一个数组。
 
 ### 字符串 {#strings}
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `CONTAINS` | `field`，`value`：字符串，`stringComparison` | 字段包含 `value` |
-| `STARTS_WITH` | `field`、`value`、`stringComparison` | 字段以 `value` 开头 |
-| `ENDS_WITH` | `field`、`value`、`stringComparison` | 字段以 `value` 结尾 |
-| `IS_EMPTY_STRING` | `field` | 字段是 `""` |
-| `IS_NOT_EMPTY_STRING` | `field` | 字段是 `""` 以外的字符串 |
+| `contains` | `field`，`value`：字符串，`stringComparison` | 字段包含 `value` |
+| `starts-with` | `field`、`value`、`stringComparison` | 字段以 `value` 开头 |
+| `ends-with` | `field`、`value`、`stringComparison` | 字段以 `value` 结尾 |
+| `is-empty-string` | `field` | 字段是 `""` |
+| `is-not-empty-string` | `field` | 字段是 `""` 以外的字符串 |
 
-`stringComparison` 是 `CASE_SENSITIVE`（默认）或 `CASE_INSENSITIVE`。
+`stringComparison` 是 `case-sensitive`（默认）或 `case-insensitive`。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/strings.json -->
 
@@ -118,38 +118,38 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `CONTAINS_ALL` | `field`，`values`：非空的标量数组 | 数组字段包含 `values` 中的每一个 |
-| `IS_EMPTY` | `field` | 数组字段为空 |
-| `ELEMENT_MATCH` | `field`，`predicate`：一个过滤 | 数组字段中有一个元素匹配 `predicate`，其中的字段相对于元素 |
+| `contains-all` | `field`，`values`：非空的标量数组 | 数组字段包含 `values` 中的每一个 |
+| `is-empty` | `field` | 数组字段为空 |
+| `element-match` | `field`，`predicate`：一个过滤 | 数组字段中有一个元素匹配 `predicate`，其中的字段相对于元素 |
 
 <!-- sample: fragment -->
 
 ```json
 {
-  "op": "ELEMENT_MATCH",
+  "op": "element-match",
   "field": "state.lines",
   "predicate": {
-    "op": "AND",
+    "op": "and",
     "operands": [
-      { "op": "EQ", "field": "sku", "value": "B" },
-      { "op": "GTE", "field": "quantity", "value": 2 }
+      { "op": "eq", "field": "sku", "value": "B" },
+      { "op": "gte", "field": "quantity", "value": 2 }
     ]
   }
 }
 ```
 
-谓词匹配一个元素：两个条件在同一行上成立。它不能包含系统字段过滤，也不能包含对整个模型的 `SEARCH`。
+谓词匹配一个元素：两个条件在同一行上成立。它不能包含系统字段过滤，也不能包含对整个模型的 `search`。
 
 ### 存在性 {#presence}
 
-缺失的字段和显式的 `null` 都是 null；只有缺失的字段才是不存在。与某个值的比较、字符串操作符或范围，从不匹配 null 字段，而 `NE` 和 `NOT_IN` 会匹配。在数组字段上，标量操作数匹配任意元素，带数组操作数的 `EQ`（仅在进程内）匹配整个数组。
+缺失的字段和显式的 `null` 都是 null；只有缺失的字段才是不存在。与某个值的比较、字符串操作符或范围，从不匹配 null 字段，而 `ne` 和 `not-in` 会匹配。在数组字段上，标量操作数匹配任意元素，带数组操作数的 `eq`（仅在进程内）匹配整个数组。
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `IS_NULL` | `field` | 字段为 `null` 或缺失 |
-| `IS_NOT_NULL` | `field` | 字段有值 |
-| `EXISTS` | `field` | 字段存在，包括 `null` |
-| `NOT_EXISTS` | `field` | 字段缺失 |
+| `is-null` | `field` | 字段为 `null` 或缺失 |
+| `is-not-null` | `field` | 字段有值 |
+| `exists` | `field` | 字段存在，包括 `null` |
+| `not-exists` | `field` | 字段缺失 |
 
 没有品牌的商品：
 
@@ -168,14 +168,14 @@ outline: deep
 
 | `op` | 其他属性 | 匹配 |
 | --- | --- | --- |
-| `TODAY`、`YESTERDAY`、`TOMORROW` | | 那一天 |
-| `THIS_WEEK`、`LAST_WEEK`、`NEXT_WEEK` | | 那一周 |
-| `THIS_MONTH`、`LAST_MONTH`、`NEXT_MONTH` | | 那个月 |
-| `THIS_YEAR`、`LAST_YEAR`、`NEXT_YEAR` | | 那一年 |
-| `BEFORE_TODAY` | `time`：`"18:00"` 或 `"18:00:30"` | 今天那个时间之前 |
-| `RECENT_DAYS` | `days`：整数 | 最近 `days` 天之内，包括今天 |
-| `EARLIER_DAYS` | `days` | 最近 `days` 天之前 |
-| `BEFORE_NOW`、`AFTER_NOW` | `offset`：ISO-8601 时长，默认 `PT0S` | 服务器当前时间加上 `offset` 之前或之后（`-PT30M` 表示往回看半小时） |
+| `today`、`yesterday`、`tomorrow` | | 那一天 |
+| `this-week`、`last-week`、`next-week` | | 那一周 |
+| `this-month`、`last-month`、`next-month` | | 那个月 |
+| `this-year`、`last-year`、`next-year` | | 那一年 |
+| `before-today` | `time`：`"18:00"` 或 `"18:00:30"` | 今天那个时间之前 |
+| `recent-days` | `days`：整数 | 最近 `days` 天之内，包括今天 |
+| `earlier-days` | `days` | 最近 `days` 天之前 |
+| `before-now`、`after-now` | `offset`：ISO-8601 时长，默认 `pt0s` | 服务器当前时间加上 `offset` 之前或之后（`-PT30M` 表示往回看半小时） |
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
@@ -194,14 +194,14 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `ID` | `value`：字符串 | 记录的身份：在快照模型上是 `aggregateId` |
-| `IDS` | `values`：非空的字符串数组 | 这些身份之一 |
-| `AGGREGATE_ID`、`AGGREGATE_IDS` | `value` / `values` | 聚合 ID |
-| `TENANT_ID`、`OWNER_ID`、`SPACE_ID` | `value` | 租户、所有者、空间 |
-| `DELETION` | `state`：`ACTIVE`、`DELETED` 或 `ALL` | 处于该删除状态的聚合 |
-| `MATCH_ALL`、`MATCH_NONE` | | 每条记录、没有记录 |
+| `id` | `value`：字符串 | 记录的身份：在快照模型上是 `aggregateId` |
+| `ids` | `values`：非空的字符串数组 | 这些身份之一 |
+| `aggregate-id`、`aggregate-ids` | `value` / `values` | 聚合 ID |
+| `tenant-id`、`owner-id`、`space-id` | `value` | 租户、所有者、空间 |
+| `deletion` | `state`：`active`、`deleted` 或 `all` | 处于该删除状态的聚合 |
+| `match-all`、`match-none` | | 每条记录、没有记录 |
 
-快照查询只看到没有删除的聚合，除非它的过滤自己指明了 `DELETION`。员工 `erin` 最后修改过的商品，无论是否已删除：
+快照查询只看到没有删除的聚合，除非它的过滤自己指明了 `deletion`。员工 `erin` 最后修改过的商品，无论是否已删除：
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/system-fields.json -->
 
@@ -224,18 +224,18 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `SEARCH` | `query`：非空字符串，`fields`：路径（不写表示每个可检索的字段），`mode`：`TERMS`（默认）或 `PHRASE` | 全文匹配，需要后端支持（否则为 `MODEL_SEARCH_UNSUPPORTED`） |
-| `EXPRESSION` | `expression`，`comparison`：`EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`，`value`：有限的数字 | 每条记录计算出的 `expression` 满足这个比较；没有值的记录不匹配 |
+| `search` | `query`：非空字符串，`fields`：路径（不写表示每个可检索的字段），`mode`：`terms`（默认）或 `phrase` | 全文匹配，需要后端支持（否则为 `model-search-unsupported`） |
+| `expression` | `expression`，`comparison`：`eq`、`ne`、`gt`、`gte`、`lt`、`lte`，`value`：有限的数字 | 每条记录计算出的 `expression` 满足这个比较；没有值的记录不匹配 |
 
-`expression` 是 `{"type":"FIELD","field":…}`、`{"type":"CONSTANT","value":…}`、`{"type":"BINARY","operator":"ADD|SUBTRACT|MULTIPLY|DIVIDE","left":…,"right":…}` 和 `{"type":"DATE_DIFF","from":…,"to":…,"unit":"SECOND|MINUTE|HOUR|DAY"}` 之一：
+`expression` 是 `{"type":"field","field":…}`、`{"type":"constant","value":…}`、`{"type":"binary","operator":"add|subtract|multiply|divide","left":…,"right":…}` 和 `{"type":"date-diff","from":…,"to":…,"unit":"second|minute|hour|day"}` 之一：
 
 <!-- sample: fragment -->
 
 ```json
 {
-  "op": "EXPRESSION",
-  "expression": { "type": "DATE_DIFF", "from": "state.paidAt", "to": "state.shippedAt", "unit": "HOUR" },
-  "comparison": "GT",
+  "op": "expression",
+  "expression": { "type": "date-diff", "from": "state.paidAt", "to": "state.shippedAt", "unit": "hour" },
+  "comparison": "gt",
   "value": 24
 }
 ```
@@ -244,11 +244,11 @@ outline: deep
 
 | `op` | 属性 | 匹配 |
 | --- | --- | --- |
-| `AND` | `operands`：非空的过滤数组 | 每个操作数 |
-| `OR` | `operands` | 至少一个操作数 |
-| `NOR` | `operands` | 没有任何操作数 |
+| `and` | `operands`：非空的过滤数组 | 每个操作数 |
+| `or` | `operands` | 至少一个操作数 |
+| `nor` | `operands` | 没有任何操作数 |
 
-没有 `NOT`：只有一个操作数的 `NOR` 就是对它取反。
+没有 `not`：只有一个操作数的 `nor` 就是对它取反。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/nor.json -->
 
@@ -261,11 +261,11 @@ outline: deep
 
 ### 上限与开销 {#limits-and-cost}
 
-经 HTTP 时，一个过滤至多 `wow.query.budgets.http.max-filter-nodes` 个节点（128）和 `max-filter-values` 个值（1000）（`FILTER_TOO_LARGE`）。有些操作符无法使用索引：`NOR`、`NE`、`NOT_IN`、`CONTAINS`、`ENDS_WITH`、不区分大小写或为空的 `STARTS_WITH`、`IS_EMPTY`、`IS_NOT_EMPTY_STRING`、`IS_NULL`、`IS_NOT_NULL`、`NOT_EXISTS` 和 `EXPRESSION`。设置 `wow.query.budgets.http.allow-expensive-operators: false` 时，它们会被拒绝（`EXPENSIVE_OPERATOR_DISABLED`）。
+经 HTTP 时，一个过滤至多 `wow.query.budgets.http.max-filter-nodes` 个节点（128）和 `max-filter-values` 个值（1000）（`filter-too-large`）。有些操作符无法使用索引：`nor`、`ne`、`not-in`、`contains`、`ends-with`、不区分大小写或为空的 `starts-with`、`is-empty`、`is-not-empty-string`、`is-null`、`is-not-null`、`not-exists` 和 `expression`。设置 `wow.query.budgets.http.allow-expensive-operators: false` 时，它们会被拒绝（`expensive-operator-disabled`）。
 
 ## 排序与投影 {#sort-and-projection}
 
-`sort` 是一个由 `{"field": …, "direction": "ASC" | "DESC"}` 组成的数组，至多 32 项，每个字段只出现一次。只有能力描述说明可以排序的字段（`sort.paged`、`sort.cursor`）才能排序。
+`sort` 是一个由 `{"field": …, "direction": "asc" | "desc"}` 组成的数组，至多 32 项，每个字段只出现一次。只有能力描述说明可以排序的字段（`sort.paged`、`sort.cursor`）才能排序。
 
 `projection` 是 `{"include": [paths], "exclude": [paths]}`；两者都没有时，返回完整的记录。被包含的路径会保留它的子孙。
 
@@ -291,19 +291,19 @@ outline: deep
 | `count` | `filter`、`limit` | `{"count": …, "exact": …}` |
 | `aggregate` | `filter`、`elements`、`groupBy`、`metrics`、`sort`、`limit`、`having` | 行组成的 JSON 数组 |
 
-除 `aggregate`（默认为 `MATCH_ALL`）之外，每个种类都必须有 `filter`；`{"op":"MATCH_ALL"}` 匹配每条记录。
+除 `aggregate`（默认为 `match-all`）之外，每个种类都必须有 `filter`；`{"op":"match-all"}` 匹配每条记录。
 
 ### `list` {#list}
 
-`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`SIZE_OUT_OF_RANGE`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`INVALID_REQUEST`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
+`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`size-out-of-range`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`invalid-request`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
 
 ### `paged` {#paged}
 
 `pagination` 默认为 `{"index": 1, "size": 10}`：`index` 从 1 开始计数，`size` 至多 `max-page-size`（100），`index × size` 至多 `max-page-window`（10000）。`total` 说明怎样计算总数：
 
-- `BOUNDED`（默认）：至多数到 `wow.query.budgets.http.count-limit`（10000）。超出时 `exact` 为 false，`total` 是这个上限，读作“至少”（`10000+`）。
-- `EXACT`：计算每一个匹配项；除非打开 `wow.query.budgets.http.allow-exact-count`，经 HTTP 时会被拒绝。
-- `NONE`：不计数；`total` 为 `null`，`exact` 为 false。
+- `bounded`（默认）：至多数到 `wow.query.budgets.http.count-limit`（10000）。超出时 `exact` 为 false，`total` 是这个上限，读作“至少”（`10000+`）。
+- `exact`：计算每一个匹配项；除非打开 `wow.query.budgets.http.allow-exact-count`，经 HTTP 时会被拒绝。
+- `none`：不计数；`total` 为 `null`，`exact` 为 false。
 
 <!-- sample: fragment -->
 
@@ -313,7 +313,7 @@ outline: deep
 
 ### `cursor` {#cursor}
 
-游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `INVALID_CURSOR`）。无限滚动使用游标；它从不计数。
+游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `invalid-cursor`）。无限滚动使用游标；它从不计数。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 
@@ -349,7 +349,7 @@ outline: deep
 
 ### `aggregate` {#aggregate}
 
-聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝（`TOO_MANY_GROUPS`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
+聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝（`too-many-groups`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
@@ -374,11 +374,11 @@ outline: deep
 
 每一行包含分组别名和指标别名。
 
-- **`elements`**：`[{"path": "state.lines", "filter": …}]` 展开一个集合，让分组和指标在它的元素上运行（至多 5 层）；此后字段相对于最内层的元素，带 `"scope": "ROOT"` 的分组则读取记录的绝对路径。
-- **`groupBy`**：`TERMS`（`field` 或 `expression`，可选的 `missingKey`）、`HISTOGRAM`（`field` 或 `expression`，`interval`）、`DATE_HISTOGRAM`（`field`，`unit`：`YEAR`、`QUARTER`、`MONTH`、`WEEK`、`DAY`、`HOUR`、`MINUTE`、`SECOND`，`timeZone`，`dense`）和 `DATE_PART`（`field`，`part`：`DAY_OF_WEEK`、`DAY_OF_MONTH`、`HOUR_OF_DAY`、`MONTH_OF_YEAR`，`timeZone`，`dense`）；每个都有一个 `alias`。`dense` 填充空的桶，并要求这个分组是唯一的分组。
-- **`metrics`**：`COUNT`、`NUMERIC`（`function`：`SUM`、`AVG`、`MIN`、`MAX`、`STDDEV`、`VARIANCE`，`expression`）、`DISTINCT_COUNT`（`expression`）、`PERCENTILE`（`expression`、`percentile`）、`ANY`、`FIRST` 和 `LAST`（`field`，`orderBy`，默认 `lastEventTime`），以及 `DERIVED`（基于其他指标的 `expression`：`METRIC_REF`、`CONSTANT`、`BINARY`、`TOTAL`、`RUNNING`、`PREVIOUS`、`RANK`）。除 `DERIVED` 之外，每个指标都接收一个可选的 `filter`，只统计匹配的部分。
+- **`elements`**：`[{"path": "state.lines", "filter": …}]` 展开一个集合，让分组和指标在它的元素上运行（至多 5 层）；此后字段相对于最内层的元素，带 `"scope": "root"` 的分组则读取记录的绝对路径。
+- **`groupBy`**：`terms`（`field` 或 `expression`，可选的 `missingKey`）、`histogram`（`field` 或 `expression`，`interval`）、`date-histogram`（`field`，`unit`：`year`、`quarter`、`month`、`week`、`day`、`hour`、`minute`、`second`，`timeZone`，`dense`）和 `date-part`（`field`，`part`：`day-of-week`、`day-of-month`、`hour-of-day`、`month-of-year`，`timeZone`，`dense`）；每个都有一个 `alias`。`dense` 填充空的桶，并要求这个分组是唯一的分组。
+- **`metrics`**：`count`、`numeric`（`function`：`sum`、`avg`、`min`、`max`、`stddev`、`variance`，`expression`）、`distinct-count`（`expression`）、`percentile`（`expression`、`percentile`）、`any`、`first` 和 `last`（`field`，`orderBy`，默认 `lastEventTime`），以及 `derived`（基于其他指标的 `expression`：`metric-ref`、`constant`、`binary`、`total`、`running`、`previous`、`rank`）。除 `derived` 之外，每个指标都接收一个可选的 `filter`，只统计匹配的部分。
 - **`sort`** 指明分组别名和指标别名；没有指明的分组排在它们之后，按升序。
-- **`having`** 保留指标匹配的分组：`CONDITION`（`metric`、`operator`、`value`）、`BETWEEN`（`metric`、`lower`、`upper`）、`IN`（`metric`、`values`）、`IS_NULL`（`metric`、`negated`）、`AND` 和 `OR`（`operands`）。
+- **`having`** 保留指标匹配的分组：`condition`（`metric`、`operator`、`value`）、`between`（`metric`、`lower`、`upper`）、`in`（`metric`、`values`）、`is-null`（`metric`、`negated`）、`and` 和 `or`（`operands`）。
 
 能力描述的 `analysis` 说明后端运行其中的哪些。
 
@@ -390,34 +390,34 @@ outline: deep
 
 ```json
 {
-  "model": "SNAPSHOT",
+  "model": "snapshot",
   "version": "sha256:b3c7…",
-  "timeZone": "UTC",
-  "record": { "identity": "aggregateId", "paging": ["LIST", "PAGED", "CURSOR"], "defaultScope": "ACTIVE",
-              "rootOperators": ["ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETION", "EXPRESSION"] },
+  "timeZone": "Z",
+  "record": { "identity": "aggregateId", "paging": ["list", "paged", "cursor"], "defaultScope": "active",
+              "rootOperators": ["id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression"] },
   "limits": { "maxListSize": 1000, "defaultListSize": 100, "maxPageSize": 100, "maxPageWindow": 10000, "maxFilterNodes": 128, "...": "..." },
-  "analysis": { "metrics": ["COUNT", "NUMERIC", "..."], "...": "..." },
+  "analysis": { "metrics": ["count", "numeric", "..."], "...": "..." },
   "fields": [
-    { "path": "aggregateId", "types": ["STRING"], "kind": "SCALAR", "nullable": false, "project": true,
-      "filter": { "operators": ["EQ", "NE", "GT", "..."] }, "sort": { "paged": true, "cursor": true },
-      "aggregate": { "groups": ["TERMS"], "...": "..." }, "aliases": [] }
+    { "path": "aggregateId", "types": ["string"], "kind": "scalar", "nullable": false, "project": true,
+      "filter": { "operators": ["eq", "ne", "gt", "..."] }, "sort": { "paged": true, "cursor": true },
+      "aggregate": { "groups": ["terms"], "...": "..." }, "aliases": [] }
   ],
   "elements": [{ "path": "state.lines", "filter": true, "aggregate": true }],
-  "dynamic": [{ "pattern": "tags.{key}", "types": ["STRING"], "kind": "ARRAY", "filter": { "operators": ["EQ", "..."] } }],
-  "constraints": [{ "type": "CURSOR_UNIQUE_SORT", "appended": "aggregateId", "fields": ["tenantId", "aggregateId"] }]
+  "dynamic": [{ "pattern": "tags.{key}", "types": ["string"], "kind": "array", "filter": { "operators": ["eq", "..."] } }],
+  "constraints": [{ "type": "cursor-unique-sort", "appended": "aggregateId", "fields": ["tenantId", "aggregateId"] }]
 }
 ```
 
-- `fields` 列出每条路径，以及它的值类型、它的 `filter` 接受的操作符、它能否在分页和游标中排序，以及它怎样分组和聚合。`elements` 是 `ELEMENT_MATCH` 或 `elements` 项能到达的集合，`dynamic` 是 map 键的模式，例如 `tags.{key}`。
-- `record.rootOperators` 是不指明字段的操作符；组合操作符 `AND`、`OR` 和 `NOR` 在任何地方都适用。
+- `fields` 列出每条路径，以及它的值类型、它的 `filter` 接受的操作符、它能否在分页和游标中排序，以及它怎样分组和聚合。`elements` 是 `element-match` 或 `elements` 项能到达的集合，`dynamic` 是 map 键的模式，例如 `tags.{key}`。
+- `record.rootOperators` 是不指明字段的操作符；组合操作符 `and`、`or` 和 `nor` 在任何地方都适用。
 - `version` 是能力描述的摘要。响应把它作为 `ETag` 携带；描述不变时，带 `If-None-Match: "<version>"` 的 `GET` 返回 304，所以客户端可以缓存它，并低成本地再次询问。
 
 ## 错误 {#errors}
 
 | 错误码 | 状态 | 何时 |
 | --- | --- | --- |
-| `wow.query.malformed` | 400 | 请求体无法读成查询：`EMPTY_BODY`、`BODY_NOT_OBJECT`、`INVALID_JSON`、`UNKNOWN_PROPERTY`、`UNKNOWN_TYPE`（未知的 `op` 或 `type`）、`UNKNOWN_VALUE`、`INVALID_VALUE`、`INVALID_REQUEST`（违反了查询类型的规则，例如 `operands` 为空） |
-| `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`VALUE_MISMATCH`、`ELEMENT_SCOPE_REQUIRED`、`SIZE_OUT_OF_RANGE`、`FILTER_TOO_LARGE`、`EXPENSIVE_OPERATOR_DISABLED`、`INVALID_CURSOR`、`STORAGE_UNSUPPORTED` |
+| `wow.query.malformed` | 400 | 请求体无法读成查询：`empty-body`、`body-not-object`、`invalid-json`、`unknown-property`、`unknown-type`（未知的 `op` 或 `type`）、`unknown-value`、`invalid-value`、`invalid-request`（违反了查询类型的规则，例如 `operands` 为空） |
+| `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `unknown-field`、`unsupported-capability`、`value-mismatch`、`element-scope-required`、`size-out-of-range`、`filter-too-large`、`expensive-operator-disabled`、`invalid-cursor`、`storage-unsupported` |
 | `wow.query.failed` | 500 | 后端失败 |
 | `wow.query.timeout` | 504 | 查询运行的时间超过了 `wow.query.budgets.http.timeout`；不会重试 |
 
