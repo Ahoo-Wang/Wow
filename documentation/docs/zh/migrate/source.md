@@ -220,11 +220,15 @@ private suspend fun take(name: String, scope: DecideScope) {
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`，一个 `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`，一个测试；`@TestFactory fun x() = aggregateSpecTests(model) { … }`，每个步骤和分叉一个测试 |
 | `aggregateVerifier<A, S>()` 及其链式阶段（Kotlin 或 Java 调用） | 一个 `aggregateSpec`：`.whenCommand(c).expect…().verify()` 是 `whenCommand(c) { expect… }`；`.then()` 与 `.then(false)` 是下一个 `whenCommand`，因为 spec 是链接的，拒绝不改变任何东西；`.fork { … }` 是检查中的 `fork(name) { … }`。测试 DSL 只支持 Kotlin |
 | `inject { register(service) }` | 生成的模型工厂接收的服务（`orderModel(name, inventory)`，第一个参数是带默认值的上下文名，只传服务时按参数名传）；某个分支需要服务给出不同回答时，用 `fork(name, model = …)` |
+| `inject { register(clock) }`，命令函数接收的 `Clock` | `aggregateSpec(model, start = instant)`：`DecideScope.now` 读取 spec 的时钟，它从 `start` 开始，`advanceTime(duration)` 推进它 |
+| `name("…")` | 测试的名字：`@Test` 函数的名字；在 `aggregateSpecTests` 中，是每个步骤和分叉的名字 |
 | `givenOwnerId(…)`、`givenSpaceId(…)` | `given`、`givenState` 或 `whenCommand` 上的 `scope = Scope(owner, space)` |
-| `givenEvent(event) { … }`、`givenEvent(arrayOf(…)) { … }` | `given(vararg events)`，一个独立的步骤；`givenState(state, version)` 不变 |
+| `givenEvent(event) { … }`、`givenEvent(arrayOf(…)) { … }` | `given(vararg events)`，一个独立的步骤；`givenState(state, version)` 不变，`givenState(stateAggregate)` 是 `givenState(state, version, scope)` |
 | `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
 | 同一 given 上并列的 `whenCommand` | `fork(…)` 分支（见上文） |
 | 已验证阶段上的 `ref("name")`、`fork("name") { … }` | spec 中的 `ref("name")`、`fork(name, from = "name") { … }`；或者在检查中使用 `fork { … }` |
+| `.verify()`、`.verify(false)` | 不需要调用：检查在它们的块结束时运行，第一个失败的检查会结束这个块。9.x 收集全部失败的做法没有对应形式；在 `aggregateSpecTests` 中，每个步骤让自己的测试失败，其余照常运行 |
+| 已验证阶段的 `stateRoot`、`stateAggregate`、`verifiedResult` | 状态用 `expectState { … }`；聚合用 `expectVersion`、`expectScope`、`expectDeleted`；结果用检查中的 `error` 和 `results` |
 | 经由 `TestValidator` 的命令校验 | 已去掉：校验是准入层的 `CommandValidator`，内核和 spec 都不经过它；在 HTTP 层测试它 |
 | `TestGlobalIdGeneratorFactory` | 不需要设置：在 spec 中，`DecideScope.ids` 给出顺序的 ID |
 
@@ -233,14 +237,17 @@ private suspend fun take(name: String, scope: DecideScope) {
 | 9.x | V10 |
 | --- | --- |
 | `expectNoError()` | `expectNoError()` |
-| `expectError()`、`expectErrorType(X::class)` | `expectError<X>()`，用于 decide 函数抛出的异常；`expectRejected(code)` 用于它返回的拒绝 |
+| 基于 9.x `ExpectedResult` 的 `expect { … }` | 本表中的各个期望；它们没有覆盖的，用 `error` 和 `results` |
+| `expectError()`、`expectError { … }`、`expectErrorType(X::class)` | `expectError<X> { … }`，用于 decide 函数抛出的异常；`expectRejected(code)` 用于它返回或抛出的拒绝（`reject`、`require`、`check`） |
 | `expectEventType(A::class, B::class)` | `expectEventTypes(A::class, B::class)` |
 | `expectEventCount(n)` | `expectEventCount(n)` |
 | `expectEvent<E> { … }`、`expectEventBody<E> { … }`：该类型的第一个事件 | `expectEvent<E> { … }`：恰好一个事件，且是 `E`；多个事件按值用 `expectEvents(…)` |
 | `expectEventStream { … }`、`expectEventIterator { … }` | 整个流用 `expectEvents(…)` 或 `expectEventTypes(…)`；单个事件连同信封用 `expectEventEnvelope<E> { … }` |
 | 事件的 `aggregateId`、`version`、`commandId`、`requestId`、`header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
 | 事件的操作者和创建时间 | `expectEventEnvelope<E> { operator; commitTime }`，用于提交了一个事件的命令 |
-| `expectState { … }`、`expectState(Consumer)` | `expectState { … }` 或 `expectState(expected)`；`Consumer` 重载已去掉 |
+| `expectState { … }`、`expectState(Consumer)` | `expectState { … }` 或 `expectState(expected)` |
+| 所有 `Consumer` 与 `Class` 重载 | 已去掉：测试 DSL 只支持 Kotlin，Java 领域代码也用它测试（[用 Java 编写领域](../guide/java#test-it)）。在每个 lambda 旁加一个 `Consumer` 重载，会让 Kotlin 的调用产生歧义 |
+| `expectStateAggregate { aggregateId }` | spec 的 `id` |
 | `expectStateAggregate { version }` | `expectVersion(n)`：提交后的版本，或命令什么都没追加时聚合停留的版本 |
 | `expectStateAggregate { deleted }` | `expectDeleted()` |
 | `expectStateAggregate { ownerId; spaceId }`、标签 | `expectScope(scope)`、`expectTags(tags)` |
@@ -251,18 +258,29 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 | 9.x | V10 |
 | --- | --- |
-| `class XSpec : SagaSpec<T>({ on { … } })` | `sagaSpec(<saga>Handlers(…)) { … }`，测试树用 `sagaSpecTests` |
+| `class XSpec : SagaSpec<T>({ on { … } })`、`sagaVerifier<T>()` | `sagaSpec(<saga>Handlers(…)) { … }`，测试树用 `sagaSpecTests` |
 | `inject { … }` | 处理器的依赖，交给生成的处理器工厂；读取用 `givenQueries(queries)` |
 | 命令网关和消息工厂 | 已去掉：`answerCalls { … }` 回答同步调用 |
 | `functionFilter { … }`、`functionName("onX")` | `whenEvent(event, handler = "onX")` |
-| `whenEvent(event, state, ownerId, spaceId)` | `whenEvent(stateEvent(ref, state, events…, scope = …))`；对端上下文的事件：`publishedEvent(name, body)` |
+| `whenEvent(event)`、`whenEvent(event, state, ownerId, spaceId)` | Saga 自己上下文的聚合：先 `givenAggregate(model, id, history…)`，再 `whenEvent(events, by = …)`；本模块没有模型溯源的状态：`whenEvent(stateEvent(ref, state, events…, scope = …))`；对端上下文的事件：`publishedEvent(name, body)` |
 | `expectCommandType(X::class)` | `expectCommandTypes(X::class)` |
 | `expectCommandCount(n)` | `expectCommandCount(n)` |
-| `expectCommand<C> { … }`、`expectCommandBody<C> { … }`：第一条命令 | `expectCommand<C> { … }` 或 `expectCommand(body, to = ref)`：恰好一条命令；多条用 `expectCommands(…)` |
+| `expectCommandBody<C> { … }`：第一条命令的命令体 | `expectCommand<C> { … }` 或 `expectCommand(body, to = ref)`：恰好一条命令，检查它的命令体；多条用 `expectCommands(…)` |
+| `expectCommand<C> { … }`：第一条命令的消息，它的聚合 ID 与请求头 | `expectCommandEnvelope<C> { … }`：恰好一条命令，在 `body` 旁给出它的 `ref`、各个 ID、作用域、请求事实和操作人 |
 | `expectCommandStream`、`expectCommandIterator` | `commands`、`expectCommands(…)`、`expectCommandTypes(…)` |
 | `expectNoCommand()`、`expectNoError()`、`expectError…` | 名称不变；`expectError<X>()` 与聚合相同 |
+| `expect { … }`、`.verify()` | 本表中的各个期望；其余用 `commands`、`calls`、`handled` 和 `error`。步骤的检查块是可选的 |
 
-V10 新增、9.x 没有对应的：用于 saga 处理回执的 `whenRejected` 和 `whenCommitted`、`expectDeterministic`、`expectHandledBy`、`expectCalls`、定时相关的期望，以及 `projectionSpec`、`reactorSpec` 和 `scheduleSpec`。
+V10 新增、9.x 没有对应的：
+
+- 用于 saga 处理回执的 `whenRejected` 和 `whenCommitted`，以及用于同步调用的 `answerCalls` 和 `expectCalls`；
+- `whenRedelivered` 和 `whenDeliveredLate`，像订阅可能做的那样，把一次提交再交一次或迟交；
+- `expectRetried` 和 `expectParked`，说明运行时如何处理失败的处理；
+- 只用于 Saga 的 `expectDeterministic`，以及 `expectHandledBy`；
+- 处理器的分叉和测试树，9.x 的 `SagaSpec` 两者都没有；
+- 基于内存快照的 `givenQueries`（`wow-test-query` 的 `givenSnapshots`）、定时相关的期望，以及 `projectionSpec`、`reactorSpec` 和 `scheduleSpec`，每个都有对应的 `Tests` 孪生函数。
+
+[测试领域代码](../guide/testing)逐一说明。
 
 ## Skill 无法完成的事 {#what-the-skill-cannot-do}
 

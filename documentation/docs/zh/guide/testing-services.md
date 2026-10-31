@@ -31,7 +31,7 @@ private val server = wowServer<OrderingServer>(
 )
 ```
 
-- 这个 fixture 把两个端口都绑定在回环网卡上的空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端。
+- 这个 fixture 把两个端口都绑定在回环网卡上的空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端，它从内存提供快照查询和事件查询，除非 `wow.query.memory.enabled` 为 `false`。
 - 它缩短节点关闭时等待的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`），让测试类之间的关闭很快；`properties` 加上测试自己的属性，这里是 `wow.timers.poll-interval=200ms`，让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 
@@ -74,7 +74,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
-内存后端不提供快照查询，也不写数仓。测试这些功能，要让服务运行在存储本身上，由 Testcontainers 启动它们。插件为模块注册了单独的测试套件 `integrationTest`，不属于 `check`，这样单元测试保持快速，也不需要 Docker：
+内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。插件为模块注册了单独的测试套件 `integrationTest`，不属于 `check`，这样单元测试保持快速，也不需要 Docker：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 

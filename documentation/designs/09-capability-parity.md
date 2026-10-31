@@ -192,7 +192,7 @@
 | Saga/投影/反应器测试 | `SagaSpec` | A | `sagaSpec`、`projectionSpec`、`reactorSpec`（`ProcessorSpec.kt`） |
 | Java 测试 API | `AggregateVerifier`（Java 可用） | E | G-8 |
 | `TestValidator` | `test/validation` | C | D200 |
-| TCK 与 Testcontainers 夹具 | `wow-tck` | A | `:tck`、`:tck-containers`（D196，已发布） |
+| TCK 与 Testcontainers 夹具 | `wow-tck` | A | `:tck`、`:query-tck`（查询后端的契约）、`:tck-containers`（D196，已发布） |
 | `wow-mock` | 模块 | C | D186 |
 
 ## 12. 平台服务

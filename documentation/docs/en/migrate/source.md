@@ -220,11 +220,15 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`, a `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`, one test; `@TestFactory fun x() = aggregateSpecTests(model) { … }`, a test per step and fork |
 | `aggregateVerifier<A, S>()`, its chained stages (from Kotlin or Java) | One `aggregateSpec`: `.whenCommand(c).expect…().verify()` is `whenCommand(c) { expect… }`; `.then()` and `.then(false)` are the next `whenCommand`, since a spec chains and a rejection changes nothing; `.fork { … }` is `fork(name) { … }` inside the checks. The test DSL is Kotlin only |
 | `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`, the context name first, with a default, so services passed alone go by name); `fork(name, model = …)` for a branch whose service answers otherwise |
+| `inject { register(clock) }`, a `Clock` the command function takes | `aggregateSpec(model, start = instant)`: `DecideScope.now` reads the spec's clock, which starts at `start`, and `advanceTime(duration)` moves it |
+| `name("…")` | The test's name: the `@Test` function's, and in `aggregateSpecTests` each step's and fork's |
 | `givenOwnerId(…)`, `givenSpaceId(…)` | `scope = Scope(owner, space)` on `given`, `givenState` or `whenCommand` |
-| `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays |
+| `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays, and `givenState(stateAggregate)` is `givenState(state, version, scope)` |
 | `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
 | Sibling `whenCommand` calls on one given | `fork(…)` branches (above) |
 | `ref("name")`, `fork("name") { … }` on a verified stage | `ref("name")` in the spec, `fork(name, from = "name") { … }`; or `fork { … }` inside the checks |
+| `.verify()`, `.verify(false)` | Nothing to call: the checks run as their block ends, and the first that fails ends it. 9.x's collected failures have no form; in `aggregateSpecTests` each step fails its own test while the others run |
+| A verified stage's `stateRoot`, `stateAggregate`, `verifiedResult` | `expectState { … }` for the state; `expectVersion`, `expectScope`, `expectDeleted` for the aggregate; `error` and `results` in the checks for the outcome |
 | Command validation through `TestValidator` | Removed: validation is the admission's `CommandValidator`, which the kernel and the spec do not pass through; test it at the HTTP layer |
 | `TestGlobalIdGeneratorFactory` | Nothing to set: `DecideScope.ids` gives sequential ids in a spec |
 
@@ -233,14 +237,17 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | 9.x | V10 |
 | --- | --- |
 | `expectNoError()` | `expectNoError()` |
-| `expectError()`, `expectErrorType(X::class)` | `expectError<X>()`, for an exception the decide function throws; `expectRejected(code)` for a rejection it returns |
+| `expect { … }` over the 9.x `ExpectedResult` | The expectations of this table; `error` and `results` for what they do not cover |
+| `expectError()`, `expectError { … }`, `expectErrorType(X::class)` | `expectError<X> { … }`, for an exception the decide function throws; `expectRejected(code)` for a rejection it returns or throws (`reject`, `require`, `check`) |
 | `expectEventType(A::class, B::class)` | `expectEventTypes(A::class, B::class)` |
 | `expectEventCount(n)` | `expectEventCount(n)` |
 | `expectEvent<E> { … }`, `expectEventBody<E> { … }`: the first event of that type | `expectEvent<E> { … }`: exactly one event, an `E`; `expectEvents(…)` for several, by value |
 | `expectEventStream { … }`, `expectEventIterator { … }` | `expectEvents(…)` or `expectEventTypes(…)` for the whole stream; `expectEventEnvelope<E> { … }` for one event with its envelope |
 | An event's `aggregateId`, `version`, `commandId`, `requestId`, `header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
 | An event's operator and create time | `expectEventEnvelope<E> { operator; commitTime }`, for a command that committed one event |
-| `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)`; the `Consumer` overloads are removed |
+| `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)` |
+| Every `Consumer` and `Class` overload | Removed: the test DSL is Kotlin only, and a Java domain is tested with it ([Write the Domain in Java](../guide/java#test-it)). A `Consumer` overload beside each lambda would make Kotlin's calls ambiguous |
+| `expectStateAggregate { aggregateId }` | The spec's `id` |
 | `expectStateAggregate { version }` | `expectVersion(n)`: the committed version, or the version the aggregate stayed at when the command appended nothing |
 | `expectStateAggregate { deleted }` | `expectDeleted()` |
 | `expectStateAggregate { ownerId; spaceId }`, the tags | `expectScope(scope)`, `expectTags(tags)` |
@@ -251,18 +258,29 @@ Smaller differences: `expectEvent` and the saga's `expectCommand` now require ex
 
 | 9.x | V10 |
 | --- | --- |
-| `class XSpec : SagaSpec<T>({ on { … } })` | `sagaSpec(<saga>Handlers(…)) { … }`, or `sagaSpecTests` for a tree |
+| `class XSpec : SagaSpec<T>({ on { … } })`, `sagaVerifier<T>()` | `sagaSpec(<saga>Handlers(…)) { … }`, or `sagaSpecTests` for a tree |
 | `inject { … }` | The handlers' dependencies, given to the generated handlers factory; `givenQueries(queries)` for the reads |
 | The command gateway and message factory | Removed: `answerCalls { … }` answers the synchronous calls |
 | `functionFilter { … }`, `functionName("onX")` | `whenEvent(event, handler = "onX")` |
-| `whenEvent(event, state, ownerId, spaceId)` | `whenEvent(stateEvent(ref, state, events…, scope = …))`; a peer context's event: `publishedEvent(name, body)` |
+| `whenEvent(event)`, `whenEvent(event, state, ownerId, spaceId)` | `givenAggregate(model, id, history…)`, then `whenEvent(events, by = …)` for the saga's own context; `whenEvent(stateEvent(ref, state, events…, scope = …))` for a state no model of the module sources; a peer context's event: `publishedEvent(name, body)` |
 | `expectCommandType(X::class)` | `expectCommandTypes(X::class)` |
 | `expectCommandCount(n)` | `expectCommandCount(n)` |
-| `expectCommand<C> { … }`, `expectCommandBody<C> { … }`: the first command | `expectCommand<C> { … }` or `expectCommand(body, to = ref)`: exactly one command; `expectCommands(…)` for several |
+| `expectCommandBody<C> { … }`: the first command's body | `expectCommand<C> { … }` or `expectCommand(body, to = ref)`: exactly one command, and its body; `expectCommands(…)` for several |
+| `expectCommand<C> { … }`: the first command's message, its aggregate id and header | `expectCommandEnvelope<C> { … }`: exactly one command, with its `ref`, ids, scope, request facts and operator beside its `body` |
 | `expectCommandStream`, `expectCommandIterator` | `commands`, `expectCommands(…)`, `expectCommandTypes(…)` |
 | `expectNoCommand()`, `expectNoError()`, `expectError…` | The same names; `expectError<X>()` as on the aggregate |
+| `expect { … }`, `.verify()` | The expectations of this table; `commands`, `calls`, `handled` and `error` for the rest. A step's checks are optional |
 
-New in V10, with no 9.x counterpart: `whenRejected` and `whenCommitted` for the receipts a saga handles, `expectDeterministic`, `expectHandledBy`, `expectCalls`, the schedule expectations, and `projectionSpec`, `reactorSpec` and `scheduleSpec`.
+New in V10, with no 9.x counterpart:
+
+- `whenRejected` and `whenCommitted` for the receipts a saga handles, and `answerCalls` and `expectCalls` for its synchronous calls;
+- `whenRedelivered` and `whenDeliveredLate`, which hand a commit over again or late, as a subscription may;
+- `expectRetried` and `expectParked`, which say what the runtime does with a handling that failed;
+- `expectDeterministic`, a saga's only, and `expectHandledBy`;
+- forks and test trees for processors, which 9.x's `SagaSpec` had neither of;
+- `givenQueries` over snapshots in memory (`wow-test-query`'s `givenSnapshots`), the schedule expectations, and `projectionSpec`, `reactorSpec` and `scheduleSpec`, each with its `Tests` twin.
+
+[Test Domain Code](../guide/testing) describes each.
 
 ## What the Skill cannot do
 
