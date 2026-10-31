@@ -56,6 +56,7 @@ jobs:
     outputs:
       jvm: ${{ steps.scope.outputs.jvm }}
       architecture: ${{ steps.scope.outputs.architecture }}
+      documented-queries: ${{ steps.scope.outputs.documentedQueries }}
       typescript: ${{ steps.scope.outputs.typescript }}
       sdk: ${{ steps.scope.outputs.sdk }}
       unit-packages: ${{ steps.scope.outputs.unitPackages }}
@@ -154,13 +155,16 @@ jobs:
   # `integrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
   # (.github/scripts/integration-shards.mjs). The shards are balanced by the tests' measured durations (eShop end
   # to end about 3 minutes, the host's about 1¾, Elasticsearch's 1¼, MongoDB's ¾, the rest under ½ each).
-  # The design-ID rule (`:architecture:test`) alone, for a change it reads
-  # that runs no JVM job: user documentation, a README, the reference pages a
-  # TypeScript change regenerates. With the JVM jobs on, `check` runs it.
+  # The design-ID rule (`:architecture:test`) and the documented query examples
+  # (`DocumentedQueriesTest` of `:http`), each for a change it reads that runs
+  # no JVM job: user documentation, a README, the reference pages a TypeScript
+  # change regenerates, and for the query examples the skills. One job, so the
+  # second costs no runner, JDK or Gradle start of its own. With the JVM jobs
+  # on, `check` runs both.
   architecture:
-    name: Architecture rules
+    name: Architecture rules and query examples
     needs: scope
-    if: needs.scope.outputs.architecture == 'true' && needs.scope.outputs.jvm != 'true'
+    if: (needs.scope.outputs.architecture == 'true' || needs.scope.outputs.documented-queries == 'true') && needs.scope.outputs.jvm != 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:
@@ -177,7 +181,11 @@ jobs:
         with:
           cache-read-only: true
       - name: Check the architecture rules
+        if: needs.scope.outputs.architecture == 'true'
         run: ./gradlew :architecture:test --stacktrace
+      - name: Check the documented query examples
+        if: needs.scope.outputs.documented-queries == 'true'
+        run: ./gradlew :http:test --tests '*DocumentedQueriesTest' --stacktrace
 
   integration:
     name: Integration Test (${{ matrix.shard }})

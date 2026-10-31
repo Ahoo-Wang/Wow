@@ -43,7 +43,7 @@ const PACKAGE = 'package';
 const JVM = 'jvm';
 const JVM_PATH =
   /^(?:(?:api|bom|build-logic|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|test-query|test-spring-boot|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal|spi-consumer|publication-consumer)|examples\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
-// ci.yml's architecture job: `:architecture:test` alone, for a change no JVM
+// ci.yml's architecture job: `:architecture:test`, for a change no JVM
 // job runs but the design-ID rule reads (DesignIdRule.designIdScope in
 // test/architecture): every page of the user documentation and every README
 // outside test/ and a package's docs/design. Their text can cite a design ID
@@ -57,6 +57,18 @@ const readsDesignIds = path =>
     (/(?:^|\/)README\.md$/.test(path) &&
       !path.startsWith('test/') &&
       !path.includes('/docs/design/')));
+// The same job's `:http:test --tests '*DocumentedQueriesTest'`, for a change
+// no JVM job runs but that test reads (edge/http): the query examples of the
+// user documentation, the skills and the READMEs under examples/, platform/
+// and typescript/, a migration page left out (it shows 9.x queries on
+// purpose). An upper-case `op`, `direction` or `kind` on a docs-only change
+// would otherwise wait for the next JVM change. Decided apart from RULES, by
+// readsQueryExamples; off when the JVM jobs run, since `:check` runs it there.
+const DOCUMENTED_QUERIES = 'documentedQueries';
+const readsQueryExamples = path =>
+  !/(?:^|\/)(?:wow-)?migrate\//.test(path) &&
+  (/^(?:documentation\/docs|skills)\/.+\.md$/.test(path) ||
+    /^(?:examples|platform|typescript)\/(?:.+\/)?README\.md$/.test(path));
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the view store service (platform/view-store) built from this
@@ -321,6 +333,7 @@ export function scopes(paths) {
     PACKAGE,
     JVM,
     ARCHITECTURE,
+    DOCUMENTED_QUERIES,
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
@@ -349,6 +362,8 @@ export function scopes(paths) {
   result[JVM] = paths.some(path => JVM_PATH.test(path));
   // And the design-ID rule's, unless the JVM jobs already run it.
   result[ARCHITECTURE] = !result[JVM] && paths.some(readsDesignIds);
+  // And the documented query examples', the same way.
+  result[DOCUMENTED_QUERIES] = !result[JVM] && paths.some(readsQueryExamples);
   // Also apart from RULES, the same way.
   result[VIEW_STORE_CONTRACT] = paths.some(
     path => VIEW_STORE_CONTRACT_PATH.test(path) && !path.endsWith('.md'),
