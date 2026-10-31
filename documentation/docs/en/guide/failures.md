@@ -1,6 +1,6 @@
 ---
 title: Failures and Retries
-description: What happens when a handler fails, how to give it its own retry budget and timeout, how failures are classified, how a command is retried at each layer, and how parked aggregates are retried and resumed.
+description: What happens when a handler fails, how to give it its own retry budget and timeout, how failures are classified, how a command is retried at each layer, and how parked aggregates are retried or skipped.
 outline: deep
 ---
 
@@ -13,7 +13,7 @@ A saga, a projection or a reactor will sometimes fail: the mail service is down,
 1. **Retry.** The handler is called again within its retry budget: 5 attempts in all, waiting 100 ms after the first failure and twice as long after each next one (the `multiplier`, 2), up to 5 s. An attempt runs as long as it takes unless the handler sets a `timeout`.
 2. **Park.** When the budget is spent, the subscription records in the failure ledger the subscription, the aggregate, the version it stopped at and the error. The aggregate's later events wait; every other aggregate goes on.
 3. **Retry later.** The parked aggregate is retried over a longer horizon: 10 times, the first 3 minutes after it parked, each next one twice as long after the previous one started, about two days in all. Each retry runs the handler again with its whole budget. A failure that no retry can change, an unrecoverable one, is not retried this way.
-4. **Resume or skip.** When those retries are spent too, the aggregate waits for an operator, who resumes it, reading its stream again from the version it stopped at, or skips it, moving past the events it held back without handling them.
+4. **Retry or skip.** When those retries are spent too, the aggregate waits for an operator, who retries it, reading its stream again from the version it stopped at, or skips it, moving past the events it held back without handling them.
 
 A rejection of a command a saga derived is not a failure: it is never retried and goes to the saga's `@OnRejected` handler ([Write a Saga](./sagas#handle-a-rejection)). The same goes for a `CommandRejectedException` a saga's handler lets through from `context.call`: it goes to the `@OnRejected` handler of the command it called. Without one, or when it comes from a `CommandClient` the handler uses, it parks the aggregate at once, without a retry. In a projection or a reactor, a `CommandRejectedException` is a failure like any other: retried, then parked.
 
@@ -110,11 +110,11 @@ The failure ledger lives in the service's own store, beside the checkpoints. The
 
 An unrecoverable failure is parked but not retried automatically: no retry would change it.
 
-Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and resume or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
+Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and retry or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
 
-Parked timers are listed there too, under the subscription `wow.timers.sends`, one entry per target aggregate. Nothing retries them automatically. Resuming the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`.
+Parked timers are listed there too, under the subscription `wow.timers.sends`, one entry per target aggregate. Nothing retries them automatically. Retrying the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`.
 
-Before resuming, fix the cause: deploy the corrected handler, or bring the outside system back. A resumed aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order; resuming spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are.
+Before retrying, fix the cause: deploy the corrected handler, or bring the outside system back. A retried aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order; an operator's retry spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are.
 
 ## How a command is retried
 
