@@ -23,11 +23,15 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.HandlingRejectedException
+import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.violationsOf
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
@@ -55,6 +59,10 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   the chain on ([WaitContext.derived]): [WaitCoordinator.forward] signals their own hops to the waiting node, and the
  *   saga's hop, signalled by the subscription with their ids, is complete once each of them reached the next hop; with
  *   none derived, it is complete at once.
+ * - **Validation**: a command of its own context is checked by the node's [validators] before it runs, as the gateway
+ *   checks an admitted one: one they find violations in is rejected as
+ *   [FrameworkCodes.COMMAND_INVALID], listing them, and no aggregate
+ *   decides it. One to another context is checked there, at the target's intake.
  * - **Rejections** are business outcomes: a rejected command does not stop the others. The result lists each one
  *   ([Executed.rejected]), in the order the saga derived them, and each goes to the saga's `@OnRejected` handler on its
  *   own ([SagaReceipts]), as the receipt of a rejection by another context does; nothing is retried for it.
@@ -85,6 +93,8 @@ internal class DerivedCommands(
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
     private val creations: CreationIds = CreationIds(),
+    /** The node's command validators, the gateway's. */
+    private val validators: List<CommandValidator> = emptyList(),
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
@@ -131,6 +141,7 @@ internal class DerivedCommands(
     /** Executes [derived], a command of the saga's own context, through its partition's owner. */
     private suspend fun executeHere(derived: Command<*>, wait: WaitContext?): Outcome {
         val model = models.getValue(derived.ref.type)
+        invalid(model, derived)?.let { return it }
         // A creation that names no aggregate takes the id its request created, or a new one.
         val command = creations.assign(model, derived)
         val settlement = coordinator.forward(model, command, wait)
@@ -143,6 +154,20 @@ internal class DerivedCommands(
             )
         }
         return Outcome(command.id, committed = Committed(command, commandType, settlement.committed))
+    }
+
+    /**
+     * [derived] rejected as [FrameworkCodes.COMMAND_INVALID] with the
+     * violations the node's [validators] find in its body, before it takes an id or runs; null when it is valid.
+     */
+    private fun invalid(model: AggregateModel<*>, derived: Command<*>): Outcome? {
+        val type = model.commandType(derived.body.javaClass)
+        val violations = validators.violationsOf(type, derived.body)
+        if (violations.isEmpty()) {
+            return null
+        }
+        val rejection = Rejection(FrameworkCodes.COMMAND_INVALID, "${type.name} is invalid.")
+        return Outcome(derived.id, rejected = Rejected(derived, rejection, type.name, violations = violations))
     }
 
     /** What executing one command came to: its id, and its rejection or its commit of this context. */
@@ -218,16 +243,22 @@ internal class DerivedCommands(
 
     /**
      * The derived [command], of the full type name [commandType], was refused with [rejection], answered at [version]
-     * ([CommandReceipt.Rejected.version]).
+     * ([CommandReceipt.Rejected.version]); refused as invalid, with the [violations] the node's validators found.
      */
     data class Rejected(
         val command: Command<*>,
         val rejection: Rejection,
         val commandType: String,
         val version: Int? = null,
+        val violations: List<Violation> = emptyList(),
     ) {
         /** The error a wait at the saga's hop ends with. */
-        val error: ErrorInfo get() = rejection.toError()
+        val error: ErrorInfo get() = rejection.toError().let { ErrorInfo(
+            it.code,
+            it.message,
+            violations,
+            it.extensions
+        ) }
 
         /** The rejection as the saga's `@OnRejected` handler takes it, from the saga's [execution] that derived it. */
         fun toReceipt(execution: ExecutionId): CommandReceipt.Rejected<Any> = CommandReceipt.Rejected(
