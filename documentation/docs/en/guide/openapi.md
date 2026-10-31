@@ -30,7 +30,7 @@ When the application has springdoc on its class path, the Wow document joins spr
 
 ## Security schemes
 
-The document declares how a caller presents its identity, so Swagger UI's "Try it out" sends it. The host fills that from its caller resolver: CoSec's resolver takes a bearer token, and the development callers take the `Wow-*` identity headers, one scheme each. The document's global `security` is one requirement naming them all: they are the parts of one identity, which a request sends together, not alternatives. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
+Springdoc's documents (`/v3/api-docs`, `/v3/api-docs/wow`) declare how a caller presents its identity, so Swagger UI's "Try it out" sends it; `GET /wow/openapi` and the build's document declare none. The host fills that from its caller resolver: CoSec's resolver takes a bearer token, and the development callers take the `Wow-*` identity headers, one scheme each. Their global `security` is one requirement naming them all: they are the parts of one identity, which a request sends together, not alternatives. An application with a resolver of its own declares its schemes with a `WowOpenApiSecurity` bean, which replaces the host's.
 
 ## Clients from the document
 

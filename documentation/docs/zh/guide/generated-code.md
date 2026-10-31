@@ -8,7 +8,7 @@ outline: deep
 
 Wow 编译器是一个 KSP 处理器。它在构建时读取领域模块中带注解的类，在它们旁边的 `build/generated/ksp/main/` 中写出 Kotlin 源码和资源。服务运行时不靠扫描或反射寻找任何东西：宿主加载编译器写出的内容。编译器无法绑定的模型会让构建失败，消息会指出是哪个函数、违反了哪条规则。本页列出它写了什么，以及每一部分在哪里使用。
 
-对 eShop 的 ordering 领域模块，编译器写出：
+对 eShop 的 ordering 领域模块，编译器写出的文件中有：
 
 ```text
 build/generated/ksp/main/
@@ -54,7 +54,7 @@ wow {
 }
 ```
 
-依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 从它承载的上下文的契约中取得名字，所以承载这些上下文的服务器模块无需重复写明；契约写明不同服务时构建失败，都没写明时以服务器模块的项目路径命名。eShop 的域模块属于 Wow 自身构建的项目，无法应用插件，所以用构建里的等价写法 `extra["wowContractService"]` 声明。
+依赖这个 api 模块的对端按这个名字找到服务，服务若以其他 `spring.application.name` 启动则会拒绝启动。服务自己的 Manifest 从它承载的上下文的契约中取得名字，所以承载这些上下文的服务器模块无需重复写明；契约写明不同服务时构建失败，都没写明时以服务器模块的项目路径命名。eShop 的领域模块也是这样声明的，例如 ordering 的 `wow { service = "eshop-ordering-service" }`。
 
 api 模块还从中编译出 `<Context>Contract`，例如 `EshopOrderingContract`：
 
