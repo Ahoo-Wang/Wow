@@ -105,7 +105,9 @@ class EShopOpenApiSnapshotTest {
                 return
             }
             if (!snapshot.exists()) {
-                throw AssertionError("Missing snapshot $snapshot: run with -Dwow-test.snapshot.update=true to write it.")
+                throw AssertionError(
+                    "Missing snapshot $snapshot: run with -Dwow-test.snapshot.update=true to write it."
+                )
             }
             actual.assert().isEqualTo(snapshot.readText())
         }

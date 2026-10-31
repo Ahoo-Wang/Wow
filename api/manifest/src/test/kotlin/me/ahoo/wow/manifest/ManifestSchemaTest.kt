@@ -130,7 +130,8 @@ class ManifestSchemaTest {
             copy.writeText(actual)
         }
         copy.exists().assert().describedAs("Run with -Dwow-test.snapshot.update=true to write $copy.").isTrue()
-        copy.readText().assert().describedAs("Run with -Dwow-test.snapshot.update=true to write $copy.").isEqualTo(actual)
+        copy.readText().assert().describedAs("Run with -Dwow-test.snapshot.update=true to write $copy.")
+            .isEqualTo(actual)
         javaClass.classLoader.getResource(ManifestSchema.RESOURCE).assert().isNotNull()
     }
 

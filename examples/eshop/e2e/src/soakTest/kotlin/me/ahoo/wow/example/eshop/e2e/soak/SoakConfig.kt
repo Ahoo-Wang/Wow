@@ -127,7 +127,8 @@ data class SoakConfig(
             context to count.toInt()
         } ?: emptyMap()
 
-        private fun property(name: String): String? = System.getProperty("wow-test.soak.$name")?.takeIf { it.isNotBlank() }
+        private fun property(name: String): String? =
+            System.getProperty("wow-test.soak.$name")?.takeIf { it.isNotBlank() }
 
         private val FULL: Duration = Duration.ofHours(1)
         private val SHORT: Duration = Duration.ofMinutes(5)

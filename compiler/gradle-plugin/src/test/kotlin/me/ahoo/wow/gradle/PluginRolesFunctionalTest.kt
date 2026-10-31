@@ -41,7 +41,11 @@ class PluginRolesFunctionalTest {
 
     /** The build file of the module at [path] (the root for an empty one), applying the Wow plugin [id]. */
     private fun module(root: File, path: String, id: String, dependencies: String = "") {
-        val compiler = if (id == WowPlugin.API_ID) "" else "ksp(files(${classpath("wow-test.fixture.processorClasspath")}))"
+        val compiler = if (id == WowPlugin.API_ID) {
+            ""
+        } else {
+            "ksp(files(${classpath("wow-test.fixture.processorClasspath")}))"
+        }
         write(
             root,
             if (path.isEmpty()) "build.gradle.kts" else "$path/build.gradle.kts",

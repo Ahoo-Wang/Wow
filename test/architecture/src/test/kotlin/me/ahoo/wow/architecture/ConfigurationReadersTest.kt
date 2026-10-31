@@ -104,7 +104,11 @@ class ConfigurationReadersTest {
         ConfigurationReaderRules.wowSwitches(root, setOf("wow.internal.host"))
             .map { it.substringBefore(": ").substringAfterLast('/') }
             .assert().containsExactlyInAnyOrder(
-                "Switches.kt:2", "Switches.kt:3", "build.gradle.kts:1", "build.gradle.kts:2", "build.gradle.kts:3",
+                "Switches.kt:2",
+                "Switches.kt:3",
+                "build.gradle.kts:1",
+                "build.gradle.kts:2",
+                "build.gradle.kts:3",
             )
     }
 
