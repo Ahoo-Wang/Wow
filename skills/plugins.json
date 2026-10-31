@@ -4,7 +4,7 @@
     {
       "name": "ahoo-wow-skills",
       "version": "0.2.0",
-      "description": "Agent Skills for downstream applications built on Wow, the reactive DDD, Event Sourcing and CQRS framework: building, reviewing and debugging Wow services, breaking migrations, TypeScript clients generated from OpenAPI or written by hand, answering business data questions from a running service's read-only queries, and writing and hosting Wow View Engine views.",
+      "description": "Agent Skills for downstream applications built on Wow, the reactive DDD, Event Sourcing and CQRS framework: building, reviewing and debugging Wow services, breaking migrations, TypeScript clients generated from the Manifest or written by hand, answering business data questions from a running service's read-only queries, and writing and hosting Wow View Engine views.",
       "skills": {
         "include": [
           "wow-develop",
