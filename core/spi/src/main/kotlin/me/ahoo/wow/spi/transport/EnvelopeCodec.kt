@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.transport
 import com.fasterxml.jackson.annotation.JsonInclude
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.json.WowJson
@@ -66,6 +67,21 @@ object EnvelopeCodec {
         }
         val kind = requireNotNull(EnvelopeKind.of(wire.kind)) { "Unknown envelope kind ${wire.kind}." }
         return Envelope(kind, wire.id, wire.type, wire.payload, wire.transport, wire.format)
+    }
+
+    /**
+     * Whether the message value [value] is an envelope at all, of any format or kind: a JSON object with an integer
+     * `format` and a text `kind`. A value that is not was written by another producer, such as a 9.x service on a
+     * topic of the same name, and no Wow version reads it; an envelope of another format or kind is one a later version
+     * may.
+     */
+    @InternalWowApi
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // Whatever is no JSON is no envelope.
+    fun isEnvelope(value: ByteArray): Boolean = try {
+        val tree = mapper.readTree(value)
+        tree.isObject && tree["format"]?.isIntegralNumber == true && tree["kind"]?.isString == true
+    } catch (_: Exception) {
+        false
     }
 
     /** The headers of a message holding [envelope] ([EnvelopeHeaders]). */

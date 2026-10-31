@@ -33,7 +33,7 @@ Record, for every store and stream:
 - the 9.x stores (the MongoDB event store, the `PrepareKey` collections, the compensation database) and the V10 targets (the log, the snapshots, the reservations, the failure ledger);
 - the streams and aggregates per aggregate type, and the share with a 9.x snapshot;
 - every writer and reader of the 9.x data and how each is stopped, and every external consumer of the 9.x event bus, with the V10 Kafka stream it moves to;
-- the 9.x topics and the V10 topics, and their brokers. A 9.x state topic is named `wow.<context>.<aggregate>.state`, as a V10 published stream is by default: on a broker 9.x used, give V10 a `wow.kafka.topics.prefix`, or V10's subscriptions meet 9.x records in those topics and, after a rollback, 9.x meets V10's;
+- the 9.x topics and the V10 topics, and their brokers. A 9.x state topic is named `wow.<context>.<aggregate>.state`, as a V10 published stream is by default: on a broker 9.x used, give V10 a `wow.kafka.topics.prefix`. Without it, a V10 subscription stops at the first 9.x record it reads, logging the topic and the prefix to set, and after a rollback 9.x meets V10's records;
 - the backup of each 9.x store, and a restore that was tested;
 - the migration map, and the V10 Manifests it was checked against.
 
