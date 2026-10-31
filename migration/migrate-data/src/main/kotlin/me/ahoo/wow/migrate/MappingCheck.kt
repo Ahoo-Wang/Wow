@@ -122,6 +122,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         }
         reservationProblems(prepareKeys, problems, warnings)
         compensationProblems(compensation, problems, warnings)
+        plan.map.exceptions.forEach { warnings += "the draft's exception, for a person to resolve and delete: $it" }
         return MappingReport(problems, warnings, inventories, prepareKeys, compensation)
     }
 

@@ -20,6 +20,7 @@ outline: deep
 
 | 命令 | 选项 | 做什么 |
 | --- | --- | --- |
+| `draft-map` | `--out <file>`、`--force`、`--dry-run` | 根据 9.x 存储里的名字和 V10 的 Manifest 起草映射文件，并把它匹配不上的列为例外：见[起草映射文件](#draft-the-map)。 |
 | `check` | | 对照 9.x 存储和 V10 的 Manifest 检查映射文件。不写任何东西。 |
 | `import` | `--dry-run`、`--restart` 或 `--final`、`--snapshots` | 先检查，然后导入每个已映射的 9.x 聚合，再导入预留键和未解决的补偿执行，从检查点续做。 |
 | `tail` | `--once` | 追踪 9.x 在导入之后提交的内容，直到被停止。 |
@@ -31,13 +32,14 @@ outline: deep
 | 选项 | 含义 |
 | --- | --- |
 | `--config <file>` | 配置文件。每个命令都必须指定。 |
-| `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入。 |
+| `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入；`draft-map` 打印草稿，不写入。 |
+| `--out <file>` | `draft-map` 把草稿写到这里，而不是配置里指定的映射文件。 |
 | `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。 |
 | `--final` | 9.x 停止写入后 `import` 更短的最后一次遍历，用于追尾一直追到 9.x 停止的情况：从追尾的检查点跑一轮追尾，并往前多读 `final.lookbackMillis`，然后从头重新遍历预留键和补偿执行。如果某个聚合的导入没有完成，或者它的追尾最后一轮结束于 `final.maxTailAgeMillis` 之前，它会拒绝执行，什么都不写；这时运行 `import --restart`。不能与 `--restart` 或 `--dry-run` 一起使用。 |
 | `--snapshots` | 在 `import` 之后运行 `snapshot`。 |
 | `--once` | `tail` 跑一轮就结束。 |
 | `--sample <percent>` | `compare` 只比对这个比例的实例，按租户和 ID 的哈希挑选，所以每次运行比对的都是同一批。换一个比例会重新开始比对。 |
-| `--force` | 即使某个日志里仍有没有标签的流，`backfill-tags` 也改写 Elasticsearch 文档，这些流对应的文档保持原样。 |
+| `--force` | 即使某个日志里仍有没有标签的流，`backfill-tags` 也改写 Elasticsearch 文档，这些流对应的文档保持原样；`draft-map` 替换已有的映射文件。 |
 
 命令不接受的选项属于用法错误。
 
@@ -67,6 +69,7 @@ outline: deep
 | `CONFLICT` | `export` 发现一条 9.x 在同一版本上持有、但命令或租户不同的流。不导出任何东西。 |
 | `VERDICT` | `export --dry-run` 对一个上下文的结论：切回、导出 N 条流，或者自某个时间起无法通过导出回滚。 |
 | `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多。 |
+| `UNMATCHED`、`AMBIGUOUS`、`UNSOURCED`、`RENAMED`、`REVIEW` | `draft-map` 的例外，也写进草稿：见[起草映射文件](#draft-the-map)。 |
 | `CUTOVER` | 在向某个上下文的日志追加过的一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史现在在哪里结束：切换点，记在每个分区日志的头部。 |
 
 ## 配置文件 {#configuration-file}
@@ -188,6 +191,7 @@ outline: deep
 | `aggregates` | 每个 9.x 聚合一项；见下文。 |
 | `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。 |
 | `subscriptions` | 有未解决补偿执行的 9.x 处理器，映射到 V10 订阅；见下文。 |
+| `exceptions` | `draft-map` 匹配不上的内容，每行一项，由人解决后删除。检查会把它仍然找到的每一行作为警告打印出来。 |
 
 ### 聚合 {#aggregates}
 
@@ -253,6 +257,32 @@ V10 订阅的名字是 `<processor>.<function>`。
 | 可恢复 | 它的可恢复标记 |
 
 处理器没有映射、聚合不在映射文件的导入范围内、订阅读的是另一个上下文发布的事件流，或者 V10 日志里没有它的版本，这样的执行标为 `UNRESOLVED`。同一订阅和聚合的两个执行合并为一个条目，从较早的版本开始。
+
+### 起草映射文件 {#draft-the-map}
+
+映射文件的大部分内容，是把 9.x 的 `snake_case` 名字改成 V10 的类名。`draft-map` 根据 9.x 存储里有的名字和 V10 的 Manifest 写出这些条目，写到配置里指定的映射文件，或者 `--out` 指定的文件。没有 `--force` 时，它从不替换已有的文件；`--dry-run` 只打印草稿。
+
+它按确定程度从高到低匹配名字：
+
+1. **9.x 的生命周期。** `default_aggregate_deleted`、`default_aggregate_recovered` 和 `owner_transferred` 变成 `wow.lifecycle.AggregateDeleted`、`AggregateRestored` 和 `OwnerTransferred`，最后一个只用于有所有者的聚合。`default_delete_aggregate` 和 `default_recover_aggregate` 变成 V10 聚合启用的生命周期命令。
+2. **完全一致。** 9.x 名字就是 V10 名字、它的某个曾用名、它的完整名字（`example.order.OrderCreated`），或者它的类的限定名。
+3. **按单词。** 比较 9.x 名字的最后一段和 V10 名字时忽略大小写、`_`、`-` 和点，所以 `order_created` 和 `order-created` 都匹配 `OrderCreated`。
+
+每一步里，只有一个候选就是匹配，有多个就是有歧义；一个都没有，就进入下一步。匹配到 V10 聚合已退役事件的 9.x 名字，以 `retire` 映射。挂载的命令从不算匹配，因为流里记录的是它被转换成的命令。
+
+9.x 上下文匹配同名的 V10 上下文，或者去掉 `service` 后缀后同名的上下文（`order-service` 就是 `order`），或者 Manifest 里唯一的上下文。9.x 聚合匹配该上下文里同名的 V10 聚合。没有同名的，就匹配事件覆盖了它至少一半事件的那个聚合，前提是只有一个聚合覆盖得最多。
+
+匹配不上的，它都不写进映射，所以在有人补上映射之前，检查会拒绝这份草稿。它把每一处列进草稿的 `exceptions` 并打印出来：
+
+| 标记 | 由人做什么 |
+| --- | --- |
+| `UNMATCHED` | 为它列出的 9.x 聚合、事件、命令或 `PrepareKey` 写映射。没有任何 V10 名字匹配它。 |
+| `AMBIGUOUS` | 在同样匹配的几个 V10 名字中选一个。 |
+| `UNSOURCED` | 确认这个 V10 聚合、事件或命令没有 9.x 来源。通常它是 V10 新增的。 |
+| `RENAMED` | 确认这个 9.x 聚合变成了它的事件所匹配的那个 V10 聚合。 |
+| `REVIEW` | 存储里某个事件有多个修订号、而它们形状不同时，用 `fromRevision` 拆开映射；为没有记录命令的流设置 `defaultCommand`；或者确认映射到 Manifest 唯一上下文的 9.x 上下文。 |
+
+它不写 `headers`、`state`、预留或订阅的映射：这些需要人来写。每一行都解决之后删掉 `exceptions`；在那之前，检查会把每一行作为警告打印出来。
 
 ## 导出 {#export}
 

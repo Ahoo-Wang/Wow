@@ -33,7 +33,7 @@ Each imported stream keeps its version, command id, request id and commit time, 
 ## Before you start
 
 - **The rewritten source.** The V10 service compiles and its domain tests pass. Its build has produced the merged Manifest of each service whose aggregates you migrate.
-- **The map.** The `wow-migrate` Skill wrote `migration-map.json` while rewriting the source. It names, for each 9.x aggregate, its V10 type and every command and event mapping. See [The map](../reference/migrate-data#the-map).
+- **The map.** The `wow-migrate` Skill wrote `migration-map.json` while rewriting the source. It names, for each 9.x aggregate, its V10 type and every command and event mapping. See [The map](../reference/migrate-data#the-map). For a large service, `draft-map` drafts the renames from the 9.x store and the Manifest, and lists what it cannot match for you to resolve ([Draft the map](../reference/migrate-data#draft-the-map)).
 - **Reads on the 9.x store.** The tool only reads the 9.x MongoDB store, unless you let it create the index the tail needs.
 - **An empty V10 target**, or one this tool alone has written to.
 - **The V10 domain modules on a class path.** `compare` and `snapshot` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.

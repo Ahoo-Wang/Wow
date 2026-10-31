@@ -127,6 +127,34 @@ class MigrateDataTest {
     private val printed: String get() = output.toString()
 
     @Test
+    fun `draft-map drafts a map check accepts, and never replaces one without --force`() {
+        val config = config().toString()
+        val map = directory.resolve("migration-map.json")
+        run("draft-map", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("$map exists: draft-map writes a new map, so pass --force to replace it, or --out.")
+        Files.delete(map)
+
+        run("draft-map", "--config", config, "--dry-run").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("\"from\" : \"example-service.order\"").contains("Nothing was written.")
+        Files.exists(map).assert().isFalse()
+
+        run("draft-map", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("UNSOURCED example.order").contains("Draft written to $map: 2 aggregates")
+        val draft = MigrationMap.read(Files.readString(map))
+        draft.aggregates.map { it.to }.assert().containsExactly("example.cart", "example.order")
+        draft.exceptions.assert().isNotEmpty()
+        run("check", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("WARNING the draft's exception, for a person to resolve and delete: UNSOURCED")
+
+        run("draft-map", "--config", config, "--force").assert().isEqualTo(MigrateData.OK)
+        val elsewhere = directory.resolve("draft.json")
+        run("draft-map", "--config", config, "--out", elsewhere.toString()).assert().isEqualTo(MigrateData.OK)
+        MigrationMap.read(Files.readString(elsewhere)).assert().isEqualTo(draft)
+        run("draft-map", "--config", config, "--out").assert().isEqualTo(MigrateData.USAGE_ERROR)
+        run("draft-map", "--config", config, "--restart").assert().isEqualTo(MigrateData.USAGE_ERROR)
+    }
+
+    @Test
     fun `check reports and writes nothing`() {
         run("check", "--config", config().toString()).assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("Mapping check passed.")

@@ -20,6 +20,7 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 
 | Command | Options | What it does |
 | --- | --- | --- |
+| `draft-map` | `--out <file>`, `--force`, `--dry-run` | Drafts the map from the names the 9.x store holds and the V10 Manifests, and lists what it cannot match as exceptions: see [Draft the map](#draft-the-map). |
 | `check` | | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
@@ -31,13 +32,14 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | Option | Meaning |
 | --- | --- |
 | `--config <file>` | The configuration file. Required by every command. |
-| `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing. |
+| `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing; `draft-map` prints the draft and writes nothing. |
+| `--out <file>` | `draft-map` writes the draft there instead of the map the configuration names. |
 | `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. |
 | `--final` | `import`'s shorter final pass after 9.x stops writing, when the tail followed 9.x until it stopped: one tail pass from the tail's checkpoint, reading `final.lookbackMillis` before it, then the reserved keys and the compensation executions walked again from the first. It refuses, writing nothing, when an aggregate's import did not complete or its tail's last pass ended more than `final.maxTailAgeMillis` ago; run `import --restart` then. Not with `--restart` or `--dry-run`. |
 | `--snapshots` | After `import`, runs `snapshot`. |
 | `--once` | `tail` makes one pass and ends. |
 | `--sample <percent>` | `compare` compares that share of the instances, chosen by a hash of tenant and id, so every run compares the same ones. Another sample restarts the comparison. |
-| `--force` | `backfill-tags` rewrites the Elasticsearch documents even while a log still holds a stream without tags, leaving those documents as they are. |
+| `--force` | `backfill-tags` rewrites the Elasticsearch documents even while a log still holds a stream without tags, leaving those documents as they are; `draft-map` replaces an existing map. |
 
 An option a command does not take is a usage error.
 
@@ -67,6 +69,7 @@ Lines that need attention start with a marker:
 | `CONFLICT` | `export` found a stream 9.x holds at the same version with another command or tenant. Nothing is exported. |
 | `VERDICT` | `export --dry-run`'s conclusion for a context: switch back, export N streams, or no rollback by export since a given time. |
 | `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10. |
+| `UNMATCHED`, `AMBIGUOUS`, `UNSOURCED`, `RENAMED`, `REVIEW` | `draft-map`'s exceptions, also written into the draft: see [Draft the map](#draft-the-map). |
 | `CUTOVER` | After a pass that appended to a context's log (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history now ends: the cut-over, recorded at the log's head in each partition. |
 
 ## Configuration file
@@ -188,6 +191,7 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | `aggregates` | One entry per 9.x aggregate; see below. |
 | `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, wait headers) cannot be listed: each becomes a field of its own or goes. |
 | `subscriptions` | The 9.x processors with unresolved compensation executions, mapped to V10 subscriptions; see below. |
+| `exceptions` | What `draft-map` could not match, one line each, for a person to resolve and then delete. The check warns of each line it still finds. |
 
 ### Aggregates
 
@@ -253,6 +257,32 @@ Each unresolved execution becomes one parked entry:
 | Recoverable | its recoverable mark |
 
 An execution whose processor is not mapped, whose aggregate the map does not import, whose subscription reads another context's published stream, or whose version the V10 log does not hold, is `UNRESOLVED`. Two executions of one subscription and aggregate become one entry, from the earlier version.
+
+### Draft the map
+
+Most of a map renames 9.x's `snake_case` names to V10's class names. `draft-map` writes those entries from what the 9.x store holds and the V10 Manifests, and writes the map the configuration names, or `--out`. It never replaces an existing file without `--force`; `--dry-run` prints the draft instead.
+
+It matches names, the most certain way first:
+
+1. **The 9.x lifecycle.** `default_aggregate_deleted`, `default_aggregate_recovered` and `owner_transferred` become `wow.lifecycle.AggregateDeleted`, `AggregateRestored` and `OwnerTransferred`, the last only for an aggregate with an owner. `default_delete_aggregate` and `default_recover_aggregate` become the lifecycle commands the V10 aggregate enables.
+2. **Exactly.** The 9.x name is the V10 name, one of its former names, its full name (`example.order.OrderCreated`) or its class's qualified name.
+3. **By the words.** The last part of the 9.x name and the V10 name, compared without case, `_`, `-` and dots, so `order_created` and `order-created` match `OrderCreated`.
+
+At each step, one candidate is a match and several are ambiguous; none goes on to the next step. A 9.x name matching an event the V10 aggregate retired is mapped with `retire`. A mounted command is never a match, because a stream records the command it was turned into.
+
+A 9.x context matches the V10 context of the same name, or of its name without a `service` suffix (`order-service` is `order`), or the Manifest's only context. A 9.x aggregate matches the V10 aggregate of its name in that context. If none has its name, it matches the aggregate whose events cover at least half of its own, when exactly one does best.
+
+Whatever it cannot match it leaves out of the mappings, so the check refuses the draft until a person maps it. It lists each such case in the draft's `exceptions` and prints it:
+
+| Marker | What a person does |
+| --- | --- |
+| `UNMATCHED` | Map the 9.x aggregate, event, command or `PrepareKey` it names. No V10 name matched it. |
+| `AMBIGUOUS` | Choose among the V10 names that matched alike. |
+| `UNSOURCED` | Confirm that the V10 aggregate, event or command has no 9.x source. Usually it is new in V10. |
+| `RENAMED` | Confirm that the 9.x aggregate became the V10 aggregate its events matched. |
+| `REVIEW` | Split an event the store holds at several revisions by `fromRevision` if their shapes differ, set `defaultCommand` for streams that record no command, or confirm a 9.x context mapped to the Manifest's only context. |
+
+It writes no `headers`, `state`, reservation or subscription mappings: those need a person. Delete `exceptions` once every line is resolved; until then, the check prints each line as a warning.
 
 ## Export
 
