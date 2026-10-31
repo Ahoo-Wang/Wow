@@ -183,8 +183,8 @@ object ManifestTools {
         report.writeText(result.render() + lineOf(recorded.line, version, allowed))
         check(!result.failed || allowed) {
             breaks("The Manifest of $owner has", result.breaking, recorded.line, version) +
-                "Keep the contract (keep the field optional, keep the old name as an alias, raise the event's " +
-                "@Revision with an @Upgrade); a break needs the service's next major version, then run $update."
+                "Keep the contract (keep the field optional, keep the old name as an alias, add a new event beside the " +
+                "old one); a break needs the service's next major version, then run $update."
         }
         check(recorded == built) {
             "The Manifest baseline of $owner does not record the Manifest this build produces " +
