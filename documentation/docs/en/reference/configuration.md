@@ -757,7 +757,7 @@ The node's firing loop of the timers, which sends the scheduled commands when th
 | `wow.timers.claim-timeout` | `Duration` | `PT30S` | How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes. |
 | `wow.timers.expires-after` | `Duration` |  | How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late. |
 | `wow.timers.lookahead` | `Duration` | `PT30S` | How far ahead each read loads the timers that fall due; a longer lookahead reads more timers at once. |
-| `wow.timers.max-attempts` | `Integer` | `10` | The attempts a technical failure to send a timer gets before the timer is parked under `wow.timers`. |
+| `wow.timers.max-attempts` | `Integer` | `10` | The attempts a technical failure to send a timer gets before the timer is parked, under the subscription `wow.timers.sends`. |
 | `wow.timers.max-early-wait` | `Duration` | `PT5S` | How long a scheduled command waits in its target for its due time on the target node's clock; one that arrives earlier than that fails and is sent again later. |
 | `wow.timers.max-fire-rate` | `Double` |  | The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows. |
 | `wow.timers.parallelism` | `Integer` | `64` | The most commands of timers a partition sends at once. |

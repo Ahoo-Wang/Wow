@@ -1516,7 +1516,7 @@
   }, {
     "name" : "wow.timers.max-attempts",
     "type" : "java.lang.Integer",
-    "description" : "The attempts a technical failure to send a timer gets before the timer is parked under `wow.timers`.",
+    "description" : "The attempts a technical failure to send a timer gets before the timer is parked, under the subscription `wow.timers.sends`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : 10
   }, {
