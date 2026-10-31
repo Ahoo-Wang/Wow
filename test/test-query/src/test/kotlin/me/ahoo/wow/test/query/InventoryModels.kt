@@ -31,7 +31,7 @@ class InventoryModels : ModelProvider {
 
     class Warehouse
 
-    data class Stock(val available: Int)
+    data class Stock(val available: Int = 0)
 
     data class Cart(val items: Int)
 

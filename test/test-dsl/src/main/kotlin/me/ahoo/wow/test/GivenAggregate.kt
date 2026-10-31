@@ -15,6 +15,7 @@ package me.ahoo.wow.test
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
@@ -47,7 +48,9 @@ class GivenAggregate<S : Any> private constructor(
     /** The scope its commits leave it in. */
     val scope: Scope,
 ) {
-    internal constructor(model: AggregateModel<S>, ref: AggregateRef, history: List<Any>, scope: Scope) :
+    /** The aggregate [ref] of [model] at the state and version its [history] leaves it in, one commit per event. */
+    @InternalWowApi
+    constructor(model: AggregateModel<S>, ref: AggregateRef, history: List<Any>, scope: Scope) :
         this(
             model,
             ref,

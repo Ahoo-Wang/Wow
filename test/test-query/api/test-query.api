@@ -7,7 +7,9 @@ public final class me/ahoo/wow/test/query/MemoryQueries : me/ahoo/wow/api/read/T
 	public static final fun of (Ljava/lang/ClassLoader;Lme/ahoo/wow/kernel/Dependencies;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
 	public final fun snapshot (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/util/Map;Z)Lme/ahoo/wow/test/query/MemoryQueries;
+	public final fun snapshot (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;[Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Z)Lme/ahoo/wow/test/query/MemoryQueries;
 	public static synthetic fun snapshot$default (Lme/ahoo/wow/test/query/MemoryQueries;Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
+	public static synthetic fun snapshot$default (Lme/ahoo/wow/test/query/MemoryQueries;Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;[Ljava/lang/Object;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;[Lkotlin/Pair;Ljava/lang/String;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public static synthetic fun snapshots$default (Lme/ahoo/wow/test/query/MemoryQueries;Lme/ahoo/wow/api/aggregate/AggregateType;[Lkotlin/Pair;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public fun tenant (Ljava/lang/String;)Lme/ahoo/wow/api/read/SubscriptionQueries;
@@ -26,7 +28,9 @@ public final class me/ahoo/wow/test/query/MemoryQueries$Companion {
 
 public final class me/ahoo/wow/test/query/MemoryQueriesKt {
 	public static final fun givenSnapshots (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/aggregate/AggregateType;[Lkotlin/Pair;Ljava/lang/String;)Lme/ahoo/wow/test/query/MemoryQueries;
+	public static final fun givenSnapshots (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;[Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public static synthetic fun givenSnapshots$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/aggregate/AggregateType;[Lkotlin/Pair;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
+	public static synthetic fun givenSnapshots$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;[Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public static final fun memoryQueries (Lme/ahoo/wow/kernel/Dependencies;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/query/MemoryQueries;
 	public static synthetic fun memoryQueries$default (Lme/ahoo/wow/kernel/Dependencies;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/test/query/MemoryQueries;
 }

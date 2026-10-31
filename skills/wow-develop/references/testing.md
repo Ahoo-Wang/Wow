@@ -106,6 +106,7 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 - Assert: `expectCommands(bodies)` or `expectCommands(ref to body, …)`, `expectCommandTypes`, `expectCommand(body, to)`, `expectCommand<C> { }`, `expectNoCommand`, `expectScheduled`, `expectScheduleCancelled`, `expectNoSchedule`, `expectHandledBy(...)`, `expectDeterministic()`, `expectError<T>`; `expectRetried(attempt)` and `expectParked(attempt)` read the handler's `@Retry`; then `whenRejected(command, code, message) { … }` (a code of the target's contract or `FrameworkCodes`) and `whenCommitted(command, version) { … }` for the receipts.
 - `whenEvent` calls every handler that reads the event. Events of another context's stream are `publishedEvent(name, body)`.
+- Reads through the query API (`wow-test-query`): `givenSnapshots(model, id, *events)` holds the snapshot the model's own sourcing builds from the events, at the version of the last one, and refuses an event the model does not source; `givenSnapshots(type, id to state)` holds a state as given, for one no model of the test sources; several aggregates go in one `givenQueries(memoryQueries { snapshot(model, id, *events); … })`. Prefer the events: a state given as a JSON map skips the state's schema, so a misspelled field is dropped silently and reads back as its default.
 - `expectDeterministic()` handles the commit again with a fresh context and expects the same commands: the idempotency of the saga, tested.
 
 ## Projections and reactors

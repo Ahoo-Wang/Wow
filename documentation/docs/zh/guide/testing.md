@@ -310,7 +310,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 }
 ```
 
-处理函数通过查询 API 读取的 Saga，从 `givenQueries` 拿到读到的内容，这是读侧的一个假实现。
+处理函数通过查询 API 读取的 Saga，从 `givenQueries` 拿到读到的内容：读侧的一个假实现，或 `wow-test-query` 提供的、基于内存快照的读侧。`givenSnapshots(model, id, *events)` 持有聚合在这些事件之后所处状态的快照，版本是最后一个事件的版本：由它的模型像 `givenAggregate` 那样重放这些事件，模型没有溯源函数的事件会被拒绝。`givenSnapshots(type, id to state)` 按给定的样子持有状态，用于测试中没有模型溯源的状态。手头有模型时，优先用事件：写成 JSON map 的状态绕过了状态的 schema，拼错的字段会被悄悄丢掉，读回的状态里该字段是默认值。读取多个聚合的规格，给一个 `givenQueries(memoryQueries { snapshot(model, id, *events); … })`。
 
 ### Saga 的断言 {#saga-expectations}
 
