@@ -127,6 +127,67 @@ class SourcingCommitTest {
     }
 
     @Test
+    fun `a sourcing function of a sealed type should read the commit of each of its subclasses`() {
+        val source = SourceFile.kotlin(
+            "Counter.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+
+            @CreateAggregate
+            data class Start(val by: Int)
+            data class Add(val by: Int)
+            sealed interface CounterEvent
+            data class Started(val by: Int) : CounterEvent
+            data class Added(val by: Int) : CounterEvent
+
+            @AggregateRoot
+            class Counter(private val state: CounterState) {
+                fun onCommand(command: Start): Started = Started(command.by)
+                fun onCommand(command: Add): Added = Added(command.by)
+            }
+
+            class CounterState {
+                var log = mutableListOf<String>()
+                fun onSourcing(event: CounterEvent, commit: me.ahoo.wow.api.read.EventStream) {
+                    log.add(event.toString() + " v" + commit.version + " at " + commit.commitTime)
+                }
+            }
+            """.trimIndent(),
+        )
+        val scenario = SourceFile.kotlin(
+            "Scenario.kt",
+            """
+            @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
+            package sample
+
+            import kotlinx.coroutines.runBlocking
+            import me.ahoo.wow.api.decide.Command
+            import me.ahoo.wow.kernel.Kernel
+            import me.ahoo.wow.kernel.memory.InMemoryEventLog
+
+            fun run(): String = runBlocking {
+                val log = InMemoryEventLog()
+                var time = 1_000L
+                val kernel = Kernel(log, clock = { time })
+                val model = counterModel("shop")
+                val ref = model.type.ref("tenant", "counter-1")
+                kernel.execute(model, Command("c1", "r1", ref, Start(1)))
+                kernel.execute(model, Command("c2", "r2", ref, Add(2)).also { time = 2_000 })
+                (Kernel(log).stateAt(model, ref, 2)!!.state as CounterState).log.toString()
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", source, scenario)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null)
+            .assert().isEqualTo("[Started(by=1) v1 at 1000, Added(by=2) v2 at 2000]")
+    }
+
+    @Test
     fun `a sourcing function's second parameter other than its commit should be a compile error`() {
         val source = SourceFile.kotlin(
             "Cart.kt",

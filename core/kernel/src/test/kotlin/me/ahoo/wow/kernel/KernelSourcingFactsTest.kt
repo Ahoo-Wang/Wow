@@ -151,6 +151,35 @@ class KernelSourcingFactsTest {
         failure!!.message.assert().contains("reads the commit of its event")
     }
 
+    @Test
+    fun `an event should have one evolve function, whether or not it reads its commit`() {
+        val twice = listOf<AggregateModelBuilder<Ledger>.() -> Unit>(
+            {
+                evolveTo<Deposited> { state, _ -> state }
+                evolveTo<Deposited> { state, _, _ -> state }
+            },
+            {
+                evolveTo<Deposited> { state, _, _ -> state }
+                evolveTo<Deposited> { state, _ -> state }
+            },
+            {
+                evolve<Deposited> { _, _ -> }
+                evolveTo<Deposited> { state, _, _ -> state }
+            },
+        )
+        twice.forEach { declare ->
+            val failure = runCatching {
+                aggregate<Ledger>("bank", "ledger") {
+                    initial { Ledger() }
+                    declare()
+                }
+            }.exceptionOrNull()
+            failure.assert().isInstanceOf(IllegalArgumentException::class.java)
+            failure!!.message.assert()
+                .isEqualTo("bank.ledger declares two evolve functions for ${Deposited::class.java.name}.")
+        }
+    }
+
     private companion object {
         const val DUE_IN = 30_000L
     }

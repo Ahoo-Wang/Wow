@@ -352,9 +352,6 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
         val names = this.eventTypes.flatMap { it.aliases + it.name }
         require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
-        require(this.evolvers.keys.none { it in this.commitEvolvers }) {
-            "$type declares two evolve functions for ${this.commitEvolvers.keys.first { it in this.evolvers }.name}."
-        }
         val missing = this.eventTypes.map { it.type } - this.evolvers.keys - this.commitEvolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
         val commandNames = (this.commandTypes + this.mountedCommandTypes).flatMap { it.aliases + it.name }
