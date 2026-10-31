@@ -1734,7 +1734,7 @@ export interface RouteParameterManifest {
 }
 
 // @public
-export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases'>>;
+export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases' | 'idProperty'>>;
 
 // @public
 export interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {

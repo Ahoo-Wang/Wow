@@ -30,9 +30,13 @@ export type * from './manifestTypes.js';
 /** Whether a command creates its aggregate. */
 export type Creation = CommandManifest['creation'];
 
-/** A command as a {@link RoutingManifest} lists it: its name, former names and routes. */
+/**
+ * A command as a {@link RoutingManifest} lists it: its name, former names and
+ * routes, and the property of its body that names its aggregate, for a command
+ * whose body does (`idProperty`).
+ */
 export type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> &
-  Partial<Pick<CommandManifest, 'aliases'>>;
+  Partial<Pick<CommandManifest, 'aliases' | 'idProperty'>>;
 
 /** A service route as a {@link RoutingManifest} lists it: its name and its route. */
 export type RoutingServiceRoute = Pick<ServiceRouteManifest, 'name' | 'route'>;
