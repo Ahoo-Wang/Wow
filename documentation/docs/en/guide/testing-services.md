@@ -31,7 +31,7 @@ private val server = wowServer<OrderingServer>(
 )
 ```
 
-- The fixture binds both ports on the loopback interface at free ports. On a loopback-only internal port and without a store bean, the node runs on the memory backend.
+- The fixture binds both ports on the loopback interface at free ports. On a loopback-only internal port and without a store bean, the node runs on the memory backend, which serves the snapshot and events queries from memory unless `wow.query.memory.enabled` is `false`.
 - It shortens the timeouts a node waits on at its close (`wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`), so the shutdown between test classes is quick; `properties` add the test's own, here `wow.timers.poll-interval=200ms`, which fires scheduled commands promptly.
 - The application's own settings shorten what the test waits for: here the payment grace period, two seconds instead of thirty minutes.
 
@@ -74,7 +74,7 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## Run it on real stores
 
-The memory backend serves no snapshot queries and writes no warehouse. A test of those runs the service on the stores themselves, started by Testcontainers. The plugins give a module a test suite of its own for them, `integrationTest`, outside `check`, so the unit tests stay fast and need no Docker:
+The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. The plugins give a module a test suite of its own for them, `integrationTest`, outside `check`, so the unit tests stay fast and need no Docker:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 

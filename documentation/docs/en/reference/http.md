@@ -15,7 +15,7 @@ A service's public port serves these routes, materialized from its Manifest. [Se
 | Method and path | Sends |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | The command, in kebab case, to the aggregate `{id}` |
-| `POST /<context>/<aggregate>/<command>` | A creating command to a new aggregate whose id the server gives it |
+| `POST /<context>/<aggregate>/<command>` | A creating command to a new aggregate whose id the server gives it; a command whose body names its aggregate, to that one |
 | `DELETE /<context>/<aggregate>/{id}` | `DeleteAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.restore-aggregate` | `RestoreAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`, body `{"ownerId": "…"}` |
@@ -24,7 +24,7 @@ A service's public port serves these routes, materialized from its Manifest. [Se
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | A rebuild of the snapshots of `{"ids": [...]}` |
 | `POST /<context>/wow.schedule/{job}/<command>` | A job command: `enable`, `reschedule`, `disable` |
 
-Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`. The snapshot rebuild and the job commands are system commands of Wow's built-in aggregates: a service without a command authorizer refuses them on this port (403 `wow.auth.forbidden`), never allowing them by default ([Authorize commands](../operate/security#authorize-commands)).
+Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`. A command whose body names its aggregate (`@AggregateId`) has the route without `{id}` alone, and the Manifest lists its `idProperty`, the property of the body that holds the id: a blank one is `wow.command.malformed` (400), and so is a request that names another aggregate beside the body. The snapshot rebuild and the job commands are system commands of Wow's built-in aggregates: a service without a command authorizer refuses them on this port (403 `wow.auth.forbidden`), never allowing them by default ([Authorize commands](../operate/security#authorize-commands)).
 
 **Reads**
 

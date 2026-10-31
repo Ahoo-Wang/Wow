@@ -40,11 +40,16 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * message decoded into the [StateEventRecord] its envelope holds ([EnvelopeCodec]), at the position (partition,
  * offset + 1), so a checkpoint is the offset to read next and 0 reads from the first one retained.
  *
- * - A message that holds no state event this version reads (another format or kind, a malformed value) is reported
- *   to [observer] and logged. When its key names an aggregate, it is the entry of an
+ * - An envelope that holds no state event this version reads (another format or kind, a payload it cannot read) is
+ *   reported to [observer] and logged. When its key names an aggregate, it is the entry of an
  *   [UndecodableMessage] there, on which the aggregate's subscriptions fail and park it, at its offset, for an
  *   operator to retry once a version reads it, or to skip; its order is after every entry of the aggregate handled
  *   ([ordinalOf]). Otherwise no aggregate can be parked for it: it is passed over, the checkpoint moving past it.
+ * - A message that is no envelope at all ([EnvelopeCodec.isEnvelope]) was written by another producer, a 9.x service
+ *   on a topic of the same name most likely: the topic is the wrong one, which no parking fixes. The read fails with a
+ *   [ForeignTopicRecordException], as a read of a partition that lost its offset does, so the subscriptions of the
+ *   partition stay before it and retry their read with its backoff, logging each failure, until the configuration
+ *   gives the services their own topics.
  * - A start from the end is the partition's end offset; from an instant, a binary search over the offsets retained by
  *   the records' commit times.
  * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
@@ -118,6 +123,9 @@ internal class TopicEntries(
         val record = try {
             EnvelopeCodec.stateEventOf(message.value)
         } catch (failure: Exception) {
+            if (!EnvelopeCodec.isEnvelope(message.value)) {
+                throw ForeignTopicRecordException(topic, partition, message.offset, failure)
+            }
             return undecodable(partition, message, failure)
         }
         return SourcedEntry(LogPosition(partition, message.offset + 1), streamOf(record), record.transport, record)
@@ -164,3 +172,22 @@ internal class TopicEntries(
         )
     }
 }
+
+/**
+ * Offset [offset] of partition [partition] of [topic] holds a record that is no envelope: another producer writes the
+ * topic, such as a 9.x service, whose state topics have the names Wow's published streams have by default. A wrong
+ * topic is the configuration's to fix, so the read fails rather than parking the records.
+ */
+internal class ForeignTopicRecordException(
+    val topic: String,
+    val partition: Int,
+    val offset: Long,
+    cause: Throwable,
+) : IllegalStateException(
+    "Offset $offset of partition $partition of $topic holds a record that is not a Wow envelope: another producer " +
+        "writes this topic, such as a 9.x service, whose state topics are named as Wow's published streams are by " +
+        "default (wow.<context>.<aggregate>.state). The subscriptions of the topic stop before it. Give the Wow " +
+        "services topics of their own with wow.kafka.topics.prefix, the same on the services that publish and on " +
+        "those that read, or a broker of their own.",
+    cause,
+)

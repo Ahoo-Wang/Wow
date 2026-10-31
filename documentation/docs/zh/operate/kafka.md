@@ -109,6 +109,11 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 要恢复因缺口而停下的订阅，设置 `wow.kafka.offset-gap: earliest` 并重启它的节点：读取从最早保留的偏移量继续。跳过的区间对这个订阅来说就丢失了，并仍计入 `wow.subscription.offset.gaps`。之后把这个选项改回 `fail`，以保持严格的默认行为。如果这种丢失不可接受，而发布过的内容在别处仍然完整，就改为用一个新的订阅名重建。
 
+主题里也可能有 Wow 读不了的记录：
+
+- **这个版本读不了的信封**，例如更新的格式。它让自己的聚合停放，等运维处理；如果它的键没有指明聚合，就被跳过；两种情况都计入 `wow.subscription.undecodable.messages`。
+- **根本不是信封的记录。** 说明有别的生产者在写这个主题，最可能是同一个 broker 上的 9.x 服务：它的状态主题名为 `wow.<context>.<aggregate>.state`，与发布的事件流默认的名字相同。这是主题用错了，所以不停放任何东西：读取这个分区会失败，分区上的订阅停在这条记录之前，按退避重试，每次失败都记录主题、分区和偏移量。用 `wow.kafka.topics.prefix` 给 Wow 服务各自的主题（发布方和读取方的服务用同一个前缀），或者给它们单独的 broker，然后重启。
+
 ## 客户端设置 {#client-settings}
 
 `wow.kafka.properties.*` 把设置原样传给每个生产者和消费者，例如 `security.protocol` 和 SASL 设置、`client.id` 或 `linger.ms`。少数设置归 Wow 所有、不能覆盖，因为传输的保证建立在它们之上：`acks=all` 的幂等生产者、不使用消费组、不提交任何东西也不自行重置偏移量的消费者，以及读取时不创建主题。

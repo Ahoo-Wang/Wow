@@ -74,6 +74,7 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 | 节点启动后一直未就绪 | 它读取的某个主题仍在加入它的租约组 | 等待；或者设置 `wow.health.topics.required: false` |
 | `wow.subscription.offset.gaps` 大于零 | 保留策略删除了某个订阅尚未读取的偏移量 | 提高主题的保留期；决定 `wow.kafka.offset-gap` 怎么设（[Kafka](./kafka#reading-other-contexts-streams)） |
 | `wow.subscription.undecodable.messages` 大于零 | 这个版本无法解码的消息 | 升级读取方服务的 api，或者是写入方发送了未知的格式 |
+| 某个主题的订阅停住，日志说有一条记录不是 Wow 信封 | 有别的生产者在写这个主题，例如共用 broker 的 9.x | 用 `wow.kafka.topics.prefix` 给服务各自的主题（[Kafka](./kafka#reading-other-contexts-streams)） |
 
 ## 查询被拒绝或很慢 {#queries-are-refused-or-slow}
 

@@ -20,9 +20,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.EventType
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.test.query.InventoryModels.Cart
 import me.ahoo.wow.test.query.InventoryModels.Companion.CART
@@ -66,6 +69,62 @@ class MemoryQueriesTest {
             .assert().containsExactlyInAnyOrder("c-1", "c-2")
     }
 
+    data class Received(val quantity: Int)
+
+    data class Shipped(val quantity: Int)
+
+    data class Lost(val quantity: Int)
+
+    /** The stock as its module builds it: received and shipped are its events, lost is none. */
+    private val stockModel = AggregateModel(
+        type = STOCK,
+        stateType = Stock::class.java,
+        initial = { Stock(0) },
+        deciders = emptyMap(),
+        evolvers = mapOf(
+            Received::class.java to { state: Stock, event: Any -> Stock(state.available + (event as Received).quantity) },
+            Shipped::class.java to { state: Stock, event: Any -> Stock(state.available - (event as Shipped).quantity) },
+        ),
+        eventTypes = listOf(
+            EventType("received", 1, Received::class.java),
+            EventType("shipped", 1, Shipped::class.java)
+        ),
+        commandTypes = emptyList(),
+    )
+
+    @Test
+    fun `a snapshot built from events should hold the state the model's sourcing leaves`(): Unit = runBlocking {
+        val queries = memoryQueries {
+            snapshot(stockModel, "mug", Received(10), Shipped(3), tenantId = "acme")
+            snapshot(stockModel, "cup", Received(2), tenantId = "acme", owner = Scope("alice"), deleted = true)
+            // A map is written without the state class: the misspelled field is dropped, and the default read back.
+            snapshot(STOCK, "pen", mapOf("availabel" to 3), tenantId = "acme")
+        }
+        val stocks = queries.tenant("acme").snapshots<Stock>()
+        val mug = stocks.state("mug")!!
+        mug.state.assert().isEqualTo(Stock(7))
+        mug.version.assert().isEqualTo(2)
+        stocks.list(listQuery { filter { "state.available" gt 5 } }).toList().map { it.ref.id }
+            .assert().containsExactly("mug")
+        stocks.state("pen")!!.state.assert().isEqualTo(Stock(0))
+        val deleted = listQuery { filter { deletion(DeletionState.DELETED) } }
+        queries.trusted().snapshots<Stock>().list(deleted).toList().single().let {
+            it.state.assert().isEqualTo(Stock(2))
+            it.scope.assert().isEqualTo(Scope("alice"))
+            it.deleted.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `an event the model has no sourcing function for should be refused`() {
+        assertThrows<IllegalArgumentException> {
+            memoryQueries { snapshot(stockModel, "mug", Received(1), Lost(1)) }
+        }.message.assert().contains(Lost::class.java.name, "inventory.stock")
+        assertThrows<IllegalArgumentException> {
+            memoryQueries { snapshot(stockModel, "mug") }
+        }.message.assert().contains("at least one event")
+    }
+
     @Test
     fun `a snapshot of an aggregate no module declares should fail, saying so`() {
         assertThrows<IllegalArgumentException> {
@@ -91,8 +150,8 @@ class MemoryQueriesTest {
 
     data class Reserve(val sku: String, val quantity: Int)
 
-    private fun placed(sku: String) = stateEvent(
-        AggregateType("shop", "order").ref("acme", "o-1"),
+    private fun placed(sku: String, tenantId: String = "acme") = stateEvent(
+        AggregateType("shop", "order").ref(tenantId, "o-1"),
         Order(sku),
         Reserve(sku, 1)
     )
@@ -105,6 +164,14 @@ class MemoryQueriesTest {
         }
         whenEvent(placed("cup")) {
             expectCommand(Reserve("cup", 0))
+        }
+        fork("from events") {
+            // Built from the stock's events, in the default tenant.
+            givenSnapshots(stockModel, "mug", Received(10), Shipped(4))
+            whenEvent(placed("mug", Caller.DEFAULT_TENANT)) {
+                expectCommand(Reserve("mug", 6), to = STOCK.ref(Caller.DEFAULT_TENANT, "mug"))
+            }
+            whenEvent(placed("mug")) { expectCommand(Reserve("mug", 0)) }
         }
         fork {
             givenQueries(memoryQueries { snapshots(STOCK, "mug" to Stock(7), tenantId = "other") })

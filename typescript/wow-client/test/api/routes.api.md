@@ -189,7 +189,7 @@ interface RouteParameterManifest {
 }
 
 // @public
-type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases'>>;
+type RoutingCommand = Pick<CommandManifest, 'name' | 'routes'> & Partial<Pick<CommandManifest, 'aliases' | 'idProperty'>>;
 
 // @public
 interface RoutingManifest extends Pick<Manifest, 'format' | 'requires'> {

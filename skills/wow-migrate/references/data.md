@@ -18,7 +18,7 @@ It does not move: a 9.x Redis or Elasticsearch event store (move it to MongoDB o
 
 ## The map, checked first
 
-`check` compares the map with the event types, `PrepareKey`s and failed executions the 9.x store actually holds and with the V10 Manifests, and writes nothing. A gap stops every later command, so fix the map (or the source) until it passes:
+A map can start as a draft: `draft-map` writes the renames its names give from the 9.x store and the Manifest, and lists every exception for a person (`v9-to-v10.md`); it is checked like any map. `check` compares the map with the event types, `PrepareKey`s and failed executions the 9.x store actually holds and with the V10 Manifests, and writes nothing. A gap stops every later command, so fix the map (or the source) until it passes:
 
 | Map entry | What decides it |
 | --- | --- |

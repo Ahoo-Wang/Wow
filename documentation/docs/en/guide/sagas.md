@@ -23,7 +23,7 @@ fun onOrderSubmitted(
 
 - **What it takes.** A `StateTypedEvent<S, E>` calls the handler once for each event `E` in a committed stream, with `event` that event and `state` the aggregate's state after the whole commit. A `StateEvent<S>` calls it once per stream, with all its `events`. The state type `S` selects the aggregates of the module's context whose state it is.
 - **What it returns.** One `CommandRequest`, several (a `List`, any `Iterable`, a `Sequence` or a `Flow`), or `null`, an empty list or `Unit` for none. The runtime turns each request into a deterministic command (below).
-- **Which commands.** When the return type names the command classes (`CommandRequest<ReserveStock>`, a list of them, a sealed type), the compiler knows them. When it does not, as with `List<CommandRequest<*>>`, declare them in `@OnEvent(derives = [...])`, so the Manifest lists them and a wait can follow the saga into their contexts; the compiler warns about a handler that does neither.
+- **Which commands.** When the return type names the command classes (`CommandRequest<ReserveStock>`, a list of them, a sealed type), the compiler knows them. When it does not, as with `List<CommandRequest<*>>`, declare them in `@Sends(derives = [...])`, so the Manifest lists them and a wait can follow the saga into their contexts; a handler that does neither does not compile. The runtime holds the handler to them: sending a class it does not declare fails the handling for good, and the aggregate parks at once.
 - **Its name.** Each handler is a subscription of its own, `<processor>.<function>`: `OrderProcessSaga.onOrderAwaitingValidation`. `@Name("…")` on the function names it instead, so renaming the function with `@Name("<its former name>")` keeps the subscription, its checkpoint and its executions.
 - **Its dependencies.** The saga's constructor parameters, bound from the application's beans.
 
@@ -32,11 +32,11 @@ fun onOrderSubmitted(
 | Request | Derives |
 | --- | --- |
 | `CommandRequest.of(body, id)` | A command to the aggregate `id` of the type that decides `body`'s class, in the tenant of the commit |
-| `CommandRequest.of(body)` | A creating command to a new aggregate of that type, whose id the target gives it |
+| `CommandRequest.of(body)` | A creating command to a new aggregate of that type, whose id the target gives it; a command whose body names its aggregate (`@AggregateId`), to that aggregate |
 | `CommandRequest.to(ref, body)` | A command to the aggregate `ref` names, of any type and tenant |
 | `CommandRequest.of(body, type = type)` | A creating command to a new aggregate of `type`, whose id the target gives it |
 
-A request without a type finds the target's type from the commands each context declares: this service's own Manifest, and the contract each peer's api jar carries. The handler fails when no context on the class path decides the class, or when several aggregates do; give the request its type then. `targetTenant` and `targetScope` send the command to another tenant or scope, and `expectedVersion` asks the target for that version.
+A command whose body names its aggregate ([Name the aggregate in the body](./aggregates#name-the-aggregate-in-the-body)) needs no id, in this context or another: a request that names one beside the body names the same aggregate, and one that names another, or a body that names a blank id, fails the handler. A request without a type finds the target's type from the commands each context declares: this service's own Manifest, and the contract each peer's api jar carries. The handler fails when no context on the class path decides the class, or when several aggregates do; give the request its type then. `targetTenant` and `targetScope` send the command to another tenant or scope, and `expectedVersion` asks the target for that version.
 
 Every derived command is deterministic:
 
@@ -76,7 +76,8 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   <!-- sample: fragment -->
 
   ```kotlin
-  @OnEvent(schedules = [CancelOrder::class])
+  @OnEvent
+  @Sends(schedules = [CancelOrder::class])
   fun onOrderAwaitingStock(
       event: StateTypedEvent<OrderState, OrderAwaitingStock>,
       context: SagaContext,
@@ -92,13 +93,13 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   }
   ```
 
-  The target schedules the command for itself, so it must decide it. A scheduled command the target refuses when it falls due is logged and not retried, and no `@OnRejected` sees it: cancel the schedule on the success, as above, or give the target a command it refuses by its state once the success is in. Only an `@OnEvent` handler schedules or cancels.
+  The target schedules the command for itself, so it must decide it. A scheduled command the target refuses when it falls due is logged and not retried, and no `@OnRejected` sees it: cancel the schedule on the success, as above, or give the target a command it refuses by its state once the success is in. Any handler of the saga schedules and cancels, an `@OnRejected` or `@OnCommitted` one included.
 
 - **A success that writes nothing** produces no event, so the saga sees nothing: a target that accepts a command with `Decision.NoOp` commits nothing. When someone must know, let the target decide a business event instead.
 
 ### Opt in to a receipt {#act-on-a-command-s-success}
 
-A saga that must know that its own command committed, because the target's stream is not published to it or because the success produces no event, declares an `@OnCommitted` handler of the command's type. It takes a `CommandCommitted<C>` and returns the commands it derives in turn:
+A saga that must know that its own command committed, because the target's stream is not published to it or because the success produces no event, declares an `@OnCommitted` handler of the command's type. It takes a `CommandReceipt.Committed<C>` and returns the commands it derives in turn:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
@@ -113,11 +114,11 @@ fun onReserveCommitted(
 
 `source` is the aggregate whose commit derived the command, here the order; `ref` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt, so no other command costs one. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
 
-A receipt comes for a command the target accepted without change too (`Decision.NoOp`), with its version unchanged. An `@OnCommitted` handler, like an `@OnRejected` one, takes a `ReceiptContext`: it derives commands, and neither schedules nor calls.
+A receipt comes for a command the target accepted without change too (`Decision.NoOp`), with its version unchanged, and for one it had already committed, marked as a duplicate. An `@OnCommitted` handler, like an `@OnRejected` one, takes the `SagaContext` when it needs it: it derives, schedules and calls as an `@OnEvent` handler does, and declares what it sends in its own `@Sends`.
 
 ## Handle a rejection
 
-A derived command may be refused: the stock is short, the order was cancelled meanwhile. A rejection is a business outcome, so the saga handles it in an `@OnRejected` handler of the command's type, which takes a `CommandRejected<C>` and returns the commands that compensate:
+A derived command may be refused: the stock is short, the order was cancelled meanwhile. A rejection is a business outcome, so the saga handles it in an `@OnRejected` handler of the command's type, which takes a `CommandReceipt.Rejected<C>` and returns the commands that compensate:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
@@ -131,9 +132,9 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
     )
 ```
 
-`CommandRejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions), the saga's `executionId` and its `source`, the aggregate whose commit derived the command; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
+`CommandReceipt.Rejected` names the command (`commandId`, `commandType`, `ref`), its `error` (code, message, violations, extensions), the saga's `executionId` and its `source`, the aggregate whose commit derived the command; it does not carry the command's body. A rejection from another context comes back as a receipt. The runtime hands each rejection over once.
 
-Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections the saga has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
+Each derived command is settled on its own: a rejected command stops none of the others, and each rejection goes to its handler. The commands to one aggregate run in the order the saga derived them; those to different aggregates run concurrently, so work that depends on another command's outcome is not derived beside it: derive it from the event the first command commits. The rejections of the saga's own context's commands that it has no handler for park the aggregate once for the saga's subscription, as a failure would, listing every rejected command. A command to another context asks for a receipt only when the saga has a handler of its type, so the target logs a rejection no handler takes, and it goes no further. A rejection that needs no compensation is accepted by a handler that returns `Unit`:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
@@ -148,7 +149,7 @@ Each derived command is settled on its own: a rejected command stops none of the
 fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
 ```
 
-`CommandRejected<*>` and `CommandCommitted<*>` take every command the saga derives.
+`CommandReceipt.Rejected<*>` and `CommandReceipt.Committed<*>` take every command the saga derives, and `Rejected<*>` the commands it calls too.
 
 ## Call another context synchronously
 
@@ -167,16 +168,16 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 }
 ```
 
-- The handler declares the classes it calls in `@OnEvent(calls = [...])`. The Manifest lists them, a wait follows the call, and `call` refuses any other class.
+- The handler declares the classes it calls in `@Sends(calls = [...])`. The Manifest lists them, a wait follows the call, and `call` refuses any other class.
 - `call` takes a `CommandRequest`, derived as a returned one is, and returns the command's result once it is committed on the target: its deterministic request id makes every retry the same request, which the target decides once. A call waits for the commit, so its request takes no `wait` or `timeout`.
 - A creation may name no id, as the checkout's `SubmitOrder` does: the target gives the aggregate its id (the ordering numbers the order, `SO-261031-42`), and the result names it. A retry or a replay is the same request, answered with the same aggregate, and takes no other id.
-- A refusal throws `CommandRejectedException`, a business outcome that is not retried. A call that fails or reaches no result throws `WowProblemException`, retryable with the same request id: the handler fails and is retried, then parks the aggregate. These are the exceptions a `CommandClient` throws.
+- A refusal throws `CommandRejectedException`, a business outcome that is not retried. A handler that lets it through hands it to the saga's `@OnRejected` handler of the called command, as a derived command's rejection; without one, the aggregate parks at once. A call that fails or reaches no result throws `WowProblemException`, retryable with the same request id: the handler fails and is retried, then parks the aggregate. These are the exceptions a `CommandClient` throws.
 - The node reaches the target on its internal port: its nodes are found by DNS from the service its contract names, or at `wow.peers.<context>.url` ([Configure a peer](./calling-services#configure-a-peer-over-http)). A node does not start when a handler calls a context it cannot reach. A command of the saga's own context is derived, never called.
 - `call` is a `suspend` function, so a saga written in Java derives its commands instead.
 
 ## Schedule a command
 
-`context.schedule(key, rule, request)` asks the request's target to schedule its command for itself under `key`; `context.cancel(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. The handler declares the scheduled commands' full type names in `@OnEvent(schedules = [...])`. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
+`context.schedule(key, rule, request)` asks the request's target to schedule its command for itself under `key`; `context.cancel(key, target)` cancels it. Both record into the context: the runtime sends them after the commands the handler returns, in the order the handler called them. Any handler of the saga may schedule, an `@OnSchedule` job's too. The handler declares the scheduled commands' classes in `@Sends(schedules = [...])`, which the Manifest lists by full type name. An aggregate can also schedule commands from its own decision, with the `DecideScope`: [Write an Aggregate](./aggregates#ask-the-kernel-for-more).
 
 ## Where it starts
 

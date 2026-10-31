@@ -18,24 +18,24 @@ import java.time.Duration
 import kotlin.math.ceil
 
 /**
- * How a soak runs, from the system properties `wow.soak.*` (the Gradle properties of the same names reach the test
+ * How a soak runs, from the system properties `wow-test.soak.*` (the Gradle properties of the same names reach the test
  * JVM as such):
  *
  * | Property | Default | |
  * |---|---|---|
- * | `wow.soak.duration` | `PT1H` | how long the load runs, faults included (ISO-8601) |
- * | `wow.soak.mode` | `full` | `short`: a local run of a few minutes (`PT5M`, a fault every 30 s), unless set |
- * | `wow.soak.clients` | 4 | clients driving checkouts, each one order at a time |
- * | `wow.soak.rate` | 4.0 | orders started per second, across the clients |
- * | `wow.soak.faults` | every kind | the fault kinds, comma separated ([FaultKind]); `none` for a soak without |
- * | `wow.soak.fault-interval` | duration / 24, 30 s to 3 min | from one fault's start to the next one's |
- * | `wow.soak.nodes` | `basket=1,ordering=2,inventory=2,payment=1` | nodes per service |
- * | `wow.soak.wait-timeout` | `PT20S` | a checkout's `Wow-Wait-Timeout` |
- * | `wow.soak.quiescence` | `PT5M` | how long the flows may take to settle once the load and the faults stop |
- * | `wow.soak.sample-interval` | `PT10S` | between two samples of the checkpoints and the parked ledger |
- * | `wow.soak.replay-sample` | 200 | aggregates per type whose snapshot is compared with a replay of their log |
- * | `wow.soak.heap` | `384m` | each service JVM's maximum heap |
- * | `wow.soak.seed` | 0 | the seed of which node a kill takes |
+ * | `wow-test.soak.duration` | `PT1H` | how long the load runs, faults included (ISO-8601) |
+ * | `wow-test.soak.mode` | `full` | `short`: a local run of a few minutes (`PT5M`, a fault every 30 s), unless set |
+ * | `wow-test.soak.clients` | 4 | clients driving checkouts, each one order at a time |
+ * | `wow-test.soak.rate` | 4.0 | orders started per second, across the clients |
+ * | `wow-test.soak.faults` | every kind | the fault kinds, comma separated ([FaultKind]); `none` for a soak without |
+ * | `wow-test.soak.fault-interval` | duration / 24, 30 s to 3 min | from one fault's start to the next one's |
+ * | `wow-test.soak.nodes` | `basket=1,ordering=2,inventory=2,payment=1` | nodes per service |
+ * | `wow-test.soak.wait-timeout` | `PT20S` | a checkout's `Wow-Wait-Timeout` |
+ * | `wow-test.soak.quiescence` | `PT5M` | how long the flows may take to settle once the load and the faults stop |
+ * | `wow-test.soak.sample-interval` | `PT10S` | between two samples of the checkpoints and the parked ledger |
+ * | `wow-test.soak.replay-sample` | 200 | aggregates per type whose snapshot is compared with a replay of their log |
+ * | `wow-test.soak.heap` | `384m` | each service JVM's maximum heap |
+ * | `wow-test.soak.seed` | 0 | the seed of which node a kill takes |
  */
 data class SoakConfig(
     val duration: Duration,
@@ -111,21 +111,24 @@ data class SoakConfig(
             )
         }
 
-        /** `wow.soak.faults`: every kind by default, none for `none`, else the kinds listed (`kill-ordering`, ...). */
+        /**
+         * `wow-test.soak.faults`: every kind by default, none for `none`, else the kinds listed (`kill-ordering`, ...).
+         */
         private fun faults(): List<FaultKind> = when (val kinds = property("faults")) {
             null -> FaultKind.entries.toList()
             "none" -> emptyList()
             else -> kinds.split(',').map { FaultKind.valueOf(it.trim().uppercase().replace('-', '_')) }
         }
 
-        /** `wow.soak.nodes`: `<service>=<count>`, comma separated, over the defaults. */
+        /** `wow-test.soak.nodes`: `<service>=<count>`, comma separated, over the defaults. */
         private fun nodes(): Map<String, Int> = property("nodes")?.split(',')?.associate { entry ->
             val (context, count) = entry.split('=').map(String::trim)
             require(context in CONTEXTS) { "No service $context; the services are $CONTEXTS." }
             context to count.toInt()
         } ?: emptyMap()
 
-        private fun property(name: String): String? = System.getProperty("wow.soak.$name")?.takeIf { it.isNotBlank() }
+        private fun property(name: String): String? =
+            System.getProperty("wow-test.soak.$name")?.takeIf { it.isNotBlank() }
 
         private val FULL: Duration = Duration.ofHours(1)
         private val SHORT: Duration = Duration.ofMinutes(5)

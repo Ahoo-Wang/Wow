@@ -57,7 +57,8 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Fixed tenant (`@StaticTenantId`) | Replaced | A fixed tenant per aggregate type in configuration. |
 | Fixed aggregate id (`@StaticAggregateId`) | Dropped | — |
 | Owner and space policies (`@AggregateOwner`, `@Spaced`) | Replaced | Ownership per aggregate type, owner or tenant; scope comes from the caller. See [Identity, tenancy and access](../concepts/identity). |
-| Identity annotations on command fields (`@AggregateId` and others) | Dropped | The aggregate comes from the route or the message; command bodies hold business data only. |
+| The aggregate's id in the command body (`@AggregateId`) | Kept | The body names the aggregate, and the command's route has no `{id}`: a saga or a client sends it without one. A computed id is the service's to compute. |
+| The tenant, owner and version on command fields (`@TenantId`, `@OwnerId`, `@AggregateVersion`) | Dropped | The tenant and owner are the caller's, the expected version is `If-Match`. |
 | Tags derived from state (`StateAggregateTagsExtractor`) | Replaced | `@Tags` on the state. |
 | Applying tags | Kept | The `ApplyTags` lifecycle command. |
 | Lifecycle commands: delete, restore, transfer owner or space | Kept | — |

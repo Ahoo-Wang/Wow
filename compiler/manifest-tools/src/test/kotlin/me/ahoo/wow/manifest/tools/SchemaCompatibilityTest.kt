@@ -25,6 +25,8 @@ import org.junit.jupiter.params.provider.MethodSource
 class SchemaCompatibilityTest {
     companion object {
         private val STRING = mapOf("type" to "string")
+        private val NUMBER = mapOf("type" to "number")
+        private val ARRAY = mapOf("type" to "array")
         private val NULLABLE_INTEGER = mapOf("type" to listOf("integer", "null"))
 
         private fun obj(vararg properties: Pair<String, Any?>, required: List<String> = emptyList()): Map<String, Any?> =
@@ -168,6 +170,40 @@ class SchemaCompatibilityTest {
                 mapOf("type" to "number", "format" to "decimal"),
                 "ADDITIVE s: type widened from [integer] to [number]",
             ),
+            // The Jakarta constraints of a command's field (decision D380): a tighter one is breaking for the
+            // input old clients send, a looser one additive (D349 ③).
+            row("minLength imposed", STRING, STRING + ("minLength" to 1), "BREAKING s: minLength 1 imposed"),
+            row(
+                "minLength raised",
+                STRING + ("minLength" to 1),
+                STRING + ("minLength" to 3),
+                "BREAKING s: minLength raised from 1 to 3",
+            ),
+            row(
+                "maxLength raised",
+                STRING + ("maxLength" to 8),
+                STRING + ("maxLength" to 16),
+                "ADDITIVE s: maxLength raised from 8 to 16",
+            ),
+            row(
+                "exclusiveMinimum imposed",
+                NUMBER,
+                NUMBER + ("exclusiveMinimum" to 0),
+                "BREAKING s: exclusiveMinimum 0 imposed",
+            ),
+            row(
+                "maximum lowered",
+                NUMBER + ("maximum" to 10),
+                NUMBER + ("maximum" to 9.5),
+                "BREAKING s: maximum lowered from 10 to 9.5",
+            ),
+            row(
+                "minimum lowered",
+                NUMBER + ("minimum" to 1),
+                NUMBER + ("minimum" to 0),
+                "ADDITIVE s: minimum lowered from 1 to 0",
+            ),
+            row("minItems the same number", ARRAY + ("minItems" to 1), ARRAY + ("minItems" to 1.0)),
             row(
                 "pattern changed",
                 STRING + ("pattern" to "a"),
@@ -326,6 +362,11 @@ class SchemaCompatibilityTest {
             .assert().containsExactly("BREAKING s.a: enum value y added")
         output(obj("a" to mapOf("enum" to listOf("x", "y"))), obj("a" to mapOf("enum" to listOf("x"))))
             .assert().containsExactly("ADDITIVE s.a: enum value y removed")
+        // A state's constraint tightened: it produces less, which old readers take.
+        output(obj("a" to STRING), obj("a" to STRING + ("minLength" to 1)))
+            .assert().containsExactly("ADDITIVE s.a: minLength 1 imposed")
+        output(obj("a" to STRING + ("maxLength" to 8)), obj("a" to STRING + ("maxLength" to 16)))
+            .assert().containsExactly("BREAKING s.a: maxLength raised from 8 to 16")
         output(
             obj("a" to mapOf("anyOf" to listOf(mapOf("type" to "string")))),
             obj("a" to mapOf("anyOf" to listOf(mapOf("type" to "string"), mapOf("type" to "integer")))),

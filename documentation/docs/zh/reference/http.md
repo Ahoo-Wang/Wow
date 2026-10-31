@@ -15,7 +15,7 @@ outline: deep
 | 方法和路径 | 发送 |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | 命令（kebab case），发往聚合 `{id}` |
-| `POST /<context>/<aggregate>/<command>` | 一条创建命令，发往一个由服务端分配 ID 的新聚合 |
+| `POST /<context>/<aggregate>/<command>` | 一条创建命令，发往一个由服务端分配 ID 的新聚合；命令体指明了聚合的命令则发往那个聚合 |
 | `DELETE /<context>/<aggregate>/{id}` | `DeleteAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.restore-aggregate` | `RestoreAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`，请求体为 `{"ownerId": "…"}` |
@@ -24,7 +24,7 @@ outline: deep
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | 重建 `{"ids": [...]}` 的快照 |
 | `POST /<context>/wow.schedule/{job}/<command>` | 任务命令：`enable`、`reschedule`、`disable` |
 
-只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。快照重建和任务命令是 Wow 内置聚合的系统命令：没有命令授权器的服务在这个端口上拒绝它们（403 `wow.auth.forbidden`），默认从不放行（[授权命令](../operate/security#authorize-commands)）。
+只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。命令体指明了聚合的命令（`@AggregateId`）只有不带 `{id}` 的路由，Manifest 列出它的 `idProperty`，即命令体中承载 ID 的属性：空白的 ID 是 `wow.command.malformed`（400），在命令体之外又指明另一个聚合的请求也是。快照重建和任务命令是 Wow 内置聚合的系统命令：没有命令授权器的服务在这个端口上拒绝它们（403 `wow.auth.forbidden`），默认从不放行（[授权命令](../operate/security#authorize-commands)）。
 
 **读取**
 

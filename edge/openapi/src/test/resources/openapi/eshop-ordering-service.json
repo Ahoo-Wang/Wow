@@ -3245,7 +3245,8 @@
           },
           "quantity" : {
             "type" : "integer",
-            "format" : "int32"
+            "format" : "int32",
+            "exclusiveMinimum" : 0
           }
         },
         "required" : [ "orderId", "quantity" ],
@@ -3297,11 +3298,13 @@
           },
           "quantity" : {
             "type" : "integer",
-            "format" : "int32"
+            "format" : "int32",
+            "exclusiveMinimum" : 0
           },
           "unitPrice" : {
             "type" : "number",
-            "format" : "decimal"
+            "format" : "decimal",
+            "minimum" : 0
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ]
@@ -3376,7 +3379,8 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.ordering.api.order.OrderItem"
-            }
+            },
+            "minItems" : 1
           }
         },
         "required" : [ "items" ],

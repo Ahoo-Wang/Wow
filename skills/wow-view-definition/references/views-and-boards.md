@@ -68,7 +68,7 @@ export const ORDER_QUEUES: SystemView[] = [
 ];
 ```
 
-A system view's `timeField` (on the `SystemView`, beside `id` and `title`, never inside `config`) overrides the definition's for that view: another moment, or `null` for a view read whole. Pass them as the definition's `views` (`views: [...ORDER_QUEUES, CHANNEL_SALES]`). A category (enum) offers `IN` and `NOT_IN`, not `EQ`; a saved `EQ` on a field that has since become an enum is read as a one-value `IN` (and saved as `IN` next time) instead of being refused, but write `IN` in new configs. A period is a `BETWEEN` whose value moves with the calendar, and `BEFORE_NOW` / `AFTER_NOW` compare with the service's clock: each keeps a saved view current, so never write today's date into a config.
+A system view's `timeField` (on the `SystemView`, beside `id` and `title`, never inside `config`) overrides the definition's for that view: another moment, or `null` for a view read whole. Pass them as the definition's `views` (`views: [...ORDER_QUEUES, CHANNEL_SALES]`). A category (enum) offers `in` and `not-in`, not `eq`; a saved `eq` on a field that has since become an enum is read as a one-value `in` (and saved as `in` next time) instead of being refused, but write `in` in new configs. A period is a `between` whose value moves with the calendar, and `before-now` / `after-now` compare with the service's clock: each keeps a saved view current, so never write today's date into a config.
 
 ```ts
 import type { FilterNode } from '@ahoo-wang/wow-view-engine';
@@ -157,7 +157,7 @@ export const CHANNEL_SALES: SystemView = {
 };
 ```
 
-- A trend groups a moment by `DATE_HISTOGRAM` with the unit the audience thinks in, written as the string (`unit: 'DAY'`; the board below has one); the period is a relative filter, so it moves with the calendar.
+- A trend groups a moment by a `date-histogram` group with the unit the audience thinks in, written as the wire string (`unit: 'day'`; the board below has one); the period is a relative filter, so it moves with the calendar.
 - Line items are an `elements` expansion of the array, its fields relative to the entry.
 - Chart types and their specs are in [ui/analysis.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/ui/analysis.md); choose the one that answers the question, not the most striking.
 
@@ -314,4 +314,4 @@ export const overview: DashboardDefinition = {
 1. Fetch the new descriptor (development or staging) and commit it over the old one with its new `version`.
 2. Run `admit`: a removed path, value or capability, a new protection or deprecation, a changed time encoding each come back as a finding at the field or view that used it.
 3. Fix each at its choice: move to the replacement path, drop the analysis use of a newly protected field, remove a condition from a system view. Never widen a definition merely because the new descriptor grants more; add a field or a view only when the scenario asks for it.
-4. Saved views (the readers', and stored system views) are not in the code: the engine reports a removed capability in one when it is opened, and reads a saved `EQ` on a newly enum field as `IN`. Name the affected system views in the report.
+4. Saved views (the readers', and stored system views) are not in the code: the engine reports a removed capability in one when it is opened, and reads a saved `eq` on a newly enum field as `in`. Name the affected system views in the report.

@@ -10,11 +10,11 @@ dependencies {
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 
-// Spike H6 runs only on demand: ./gradlew :lease-spike:integrationTest -Dwow.spike.h6=true
-// (-Dwow.spike.h6.quick=true runs one short repetition per series, which only checks the harness;
-// -Dwow.spike.h6.repetitions=<n> and -Dwow.spike.h6.only=<backend> narrow a run).
+// Spike H6 runs only on demand: ./gradlew :lease-spike:integrationTest -Dwow-test.spike.h6=true
+// (-Dwow-test.spike.h6.quick=true runs one short repetition per series, which only checks the harness;
+// -Dwow-test.spike.h6.repetitions=<n> and -Dwow-test.spike.h6.only=<backend> narrow a run).
 tasks.named<Test>("integrationTest") {
-    listOf("wow.spike.h6", "wow.spike.h6.quick", "wow.spike.h6.repetitions", "wow.spike.h6.only").forEach {
+    listOf("wow-test.spike.h6", "wow-test.spike.h6.quick", "wow-test.spike.h6.repetitions", "wow-test.spike.h6.only").forEach {
         systemProperty(it, providers.systemProperty(it).orElse("").get())
     }
     maxHeapSize = "4g"

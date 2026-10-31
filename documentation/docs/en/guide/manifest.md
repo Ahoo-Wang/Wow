@@ -11,7 +11,7 @@ A service's Manifest is its contract in one document: its contexts, aggregates, 
 ## From fragments to the service's Manifest
 
 1. **The compiler** writes each domain module's fragment, `META-INF/wow/manifest/<module>.json` ([What the Compiler Generates](./generated-code#the-manifest-fragment)).
-2. **The Gradle plugin** (`generateWowManifestFragment`) completes the fragment with the JSON Schemas of its types, the query keywords and the state's fingerprint. The completed fragment replaces the compiler's in the module's resources.
+2. **The Gradle plugin** (`generateWowManifestFragment`) completes the fragment with the JSON Schemas of its types, the query keywords and the state's fingerprint. A type's Jakarta Bean Validation constraints become its schema's validation keywords, so a client sees them before it sends: `@Positive` is an `exclusiveMinimum` of 0, `@NotBlank` a `minLength` of 1, `@Size` the length or item bounds, `@Pattern` a `pattern` and `@Email` the `email` format. Whether a field is required, or may be null, still follows its Kotlin type. The completed fragment replaces the compiler's in the module's resources.
 3. **At build time**, `mergeWowManifest` merges the fragments of the service's runtime class path into `build/wow/manifest.json`.
 4. **At startup**, the host merges the same fragments, adds the framework's error codes, and serves the result at `GET /wow/manifest`.
 
@@ -29,8 +29,10 @@ Each service commits its merged Manifest as a baseline, `manifest/baseline.json`
 
 | Kind | Examples | In `check` |
 | --- | --- | --- |
-| Additive | A new command, event or aggregate; a new optional field | Fails until the baseline records it |
-| Breaking | A removed command or event; a new required field; a field removed or retyped; an event's schema changed without a new revision and upgrade | Fails the build within the line, listing each change and its path |
+| Additive | A new command, event or aggregate; a new optional field; a command's constraint loosened | Fails until the baseline records it |
+| Breaking | A removed command or event; a new required field; a field removed or retyped; a command's constraint tightened, such as a minimum raised or a `pattern` added; an event's schema changed without a new revision and upgrade | Fails the build within the line, listing each change and its path |
+
+The constraint rows are a command's, which its clients send: a tighter constraint refuses values they sent before. A state's or an event's schema is what its readers read, so for an aggregate with readers the rows turn around: a constraint tightened there is additive, and one loosened breaks.
 
 `build/wow/manifest-compatibility.txt` lists every change, additive ones too. A missing baseline fails `check` too. After an intended change, `updateWowManifestBaseline` records the new baseline: commit it with the change, so its review shows what clients and peers will see. Each failure names that task. The eShop regenerates its TypeScript clients from the baselines, so a client and its service never drift apart unnoticed.
 

@@ -56,18 +56,21 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@StatelessSaga`, `@ProjectionProcessor`, `@EventProcessor` | `@Saga`, `@Projection`, `@Reactor` |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent`, one handler kind taking a `StateEvent` |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<context>.<processor.function>].parked.*` (`executionTimeout` as `claim-ttl`) |
-| `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler |
+| `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler. One that turned the framework's duplicate-id error into a domain message has no V10 form: a creation of an existing aggregate is answered `wow.aggregate.exists` before decide runs, and clients match that code |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
-| `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
+| `@AggregateId` on a command property | Kept, with the same meaning: the body names the aggregate, and the command's route has no `{id}`. A field 9.x bound from the path only repeated the route: delete it ([What a command body holds](#what-a-command-body-holds)) |
+| `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the tenant and owner are the caller's, the expected version is `If-Match` |
 | `@StaticTenantId`, `@StaticAggregateId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |
 
-## Commands carry no identity
+## What a command body holds
 
-A command body holds business data only. The aggregate is `command.ref`, taken from the route; the owner and space are `command.scope`, taken from the authenticated caller. Delete the identity fields and the route annotations; what is left is the business data. The eShop's order is created by a command that carries only its items, the id coming from the route (a command left with no fields becomes an `object`):
+A command body holds business data. The tenant is the caller's, the owner and space are `command.scope`, taken from the authenticated caller, and the expected version comes from `If-Match`: delete the tenant, owner and version fields and the route annotations. The aggregate is `command.ref`, taken from the route, unless the body names it.
+
+A 9.x id field bound from the path (`@CommandRoute.PathVariable` with `@AggregateId`) only repeated the route: delete it and read `command.ref.id`, and the command keeps its route with `{id}`. The eShop's order is created by a command that carries only its items, the id coming from the route (a command left with no fields becomes an `object`):
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -84,6 +87,19 @@ data class SubmitOrder(
     @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
+
+A 9.x id the body took from its own business data, a field such as `productId` or a getter such as `"$warehouseId-$code"`, keeps `@AggregateId`, with the same name, package and meaning ([Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body)). The command's route then has no `{id}`, a saga or a client sends it without one, and it needs no `CommandTransformer`. A computed id stays a getter, which the service computes from the fields:
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
+```
+
+A client that sent such a command to a route with the id sends it to the route without one ([HTTP and TypeScript Clients](./http-and-clients#routes)).
 
 In decide, `CommandMessage<X>` is `Command<X>`, `command.aggregateId.id` is `command.ref.id`, `command.ownerId` is `command.scope.ownerId`, a 9.x `CommandResultAccessor` is `DecideScope.putResult`, and an id generated inside decide comes from `scope.ids.next()`.
 
@@ -119,10 +135,10 @@ A rejection carries a code and a message: 9.x `bindingErrors` go into the messag
 
 - **Names.** A V10 event is `<context>.<aggregate>.<Name>`; 9.x used snake case (`order_created`). Do not keep the 9.x spelling with `@Name`: map it in the migration map.
 - **Revisions.** An event whose V10 shape differs from what 9.x stored (an identity field removed, a computed property dropped) gets a higher `@Revision` and an `@Upgrade` function from revision 1, which a test covers with a real 9.x payload.
-- **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value before creation (no `lateinit`). A 9.x `StateAggregateTagsExtractor` is a `@Tags` member of the state.
+- **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value before creation (no `lateinit`). A handler 9.x found while private, an `@OnCommand`, `@OnSourcing` or `@OnEvent` function, is a compile error in V10, as a Kotlin `protected` one is: make it `internal`. Only a private function bound by its name alone, without the annotation, is ignored. A 9.x `StateAggregateTagsExtractor` is a `@Tags` member of the state.
 - **Deleted events** are retired: delete the class and its sourcing function, list the stored name in `retiredEvents`, and map it with `"retire": true`.
 - **Wow types in events and state.** A stored `Condition`, `Sort` or `Projection` (a saved filter, say) has no V10 form: the `Condition` protocol is gone, the kernel's JSON has no codec for the query protocol, and its enumerations are lower case now. Store a type of your own, and upgrade the 9.x JSON into it with an `@Upgrade` function and a test.
-- **The event's envelope.** A 9.x sourcing function that read `DomainEvent.createTime` or the operator has no V10 form today: a sourcing function takes its event only. Put the value in the event; states rebuilt from 9.x history lack it, and `compare` reports it. How V10 exposes the envelope is a pending decision.
+- **The event's envelope.** A 9.x sourcing function that took `DomainEvent<E>` to read `createTime` or the operator takes the event and, second, the commit it belongs to (`commit: EventStream`): `createTime` is `commit.commitTime`, `header.operator` is `commit.operator?.id`, `version` is `commit.version` ([Read the commit](../guide/aggregates#read-the-commit)). The data migration imports each 9.x stream's create time and operator as its commit's, so states rebuilt from 9.x history read what 9.x recorded. A command function that read the system clock, or took a `Clock` to read it, reads `scope.now` instead: the decision's time in epoch milliseconds (`LocalDateTime.ofInstant(Instant.ofEpochMilli(scope.now), zone)`). A shared helper whose parameter defaults to `LocalDate.now()` or `LocalDateTime.now()` still reads the system clock, so pass it the decision's date. A test sets the time with `aggregateSpec(…, start = instant)` and `advanceTime` instead of injecting a clock.
 
 ## Processors
 
@@ -204,11 +220,15 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | `class XSpec : AggregateSpec<A, S>({ on { … } })`, a `@TestFactory` | `@Test fun x() = aggregateSpec(model) { … }`, one test; `@TestFactory fun x() = aggregateSpecTests(model) { … }`, a test per step and fork |
 | `aggregateVerifier<A, S>()`, its chained stages (from Kotlin or Java) | One `aggregateSpec`: `.whenCommand(c).expect…().verify()` is `whenCommand(c) { expect… }`; `.then()` and `.then(false)` are the next `whenCommand`, since a spec chains and a rejection changes nothing; `.fork { … }` is `fork(name) { … }` inside the checks. The test DSL is Kotlin only |
 | `inject { register(service) }` | The services the generated model factory takes (`orderModel(name, inventory)`, the context name first, with a default, so services passed alone go by name); `fork(name, model = …)` for a branch whose service answers otherwise |
+| `inject { register(clock) }`, a `Clock` the command function takes | `aggregateSpec(model, start = instant)`: `DecideScope.now` reads the spec's clock, which starts at `start`, and `advanceTime(duration)` moves it |
+| `name("…")` | The test's name: the `@Test` function's, and in `aggregateSpecTests` each step's and fork's |
 | `givenOwnerId(…)`, `givenSpaceId(…)` | `scope = Scope(owner, space)` on `given`, `givenState` or `whenCommand` |
-| `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays |
+| `givenEvent(event) { … }`, `givenEvent(arrayOf(…)) { … }` | `given(vararg events)`, a step of its own; `givenState(state, version)` stays, and `givenState(stateAggregate)` is `givenState(state, version, scope)` |
 | `whenCommand(command, header, ownerId, spaceId)` | `whenCommand(command, requestId, expectedVersion, scope, headers, operator) { … }` |
 | Sibling `whenCommand` calls on one given | `fork(…)` branches (above) |
 | `ref("name")`, `fork("name") { … }` on a verified stage | `ref("name")` in the spec, `fork(name, from = "name") { … }`; or `fork { … }` inside the checks |
+| `.verify()`, `.verify(false)` | Nothing to call: the checks run as their block ends, and the first that fails ends it. 9.x's collected failures have no form; in `aggregateSpecTests` each step fails its own test while the others run |
+| A verified stage's `stateRoot`, `stateAggregate`, `verifiedResult` | `expectState { … }` for the state; `expectVersion`, `expectScope`, `expectDeleted` for the aggregate; `error` and `results` in the checks for the outcome |
 | Command validation through `TestValidator` | Removed: validation is the admission's `CommandValidator`, which the kernel and the spec do not pass through; test it at the HTTP layer |
 | `TestGlobalIdGeneratorFactory` | Nothing to set: `DecideScope.ids` gives sequential ids in a spec |
 
@@ -217,14 +237,17 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | 9.x | V10 |
 | --- | --- |
 | `expectNoError()` | `expectNoError()` |
-| `expectError()`, `expectErrorType(X::class)` | `expectError<X>()`, for an exception the decide function throws; `expectRejected(code)` for a rejection it returns |
+| `expect { … }` over the 9.x `ExpectedResult` | The expectations of this table; `error` and `results` for what they do not cover |
+| `expectError()`, `expectError { … }`, `expectErrorType(X::class)` | `expectError<X> { … }`, for an exception the decide function throws; `expectRejected(code)` for a rejection it returns or throws (`reject`, `require`, `check`) |
 | `expectEventType(A::class, B::class)` | `expectEventTypes(A::class, B::class)` |
 | `expectEventCount(n)` | `expectEventCount(n)` |
 | `expectEvent<E> { … }`, `expectEventBody<E> { … }`: the first event of that type | `expectEvent<E> { … }`: exactly one event, an `E`; `expectEvents(…)` for several, by value |
 | `expectEventStream { … }`, `expectEventIterator { … }` | `expectEvents(…)` or `expectEventTypes(…)` for the whole stream; `expectEventEnvelope<E> { … }` for one event with its envelope |
 | An event's `aggregateId`, `version`, `commandId`, `requestId`, `header` | `expectEventEnvelope<E> { aggregateId; version; commandId; requestId; headers }` |
 | An event's operator and create time | `expectEventEnvelope<E> { operator; commitTime }`, for a command that committed one event |
-| `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)`; the `Consumer` overloads are removed |
+| `expectState { … }`, `expectState(Consumer)` | `expectState { … }` or `expectState(expected)` |
+| Every `Consumer` and `Class` overload | Removed: the test DSL is Kotlin only, and a Java domain is tested with it ([Write the Domain in Java](../guide/java#test-it)). A `Consumer` overload beside each lambda would make Kotlin's calls ambiguous |
+| `expectStateAggregate { aggregateId }` | The spec's `id` |
 | `expectStateAggregate { version }` | `expectVersion(n)`: the committed version, or the version the aggregate stayed at when the command appended nothing |
 | `expectStateAggregate { deleted }` | `expectDeleted()` |
 | `expectStateAggregate { ownerId; spaceId }`, the tags | `expectScope(scope)`, `expectTags(tags)` |
@@ -235,18 +258,29 @@ Smaller differences: `expectEvent` and the saga's `expectCommand` now require ex
 
 | 9.x | V10 |
 | --- | --- |
-| `class XSpec : SagaSpec<T>({ on { … } })` | `sagaSpec(<saga>Handlers(…)) { … }`, or `sagaSpecTests` for a tree |
+| `class XSpec : SagaSpec<T>({ on { … } })`, `sagaVerifier<T>()` | `sagaSpec(<saga>Handlers(…)) { … }`, or `sagaSpecTests` for a tree |
 | `inject { … }` | The handlers' dependencies, given to the generated handlers factory; `givenQueries(queries)` for the reads |
 | The command gateway and message factory | Removed: `answerCalls { … }` answers the synchronous calls |
 | `functionFilter { … }`, `functionName("onX")` | `whenEvent(event, handler = "onX")` |
-| `whenEvent(event, state, ownerId, spaceId)` | `whenEvent(stateEvent(ref, state, events…, scope = …))`; a peer context's event: `publishedEvent(name, body)` |
+| `whenEvent(event)`, `whenEvent(event, state, ownerId, spaceId)` | `givenAggregate(model, id, history…)`, then `whenEvent(events, by = …)` for the saga's own context; `whenEvent(stateEvent(ref, state, events…, scope = …))` for a state no model of the module sources; a peer context's event: `publishedEvent(name, body)` |
 | `expectCommandType(X::class)` | `expectCommandTypes(X::class)` |
 | `expectCommandCount(n)` | `expectCommandCount(n)` |
-| `expectCommand<C> { … }`, `expectCommandBody<C> { … }`: the first command | `expectCommand<C> { … }` or `expectCommand(body, to = ref)`: exactly one command; `expectCommands(…)` for several |
+| `expectCommandBody<C> { … }`: the first command's body | `expectCommand<C> { … }` or `expectCommand(body, to = ref)`: exactly one command, and its body; `expectCommands(…)` for several |
+| `expectCommand<C> { … }`: the first command's message, its aggregate id and header | `expectCommandEnvelope<C> { … }`: exactly one command, with its `ref`, ids, scope, request facts and operator beside its `body` |
 | `expectCommandStream`, `expectCommandIterator` | `commands`, `expectCommands(…)`, `expectCommandTypes(…)` |
 | `expectNoCommand()`, `expectNoError()`, `expectError…` | The same names; `expectError<X>()` as on the aggregate |
+| `expect { … }`, `.verify()` | The expectations of this table; `commands`, `calls`, `handled` and `error` for the rest. A step's checks are optional |
 
-New in V10, with no 9.x counterpart: `whenRejected` and `whenCommitted` for the receipts a saga handles, `expectDeterministic`, `expectHandledBy`, `expectCalls`, the schedule expectations, and `projectionSpec`, `reactorSpec` and `scheduleSpec`.
+New in V10, with no 9.x counterpart:
+
+- `whenRejected` and `whenCommitted` for the receipts a saga handles, and `answerCalls` and `expectCalls` for its synchronous calls;
+- `whenRedelivered` and `whenDeliveredLate`, which hand a commit over again or late, as a subscription may;
+- `expectRetried` and `expectParked`, which say what the runtime does with a handling that failed;
+- `expectDeterministic`, a saga's only, and `expectHandledBy`;
+- forks and test trees for processors, which 9.x's `SagaSpec` had neither of;
+- `givenQueries` over snapshots in memory (`wow-test-query`'s `givenSnapshots`), the schedule expectations, and `projectionSpec`, `reactorSpec` and `scheduleSpec`, each with its `Tests` twin.
+
+[Test Domain Code](../guide/testing) describes each.
 
 ## What the Skill cannot do
 

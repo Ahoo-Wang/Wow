@@ -34,14 +34,14 @@ import kotlin.time.Duration.Companion.seconds
  * takes `owned × latency`; once that exceeds `leaseTtl − renewInterval` the last leases of the round expire before
  * they are renewed, and the node drops partitions nobody else wants. No other node, no load, no database.
  *
- * Runs with the spike (`-Dwow.spike.h6=true`); prints the renewals that found their lease lost.
+ * Runs with the spike (`-Dwow-test.spike.h6=true`); prints the renewals that found their lease lost.
  */
 class RenewalRoundSpike {
     @Test
     fun `a slow renew loses leases once a round outlasts the TTL margin`() {
         assumeTrue(
-            System.getProperty("wow.spike.h6") == "true" || System.getProperty("wow.spike.h6.quick") == "true",
-            "Run with -Dwow.spike.h6=true",
+            System.getProperty("wow-test.spike.h6") == "true" || System.getProperty("wow-test.spike.h6.quick") == "true",
+            "Run with -Dwow-test.spike.h6=true",
         )
         runBlocking {
             for ((partitions, latency) in CASES) {

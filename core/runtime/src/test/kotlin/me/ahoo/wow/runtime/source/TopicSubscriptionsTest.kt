@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.source
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.StartFrom
@@ -181,13 +182,40 @@ class TopicSubscriptionsTest {
     fun `a message without a key that holds no state event should be passed over`(): Unit = runBlocking {
         start("node-1")
         val partition = partitionOf("o-1")
-        topics.send(ORDER_TOPIC, TopicMessage.of("not a ref", "not an envelope".toByteArray(), partition = partition))
+        topics.send(ORDER_TOPIC, TopicMessage.of("not a ref", BAD.toByteArray(), partition = partition))
         topics.publish(orderRecord("o-1", 1))
         eventually { handled.size == 1 }
         eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) == 2L }
         ledger.parked(BOARD, order("o-1")).assert().isNull()
         undecodable.assert().containsExactly(0L to false)
     }
+
+    @Test
+    fun `a record of another producer, such as 9x on a topic of the same name, should stop the read before it`(): Unit =
+        runBlocking {
+            val partition = partitionOf("o-1")
+            topics.send(ORDER_TOPIC, TopicMessage.of("o-1", NINE_X_STATE_EVENT.toByteArray(), partition = partition))
+            val foreign = assertThrows<ForeignTopicRecordException> {
+                TopicEntries(ORDER_TOPIC, topics, PARTITIONS).tail(partition, null).toList()
+            }
+            foreign.offset.assert().isEqualTo(0L)
+            foreign.message.assert().contains("Offset 0 of partition $partition of $ORDER_TOPIC")
+                .contains("not a Wow envelope").contains("such as a 9.x service")
+                .contains("wow.kafka.topics.prefix")
+
+            // A wrong topic is no failure of an aggregate: nothing parks, and the record after it is never reached.
+            start("node-1")
+            topics.publish(orderRecord("o-1", 1))
+            delay(READ_RETRIES)
+            handled.size.assert().isZero()
+            (checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) ?: 0L).assert().isZero()
+            ledger.list(BOARD).assert().isEmpty()
+            undecodable.assert().isEmpty()
+            // Another partition reads on.
+            val other = idsIn((partition + 1) % PARTITIONS, 1).single()
+            topics.publish(orderRecord(other, 1))
+            eventually { handled.versionsOf(other) == listOf(1) }
+        }
 
     @Test
     fun `a message of an aggregate that holds no state event should park the aggregate there`(): Unit =
@@ -467,6 +495,11 @@ class TopicSubscriptionsTest {
         const val SERVICE = "board-service"
         const val BOARD = "Board.onOrder"
         const val PARTITIONS = 4
-        const val BAD = "not an envelope"
+
+        /** Long enough for a read that fails to have been retried several times. */
+        val READ_RETRIES = 300.milliseconds
+
+        /** An envelope a later version may read: of another format, which this version does not. */
+        const val BAD = """{"format":2,"kind":"state-event","id":"sales.order/t/o-1@2","payload":{}}"""
     }
 }

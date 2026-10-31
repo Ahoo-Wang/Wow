@@ -42,14 +42,14 @@ import kotlin.time.Duration.Companion.seconds
  * router and coordinator, joined by the loopback cluster channel, under a steady write load. Each repetition starts
  * three nodes and then joins, leaves gracefully and kills nodes one at a time (see [PLAN]), measuring each change.
  *
- * Runs only with `-Dwow.spike.h6=true`; `-Dwow.spike.h6.quick=true` runs one repetition at 64 partitions per
+ * Runs only with `-Dwow-test.spike.h6=true`; `-Dwow-test.spike.h6.quick=true` runs one repetition at 64 partitions per
  * backend and configuration to check the harness. Writes `build/spike-h6.json` and `build/spike-h6.md`.
  */
 class LeaseSpike {
-    private val quick = System.getProperty("wow.spike.h6.quick") == "true"
-    private val repetitions = System.getProperty("wow.spike.h6.repetitions")?.toIntOrNull()
+    private val quick = System.getProperty("wow-test.spike.h6.quick") == "true"
+    private val repetitions = System.getProperty("wow-test.spike.h6.repetitions")?.toIntOrNull()
         ?: if (quick) 1 else REPETITIONS
-    private val only = System.getProperty("wow.spike.h6.only").orEmpty()
+    private val only = System.getProperty("wow-test.spike.h6.only").orEmpty()
     private val contexts = AtomicInteger()
     private val steps = mutableListOf<StepResult>()
     private val leaseSeries = mutableListOf<LeaseSeries>()
@@ -59,8 +59,8 @@ class LeaseSpike {
     @Test
     fun measure() {
         assumeTrue(
-            System.getProperty("wow.spike.h6") == "true" || quick,
-            "Run with -Dwow.spike.h6=true",
+            System.getProperty("wow-test.spike.h6") == "true" || quick,
+            "Run with -Dwow-test.spike.h6=true",
         )
         val factories = listOf<Pair<String, () -> Backend>>(
             "PostgreSQL" to ::PostgresBackend,

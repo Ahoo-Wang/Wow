@@ -45,6 +45,6 @@ tasks.test {
         "examples/eshop/e2e/src/soakTest/kotlin/me/ahoo/wow/example/eshop/e2e/soak/SoakSignals.kt",
     )
     inputs.file(soakSignals).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("soakSignals")
-    systemProperty("wow.benchmark.soak-signals", soakSignals.absolutePath)
-    systemProperty("wow.benchmark.bench-signals", file("src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchSignals.kt").absolutePath)
+    systemProperty("wow-test.benchmark.soak-signals", soakSignals.absolutePath)
+    systemProperty("wow-test.benchmark.bench-signals", file("src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchSignals.kt").absolutePath)
 }

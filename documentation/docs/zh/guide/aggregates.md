@@ -21,7 +21,7 @@ outline: deep
 
 ## 编写命令 {#write-the-commands}
 
-命令是 api 模块里的一个数据类。它承载调用方要求的内容，从不承载聚合是谁：ID 来自路由或发送命令的 Saga，租户、所有者和空间来自调用方，期望版本来自 `If-Match`。
+命令是 api 模块里的一个数据类。它承载调用方要求的内容，从不承载调用方是谁：租户、所有者和空间来自调用方，期望版本来自 `If-Match`。聚合 ID 来自路由或发送命令的 Saga，除非命令体本身已经指明了聚合（[在命令体中指明聚合](#name-the-aggregate-in-the-body)）。
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -64,6 +64,8 @@ data class AddBasketItem(
 
 网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`Positive`）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
 
+约束是命令契约的一部分。它们是 Manifest 和 OpenAPI 文档中命令 schema 的校验关键字（`quantity` 是 `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`），生成的客户端或 Swagger UI 在发送之前就能看到它们。收紧一个约束，例如提高最小值，是破坏性改变（[Manifest 与兼容](./manifest#the-compatibility-check)）。
+
 需要聚合状态或调用方的规则留在命令函数里，作为带错误码的拒绝（[拒绝与错误码](./rejections)）：下面订单的函数已经没有要检查的了。
 
 命令能否创建它的聚合，由它的类决定：
@@ -75,6 +77,33 @@ data class AddBasketItem(
 | 两者都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
 
 每条命令的路由是 `POST /<context>/<aggregate>/{id}/<command>`，命令名采用 kebab case，与 Manifest 列出的路由一致：`POST /eshop-ordering/order/{id}/submit-order`。创建命令还提供不带 `{id}` 的路由，由服务端为聚合分配 ID。准入会先查找同一个请求 ID 已经创建过的聚合并复用它的 ID，所以同一个创建发两次只会创建一个聚合。ID 即所有者 ID 的聚合（每个所有者一个）的每条命令也都提供不带 `{id}` 的路由，指调用方自己的聚合，并且不生成 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
+
+### 在命令体中指明聚合 {#name-the-aggregate-in-the-body}
+
+有些命令的业务数据里本来就有它的聚合 ID：一次补货指明要给哪个商品的库存补货。在这个属性上标注 `@AggregateId`，命令体就指明了聚合，发送方不必再另给 ID：
+
+<!-- sample: fragment -->
+
+```kotlin
+@AllowCreate
+@Summary("Restock a product")
+data class RestockProduct(
+    @AggregateId val productId: String,
+    @field:Positive val quantity: Int,
+)
+```
+
+这样的命令只提供 `POST /<context>/<aggregate>/<command>` 一条路由，不带 `{id}`，作用于命令体指明的聚合。Saga 用 `CommandRequest.of(body)` 发送它，客户端发送时也不带 ID。发往另一个上下文的这类命令进入该上下文的命令主题时按聚合分区，同一个聚合的命令因此保持顺序。准入在授权之前读取命令体，所以策略看到的仍是聚合 `<aggregate>/<id>`。该聚合的生命周期命令保留带 `{id}` 的路由。
+
+| 属性 | 承载 |
+| --- | --- |
+| 有字段或构造参数的 `String` | ID，即命令体里的值 |
+| 计算属性 `String`，如 `val stockId: String get() = "$warehouseId-$sku"` | 由其他字段算出的 ID：只发送那些字段的发送方可以不带它，由服务算出 |
+| 可创建聚合的命令上的 `String?` | ID；为 null 时交给服务端分配，与任何不指明 ID 的创建一样，重试沿用第一次的 ID |
+
+准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `CommandRequest.to(ref, body)`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
+
+这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
 ## 编写根 {#write-the-root}
 
@@ -97,6 +126,8 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 | `Unit`、`null` 或空列表 | 什么都不改变 |
 
 返回 `Decision` 的函数没有告诉编译器它能产生哪些事件，所以要在 `@OnCommand(produces = [...])` 里列出它们。Manifest 会发布这份列表。返回类型本身已经指明事件的函数，例如返回某个事件类或它们的密封类型，不必重复列出。
+
+返回类型是接口或抽象类、又不是密封的，会导致编译错误。这样的函数返回的是几个实现中的一个，而这个类型说不出是哪几个。改为把它们列出来：把这个类型改成以这些事件为子类的密封接口，直接返回事件类本身，或者返回 `Decision` 并写上 `produces`。元素类型（`List<OrderEvent>`）和密封类型的子类也适用同样的规则。
 
 聚合以根类名的 snake case 命名（`Order` 是 `order`，`ViewPreferences` 是 `view_preferences`），或者用 `@Name` 指定。
 
@@ -220,6 +251,7 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 | 成员 | 作用 |
 | --- | --- |
 | `command` | 正在决定的命令，类型为 `Command<*>` |
+| `now` | 这次决定在节点时钟上的时间（纪元毫秒）：它的事件被记录的提交时间。用它而不是系统时钟计算截止时间或过期时间，测试就能设定它（[测试](./testing#arrange-and-act)） |
 | `ids` | 节点的 ID 生成器，用于决定需要的 ID |
 | `putResult(key, value)` | 往事件追加之后给调用方的回答里加一个值。它不存储：重复的请求不会再得到它 |
 | `reject(code, message)` | 用一个错误码拒绝命令，可以附带用于 problem 的 `extensions`（[拒绝](./rejections#reject-with-a-code)） |
@@ -273,10 +305,10 @@ suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 
 - **顺序。** 补偿按登记的逆序逐个执行，每个都会等待完成，调用方已经离开时也一样。没有超时：卡住的补偿会挡住这个聚合的命令，所以要给它的调用设上限。
 - **失败。** 一个补偿失败不会阻止其余的补偿。失败会被记日志，或附加到它所撤销的那个失败上，命令的应答不变。
-- **两次。** 基于已落后于日志的缓存状态被拒绝的命令会重新决定，第一次尝试先被补偿。外部操作因此可能做了两次、撤销一次，所以要以命令为键，如上例中的 `requestId`。
-- **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，这次尝试持有的键会被放掉。结果未知或进程崩溃时，持有在 30 秒后过期。
+- **两次。** 基于已落后于日志的缓存状态被拒绝、或未作改变的命令会重新决定，第一次尝试先被补偿。外部操作因此可能做了两次、撤销一次，所以要以命令为键，如上例中的 `requestId`。
+- **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，放弃这次尝试的持有，而这个聚合原本就持有的键继续持有。一次尝试预留和释放的键随它追加的事件一起记录，所以结果未知、或进程在追加之后崩溃时，内置的 `reservation` 订阅按日志确认和释放它们。只有没有任何已追加条目记录的持有（进程在追加之前崩溃）才会过期，30 秒后由这个键的下一次预留取得。
 
-`afterAppend` 是另一面：事件追加之后、应答调用方之前，按登记顺序执行。重复请求不执行，任何没有追加的结果也不执行。失败只记日志，事件仍然已提交。订阅可能在它结束之前就看到这次提交；进程在两者之间崩溃，它就被跳过。所以它适合可以丢失的工作，例如预热缓存。必须跟随每次提交的工作应放在反应器或 Saga 中，由它们读取已提交的事件。
+`afterAppend` 是另一面：事件追加之后、应答调用方之前，按登记顺序执行。重复请求不执行，任何没有追加的结果也不执行，拒绝也不执行，即使是提交了事件的拒绝：那时执行的是补偿。失败只记日志，事件仍然已提交。订阅可能在它结束之前就看到这次提交；进程在两者之间崩溃，它就被跳过。所以它适合可以丢失的工作，例如预热缓存。必须跟随每次提交的工作应放在反应器或 Saga 中，由它们读取已提交的事件。
 
 ## 编写状态 {#write-the-state}
 
@@ -298,6 +330,24 @@ fun onSourcing(event: OrderSubmitted) {
 - 原地修改状态的演化函数不返回任何东西。返回状态类型的演化函数则返回新的状态，用于不可变状态。
 - 在第一个事件之前就给每个属性一个值。内核按状态的原样序列化它，用于快照和发布的事件流。
 - 命令函数从不修改状态，只读取它。测试 DSL 比较每次决定前后的状态，若有改变就让测试失败。
+
+### 读取提交 {#read-the-commit}
+
+演化函数可以在事件之后再接收该事件所属的提交：一个 `EventStream`，带有日志记录的提交时间、操作人、版本和命令的 ID。内核在决定时和重放时（从日志，或从快照及其后的事件流）给出同一个提交，所以之后重建的状态是同一个状态。要保存时间的状态从提交读取它，绝不从时钟读取：
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onSourcing(event: OrderPaid, commit: EventStream) {
+    paidAt = commit.commitTime
+    paidBy = commit.operator?.id
+}
+```
+
+- 不可变状态以同样的方式接收它：`fun onSourcing(event: OrderPaid, commit: EventStream): OrderState`。
+- 以代码编写模型时，写作 `evolve<OrderPaid> { event, commit -> … }` 或 `evolveTo<OrderPaid> { state, event, commit -> … }`。
+- 提交时间就是这次决定的 `scope.now`：决定据此计算的截止时间与状态读到的时间一致。
+- 从 9.x 导入的历史把每条流的创建时间和操作人保留为其提交的提交时间和操作人（[迁移](../migrate/source#events-and-state)）。
 
 ## 在每条命令之后运行代码 {#run-code-after-every-command}
 

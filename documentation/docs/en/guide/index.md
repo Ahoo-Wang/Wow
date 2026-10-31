@@ -24,7 +24,7 @@ These pages show how to do one thing each, with code from the repository's examp
 | [Write a Saga](./sagas) | Derive commands from events; act on their success and rejections; call another context |
 | [Projections and Reactors](./projections) | Write a read model; act on the outside world; keep both idempotent |
 | [Scheduled Commands](./scheduling) | Schedule a command from a decision or a saga; run recurring jobs |
-| [Failures and Retries](./failures) | Give a handler its own retry budget; classify failures; resume parked aggregates |
+| [Failures and Retries](./failures) | Give a handler its own retry budget; classify failures; retry parked aggregates |
 
 ## The read side
 

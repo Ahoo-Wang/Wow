@@ -18,6 +18,7 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.Name
@@ -25,6 +26,7 @@ import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.compiler.model.symbol.Descriptions
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.BLOCKING
+import me.ahoo.wow.compiler.model.symbol.ModelNames.EVENT_STREAM
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
@@ -82,7 +84,7 @@ internal object SourcingResolver {
         val direct = bound.filter { (_, binding) -> binding != null && !binding.sealed }.map { it.second!! }
         val expanded = bound.mapNotNull { it.second }.filter { it.sealed }.flatMap { sealed ->
             sealedEvents(sealed.declaration!!).filterNot { event -> direct.any { it.event == event.render() } }
-                .map { event -> eventBinding(event, sealed.function, sealed.returnsState) }
+                .map { event -> eventBinding(event, sealed.function, sealed.returnsState, sealed.commit) }
         }
         expanded.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
             problems += "the sourcing functions ${twice.joinToString { it.function }} both take $event, through " +
@@ -106,8 +108,15 @@ internal object SourcingResolver {
         problems: MutableList<String>,
     ): SourcingBinding? {
         val name = function.simpleName.asString()
-        if (function.parameters.size != 1) {
-            problems += "sourcing function $name must take only its event"
+        if (function.parameters.size !in 1..2) {
+            problems += "sourcing function $name must take its event, and may take its commit ($EVENT_STREAM) second"
+            return null
+        }
+        val commit = function.parameters.getOrNull(1)?.type?.resolve()
+        if (commit != null && !isCommit(commit)) {
+            val rendered = commit.render() + if (commit.isMarkedNullable) "?" else ""
+            problems += "sourcing function $name takes $rendered second: a sourcing function's second parameter is " +
+                "the commit of its event, a $EVENT_STREAM"
             return null
         }
         if (Modifier.SUSPEND in function.modifiers) {
@@ -116,7 +125,7 @@ internal object SourcingResolver {
         if (function.annotatedIn(BLOCKING) != null) {
             problems += "sourcing function $name is annotated @Blocking: evolving does no I/O"
         }
-        val eventType = function.parameters.single().type.resolve()
+        val eventType = function.parameters.first().type.resolve()
         val event = eventType.declaration as? KSClassDeclaration
         val returnsState = function.returnType?.resolve()?.declaration?.qualifiedName?.asString() ==
             state.qualifiedName?.asString()
@@ -132,6 +141,7 @@ internal object SourcingResolver {
                 function = name,
                 returnsState = returnsState,
                 type = event.binaryName(),
+                commit = commit != null,
                 declaration = event,
             )
         }
@@ -141,16 +151,24 @@ internal object SourcingResolver {
                 "whose subclasses are the events"
             return null
         }
-        return eventBinding(event, name, returnsState).also {
+        return eventBinding(event, name, returnsState, commit != null).also {
             if (it.revision < 1) {
                 problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
             }
         }
     }
 
-    /** The binding of [function] evolving [event], a concrete event class. */
+    /** Whether [type] is the commit of an event, a sourcing function's second parameter: a non-null `EventStream`. */
+    private fun isCommit(type: KSType): Boolean = type.render() == EVENT_STREAM && !type.isMarkedNullable
+
+    /** The binding of [function] evolving [event], a concrete event class, reading its [commit] or not. */
     @OptIn(KspExperimental::class)
-    fun eventBinding(event: KSClassDeclaration, function: String, returnsState: Boolean): SourcingBinding =
+    fun eventBinding(
+        event: KSClassDeclaration,
+        function: String,
+        returnsState: Boolean,
+        commit: Boolean,
+    ): SourcingBinding =
         SourcingBinding(
             event = event.render(),
             eventName = event.getAnnotationsByType(Name::class).firstOrNull()?.value,
@@ -159,6 +177,7 @@ internal object SourcingResolver {
             function = function,
             returnsState = returnsState,
             type = event.binaryName(),
+            commit = commit,
             description = Descriptions.of(event),
         )
 }

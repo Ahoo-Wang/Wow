@@ -101,7 +101,7 @@ class InternalOptInTest {
     }
 
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
         private const val CATALOG = "platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/" +
             "AnalyticsCatalogConfiguration.kt"
 

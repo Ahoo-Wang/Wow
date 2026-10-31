@@ -60,7 +60,7 @@ class MetricNamesTest {
     }
 
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
 
         /**
          * The files that may, each with its reason. None: the framework's modules name every meter through the

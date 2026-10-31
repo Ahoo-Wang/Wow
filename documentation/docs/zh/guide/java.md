@@ -82,7 +82,7 @@ public class Account {
 }
 ```
 
-- 方法返回它的事件，或返回 `null` 表示不做改变，通过抛出 `new RejectedException(Rejection.of(code, message))` 拒绝。返回类型无法指明事件时，返回一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。
+- 方法返回它的事件，或返回 `null` 表示不做改变，通过抛出 `new RejectedException(Rejection.of(code, message))` 拒绝。返回类型无法指明事件时，返回一个用静态方法 `Decision.events(...)` 和 `Decision.reject(code, message)` 构建的 `Decision`；`Decision.NoOp.INSTANCE` 什么都不改变。返回类型是接口或抽象类、又不是密封的，会导致编译错误，因为它没有指明事件。
 - 返回 `Decision` 的方法要在 `@OnCommand(produces = ...)` 中指明它的事件，与 Kotlin 一样。
 - 方法可以在命令之后接收领域服务和 `DecideScope`，也可以接收 `Command<X>` 而不是 `X`。
 

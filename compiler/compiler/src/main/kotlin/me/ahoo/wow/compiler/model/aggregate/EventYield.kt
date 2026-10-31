@@ -13,15 +13,23 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
+import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.compiler.model.symbol.render
 
 /**
  * What a decide function or an after hook can produce, read from its return type for the Manifest's `produces`:
  * the qualified names of the classes it yields as events. `Unit` yields none; a collection, array or
  * Reactor publisher yields what its element type yields; a sealed type yields what its subclasses yield; any other
- * class yields itself. A type that does not say what it holds (`Any`, `Decision`, a star projection) gives null.
+ * class yields itself. A type that does not say what it holds (`Any`, `Decision`, a star projection, a type
+ * parameter) gives null. A type alias yields what the type it names yields.
+ *
+ * An interface or abstract class that is not sealed yields no event by itself: what the function returns is one of
+ * its implementations, which the type does not list. [openEvent] finds it, and the function is refused.
  */
 internal object EventYield {
     private val NOTHING = setOf("kotlin.Unit", "kotlin.Nothing", "java.lang.Void")
@@ -44,6 +52,12 @@ internal object EventYield {
     /** What [type] yields; null for a star projection, as for any type that does not say. */
     fun of(type: KSType?): List<String>? {
         val declaration = (type ?: return null).declaration
+        if (declaration is KSTypeAlias) {
+            return of(declaration.type.resolve())
+        }
+        if (declaration is KSTypeParameter) {
+            return null
+        }
         val name = declaration.qualifiedName?.asString() ?: return null
         return when {
             name in NOTHING -> emptyList()
@@ -53,6 +67,42 @@ internal object EventYield {
             else -> listOf(name)
         }
     }
+
+    /**
+     * The interface or abstract class that is not sealed where [type] yields an event: itself, the type an alias
+     * names, its element type, or a subclass of its sealed type; null when there is none. `Unit`, `Any` and the like
+     * are concrete classes, and `Decision` is sealed over concrete ones, so none of them is open. A type parameter
+     * says nothing of the events, as `Any` does: it is no open type.
+     */
+    fun openEvent(type: KSType?): KSClassDeclaration? {
+        val declaration = (type ?: return null).declaration
+        return when {
+            declaration is KSTypeAlias -> openEvent(declaration.type.resolve())
+            declaration !is KSClassDeclaration -> null
+            declaration.topLevelName() in CONTAINERS -> openEvent(type.arguments.single().type?.resolve())
+            Modifier.SEALED in declaration.modifiers ->
+                declaration.getSealedSubclasses().firstNotNullOfOrNull { openEvent(it.asStarProjectedType()) }
+
+            declaration.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in declaration.modifiers -> declaration
+            else -> null
+        }
+    }
+
+    /**
+     * Why [function], whose return type yields the [open] interface or abstract class, is refused, and how its events
+     * are listed instead; a [hook] cannot return a decision.
+     */
+    fun openProblem(function: String, open: KSClassDeclaration, hook: Boolean = false): String {
+        val kind = if (open.classKind == ClassKind.INTERFACE) "an interface" else "an abstract class"
+        val type = open.asStarProjectedType().render()
+        val decision = if (hook) "" else ", or return a Decision and list them in @OnCommand(produces = [...])"
+        return "$function returns $type, $kind that is not sealed, so the events it produces are not listed: make " +
+            "it a sealed interface whose subclasses are the events, return the event classes themselves (one, or a " +
+            "List or Flux of them)$decision"
+    }
+
+    /** This class's name as a top-level class's, `package.Simple`: every container's is. */
+    private fun KSClassDeclaration.topLevelName(): String = "${packageName.asString()}.${simpleName.asString()}"
 
     private fun sealed(declaration: KSClassDeclaration): List<String>? {
         val yielded = declaration.getSealedSubclasses().map { of(it.asStarProjectedType()) }.toList()

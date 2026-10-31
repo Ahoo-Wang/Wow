@@ -75,6 +75,9 @@ internal object AfterHookResolver {
             includeOf(name, accepting, declaredInclude, commandClasses, problems)
         }
         val reactor = reactorReturn(function) != null
+        val returnType = function.returnType?.resolve()
+        val open = EventYield.openEvent(returnType)
+        open?.let { problems += EventYield.openProblem("after hook $name", it, hook = true) }
         val rest = if (parameter != null) function.parameters.drop(1) else function.parameters
         return AfterBinding(
             function = name,
@@ -85,7 +88,7 @@ internal object AfterHookResolver {
             include = include,
             exclude = declaredExclude.map { it.render() },
             suspending = Modifier.SUSPEND in function.modifiers,
-            yields = EventYield.of(function.returnType?.resolve()),
+            yields = if (open == null) EventYield.of(returnType) else null,
             blocking = blocking(function, reactor, warnings),
         )
     }

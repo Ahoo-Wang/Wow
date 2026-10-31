@@ -23,7 +23,7 @@ fun onOrderSubmitted(
 
 - **它接收什么。** `StateTypedEvent<S, E>` 对已提交流中的每个事件 `E` 调用一次处理函数，`event` 是那个事件，`state` 是整次提交之后聚合的状态。`StateEvent<S>` 每条流调用一次，带着它全部的 `events`。状态类型 `S` 选出模块所在上下文中以它为状态的聚合。
 - **它返回什么。** 一个 `CommandRequest`、多个（`List`、任意 `Iterable`、`Sequence` 或 `Flow`），或者 `null`、空列表或 `Unit` 表示没有命令。运行时把每个请求转成一条确定的命令（见下文）。
-- **哪些命令。** 返回类型指明了命令类时（`CommandRequest<ReserveStock>`、它们的列表、一个密封类型），编译器就知道它们。没有指明时，例如 `List<CommandRequest<*>>`，要在 `@OnEvent(derives = [...])` 里声明它们，这样 Manifest 才会列出它们，等待也才能跟随 Saga 进入它们的上下文；两者都没有的处理函数，编译器会给出警告。
+- **哪些命令。** 返回类型指明了命令类时（`CommandRequest<ReserveStock>`、它们的列表、一个密封类型），编译器就知道它们。没有指明时，例如 `List<CommandRequest<*>>`，要在 `@Sends(derives = [...])` 里声明它们，这样 Manifest 才会列出它们，等待也才能跟随 Saga 进入它们的上下文；两者都没有的处理函数无法编译。运行时要求处理函数遵守它们：发送一个没有声明的类会使这次处理永久失败，聚合立即停放。
 - **它的名字。** 每个处理函数都是一个独立的订阅，名为 `<processor>.<function>`：`OrderProcessSaga.onOrderAwaitingValidation`。函数上的 `@Name("…")` 改用它命名，所以给改名后的函数加上 `@Name("<原来的名字>")`，订阅、它的检查点和执行都保持不变。
 - **它的依赖。** Saga 的构造函数参数，从应用的 Bean 绑定。
 
@@ -32,11 +32,11 @@ fun onOrderSubmitted(
 | 请求 | 派生 |
 | --- | --- |
 | `CommandRequest.of(body, id)` | 一条发往聚合 `id` 的命令，聚合类型是决定 `body` 类的那个类型，在这次提交的租户中 |
-| `CommandRequest.of(body)` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID |
+| `CommandRequest.of(body)` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID；命令体指明了聚合的命令（`@AggregateId`）则发往那个聚合 |
 | `CommandRequest.to(ref, body)` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
 | `CommandRequest.of(body, type = type)` | 一条发往 `type` 类型新聚合的创建命令，由目标为它分配 ID |
 
-没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
+命令体指明了聚合的命令（[在命令体中指明聚合](./aggregates#name-the-aggregate-in-the-body)）不需要 ID，无论发往本上下文还是另一个上下文：在命令体之外又给出 ID 的请求必须指明同一个聚合，指明另一个聚合，或命令体里的 ID 为空白时，处理函数失败。没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
 
 每条派生命令都是确定的：
 
@@ -76,7 +76,8 @@ fun onOrderSubmitted(
   <!-- sample: fragment -->
 
   ```kotlin
-  @OnEvent(schedules = [CancelOrder::class])
+  @OnEvent
+  @Sends(schedules = [CancelOrder::class])
   fun onOrderAwaitingStock(
       event: StateTypedEvent<OrderState, OrderAwaitingStock>,
       context: SagaContext,
@@ -92,13 +93,13 @@ fun onOrderSubmitted(
   }
   ```
 
-  目标为自己定时这条命令，所以它必须能决定这条命令。到期时被目标拒绝的定时命令只会记日志，不会重试，也不会交给任何 `@OnRejected`：像上面那样在成功时取消定时，或者给目标一条它在成功之后会按状态拒绝的命令。只有 `@OnEvent` 处理函数能定时或取消定时。
+  目标为自己定时这条命令，所以它必须能决定这条命令。到期时被目标拒绝的定时命令只会记日志，不会重试，也不会交给任何 `@OnRejected`：像上面那样在成功时取消定时，或者给目标一条它在成功之后会按状态拒绝的命令。Saga 的任何处理函数都能定时和取消定时，包括 `@OnRejected` 和 `@OnCommitted` 处理函数。
 
 - **不写入任何东西的成功**不产生事件，所以 Saga 什么也看不到：以 `Decision.NoOp` 接受命令的目标什么也不提交。需要让别人知道时，让目标改为决定一个业务事件。
 
 ### 选择接收回执 {#act-on-a-command-s-success}
 
-必须知道自己的命令已经提交的 Saga（因为目标的事件流没有发布给它，或者成功不产生事件），声明一个针对该命令类型的 `@OnCommitted` 处理函数。它接收 `CommandCommitted<C>`，并返回它再派生出的命令：
+必须知道自己的命令已经提交的 Saga（因为目标的事件流没有发布给它，或者成功不产生事件），声明一个针对该命令类型的 `@OnCommitted` 处理函数。它接收 `CommandReceipt.Committed<C>`，并返回它再派生出的命令：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#committed -->
 
@@ -113,11 +114,11 @@ fun onReserveCommitted(
 
 `source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
 
-目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，接收 `ReceiptContext`：它派生命令，不能定时，也不能同步调用。
+目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变；目标先前已经提交过的命令也会收到回执，标为重复。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，需要时接收 `SagaContext`：它像 `@OnEvent` 处理函数一样派生、定时和调用，并在它自己的 `@Sends` 中声明它发送的命令。
 
 ## 处理拒绝 {#handle-a-rejection}
 
-派生的命令可能被拒绝：库存不足，订单在此期间已被取消。拒绝是业务结果，所以 Saga 在针对该命令类型的 `@OnRejected` 处理函数中处理它，处理函数接收 `CommandRejected<C>`，并返回用来补偿的命令：
+派生的命令可能被拒绝：库存不足，订单在此期间已被取消。拒绝是业务结果，所以 Saga 在针对该命令类型的 `@OnRejected` 处理函数中处理它，处理函数接收 `CommandReceipt.Rejected<C>`，并返回用来补偿的命令：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#rejected -->
 
@@ -131,9 +132,9 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
     )
 ```
 
-`CommandRejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
+`CommandReceipt.Rejected` 写明了命令（`commandId`、`commandType`、`ref`）、它的 `error`（错误码、消息、violations、扩展）Saga 的 `executionId`，以及 `source`，即派生出命令的提交所属的聚合；它不带命令体。来自另一个上下文的拒绝以回执的形式返回。运行时把每个拒绝只交出一次。
 
-每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 没有处理函数的拒绝，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
+每条派生命令各自结算：一条命令被拒绝不会阻止其他命令，每个拒绝都交给它的处理函数。发往同一个聚合的命令按 Saga 派生的顺序执行；发往不同聚合的命令并发执行，所以依赖另一条命令结果的工作不要与它一起派生：从第一条命令提交的事件中派生它。Saga 自己上下文中的命令被拒绝而 Saga 没有处理函数时，会像失败一样在 Saga 的订阅中停放这个聚合，只停放一次，并列出每条被拒绝的命令。发往另一个上下文的命令只有在 Saga 有该类型的处理函数时才要求回执，所以没有处理函数接收的拒绝由目标记日志，不再往下传。不需要补偿的拒绝，用一个返回 `Unit` 的处理函数接受：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#release-rejected -->
 
@@ -148,7 +149,7 @@ fun onReserveRejected(rejected: CommandReceipt.Rejected<ReserveStock>): CommandR
 fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = Unit
 ```
 
-`CommandRejected<*>` 和 `CommandCommitted<*>` 接收 Saga 派生的每一条命令。
+`CommandReceipt.Rejected<*>` 和 `CommandReceipt.Committed<*>` 接收 Saga 派生的每一条命令，`Rejected<*>` 还接收它调用的命令。
 
 ## 同步调用另一个上下文 {#call-another-context-synchronously}
 
@@ -167,16 +168,16 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 }
 ```
 
-- 处理函数在 `@OnEvent(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
+- 处理函数在 `@Sends(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
 - `call` 接收一个 `CommandRequest`，像返回的请求一样派生，在命令于目标上提交后返回它的结果：确定的请求 ID 让每次重试都是同一个请求，目标只决定一次。调用等待的是提交，所以它的请求不带 `wait` 或 `timeout`。
 - 创建命令可以不带 ID，就像结账的 `SubmitOrder`：由目标给聚合分配 ID（ordering 为订单编号，`SO-261031-42`），结果里写明它。重试或重放是同一个请求，得到同一个聚合，不会再取别的 ID。
-- 拒绝会抛出 `CommandRejectedException`，这是业务结果，不会重试。失败或没有得到结果的调用抛出 `WowProblemException`，可以用同一个请求 ID 重试：处理函数失败并重试，之后停放这个聚合。它们就是 `CommandClient` 抛出的异常。
+- 拒绝会抛出 `CommandRejectedException`，这是业务结果，不会重试。处理函数放过它时，它像派生命令的拒绝一样交给 Saga 处理被调用命令的 `@OnRejected` 处理函数；没有这样的处理函数时，聚合立即停放。失败或没有得到结果的调用抛出 `WowProblemException`，可以用同一个请求 ID 重试：处理函数失败并重试，之后停放这个聚合。它们就是 `CommandClient` 抛出的异常。
 - 节点通过目标的内部端口访问它：按目标契约声明的服务经 DNS 找到它的节点，或者使用 `wow.peers.<context>.url`（[配置对端](./calling-services#configure-a-peer-over-http)）。处理函数调用的上下文无法到达时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
 - `call` 是一个 `suspend` 函数，所以用 Java 写的 Saga 改为派生它的命令。
 
 ## 定时命令 {#schedule-a-command}
 
-`context.schedule(key, rule, request)` 要求请求的目标在 `key` 下为自己定时它的命令；`context.cancel(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。处理函数要在 `@OnEvent(schedules = [...])` 里声明被定时命令的完整类型名。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
+`context.schedule(key, rule, request)` 要求请求的目标在 `key` 下为自己定时它的命令；`context.cancel(key, target)` 取消它。两者都记录到上下文中：运行时在处理函数返回的命令之后、按调用顺序发送它们。Saga 的任何处理函数都可以定时，`@OnSchedule` 任务的处理函数也可以。处理函数要在 `@Sends(schedules = [...])` 里声明被定时命令的类，Manifest 按完整类型名列出它们。聚合也可以在自己的决定中用 `DecideScope` 定时命令：见[编写聚合](./aggregates#ask-the-kernel-for-more)。
 
 ## 从哪里开始 {#where-it-starts}
 

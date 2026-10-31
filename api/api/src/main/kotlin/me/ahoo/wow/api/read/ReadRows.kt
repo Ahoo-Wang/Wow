@@ -100,9 +100,10 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
 }
 
 /**
- * One row of an events query: the commit of [ref] at [version], at [commitTime] (epoch
+ * The commit of [ref] at [version], at [commitTime] (epoch
  * milliseconds), of the command [commandId] of type [commandType] sent with [requestId] in the name of [operator],
- * in the aggregate's [scope], and its [events] in order.
+ * in the aggregate's [scope], and its [events] in order: one row of an events query, and the commit a sourcing
+ * function reads beside its event ([me.ahoo.wow.api.annotation.OnSourcing]), as the log records it.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
@@ -151,7 +152,7 @@ class EventStream @InternalWowApi constructor(
 /**
  * One event of an [EventStream]: its [name] and [revision] as the model reads it now (upgraded) and its
  * [body], masked as the Manifest declares: an instance of the model's event class, or a `Map` of an event the reader
- * has no class for.
+ * has no class for. The commit a sourcing function reads holds the events as the model's classes, unmasked.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */

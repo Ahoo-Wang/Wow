@@ -62,9 +62,9 @@ jobs:
           MODE: ${{ inputs.mode || 'full' }}
         run: |
           if [ "$MODE" = short ]; then
-            soak=(-Pwow.soak.mode=short)
+            soak=(-Pwow-test.soak.mode=short)
           elif [[ "$DURATION" =~ ^P[0-9A-Z.]+$ ]]; then
-            soak=(-Pwow.soak.duration="$DURATION")
+            soak=(-Pwow-test.soak.duration="$DURATION")
           else
             echo "::error::Not an ISO-8601 duration: $DURATION"
             exit 1

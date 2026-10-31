@@ -167,6 +167,8 @@ internal data class SourcingBinding(
     val returnsState: Boolean,
     /** The event's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
+    /** Whether the function takes the commit of its event (`EventStream`) second. */
+    val commit: Boolean = false,
     /** What the event's class says it is ([Descriptions]). */
     val description: String? = null,
     /**

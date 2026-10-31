@@ -11,12 +11,12 @@ public final class me/ahoo/wow/test/AggregateSpec {
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/kernel/AggregateModel;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getNow ()Ljava/time/Instant;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
-	public static synthetic fun given$default (Lme/ahoo/wow/test/AggregateSpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/time/Instant;)V
+	public static synthetic fun given$default (Lme/ahoo/wow/test/AggregateSpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/time/Instant;ILjava/lang/Object;)V
 	public final fun givenCommands ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Caller;)V
 	public static synthetic fun givenCommands$default (Lme/ahoo/wow/test/AggregateSpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Caller;ILjava/lang/Object;)V
-	public final fun givenRecords ([Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;)V
-	public static synthetic fun givenRecords$default (Lme/ahoo/wow/test/AggregateSpec;[Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun givenRecords ([Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/time/Instant;)V
+	public static synthetic fun givenRecords$default (Lme/ahoo/wow/test/AggregateSpec;[Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/time/Instant;ILjava/lang/Object;)V
 	public final fun givenReservation (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/decide/ReservationTenancy;)V
 	public static synthetic fun givenReservation$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/decide/ReservationTenancy;ILjava/lang/Object;)V
 	public final fun givenState (ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;)V

@@ -452,7 +452,8 @@
       "properties" : {
         "quantity" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int32",
+          "exclusiveMinimum" : 0
         }
       },
       "required" : [ "quantity" ],
@@ -508,7 +509,8 @@
         },
         "quantity" : {
           "type" : "integer",
-          "format" : "int32"
+          "format" : "int32",
+          "exclusiveMinimum" : 0
         }
       },
       "required" : [ "orderId", "quantity" ],

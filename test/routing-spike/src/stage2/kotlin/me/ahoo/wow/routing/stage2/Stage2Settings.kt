@@ -23,7 +23,7 @@ enum class Router(val label: String, val property: String) {
 }
 
 /**
- * The settings of one stage-2 run, from the system properties `wow.h2.stage2.*` (the Gradle properties of the same
+ * The settings of one stage-2 run, from the system properties `wow-test.h2.stage2.*` (the Gradle properties of the same
  * names):
  *
  * - `mode`: `full` (the default) or `smoke`, a run of seconds on a small data set that only checks the harness;
@@ -60,7 +60,7 @@ data class Stage2Settings(
     }
 
     companion object {
-        const val PREFIX = "wow.h2.stage2."
+        const val PREFIX = "wow-test.h2.stage2."
         val DISTRIBUTIONS = listOf("uniform", "zipf")
 
         @Suppress("CyclomaticComplexMethod") // One default per setting and mode.

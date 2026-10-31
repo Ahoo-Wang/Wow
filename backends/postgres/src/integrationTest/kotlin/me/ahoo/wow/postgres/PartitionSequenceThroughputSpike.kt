@@ -35,8 +35,8 @@ import kotlin.random.Random
 /**
  * Spike H1 (documentation/designs/decisions.md): can the partition sequence, assigned under the partition
  * counter's row lock, carry the commit rate? And how long does a tail read of a partition take when its entries are
- * spread over the tables of several aggregate types (decision D162)? Runs only with `-Dwow.spike.h1=true`; writes its
- * tables to `build/spike-h1.md`.
+ * spread over the tables of several aggregate types (decision D162)? Runs only with
+ * `-Dwow-test.spike.h1=true`; writes its tables to `build/spike-h1.md`.
  */
 class PartitionSequenceThroughputSpike {
     private data class Scenario(
@@ -54,7 +54,7 @@ class PartitionSequenceThroughputSpike {
 
     @Test
     fun measure() {
-        assumeTrue(System.getProperty("wow.spike.h1") == "true", "Run with -Dwow.spike.h1=true")
+        assumeTrue(System.getProperty("wow-test.spike.h1") == "true", "Run with -Dwow-test.spike.h1=true")
         val scenarios = listOf(
             Scenario("single writer", partitions = 1, writers = 1, ownerSerialized = false),
             Scenario("one partition, 32 contending writers", partitions = 1, writers = 32, ownerSerialized = false),

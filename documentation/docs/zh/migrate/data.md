@@ -33,7 +33,7 @@ outline: deep
 ## 开始之前 {#before-you-start}
 
 - **改写后的源码。** V10 服务能编译，领域测试通过。它的构建已经为你要迁移其聚合的每个服务生成了合并后的 Manifest。
-- **映射文件。** `wow-migrate` Skill 在改写源码时写出了 `migration-map.json`。它为每个 9.x 聚合写明对应的 V10 类型，以及每一条命令和事件的映射。见[映射文件](../reference/migrate-data#the-map)。
+- **映射文件。** `wow-migrate` Skill 在改写源码时写出了 `migration-map.json`。它为每个 9.x 聚合写明对应的 V10 类型，以及每一条命令和事件的映射。见[映射文件](../reference/migrate-data#the-map)。对于大型服务，`draft-map` 会根据 9.x 存储和 Manifest 起草这些改名，并列出它匹配不上、需要你解决的内容（[起草映射文件](../reference/migrate-data#draft-the-map)）。
 - **对 9.x 存储的读权限。** 工具只读 9.x 的 MongoDB 存储，除非你允许它创建追尾所需的索引。
 - **一个空的 V10 目标**，或者只被这个工具写过的目标。
 - **类路径上的 V10 领域模块。** `compare` 和 `snapshot` 用服务自己的 V10 模型重建状态，即服务运行时用的那些演化函数和升级函数。在 `classpath` 里列出这些模块。

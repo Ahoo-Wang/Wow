@@ -18,7 +18,7 @@ dependencies {
 val manifestToolsSnapshots = rootProject.layout.projectDirectory.dir("compiler/manifest-tools/src/test/resources/query-keywords")
 tasks.named<Test>("test") {
     systemProperty(
-        "wow.manifest-tools.snapshots",
+        "wow-test.manifest-tools.snapshots",
         projectDir.toPath().relativize(manifestToolsSnapshots.asFile.toPath()).toString(),
     )
     inputs.dir(manifestToolsSnapshots)

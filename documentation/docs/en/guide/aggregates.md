@@ -21,7 +21,7 @@ The compiler reads the domain module at build time and generates the aggregate's
 
 ## Write the commands
 
-A command is a data class of the api module. It holds what the caller asks, never who the aggregate is: the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
+A command is a data class of the api module. It holds what the caller asks, never who the caller is: the tenant, owner and space come from the caller, and the expected version from `If-Match`. The aggregate's id comes from the route or from the saga that sends the command, unless the body already names it ([Name the aggregate in the body](#name-the-aggregate-in-the-body)).
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -64,6 +64,8 @@ data class AddBasketItem(
 
 The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`Positive`) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
 
+The constraints are part of the command's contract. They are the validation keywords of its schema in the Manifest and the OpenAPI document (`quantity` is `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`), so a generated client or Swagger UI sees them before it sends. Tightening one, such as raising a minimum, is a breaking change ([The Manifest and Compatibility](./manifest#the-compatibility-check)).
+
 A rule that needs the aggregate's state or the caller stays in the command function, as a rejection with an error code ([Rejections and Error Codes](./rejections)): the order's function below has nothing left to check.
 
 Whether a command may create its aggregate is part of its class:
@@ -75,6 +77,33 @@ Whether a command may create its aggregate is part of its class:
 | Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
 
 Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate. An aggregate whose id is its owner's, one per owner, serves every command without `{id}` too, as the caller's own, and generates no id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
+
+### Name the aggregate in the body
+
+Some commands already hold their aggregate's id in their business data: a restock names the product whose stock it adds to. `@AggregateId` on that property makes the body name the aggregate, so a sender gives no id beside it:
+
+<!-- sample: fragment -->
+
+```kotlin
+@AllowCreate
+@Summary("Restock a product")
+data class RestockProduct(
+    @AggregateId val productId: String,
+    @field:Positive val quantity: Int,
+)
+```
+
+Such a command is served at `POST /<context>/<aggregate>/<command>` alone, without `{id}`, and it acts on the aggregate its body names. A saga sends it with `CommandRequest.of(body)` and a client without an id. A command for another context goes to that context's command topic keyed by its aggregate, so the commands of one aggregate keep their order. Admission reads the body before it authorizes the command, so a policy still sees the aggregate, `<aggregate>/<id>`. The aggregate's lifecycle commands keep their routes with `{id}`.
+
+| The property | Holds |
+| --- | --- |
+| A `String` with a field or a constructor parameter | The id, as the body holds it |
+| A computed `String`, `val stockId: String get() = "$warehouseId-$sku"` | The id, computed from the other fields: a sender that sends only those leaves it out, and the service computes it |
+| A `String?` of a command that may create its aggregate | The id, or null to leave it to the server, as for any creation that names none; a retry keeps the first one |
+
+Admission checks the id: a blank one is `wow.command.malformed` (400), and so is a request that names another aggregate beside the body, such as a Kotlin client's `CommandRequest.to(ref, body)`. A request that names the same one is accepted.
+
+The property is declared by the command class or by an interface it implements. It is public or internal, and Wow's JSON writes it (it is not `@JsonIgnore`d), so every sender's body holds it. One property of a command names its aggregate. The compiler refuses it on an `@Unaddressed` or mounted command, whose transformer finds the aggregate, and on an aggregate whose id is its owner's. A `CommandTransformer` that takes such a command stops the service at start.
 
 ## Write the root
 
@@ -97,6 +126,8 @@ The compiler finds every non-private function annotated `@OnCommand`, or named `
 | `Unit`, `null` or an empty list | Nothing changes |
 
 A function that returns `Decision` does not tell the compiler which events it can produce, so it lists them in `@OnCommand(produces = [...])`. The Manifest publishes that list. A function whose return type already names its events, such as an event class or a sealed type of them, does not repeat them.
+
+A return type that is an interface or abstract class, and not sealed, is a compile error. Such a function returns one of several implementations, and the type does not say which ones. List them instead: make the type a sealed interface whose subclasses are the events, return the event classes themselves, or return a `Decision` with `produces`. The same holds for an element type (`List<OrderEvent>`) and for a subclass of a sealed type.
 
 The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`.
 
@@ -220,6 +251,7 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | Member | Does |
 | --- | --- |
 | `command` | The command being decided, as `Command<*>` |
+| `now` | The time of the decision on the node's clock, in epoch milliseconds: the commit time its events are recorded at. Compute a deadline or an expiry from it, not from the system clock, so that a test sets it ([Testing](./testing#arrange-and-act)) |
 | `ids` | The node's id generators, for an id the decision needs |
 | `putResult(key, value)` | Adds a value to what the caller is answered once the events are appended. It is not stored: a repeated request is not answered it again |
 | `reject(code, message)` | Rejects the command with a code, optionally with `extensions` for the problem ([Rejections](./rejections#reject-with-a-code)) |
@@ -273,10 +305,10 @@ It does not run when the append's outcome is unknown. The kernel first reads the
 
 - **Order.** Compensations run latest first, one after another, and each is awaited, even when the caller has gone away. There is no timeout: a compensation that hangs holds the aggregate's commands, so bound its call.
 - **Failure.** A failing compensation does not stop the others. It is logged, or added to the failure it undoes, and the command's answer does not change.
-- **Twice.** A command refused on a cached state that the log has moved past is decided again, its first attempt compensated first. The outside act may then be done twice and undone once, so key it on the command, as `requestId` does above.
-- **Reserved keys.** `reserve` registers its own compensation: the key the attempt held is released when the events are not appended. When the outcome is unknown, or the process dies, the hold expires after 30 seconds.
+- **Twice.** A command refused, or left unchanged, on a cached state that the log has moved past is decided again, its first attempt compensated first. The outside act may then be done twice and undone once, so key it on the command, as `requestId` does above.
+- **Reserved keys.** `reserve` registers its own compensation: the hold this attempt took is given up when the events are not appended, while a key the aggregate already held stays held. The keys an attempt reserves and releases travel with its appended events, so when the outcome is unknown, or the process dies after the append, the built-in `reservation` subscription confirms and releases them from the log. Only a hold that no appended entry carries, because the process died before appending, expires, after 30 seconds, for the next reservation of the key to take.
 
-`afterAppend` is the other side: it runs once the events are appended, before the caller is answered, in the order the actions were registered. It does not run on a duplicate, nor on any outcome that appended nothing. A failure is logged, and the events stay committed. Subscriptions may see the commit before the action ends, and a process that dies in between skips it. So it suits work that may be lost, such as warming a cache. Work that must follow every commit belongs in a reactor or a saga, which reads the committed events.
+`afterAppend` is the other side: it runs once the events are appended, before the caller is answered, in the order the actions were registered. It does not run on a duplicate, nor on any outcome that appended nothing, nor on a rejection, even one that commits events: the compensations run there instead. A failure is logged, and the events stay committed. Subscriptions may see the commit before the action ends, and a process that dies in between skips it. So it suits work that may be lost, such as warming a cache. Work that must follow every commit belongs in a reactor or a saga, which reads the committed events.
 
 ## Write the state
 
@@ -298,6 +330,24 @@ fun onSourcing(event: OrderSubmitted) {
 - A sourcing function that changes the state in place returns nothing. One that returns the state type returns the new state instead, for an immutable state.
 - Give every property a value before the first event. The kernel serializes the state as it is, for snapshots and for the published stream.
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
+
+### Read the commit
+
+A sourcing function may take, after its event, the commit the event belongs to: an `EventStream`, with the commit time, the operator, the version and the command's ids, as the log records them. The kernel gives the same commit when it decides and when it replays, from the log or from a snapshot and the streams after it, so a state rebuilt later is the same state. A state that keeps a time reads it from the commit, never from a clock:
+
+<!-- sample: fragment -->
+
+```kotlin
+fun onSourcing(event: OrderPaid, commit: EventStream) {
+    paidAt = commit.commitTime
+    paidBy = commit.operator?.id
+}
+```
+
+- An immutable state takes it the same way: `fun onSourcing(event: OrderPaid, commit: EventStream): OrderState`.
+- Written as code, the model takes it as `evolve<OrderPaid> { event, commit -> … }`, or `evolveTo<OrderPaid> { state, event, commit -> … }`.
+- The commit time is the decision's `scope.now`: a deadline the decision computes from it and the time the state reads agree.
+- History imported from 9.x keeps each stream's create time and operator as its commit's ([Migrate](../migrate/source#events-and-state)).
 
 ## Run code after every command
 
