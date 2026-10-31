@@ -6,7 +6,7 @@ outline: deep
 
 # 跨聚合的唯一键
 
-聚合独自做出决定，所以它看不到另一个聚合是否已经用了某个值。当一个值必须在聚合之间唯一时，例如用户名、邮箱地址或品牌名，就由决定来预留它。一个预留同一时刻只被一个聚合持有，与聚合的事件一起提交，事件没有写入时就放弃。本页让 eShop 的品牌名保持唯一。
+聚合独自做出决定，所以它看不到另一个聚合是否已经用了某个值。当一个值必须在聚合之间唯一时，例如用户名、邮箱地址或品牌名，就由决定来预留它。一个预留同一时刻只被一个聚合持有，与聚合的事件一起提交；事件没有写入时，或者决定是拒绝时（即使是提交了事件的拒绝），就放弃。本页让 eShop 的品牌名保持唯一。
 
 ## 预留一个键 {#reserve-a-key}
 
@@ -31,7 +31,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 ## 预留会经历什么 {#what-happens-to-a-reservation}
 
 1. `reserve` 为这个聚合把键记为**待定**，并带一个过期时间。
-2. 决定的事件追加之后，预留被**确认**。
+2. 决定的事件追加之后，预留被**确认**，除非决定是拒绝。
 3. 当确定事件没有追加时（决定被拒绝、版本冲突后命令重新决定，或者决定失败），这次尝试**放弃它的预留**。进程先崩溃时，就让预留过期。
 
 聚合已经持有的键，无论某次尝试做了什么都保持持有，所以重新决定一条命令永远不会丢掉它。
@@ -62,7 +62,7 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): BrandRenamed? {
 
 ## 预留保存在哪里 {#where-reservations-are-kept}
 
-一个聚合类型的预留与它的日志保存在一起，位于 `wow.aggregates.<context>.<aggregate>.log.store` 指定的存储（或默认的日志存储）中，每个类型有自己的表或集合：`wow_reservation__<context>__<aggregate>`。因此确认与它所属的提交一样持久。它们取代了 9.x 的 `PrepareKey`；migrate-data 会导入 9.x 已确认的键（[迁移数据](../migrate/data)）。
+一个聚合类型的预留与它的日志保存在一起，位于 `wow.aggregates.[<context>.<aggregate>].log.store` 指定的存储（或默认的日志存储）中，每个类型有自己的表或集合：`wow_reservation__<context>__<aggregate>`。因此确认与它所属的提交一样持久。它们取代了 9.x 的 `PrepareKey`；migrate-data 会导入 9.x 已确认的键（[迁移数据](../migrate/data)）。
 
 ## 测试 {#test-it}
 

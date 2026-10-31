@@ -124,7 +124,7 @@ The host takes these from the application when it defines them, and falls back t
 | Bean | Does |
 | --- | --- |
 | Domain services | The parameters of command functions and processors, by type, or by name with `@Name` |
-| `CallerResolver` | Turns the authenticated principal into the caller; anonymous otherwise |
+| `CallerResolver` | Turns the authenticated principal into the caller. Without one, the host reads the development headers in a development profile, serves the anonymous caller on a loopback-only internal port, and does not start anywhere else |
 | `CommandAuthorizer` | Says whether it objects to the caller sending a command to an aggregate |
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
@@ -143,7 +143,7 @@ A few are single seams the node takes one bean of: the `CallerResolver`, the `Gl
 
 Spring binds the keys it knows and ignores the rest, so a misspelled key would silently do nothing. The host compares every `wow.*` key of the environment with the configuration metadata on the class path when it starts:
 
-- An unknown key stops the start, naming it: a mistyped setting would leave a default in place, and some defaults allow everything. A key of an earlier version is named with the key that took its place, and a key of a module that is not on the class path (`wow.cosid.*` without wow-cosid) with that module.
+- An unknown key stops the start, naming it: a mistyped setting would leave a default in place, and some defaults allow everything. A key of an earlier version is refused as any other is, and the message points at the migration guide's configuration page, which maps it to today's; a key of a module that is not on the class path (`wow.cosid.*` without wow-cosid) with that module.
 - Under a map of settings, such as `wow.aggregates`, `wow.stores`, `wow.callers` and `wow.peers`, each entry's own keys are checked to their leaves.
 
 An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked the same way. [Configuration Keys](../reference/configuration) lists every key.

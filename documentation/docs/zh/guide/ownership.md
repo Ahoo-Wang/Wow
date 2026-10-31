@@ -96,7 +96,7 @@ class Basket(private val state: BasketState) {
 
 ## 在命令中核对调用方 {#check-the-caller-in-a-command}
 
-作用域仍不够用的地方，命令函数接收 `Command<X>`，读取 `command.scope`（调用方的所有者和空间），并用自己的错误码拒绝命令（[读取准入后的命令](./aggregates#read-the-admitted-command)）。
+作用域仍不够用的地方，命令函数接收 `Command<X>`，读取 `command.scope`（调用方的所有者和空间，按聚合的所有权保留：租户级聚合看不到所有者），并用自己的错误码拒绝命令（[读取准入后的命令](./aggregates#read-the-admitted-command)）。
 
 ## Saga 发出的命令 {#commands-a-saga-sends}
 

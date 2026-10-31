@@ -149,6 +149,6 @@ fun `the morning job should receive yesterday's deliveries`() = scheduleSpec(
 }
 ```
 
-- `advanceTime` 拨动时钟并交出到期的触发；一个都没有到期时它失败，所以写错的规则不会悄悄通过。`ticks` 列出已交出的触发。
+- `advanceTime` 拨动时钟并交出到期的触发；给了期望块时，一个都没有到期它就失败，所以写错的规则不会悄悄通过。没有期望块时，只有处理函数或任务命令抛出异常才会失败。`ticks` 列出已交出的触发。
 - `reschedule` 和 `disable` 发送实例的其他命令；`enable` 接收 `tenantId`、`rule` 或 `partition`，用于其他范围。
 - `whenTick` 不经过任务聚合，把测试自己的触发交给处理函数：时钟要拨很久才到的时间槽，或者设了 `skipped` 的触发。

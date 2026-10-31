@@ -15,10 +15,12 @@ From a clone of the Wow repository, with JDK 21, start the eShop's five services
 ./gradlew :eshop-e2e:eshopLocal
 ```
 
-Then add an item to Alice's basket and check it out, waiting until the order the checkout submits is committed in the ordering context:
+Then take ten mugs into stock, which the order will reserve, add two to Alice's basket and check it out, waiting until the order the checkout submits is committed in the ordering context:
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
+curl -s -X POST localhost:8084/eshop-inventory/stock/mug/receive-stock \
+  -H 'Content-Type: application/json' -d '{"quantity":10}'
 curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
 ORDER=$(curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" \

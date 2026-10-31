@@ -96,7 +96,7 @@ The kernel records the aggregate's id as its owner, whoever creates it, and refu
 
 ## Check the caller in a command
 
-Where the scope is still not enough, a command function takes `Command<X>` and reads `command.scope`, the caller's owner and space, and rejects the command with its own code ([Read the admitted command](./aggregates#read-the-admitted-command)).
+Where the scope is still not enough, a command function takes `Command<X>` and reads `command.scope`, the caller's owner and space as the aggregate's ownership keeps them (a tenant's aggregate sees no owner), and rejects the command with its own code ([Read the admitted command](./aggregates#read-the-admitted-command)).
 
 ## Commands a saga sends
 

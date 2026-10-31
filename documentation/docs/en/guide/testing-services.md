@@ -108,4 +108,4 @@ The Gradle plugin `me.ahoo.wow.service` merges the service's Manifest from its m
 
 ## Test across services
 
-Services that call each other are tested together the same way: start each in the test's JVM, point one at the other's internal port, and drive the flow. The eShop's `:eshop-e2e` module runs the five services so, and in containers on Kafka and PostgreSQL in its integration tests.
+Services that call each other are tested together the same way: start each in the test's JVM, point one at the other's internal port, and drive the flow. The eShop's `:eshop-e2e` module runs two services at a time so; its suite of all five runs each service in a JVM of its own, on PostgreSQL, Kafka and ClickHouse in containers.

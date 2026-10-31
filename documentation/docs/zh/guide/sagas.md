@@ -76,15 +76,19 @@ fun onOrderSubmitted(
   <!-- sample: fragment -->
 
   ```kotlin
+  private const val STOCK_DEADLINE = "stock-deadline"
+
   @OnEvent
   @Sends(schedules = [CancelOrder::class])
-  fun onOrderAwaitingStock(
-      event: StateTypedEvent<OrderState, OrderAwaitingStock>,
+  fun onOrderAwaitingValidation(
+      event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
       context: SagaContext,
-  ): CommandRequest<ReserveStock> {
+  ): List<CommandRequest<ReserveStock>> {
       val deadline = CommandRequest.of(CancelOrder("No stock in time."), event.ref.id)
       context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), deadline)
-      return CommandRequest.of(ReserveStock(event.ref.id), event.state.productId)
+      return event.state.quantities().map { (productId, quantity) ->
+          CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+      }
   }
 
   @OnEvent
@@ -112,7 +116,7 @@ fun onReserveCommitted(
     CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 ```
 
-`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求提交的回执，所以其他命令不需要为此付出任何代价；拒绝的回执由 `@OnRejected` 处理函数接收的命令要求。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
 
 目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变；目标先前已经提交过的命令也会收到回执，标为重复。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，需要时接收 `SagaContext`：它像 `@OnEvent` 处理函数一样派生、定时和调用，并在它自己的 `@Sends` 中声明它发送的命令。
 
