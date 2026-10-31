@@ -45,7 +45,7 @@ For each request, the host's caller resolver turns the authenticated principal i
 
 The caller lives only as long as the request. What a commit keeps of it is the **operator**: the subject, the operator's own tenant, and whether it acted in another tenant or scope. Roles, attributes and personal information never enter the log.
 
-Callers come in two levels. An **owner-level** caller, whose scope has an owner, reads and writes only its own aggregates. A **tenant-level** caller, whose scope has no owner, reads and writes every aggregate of its tenant, for example a member of staff who ships orders. Which actions each may perform is decided by authorization, below.
+Callers come in two levels. An **owner-level** caller, whose scope has an owner, reads and writes only its own aggregates. A **tenant-level** caller, whose scope has no owner, reads and writes every aggregate of its tenant, for example a member of staff who ships orders. A space the caller acts in narrows both. An aggregate that belongs to its tenant has no owner to compare, so callers of both levels read it ([Who reads it](../guide/ownership#who-reads-it)). Which actions each may perform is decided by authorization, below.
 
 ## Identity comes from the principal
 
@@ -67,9 +67,9 @@ Commands a saga sends inherit only the facts that are meant to travel, such as t
 
 Access is decided at admission, by policies that commands and queries share:
 
-- **Route-level authorization**, such as CoSec in front of the public routes, decides whether the caller may call a route at all.
+- **Route-level authorization**, such as CoSec in front of the public routes, decides whether the caller may call a route at all. Whether a caller must be signed in is decided here and by the caller resolver, which may refuse an unauthenticated request (CoSec answers 401): the scope rules below take whatever caller they are handed, an anonymous one included.
 - **Action-level authorization** decides whether the caller may perform this command on this aggregate. With CoSec, it can authorize every command as its caller.
-- **Scope.** The kernel refuses a command on an aggregate outside the caller's scope, and query admission adds the caller's tenant, owner and space to every query ([Read models](./read-models#who-sees-what)).
+- **Scope.** The kernel refuses a command on an aggregate outside the caller's scope, and query admission adds the caller's tenant and space to every query, and its owner on an aggregate of `Ownership.OWNER` ([Read models](./read-models#who-sees-what)). An aggregate that belongs to its tenant is read by every caller of its tenant and space; keeping it to some roles takes a query policy of the service's own ([Authorize reads](../operate/security#authorize-reads)).
 - **Attribute-based access**, off by default, matches the caller's attributes against each aggregate's tags. An aggregate's tags are applied by a lifecycle command or derived from its state.
 
 The kernel itself does not authorize: by the time a command reaches it, admission has decided.
