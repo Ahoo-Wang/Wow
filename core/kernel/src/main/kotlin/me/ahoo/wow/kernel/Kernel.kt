@@ -99,7 +99,8 @@ import kotlin.coroutines.CoroutineContext
  * [KernelOptions.reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
  * surely not appended abandons only its own hold. The keys an attempt reserved pending, and those it
  * released, go into the appended entry's transport, so the `reservation` subscription confirms and releases
- * them even when the after-append actions never run.
+ * them even when the after-append actions never run. A rejection that commits events gives its keys up as one
+ * that writes nothing does: its entry carries none of them.
  *
  * Every stream carries the aggregate's scope after it: the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
@@ -371,7 +372,10 @@ class Kernel(
         val observations = batch.map { observer.appending(it.stream) }
         val appended = try {
             log.appendAll(
-                batch.mapIndexed { at, member -> member.stream to member.attempt.transport(observations[at].trace)?.let(TransportCodec::encode) }
+                batch.mapIndexed { at, member ->
+                    val transport = member.attempt.transport(observations[at].trace, member.stream.rejection != null)
+                    member.stream to transport?.let(TransportCodec::encode)
+                }
             )
         } catch (
             @Suppress("TooGenericExceptionCaught") // Compensates whatever failed; each command fails with it.
@@ -538,7 +542,7 @@ class Kernel(
         return appending.observe {
             append(
                 stream,
-                attempt.transport(appending.trace)?.let(TransportCodec::encode)
+                attempt.transport(appending.trace, stream.rejection != null)?.let(TransportCodec::encode)
             ).also { appending.outcome(it.observedName) }
         }
     }

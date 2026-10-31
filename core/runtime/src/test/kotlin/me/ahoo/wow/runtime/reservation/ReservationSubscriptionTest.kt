@@ -58,6 +58,13 @@ class ReservationSubscriptionTest {
     data class Renamed(val name: String)
     data class Move(val name: String)
 
+    /** Reserves its name, then refuses, recording the refusal: a rejection that commits events. */
+    data class Claim(val name: String)
+
+    /** Releases the user's name, then refuses, recording the refusal. */
+    data class Drop(val reason: String)
+    data class Refused(val reason: String)
+
     class User {
         var name: String? = null
     }
@@ -81,8 +88,19 @@ class ReservationSubscriptionTest {
                 else -> Decision.reject("taken", body.name)
             }
         }
+        decideSuspending<Claim>(Creation.ALLOWED) { _, body ->
+            if (!reserve(NAMES, body.name)) {
+                return@decideSuspending Decision.reject("taken", body.name)
+            }
+            Decision.reject("refused", body.name, events = listOf(Refused(body.name)))
+        }
+        decide<Drop> { state, body ->
+            state.name?.let { release(NAMES, it) }
+            Decision.reject("refused", body.reason, events = listOf(Refused(body.reason)))
+        }
         evolve<Registered> { name = it.name }
         evolve<Renamed> { name = it.name }
+        evolve<Refused> { }
     }
 
     /** A clock that stands still until a test moves it, so a test decides when a pending reservation expires. */
@@ -216,6 +234,45 @@ class ReservationSubscriptionTest {
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
         // Only the entry that reserved asked the store; the rename and the rejection carried no keys.
         store.confirms.toList().assert().containsExactly("ahoo" to user("u-1"))
+    }
+
+    /**
+     * Waits until the subscription has handled every entry of [id] so far: it commits one more, reserving a key of
+     * its own, and waits for the subscription to confirm it, which it does after the entries before it.
+     */
+    private suspend fun handledUpTo(id: String) {
+        val sentinel = "$id-sentinel-${sequence.get()}"
+        register(id, sentinel).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        eventually { confirmedBy(sentinel, id) }
+    }
+
+    @Test
+    fun `a rejection that commits events confirms none of its keys, so another aggregate takes the key`(): Unit =
+        runBlocking {
+            runtime().start(setOf(0, 1))
+            // An existing user: a creation's rejection commits no events.
+            register("u-1", "first").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            val refused = execute("u-1", Claim("ahoo")) as CommandOutcome.Committed
+            refused.rejection!!.code.assert().isEqualTo("shop.user.refused")
+            // The kernel gave its hold up at once, and the subscription confirms nothing for the refused decision.
+            handledUpTo("u-1")
+            find("ahoo").assert().isNull()
+            store.confirms.map { it.first }.assert().doesNotContain("ahoo")
+            register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            eventually { confirmedBy("ahoo", "u-2") }
+        }
+
+    @Test
+    fun `a rejection that commits events releases none of the keys its decision released`(): Unit = runBlocking {
+        runtime().start(setOf(0, 1))
+        register("u-1", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        eventually { confirmedBy("ahoo", "u-1") }
+        (execute("u-1", Drop("not now")) as CommandOutcome.Committed).rejection.assert().isNotNull()
+        handledUpTo("u-1")
+        // The refused decision's release is not applied: the user keeps its name.
+        confirmedBy("ahoo", "u-1").assert().isTrue()
+        store.releases.map { it.first }.assert().doesNotContain("ahoo")
+        register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
     }
 
     @Test

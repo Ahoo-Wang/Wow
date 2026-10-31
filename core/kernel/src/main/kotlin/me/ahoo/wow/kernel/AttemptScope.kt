@@ -97,19 +97,22 @@ internal class AttemptScope(
     /**
      * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED, the
      * keys this attempt reserved pending and released, and the append's [trace]; null when
-     * there is none of them.
+     * there is none of them. A [rejected] decision's append carries no keys: its reservations are given up and its
+     * releases undone with it, so the `reservation` subscription has nothing of it to confirm or release.
      */
-    fun transport(
-        trace: Map<String, String>
-    ): Transport? = if (wait == null && reserved == null && released == null) {
-        trace.takeIf { it.isNotEmpty() }?.let { Transport(trace = it) }
-    } else {
-        Transport(
-            wait = wait,
-            reservations = reserved?.toList().orEmpty(),
-            trace = trace,
-            releases = released?.toList().orEmpty(),
-        )
+    fun transport(trace: Map<String, String>, rejected: Boolean): Transport? {
+        val reserved = reserved.takeUnless { rejected }
+        val released = released.takeUnless { rejected }
+        return if (wait == null && reserved == null && released == null) {
+            trace.takeIf { it.isNotEmpty() }?.let { Transport(trace = it) }
+        } else {
+            Transport(
+                wait = wait,
+                reservations = reserved?.toList().orEmpty(),
+                trace = trace,
+                releases = released?.toList().orEmpty(),
+            )
+        }
     }
 
     override suspend fun reserve(namespace: String, key: String): Boolean =

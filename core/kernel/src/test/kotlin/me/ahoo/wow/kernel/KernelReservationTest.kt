@@ -47,6 +47,13 @@ class KernelReservationTest {
     data class Renamed(val name: String)
     data class ReleaseOnly(val name: String)
 
+    /** Reserves [name], then refuses, recording the refusal: a rejection that commits events. */
+    data class Claim(val name: String)
+
+    /** Releases the user's name, then refuses, recording the refusal. */
+    data class Drop(val reason: String)
+    data class Refused(val reason: String)
+
     class User(val id: String) {
         var name: String? = null
     }
@@ -86,8 +93,19 @@ class KernelReservationTest {
             release(NAMES, body.name)
             Decision.NoOp
         }
+        decideSuspending<Claim> { _, body ->
+            if (!reserve(NAMES, body.name)) {
+                return@decideSuspending Decision.reject("name.taken", body.name)
+            }
+            Decision.reject("refused", body.name, events = listOf(Refused(body.name)))
+        }
+        decide<Drop> { state, body ->
+            state.name?.let { release(NAMES, it) }
+            Decision.reject("refused", body.reason, events = listOf(Refused(body.reason)))
+        }
         evolve<Registered> { name = it.name }
         evolve<Renamed> { name = it.name }
+        evolve<Refused> { }
     }
     private val reservations = InMemoryReservationStore()
     private val log = InMemoryEventLog(partitions = 1)
@@ -173,6 +191,33 @@ class KernelReservationTest {
         // The first attempt reserved the key pending; the second found it confirmed and had nothing to confirm.
         entries[0].decodedTransport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
         entries[1].transport.assert().isNull()
+    }
+
+    @Test
+    fun `a rejection that commits events carries none of its keys and gives its reservation up`(): Unit = runTest {
+        register("u-1", "ahoo")
+        val refused = execute("u-1", Claim("bob")) as CommandOutcome.Committed
+        refused.rejection!!.code.assert().isEqualTo("test.user.refused")
+        // Its entry carries no key, so the reservation subscription has nothing to confirm.
+        log.tail(0).take(2).toList()[1].transport.assert().isNull()
+        find("bob").assert().isNull()
+        register("u-2", "bob").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `a rejection that commits events carries none of the keys its decision released`(): Unit = runTest {
+        register("u-1", "ahoo")
+        (execute("u-1", Drop("not now")) as CommandOutcome.Committed).rejection.assert().isNotNull()
+        log.tail(0).take(2).toList()[1].transport.assert().isNull()
+        find("ahoo")!!.confirmed.assert().isTrue()
+        // So in a batch, whose commands commit with one append.
+        val batch = kernel.executeBatch(
+            model,
+            listOf(QueuedCommand(Command("c-batch", "r-batch", model.type.ref("t", "u-1"), Drop("still not")))),
+        )
+        ((batch.single() as BatchOutcome.Done).outcome as CommandOutcome.Committed).rejection.assert().isNotNull()
+        log.tail(0).take(3).toList()[2].transport.assert().isNull()
+        find("ahoo")!!.owner.assert().isEqualTo(model.type.ref("t", "u-1"))
     }
 
     @Test
