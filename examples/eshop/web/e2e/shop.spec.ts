@@ -40,6 +40,23 @@ async function submit(
   await scope.getByRole("button", { name: `Create ${form.slice(4).toLowerCase()}` }).click();
 }
 
+/** An order's number, which the ordering gives it: `SO-`, the day it was issued, `-`, its sequence. */
+const ORDER_NUMBER = /^SO-\d{6}-\d+$/;
+
+/** The number of the order the checkout card's outcome (the status that reads [outcome]) names. */
+async function orderNumberOf(page: Page, outcome: string): Promise<string> {
+  const link = page.getByRole("status").filter({ hasText: outcome }).getByRole("link");
+  await expect(link).toHaveText(ORDER_NUMBER);
+  return (await link.textContent()) ?? "";
+}
+
+/** The row of the orders list that links the order [number]. */
+function orderRow(page: Page, number: string) {
+  return page
+    .getByTestId("order")
+    .filter({ has: page.getByRole("link", { name: number, exact: true }) });
+}
+
 test.describe.configure({ mode: "serial" });
 
 // A failed test carries what the services' JVM was doing then: its threads and its logs. Playwright reads a
@@ -50,6 +67,10 @@ test.afterEach(async ({}, testInfo) => attachServerDiagnostics(testInfo));
 test("the shop end to end: catalog, basket, checkout to payment, orders, shipping", async ({
   page,
 }) => {
+  // The numbers the ordering gave the orders, as each checkout's card shows them.
+  let paidOrder = "";
+  let shortOrder = "";
+  let declinedOrder = "";
   await page.goto(web("/"));
 
   await test.step("an employee builds the catalog and receives stock", async () => {
@@ -127,7 +148,8 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(hops).toHaveCount(15);
     await expect(page.locator('[data-testid="checkout-hop"][data-state="reached"]')).toHaveCount(15);
     await expect(hops.last()).toContainText("PayOrder");
-    await page.getByRole("link", { name: "alice-1" }).click();
+    paidOrder = await orderNumberOf(page, "Paid:");
+    await page.getByRole("link", { name: paidOrder, exact: true }).click();
     await expect(page.getByTestId("order-status")).toHaveText("PAID");
     await expect(page.getByTestId("payment")).toContainText("SUCCEEDED");
   });
@@ -144,6 +166,7 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await page.getByRole("button", { name: "Check out" }).click();
     await expect(page.locator('[data-state="failed"]')).toHaveCount(1, { timeout: 45_000 });
     await expect(page.getByRole("alert")).toBeVisible();
+    shortOrder = await orderNumberOf(page, "was cancelled");
   });
 
   await test.step("a buyer reads only its own orders", async () => {
@@ -152,7 +175,7 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await actAs(page, "bob");
     await expect(page.getByText("No orders")).toBeVisible();
     // Another buyer's order is not found for it, as one that does not exist (decision D254 ④).
-    await page.goto(web("/orders/alice-1"));
+    await page.goto(web(`/orders/${paidOrder}`));
     await expect(page.getByTestId("problem-code")).toHaveText("wow.aggregate.not-found");
   });
 
@@ -169,7 +192,8 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
       ),
     ).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(/committed\(eshop-ordering\) will not come/)).toBeVisible();
-    await page.getByRole("link", { name: "bob-1" }).click();
+    declinedOrder = await orderNumberOf(page, "declined");
+    await page.getByRole("link", { name: declinedOrder, exact: true }).click();
     await expect(page.getByTestId("order-status")).toHaveText("CANCELLED");
     await expect(page.getByTestId("payment")).toContainText("FAILED");
   });
@@ -177,12 +201,10 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
   await test.step("an employee ships the paid order", async () => {
     await page.goto(web("/orders"));
     await actAs(page, "erin");
-    const paid = page.getByTestId("order").filter({ hasText: "alice-1" });
-    await paid.getByRole("button", { name: "Ship alice-1" }).click();
+    const paid = orderRow(page, paidOrder);
+    await paid.getByRole("button", { name: `Ship ${paidOrder}` }).click();
     await expect(paid.getByTestId("order-status")).toHaveText("SHIPPED");
-    await expect(page.getByTestId("order").filter({ hasText: "alice-2" })).toContainText(
-      "CANCELLED",
-    );
+    await expect(orderRow(page, shortOrder)).toContainText("CANCELLED");
   });
 
   await test.step("a basket of two products reaches each hop once, its results grouped by hop (UI-45)", async () => {
