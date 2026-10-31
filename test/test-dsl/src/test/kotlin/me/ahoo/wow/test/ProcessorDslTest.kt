@@ -25,6 +25,8 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.UnrecoverableHandlingException
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CallRejectedHandlingException
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
@@ -214,6 +216,54 @@ class ProcessorDslTest {
                         "inventory declares no rejection code inventory.stock.gone: its codes are " +
                             "[inventory.stock.insufficient, inventory.stock.unknown-sku], beside the framework's (FrameworkCodes).",
                     )
+            }
+        }
+    }
+
+    @Test
+    fun `a call's rejection a receipt handler lets through should park at once, as the runtime does`() {
+        // Each receipt handler cancels the order by a call, which the order context refuses.
+        val onRejected = RejectionBinding.of(
+            "OrderSaga",
+            "onRejected",
+            ReserveStock::class.java,
+            calls = listOf(Cancel::class.java),
+        ) { rejected, context ->
+            context.call(CommandRequest.to(rejected.source, Cancel(rejected.error.code)))
+            emptyList()
+        }
+        val onCommitted = CommittedBinding.of(
+            "OrderSaga",
+            "onReserved",
+            ReserveStock::class.java,
+            calls = listOf(Cancel::class.java),
+        ) { committed, context ->
+            context.call(CommandRequest.to(committed.source, Cancel("reserved")))
+            emptyList()
+        }
+        val saga = ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrder",
+            Order::class.java,
+            rejections = listOf(onRejected),
+            commits = listOf(onCommitted),
+            derives = listOf(ReserveStock::class.java),
+        ) { event: StateEvent<Order>, _ ->
+            listOf(CommandRequest.to(stock.ref(event.ref.tenantId, "mug"), ReserveStock(event.ref.id, 1)))
+        }
+        sagaSpec(listOf(saga)) {
+            answerCalls { rejectedResult(it, "order.closed") }
+            givenAggregate(orderModel, "order-1", OrderPlaced(10))
+            whenEvent(OrderPlaced(10)) {
+                val reserve = commands.single()
+                whenRejected(reserve, "insufficient") {
+                    expectError<CallRejectedHandlingException>()
+                    expectParked()
+                }
+                whenCommitted(reserve) {
+                    expectError<CallRejectedHandlingException>()
+                    expectParked()
+                }
             }
         }
     }

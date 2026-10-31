@@ -38,8 +38,10 @@ import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.Kernel
@@ -151,6 +153,62 @@ class SagaCallBindingTest {
         retry = HandlerRetry(maxAttempts = 2),
         derives = listOf(AddItems::class.java),
         handle = ::deliver,
+    )
+
+    /** Calls the mail box of the owner of the cart [receipt] is of, letting a rejection through. */
+    private suspend fun mailOwner(receipt: CommandReceipt<*>, context: SagaContext): List<CommandRequest<*>> {
+        context.call(CommandRequest.to(BOX.ref(receipt.ref.tenantId, receipt.ref.id), Deliver(listOf("receipt"))))
+        return emptyList()
+    }
+
+    /** Sends [body] of the order's items to the owner's cart; its receipt handlers mail the owner. */
+    private fun receiptMailing(
+        body: (List<String>) -> Any,
+        rejections: List<RejectionBinding<*>> = emptyList(),
+        commits: List<CommittedBinding<*>> = emptyList(),
+    ) = ProcessorBinding.saga(
+        "MailSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        retry = HandlerRetry(maxAttempts = 2),
+        rejections = rejections,
+        commits = commits,
+        derives = listOf(AddItems::class.java, RemoveItems::class.java),
+    ) { event, _ ->
+        val owner = checkNotNull(event.scope.ownerId)
+        event.events.filterIsInstance<Placed>().map {
+            CommandRequest.to(
+                CART.ref(event.ref.tenantId, owner),
+                body(it.items)
+            )
+        }
+    }
+
+    /** Adds the items; once the cart commits them, mails the owner. */
+    private val mailingOnCommitted = receiptMailing(
+        ::AddItems,
+        commits = listOf(
+            CommittedBinding.of("MailSaga", "onItemsAdded", AddItems::class.java, calls = listOf(Deliver::class.java)) {
+                    committed, context ->
+                mailOwner(committed, context)
+            },
+        ),
+    )
+
+    /** Removes the items from a cart that does not exist; once the cart rejects it, mails the owner. */
+    private val mailingOnRejected = receiptMailing(
+        ::RemoveItems,
+        rejections = listOf(
+            RejectionBinding.of(
+                "MailSaga",
+                "onRemoveRejected",
+                RemoveItems::class.java,
+                calls = listOf(Deliver::class.java)
+            ) {
+                    rejected, context ->
+                mailOwner(rejected, context)
+            },
+        ),
     )
 
     private var other: ServiceNode? = null
@@ -299,6 +357,83 @@ class SagaCallBindingTest {
         ).ledger.isParked(compensating.name, ORDER.ref(TENANT, "o-6")).assert().isFalse()
         calls.assert().hasSize(1)
     }
+
+    @Test
+    fun `a call's rejection an @OnCommitted handler lets through should park the order at once, not be retried`():
+        Unit = runBlocking {
+        answer = { resultOf(it, CommandResult.Status.REJECTED) }
+        val node = nodeOf(mailingOnCommitted).also { other = it }
+        node.start()
+        val last = place("o-c", "gina", toSaga, on = node).toList().last()
+        last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        last.error!!.code.assert().isEqualTo("mail.box.full")
+        val ledger = backends.opened.getValue(SHOP).ledger
+        eventually { ledger.isParked(mailingOnCommitted.name, ORDER.ref(TENANT, "o-c")) }
+        // As a rejection of a command the handler derives: a business outcome, which no retry changes.
+        calls.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a call's rejection an @OnRejected handler lets through should park the order at once, not be retried`():
+        Unit = runBlocking {
+        answer = { resultOf(it, CommandResult.Status.REJECTED) }
+        val node = nodeOf(mailingOnRejected).also { other = it }
+        node.start()
+        val last = place("o-r", "hank", toSaga, on = node).toList().last()
+        last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        last.error!!.code.assert().isEqualTo("mail.box.full")
+        val ledger = backends.opened.getValue(SHOP).ledger
+        eventually { ledger.isParked(mailingOnRejected.name, ORDER.ref(TENANT, "o-r")) }
+        // A compensation's rejection goes to no @OnRejected handler again.
+        calls.assert().hasSize(1)
+    }
+
+    @Test
+    fun `an @OnCommitted handler's hop should end REJECTED with the call's rejection it lets through`(): Unit =
+        runBlocking {
+            answer = { resultOf(it, CommandResult.Status.REJECTED) }
+            node.start()
+            val signals = CopyOnWriteArrayList<CommandResult>()
+            val shop = node.context(SHOP)
+            val receipts = SagaReceipts(
+                listOf(mailingOnCommitted),
+                DerivedCommands(shop.models, shop.coordinator),
+                context = SHOP,
+                signal = { _, result -> signals += result },
+                commandTypes = shop.commandTypes,
+                caller = shop.caller,
+            )
+            val cart = CART.ref(TENANT, "ivy")
+            val execution = ExecutionId(mailingOnCommitted.name, ORDER.ref(TENANT, "o-w"), 1)
+            val committed = CommandReceipt.Committed<Any>(
+                "c-1",
+                "shop.cart.AddItems",
+                cart,
+                1,
+                CommandResult(
+                    commandId = "c-1",
+                    requestId = "c-1",
+                    correlationId = "root",
+                    ref = cart,
+                    hop = Hop.committed(SHOP),
+                    function = FunctionInfo(FunctionKind.COMMAND, SHOP, "cart", "AddItems"),
+                    status = CommandResult.Status.SUCCEEDED,
+                    version = 1,
+                    signalTime = 1L,
+                ),
+                Causation("root", "shop.order/t/o-w@1"),
+                execution,
+            )
+            val onItemsAdded = Hop.handled("MailSaga.onItemsAdded", SHOP)
+            val wait = WaitContext("w", Origin("n", "a:1", "s"), listOf(onItemsAdded), Long.MAX_VALUE)
+            runCatching { receipts.committed(committed, AddItems::class.java, wait) }.exceptionOrNull()
+                .assert().isInstanceOf(CallRejectedHandlingException::class.java)
+            val signalled = signals.single()
+            signalled.hop.assert().isEqualTo(onItemsAdded)
+            signalled.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            signalled.error!!.code.assert().isEqualTo("mail.box.full")
+            signalled.derived.assert().containsExactly(calls.single().command.id)
+        }
 
     @Test
     fun `a call the saga does not declare should park the order at once, never reaching its target`(): Unit =
