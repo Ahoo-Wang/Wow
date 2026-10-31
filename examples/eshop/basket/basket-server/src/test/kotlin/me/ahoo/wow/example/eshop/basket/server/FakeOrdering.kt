@@ -30,7 +30,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The ordering service's command gateway as the checkout saga's synchronous call sees it (decision D193): it records
- * each call and answers that the order was committed at version 1.
+ * each call and answers that the order was committed at version 1, as [NUMBER] when the call named no order, as the
+ * ordering numbers a new one.
  */
 class FakeOrdering : AutoCloseable {
     /** A call the gateway took: its [path], the [service] it named, its [call] context and its [body]. */
@@ -51,7 +52,7 @@ class FakeOrdering : AutoCloseable {
                     commandId = call.commandId,
                     requestId = exchange.requestHeaders.getFirst(WowHeaders.REQUEST_ID),
                     correlationId = call.causation.correlationId,
-                    ref = ORDER.ref(call.tenantId, exchange.requestURI.path.split('/')[ID_SEGMENT]),
+                    ref = ORDER.ref(call.tenantId, idOf(exchange.requestURI.path)),
                     hop = Hop.committed(ORDER.context),
                     function = FunctionInfo.of(FunctionKind.COMMAND, ORDER.context, ORDER.name, "SubmitOrder"),
                     version = 1,
@@ -86,9 +87,19 @@ class FakeOrdering : AutoCloseable {
         server.stop(0)
     }
 
-    private companion object {
-        const val OK = 200
-        const val ID_SEGMENT = 3
-        val ORDER = EshopOrderingContract.Order.TYPE
+    companion object {
+        /** The number the gateway gives an order created without one. */
+        const val NUMBER = "SO-261031-1"
+        private const val OK = 200
+
+        /** The segments of `eshop-ordering/order/submit-order`, a route that names no aggregate id. */
+        private const val ROUTE_WITHOUT_ID = 3
+        private val ORDER = EshopOrderingContract.Order.TYPE
+
+        /** The order a route names, `/eshop-ordering/order/{id}/submit-order`, else [NUMBER]. */
+        private fun idOf(path: String): String {
+            val segments = path.trim('/').split('/')
+            return if (segments.size > ROUTE_WITHOUT_ID) segments[2] else NUMBER
+        }
     }
 }

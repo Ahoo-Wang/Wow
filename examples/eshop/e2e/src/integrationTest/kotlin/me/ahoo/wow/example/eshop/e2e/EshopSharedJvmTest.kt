@@ -143,7 +143,8 @@ class EshopSharedJvmTest {
         /**
          * Starts [application] as the eShop service of [context], serving the context `eshop-<context>` alone, with the
          * further configuration [sources] and [properties]. The services share one class path, so Spring Boot reads one
-         * `application.yaml` for all of them: each gets what it needs as command-line arguments.
+         * `application.yaml` for all of them: each gets what it needs as command-line arguments, its CosId setting
+         * among them ([cosIdOf]).
          */
         fun start(
             application: Class<*>,
@@ -156,6 +157,7 @@ class EshopSharedJvmTest {
             properties + mapOf(
                 "spring.application.name" to "eshop-$context-service",
                 "wow.contexts.include" to "eshop-$context",
+                cosIdOf(context),
             ),
             sources.toList(),
         )

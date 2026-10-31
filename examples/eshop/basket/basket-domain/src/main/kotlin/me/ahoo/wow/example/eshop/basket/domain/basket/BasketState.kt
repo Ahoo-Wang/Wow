@@ -22,7 +22,7 @@ import me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved
 
 /**
  * The state of a [Basket], changed in place by its events: its [items], one line per product, and how many times it
- * was [checked out][checkouts], which numbers its orders. Every property has a value before the first event.
+ * was [checked out][checkouts]. Every property has a value before the first event.
  */
 class BasketState {
     var items: List<BasketItem> = emptyList()

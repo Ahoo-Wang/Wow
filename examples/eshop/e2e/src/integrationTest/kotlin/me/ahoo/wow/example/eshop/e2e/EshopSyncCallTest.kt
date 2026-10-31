@@ -366,6 +366,7 @@ class EshopSyncCallTest {
                     "spring.application.name" to "eshop-$context-service",
                     "wow.internal.port" to internalPort,
                     "wow.contexts.include" to "eshop-$context",
+                    cosIdOf(context),
                 ),
                 listOf(InMemoryTopicsBeans::class.java, *sources),
             ),

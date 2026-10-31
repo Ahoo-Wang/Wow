@@ -111,21 +111,21 @@ class BasketSpec {
     }
 
     @Test
-    fun `checking out should empty the basket into a numbered order`() = basketSpec {
+    fun `checking out should empty the basket into an order`() = basketSpec {
         given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
         val items = listOf(BasketItem(MUG, MUG_PRICE, 2), BasketItem(CAP, CAP_PRICE, 1))
         whenCommand(CheckoutBasket) {
-            expectEvents(BasketCheckedOut("$BUYER-1", items))
-            expectResult(Basket.ORDER_ID_RESULT, "$BUYER-1")
+            expectEvents(BasketCheckedOut(items))
             expectState {
                 this.items.assert().isEmpty()
                 checkouts.assert().isEqualTo(1)
             }
         }
         givenCommands(AddBasketItem(MUG, MUG_PRICE, 1))
-        whenCommand(
-            CheckoutBasket
-        ) { expectEvents(BasketCheckedOut("$BUYER-2", listOf(BasketItem(MUG, MUG_PRICE, 1)))) }
+        whenCommand(CheckoutBasket) {
+            expectEvents(BasketCheckedOut(listOf(BasketItem(MUG, MUG_PRICE, 1))))
+            expectState { checkouts.assert().isEqualTo(2) }
+        }
     }
 
     @Test

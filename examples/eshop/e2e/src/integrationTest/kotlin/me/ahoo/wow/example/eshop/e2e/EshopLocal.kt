@@ -57,6 +57,18 @@ fun main() {
     }
 }
 
+/**
+ * The CosId setting of the eShop service of [context] in a JVM that runs several services on one class path, where
+ * Spring Boot reads one `application.yaml` for all of them: the ordering imports its order numbers' configuration
+ * (decision D373); the others find CosId on the ordering's class path, and run without it.
+ */
+fun cosIdOf(context: String): Pair<String, String> =
+    if (context == "ordering") {
+        "spring.config.import" to "classpath:eshop-ordering-ids.yaml"
+    } else {
+        "cosid.enabled" to "false"
+    }
+
 /** The five eShop services in this JVM, on the memory backend, their topics in memory; on [randomPorts] or fixed ones. */
 class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
     private val topics = InMemoryTopics(PARTITIONS)
@@ -104,6 +116,7 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=${if (randomPorts) 0 else INTERNAL_PORT_BASE + offset}",
                 "--wow.contexts.include=eshop-$name",
+                cosIdOf(name).let { (key, value) -> "--$key=$value" },
                 // The services share one class path, so one application.yaml: each is given its own secrets.
             )
         started += context

@@ -1,0 +1,52 @@
+# The order numbers (decision D373). An order's id is its number, SO-<yyMMdd>-<sequence> (SO-261031-42), which the
+# ordering gives the order a SubmitOrder without an id creates, at admission: a retried or replayed request is answered
+# with the number it was given, and takes no other (decision D191). wow-cosid takes the order's ids from CosId's
+# generator named after the aggregate, eshop-ordering.order (decision D369), a segment: every node of the service
+# reserves ranges of one sequence from one store, so no two nodes give one number, and no machine slot is needed. The
+# sequence never restarts, so a number is unique by its sequence alone; the day the number was issued (UTC) goes
+# before it. Imported by application.yaml; a JVM that runs several services on one class path (EshopLocal) imports it
+# for the ordering alone.
+cosid:
+  stores:
+    # The memory backend's store, the service's memory (MemoryRangeStores): the postgres and mongo profiles below keep
+    # the ranges in the service's own database.
+    orders:
+      type: memory
+  generators:
+    # wow-cosid's generator of the aggregate types that have none of their own (wow.cosid.aggregate-generator): the
+    # ordering has no other aggregate type, and a UUIDv7 needs no machine slot either.
+    default:
+      strategy: uuidv7
+    "[eshop-ordering.order]":
+      strategy: segment
+      store: orders
+      codec:
+        - radix: { radix: 10 }
+        - date-prefix: { pattern: yyMMdd, delimiter: "-", source: NOW, zone: UTC }
+        - prefix: "SO-"
+---
+# The ranges in the service's PostgreSQL database, on its DataSource: CosId creates its tables (cosid_range, ...) if
+# they are missing.
+spring:
+  config:
+    activate:
+      on-profile: postgres
+cosid:
+  stores:
+    orders:
+      type: jdbc
+      options:
+        init-schema: true
+---
+# The ranges in the service's MongoDB database, at the service's URI.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+cosid:
+  stores:
+    orders:
+      type: mongo
+      options:
+        uri: ${spring.mongodb.uri}
+        database: ${wow.mongo.database}

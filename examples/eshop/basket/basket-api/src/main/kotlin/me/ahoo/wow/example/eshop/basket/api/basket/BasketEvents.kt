@@ -38,9 +38,11 @@ data class BasketItemRemoved(
 @Summary("The basket was cleared")
 data object BasketCleared
 
-/** The basket was checked out as the order [orderId] of [items]; it is empty again. */
+/**
+ * The basket was checked out: its [items] go to the ordering context as an order, whose number the ordering gives; it
+ * is empty again.
+ */
 @Summary("The basket was checked out")
 data class BasketCheckedOut(
-    val orderId: String,
     val items: List<BasketItem>,
 )
