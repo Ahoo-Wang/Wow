@@ -100,6 +100,8 @@ The compiler finds every non-private function annotated `@OnCommand`, or named `
 
 A function that returns `Decision` does not tell the compiler which events it can produce, so it lists them in `@OnCommand(produces = [...])`. The Manifest publishes that list. A function whose return type already names its events, such as an event class or a sealed type of them, does not repeat them.
 
+A return type that is an interface or abstract class, and not sealed, is a compile error. Such a function returns one of several implementations, and the type does not say which ones. List them instead: make the type a sealed interface whose subclasses are the events, return the event classes themselves, or return a `Decision` with `produces`. The same holds for an element type (`List<OrderEvent>`) and for a subclass of a sealed type.
+
 The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`.
 
 ## Read the admitted command

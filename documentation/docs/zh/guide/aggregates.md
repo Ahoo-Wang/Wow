@@ -100,6 +100,8 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 返回 `Decision` 的函数没有告诉编译器它能产生哪些事件，所以要在 `@OnCommand(produces = [...])` 里列出它们。Manifest 会发布这份列表。返回类型本身已经指明事件的函数，例如返回某个事件类或它们的密封类型，不必重复列出。
 
+返回类型是接口或抽象类、又不是密封的，会导致编译错误。这样的函数返回的是几个实现中的一个，而这个类型说不出是哪几个。改为把它们列出来：把这个类型改成以这些事件为子类的密封接口，直接返回事件类本身，或者返回 `Decision` 并写上 `produces`。元素类型（`List<OrderEvent>`）和密封类型的子类也适用同样的规则。
+
 聚合以根类名的 snake case 命名（`Order` 是 `order`，`ViewPreferences` 是 `view_preferences`），或者用 `@Name` 指定。
 
 ## 读取准入后的命令 {#read-the-admitted-command}

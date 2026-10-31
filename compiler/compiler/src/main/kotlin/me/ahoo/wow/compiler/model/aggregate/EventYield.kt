@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
@@ -22,6 +23,9 @@ import com.google.devtools.ksp.symbol.Modifier
  * the qualified names of the classes it yields as events. `Unit` yields none; a collection, array or
  * Reactor publisher yields what its element type yields; a sealed type yields what its subclasses yield; any other
  * class yields itself. A type that does not say what it holds (`Any`, `Decision`, a star projection) gives null.
+ *
+ * An interface or abstract class that is not sealed yields no event by itself: what the function returns is one of
+ * its implementations, which the type does not list. [openEvent] finds it, and the function is refused.
  */
 internal object EventYield {
     private val NOTHING = setOf("kotlin.Unit", "kotlin.Nothing", "java.lang.Void")
@@ -52,6 +56,38 @@ internal object EventYield {
             declaration is KSClassDeclaration && Modifier.SEALED in declaration.modifiers -> sealed(declaration)
             else -> listOf(name)
         }
+    }
+
+    /**
+     * The interface or abstract class that is not sealed where [type] yields an event: itself, its element type, or
+     * a subclass of its sealed type; null when there is none.
+     */
+    fun openEvent(type: KSType?): KSClassDeclaration? {
+        val declaration = (type ?: return null).declaration
+        val name = declaration.qualifiedName?.asString() ?: return null
+        return when {
+            name in NOTHING || name in UNKNOWN -> null
+            name in CONTAINERS -> openEvent(type.arguments.single().type?.resolve())
+            declaration !is KSClassDeclaration -> null
+            Modifier.SEALED in declaration.modifiers ->
+                declaration.getSealedSubclasses().firstNotNullOfOrNull { openEvent(it.asStarProjectedType()) }
+
+            declaration.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in declaration.modifiers -> declaration
+            else -> null
+        }
+    }
+
+    /**
+     * Why [function], whose return type yields the [open] interface or abstract class, is refused, and how its events
+     * are listed instead; a [hook] cannot return a decision.
+     */
+    fun openProblem(function: String, open: KSClassDeclaration, hook: Boolean = false): String {
+        val kind = if (open.classKind == ClassKind.INTERFACE) "an interface" else "an abstract class"
+        val type = open.qualifiedName?.asString() ?: open.simpleName.asString()
+        val decision = if (hook) "" else ", or return a Decision and list them in @OnCommand(produces = [...])"
+        return "$function returns $type, $kind that is not sealed, so the events it produces are not listed: make " +
+            "it a sealed interface whose subclasses are the events, return the event classes themselves (one, or a " +
+            "List or Flux of them)$decision"
     }
 
     private fun sealed(declaration: KSClassDeclaration): List<String>? {
