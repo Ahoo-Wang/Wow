@@ -163,8 +163,9 @@ describe("the basket", () => {
   });
 
   it("groups a basket of two products' results by hop and function, not by their place in the stream (UI-45)", async () => {
-    // What the services streamed for alice-4 in a local run: 19 results for 15
-    // hops, since the order reserves, and confirms, each of its two products.
+    // What the services streamed for alice's order of a mug and a cap in a
+    // local run (EshopLocal): 19 results for 15 hops, since the order
+    // reserves, and confirms, each of its two products.
     const { transport } = basket(() => ({ stream: checkoutTwoProducts }));
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));

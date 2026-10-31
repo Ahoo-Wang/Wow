@@ -225,7 +225,8 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(hops.nth(6)).toContainText("ReserveStock ×2");
     await expect(hops.nth(8)).toContainText("ConfirmOrderStock ×2");
     await expect(hops.last()).toContainText("PayOrder");
-    await page.getByRole("link", { name: "alice-3" }).click();
+    const twoProducts = await orderNumberOf(page, "Paid:");
+    await page.getByRole("link", { name: twoProducts, exact: true }).click();
     await expect(page.getByTestId("order-status")).toHaveText("PAID");
   });
 });
