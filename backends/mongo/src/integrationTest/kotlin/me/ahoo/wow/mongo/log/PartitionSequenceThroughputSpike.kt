@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Spike H1 (documentation/designs/decisions.md), MongoDB half: can the partition sequence, assigned by a
- * multi-document transaction that bumps the partition's counter, carry the commit rate? Runs only with `-Dwow.spike.h1=true`; writes its table to
+ * multi-document transaction that bumps the partition's counter, carry the commit rate? Runs only with `-Dwow-test.spike.h1=true`; writes its table to
  * `build/spike-h1-mongo.md`.
  */
 class PartitionSequenceThroughputSpike {
@@ -54,7 +54,7 @@ class PartitionSequenceThroughputSpike {
 
     @Test
     fun measure() {
-        assumeTrue(System.getProperty("wow.spike.h1") == "true", "Run with -Dwow.spike.h1=true")
+        assumeTrue(System.getProperty("wow-test.spike.h1") == "true", "Run with -Dwow-test.spike.h1=true")
         val scenarios = listOf(
             Scenario("single writer", partitions = 1, writers = 1, ownerSerialized = false),
             Scenario("one partition, 32 contending writers", partitions = 1, writers = 32, ownerSerialized = false),

@@ -59,7 +59,7 @@ class WowContractFunctionalTest {
         val plugins = if (id == WowPlugin.API_ID) """id("$id"); `maven-publish`""" else """id("$id")"""
         val tools = if (id != WowPlugin.API_ID) {
             """
-            ksp(files(${classpath("wow.fixture.processorClasspath")}))
+            ksp(files(${classpath("wow-test.fixture.processorClasspath")}))
             """
         } else {
             ""
@@ -77,17 +77,17 @@ class WowContractFunctionalTest {
 
             repositories {
                 mavenCentral()
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
             dependencies {
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
                 $tools
                 $dependencies
             }
             // An api module runs the contract code generator of the tools too.
             configurations.matching { it.name == "wowTools" }.configureEach {
-                project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
+                project.dependencies.add(name, files(${classpath("wow-test.fixture.toolsClasspath")}))
             }
             $extra
             """,

@@ -41,7 +41,11 @@ class PluginRolesFunctionalTest {
 
     /** The build file of the module at [path] (the root for an empty one), applying the Wow plugin [id]. */
     private fun module(root: File, path: String, id: String, dependencies: String = "") {
-        val compiler = if (id == WowPlugin.API_ID) "" else "ksp(files(${classpath("wow.fixture.processorClasspath")}))"
+        val compiler = if (id == WowPlugin.API_ID) {
+            ""
+        } else {
+            "ksp(files(${classpath("wow-test.fixture.processorClasspath")}))"
+        }
         write(
             root,
             if (path.isEmpty()) "build.gradle.kts" else "$path/build.gradle.kts",
@@ -53,13 +57,13 @@ class PluginRolesFunctionalTest {
 
             repositories {
                 mavenCentral()
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
             dependencies {
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
                 $compiler
-                wowTools(files(${classpath("wow.fixture.toolsClasspath")}))
+                wowTools(files(${classpath("wow-test.fixture.toolsClasspath")}))
                 $dependencies
             }
             """,

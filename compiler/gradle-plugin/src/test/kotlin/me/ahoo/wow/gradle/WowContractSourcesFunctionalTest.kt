@@ -69,7 +69,7 @@ class WowContractSourcesFunctionalTest {
         val wow = plugins.contains("""id("${WowPlugin.ID}")""") || plugins.contains(WowPlugin.SERVICE_ID)
         val tools = if (wow) {
             """
-            ksp(files(${classpath("wow.fixture.processorClasspath")}))
+            ksp(files(${classpath("wow-test.fixture.processorClasspath")}))
             """
         } else {
             ""
@@ -87,17 +87,17 @@ class WowContractSourcesFunctionalTest {
 
             repositories {
                 mavenCentral()
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
             dependencies {
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
                 $tools
                 $dependencies
             }
             // An api module runs the contract code generator of the tools too.
             configurations.matching { it.name == "wowTools" }.configureEach {
-                project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
+                project.dependencies.add(name, files(${classpath("wow-test.fixture.toolsClasspath")}))
             }
             $extra
             """,
@@ -298,12 +298,12 @@ class WowContractSourcesFunctionalTest {
 
             repositories {
                 mavenCentral()
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
             dependencies {
                 implementation(project(":shop-api"))
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
             }
             """,
         )
@@ -526,13 +526,13 @@ class WowContractSourcesFunctionalTest {
 
             repositories {
                 maven { url = uri("${File(projectDir, "repo").path.replace("\\", "/")}") }
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
                 mavenCentral()
             }
 
             dependencies {
                 implementation("sample:shop-api:1.0.0")
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
             }
             """,
             external,

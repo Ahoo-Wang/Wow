@@ -32,11 +32,11 @@ fun onOrderSubmitted(
 | Request | Derives |
 | --- | --- |
 | `CommandRequest.of(body, id)` | A command to the aggregate `id` of the type that decides `body`'s class, in the tenant of the commit |
-| `CommandRequest.of(body)` | A creating command to a new aggregate of that type, whose id the target gives it |
+| `CommandRequest.of(body)` | A creating command to a new aggregate of that type, whose id the target gives it; a command whose body names its aggregate (`@AggregateId`), to that aggregate |
 | `CommandRequest.to(ref, body)` | A command to the aggregate `ref` names, of any type and tenant |
 | `CommandRequest.of(body, type = type)` | A creating command to a new aggregate of `type`, whose id the target gives it |
 
-A request without a type finds the target's type from the commands each context declares: this service's own Manifest, and the contract each peer's api jar carries. The handler fails when no context on the class path decides the class, or when several aggregates do; give the request its type then. `targetTenant` and `targetScope` send the command to another tenant or scope, and `expectedVersion` asks the target for that version.
+A command whose body names its aggregate ([Name the aggregate in the body](./aggregates#name-the-aggregate-in-the-body)) needs no id, in this context or another: a request that names one beside the body names the same aggregate, and one that names another, or a body that names a blank id, fails the handler. A request without a type finds the target's type from the commands each context declares: this service's own Manifest, and the contract each peer's api jar carries. The handler fails when no context on the class path decides the class, or when several aggregates do; give the request its type then. `targetTenant` and `targetScope` send the command to another tenant or scope, and `expectedVersion` asks the target for that version.
 
 Every derived command is deterministic:
 

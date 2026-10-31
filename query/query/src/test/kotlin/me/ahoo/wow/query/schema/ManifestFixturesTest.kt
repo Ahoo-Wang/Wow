@@ -24,12 +24,12 @@ import kotlin.io.path.readText
 /**
  * The Manifest fixtures ([ManifestFixtures]) are what `manifest-tools` writes, so the reader is tested on the
  * generator's own output: each is a byte-for-byte copy of the `QueryKeywordsTest` snapshot of the same name. The build
- * gives the snapshots' directory as `wow.manifest-tools.snapshots`, an input of this test task.
+ * gives the snapshots' directory as `wow-test.manifest-tools.snapshots`, an input of this test task.
  */
 class ManifestFixturesTest {
     @Test
     fun `each Manifest fixture should be a byte-for-byte copy of its manifest-tools snapshot`() {
-        val snapshots = Path.of(checkNotNull(System.getProperty("wow.manifest-tools.snapshots")))
+        val snapshots = Path.of(checkNotNull(System.getProperty("wow-test.manifest-tools.snapshots")))
         val fixtures = FIXTURES.listDirectoryEntries()
         fixtures.assert().isNotEmpty()
         fixtures.forEach { fixture ->

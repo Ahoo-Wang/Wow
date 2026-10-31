@@ -20,7 +20,7 @@
  * accepted. That Kotlin test also fails when the file no longer matches the
  * JVM, so the file is the JVM's answer, not a hand-picked sample.
  * Regenerate it from the repository root with
- * `./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
+ * `./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow-test.snapshot.update=true`.
  */
 
 import { readFileSync } from 'node:fs';

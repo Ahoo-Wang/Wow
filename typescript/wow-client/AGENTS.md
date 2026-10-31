@@ -40,7 +40,7 @@ function kind and ownership, and the query protocol's enumerations) to
 `test/fixtures/wire-names.json`, which `TypeScriptWireNamesTest` of `:api`
 writes from `WireNames`. An enumeration declared here goes in both tests'
 lists. Regenerate the fixture from the repository root, never edit it:
-`./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow.snapshot.update=true`.
+`./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow-test.snapshot.update=true`.
 
 **Date patterns.** `datePattern` is checked against `java.time`'s pattern
 grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
@@ -48,7 +48,7 @@ grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
 `test/fixtures/java-date-patterns.json`; `test/dsl/datePattern.test.ts` holds
 this package to the file entry by entry. To change the corpus, edit the
 Kotlin test and regenerate from the repository root with
-`./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
+`./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow-test.snapshot.update=true`.
 
 ## Project Structure
 

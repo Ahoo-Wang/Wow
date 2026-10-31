@@ -77,7 +77,7 @@ object WowContainers {
             .withStartupTimeout(Duration.ofMinutes(5))
 
     /** The system property naming a MongoDB cluster for [mongoUrl]. */
-    const val MONGO_URL = "wow.mongo.url"
+    const val MONGO_URL = "wow-test.mongo.url"
 
     private const val ELASTICSEARCH_PORT = 9200
 }

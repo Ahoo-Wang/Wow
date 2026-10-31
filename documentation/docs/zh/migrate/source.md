@@ -56,18 +56,21 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | `@Saga`、`@Projection`、`@Reactor` |
 | `@OnEvent(vararg aggregates)`、`@OnStateEvent`、`@OnMessage` | `@OnEvent`，一种接收 `StateEvent` 的处理函数 |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<context>.<processor.function>].parked.*`（`executionTimeout` 对应 `claim-ttl`） |
-| `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿 |
+| `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿。把框架的重复 ID 错误改写成领域消息的处理函数，在 V10 中没有对应形式：创建已存在的聚合会在决策之前就得到 `wow.aggregate.exists`，客户端改为匹配这个错误码 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
-| 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |
+| 命令属性上的 `@AggregateId` | 保留，含义不变：命令体指明聚合，命令的路由不带 `{id}`。9.x 从路径绑定的字段只是重复了路由：删除它（[命令体承载什么](#what-a-command-body-holds)） |
+| 命令字段上的 `@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：租户和所有者是调用方的，期望版本是 `If-Match` |
 | `@StaticTenantId`、`@StaticAggregateId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
 | `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Tags` |
 
-## 命令不携带身份 {#commands-carry-no-identity}
+## 命令体承载什么 {#what-a-command-body-holds}
 
-命令体只保存业务数据。聚合是 `command.ref`，取自路由；所有者和空间是 `command.scope`，取自已认证的调用方。删除身份字段和路由注解，剩下的就是业务数据。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
+命令体保存业务数据。租户是调用方的，所有者和空间是 `command.scope`，取自已认证的调用方，期望版本来自 `If-Match`：删除租户、所有者和版本字段以及路由注解。聚合是 `command.ref`，取自路由，除非命令体指明了它。
+
+9.x 从路径绑定的 ID 字段（`@CommandRoute.PathVariable` 加 `@AggregateId`）只是重复了路由：删除它，读取 `command.ref.id`，命令保留带 `{id}` 的路由。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -84,6 +87,19 @@ data class SubmitOrder(
     @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
+
+9.x 由命令体自己的业务数据得出的 ID（`productId` 这样的字段，或 `"$warehouseId-$code"` 这样的 getter）保留 `@AggregateId`，名称、包和含义都不变（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。命令的路由于是不带 `{id}`，Saga 或客户端发送它时都不带 ID，也不需要 `CommandTransformer`。计算出的 ID 仍是一个 getter，由服务从字段算出：
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
+```
+
+原先把这类命令发往带 ID 路由的客户端，改为发往不带 ID 的路由（[HTTP 与 TypeScript 客户端](./http-and-clients#routes)）。
 
 在 decide 中，`CommandMessage<X>` 是 `Command<X>`，`command.aggregateId.id` 是 `command.ref.id`，`command.ownerId` 是 `command.scope.ownerId`，9.x 的 `CommandResultAccessor` 是 `DecideScope.putResult`，在 decide 中生成的 ID 来自 `scope.ids.next()`。
 
@@ -119,10 +135,10 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 - **名字。** V10 的事件名是 `<context>.<aggregate>.<Name>`；9.x 用的是蛇形命名（`order_created`）。不要用 `@Name` 保留 9.x 的拼写：在迁移映射中映射它。
 - **修订号。** V10 形状与 9.x 所存储的不同的事件（去掉了身份字段、删掉了计算属性），要用更高的 `@Revision`，以及一个从修订号 1 升级的 `@Upgrade` 函数，并由一个使用真实 9.x 载荷的测试覆盖。
-- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
+- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 在私有时也能找到的处理函数（`@OnCommand`、`@OnSourcing` 或 `@OnEvent` 函数），在 V10 中是编译错误，Kotlin 的 `protected` 处理函数也一样：把它改成 `internal`。只有仅靠名字绑定、没有注解的私有函数才会被忽略。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
 - **被删除的事件**要退役：删除类和它的溯源函数，在 `retiredEvents` 中列出存储时的名字，并用 `"retire": true` 映射它。
 - **事件与状态中的 Wow 类型。** 存储下来的 `Condition`、`Sort` 或 `Projection`（例如保存的过滤条件）在 V10 中没有对应形式：`Condition` 协议已经没有了，内核的 JSON 没有查询协议的编解码，查询协议的枚举现在也是小写。改存应用自己的类型，用一个 `@Upgrade` 函数把 9.x 的 JSON 升级过去，并写测试覆盖。
-- **事件的信封。** 接收 `DomainEvent<E>` 以读取 `createTime` 或操作人的 9.x 溯源函数，改为接收事件，并以第二个参数接收它所属的提交（`commit: EventStream`）：`createTime` 是 `commit.commitTime`，`header.operator` 是 `commit.operator?.id`，`version` 是 `commit.version`（[读取提交](../guide/aggregates#read-the-commit)）。数据迁移把每条 9.x 流的创建时间和操作人导入为其提交的提交时间和操作人，所以从 9.x 历史重建的状态读到的就是 9.x 记录的值。读取系统时钟的命令函数改读 `scope.now`。
+- **事件的信封。** 接收 `DomainEvent<E>` 以读取 `createTime` 或操作人的 9.x 溯源函数，改为接收事件，并以第二个参数接收它所属的提交（`commit: EventStream`）：`createTime` 是 `commit.commitTime`，`header.operator` 是 `commit.operator?.id`，`version` 是 `commit.version`（[读取提交](../guide/aggregates#read-the-commit)）。数据迁移把每条 9.x 流的创建时间和操作人导入为其提交的提交时间和操作人，所以从 9.x 历史重建的状态读到的就是 9.x 记录的值。读取系统时钟、或接收 `Clock` 来读取时间的命令函数，改读 `scope.now`：决策时间，单位为毫秒（`LocalDateTime.ofInstant(Instant.ofEpochMilli(scope.now), zone)`）。参数默认取 `LocalDate.now()` 或 `LocalDateTime.now()` 的共享辅助函数仍会读取系统时钟，要把决策日期传给它。测试用 `aggregateSpec(…, start = instant)` 和 `advanceTime` 设定时间，而不是注入时钟。
 
 ## 处理器 {#processors}
 

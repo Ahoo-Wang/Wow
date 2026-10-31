@@ -119,6 +119,18 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `an envelope of any format or kind should be one, and another producer's value not`() {
+        EnvelopeCodec.isEnvelope(EnvelopeCodec.message(record()).value).assert().isTrue()
+        EnvelopeCodec.isEnvelope("""{"format":2,"kind":"state-event","payload":{}}""".toByteArray()).assert().isTrue()
+        EnvelopeCodec.isEnvelope("""{"format":1,"kind":"snapshot"}""".toByteArray()).assert().isTrue()
+        // A 9.x state event: its event stream with the state, and no format.
+        val nineX = """{"id":"s-1","contextName":"shop","aggregateName":"order","aggregateId":"o-1","version":1,""" +
+            """"body":[{"name":"order_paid","revision":"0.0.1","body":{}}],"state":{},"deleted":false}"""
+        listOf(nineX, """{"format":"1","kind":"state-event"}""", """{"format":1}""", "[1]", "not json", "")
+            .forEach { EnvelopeCodec.isEnvelope(it.toByteArray()).assert().describedAs(it).isFalse() }
+    }
+
+    @Test
     fun `a message should be keyed by the aggregate ref and repeat the envelope in its headers`() {
         val message = EnvelopeCodec.message(record())
         message.key.assert().isEqualTo("shop.order/t1/o-1")

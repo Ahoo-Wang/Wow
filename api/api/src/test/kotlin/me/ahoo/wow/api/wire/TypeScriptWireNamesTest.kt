@@ -50,7 +50,7 @@ import kotlin.io.path.writeText
  * the client's Manifest types are generated from the Manifest's schema and held to it there.
  *
  * Regenerate the fixture, never edit it by hand:
- * `./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow.snapshot.update=true`.
+ * `./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow-test.snapshot.update=true`.
  */
 class TypeScriptWireNamesTest {
     companion object {
@@ -112,13 +112,13 @@ class TypeScriptWireNamesTest {
     @Test
     fun `the fixture should hold the wire names of the enumerations the TypeScript client declares`() {
         val actual = render()
-        if (System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)) {
+        if (System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)) {
             FIXTURE.writeText(actual)
         }
         FIXTURE.readText().assert()
             .describedAs(
                 "Regenerate $FIXTURE with ./gradlew :api:test --tests \"*TypeScriptWireNamesTest\" --rerun " +
-                    "-Dwow.snapshot.update=true, then make typescript/wow-client follow until its wireNames.test.ts passes.",
+                    "-Dwow-test.snapshot.update=true, then make typescript/wow-client follow until its wireNames.test.ts passes.",
             )
             .isEqualTo(actual)
     }

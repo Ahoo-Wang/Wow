@@ -35,7 +35,7 @@ import kotlin.io.path.writeText
 /**
  * The documents of the eShop's five services (decision D159), from their domains' Manifest fragments merged as the
  * host merges them, against the snapshots in `src/test/resources/openapi/`. A change to the generator or to the eShop's
- * contract shows here as a snapshot diff; `-Dwow.snapshot.update=true` rewrites them.
+ * contract shows here as a snapshot diff; `-Dwow-test.snapshot.update=true` rewrites them.
  */
 class EShopOpenApiSnapshotTest {
     @ParameterizedTest
@@ -67,12 +67,12 @@ class EShopOpenApiSnapshotTest {
         assumeFalse(UPDATE)
         val missing = Files.createTempDirectory("wow-openapi").resolve("missing.json")
         assertThrows<AssertionError> { assertSnapshot(mapOf("openapi" to "3.1.0"), missing) }
-            .message.assert().contains("-Dwow.snapshot.update=true")
+            .message.assert().contains("-Dwow-test.snapshot.update=true")
     }
 
     companion object {
         private val SNAPSHOTS: Path = Path.of("src/test/resources/openapi")
-        private val UPDATE = System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)
+        private val UPDATE = System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)
 
         /** A result as `wow-http` writes it (`HttpJson`), every member set. */
         private const val COMMAND_RESULT = """{"format":1,"commandId":"c","requestId":"r","correlationId":"co",
@@ -105,7 +105,9 @@ class EShopOpenApiSnapshotTest {
                 return
             }
             if (!snapshot.exists()) {
-                throw AssertionError("Missing snapshot $snapshot: run with -Dwow.snapshot.update=true to write it.")
+                throw AssertionError(
+                    "Missing snapshot $snapshot: run with -Dwow-test.snapshot.update=true to write it."
+                )
             }
             actual.assert().isEqualTo(snapshot.readText())
         }

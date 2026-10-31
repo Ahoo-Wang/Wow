@@ -11,7 +11,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 | 9.x | V10 |
 | --- | --- |
-| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`，ID 即所有者 ID 的聚合（9.x `OwnerPolicy.AGGREGATE_ID`）的每条命令也可以，指调用方自己的聚合。租户和所有者来自调用方，从不来自路径 |
+| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`，以及 `PUT`、`PATCH` 和自定义动作 | `POST /<context>/<aggregate>/{id}/<command>`，命令名为 kebab 形式；创建命令也可以不带 `{id}`，ID 即所有者 ID 的聚合（9.x `OwnerPolicy.AGGREGATE_ID`）的每条命令也可以，指调用方自己的聚合；命令体指明了聚合的命令（`@AggregateId`）只有不带 `{id}` 的路由。租户和所有者来自调用方，从不来自路径 |
 | `DELETE …/{id}`、`PUT …/{id}/recover`、`PUT …/{id}/tags` | `DELETE /<context>/<aggregate>/{id}`、`POST …/{id}/wow.lifecycle.restore-aggregate`、`POST …/{id}/wow.lifecycle.apply-tags` |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`、它们的 `/state` 形式、`…/event/…` | `POST /<context>/<aggregate>/snapshot/query` 和 `…/events/query`，操作写在请求体的 `kind` 中 |
 | `GET …/snapshot/schema` | 对同一个查询路由发 `GET`：能力描述符，带着它的 `ETag` |
@@ -39,7 +39,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 ## 错误 {#errors}
 
-9.x 的错误体 `errorCode`、`errorMsg` 和 `bindingErrors`，在 V10 中是 RFC 9457 problem，`application/problem+json`：`type` 为 `urn:wow:error:<code>`、`title`、`status`、`detail`、`code`、`violations`，命令到达聚合之后还有命令的完整 `result`。每个错误码都变了：框架的错误码是 `wow.*`（`wow.aggregate.not-found`、`wow.aggregate.version-mismatch`、`wow.command.busy`），领域拒绝是 `<context>.<aggregate>.<code>`，除非服务声明了另一个状态，否则为 422。在应用中搜索它匹配的每个 9.x 错误码，并逐一映射（[错误码](../reference/error-codes)）。
+9.x 的错误体 `errorCode`、`errorMsg` 和 `bindingErrors`，在 V10 中是 RFC 9457 problem，`application/problem+json`：`type` 为 `urn:wow:error:<code>`、`title`、`status`、`detail`、`code`、`violations`，命令到达聚合之后还有命令的完整 `result`。每个错误码都变了：框架的错误码是 `wow.*`（`wow.aggregate.not-found`、`wow.aggregate.version-mismatch`、`wow.command.busy`），领域拒绝是 `<context>.<aggregate>.<code>`，除非服务声明了另一个状态，否则为 422。在应用中搜索它匹配的每个 9.x 错误码，并逐一映射（[错误码](../reference/error-codes)）。9.x 的 `@OnError` 处理函数写在框架错误上的消息也没有了：创建已存在的聚合（这类处理函数常把它改写成领域消息）是 `wow.aggregate.exists`（409），在聚合决策之前就会答复。
 
 ## TypeScript 包 {#typescript-packages}
 
@@ -75,6 +75,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 - **错误码**是编译器无法检查的字符串：逐个 grep 每个 9.x 错误码。
 - **精确数字。** `Long`、`BigInteger` 或 `BigDecimal` 字段在 V10 的类型中是 `string`，精确地读取。对 `number` 做算术的代码，如果不修复，现在会拼接字符串。
 - **时区。** 不带 `zoneId` 的相对时间过滤按 UTC 读取日期，而 9.x 用的是服务器的时区：在本意是本地日期的地方传入 `zoneId`。
+- **命令体指明了聚合的命令。** 这类命令没有带 `{id}` 的路由：发往这种路由的客户端得到 404，应改为发往不带 `{id}` 的路由，ID 放在命令体中。
 - **事件名。** 9.x 的 `bodyType` 类名变成 `name` 值；以它们为键保存的过滤和界面要随之改变。
 - **快照字段。** 9.x 的 `eventId` 和 `snapshotTime` 已去掉；`firstEventTime`、`lastEventTime`、`operator`、`firstOperator` 和 `tags` 仍然保留。
 

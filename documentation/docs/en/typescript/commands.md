@@ -59,6 +59,26 @@ The result says where the command got to:
 | `duplicate` | `true` when the request id was already committed, and this answers the first commit |
 | `requestId`, `commandId`, `correlationId` | The ids of the request, the command and the chain it started |
 
+### A body that names its aggregate
+
+A command whose body names its aggregate (its class's `@AggregateId`, the Manifest's `idProperty`) has no id parameter and no `id` option. Its method sends the body to the route without `{id}`, and the service acts on the aggregate the body names. When that property is computed from the other fields, the method takes the body without it, `Omit<Body, 'stockId'>`, and the service computes the id.
+
+A `CommandClient` request written by hand sends such a command by the same route:
+
+<!-- typecheck-context
+import type { CommandClient } from '@ahoo-wang/wow-client';
+declare const commands: CommandClient;
+-->
+
+```ts
+await commands.wait({
+  command: 'eshop-inventory.stock.RestockProduct',
+  body: { productId: 'p-1', quantity: 2 },
+});
+```
+
+An `id` given with such a request must be the one its body names: the client writes it into a body that names none, and a body that names another id throws a `TypeError` before anything is sent. A computed id is the service's: an `id` given for it is ignored, because the service computes the id from the fields, so leave `id` out.
+
 ## Wait for what the command leads to
 
 Without a wait, the call answers once the snapshot holds the commit, or the commit where the aggregate keeps no snapshot, within the service's default timeout. `wait` says how far to go, a `WaitPlan` as Kotlin's: `WaitPlan.ACCEPTED`, `COMMITTED` and `SNAPSHOT`, or `WaitPlan.of(...hops)` for a plan of your own, and `.within(ms)` for its timeout:

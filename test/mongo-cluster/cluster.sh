@@ -13,7 +13,7 @@
 #
 # The MongoDB backend on a cluster (roadmap §6 item 18): a three-member replica set, or a sharded cluster of two
 # three-member shards behind mongos, in one container (supervise.sh), and the backend's integration tests and TCK
-# against it. The tests take the cluster's URL from wow.mongo.url in place of their single-member container; the
+# against it. The tests take the cluster's URL from wow-test.mongo.url in place of their single-member container; the
 # replica set's failover tests run only on a cluster of three members. Runs on macOS's bash 3.2.
 #
 #   cluster.sh up rs|sharded     start the cluster and wait until it serves
@@ -71,7 +71,7 @@ run_tests() {
   up "$mode"
   trap down EXIT
   shift
-  (cd "$ROOT" && ./gradlew :mongo:integrationTest "-Dwow.mongo.url=$(url "$mode")" "-Dwow.mongo.container=$NAME" --rerun "$@")
+  (cd "$ROOT" && ./gradlew :mongo:integrationTest "-Dwow-test.mongo.url=$(url "$mode")" "-Dwow-test.mongo.container=$NAME" --rerun "$@")
 }
 
 case ${1:-} in

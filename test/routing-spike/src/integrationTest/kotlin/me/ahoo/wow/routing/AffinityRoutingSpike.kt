@@ -41,11 +41,11 @@ import kotlin.random.Random
  * forwarding hop? Simulated nodes, each with its own pool, kernel, executor and state cache, share one real
  * PostgreSQL log and snapshot store; the cluster channel serializes commands for real and injects 0.3 to 1 ms.
  *
- * Runs only with `-Dwow.spike.h2=true` (`-Dwow.spike.h2.quick=true` for a shortened matrix); writes
+ * Runs only with `-Dwow-test.spike.h2=true` (`-Dwow-test.spike.h2.quick=true` for a shortened matrix); writes
  * `build/spike-h2.json` and `build/spike-h2.md`.
  */
 class AffinityRoutingSpike {
-    private val quick = System.getProperty("wow.spike.h2.quick") == "true"
+    private val quick = System.getProperty("wow-test.spike.h2.quick") == "true"
     private val repetitions = if (quick) 1 else REPETITIONS
     private val warmupSeconds = if (quick) 1.0 else WARMUP_SECONDS
     private val measureSeconds = if (quick) 2.0 else MEASURE_SECONDS
@@ -54,8 +54,8 @@ class AffinityRoutingSpike {
     @Test
     fun measure() {
         assumeTrue(
-            System.getProperty("wow.spike.h2") == "true" || quick,
-            "Run with -Dwow.spike.h2=true",
+            System.getProperty("wow-test.spike.h2") == "true" || quick,
+            "Run with -Dwow-test.spike.h2=true",
         )
         val container = WowContainers.newPostgres()
             // The routing effect under test is about a millisecond; fsync and checkpoint stalls of a laptop's Docker VM

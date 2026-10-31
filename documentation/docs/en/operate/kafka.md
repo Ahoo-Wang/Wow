@@ -109,6 +109,11 @@ Either way the gap is logged as an error and counted in the metric `wow.subscrip
 
 To recover a subscription stopped by a gap, set `wow.kafka.offset-gap: earliest` and restart its nodes: the read resumes from the earliest retained offset. The skipped range is lost to that subscription, and stays counted in `wow.subscription.offset.gaps`. Set the option back to `fail` afterwards to keep the strict default. When the loss is not acceptable and what was published is still complete elsewhere, rebuild under a new subscription name instead.
 
+A topic may also hold a record Wow cannot read:
+
+- **An envelope this version cannot read**, of a later format say. It parks its aggregate for an operator, or is passed over when its key names no aggregate, and is counted in `wow.subscription.undecodable.messages`.
+- **A record that is no envelope at all.** Another producer writes the topic, most likely a 9.x service on the same broker, whose state topics are named `wow.<context>.<aggregate>.state` as published streams are by default. The topic is the wrong one, so nothing parks: the read of its partition fails, its subscriptions stay before the record and retry with a backoff, and each failure is logged with the topic, partition and offset. Give the Wow services topics of their own with `wow.kafka.topics.prefix`, the same on the services that publish and those that read, or a broker of their own, and restart them.
+
 ## Client settings
 
 `wow.kafka.properties.*` passes settings to every producer and consumer as they are, such as `security.protocol` and SASL settings, `client.id` or `linger.ms`. A few settings belong to Wow and cannot be overridden, because the guarantees rest on them: the idempotent producer with `acks=all`, consumers without a group that commit nothing and reset no offset on their own, and no topic creation on read.

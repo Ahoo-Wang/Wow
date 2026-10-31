@@ -21,7 +21,7 @@ The compiler reads the domain module at build time and generates the aggregate's
 
 ## Write the commands
 
-A command is a data class of the api module. It holds what the caller asks, never who the aggregate is: the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
+A command is a data class of the api module. It holds what the caller asks, never who the caller is: the tenant, owner and space come from the caller, and the expected version from `If-Match`. The aggregate's id comes from the route or from the saga that sends the command, unless the body already names it ([Name the aggregate in the body](#name-the-aggregate-in-the-body)).
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -77,6 +77,33 @@ Whether a command may create its aggregate is part of its class:
 | Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
 
 Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate. An aggregate whose id is its owner's, one per owner, serves every command without `{id}` too, as the caller's own, and generates no id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
+
+### Name the aggregate in the body
+
+Some commands already hold their aggregate's id in their business data: a restock names the product whose stock it adds to. `@AggregateId` on that property makes the body name the aggregate, so a sender gives no id beside it:
+
+<!-- sample: fragment -->
+
+```kotlin
+@AllowCreate
+@Summary("Restock a product")
+data class RestockProduct(
+    @AggregateId val productId: String,
+    @field:Positive val quantity: Int,
+)
+```
+
+Such a command is served at `POST /<context>/<aggregate>/<command>` alone, without `{id}`, and it acts on the aggregate its body names. A saga sends it with `CommandRequest.of(body)` and a client without an id. A command for another context goes to that context's command topic keyed by its aggregate, so the commands of one aggregate keep their order. Admission reads the body before it authorizes the command, so a policy still sees the aggregate, `<aggregate>/<id>`. The aggregate's lifecycle commands keep their routes with `{id}`.
+
+| The property | Holds |
+| --- | --- |
+| A `String` with a field or a constructor parameter | The id, as the body holds it |
+| A computed `String`, `val stockId: String get() = "$warehouseId-$sku"` | The id, computed from the other fields: a sender that sends only those leaves it out, and the service computes it |
+| A `String?` of a command that may create its aggregate | The id, or null to leave it to the server, as for any creation that names none; a retry keeps the first one |
+
+Admission checks the id: a blank one is `wow.command.malformed` (400), and so is a request that names another aggregate beside the body, such as a Kotlin client's `CommandRequest.to(ref, body)`. A request that names the same one is accepted.
+
+The property is declared by the command class or by an interface it implements. It is public or internal, and Wow's JSON writes it (it is not `@JsonIgnore`d), so every sender's body holds it. One property of a command names its aggregate. The compiler refuses it on an `@Unaddressed` or mounted command, whose transformer finds the aggregate, and on an aggregate whose id is its owner's. A `CommandTransformer` that takes such a command stops the service at start.
 
 ## Write the root
 

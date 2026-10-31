@@ -127,9 +127,10 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | none | `@OnRejected` | A saga's handler for the rejection of a command it derived or called (`CommandReceipt.Rejected<C>`, or `CommandReceipt.Rejected<*>` for any), returning the commands that compensate, or `Unit` to accept the rejection (decision D259; an `@OnCommitted` handler likewise, with `CommandReceipt.Committed<C>`; a handler of both carries both annotations and takes `CommandReceipt<C>`). Without one, a rejected derived or called command parks the aggregate at once; 9.x had no such outcome. |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` and `wow.subscriptions.[<context>.<name>].parked.*` | V10's `@Retry`, on a processor or its `@OnEvent` handler, is the in-process budget before the aggregate parks. The 9.x settings are the parked entry's long-horizon retries: `wow.subscriptions.[<context>.<processor.function>].parked.max-retries`, `initial-backoff` (9.x `minBackoff`) and `claim-ttl` (9.x `executionTimeout`: how long a retry's claim on the entry holds before another retry may start). |
 | `@Retry(recoverable, unrecoverable)`, `RecoverableExceptionProvider`, `RecoverableException`, `RecoverableType` | `@Retry(recoverable, unrecoverable)` and `FailureClassifier` (`me.ahoo.wow.spi.subscription`) | Same attributes; the nearer listed class decides. A `RecoverableExceptionProvider` becomes a `FailureClassifier` bean returning a `FailureClass`: 9.x `UNRECOVERABLE` → `UNRECOVERABLE` (parks at once, no automatic retries), `RECOVERABLE` and `UNKNOWN` → `RECOVERABLE` (retried within the budget, then parked). A store, broker or connection that is down is `SYSTEMIC` (V10 only): the subscription pauses the partition and retries until it is back, parking nothing (`wow.subscription.systemic.*`). `@Retry(enabled = false)` has no V10 form. |
-| `@OnError` | Removed | Return a rejection, with the events to record when the refusal should be kept (`reject(code, message, events = listOf(...))`); compensate in a `@Saga`'s `@OnRejected` handler. |
+| `@OnError` | Removed | A 9.x `@OnError` that turned the framework's `DuplicateAggregateIdException` into a domain message has no V10 form: a creation of an existing aggregate (`@CreateAggregate`) is answered `wow.aggregate.exists` (409) before decide runs, so clients that matched the 9.x message match the code. Otherwise: return a rejection, with the events to record when the refusal should be kept (`reject(code, message, events = listOf(...))`); compensate in a `@Saga`'s `@OnRejected` handler. |
 | `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key, tenancy)`; decide the tenancy of every key. See [Reserved keys](#reserved-keys-9x-preparekey). |
-| `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-carry-no-identity). |
+| `@AggregateId` on a command property | Kept: same name, package and meaning | The body names the aggregate; the command's route has no `{id}`. A field 9.x bound from the path is deleted instead. See [Command bodies](#command-bodies-hold-business-data). |
+| `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-hold-business-data). |
 | `@StaticTenantId`, `@StaticAggregateId` | Removed | Fixed tenant is host configuration. |
 | `@AggregateName` | `@Name` on the aggregate root | |
 | `@AggregateRoute`, `@CommandRoute` (`PathVariable`, `HeaderVariable`) | Removed | Routes come from the Manifest. |
@@ -139,13 +140,16 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | none | `@QueryIndex(name, on, with)` | New in V10: declares a query index on a state property, or on the state class with `on`; the backend creates it as the `ddl` of its store (`wow.ddl`: `auto`, `validate`, `none`) says. Add one where a 9.x deployment had a hand-made index on the snapshot collection, and report it. |
 | `@Tag`, `@Schema(name)` (swagger) | Not read | Schemas come from Jackson introspection at build time. |
 
-## Command bodies carry no identity
+## Command bodies hold business data
 
-A command body holds business data only. The aggregate identity is `Command<X>.ref` (`AggregateRef(type, tenantId, id)`), taken from the route or the command message; owner and space are `Command<X>.scope`, taken from the authenticated principal. Delete identity fields from bodies and rewrite every read of them to `command.ref`. A creating command whose id the client chooses uses the route with `{id}`; without it the server generates the id.
+A command body holds business data. The tenant, owner and space are `Command<X>.ref.tenantId` and `Command<X>.scope`, taken from the authenticated principal, and the expected version is `If-Match`: delete those fields and rewrite every read of them. The aggregate is `Command<X>.ref` (`AggregateRef(type, tenantId, id)`), taken from the route or the command message, unless the body names it. Decide per 9.x `@AggregateId`:
 
-A 9.x body that derived its aggregate's id from its own fields (an `Identifier.id` getter such as `"$warehouseId-$code"`) loses that too. In the pinned V10 today, each such command type needs a `CommandTransformer` of its own (one per input type, decision D182) that sets the target id from the body, a saga that sends it names the id (`CommandRequest.of(body, id)`), and a client may post to the route with `{id}`, computed the same way. Whether V10 gets a declarative form for ids derived from the body is a pending decision: check the pinned target.
+- **Bound from the path** (`@CommandRoute.PathVariable` with `@AggregateId`, or a field that only repeated the route): delete it and read `command.ref.id`. The command keeps the route with `{id}`; a creating command whose id the client chooses uses that route, and without it the server generates the id.
+- **Taken from the body's business data** (a field such as `productId`, or an `Identifier.id` getter such as `"$warehouseId-$code"`): keep `@AggregateId` on that property, the same annotation in the same package (`me.ahoo.wow.api.annotation`). The compiler generates its read, the command's route becomes `POST /<context>/<aggregate>/<command>` alone, a saga sends `CommandRequest.of(body)` without an id, and the Manifest lists the property as `idProperty`. A computed getter stays one: the service computes the id from the fields, and a client that sends only the fields leaves it out. A creating command may declare `String?` (null: the server assigns the id). Do not write a `CommandTransformer` for such a command: one that takes it stops the service at start. Report the route change as a REST contract difference: a client that posted such a command to a route with the id gets 404 and must post to the route without it, the id in the body.
 
-Before:
+The property must be a `String` (`String?` only on a command that may create its aggregate), public or internal, and written by Wow's JSON (not `@JsonIgnore`d); one per command. The compiler refuses it on an `@Unaddressed` or mounted command and on an aggregate whose id is its owner's (`idSource = OWNER`). A blank id, or a request that names another aggregate beside the body, is `wow.command.malformed` (400).
+
+Before (an id bound from the path):
 
 ```kotlin
 @CommandRoute(action = "package", appendIdPath = CommandRoute.AppendPath.ALWAYS, method = CommandRoute.Method.PATCH)
@@ -172,6 +176,25 @@ data object ReceiptOrder
 data object ShipOrder
 ```
 
+Before and after (an id taken from the body):
+
+<!-- sample: 9.x -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) : Identifier {
+    override val id: String get() = "$warehouseId-$code"
+}
+```
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
+```
+
 Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now the stream's `ref`, which forces a revision bump and an upgrade function.
 
 ## Command functions
@@ -190,9 +213,10 @@ Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now 
 | `CommandValidator.validate()` on the body, or a `require` on the command's own fields | Jakarta constraints on the command class (`@field:Positive`, `@field:NotBlank`, `@field:Valid`), checked at admission for every command (`wow.command.invalid`, 400, with `violations`); a rule that needs the state, or one Jakarta cannot express, is a rejection in decide |
 | Injected service; `@Name("x")` parameter | Parameter of the generated factory, bound once by the host; `@Name("x")` qualifies it |
 | `GlobalIdGenerator.generateAsString()`, `NamedAggregate.generateId()` inside decide | `scope.ids.next()`, `scope.ids.next(type)` on the `DecideScope` (decision D171): the node's generators (UUIDv7, or CosId with `wow-cosid`), fixed ids in the test DSL. A decision decided again after a version conflict takes new ids, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit (`Wow-Request-Id`), not decided again. Derive an id from `command.ref` only when a client must know it before the answer. A saga takes ids from `SagaContext.ids`; the commands it derives keep their deterministic ids |
+| `clock: Clock` or `clock: Clock?` (a fixed one in tests, else `Clock.systemDefaultZone()`) inside decide | `scope: DecideScope` and `scope.now`, the decision's time in epoch milliseconds: `LocalDateTime.ofInstant(Instant.ofEpochMilli(scope.now), zone)` for 9.x's `LocalDateTime.now(clock)`, in the zone the 9.x clock had. A helper the domain or api shares whose parameter defaults to `LocalDate.now()` or `LocalDateTime.now()` reads the system clock behind decide: pass it the decision's date or time. Tests set the time instead of injecting a clock (see Tests) |
 | Return `Any`, event, list, `Mono` | `Decision` (`events`, `NoOp`, `reject`), an event, a list, a sealed type, or a publisher through `wow-reactor`. A 9.x return type that is an interface or abstract class, not sealed (a marker interface of the aggregate's events, returning one of its implementations), is a compile error in V10: make it a sealed interface when the events are in its module and package, else return `Decision` with `@OnCommand(produces = [...])` listing them |
 
-9.x framework types in a V10 signature are compile errors, so these rewrites are mandatory. A function's first parameter is the body `X` or `Command<X>`; later parameters are services or a `DecideScope`. Every non-private function is bound; private functions are ignored.
+9.x framework types in a V10 signature are compile errors, so these rewrites are mandatory. A function's first parameter is the body `X` or `Command<X>`; later parameters are services or a `DecideScope`. The generated model calls each handler from outside its class, so: a private function annotated `@OnCommand`, `@OnSourcing`, `@AfterCommand` or `@OnEvent` is a compile error, and so is a Kotlin `protected` handler, annotated or not; only a private function bound by its name alone (`onCommand`, `onSourcing`, `afterCommand`) is ignored. A 9.x private annotated handler, common in 9.x roots and sagas, becomes `internal` (Java: package-private or public).
 
 `Command<X>` is erased on the JVM: two functions `onCommand(command: Command<A>)` and `onCommand(command: Command<B>)` of one aggregate do not compile (platform declaration clash). Name each such function after its command (`onCreate`, `onSave`) and annotate it `@OnCommand`; overloads that take the bodies themselves (`onCommand(command: A)`) keep the one name.
 
@@ -628,7 +652,7 @@ A 9.x starter's own `RouterFunction` routes have no V10 counterpart: a V10 servi
 
 | 9.x starter route | V10 |
 |---|---|
-| A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | A `CommandTransformer` of the command (decision D182) that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Annotate a command that does not create its aggregate `@Unaddressed` (decision D210), so the Manifest, its baseline and the generated clients list that route too. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
+| A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | When the id is in the command's own fields, `@AggregateId` on that property ([Command bodies](#command-bodies-hold-business-data)). Otherwise a `CommandTransformer` of the command that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Annotate a command that does not create its aggregate `@Unaddressed`, so the Manifest, its baseline and the generated clients list that route too. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
 | A lookup of that aggregate (`GET …/preferences`) | A snapshot query (`POST /{context}/{aggregate}/snapshot/query`) filtered by what the id was derived from; nothing found means never written (version 0). |
 | A route that answered "already so" without a command, so the version did not move | `Decision.NoOp` in the aggregate: the command is answered at the unchanged version. |
 | A replay route that found a write by its request id (`…/requests/{requestId}`) | Not needed: a retry with the same `Wow-Request-Id` is answered as a duplicate with the version it committed (`GET …/{id}/state?version=` reads it), and a creation without an id keeps the id of its first attempt (decision D191). |
@@ -713,7 +737,7 @@ Kotlin callers of 9.x `CommandGateway` move to the host's `CommandClient` bean (
 | `send(message, WaitStrategy)` with `waitStage = PROCESSED` / `SNAPSHOT` | `wait(CommandRequest.of(command, id, wait = WaitPlan.COMMITTED))` (or `WaitPlan.SNAPSHOT`, any `Wow-Wait` plan), `timeout = …` |
 | `send(message)` (`SENT`) | `send(command, id)`: answers at ACCEPTED |
 | `CommandResultFlux` / per-stage results | `stream(request)` (or `stream(command, id)`), a flow of one result per hop |
-| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | Gone from the body (decision D68): the request's id; the tenant, owner and space are the caller's, `targetTenant`/`targetScope` for a cross-scope caller |
+| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | The tenant, owner and space are the caller's, `targetTenant`/`targetScope` for a cross-scope caller. A body that names its aggregate (`@AggregateId`, kept) is sent without an id, `wait(command)`; a ref beside it must name the same aggregate, or the client throws an `IllegalArgumentException` before sending. An id field 9.x bound from the path is deleted, and the id is the request's |
 | `requestId`, `aggregateVersion` on the message | `CommandRequest.of(command, id, requestId = …, expectedVersion = …)` |
 | `CommandResult` with `errorCode` / `CommandResultException` | Only a result that succeeded is answered: a rejection throws `CommandRejectedException` (its `code` and `result`), a technical failure `WowProblemException` (`code`, HTTP `status`, `retryHint`) |
 | A command to an aggregate of another service through the Kafka command bus | The same call: a command whose aggregate's context is a peer's (its `*-api` on the class path, decision D234) goes to that context's command topic `wow.<context>.commands`, as a saga's does (review M-1). Waits: `send` (ACCEPTED, once the broker acknowledged it) and `wait` up to the peer's COMMITTED, the default; a later hop (`snapshot`, `handled(…)`) is refused with `wow.wait.invalid`. Without Kafka (`wow.kafka.bootstrap-servers`) such a command is refused as `wow.command.unhandled` |
@@ -783,6 +807,7 @@ Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the gener
 |---|---|
 | `aggregateVerifier<A, S>(id)` | `aggregateSpec(<root>Model(…), id = id) { … }` |
 | `.inject { register(service, "name") }` | The services the generated factory takes. Its first parameter is the context name, with a default, so pass the services by name: `orderModel(inventoryService = inventory)` |
+| `.inject { register(clock) }` (a `Clock` the command function takes) | `aggregateSpec(<root>Model(…), start = instant) { … }`: `DecideScope.now` reads the spec's clock, which starts at `start`; `advanceTime(duration)` moves it |
 | `.given(events…)`, `.givenState(state, version)` | `given(events…)`, `givenState(state, version)`; an empty `.given()` is nothing |
 | `.whenCommand(command).expect…().verify()` | `whenCommand(command) { expect… }` |
 | `.then()`, `.then(false)` | The next `whenCommand`: a spec chains, and a rejected command changes nothing, so going on after an expected refusal needs no flag |
