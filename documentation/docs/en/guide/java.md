@@ -82,7 +82,7 @@ public class Account {
 }
 ```
 
-- A method returns its event, or `null` to change nothing, and rejects by throwing `new RejectedException(Rejection.of(code, message))`. Where the return type cannot name the events, it returns a `Decision` built with the statics `Decision.events(...)` and `Decision.reject(code, message)`; `Decision.NoOp.INSTANCE` changes nothing.
+- A method returns its event, or `null` to change nothing, and rejects by throwing `new RejectedException(Rejection.of(code, message))`. Where the return type cannot name the events, it returns a `Decision` built with the statics `Decision.events(...)` and `Decision.reject(code, message)`; `Decision.NoOp.INSTANCE` changes nothing. A return type that is an interface or abstract class, and not sealed, is a compile error, since it does not name the events.
 - A method that returns `Decision` names its events in `@OnCommand(produces = ...)`, as in Kotlin.
 - A method may take the domain services and the `DecideScope` after the command, and `Command<X>` instead of `X`.
 

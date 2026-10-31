@@ -286,7 +286,10 @@ internal class AggregateAnalyzer(
         if (parameters.first().hasAnnotation(Name::class.java.name)) {
             problems += "$name's command parameter is annotated @Name: a qualifier names a dependency parameter"
         }
-        val returned = EventYield.of(function.returnType?.resolve())
+        val returnType = function.returnType?.resolve()
+        val open = EventYield.openEvent(returnType)
+        open?.let { problems += EventYield.openProblem(name, it) }
+        val returned = if (open == null) EventYield.of(returnType) else null
         val reactor = reactorReturn(function) != null
         val blocking = blocking(function, reactor, warnings)
         val producesListed = declaredProduces(function)
