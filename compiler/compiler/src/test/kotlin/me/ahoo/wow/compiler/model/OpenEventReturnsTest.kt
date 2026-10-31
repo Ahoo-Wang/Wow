@@ -48,7 +48,6 @@ class OpenEventReturnsTest {
         data class Pay(val amount: Int)
         data class Ship(val to: String)
         data class Charge(val amount: Int)
-
         interface OrderEvent
         data class Placed(val id: String) : OrderEvent
         data class Paid(val amount: Int) : OrderEvent
@@ -59,13 +58,14 @@ class OpenEventReturnsTest {
         interface Refund : Settled
         data class Refunded(val amount: Int) : Refund
         data object Closed : Settled
-
         @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
         @JsonSubTypes(JsonSubTypes.Type(Card::class, name = "card"), JsonSubTypes.Type(Cash::class, name = "cash"))
         interface Charged
         data class Card(val amount: Int) : Charged
         data class Cash(val amount: Int) : Charged
 
+        typealias Payment = Paid
+        typealias AnyOrderEvent = OrderEvent
         sealed interface Progress
         data class Packed(val box: Int) : Progress
         data object Dispatched : Progress
@@ -136,6 +136,35 @@ class OpenEventReturnsTest {
         // produced events are checked by class: the subtypes Jackson writes are the events, and nothing lists them.
         failing("fun onCommand(command: Charge): Charged = Card(command.amount)").assert()
             .contains("onCommand returns sample.Charged, an interface that is not sealed")
+    }
+
+    @Test
+    fun `a type alias of an open interface should be refused as the interface it names`() {
+        failing("fun onCommand(command: Place): AnyOrderEvent = Placed(command.id)").assert()
+            .contains("onCommand returns sample.OrderEvent, an interface that is not sealed")
+    }
+
+    @Test
+    fun `a type alias should yield the event it names, and a type parameter should be no open type`() {
+        val source = order(
+            """
+            fun onCommand(command: Place): Placed = Placed(command.id)
+            fun onCommand(command: Pay): Payment = Paid(command.amount)
+            @Suppress("UNCHECKED_CAST")
+            fun <T : Any> onCommand(command: Ship): T = Shipped(command.to) as T
+            """.trimIndent(),
+        )
+        val options = mapOf(ModelSymbolProcessorProvider.CONTEXT_OPTION to "shop")
+        val (compilation, result) = compileModel("generate", options, source)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.messages.assert().doesNotContain("not sealed")
+        val fragment = compilation.workingDir.walkTopDown()
+            .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
+        val commands = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            .contexts.single().aggregates.single().commands.associate { it.name to it.produces }
+        // The alias names the event, not itself; a type parameter says nothing, as Any does.
+        commands["Pay"].assert().isEqualTo(listOf("Paid"))
+        commands["Ship"].assert().isNull()
     }
 
     @Test
