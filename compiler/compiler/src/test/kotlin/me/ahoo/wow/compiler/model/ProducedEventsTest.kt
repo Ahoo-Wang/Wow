@@ -165,15 +165,17 @@ class ProducedEventsTest {
     }
 
     @Test
-    fun `a sourcing function taking two parameters or suspending should be a compile error`() {
+    fun `a sourcing function taking no event or suspending should be a compile error`() {
         failing(
             "fun onCommand(command: Create): Created = Created(command.id)",
             """
-            fun onSourcing(event: Created, extra: String) {}
+            @me.ahoo.wow.api.annotation.OnSourcing fun onNothing() {}
+            fun onSourcing(event: Created) {}
             suspend fun onSourcing(event: Bumped) {}
             """.trimIndent(),
         ).assert().contains(
-            "sourcing function onSourcing must take only its event",
+            "sourcing function onNothing must take its event, and may take its commit " +
+                "(me.ahoo.wow.api.read.EventStream) second",
             "sourcing function onSourcing suspends: evolving does no I/O",
         )
     }

@@ -71,7 +71,8 @@ import kotlin.time.Duration
  * The kernel checks that deciding never changes the state: a decide function or after hook that assigns state
  * fails the specification.
  *
- * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the commit times, and the due times of
+ * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the time a decision reads
+ * ([me.ahoo.wow.api.decide.DecideScope.now]), which its commit is recorded at, and the due times of
  * the commands the aggregate schedules, are read from it. Advancing the time sends the aggregate the
  * commands it scheduled for itself that are then due, as the runtime would, each with its timer's request id
  * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]). A cron rule steps through its slots as the
@@ -365,21 +366,28 @@ class AggregateSpec<S : Any> private constructor(
     /**
      * Commits [events] as one stream, as if an earlier command had produced them, leaving the aggregate in [scope]
      * (by default the scope it already has, at first none, or the owner its id is of an aggregate whose id is its
-     * owner's).
+     * owner's). The stream is committed at [commitTime], the specification's time by default, in the name of
+     * [operator], none by default: the commit a sourcing function reads ([me.ahoo.wow.api.read.EventStream]).
      */
-    fun given(vararg events: Any, scope: Scope? = null) {
+    fun given(vararg events: Any, scope: Scope? = null, operator: Operator? = null, commitTime: Instant = now) {
         require(events.isNotEmpty()) { "given needs at least one event." }
-        commitGiven(events.map { codec.encode(model, it) }, scope)
+        commitGiven(events.map { codec.encode(model, it) }, scope, operator, commitTime)
     }
 
     /**
-     * Commits [records] as one stream, as the log holds them, leaving the aggregate in [scope] as [given] does: a
-     * history the model's classes can no longer write, such as an event the aggregate retired, whose
-     * record the kernel skips, or a record of an older revision, read through its upgrades.
+     * Commits [records] as one stream, as the log holds them, leaving the aggregate in [scope], in the name of
+     * [operator] at [commitTime] as [given] does: a history the model's classes can no longer write, such as an
+     * event the aggregate retired, whose record the kernel skips, or a record of an older revision, read through
+     * its upgrades.
      */
-    fun givenRecords(vararg records: EventRecord, scope: Scope? = null) {
+    fun givenRecords(
+        vararg records: EventRecord,
+        scope: Scope? = null,
+        operator: Operator? = null,
+        commitTime: Instant = now,
+    ) {
         require(records.isNotEmpty()) { "givenRecords needs at least one record." }
-        commitGiven(records.toList(), scope)
+        commitGiven(records.toList(), scope, operator, commitTime)
     }
 
     /**
@@ -389,7 +397,7 @@ class AggregateSpec<S : Any> private constructor(
     private val unscoped: Scope
         get() = if (model.idSource == AggregateIdSource.OWNER) Scope(ownerId = ref.id) else Scope.NONE
 
-    private fun commitGiven(records: List<EventRecord>, scope: Scope?) {
+    private fun commitGiven(records: List<EventRecord>, scope: Scope?, operator: Operator?, commitTime: Instant) {
         runBlocking {
             val last = log.read(ref).toList().lastOrNull()
             val version = currentVersion() + 1
@@ -399,9 +407,10 @@ class AggregateSpec<S : Any> private constructor(
                 commandId = "given-$version",
                 requestId = "given-$version",
                 commandType = "${model.type}.Given",
-                commitTime = millis,
+                commitTime = commitTime.toEpochMilli(),
                 events = records,
                 scope = scope ?: last?.scope ?: given?.scope ?: unscoped,
+                operator = operator,
             )
             check(log.append(stream) is AppendOutcome.Committed) { "Could not commit the given events." }
         }

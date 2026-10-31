@@ -18,6 +18,18 @@ import java.lang.annotation.Inherited
 /**
  * A sourcing function of an aggregate's state: it applies one event to the state. A function named
  * `onSourcing` needs no annotation.
+ *
+ * It takes the event, and may take the commit the event belongs to second ([me.ahoo.wow.api.read.EventStream]): its
+ * commit time, operator and version, as the log records them. The kernel gives the same commit deciding and
+ * replaying, from the log or from a snapshot's tail, so a state that reads a time reads it from the commit, never
+ * from a clock, and a rebuild reads the same state:
+ *
+ * ```kotlin
+ * fun onSourcing(event: OrderPaid, commit: EventStream) {
+ *     paidAt = commit.commitTime
+ *     paidBy = commit.operator?.id
+ * }
+ * ```
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

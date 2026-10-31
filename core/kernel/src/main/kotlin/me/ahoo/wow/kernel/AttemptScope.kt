@@ -42,6 +42,8 @@ import kotlin.time.Duration
 internal class AttemptScope(
     override val command: Command<*>,
     override val ids: Ids,
+    /** The time of this attempt on the node's clock: what its decision reads, and its stream's commit time. */
+    override val now: Long,
     override val loaded: CachedState,
     private val reservations: ReservationStore?,
     private val reservationTtl: Duration,

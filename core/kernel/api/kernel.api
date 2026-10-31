@@ -27,7 +27,8 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun decider (Ljava/lang/Class;)Lme/ahoo/wow/kernel/DecideFunction;
 	public final fun eventType (Ljava/lang/Class;)Lme/ahoo/wow/kernel/EventType;
 	public final fun eventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
-	public final fun evolve (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun evolve (Ljava/lang/Object;Ljava/lang/Object;Lme/ahoo/wow/api/read/EventStream;)Ljava/lang/Object;
+	public static synthetic fun evolve$default (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/Object;Ljava/lang/Object;Lme/ahoo/wow/api/read/EventStream;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun findCommandType (Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun findCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun findEventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
@@ -37,6 +38,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun getLifecycleCommands ()Ljava/util/Set;
 	public final fun getMountedCommandTypes ()Ljava/util/List;
 	public final fun getOwnership ()Lme/ahoo/wow/api/aggregate/Ownership;
+	public final fun getReadsCommits ()Z
 	public final fun getRetiredEvents ()Ljava/util/Set;
 	public final fun getStateRevision ()I
 	public final fun getStateType ()Ljava/lang/Class;
@@ -49,6 +51,7 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)V
 	public final fun addAggregateId (Ljava/lang/Class;Lkotlin/jvm/functions/Function1;)V
 	public final fun addAlias (Ljava/lang/Class;Ljava/lang/String;)V
+	public final fun addCommitEvolver (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/functions/Function3;)V
 	public final fun addDecider (Ljava/lang/Class;Ljava/lang/String;Lme/ahoo/wow/kernel/DecideFunction;)V
 	public final fun addEvolver (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/functions/Function2;)V
 	public final fun addMounted (Ljava/lang/Class;Ljava/lang/String;)V
