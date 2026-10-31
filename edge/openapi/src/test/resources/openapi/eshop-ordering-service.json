@@ -1,6 +1,5 @@
 {
   "openapi" : "3.1.0",
-  "jsonSchemaDialect" : "https://json-schema.org/draft/2020-12/schema",
   "info" : {
     "title" : "eshop-ordering-service",
     "version" : "unversioned",

@@ -31,8 +31,8 @@ import io.swagger.v3.oas.models.SpecVersion
  *   description.
  * - **Info**: the Wow document's (the service's name and version) when the application's is springdoc's default.
  *
- * The Wow document is OpenAPI 3.1 (its schemas are JSON Schema 2020-12): a springdoc document of another version is a
- * conflict too.
+ * The Wow document is OpenAPI 3.1 (its schemas are JSON Schema 2020-12, read in OpenAPI's default dialect, which it
+ * declares none of): a springdoc document of another version is a conflict too.
  */
 internal object SpringdocMerge {
     /** springdoc's title of a document whose application gives none. */
@@ -57,9 +57,6 @@ internal object SpringdocMerge {
         wow.security.orEmpty().filter { it !in target.security.orEmpty() }.forEach(target::addSecurityItem)
         if (target.info == null || target.info.title == SPRINGDOC_DEFAULT_TITLE) {
             target.info = wow.info
-        }
-        if (target.jsonSchemaDialect == null) {
-            target.jsonSchemaDialect = wow.jsonSchemaDialect
         }
     }
 
