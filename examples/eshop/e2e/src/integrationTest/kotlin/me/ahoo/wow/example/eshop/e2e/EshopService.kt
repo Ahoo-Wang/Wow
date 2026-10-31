@@ -80,7 +80,9 @@ class EshopService private constructor(
         .build()
 
     fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = send(
-        HttpRequest.newBuilder(uri(path)).GET().also { request -> headers.forEach { (name, value) -> request.header(name, value) } },
+        HttpRequest.newBuilder(
+            uri(path)
+        ).GET().also { request -> headers.forEach { (name, value) -> request.header(name, value) } },
     )
 
     fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = send(
@@ -171,7 +173,15 @@ class EshopService private constructor(
             var attempt = 1
             while (true) {
                 try {
-                    return startOnce(context, mainClass, arguments, jvmArguments, publicPort, internalPort, readyHeaders)
+                    return startOnce(
+                        context,
+                        mainClass,
+                        arguments,
+                        jvmArguments,
+                        publicPort,
+                        internalPort,
+                        readyHeaders
+                    )
                 } catch (taken: PortTakenException) {
                     if (attempt == BIND_ATTEMPTS) throw taken
                     attempt++
@@ -189,7 +199,9 @@ class EshopService private constructor(
             readyHeaders: Map<String, String>,
         ): EshopService {
             // The build writes each server's class path to a file of `eshop.servers` (eshopServerClasspaths).
-            val servers = requireNotNull(System.getProperty("eshop.servers")) { "System property eshop.servers is not set." }
+            val servers = requireNotNull(
+                System.getProperty("eshop.servers")
+            ) { "System property eshop.servers is not set." }
             val server = File(servers, "$context.classpath").readText()
             // The soak adds its own classes (SoakSignals, an auto-configuration) to every node's class path.
             val classpath = System.getProperty("eshop.extra-classpath")?.let { server + File.pathSeparator + it } ?: server

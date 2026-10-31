@@ -28,9 +28,9 @@ import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
-import org.junit.jupiter.api.Test
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
+import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
@@ -48,11 +48,19 @@ class EshopSharedJvmTest {
             // The checkout saga calls the ordering (decision D259): the node checks it has its address, which no
             // checkout here uses.
             val ordering = mapOf("wow.peers.eshop-ordering.url" to "http://127.0.0.1:$UNUSED_PORT")
-            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java, properties = ordering).use { basket ->
+            start(
+                BasketServer::class.java,
+                "basket",
+                InMemoryTopicsBeans::class.java,
+                properties = ordering
+            ).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")
 
-                val product = catalog.http.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
+                val product = catalog.http.post(
+                    "/eshop-catalog/product/create-product",
+                    """{"name":"Wow mug","price":8.50}"""
+                )
                 product.status.assert().describedAs(product.text).isEqualTo(OK)
                 // The basket does not serve the catalog's routes.
                 basket.http.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
@@ -90,7 +98,10 @@ class EshopSharedJvmTest {
                     inventory.contexts().assert().containsExactly("eshop-inventory")
                     ordering.contexts().assert().containsExactly("eshop-ordering")
                     payment.contexts().assert().containsExactly("eshop-payment")
-                    val received = inventory.http.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
+                    val received = inventory.http.post(
+                        "/eshop-inventory/stock/mug/receive-stock",
+                        """{"quantity":10}"""
+                    )
                     received.status.assert().describedAs(received.text).isEqualTo(OK)
                 }
             }

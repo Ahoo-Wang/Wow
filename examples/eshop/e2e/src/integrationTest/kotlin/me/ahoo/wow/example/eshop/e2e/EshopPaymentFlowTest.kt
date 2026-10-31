@@ -62,11 +62,21 @@ class EshopPaymentFlowTest {
 
     init {
         listOf(INVENTORY_DATABASE, PAYMENT_DATABASE).forEach { database ->
-            postgres.execInContainer("psql", "-U", postgres.username, "-d", ORDERING_DATABASE, "-c", "CREATE DATABASE $database")
+            postgres.execInContainer(
+                "psql",
+                "-U",
+                postgres.username,
+                "-d",
+                ORDERING_DATABASE,
+                "-c",
+                "CREATE DATABASE $database"
+            )
                 .exitCode.assert().isEqualTo(0)
         }
         // The node does not create topics; each command topic has as many partitions as its context's log.
-        Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)).use { admin ->
+        Admin.create(
+            mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+        ).use { admin ->
             admin.createTopics(
                 listOf(
                     NewTopic("wow.eshop-ordering.commands", PARTITIONS, 1),
@@ -119,7 +129,10 @@ class EshopPaymentFlowTest {
     fun `a payment the gateway approves should pay the order`() {
         receive("mug", 10)
         receive("cap", 5)
-        submit("alice-1", """{"productId":"mug","unitPrice":8.50,"quantity":2},{"productId":"cap","unitPrice":12.00,"quantity":1}""")
+        submit(
+            "alice-1",
+            """{"productId":"mug","unitPrice":8.50,"quantity":2},{"productId":"cap","unitPrice":12.00,"quantity":1}"""
+        )
 
         eventually("alice-1 paid") { orderStatus("alice-1") == "PAID" }
         order("alice-1")["paymentId"].asString().assert().isEqualTo("alice-1")
@@ -176,9 +189,13 @@ class EshopPaymentFlowTest {
         return json.readTree(answer.body)["state"]
     }
 
-    private fun order(id: String): JsonNode = checkNotNull(ordering.state("/eshop-ordering/order/$id/state")) { "No order $id." }
+    private fun order(id: String): JsonNode = checkNotNull(ordering.state("/eshop-ordering/order/$id/state")) {
+        "No order $id."
+    }
 
-    private fun orderStatus(id: String): String? = ordering.state("/eshop-ordering/order/$id/state")?.get("status")?.asString()
+    private fun orderStatus(id: String): String? = ordering.state(
+        "/eshop-ordering/order/$id/state"
+    )?.get("status")?.asString()
 
     private fun payment(id: String): JsonNode =
         checkNotNull(payment.state("/eshop-payment/payment/$id/state")) { "No payment $id." }

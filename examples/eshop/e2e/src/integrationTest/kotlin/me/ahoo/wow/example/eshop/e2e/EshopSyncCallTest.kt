@@ -20,15 +20,15 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
-import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
@@ -74,12 +74,14 @@ class EshopSyncCallTest {
                 val result = checkedOut.body!!
                 result["hop"]["context"].asString().assert().isEqualTo(ORDERING)
                 result["hop"]["stage"].asString().assert().isEqualTo("committed")
-                result["ref"]["id"].asString().assert().isEqualTo("alice-1")
+                // The ordering numbered the order: the number is the order's id.
+                val number = result["ref"]["id"].asString()
+                number.assert().matches(ORDER_NUMBER.toPattern())
 
                 // The state read is the snapshot's, written after the COMMITTED answer.
-                eventually("alice-1 submitted") { ordering.ownerOf("alice-1") != null }
-                ordering.ownerOf("alice-1").assert().isEqualTo("alice")
-                val submitted = ordering.submitCommits("alice-1").single()
+                eventually("$number submitted") { ordering.ownerOf(number) != null }
+                ordering.ownerOf(number).assert().isEqualTo("alice")
+                val submitted = ordering.submitCommits(number).single()
                 submitted["operator"]["id"].asString().assert().isEqualTo("alice")
             }
         }
@@ -104,14 +106,17 @@ class EshopSyncCallTest {
             ordering(port).use { ordering ->
                 val retried = basket.post("$parked/retry", """{"reason":"The ordering is back."}""", emptyMap())
                 retried.status.assert().describedAs(retried.text).isEqualTo(OK)
-                eventually("bob-1 submitted") { ordering.ownerOf("bob-1") != null }
-                ordering.ownerOf("bob-1").assert().isEqualTo("bob")
+                // The checkout waited for the basket's commit alone, so its answer named no order: bob's order is the
+                // ordering's one order that bob owns.
+                eventually("bob's order submitted") { ordering.ordersOf("bob").isNotEmpty() }
+                val number = ordering.ordersOf("bob").single()
+                ordering.ownerOf(number).assert().isEqualTo("bob")
                 eventually("the basket retried") { basket.get(parked).status == NOT_FOUND }
 
-                // The saga's call again (a replay of the checkout's commit, version 2) is the same request: the
-                // ordering answers it with the same order, which it does not submit twice.
+                // The saga's call again (a replay of the checkout's commit, version 2) is the same request, naming no
+                // order: the ordering answers it with the same order and number, which it does not submit twice.
                 val replay = ordering.call(
-                    "/eshop-ordering/order/bob-1/submit-order",
+                    "/eshop-ordering/order/submit-order",
                     ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "bob"), 2),
                     Scope(ownerId = "bob"),
                     SERVICE,
@@ -119,8 +124,8 @@ class EshopSyncCallTest {
                 replay.status.assert().describedAs(replay.text).isEqualTo(OK)
                 val again = replay.body!!
                 again["duplicate"].asBoolean().assert().isTrue()
-                again["ref"]["id"].asString().assert().isEqualTo("bob-1")
-                ordering.submitCommits("bob-1").assert().hasSize(1)
+                again["ref"]["id"].asString().assert().isEqualTo(number)
+                ordering.submitCommits(number).assert().hasSize(1)
             }
         }
     }
@@ -206,6 +211,17 @@ class EshopSyncCallTest {
             return view.body!!["ownerId"]?.takeUnless { it.isNull }?.asString()
         }
 
+        /** The ids of the orders [owner] owns, as an employee's snapshot query of the ordering finds them. */
+        fun ordersOf(owner: String): List<String> {
+            val found = post(
+                "/eshop-ordering/order/snapshot/query",
+                """{"kind":"list","filter":{"op":"owner-id","value":"$owner"}}""",
+                EshopStack.EMPLOYEE,
+            )
+            check(found.status == OK) { "The orders of $owner answered $found" }
+            return found.body!!.values().map { it["aggregateId"].asString() }
+        }
+
         /** The commits of the order [id] that submitted it. */
         fun submitCommits(id: String): List<JsonNode> {
             val trace = get("/eshop-ordering/order/$id/state/trace", EshopStack.EMPLOYEE)
@@ -217,7 +233,8 @@ class EshopSyncCallTest {
 
         /**
          * The call the checkout saga's [execution] makes, the submission of the order [path] names, sent to [path] of
-         * the internal port (the public one unless [internal]) naming [service] and with [headers].
+         * the internal port (the public one unless [internal]) naming [service] and with [headers]. A [path] that names
+         * no order, as the saga's call does, submits a new one, whose number the ordering gives.
          */
         fun call(
             path: String,
@@ -227,8 +244,13 @@ class EshopSyncCallTest {
             headers: Map<String, String> = emptyMap(),
             internal: Boolean = true,
         ): Answer {
-            // `/eshop-ordering/order/{id}/submit-order`
-            val order = EshopOrderingContract.Order.TYPE.ref(Caller.DEFAULT_TENANT, path.split('/')[3])
+            // `/eshop-ordering/order/{id}/submit-order`, or `/eshop-ordering/order/submit-order` for a new order
+            val segments = path.trim('/').split('/')
+            val order = if (segments.size > NEW_ORDER_SEGMENTS) {
+                EshopOrderingContract.Order.TYPE.ref(Caller.DEFAULT_TENANT, segments[2])
+            } else {
+                EshopOrderingContract.Order.TYPE.unassigned(Caller.DEFAULT_TENANT)
+            }
             val id = ExecutionSagaContext.derivedId(execution, order, SubmitOrder::class.java)
             val call = CallContext.of(
                 commandId = id,
@@ -282,6 +304,9 @@ class EshopSyncCallTest {
         /** The checkout saga as the configuration and the operator's routes name it: `<context>.<name>`. */
         const val CHECKOUT_KEY = "eshop-basket.$CHECKOUT_SAGA"
         const val CHECKOUT_TO_ORDER = EshopStack.CHECKOUT_TO_ORDER
+
+        /** The segments of `eshop-ordering/order/submit-order`, a submission that names no order. */
+        const val NEW_ORDER_SEGMENTS = 3
 
         /** The basket service's name, which it states on the ordering's internal port. */
         const val SERVICE: String = "eshop-basket-service"

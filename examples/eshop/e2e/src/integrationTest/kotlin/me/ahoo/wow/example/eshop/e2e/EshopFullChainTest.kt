@@ -35,9 +35,10 @@ import java.time.Duration
  *   commit as the hop that will not come, answered at once and as server-sent events alike.
  * - **Rejection.** A stock too short cancels the order (the receipt's `@OnRejected`), and no payment is requested.
  * - **Sales.** The sales dataset over the ClickHouse view of the order stream: the revenue by status and by day.
- * - **Node killed.** The ordering node owning the order's partition is killed (`SIGKILL`) right after a checkout,
- *   before the payment is requested, and a node of another id started in its place; the order completes with every
- *   effect once. The test logs how long the order's partition took no command, the lease's TTL included.
+ * - **Node killed.** The ordering node owning the order's partition is killed (`SIGKILL`) as soon as the checkout
+ *   answers the order's number, mid-way through the order process, and a node of another id started in its place;
+ *   the order completes with every effect once. The test logs how long the order's partition took no command, the
+ *   lease's TTL included.
  *
  * The orders are read back from the ordering's state routes, which serve the snapshots: they trail the commits, so
  * every read of a state the flow is still changing is awaited.
@@ -46,6 +47,9 @@ import java.time.Duration
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class EshopFullChainTest {
     private val stack = EshopStack(orderingNodes = 2)
+
+    /** The number of each buyer's order, as its checkout answered it: the ordering numbers the orders. */
+    private val numbers = mutableMapOf<String, String>()
 
     @AfterAll
     fun close() {
@@ -69,25 +73,28 @@ class EshopFullChainTest {
         checkedOut["hop"]["stage"].asString().assert().isEqualTo("committed")
         checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
         checkedOut["function"]["name"].asString().assert().isEqualTo("PayOrder")
-        checkedOut["ref"]["id"].asString().assert().isEqualTo("alice-1")
+        // The ordering numbered the order: the number is the order's id.
+        val number = checkedOut["ref"]["id"].asString()
+        number.assert().matches(ORDER_NUMBER.toPattern())
+        numbers["alice"] = number
         basketItems("alice").assert().isEmpty()
 
-        stack.eventually("alice-1 paid") { stack.orderStatus("alice-1") == "PAID" }
+        stack.eventually("$number paid") { stack.orderStatus(number) == "PAID" }
         // The order and its payment belong to the buyer (decision D189): each saga's command carried the scope on.
-        stack.ownerOf(stack.anyOrdering, "/eshop-ordering/order/alice-1/state").assert().isEqualTo("alice")
-        stack.ownerOf(stack.payment, "/eshop-payment/payment/alice-1/state").assert().isEqualTo("alice")
+        stack.ownerOf(stack.anyOrdering, "/eshop-ordering/order/$number/state").assert().isEqualTo("alice")
+        stack.ownerOf(stack.payment, "/eshop-payment/payment/$number/state").assert().isEqualTo("alice")
         // The stock belongs to the tenant: the reservations made for alice took no owner.
         stack.ownerOf(stack.inventory, "/eshop-inventory/stock/mug/state").assert().isNull()
-        val paid = checkNotNull(stack.payment("alice-1"))
+        val paid = checkNotNull(stack.payment(number))
         paid["status"].asString().assert().isEqualTo("SUCCEEDED")
         paid["amount"].decimalValue().assert().isEqualByComparingTo("29.00")
-        ship("alice-1")
-        stack.eventually("the reservations of alice-1 committed") {
-            stack.stock("mug")["reservations"]["alice-1"] == null && stack.stock("cap")["reservations"]["alice-1"] == null
+        ship(number)
+        stack.eventually("the reservations of $number committed") {
+            stack.stock("mug")["reservations"][number] == null && stack.stock("cap")["reservations"][number] == null
         }
         stack.stock("mug")["onHand"].asInt().assert().isEqualTo(8)
         stack.stock("cap")["onHand"].asInt().assert().isEqualTo(4)
-        orderEvents("alice-1").assert().containsExactly(
+        orderEvents(number).assert().containsExactly(
             "OrderSubmitted",
             "OrderAwaitingValidation",
             "OrderStockItemConfirmed",
@@ -111,8 +118,11 @@ class EshopFullChainTest {
         // Over the gateway's limit: the payment fails, onPaymentSucceeded sends nothing, onPaymentFailed cancels.
         val ended = checkout("erin", mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s"))
         ended.assertEndedAtThePaymentSaga()
-        stack.eventually("erin-1 cancelled") { stack.orderStatus("erin-1") == "CANCELLED" }
-        checkNotNull(stack.payment("erin-1"))["status"].asString().assert().isEqualTo("FAILED")
+        // The payment saga's hop names the payment, whose id is its order's number.
+        val number = ended["ref"]["id"].asString()
+        number.assert().matches(ORDER_NUMBER.toPattern())
+        stack.eventually("$number cancelled") { stack.orderStatus(number) == "CANCELLED" }
+        checkNotNull(stack.payment(number))["status"].asString().assert().isEqualTo("FAILED")
 
         // As server-sent events: one per hop reached, the last of them the chain's end, then the stream closes.
         val streamed = stack.basket.post(
@@ -127,7 +137,13 @@ class EshopFullChainTest {
         events.assert().describedAs(streamed.body).hasSize(FULL_CHAIN_HOPS - 1)
         events.dropLast(1).map { it["chainEnded"].asBoolean() }.assert().doesNotContain(true)
         events.last().assertEndedAtThePaymentSaga()
-        stack.eventually("frank-1 cancelled") { stack.orderStatus("frank-1") == "CANCELLED" }
+        // The order's commit in the ordering context names it by its number.
+        val submitted = events.single {
+            it["hop"]["context"].asString() == "eshop-ordering" && it["function"]["name"].asString() == "SubmitOrder"
+        }
+        val frank = submitted["ref"]["id"].asString()
+        frank.assert().matches(ORDER_NUMBER.toPattern()).isNotEqualTo(number)
+        stack.eventually("$frank cancelled") { stack.orderStatus(frank) == "CANCELLED" }
     }
 
     /**
@@ -152,23 +168,33 @@ class EshopFullChainTest {
         product("pen", "Wow pen", "2.00")
         receive("pen", 1)
         addItem("bob", "pen", price("pen"), 3)
-        checkout("bob")
+        val number = checkout("bob", mapOf(WAIT to TO_ORDERING, WAIT_TIMEOUT to "30s"))["ref"]["id"].asString()
+        numbers["bob"] = number
 
-        stack.eventually("bob-1 cancelled") { stack.orderStatus("bob-1") == "CANCELLED" }
-        checkNotNull(stack.order("bob-1"))["cancelReason"].asString().assert().contains("pen")
+        stack.eventually("$number cancelled") { stack.orderStatus(number) == "CANCELLED" }
+        checkNotNull(stack.order(number))["cancelReason"].asString().assert().contains("pen")
         stack.stock("pen")["available"].asInt().assert().isEqualTo(1)
-        stack.payment("bob-1").assert().isNull()
+        stack.payment(number).assert().isNull()
     }
 
     @Test
     @Order(4)
     fun `the sales dataset should sum the revenue of the orders by status and by day`() {
-        val byStatus = """{"kind":"aggregate","filter":{"op":"in","field":"aggregate_id","values":["alice-1","bob-1"]},""" +
+        val orders = listOf("alice", "bob").joinToString(",") { "\"${numbers.getValue(it)}\"" }
+        val byStatus = """{"kind":"aggregate","filter":{"op":"in","field":"aggregate_id","values":[$orders]},""" +
             """"groupBy":[{"type":"terms","field":"status","alias":"status"}],""" +
             """"metrics":[{"type":"count","alias":"orders"},$REVENUE],"sort":[{"field":"status","direction":"asc"}]}"""
         // The Sink writes behind the commits: wait until both orders are in their last state.
-        val rows = awaitSales(byStatus) { rows -> rows.map { it["status"].asString() } == listOf("CANCELLED", "SHIPPED") }
-        rows.map { Triple(it["status"].asString(), it["orders"].asLong(), it["revenue"].decimalValue().stripTrailingZeros()) }
+        val rows = awaitSales(
+            byStatus
+        ) { rows -> rows.map { it["status"].asString() } == listOf("CANCELLED", "SHIPPED") }
+        rows.map {
+            Triple(
+                it["status"].asString(),
+                it["orders"].asLong(),
+                it["revenue"].decimalValue().stripTrailingZeros()
+            )
+        }
             .assert().containsExactly(
                 Triple("CANCELLED", 1L, "6".toBigDecimal()),
                 Triple("SHIPPED", 1L, "29".toBigDecimal()),
@@ -188,22 +214,18 @@ class EshopFullChainTest {
         product("kite", "Wow kite", "20.00")
         receive("kite", 10)
         addItem("carol", "kite", price("kite"), 2)
-        val partition = stack.orderPartition("carol-1")
-        val owner = awaitOwner(partition)
-        val probe = probesOn(partition).first()
-        // The order process's subscriptions save their starting checkpoints in the partition as they start, 0 in a
-        // partition without an order yet (G33), so the next owner does not start at a later end.
-        stack.eventually("the order process's checkpoints in partition $partition") {
-            stack.checkpointed(EshopStack.ORDERING_DATABASE, "OrderProcessSaga.", partition) == ORDER_PROCESS_HANDLERS
-        }
+        awaitOrderProcessCheckpoints()
 
         val checkedOut = checkout("carol", mapOf(WAIT to TO_ORDERING, WAIT_TIMEOUT to "30s"))
         checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("succeeded")
+        val number = checkedOut["ref"]["id"].asString()
+        val partition = stack.orderPartition(number)
+        val owner = awaitOwner(partition)
+        val probe = probesOn(partition).first()
+        // Killed as soon as the checkout answered, while the order process goes on.
         val killed = checkNotNull(stack.ordering.remove(owner))
         killed.kill()
         val killedAt = System.nanoTime()
-        // Killed before the order's stock was confirmed: no payment was requested.
-        stack.payment("carol-1").assert().isNull()
 
         // On the killed node's internal port: the basket calls the ordering there (decision D193).
         val replacement = stack.startOrdering(REPLACEMENT, killed.internalPort)
@@ -212,7 +234,11 @@ class EshopFullChainTest {
         // A node that does not hold a partition's lease runs its commands itself (D71), so the partition takes a
         // command again as soon as a node serves; its subscriptions, the order process's, wait for the lease.
         val answers = mutableListOf<String>()
-        stack.eventually("a command of partition $partition taken", TAKEOVER_BOUND, { "Answers: ${answers.distinct()}" }) {
+        stack.eventually(
+            "a command of partition $partition taken",
+            TAKEOVER_BOUND,
+            { "Answers: ${answers.distinct()}" }
+        ) {
             submitProbe(replacement, probe, answers)
         }
         val commands = since(killedAt)
@@ -222,27 +248,27 @@ class EshopFullChainTest {
             successor != null && successor != owner
         }
         val lease = since(killedAt)
-        stack.eventually("carol-1 paid after the kill", TAKEOVER_BOUND, { "carol-1: ${stack.order("carol-1")}" }) {
-            stack.orderStatus("carol-1") == "PAID"
+        stack.eventually("$number paid after the kill", TAKEOVER_BOUND, { "$number: ${stack.order(number)}" }) {
+            stack.orderStatus(number) == "PAID"
         }
         val paid = since(killedAt)
         println(
             "[eshop-e2e] $owner killed: $REPLACEMENT served after ${started.toMillis()} ms, partition $partition took a " +
                 "command after ${commands.toMillis()} ms, its lease ($successor) after ${lease.toMillis()} ms, and " +
-                "carol-1 was paid after ${paid.toMillis()} ms.",
+                "$number was paid after ${paid.toMillis()} ms.",
         )
         lease.assert().isLessThan(TAKEOVER_BOUND)
 
-        ship("carol-1")
-        stack.eventually("the reservation of carol-1 committed") {
-            stack.stock("kite")["reservations"]["carol-1"] == null
+        ship(number)
+        stack.eventually("the reservation of $number committed") {
+            stack.stock("kite")["reservations"][number] == null
         }
         // One order, one payment, the stock reserved and taken once.
         stack.stock("kite")["onHand"].asInt().assert().isEqualTo(8)
         stack.stock("kite")["available"].asInt().assert().isEqualTo(8)
         stack.events(stack.inventory, "/eshop-inventory/stock/kite").map(::simpleName)
             .assert().containsExactly("StockReceived", "StockReserved", "ReservationCommitted")
-        orderEvents("carol-1").assert().containsExactly(
+        orderEvents(number).assert().containsExactly(
             "OrderSubmitted",
             "OrderAwaitingValidation",
             "OrderStockItemConfirmed",
@@ -252,9 +278,9 @@ class EshopFullChainTest {
             "ScheduleCancelled",
             "OrderShipped",
         )
-        stack.events(stack.payment, "/eshop-payment/payment/carol-1").map(::simpleName)
+        stack.events(stack.payment, "/eshop-payment/payment/$number").map(::simpleName)
             .assert().containsExactly("PaymentRequested", "PaymentSucceeded")
-        checkNotNull(stack.payment("carol-1"))["amount"].decimalValue().assert().isEqualByComparingTo("40.00")
+        checkNotNull(stack.payment(number))["amount"].decimalValue().assert().isEqualByComparingTo("40.00")
         // The probe is cancelled as well: its product has no stock.
         stack.eventually("the probe $probe cancelled") { stack.orderStatus(probe) == "CANCELLED" }
     }
@@ -263,7 +289,11 @@ class EshopFullChainTest {
      * Submits the order [id] of a product the inventory has no stock of, which the order process then cancels;
      * whether [service] committed it. A try that failed late may have committed it, which the next one finds.
      */
-    private fun submitProbe(service: EshopService, id: String, answers: MutableList<String> = mutableListOf()): Boolean {
+    private fun submitProbe(
+        service: EshopService,
+        id: String,
+        answers: MutableList<String> = mutableListOf()
+    ): Boolean {
         val submitted = service.post(
             "/eshop-ordering/order/$id/submit-order",
             """{"items":[{"productId":"none","unitPrice":1.00,"quantity":1}]}""",
@@ -275,7 +305,6 @@ class EshopFullChainTest {
     }
 
     private fun since(start: Long): Duration = Duration.ofNanos(System.nanoTime() - start)
-
 
     private fun product(id: String, name: String, price: String) {
         // An employee files the catalog. The brand and the category exist after the first product: their second
@@ -294,13 +323,18 @@ class EshopFullChainTest {
 
     /** The price of [product], as a buyer reads it from the catalog: a product belongs to the tenant (D189). */
     private fun price(product: String): String {
-        val state = checkNotNull(stack.state(stack.catalog, "/eshop-catalog/product/$product/state", EshopStack.buyer("dave")))
+        val state = checkNotNull(
+            stack.state(stack.catalog, "/eshop-catalog/product/$product/state", EshopStack.buyer("dave"))
+        )
         state["status"].asString().assert().isEqualTo("PUBLISHED")
         return state["price"].decimalValue().toPlainString()
     }
 
     private fun receive(product: String, quantity: Int) {
-        val received = stack.inventory.post("/eshop-inventory/stock/$product/receive-stock", """{"quantity":$quantity}""")
+        val received = stack.inventory.post(
+            "/eshop-inventory/stock/$product/receive-stock",
+            """{"quantity":$quantity}"""
+        )
         received.status.assert().describedAs(received.body).isEqualTo(OK)
     }
 
@@ -314,7 +348,11 @@ class EshopFullChainTest {
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = stack.basket.post("/eshop-basket/basket/checkout-basket", "{}", headers + EshopStack.buyer(buyer))
+        val checkedOut = stack.basket.post(
+            "/eshop-basket/basket/checkout-basket",
+            "{}",
+            headers + EshopStack.buyer(buyer)
+        )
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }
@@ -331,6 +369,19 @@ class EshopFullChainTest {
         stack.events(stack.anyOrdering, "/eshop-ordering/order/$order").map(::simpleName)
 
     private fun simpleName(event: String): String = event.substringAfterLast('.')
+
+    /**
+     * Awaits the order process's starting checkpoints in every partition: its subscriptions save them as they start, 0
+     * in a partition without an order yet (G33), so the next owner of a partition does not start at a later end. An
+     * order's partition is known only once the ordering has numbered it, so every partition is awaited.
+     */
+    private fun awaitOrderProcessCheckpoints() {
+        stack.eventually("the order process's checkpoints in every partition") {
+            (0 until EshopStack.PARTITIONS).all {
+                stack.checkpointed(EshopStack.ORDERING_DATABASE, "OrderProcessSaga.", it) == ORDER_PROCESS_HANDLERS
+            }
+        }
+    }
 
     /** The node holding [partition]'s lease, once one does. */
     private fun awaitOwner(partition: Int): String {
