@@ -18,6 +18,7 @@ A Wow service is a Spring Boot application that runs as one or more nodes. Its n
 | [Kafka](./kafka) | When a service needs Kafka, its topics, durable command intake |
 | [Secure a Deployment](./security) | Callers, authorization, the internal port, personal data, tenants |
 | [The Ops Service and Console](./ops-console) | The parked aggregates of every service in one place |
+| [The Analytics Catalog Console](./analytics-catalog-console) | Review the warehouse's sources, publish datasets, approve, and act on a dataset's rows |
 
 ## Before production
 

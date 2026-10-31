@@ -9,7 +9,7 @@ Everything that reacts to a commit is a subscription: the snapshots, your projec
 
 ## One handler, one subscription
 
-A subscription is a name, a filter and **one** handler function. A processor class with three handlers becomes three subscriptions, named `Processor.function`, each with its own checkpoint.
+A subscription is a name, a filter and **one** handler function. A processor class with three handlers becomes three subscriptions, named `Processor.function`, each with its own checkpoint. With its context, the name is the subscription's identity, `<context>.<processor.function>`: its checkpoint, its parked entries and its settings (`wow.subscriptions.[<context>.<processor.function>].*`) are kept under it, so renaming a processor or a handler makes a new subscription ([below](#renaming-and-rewinding)).
 
 The reason is replay. If one checkpoint covered several functions and one of them failed, replaying would run the others again, and their effects would happen twice. One checkpoint per function means a replay repeats only the function that needs it. Because subscriptions share their reads of the log (below), an extra subscription costs almost nothing.
 
@@ -53,7 +53,7 @@ When a handler fails, Wow does not skip the entry and does not stop the subscrip
 1. The handler's call is retried within its retry budget: five attempts, with backoff, unless the handler or the configuration says otherwise.
 2. When the budget is spent, the subscription parks the aggregate: it records in the failure ledger the subscription, the aggregate, the version it stopped at and the reason. Other aggregates go on. The checkpoint moves past this aggregate's later entries without copying them anywhere.
 3. A parked aggregate is retried automatically, with backoff that doubles each time, starting at minutes. When these retries are exhausted, it waits for an operator.
-4. An operator resumes or skips it. Resuming reads the aggregate's stream from the log, starting at the version it stopped at, so the ledger holds one record per parked aggregate, however much was written meanwhile.
+4. An operator retries or skips it. A retry reads the aggregate's stream from the log, starting at the version it stopped at, so the ledger holds one record per parked aggregate, however much was written meanwhile.
 
 The failure ledger lives in the storage of the service that failed, because parking must be as reliable as the checkpoint it sits beside. The ops service collects the ledgers of all services into one place and is where operators act on them.
 
@@ -77,7 +77,20 @@ Because each subscription has a checkpoint, every read model can be rebuilt:
 - **Rebuild the snapshots**: raising an aggregate's state revision, or a rebuild request, rewrites its snapshots from the log.
 - **Rebuild side by side**: deploy the new version of a projection under a new subscription name, let it read from the start until it has caught up, switch the reads to it, and remove the old one. A changed read model needs no migration script.
 
-A new subscription starts where its kind needs it to. A projection starts at the beginning of the log, so it fills in the history. A saga or a reactor starts at the end, so going live does not send commands or effects for the past. A subscription to another context's published stream starts at the beginning. A handler can declare where it starts, and configuration overrides that, either way only for a subscription that has no checkpoint yet.
+A new subscription starts where its kind needs it to:
+
+- **A projection** starts at the beginning, of its own log or of another context's stream, so it fills in the history.
+- **A saga or a reactor of its own context's log** starts at the end, so going live does not send commands or effects for the past.
+- **A saga's or a reactor's handler of another context's stream** starts where its service joins the stream: at the beginning when no other subscription of the service has read that stream yet, so a service that joins later still gets what was published before; at the end when one has, so a handler added to a service that already reads the stream does not act on its history again. The Manifest writes this start as `JOIN`.
+
+A handler can declare where it starts (`@OnEvent(start = ...)`, `BEGINNING` or `END`), and `wow.subscriptions.[<context>.<processor.function>].start` overrides that, with `beginning`, `end` or an instant. Either way it applies only to a subscription that has no checkpoint yet in a partition: one that has goes on from it.
+
+## Renaming and rewinding
+
+- **A renamed handler is a new subscription.** It has no checkpoint, so it starts by the rule above: a saga or a reactor at the end, so it reads nothing it missed while it was renamed, a projection at the beginning. The old name's checkpoint and parked entries stay, and nothing reads them again.
+- **To keep the position, keep the name**: pin the renamed processor or handler to its old name with `@Name`. There is no alias.
+- **Each node warns at its first start** of the checkpoints it finds under names it has no subscription of, naming them with their positions and parked entries, so a rename that was not meant to restart a subscription is caught before it matters.
+- **A new name is the only rewind.** A checkpoint only moves forward. To read a stream again from an earlier point, deploy the handler under a new name with the start you want; a saga or a reactor then sends its commands and effects again for what it reads ([The Ops Service and Console](../operate/ops-console#rename-and-rewind)).
 
 Snapshots are rebuilt the same way, from the log. [Read models](./read-models#snapshots-are-a-cache) explains when.
 

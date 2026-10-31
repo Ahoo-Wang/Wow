@@ -42,15 +42,19 @@ outline: deep
 | `wow.auth.forbidden`（403） | 授权器拒绝调用方执行这条命令 | 检查调用方的角色或策略 |
 | `wow.call.command-forbidden`（403） | 某个服务调用了它在 `wow.callers` 下的那一项没有列出的命令 | 在目标服务上为这个服务列出这条命令 |
 | `wow.storage.unavailable`（503） | 访问不到某个存储 | 检查数据库；用同一个请求 ID 重试 |
-| `wow.node.standby`（503） | 节点正为迁移切换处于待机 | 在切换时恢复它（[部署模型](./topology#standby-for-a-migrations-cut-over)） |
+| `wow.node.standby`（503） | 节点正为迁移切换处于待机 | 在切换时激活它（[部署模型](./topology#standby-for-a-migrations-cut-over)） |
 
 ## 订阅停放聚合 {#a-subscription-parks-aggregates}
 
 `wow.subscription.parked.aggregates` 大于零，ops 控制台会列出这些聚合。每个条目都带着错误，以及订阅停下时的版本。
 
 - 先修复原因：部署修正后的处理函数，或者让它调用的外部系统恢复。
-- 然后恢复这些聚合：订阅从每个聚合停下的地方重新读取它的流（[ops 服务与控制台](./ops-console)）。
+- 然后重试这些聚合：订阅从每个聚合停下的地方重新读取它的流（[ops 服务与控制台](./ops-console)）。
 - Saga 发出的命令被拒绝，只有在 Saga 没有对应的 `@OnRejected` 处理函数时才会停放聚合（[失败与重试](../guide/failures)）。
+
+## 部署之后订阅重新开始了 {#a-subscription-starts-over-after-a-deploy}
+
+发布之后，Saga 或反应器跳过了事件，或者投影从头重建，而节点启动时记录了某个订阅组 `has checkpoints of subscriptions it no longer has`。某个处理器或处理函数改了名，或移到了另一个上下文：它的名字就是它的身份，所以它是一个新订阅，按新订阅的方式开始。用 `@Name` 钉住旧名字再部署一次；订阅就会从旧的检查点继续（[改名与回卷](./ops-console#rename-and-rewind)）。新名字在此期间处理过的内容仍算已处理。
 
 ## 订阅对每个聚合都停下了 {#a-subscription-stops-for-every-aggregate}
 
@@ -79,3 +83,5 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 ## 查询被拒绝或很慢 {#queries-are-refused-or-slow}
 
 `wow.query.busy`（429）表示达到了存储的查询上限；存储的追加处于压力之下时，这个上限会自适应地降低。`wow.query.timeout`（504）表示查询运行的时间超出了它的预算：收窄它，而不是再运行一次。给查询一个单独的连接池或只读副本（[PostgreSQL](./postgresql#size-the-pools)）。
+
+按版本或时刻读取状态、或读取轨迹时，返回 `wow.query.invalid`（400）且 violation 为 `replay-too-long`，表示要读的状态离得比 `wow.query.state.max-replay`（10,000）允许的提交数更远：较旧的状态要从第一个版本开始重放。改经事件查询读取聚合的事件，它没有这个上限；或者，如果部署需要读到那么早的状态，就调高上限（[读取状态](../guide/reading-state#replaying-is-bounded)）。

@@ -12,7 +12,7 @@ The log is the only fact. Snapshots, read models, the warehouse and search index
 
 A projection's position is its subscription's checkpoint, so a read model is rebuilt by giving the projection a subscription without one:
 
-1. Deploy the changed projection under a new name (a new class, or `@Name`), writing to a new table or index. A projection without a checkpoint starts at the beginning of the log and fills its store with the history; `wow.subscriptions.[<processor.function>].start` can start it at an instant instead.
+1. Deploy the changed projection under a new name (a new class, or `@Name`), writing to a new table or index. A projection without a checkpoint starts at the beginning of the log and fills its store with the history; `wow.subscriptions.[<context>.<processor.function>].start` can start it at an instant instead.
 2. Wait until it has caught up: its `wow.subscription.backlog` falls to zero and `wow.subscription.progress` reaches 1.
 3. Switch the reads to the new store.
 4. Remove the old projection, and drop its store.

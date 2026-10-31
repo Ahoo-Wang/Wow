@@ -1012,7 +1012,10 @@ class WowProperties {
         /** How far ahead each read loads the timers that fall due; a longer lookahead reads more timers at once. */
         var lookahead: Duration = DEFAULT_TIMERS.lookahead.toJavaDuration()
 
-        /** The attempts a technical failure to send a timer gets before the timer is parked under `wow.timers`. */
+        /**
+         * The attempts a technical failure to send a timer gets before the timer is parked, under the subscription
+         * `wow.timers.sends`.
+         */
         var maxAttempts: Int = DEFAULT_TIMERS.retry.maxAttempts
 
         /**

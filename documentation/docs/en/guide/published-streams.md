@@ -51,7 +51,12 @@ The node does not start when a handler takes an event class the contract on its 
 
 ## Where it starts
 
-A subscription to another context's stream starts at the beginning of the topic when it has no checkpoint yet, so a service that joins later still gets what was published before. `@OnEvent(start = OnEvent.Start.END)`, or the host's `wow.subscriptions.[<processor.function>].start`, makes it start at the end instead. After its first checkpoint it goes on from there.
+A subscription to another context's stream that has no checkpoint yet starts by its kind:
+
+- **A projection** starts at the beginning of the topic, so it fills its read model with what was published before.
+- **A saga's or a reactor's handler** starts where its service joins the stream. When no other subscription of the service has read the topic yet, that is the beginning, so a service that joins later still gets what was published before. When one has, it is the end, so a handler added later to a service that already reads the stream does not act on its history again: a new saga handler does not send commands for events its service read long ago. The Manifest writes this start as `JOIN`.
+
+`@OnEvent(start = OnEvent.Start.BEGINNING)` or `END` fixes it, and the host's `wow.subscriptions.[<context>.<processor.function>].start` overrides both, with `beginning`, `end` or an instant. After its first checkpoint it goes on from there.
 
 The service reads the topic without a Kafka consumer group: its offsets are in its own checkpoint store, beside its other subscriptions' positions.
 

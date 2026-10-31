@@ -20,7 +20,7 @@ outline: deep
 | --- | --- |
 | 时长 | `500ms`、`30s`、`5m`，或 ISO-8601 的 `PT30S` |
 | 列表 | YAML 列表，或者来自环境变量的逗号分隔字符串：`WOW_HTTP_REQUESTFACTS=X-Region,X-Channel` |
-| 包含点的 map 的键 | 放在方括号里：`wow.aggregates.[eshop-ordering.order].tenant`、`wow.subscriptions.[OrderSummaryProjection.onEvent].start` |
+| 包含点的 map 的键 | 放在方括号里：`wow.aggregates.[eshop-ordering.order].tenant`、`wow.subscriptions.[eshop-ordering.OrderSummaryProjection.onEvent].start` |
 
 在 YAML 中，给带方括号的键加上引号，让方括号保留为键的一部分：
 

@@ -167,6 +167,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '故障排查', link: 'troubleshooting'},
                 {text: '保护部署', link: 'security'},
                 {text: 'ops 服务与控制台', link: 'ops-console'},
+                {text: '数据目录控制台', link: 'analytics-catalog-console'},
             ],
         },
     ],

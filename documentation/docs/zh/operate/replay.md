@@ -12,7 +12,7 @@ outline: deep
 
 投影的位置就是它的订阅的检查点，所以重建读模型的办法，是给投影一个没有检查点的订阅：
 
-1. 用新的名字（一个新类，或 `@Name`）部署改过的投影，让它写入一张新表或一个新索引。没有检查点的投影从日志的开头开始，用历史填满它的存储；`wow.subscriptions.[<processor.function>].start` 也可以让它从某个时刻开始。
+1. 用新的名字（一个新类，或 `@Name`）部署改过的投影，让它写入一张新表或一个新索引。没有检查点的投影从日志的开头开始，用历史填满它的存储；`wow.subscriptions.[<context>.<processor.function>].start` 也可以让它从某个时刻开始。
 2. 等它追平：它的 `wow.subscription.backlog` 降到零，`wow.subscription.progress` 达到 1。
 3. 把读取切到新的存储上。
 4. 删除旧的投影，并删除它的存储。

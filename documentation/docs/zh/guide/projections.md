@@ -100,10 +100,11 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 | 种类 | 从哪里开始 | 这样 |
 | --- | --- | --- |
 | 投影 | 日志的开头 | 部署它就会用历史填满它的读模型 |
+| 投影，读取另一个上下文的事件流时 | 主题的开头 | 用之前发布的内容填满它的读模型 |
 | 反应器 | 日志的末尾 | 部署它不会就过去的事通知任何人 |
-| 两者，读取另一个上下文的事件流时 | 主题的开头 | 之后才加入的服务仍能拿到之前发布的内容 |
+| 反应器，读取另一个上下文的事件流时 | 它的服务加入这条流的地方：服务里还没有别的订阅读过它时从开头开始，否则从末尾开始（Manifest 中为 `JOIN`） | 之后才加入的服务仍能拿到之前发布的内容，后来新增的反应器不会再对历史采取行动 |
 
-`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<processor.function>].start` 也可以，取值为 `beginning`、`end` 或一个 ISO-8601 时刻。两种方式都只在订阅还没有检查点时生效；之后它就从检查点继续。
+`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 也可以，取值为 `beginning`、`end` 或一个 ISO-8601 时刻。两种方式都只在订阅还没有检查点时生效；之后它就从检查点继续。
 
 ## 重建读模型 {#rebuild-a-read-model}
 

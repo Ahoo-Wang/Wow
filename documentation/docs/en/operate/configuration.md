@@ -20,7 +20,7 @@ Keep secrets out of the files. A deployment sets each one as an environment vari
 | --- | --- |
 | A duration | `500ms`, `30s`, `5m`, or ISO-8601 `PT30S` |
 | A list | A YAML list, or a comma-separated string from an environment variable: `WOW_HTTP_REQUESTFACTS=X-Region,X-Channel` |
-| A key of a map that holds dots | In brackets: `wow.aggregates.[eshop-ordering.order].tenant`, `wow.subscriptions.[OrderSummaryProjection.onEvent].start` |
+| A key of a map that holds dots | In brackets: `wow.aggregates.[eshop-ordering.order].tenant`, `wow.subscriptions.[eshop-ordering.OrderSummaryProjection.onEvent].start` |
 
 In YAML, quote a bracketed key so the brackets stay part of it:
 

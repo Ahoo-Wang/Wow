@@ -42,15 +42,19 @@ The host refuses to start rather than run with a setting that would quietly do t
 | `wow.auth.forbidden` (403) | The authorizer refused the command for the caller | Check the caller's roles or policies |
 | `wow.call.command-forbidden` (403) | A service called a command its entry under `wow.callers` does not list | List the command for that service, on the target |
 | `wow.storage.unavailable` (503) | A store could not be reached | Check the database; retry with the same request id |
-| `wow.node.standby` (503) | The node is on standby for a migration's cut-over | Resume it at the cut-over ([Deployment Model](./topology#standby-for-a-migrations-cut-over)) |
+| `wow.node.standby` (503) | The node is on standby for a migration's cut-over | Activate it at the cut-over ([Deployment Model](./topology#standby-for-a-migrations-cut-over)) |
 
 ## A subscription parks aggregates
 
 `wow.subscription.parked.aggregates` is above zero, and the ops console lists the aggregates. Each entry carries the error and the version the subscription stopped at.
 
 - Fix the cause first: deploy the corrected handler, or bring back the outside system it calls.
-- Then resume the aggregates: the subscription reads each one's stream again from where it stopped ([The Ops Service and Console](./ops-console)).
+- Then retry the aggregates: the subscription reads each one's stream again from where it stopped ([The Ops Service and Console](./ops-console)).
 - A rejection of a command a saga sent parks the aggregate only when the saga has no `@OnRejected` handler for it ([Failures and Retries](../guide/failures)).
+
+## A subscription starts over after a deploy
+
+A saga or a reactor skips events, or a projection rebuilds from the beginning, right after a release, and the node logged at its start that a subscription group `has checkpoints of subscriptions it no longer has`. A processor or a handler was renamed, or moved to another context: its name is its identity, so it is a new subscription and starts as a new one does. Pin the old name with `@Name` and deploy again; the subscription then goes on from the old checkpoint ([Rename and rewind](./ops-console#rename-and-rewind)). What the new name handled in between stays handled.
 
 ## A subscription stops for every aggregate
 
@@ -79,3 +83,5 @@ The ownership health component is `DOWN`, or commands for some aggregates are sl
 ## Queries are refused or slow
 
 `wow.query.busy` (429) means the store's query bound is reached; it adapts down while the store's appends are under pressure. `wow.query.timeout` (504) means the query ran longer than its budget: narrow it rather than run it again. Give the queries a pool or a replica of their own ([PostgreSQL](./postgresql#size-the-pools)).
+
+`wow.query.invalid` (400) with the violation `replay-too-long` on a state read at a version or an instant, or a trace, means the state asked for is more commits away than `wow.query.state.max-replay` (10,000) allows: an older state is replayed from version 1. Read the aggregate's events through the events query instead, which has no such bound, or raise the bound if the deployment reads states that far back ([Read State](../guide/reading-state#replaying-is-bounded)).

@@ -560,7 +560,7 @@ The reads of an aggregate's state at a version or a point in time.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.query.state.max-replay` | `Integer` | `10000` | The most commits a state read at a version or an instant replays from the aggregate's snapshot, or from version 1; a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`). |
+| `wow.query.state.max-replay` | `Integer` | `10000` | The most commits a state read at a version or an instant, or a trace, replays from the aggregate's snapshot, or from version 1: the snapshot holds only the latest state, so an older one is replayed from the first version. A state further away is 400 `wow.query.invalid` (`replay-too-long`). It keeps one read from holding the node; raise it where states that far back are read. An aggregate's events are not bounded by it: the events query reads them page by page. |
 | `wow.query.state.min-version-wait` | `Duration` | `PT2S` | How long a read of `?minVersion=` waits for the aggregate to reach that version; past it the read is 409 `wow.query.min-version-not-reached` with the current `version`. |
 
 ## `wow.query.stream`
@@ -757,7 +757,7 @@ The node's firing loop of the timers, which sends the scheduled commands when th
 | `wow.timers.claim-timeout` | `Duration` | `PT30S` | How long the claim on a timer being sent holds: when its node dies, the next owner of the partition sends the timer again after it. Longer than a send takes. |
 | `wow.timers.expires-after` | `Duration` |  | How late a timer may be sent, after an outage, before it is cancelled with the outcome `EXPIRED` instead; not set, every timer is sent however late. |
 | `wow.timers.lookahead` | `Duration` | `PT30S` | How far ahead each read loads the timers that fall due; a longer lookahead reads more timers at once. |
-| `wow.timers.max-attempts` | `Integer` | `10` | The attempts a technical failure to send a timer gets before the timer is parked under `wow.timers`. |
+| `wow.timers.max-attempts` | `Integer` | `10` | The attempts a technical failure to send a timer gets before the timer is parked, under the subscription `wow.timers.sends`. |
 | `wow.timers.max-early-wait` | `Duration` | `PT5S` | How long a scheduled command waits in its target for its due time on the target node's clock; one that arrives earlier than that fails and is sent again later. |
 | `wow.timers.max-fire-rate` | `Double` |  | The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows. |
 | `wow.timers.parallelism` | `Integer` | `64` | The most commands of timers a partition sends at once. |

@@ -45,7 +45,11 @@ A command that waits for its snapshot, the default wait, already returns after t
 
 ## Replaying is bounded
 
-A read of an older version, an instant or a trace replays the log. Such reads run under the query bulkhead of the aggregate's log store (`429 wow.query.busy` when it is full), and replay a bounded number of commits, `wow.query.state.max-replay`: a state further away answers `400 wow.query.invalid` with the violation `REPLAY_TOO_LONG`. A trace returns 100 commits per page by default, and at most 1,000. The caller is checked on the latest state before anything is replayed.
+Only the latest state is kept, in the snapshot. A read of an older version, an instant or a trace rebuilds the state it answers from the log, from version 1, since the snapshot is past it. Such reads run under the query bulkhead of the aggregate's log store (`429 wow.query.busy` when it is full), and replay at most `wow.query.state.max-replay` commits, 10,000 by default: a state further away answers `400 wow.query.invalid` with the violation `replay-too-long`. A trace returns 100 commits per page by default, and at most 1,000. The caller is checked on the latest state before anything is replayed.
+
+- **Why the bound.** One read of an old state of a long-lived aggregate would otherwise replay its whole history on the node that serves it.
+- **When to raise it.** A deployment that reads states far back in long histories, an audit view of an aggregate's ten-thousandth version say, raises `wow.query.state.max-replay`; each such read then costs up to that many commits.
+- **What it does not bound.** The events: an aggregate's event history, however long, is read page by page through the events query ([Query Event Streams](./event-queries)). Only a state at an older version or an instant, and a trace, which carries the state after each commit, are bounded.
 
 ## In Kotlin
 

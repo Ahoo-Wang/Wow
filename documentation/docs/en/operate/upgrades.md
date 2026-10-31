@@ -40,7 +40,14 @@ The commands, events, state and errors a service exposes are its contract with i
 
 ## Subscriptions during a rollout
 
-A partition moves to a new node with its checkpoints, and the new node's subscriptions go on from there. A handler added in the new version starts by its kind: a projection, or any handler of another context's published stream, at the beginning; a reactor or a saga of its own context's log at the end. `@OnEvent(start = ...)` or `wow.subscriptions.[<processor.function>].start` overrides it. A renamed handler is a new subscription: it starts by the same rule, as if new.
+A partition moves to a new node with its checkpoints, and the new node's subscriptions go on from there. A handler added in the new version starts by its kind ([Subscriptions](../concepts/subscriptions#replay-and-backfill)): a projection at the beginning; a reactor or a saga of its own context's log at the end; a reactor's or a saga's handler of another context's stream where its service joins it, at the beginning when no other subscription of the service has read it, else at the end. `@OnEvent(start = ...)` or `wow.subscriptions.[<context>.<processor.function>].start` overrides it.
+
+A subscription's name is its identity, so check the renames before the rollout:
+
+- **A renamed processor or handler is a new subscription.** It starts by the same rule, as if new: a saga or a reactor at the end, skipping whatever its old name had not handled yet, a projection at the beginning, which rebuilds its read model. Its old name's checkpoint and parked entries stay behind, unread.
+- **To keep its position, pin the old name** with `@Name` on the renamed class or function.
+- **The new nodes warn** at their first start of the checkpoints under names no subscription has any more; `GET /wow/ops/subscriptions` lists them ([The Ops Service and Console](./ops-console#rename-and-rewind)).
+- **A new name is the only rewind**: no checkpoint is ever set back. Deploying a handler under a new name with an earlier `start` is how a stream is read again.
 
 ## Settings that must not change
 

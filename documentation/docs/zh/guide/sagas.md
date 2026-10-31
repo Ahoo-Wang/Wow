@@ -183,7 +183,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## 从哪里开始 {#where-it-starts}
 
-Saga 的订阅在某个分区还没有检查点时，从它的流的末尾开始，所以部署它不会再对历史采取行动；读取另一个上下文事件流的订阅则从开头开始。`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<processor.function>].start` 也可以。有了第一个检查点之后，订阅就从那里继续。
+Saga 的订阅在某个分区还没有检查点时，从它自己上下文日志的末尾开始，所以部署它不会再对历史采取行动。读取另一个上下文事件流的订阅，从它的服务加入这条流的地方开始：服务里还没有别的订阅读过它时从开头开始，所以之后才加入的服务仍能拿到之前发布的内容；否则从末尾开始，所以后来新增的处理函数不会为服务很久以前读过的事件发送命令（Manifest 中为 `JOIN`）。`@OnEvent(start = ...)` 可以覆盖它，宿主的 `wow.subscriptions.[<context>.<processor.function>].start` 也可以。有了第一个检查点之后，订阅就从那里继续。
 
 ## 测试 {#test-it}
 
