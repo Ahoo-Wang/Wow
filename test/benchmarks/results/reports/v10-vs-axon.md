@@ -101,7 +101,7 @@ Both servers had tails at the fixed rates in some sessions (Axon's E1 p99 541 an
 
 The same comparison on an Apple M5 Max (18 cores, 64 GB, macOS 27.2, as the runs record them; they do not record the model, `hw.model`) at `3c138c0237`, run on 2026-10-30 ([`v10-vs-axon-m5max/`](v10-vs-axon-m5max/), `SUMMARY.md`). The container engine is OrbStack 2.2.5, as the session's summary names it; the runs record Docker engine 29.8.2 with 16 CPUs and 32,110 MiB, the store on disk. The sessions are W A A W K K, then one Axon and one Wow session with 32 connections (A32, W32), run by [`compare.sh`](v10-vs-axon-m5max/compare.sh); each runs the fixed rates, then sweeps of E1 and E3 to 4,096 clients (growth 4). Neither server's configuration changed for this machine.
 
-W and W32 pass a blank Kafka address (`--wow.kafka.bootstrap-servers=`), as on the other machines, which at this commit selects the in-memory transport in development, whose topics keep every record: their nodes ran out of heap in their E1 sweeps (X-33, being fixed), so their sweeps are void.
+W and W32 pass a blank Kafka address (`--wow.kafka.bootstrap-servers=`), as on the other machines, which at this commit selects the in-memory transport in development, whose topics keep every record: their nodes ran out of heap in their E1 sweeps (X-33, fixed in #5231, which bounds the in-memory topics and adds `wow.transport=none`), so their sweeps are void.
 
 | Closed-loop peak | Wow, Kafka on (K) | Axon (A) | Axon, 32 connections (A32) | Wow, blank Kafka address (W, W32) |
 | --- | --- | --- | --- | --- |
