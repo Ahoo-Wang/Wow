@@ -204,6 +204,8 @@ describe("the basket", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The order by the number the ordering gave it, which the order's hops name.
+    expect(screen.getByRole("link", { name: ORDER })).toHaveAttribute("href", `/orders/${ORDER}`);
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps.map((step) => step.dataset.state)).toEqual(Array(15).fill("reached"));
     expect(within(steps[14]).getByText("PayOrder")).toBeInTheDocument();
