@@ -18,6 +18,7 @@ Wow 服务是一个以一个或多个节点运行的 Spring Boot 应用。它的
 | [Kafka](./kafka) | 服务什么时候需要 Kafka、它的主题、持久的命令摄入 |
 | [保护部署](./security) | 调用方、授权、内部端口、个人数据、租户 |
 | [ops 服务与控制台](./ops-console) | 把每个服务停放的聚合汇集到一处 |
+| [数据目录控制台](./analytics-catalog-console) | 审查仓库的数据源、发布数据集、审批，并对数据集的行执行操作 |
 
 ## 上线生产之前 {#before-production}
 

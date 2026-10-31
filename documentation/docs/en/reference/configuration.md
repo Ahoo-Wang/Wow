@@ -560,7 +560,7 @@ The reads of an aggregate's state at a version or a point in time.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.query.state.max-replay` | `Integer` | `10000` | The most commits a state read at a version or an instant replays from the aggregate's snapshot, or from version 1; a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`). |
+| `wow.query.state.max-replay` | `Integer` | `10000` | The most commits a state read at a version or an instant, or a trace, replays from the aggregate's snapshot, or from version 1: the snapshot holds only the latest state, so an older one is replayed from the first version. A state further away is 400 `wow.query.invalid` (`replay-too-long`). It keeps one read from holding the node; raise it where states that far back are read. An aggregate's events are not bounded by it: the events query reads them page by page. |
 | `wow.query.state.min-version-wait` | `Duration` | `PT2S` | How long a read of `?minVersion=` waits for the aggregate to reach that version; past it the read is 409 `wow.query.min-version-not-reached` with the current `version`. |
 
 ## `wow.query.stream`

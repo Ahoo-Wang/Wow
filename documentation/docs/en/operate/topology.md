@@ -179,16 +179,16 @@ Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-c
 - They serve state reads and queries of what the tail imports.
 - They report ready (`/actuator/health/readiness` is `UP`, with their lease groups and topics marked `standby`), so the load balancer sends them those reads.
 - They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
-- They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the resume, so it never acts on the imported 9.x history.
+- They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the activation, so it never acts on the imported 9.x history.
 
-At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, resume each node on its internal port, naming the node's service in `Wow-Service`. The body names who resumes it and why, for the audit:
+At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, activate each node on its internal port, naming the node's service in `Wow-Service`. The body names who activates it and why, for the audit:
 
 ```bash
-curl -X POST "http://<node>:9090/wow/node/resume" \
+curl -X POST "http://<node>:9090/wow/node/activate" \
   -H "Wow-Service: <the node's service>" -H "Content-Type: application/json" \
   -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
 ```
 
-The node joins its lease groups, starts its subscriptions, its parked-entry retries, its jobs and its snapshot maintenance, then admits commands. It answers its standby status, `standby: false`, `resumedAt`, `resumedBy` and `reason`, and logs the same at `WARN`.
+The node joins its lease groups, starts its subscriptions, its parked-entry retries, its jobs and its snapshot maintenance, then admits commands. It answers its standby status, `standby: false`, `activatedAt`, `activatedBy` and `reason`, and logs the same at `WARN`.
 
-`GET /wow/node/standby`, with the same header, answers that status at any time. Resuming a node that is not on standby changes nothing and answers when it was resumed. Both routes are taken only from the node's own service: without the header they answer 401, from another service 403. Resume every node of the service: one left on standby keeps refusing commands and takes no partition.
+`GET /wow/node/standby`, with the same header, answers that status at any time. Activating a node that is not on standby changes nothing and answers when it was activated. Both routes are taken only from the node's own service: without the header they answer 401, from another service 403. Activate every node of the service: one left on standby keeps refusing commands and takes no partition.

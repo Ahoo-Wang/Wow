@@ -163,6 +163,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {text: 'Secure a Deployment', link: 'security'},
                 {text: 'The Ops Service and Console', link: 'ops-console'},
+                {text: 'The Analytics Catalog Console', link: 'analytics-catalog-console'},
             ],
         },
     ],

@@ -100,10 +100,11 @@ A subscription that has no checkpoint yet in a partition starts by its kind:
 | Kind | Starts | So that |
 | --- | --- | --- |
 | Projection | At the beginning of the log | Deploying it fills its read model with the history |
+| Projection, on another context's stream | At the beginning of the topic | It fills its read model with what was published before |
 | Reactor | At the end of the log | Deploying it does not notify anyone about the past |
-| Either, on another context's stream | At the beginning of the topic | A service that joins later still gets what was published before |
+| Reactor, on another context's stream | Where its service joins the stream: at the beginning when no other subscription of the service has read it yet, else at the end (`JOIN` in the Manifest) | A service that joins later still gets what was published before, and a reactor added later does not act on the history again |
 
-`@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<processor.function>].start`, `beginning`, `end` or an ISO-8601 instant. Either way it applies only until the subscription has a checkpoint; after that it goes on from there.
+`@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<context>.<processor.function>].start`, `beginning`, `end` or an ISO-8601 instant. Either way it applies only until the subscription has a checkpoint; after that it goes on from there.
 
 ## Rebuild a read model
 

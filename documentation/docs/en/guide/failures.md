@@ -93,7 +93,7 @@ The handler above marks `UnknownBuyerException` unrecoverable: the notification 
 
 ## Parked aggregates
 
-The failure ledger lives in the service's own store, beside the checkpoints. The long-horizon retries are set by `wow.subscription.parked.*`, or per subscription by `wow.subscriptions.[<processor.function>].parked.*`.
+The failure ledger lives in the service's own store, beside the checkpoints. The long-horizon retries are set by `wow.subscription.parked.*`, or per subscription by `wow.subscriptions.[<context>.<processor.function>].parked.*`.
 
 Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and resume or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
 

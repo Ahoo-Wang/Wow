@@ -93,7 +93,7 @@ wow:
 
 ## 停放的聚合 {#parked-aggregates}
 
-失败台账放在服务自己的存储里，与检查点在一起。长周期的重试由 `wow.subscription.parked.*` 设置，或者按订阅由 `wow.subscriptions.[<processor.function>].parked.*` 设置。
+失败台账放在服务自己的存储里，与检查点在一起。长周期的重试由 `wow.subscription.parked.*` 设置，或者按订阅由 `wow.subscriptions.[<context>.<processor.function>].parked.*` 设置。
 
 运维人员在 ops 控制台里看到每个服务停放的聚合，以及每个聚合的错误和停下时的版本，并在那里恢复或跳过它们：见 [ops 服务与控制台](../operate/ops-console)。聚合停放或用尽重试时，webhook 可以通知团队。
 

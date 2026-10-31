@@ -182,7 +182,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ## Where it starts
 
-A saga's subscription that has no checkpoint in a partition starts at the end of its stream, so deploying it does not act on the history again; one that reads another context's stream starts at the beginning. `@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<processor.function>].start`. After its first checkpoint a subscription goes on from there.
+A saga's subscription that has no checkpoint in a partition starts at the end of its own context's log, so deploying it does not act on the history again. One that reads another context's stream starts where its service joins the stream: at the beginning when no other subscription of the service has read it yet, so a service that joins later still gets what was published before, else at the end, so a handler added later does not send commands for events its service read long ago (`JOIN` in the Manifest). `@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<context>.<processor.function>].start`. After its first checkpoint a subscription goes on from there.
 
 ## Test it
 
