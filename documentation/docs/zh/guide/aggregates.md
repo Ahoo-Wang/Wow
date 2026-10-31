@@ -62,7 +62,7 @@ data class AddBasketItem(
 )
 ```
 
-网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`Positive`）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
+网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`positive`，即注解在线上的名字）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
 
 约束是命令契约的一部分。它们是 Manifest 和 OpenAPI 文档中命令 schema 的校验关键字（`quantity` 是 `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`），生成的客户端或 Swagger UI 在发送之前就能看到它们。收紧一个约束，例如提高最小值，是破坏性改变（[Manifest 与兼容](./manifest#the-compatibility-check)）。
 
@@ -139,7 +139,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 | --- | --- |
 | `body` | 命令 `X` |
 | `ref` | 聚合：它的上下文、名字、租户和 ID |
-| `scope` | 调用方的所有者和空间 |
+| `scope` | 调用方的所有者和空间，按聚合的所有权保留：租户级聚合（`Ownership.TENANT`）看不到所有者；ID 即所有者 ID 的聚合，对派生的命令或没有所有者的命令，以自己的 ID 作为所有者 |
 | `headers` | 宿主保留的请求事实（`wow.http.request-facts`），例如调用的应用 |
 | `causation`、`operator` | 命令所属的链，以及它以谁的名义记录 |
 
@@ -306,7 +306,7 @@ suspend fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 - **顺序。** 补偿按登记的逆序逐个执行，每个都会等待完成，调用方已经离开时也一样。没有超时：卡住的补偿会挡住这个聚合的命令，所以要给它的调用设上限。
 - **失败。** 一个补偿失败不会阻止其余的补偿。失败会被记日志，或附加到它所撤销的那个失败上，命令的应答不变。
 - **两次。** 基于已落后于日志的缓存状态被拒绝、或未作改变的命令会重新决定，第一次尝试先被补偿。外部操作因此可能做了两次、撤销一次，所以要以命令为键，如上例中的 `requestId`。
-- **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，放弃这次尝试的持有，而这个聚合原本就持有的键继续持有。一次尝试预留和释放的键随它追加的事件一起记录，所以结果未知、或进程在追加之后崩溃时，内置的 `reservation` 订阅按日志确认和释放它们。只有没有任何已追加条目记录的持有（进程在追加之前崩溃）才会过期，30 秒后由这个键的下一次预留取得。
+- **预留的键。** `reserve` 会登记自己的补偿：事件没有追加时，放弃这次尝试的持有，而这个聚合原本就持有的键继续持有。一次尝试预留和释放的键随它追加的事件一起记录，所以结果未知、或进程在追加之后崩溃时，内置的 `wow.reservation` 订阅按日志确认和释放它们。只有没有任何已追加条目记录的持有（进程在追加之前崩溃）才会过期，30 秒后由这个键的下一次预留取得。
 
 `afterAppend` 是另一面：事件追加之后、应答调用方之前，按登记顺序执行。重复请求不执行，任何没有追加的结果也不执行，拒绝也不执行，即使是提交了事件的拒绝：那时执行的是补偿。失败只记日志，事件仍然已提交。订阅可能在它结束之前就看到这次提交；进程在两者之间崩溃，它就被跳过。所以它适合可以丢失的工作，例如预热缓存。必须跟随每次提交的工作应放在反应器或 Saga 中，由它们读取已提交的事件。
 
@@ -355,7 +355,7 @@ fun onSourcing(event: OrderPaid, commit: EventStream) {
 
 ## 生命周期命令 {#lifecycle-commands}
 
-每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的五条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner`、`TransferSpace` 和 `ApplyTags`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 之外的每条命令。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。
+每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的五条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner`、`TransferSpace` 和 `ApplyTags`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 和函数标有 `@OnCommand(onDeleted = true)` 的命令之外的每条命令。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。
 
 ## 测试 {#test-it}
 

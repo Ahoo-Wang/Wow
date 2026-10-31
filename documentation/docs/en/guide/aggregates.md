@@ -62,7 +62,7 @@ data class AddBasketItem(
 )
 ```
 
-The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`Positive`) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
+The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`positive`, the annotation's name on the wire) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
 
 The constraints are part of the command's contract. They are the validation keywords of its schema in the Manifest and the OpenAPI document (`quantity` is `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`), so a generated client or Swagger UI sees them before it sends. Tightening one, such as raising a minimum, is a breaking change ([The Manifest and Compatibility](./manifest#the-compatibility-check)).
 
@@ -139,7 +139,7 @@ A command function that needs what admission learned about the request takes `Co
 | --- | --- |
 | `body` | The command `X` |
 | `ref` | The aggregate: its context, name, tenant and id |
-| `scope` | The caller's owner and space |
+| `scope` | The caller's owner and space, as the aggregate's ownership keeps them: a tenant's aggregate (`Ownership.TENANT`) sees no owner, and one whose id is its owner's takes its id for the owner of a derived command or of one with none |
 | `headers` | The request facts the host keeps (`wow.http.request-facts`), such as the calling application |
 | `causation`, `operator` | The chain the command belongs to, and whose name it is recorded in |
 
@@ -306,7 +306,7 @@ It does not run when the append's outcome is unknown. The kernel first reads the
 - **Order.** Compensations run latest first, one after another, and each is awaited, even when the caller has gone away. There is no timeout: a compensation that hangs holds the aggregate's commands, so bound its call.
 - **Failure.** A failing compensation does not stop the others. It is logged, or added to the failure it undoes, and the command's answer does not change.
 - **Twice.** A command refused, or left unchanged, on a cached state that the log has moved past is decided again, its first attempt compensated first. The outside act may then be done twice and undone once, so key it on the command, as `requestId` does above.
-- **Reserved keys.** `reserve` registers its own compensation: the hold this attempt took is given up when the events are not appended, while a key the aggregate already held stays held. The keys an attempt reserves and releases travel with its appended events, so when the outcome is unknown, or the process dies after the append, the built-in `reservation` subscription confirms and releases them from the log. Only a hold that no appended entry carries, because the process died before appending, expires, after 30 seconds, for the next reservation of the key to take.
+- **Reserved keys.** `reserve` registers its own compensation: the hold this attempt took is given up when the events are not appended, while a key the aggregate already held stays held. The keys an attempt reserves and releases travel with its appended events, so when the outcome is unknown, or the process dies after the append, the built-in `wow.reservation` subscription confirms and releases them from the log. Only a hold that no appended entry carries, because the process died before appending, expires, after 30 seconds, for the next reservation of the key to take.
 
 `afterAppend` is the other side: it runs once the events are appended, before the caller is answered, in the order the actions were registered. It does not run on a duplicate, nor on any outcome that appended nothing, nor on a rejection, even one that commits events: the compensations run there instead. A failure is logged, and the events stay committed. Subscriptions may see the commit before the action ends, and a process that dies in between skips it. So it suits work that may be lost, such as warming a cache. Work that must follow every commit belongs in a reactor or a saga, which reads the committed events.
 
@@ -355,7 +355,7 @@ A function annotated `@AfterCommand`, or named `afterCommand`, runs after the co
 
 ## Lifecycle commands
 
-Every aggregate also handles five system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner`, `TransferSpace` and `ApplyTags`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
+Every aggregate also handles five system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner`, `TransferSpace` and `ApplyTags`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate` and those whose function is marked `@OnCommand(onDeleted = true)`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
 
 ## Test it
 
