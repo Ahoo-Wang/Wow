@@ -131,7 +131,7 @@ A rejection is an answer, never a failure: it is not retried or parked, whicheve
 | --- | --- |
 | A saga (a derived command) | parks the saga's subscription on its aggregate, until it is resumed or skipped |
 | The Kafka command intake | parks the target aggregate under the intake, at the command's offset |
-| A timer | parks the aggregate under `wow.timers` |
+| A timer | parks the aggregate under `wow.timers.sends`, after its own retries |
 | An HTTP request, or a synchronous call (`Wow-Call`) | goes back to the caller as the problem; metrics, logs and traces record it, the failure ledger does not |
 
 Rejections are counted apart from failures, by `wow.command.rejections` with their code, and logged at INFO with the aggregate, the command type, the code and the request id: [Observability](../operate/observability).

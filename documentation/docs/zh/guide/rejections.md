@@ -131,7 +131,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 | --- | --- |
 | Saga（派生的命令） | 在该聚合上停放 Saga 的订阅，直到被恢复或跳过 |
 | Kafka 命令摄入 | 在命令所在的偏移量处，把目标聚合停放在摄入之下 |
-| 定时器 | 把聚合停放在 `wow.timers` 之下 |
+| 定时器 | 在它自己的重试之后，把聚合停放在 `wow.timers.sends` 之下 |
 | HTTP 请求或同步调用（`Wow-Call`） | 作为 problem 返回调用方；指标、日志和链路追踪会记录，失败台账不记录 |
 
 拒绝与失败分开计数，由 `wow.command.rejections` 按错误码计数，并以 INFO 级别记录日志，带聚合、命令类型、错误码和请求 ID：见[可观测性](../operate/observability)。
