@@ -554,12 +554,14 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 
 2026-10-31：D372 全部落地后开始最终重写，按页面分四组并行，各组只改自己的页面，互不重叠：组 A 聚合、失败、拒绝、Saga、定时（DG-1、DG-2、DG-19、DG-29、DG-35，及 DG-30 在失败与定时页的部分）；组 B 测试页（DG-13、DG-21、DG-30）；组 C 订阅、运维、配置（DG-10、DG-22、DG-23、DG-31、DG-33、DG-36，及 UI-44 新写分析目录控制台页）；组 D 查询、TypeScript、安全、TCK（DG-14、DG-24～DG-28、DG-34）。各组以代码为准，行文与代码不符时报协调者；四组合并后做一次只读的「文档与代码一致性」核对。
 
+四组已全部合并（A #5276、B #5275、C #5277、D #5278，2026-10-31），UI-44 的分析目录控制台页随组 C 上线；一致性核对随即按区域分三路进行（guide 与 start；operate、reference 与 concepts；typescript、migrate、contribute、README 与 skills），只改与代码不符或缺失之处，疑为代码缺陷的报协调者。
+
 **核对中条文与代码不符之处（以代码为准，2026-10-31）**：DG-22、DG-23 的 JOIN 与「改名后从末尾开始」只对 Saga 与反应器成立，投影总从开头（`ProcessorBinding.startIn`），改名的投影从开头重建；DG-24 中 `timeUnit` 保留 JDK 的名字（`MILLISECONDS`），ISO 时长保持大写（`PT0S`），`Wow-Wait` 头的关键字不区分大小写（只有 JSON 只认小写），平台服务自己的违规码仍为大写（ops 的 `READER_REQUIRED`、view-store 的 `APP_REQUIRED`）；DG-25 引用的 #5115 实为 TypeScript 默认计划不发 `Wow-Wait`，动态条目另带 `excludedKeys`；DG-26 的 `:api` 有意依赖 Jackson 的树，不是「不用 JSON 库」；DG-34 的「同一租户里登录的调用者都读得到」不完整：调用者的空间仍收窄租户级聚合的读取，ABAC 开启时亦然，「登录」由调用者解析器判定；DG-21 除查询外还扫描内存日志的事件；D315 的两处差异记在决策台账。各组另改正了页面上与代码不符的旧文（失败页的按订阅键无上下文会令节点启动失败、客户端尝试 5 次、停放的定时器在 `wow.timers.sends`；定时页的 `JobContext`、`@Sends`、`JobScope.SHARDED`、`cron`；Saga 页的 `CommandReceipt`；停放条目的操作一律称「重试」）。
 
 | 编号 | 内容 | 页面 | 依据 | 由谁写 |
 | --- | --- | --- | --- | --- |
-| DG-1 | 补偿语义：`onAppendFailure` 在事件确定没有追加时执行（拒绝、版本冲突后重新决定、技术故障），结果未知与进程崩溃时不执行；预留自动放掉本次尝试的持有；`afterAppend` 的失败只记日志；配例子 | guide/aggregates | 01、02 §1 | 最终重写，组 A（2026-10-31 派出） |
-| DG-2 | 命令的重试分层：内核（请求 ID 去重、版本冲突重新决定最多 3 次、缓存状态的复核、未知结果读版本槽判定）；按来源（HTTP 与对端客户端、Saga、定时器、Kafka 摄入）；系统性故障暂停分区；停放后的自动重试 | guide/failures | 02 §1、04 §2、D153、D223、D263 | 最终重写，组 A（2026-10-31 派出） |
+| DG-1 | 补偿语义：`onAppendFailure` 在事件确定没有追加时执行（拒绝、版本冲突后重新决定、技术故障），结果未知与进程崩溃时不执行；预留自动放掉本次尝试的持有；`afterAppend` 的失败只记日志；配例子 | guide/aggregates | 01、02 §1 | 已写（最终重写组 A，#5276） |
+| DG-2 | 命令的重试分层：内核（请求 ID 去重、版本冲突重新决定最多 3 次、缓存状态的复核、未知结果读版本槽判定）；按来源（HTTP 与对端客户端、Saga、定时器、Kafka 摄入）；系统性故障暂停分区；停放后的自动重试 | guide/failures | 02 §1、04 §2、D153、D223、D263 | 已写（最终重写组 A，#5276） |
 | DG-3 | 命令失败在哪里看：按来源的对照表；同步调用的失败看指标、日志与追踪 | guide/failures | 04 §2 | 批 1 A-20 |
 | DG-4 | 三种拒绝方式（返回、`scope.reject`、`require`/`check`），只认精确的类，拒绝消息给调用方看 | guide/rejections | D311、D314 | 批 1 A-20 |
 | DG-5 | 决定函数里的远程调用：允许、必须幂等（冲突后会重跑）、异常分类、Wow 客户端的拒绝即本命令的拒绝，推荐先经 `CommandTransformer` 或 Saga 补全 | guide/aggregates、guide/calling-services | D314、D182 | 批 1 A-20 |
@@ -567,30 +569,30 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-7 | 部署安全：网关前置、内部受信、两条 NetworkPolicy、转发头、Kafka 命令主题的写入方 | operate/security | D295～D302 | 批 2 S.1a（#4949） |
 | DG-8 | 配置定稿：改名键的逐条对照与升级说明，推导出的默认值（K9） | reference/configuration、operate/upgrades | D303、D305、D309、D310、D312 | 批 4 |
 | DG-9 | 预发布数据不兼容 | operate/upgrades | D306 | 已写（#4917） |
-| DG-10 | 账本的自动重试由服务自己完成，ops 是汇总与操作面，发布到 ops 自动开启 | operate/ops-console | D141、D312 | 最终重写，组 C（2026-10-31 派出） |
+| DG-10 | 账本的自动重试由服务自己完成，ops 是汇总与操作面，发布到 ops 自动开启 | operate/ops-console | D141、D312 | 已写（最终重写组 C，#5277） |
 | DG-11 | 唯一性在聚合类型之内，跨类型唯一时建模专门的聚合 | guide/unique-keys | D307 | 批 3 B-18 |
 | DG-12 | MongoDB 分片集群：定时器、调度作业与预留的分片键 | operate/mongodb | D308 | 批 3 B-17、B-18 |
-| DG-13 | 9.x 测试迁移对照表：9.x 每个测试方法在 V10 的对应写法或去掉的依据（`inject` → D315 ①，`Consumer` 重载 → D315 ②，`expectErrorType` → `expectError<T>`/`expectRejected` 等） | guide/testing、migrate | D315 | 最终重写，组 B（2026-10-31 派出） |
-| DG-14 | TCK 接入指南：为自己的后端跑 TCK 的步骤与最小例子，能力声明与跳过；能力对照表写明 9.x 总线与分发器 spec 的去向 | contribute/backends、09 | D196、D315 ⑤ | 最终重写，组 D（2026-10-31 派出） |
+| DG-13 | 9.x 测试迁移对照表：9.x 每个测试方法在 V10 的对应写法或去掉的依据（`inject` → D315 ①，`Consumer` 重载 → D315 ②，`expectErrorType` → `expectError<T>`/`expectRejected` 等） | guide/testing、migrate | D315 | 已写（最终重写组 B，#5275） |
+| DG-14 | TCK 接入指南：为自己的后端跑 TCK 的步骤与最小例子，能力声明与跳过；能力对照表写明 9.x 总线与分发器 spec 的去向 | contribute/backends、09 | D196、D315 ⑤ | 已写（最终重写组 D，#5278） |
 | DG-15 | 网关部署细节：CoSec Gateway 的路由与策略示例、网关必须覆盖（而非追加）`X-Forwarded-For` 与身份头的具体配置（Spring Cloud Gateway）、网关 Pod 的标签与 NetworkPolicy 选择器一致（`cosec-gateway`） | operate/security、operate/kubernetes | D296、D297、D317 | eShop 的 example PR（GA E2E 会话） |
 | DG-16 | 示例跑在 MongoDB：只写 URI 的 `mongo` profile | operate/mongodb、eShop README | D318 | 批 4 首个 PR、eShop 的 example PR |
 | DG-17 | 以 `validate` 部署时 ops 需要的 Kafka 主题（commands、receipts、parked.state）；Spring Cloud Gateway 4.1 起不设 `spring.cloud.gateway.server.webflux.trusted-proxies` 就不发 `X-Forwarded-For`（仅 `for-append: false` 无效），网关应信任零个代理以丢弃并替换客户端带来的头；网关启动依赖其 Redis。E2E 第 10 轮验证过的一组设置：`server.forward-headers-strategy: none`、`trusted-proxies: .*`、`for-append: false`、`forwarded.enabled: false`，下游记下的是客户端真实地址，伪造的 `X-Forwarded-For` 被替换 | operate/kafka、operate/security | D297、D317 | GA E2E 会话 |
 | DG-18 | PostgreSQL 的部署要求：`tcp_keepalives_idle/interval/count` = 30/10/3；连接预算（节点数 × 池大小，加每次崩溃一池的余量，不超过 `max_connections`）；Wow 在事务内设的服务端上限 | operate/postgresql、operate/kubernetes | D321 | G.1（清单）、F10 的修复 PR（文档） |
-| DG-19 | Saga 怎样得知成功：订阅目标的状态流；用定时设截止时间并补偿；不产生事件的成功由目标发业务事件 | guide/sagas | D323 | 最终重写，组 A（2026-10-31 派出） |
+| DG-19 | Saga 怎样得知成功：订阅目标的状态流；用定时设截止时间并补偿；不产生事件的成功由目标发业务事件 | guide/sagas | D323 | 已写（最终重写组 A，#5276） |
 | DG-20 | 没有 Kafka 的服务：不发布流时的那一行 INFO，哪些用法要求传输 | operate/kafka、guide/spring-boot | D322 | F11 的修复 PR |
-| DG-21 | 内存查询的默认：内存存储开启时查询随之开启（不是默认关闭） | guide/testing-services:84、guide/testing:364 | D338（#5056） | 最终重写，组 B（2026-10-31 派出） |
-| DG-22 | 订阅另一上下文的流从哪里开始：JOIN（服务已在读该流则从 END，否则从头），不是总从头；Manifest 写 `JOIN` | guide/published-streams:54、guide/sagas:184、guide/projections:104、concepts/subscriptions:80、operate/upgrades:43 | D372 S25 | 最终重写，组 C（2026-10-31 派出） |
-| DG-23 | 改名与回卷：处理器改名即新订阅、从 END 开始；保留检查点就把 `@Name` 钉为旧名；启动时对无主检查点的 WARN；换一个名字是唯一的回卷 | operate/upgrades、concepts/subscriptions、operate/ops-console | D372 S6、S7 | 最终重写，组 C（2026-10-31 派出） |
-| DG-24 | 线上取值一律小写短横线：等待阶段 `accepted`/`committed`/`handled`；查询体的 `op`、`type`、`direction`、`total`、错误码与描述符取值（如 `"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`） | concepts/waits、migrate/capabilities:31、operate/kafka:89、reference/query-language 与所有查询样例 | D352（#5087）、D352b（#5101） | 最终重写，组 D（2026-10-31 派出） |
-| DG-25 | 查询描述符：`dynamic` 条目与 `fields` 一样带 `nullable`、`semantic`、`sort`、`aggregate`；数组上的 TERMS 按每个不同的元素分组，无值的记录在每个后端都进 null 组；Map 上的语义注解作用于其值 | reference/query-language（描述符样例） | #5115、#5180、#5182、D371 | 最终重写，组 D（2026-10-31 派出） |
-| DG-26 | 读取 API：受信读取是 `NodeQueryApi.trusted()`（客户端的 `QueryApi` 只有 `of`），受信的快照查询只按 ref；无类型读取为 `ObjectNode`；无法续读的流必须给出 `limit`（`stream-not-resumable`）；`:api` 使用 Jackson 树（`ObjectNode`） | reference/query-language:41、contribute/index:58 | D366 PR B（#5171） | 最终重写，组 D（2026-10-31 派出） |
-| DG-27 | TS 命令的词汇：`CommandClient`（「Gateway」只指服务端准入）；按结果的状态区分 `CommandRejectedError` 与 `WowProblemError`；`WaitPlan`；生成的 `manifest.ts` | TS 的命令页、README 与 Skill | D356（#5111） | 最终重写，组 D（2026-10-31 派出） |
-| DG-28 | wow-view-store 参考：`SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` 已是内部，按 `Wow-Scope`（`SHARED_SCOPE`、`SYSTEM_SCOPE`）划分；新增 `WowViewStoreErrorCode`、`WowViewStoreOptions.pageSize` | reference/typescript/wow-view-store/index | D353 PR-C1 | 最终重写，组 D（2026-10-31 派出） |
-| DG-29 | 失败与定时：退避按 `multiplier`（不是「每次加倍」），表格补上该列；任务发出的命令的 ref 写法与样例一致 | guide/failures:55、guide/scheduling:97 | D372 S26 | 最终重写，组 A（2026-10-31 派出） |
-| DG-30 | 测试页：期望的完整清单（`expectRetried`、`expectParked`、`expectCommandCount`、`fork`、`sagaSpecTests`、`whenTick`、`ticks`、`whenRedelivered` 等）；与运行时一致的跳过与停放语义；同步样例周围的说明 | guide/testing:319-334 及 testing、failures、projections、scheduling 的说明文字，migrate/source:238、:242 | D372 S19～S24（#5195） | 最终重写，组 B（2026-10-31 派出） |
-| DG-31 | 停放操作：跳过必须给出 `{"failedAt"}`、重试可选；扫描为条目排期；线上为小写（`requested`）；PR 3 之后用 `retry`、`activate`、`parked.claim-ttl` 的新名 | operate/ops-console:89 | D372 S3、S8（#5194、#5198） | 最终重写，组 C（2026-10-31 派出） |
+| DG-21 | 内存查询的默认：内存存储开启时查询随之开启（不是默认关闭） | guide/testing-services:84、guide/testing:364 | D338（#5056） | 已写（最终重写组 B，#5275） |
+| DG-22 | 订阅另一上下文的流从哪里开始：JOIN（服务已在读该流则从 END，否则从头），不是总从头；Manifest 写 `JOIN` | guide/published-streams:54、guide/sagas:184、guide/projections:104、concepts/subscriptions:80、operate/upgrades:43 | D372 S25 | 已写（最终重写组 C，#5277） |
+| DG-23 | 改名与回卷：处理器改名即新订阅、从 END 开始；保留检查点就把 `@Name` 钉为旧名；启动时对无主检查点的 WARN；换一个名字是唯一的回卷 | operate/upgrades、concepts/subscriptions、operate/ops-console | D372 S6、S7 | 已写（最终重写组 C，#5277） |
+| DG-24 | 线上取值一律小写短横线：等待阶段 `accepted`/`committed`/`handled`；查询体的 `op`、`type`、`direction`、`total`、错误码与描述符取值（如 `"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`） | concepts/waits、migrate/capabilities:31、operate/kafka:89、reference/query-language 与所有查询样例 | D352（#5087）、D352b（#5101） | 已写（最终重写组 D，#5278） |
+| DG-25 | 查询描述符：`dynamic` 条目与 `fields` 一样带 `nullable`、`semantic`、`sort`、`aggregate`；数组上的 TERMS 按每个不同的元素分组，无值的记录在每个后端都进 null 组；Map 上的语义注解作用于其值 | reference/query-language（描述符样例） | #5115、#5180、#5182、D371 | 已写（最终重写组 D，#5278） |
+| DG-26 | 读取 API：受信读取是 `NodeQueryApi.trusted()`（客户端的 `QueryApi` 只有 `of`），受信的快照查询只按 ref；无类型读取为 `ObjectNode`；无法续读的流必须给出 `limit`（`stream-not-resumable`）；`:api` 使用 Jackson 树（`ObjectNode`） | reference/query-language:41、contribute/index:58 | D366 PR B（#5171） | 已写（最终重写组 D，#5278） |
+| DG-27 | TS 命令的词汇：`CommandClient`（「Gateway」只指服务端准入）；按结果的状态区分 `CommandRejectedError` 与 `WowProblemError`；`WaitPlan`；生成的 `manifest.ts` | TS 的命令页、README 与 Skill | D356（#5111） | 已写（最终重写组 D，#5278） |
+| DG-28 | wow-view-store 参考：`SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` 已是内部，按 `Wow-Scope`（`SHARED_SCOPE`、`SYSTEM_SCOPE`）划分；新增 `WowViewStoreErrorCode`、`WowViewStoreOptions.pageSize` | reference/typescript/wow-view-store/index | D353 PR-C1 | 已写（最终重写组 D，#5278） |
+| DG-29 | 失败与定时：退避按 `multiplier`（不是「每次加倍」），表格补上该列；任务发出的命令的 ref 写法与样例一致 | guide/failures:55、guide/scheduling:97 | D372 S26 | 已写（最终重写组 A，#5276） |
+| DG-30 | 测试页：期望的完整清单（`expectRetried`、`expectParked`、`expectCommandCount`、`fork`、`sagaSpecTests`、`whenTick`、`ticks`、`whenRedelivered` 等）；与运行时一致的跳过与停放语义；同步样例周围的说明 | guide/testing:319-334 及 testing、failures、projections、scheduling 的说明文字，migrate/source:238、:242 | D372 S19～S24（#5195） | 已写（最终重写组 B，#5275） |
+| DG-31 | 停放操作：跳过必须给出 `{"failedAt"}`、重试可选；扫描为条目排期；线上为小写（`requested`）；PR 3 之后用 `retry`、`activate`、`parked.claim-ttl` 的新名 | operate/ops-console:89 | D372 S3、S8（#5194、#5198） | 已写（最终重写组 C，#5277） |
 | DG-32 | Skill 参考（持续维护，不等最终重写）：跳过须给 `failedAt`、`retry` 一词；测试 DSL 的新期望与语义 | skills/wow-develop/references/processes.md:152、testing.md:107、:109、review-rubric.md:38，skills/wow-migrate/references/v9-to-v10.md:793 | D372 | D372 PR 3（技能的两处）与 PR 4a |
-| DG-33 | 历史状态读的回放上限：`wow.query.state.max-replay` 的含义与调高的时机，超限的 `replay-too-long`，事件历史经 events 查询模型读取；某个旧版本的状态须从第一个版本回放 | reference/configuration、guide 的历史状态与 trace 一节、operate/troubleshooting | D376 | 最终重写，组 C（2026-10-31 派出） |
-| DG-34 | 租户级聚合（`Ownership.TENANT`）的读取授权：调用者的所有者不限制它的读取，同一租户里登录的调用者都读得到；要按角色限制，服务须自带读取策略（`QueryPolicy`），如 ops 的 `ReaderRole`、目录的 `AnalyticsCatalogQueryPolicy` | guide 的归属与读取、operate/security | D189、UI-1（#5223） | 最终重写，组 D（2026-10-31 派出） |
-| DG-35 | 定时页：`@OnSchedule` 处理器取可选的 `SagaContext`（`JobContext` 已删，D372 S11），发送的命令以 `@Sends` 声明（S12），任务的设置在 `wow.schedules.<任务>` 下、键名 `cron`（S17） | guide/scheduling（中英文） | D372 PR 4a、4c | 最终重写，组 A（2026-10-31 派出） |
-| DG-36 | 按订阅的配置键带上下文：`wow.subscriptions.[<context>.<processor.function>]`（D372 S5），用户页上还写着不带上下文的旧形 | guide/published-streams、guide/failures、operate/configuration（中英文） | D372 S5（#5198） | 最终重写，组 C（2026-10-31 派出） |
+| DG-33 | 历史状态读的回放上限：`wow.query.state.max-replay` 的含义与调高的时机，超限的 `replay-too-long`，事件历史经 events 查询模型读取；某个旧版本的状态须从第一个版本回放 | reference/configuration、guide 的历史状态与 trace 一节、operate/troubleshooting | D376 | 已写（最终重写组 C，#5277） |
+| DG-34 | 租户级聚合（`Ownership.TENANT`）的读取授权：调用者的所有者不限制它的读取，同一租户里登录的调用者都读得到；要按角色限制，服务须自带读取策略（`QueryPolicy`），如 ops 的 `ReaderRole`、目录的 `AnalyticsCatalogQueryPolicy` | guide 的归属与读取、operate/security | D189、UI-1（#5223） | 已写（最终重写组 D，#5278） |
+| DG-35 | 定时页：`@OnSchedule` 处理器取可选的 `SagaContext`（`JobContext` 已删，D372 S11），发送的命令以 `@Sends` 声明（S12），任务的设置在 `wow.schedules.<任务>` 下、键名 `cron`（S17） | guide/scheduling（中英文） | D372 PR 4a、4c | 已写（最终重写组 A，#5276） |
+| DG-36 | 按订阅的配置键带上下文：`wow.subscriptions.[<context>.<processor.function>]`（D372 S5），用户页上还写着不带上下文的旧形 | guide/published-streams、guide/failures、operate/configuration（中英文） | D372 S5（#5198） | 已写（最终重写组 C，#5277） |
