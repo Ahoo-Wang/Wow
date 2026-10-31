@@ -214,8 +214,8 @@ What is left out is a choice too: the tenant, the buyer's phone, ID card and inc
 | Is it an id you count but never group by? | `analysis: { groups: [] }`: it still feeds a distinct count. |
 | Is it free text? | `cell: 'text'`, `sortable: false`, `analysis: false`; `operators: []` when no one filters by it; a search box (`search: { fields, mode }`) when people look for words in it. |
 | Is it a category? | Word every value (`options`), with a `tone` only where the value is good, bad or waiting (`success`, `danger`, `warning`, `neutral`); hide a value nobody meets with `false`. |
-| Is it an amount or a count? | `summary` only for a total the audience reads (`SUM`), not every function the store has; `more: { numberFormat }` (an `Intl.NumberFormat` options object) for currency or units. |
-| Is it a moment? | Nothing to narrow but `analysis: { dateUnits }` to the units the audience thinks in, as wow-client's `AggregationDateUnit` values; a config's `DATE_HISTOGRAM` names its `unit` as the string (`'DAY'`). A table cell shows it to the minute (the whole time is its tooltip and the record detail); `timePrecision: 'second'` where seconds are what people read it for — an event stream's time. |
+| Is it an amount or a count? | `summary` only for a total the audience reads (`'sum'`), not every function the store has; `more: { numberFormat }` (an `Intl.NumberFormat` options object) for currency or units. |
+| Is it a moment? | Nothing to narrow but `analysis: { dateUnits }` to the units the audience thinks in, as wow-client's `AggregationDateUnit` values; a config's `date-histogram` group names its `unit` as the wire string (`'day'`). A table cell shows it to the minute (the whole time is its tooltip and the record detail); `timePrecision: 'second'` where seconds are what people read it for — an event stream's time. |
 | Does the host's code read it whatever the view shows? | `record.rowFields`: an action's rule or the command's id. A page fetches only what the view shows. |
 | Is it an array? | Its entries in `elements` (keys relative to the entry), `elementTitle` for the entry field that names one. |
 | Does the scenario want a field the descriptor lacks? | Do not write it. Say what is missing and where it would come from (a read-model field, a model declaration, a projection that computes it). |
@@ -323,4 +323,4 @@ export const LARGE_PAYMENTS: FilterNode = {
 };
 ```
 
-A metric that counts one event type puts the same `ELEMENT_MATCH` in its own `filter`.
+A metric that counts one event type puts the same `element-match` in its own `filter`.
