@@ -119,6 +119,15 @@ class CatalogEndToEndTest {
     }
 
     @Test
+    fun `the snapshot rebuild should be an employee's alone, not the anonymous caller's nor a buyer's (UI-50)`() {
+        val rebuild = "/eshop-catalog/product/wow.snapshot.rebuild"
+        for (caller in listOf(emptyMap(), BUYER)) {
+            catalog.post(rebuild, """{"ids":["p-1"]}""", caller).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        }
+        catalog.post(rebuild, """{"ids":["p-1"]}""", EMPLOYEE).assertOk()
+    }
+
+    @Test
     fun `the memory backend should serve its snapshot queries by default`() {
         catalog.post(CatalogQueryContract.PRODUCTS, """{"kind":"list","filter":{"op":"match-all"}}""").status
             .assert().isEqualTo(OK)

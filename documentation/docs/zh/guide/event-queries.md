@@ -50,8 +50,8 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 )
 ```
 
-- **时间线**是一个按聚合 ID（`ID`）过滤、按版本排序的 `list`。
-- **对事件的条件**是在 `events` 上的 `ELEMENT_MATCH`：一次提交中只要有一个事件匹配谓词，这次提交就匹配，谓词相对于事件来写（`name`、它的事件体中的某个字段）。
+- **时间线**是一个按聚合 ID（`id`）过滤、按版本排序的 `list`。
+- **对事件的条件**是在 `events` 上的 `element-match`：一次提交中只要有一个事件匹配谓词，这次提交就匹配，谓词相对于事件来写（`name`、它的事件体中的某个字段）。
 - **按事件的分析**要先展开事件：`"elements":[{"path":"events"}]` 把每个事件变成单独的一行，用于分组和指标。不展开就对事件字段计算指标会被拒绝，因为一次提交可能包含多个事件。
 
 事件按它们当前的修订号读取，像聚合读取它们时那样升级。
@@ -70,4 +70,4 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 | `wow.stores.<name>.query.events.unpinned` | 一个存储上的聚合类型 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | 一个聚合类型 |
 
-被拒绝的查询返回 `400 wow.query.invalid`（`aggregateId` 上的 `STORAGE_UNSUPPORTED`），模型的能力描述也会列出约束 `AGGREGATE_REQUIRED`，这样客户端就知道要固定它们的查询。在 MongoDB 上，`wow.mongo.query-read-preference` 可以把事件查询改发到从节点（[配置项](../reference/configuration#wow-query-events)）。
+被拒绝的查询返回 `400 wow.query.invalid`（`aggregateId` 上的 `storage-unsupported`），模型的能力描述也会列出约束 `aggregate-required`，这样客户端就知道要固定它们的查询。在 MongoDB 上，`wow.mongo.query-read-preference` 可以把事件查询改发到从节点（[配置项](../reference/configuration#wow-query-events)）。

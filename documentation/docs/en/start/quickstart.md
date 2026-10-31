@@ -315,7 +315,7 @@ Read one account's state, then query all of them by balance:
 curl localhost:8080/bank/account/alice/state
 curl -X POST localhost:8080/bank/account/snapshot/query \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}'
+  -d '{"kind":"list","filter":{"op":"gte","field":"state.balance","value":100}}'
 ```
 
 The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Snapshots](../guide/queries) describes filters, sorts, pages and the other kinds of query. On the memory backend the queries are served only with `wow.query.memory.enabled`; PostgreSQL and MongoDB serve them themselves.

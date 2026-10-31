@@ -36,6 +36,27 @@ function renderApp() {
   return services;
 }
 
+describe("a page", () => {
+  it("names itself in the title", async () => {
+    renderApp();
+    await screen.findByText("No products");
+    expect(document.title).toBe("Shop · Wow eShop");
+  });
+
+  it("not found is the shop's own, inside its header (UI-56)", async () => {
+    const services = fakeServices([]);
+    render(
+      <SessionProvider transport={services.transport}>
+        <RouterProvider router={createMemoryRouter(routes, { initialEntries: ["/nope"] })} />
+      </SessionProvider>,
+    );
+    expect(await screen.findByText("Page not found")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Browse the shop" })).toHaveAttribute("href", "/");
+    expect(document.title).toBe("Not found · Wow eShop");
+  });
+});
+
 describe("the user switcher", () => {
   afterEach(() => localStorage.clear());
 

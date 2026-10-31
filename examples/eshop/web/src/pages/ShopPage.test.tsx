@@ -34,7 +34,12 @@ const MUG = snapshot("mug", {
   categoryId: "mugs",
 });
 
-function catalog(products: object[] = [MUG]) {
+/** The product queries the shop sent, in order: the storefront's, not the stock's. */
+function productQueries(received: { path: string; body: unknown }[]) {
+  return received.filter((r) => r.path === "/eshop-catalog/product/snapshot/query");
+}
+
+function catalog(products: object[] = [MUG], stock: object[] = []) {
   return fakeServices([
     [
       "POST",
@@ -46,6 +51,7 @@ function catalog(products: object[] = [MUG]) {
       /^\/eshop-catalog\/product\/snapshot\/query$/,
       () => ({ json: { total: products.length, exact: true, list: products } }),
     ],
+    ["POST", /^\/eshop-inventory\/stock\/snapshot\/query$/, () => ({ json: stock })],
     ["POST", /add-basket-item$/, () => ({ json: result() })],
   ]);
 }
@@ -77,7 +83,7 @@ describe("the shop", () => {
     await userEvent.selectOptions(screen.getByLabelText("Sort by"), "price-desc");
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() =>
-      expect(received.at(-1)?.body).toMatchObject({
+      expect(productQueries(received).at(-1)?.body).toMatchObject({
         filter: {
           op: "and",
           operands: [
@@ -96,8 +102,46 @@ describe("the shop", () => {
     );
   });
 
-  it("adds a product to the buyer's basket at its price", async () => {
+  it("keeps its search, category, sort and page in the address, so a link, a reload and Back show them (UI-56)", async () => {
     const { transport, received } = catalog();
+    const { router } = renderShop("/?q=mug&category=mugs&sort=price-desc&page=2", ALICE, transport);
+    await screen.findByText("Wow mug");
+    expect(screen.getByLabelText("Search")).toHaveValue("mug");
+    expect(productQueries(received).at(-1)?.body).toMatchObject({
+      sort: [{ field: "state.price", direction: "desc" }],
+      pagination: { index: 2, size: 12 },
+    });
+    await userEvent.selectOptions(screen.getByLabelText("Sort by"), "name");
+    await waitFor(() =>
+      expect(router.state.location.search).toBe("?q=mug&category=mugs"),
+    );
+    await router.navigate(-1);
+    await waitFor(() =>
+      expect(router.state.location.search).toBe("?q=mug&category=mugs&sort=price-desc&page=2"),
+    );
+    expect(screen.getByLabelText("Sort by")).toHaveValue("price-desc");
+  });
+
+  it("shows each product's stock in one query, and offers no product that is out of it (UI-55)", async () => {
+    const cup = snapshot("cup", { name: "Cup", description: "", price: 3, status: "PUBLISHED" });
+    const { transport, received } = catalog(
+      [MUG, cup],
+      [snapshot("mug", { available: 3, onHand: 5, reservations: {} })],
+    );
+    renderShop("/", ALICE, transport);
+    expect(await screen.findByText("3 in stock")).toBeInTheDocument();
+    expect(await screen.findByText("Out of stock")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Cup to the basket" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add Wow mug to the basket" })).toBeEnabled();
+    const stocks = received.filter((r) => r.path === "/eshop-inventory/stock/snapshot/query");
+    expect(stocks).toHaveLength(1);
+    expect(stocks[0].body).toMatchObject({ filter: { op: "ids", values: ["mug", "cup"] } });
+  });
+
+  it("adds a product to the buyer's basket at its price, saying so on its card", async () => {
+    const { transport, received } = catalog([MUG], [
+      snapshot("mug", { available: 3, onHand: 3, reservations: {} }),
+    ]);
     renderShop("/", ALICE, transport);
     await userEvent.click(
       await screen.findByRole("button", { name: "Add Wow mug to the basket" }),

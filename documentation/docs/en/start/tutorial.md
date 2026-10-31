@@ -142,7 +142,7 @@ The orders themselves are queried through the snapshot query route, here Alice's
 ```bash
 curl -s -X POST localhost:8083/eshop-ordering/order/snapshot/query "${BUYER[@]}" \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"list","filter":{"op":"EQ","field":"state.status","value":"PAID"}}'
+  -d '{"kind":"list","filter":{"op":"eq","field":"state.status","value":"PAID"}}'
 ```
 
 Each caller sees only its own orders: the order took its owner from the command that created it ([Query Snapshots](../guide/queries)).

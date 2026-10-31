@@ -142,7 +142,7 @@ fun onEvent(event: StateEvent<OrderState>) {
 ```bash
 curl -s -X POST localhost:8083/eshop-ordering/order/snapshot/query "${BUYER[@]}" \
   -H 'Content-Type: application/json' \
-  -d '{"kind":"list","filter":{"op":"EQ","field":"state.status","value":"PAID"}}'
+  -d '{"kind":"list","filter":{"op":"eq","field":"state.status","value":"PAID"}}'
 ```
 
 每个调用方只看到自己的订单：订单从创建它的命令取得了它的所有者（[查询快照](../guide/queries)）。

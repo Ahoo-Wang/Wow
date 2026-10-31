@@ -32,3 +32,16 @@ dependencies {
     // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
     testImplementation(libs.json.schema.validator)
 }
+
+// DocumentedQueriesTest reads the query examples of the user documentation, the skills and the READMEs: declare them
+// as inputs, so a changed page runs it again instead of reusing a cached result.
+tasks.named<Test>("test") {
+    inputs.files(
+        rootProject.fileTree("documentation/docs") { include("**/*.md") },
+        rootProject.fileTree("skills") { include("**/*.md") },
+        rootProject.fileTree(".") {
+            include("examples/**/README.md", "platform/**/README.md", "typescript/**/README.md")
+            exclude("**/node_modules/**", "**/build/**")
+        },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("documentedQueries")
+}

@@ -109,6 +109,74 @@ describe("the orders", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows an order whose payment service does not answer, its payment unknown (UI-51)", async () => {
+    const { transport } = fakeServices([
+      [
+        "GET",
+        /^\/eshop-ordering\/order\/alice-1\/state$/,
+        () => ({ json: stateView("eshop-ordering", "order", "alice-1", ORDER, "alice") }),
+      ],
+      [
+        "GET",
+        /^\/eshop-payment\/payment\/alice-1\/state$/,
+        () => ({ status: 502, json: { title: "Bad Gateway", status: 502 } }),
+      ],
+    ]);
+    renderShop("/orders/alice-1", ERIN, transport);
+    expect(await screen.findByText("Order alice-1")).toBeInTheDocument();
+    expect(await screen.findByTestId("payment")).toHaveTextContent("unavailable (Service unavailable)");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The payment service did not answer (502 Bad Gateway). Try again in a moment.",
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    // The order is the ordering service's: an employee still ships it.
+    expect(screen.getByRole("button", { name: "Ship the order" })).toBeEnabled();
+  });
+
+  it("says a cancelled order had no payment and its stock was released (UI-54)", async () => {
+    const cancelled = { ...ORDER, status: "CANCELLED" as const, cancelReason: "Out of stock" };
+    const { transport } = fakeServices([
+      [
+        "GET",
+        /^\/eshop-ordering\/order\/alice-1\/state$/,
+        () => ({ json: stateView("eshop-ordering", "order", "alice-1", cancelled, "alice") }),
+      ],
+      [
+        "GET",
+        /^\/eshop-payment\/payment\/alice-1\/state$/,
+        () => problemAnswer(404, "Not Found", "wow.aggregate.not-found"),
+      ],
+    ]);
+    renderShop("/orders/alice-1", ALICE, transport);
+    expect(await screen.findByText("Released")).toBeInTheDocument();
+    expect(await screen.findByTestId("payment")).toHaveTextContent(
+      "none: the order was cancelled before its payment",
+    );
+    expect(screen.getByRole("link", { name: "Back to orders" })).toHaveAttribute("href", "/orders");
+  });
+
+  it("ships an order once, however often Ship is pressed (UI-58)", async () => {
+    let answer: (value: Answer) => void = () => {};
+    const pending = new Promise<Answer>((resolve) => (answer = resolve));
+    const { transport, received } = ordering();
+    const slow: typeof fetch = async (input, init) => {
+      if (String(input).endsWith("ship-order")) {
+        received.push({ method: "POST", path: "/eshop-ordering/order/alice-1/ship-order", headers: {}, body: {} });
+        await pending;
+        return new Response(JSON.stringify(result()), { headers: { "Content-Type": "application/json" } });
+      }
+      return transport(input, init);
+    };
+    renderShop("/orders", ERIN, slow);
+    const ship = await screen.findByRole("button", { name: "Ship alice-1" });
+    await userEvent.click(ship);
+    await userEvent.click(ship);
+    expect(ship).toBeDisabled();
+    answer({ json: result() });
+    await waitFor(() => expect(ship).toBeEnabled());
+    expect(received.filter((r) => r.path.endsWith("ship-order"))).toHaveLength(1);
+  });
+
   it("shows another buyer's order as not found", async () => {
     const { transport } = fakeServices([
       [

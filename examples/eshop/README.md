@@ -62,6 +62,7 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command, written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
 - **Buyer.** The order belongs to its buyer. The basket's owner is its buyer, and the checkout saga's `SubmitOrder` carries the basket's scope, as every command a saga derives carries the scope of the commit it handles. The order takes its owner from that command, and so does the payment the payment context's saga creates for it.
+- **Employees.** As the catalog does, the inventory and the ordering each have a `CommandAuthorizer`. `InventoryAuthorization` lets only an employee (a tenant-level caller) or a service change a stock, so a buyer can neither receive nor reserve stock over HTTP. `OrderingAuthorization` lets only an employee ship an order, which its buyer may not. The order process's own commands reach the stock and the order on their contexts' command topics, outside admission, so neither authorizer refuses them. In each service a scheduled job's commands and the snapshot rebuild are an employee's alone.
 - **Stock confirmation.** The inventory sends the receipt of each reservation it commits back to `wow.eshop-ordering.receipts`, because `OrderProcessSaga` declares an `@OnCommitted` handler of `ReserveStock`; the handler confirms the product on the order. The receipt carries the stock's id, its version and the command's result, not its state, and the saga handles each receipt once.
 - **Waiting for the order.** A checkout's `Wow-Wait` can follow the order the whole way to its payment, in 15 hops: every saga on the way, the ordering's `@OnCommitted` handler of the reservations' receipts included, until the payment's `PayOrder` is committed in the ordering context. Each hop names its saga and context:
 
@@ -122,14 +123,14 @@ The ordering serves it at `/wow/dataset/eshop-ordering/sales/query`. For example
 
 ```bash
 curl -s -X POST localhost:8083/wow/dataset/eshop-ordering/sales/query -H 'Content-Type: application/json' -d '{
-  "kind": "aggregate", "filter": {"op": "MATCH_ALL"},
-  "groupBy": [{"type": "TERMS", "field": "status", "alias": "status"}],
-  "metrics": [{"type": "COUNT", "alias": "orders"},
-              {"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "totalAmount"}, "alias": "revenue"}]}'
+  "kind": "aggregate", "filter": {"op": "match-all"},
+  "groupBy": [{"type": "terms", "field": "status", "alias": "status"}],
+  "metrics": [{"type": "count", "alias": "orders"},
+              {"type": "numeric", "function": "sum", "expression": {"type": "field", "field": "totalAmount"}, "alias": "revenue"}]}'
 curl -s -X POST localhost:8083/wow/dataset/eshop-ordering/sales/query -H 'Content-Type: application/json' -d '{
-  "kind": "aggregate", "filter": {"op": "EQ", "field": "status", "value": "SHIPPED"},
-  "groupBy": [{"type": "DATE_HISTOGRAM", "field": "commit_time", "alias": "day", "unit": "DAY"}],
-  "metrics": [{"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "totalAmount"}, "alias": "revenue"}]}'
+  "kind": "aggregate", "filter": {"op": "eq", "field": "status", "value": "SHIPPED"},
+  "groupBy": [{"type": "date-histogram", "field": "commit_time", "alias": "day", "unit": "day"}],
+  "metrics": [{"type": "numeric", "function": "sum", "expression": {"type": "field", "field": "totalAmount"}, "alias": "revenue"}]}'
 ```
 
 The Sink writes behind the commits, so a query right after an order's change may still read its previous state.
@@ -140,7 +141,7 @@ Work package E.1. Three aggregates, the classic eShop's catalog items, brands an
 
 | Aggregate | Commands | Rejections |
 | --- | --- | --- |
-| `product` | `CreateProduct` (a draft; brand and category optional), `UpdateProduct` (name, description, brand, category), `ChangeProductPrice`, `PublishProduct`, `DelistProduct` | `incomplete` (409): publishing without a brand and a category, or removing one from a published product; `not-published` (409): delisting a product that is not published |
+| `product` | `CreateProduct` (a draft; brand and category optional), `UpdateProduct` (name, description, brand, category), `ChangeProductPrice`, `PublishProduct`, `DelistProduct`, `DiscontinueProduct` (for good, with a reason: the product leaves the catalog, deleted as `DeleteAggregate` deletes it) | `incomplete` (409): publishing without a brand and a category, or removing one from a published product; `not-published` (409): delisting a product that is not published |
 | `brand` | `CreateBrand`, `RenameBrand` | `name-taken` (409) |
 | `category` | `CreateCategory`, `RenameCategory` | `name-taken` (409) |
 
@@ -148,7 +149,7 @@ Work package E.1. Three aggregates, the classic eShop's catalog items, brands an
 - **Product status.** A product is `DRAFT`, `PUBLISHED` or `DELISTED`. A delisted product can be published again. Publishing a published product, or a command that changes nothing, is accepted and writes nothing.
 - **Unique names.** Brand and category names are unique, ignoring case and surrounding blanks. The aggregate reserves the name with `DecideScope.reserve`. A renamed brand or category keeps its old name reserved, because nothing releases a reserved key yet ([G19](DX-GAPS.md)).
 - **References.** A product names its brand and category by id. The catalog does not check that they exist.
-- **Callers.** The products, brands and categories belong to the tenant (`@AggregateRoot(ownership = Ownership.TENANT)`), so every shopper reads them. In development the host gives the two caller levels from headers, standing in for CoSec: `Wow-User: <id>` with `Wow-Owner: <id>` is a buyer, and `Wow-User` with `Wow-Roles: employee` and no owner is an employee, a caller of the whole tenant. The server's `CommandAuthorizer` (`CatalogAuthorization`) lets only an employee change the catalog. A request without `Wow-User` is the anonymous caller, for trying the service out.
+- **Callers.** The products, brands and categories belong to the tenant (`@AggregateRoot(ownership = Ownership.TENANT)`), so every shopper reads them. In development the host gives the two caller levels from headers, standing in for CoSec: `Wow-User: <id>` with `Wow-Owner: <id>` is a buyer, and `Wow-User` with `Wow-Roles: employee` and no owner is an employee, a caller of the whole tenant. The server's `CommandAuthorizer` (`CatalogAuthorization`) lets only an employee change the catalog. A request without `Wow-User` is the anonymous caller, for trying the service out. The snapshot rebuild (`POST /eshop-catalog/<aggregate>/wow.snapshot.rebuild`), a system command of Wow's built-in aggregates, is an employee's alone, never a buyer's or the anonymous caller's: with an authorizer, the public port leaves those commands to it.
 
 The storefront reads the product snapshots through the HTTP query routes: `POST /eshop-catalog/product/snapshot/query`. The product's state declares `@QueryIndex` indexes for what the storefront filters and sorts on:
 
@@ -163,10 +164,10 @@ Run the catalog on PostgreSQL to query it with these indexes. For example, the p
 ./gradlew :eshop-catalog-server:run --args='--spring.profiles.active=postgres'   # a database eshop_catalog on localhost:5432
 curl -s -X POST localhost:8081/eshop-catalog/product/snapshot/query -H 'Content-Type: application/json' -d '{
   "kind": "paged",
-  "filter": {"op": "AND", "operands": [
-    {"op": "EQ", "field": "state.categoryId", "value": "mugs"},
-    {"op": "EQ", "field": "state.status", "value": "PUBLISHED"}]},
-  "sort": [{"field": "state.price", "direction": "ASC"}],
+  "filter": {"op": "and", "operands": [
+    {"op": "eq", "field": "state.categoryId", "value": "mugs"},
+    {"op": "eq", "field": "state.status", "value": "PUBLISHED"}]},
+  "sort": [{"field": "state.price", "direction": "asc"}],
   "pagination": {"index": 1, "size": 2}}'
 ```
 
@@ -235,11 +236,12 @@ curl -s localhost:8085/eshop-payment/payment/alice-1/state
 
 Work package E.7: `examples/eshop/web`, a React app (Vite, shadcn) on the clients `wow-generator` writes from the five Manifest baselines into `src/generated/<context>/` (`pnpm --filter wow-eshop-web generate`; a test holds them byte for byte). A switcher in its header picks the caller it sends as `Wow-User` with `Wow-Owner` or `Wow-Roles`: the buyers `alice` and `bob`, or the employee `erin`.
 
-- **Shop.** Products from the catalog's snapshot query, searched by name and category, sorted and paged; a buyer sees the published ones and adds them to the basket.
-- **Catalog admin** (employee). Brands, categories and draft products; a product's price, its publication, and its stock in the inventory.
-- **Basket and checkout** (buyer). The checkout streams the 15-hop wait of [Waiting for the order](#the-order-flow) and shows each hop as it arrives, to the paid order, to the hop that failed, or to the hop where the server says the chain ended (`chainEnded`, with the hops `pending`).
-- **Orders.** A buyer's own orders, every order for an employee, who ships the paid ones; an order with its payment.
-- **Problems.** A refusal or rejection shows its title, status, code, detail and violations.
+- **Shop.** Products from the catalog's snapshot query, searched by name and category, sorted and paged, and their stock from the inventory's, in one query. The search, category, sort and page are kept in the address, so a link, a reload and Back show the same products. A buyer sees the published ones and adds those in stock to the basket.
+- **Catalog admin** (employee). Brands and categories, each listed and renamed in place. Products: created as drafts, edited (name, description, brand, category), priced, published or delisted, discontinued, and their stock received in the inventory. Each action's outcome shows where it was taken.
+- **Basket and checkout** (buyer). The checkout streams the 15-hop wait of [Waiting for the order](#the-order-flow) and shows each hop as it is reached: to the paid order, to the hop that failed, or to the hop where the server says the chain ended (`chainEnded`, with the hops `pending`). Results are grouped by hop and by the function that sent them, never by their place in the stream. An order of several products reserves and confirms each of them, so the stream has more results than the plan has hops, and the page shows each hop once with its functions (`ReserveStock ×2`).
+- **Orders.** A buyer's own orders, and every order for an employee, who ships the paid ones. An order shows with its payment, read apart, so a payment service that does not answer leaves the order shown.
+- **Problems.** A refusal or rejection shows its title, status, code, detail and violations. A service that did not answer is named, with a button to try again.
+- **Users.** Switching user starts each page afresh: nothing of the last user's checkout or problems shows.
 
 The dev server forwards each context's routes (`/eshop-<context>/`) to its service on the ports of [Running](#running) (`ESHOP_<CONTEXT>_URL` overrides one). Without Kafka, run the whole shop in one JVM, in memory: `EshopLocal` shares one set of in-memory topics among the five services ([G27](DX-GAPS.md)).
 

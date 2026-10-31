@@ -28,6 +28,12 @@ import type { ShopClients } from "./clients";
 export interface CheckoutStep {
   readonly hop: Hop;
   readonly label: string;
+  /**
+   * The functions whose results reach this step, where the plan has the
+   * same hop more than once (`committed(eshop-ordering)` is four steps): the
+   * commands committed there. A step whose hop is unique leaves it out.
+   */
+  readonly functions?: readonly string[];
 }
 
 /**
@@ -43,12 +49,20 @@ export const CHECKOUT_TO_PAID: readonly CheckoutStep[] = [
     hop: eshopBasketWait.handled("BasketCheckoutSaga.onBasketCheckedOut"),
     label: "Checkout saga submits the order",
   },
-  { hop: eshopOrderingWait.committed(), label: "Order submitted" },
+  {
+    hop: eshopOrderingWait.committed(),
+    label: "Order submitted",
+    functions: ["SubmitOrder"],
+  },
   {
     hop: eshopOrderingWait.handled("OrderProcessSaga.onOrderSubmitted"),
     label: "Order process starts the stock validation",
   },
-  { hop: eshopOrderingWait.committed(), label: "Order awaits its stock" },
+  {
+    hop: eshopOrderingWait.committed(),
+    label: "Order awaits its stock",
+    functions: ["AwaitStockValidation"],
+  },
   {
     hop: eshopOrderingWait.handled("OrderProcessSaga.onOrderAwaitingValidation"),
     label: "Order process reserves the stock",
@@ -58,22 +72,38 @@ export const CHECKOUT_TO_PAID: readonly CheckoutStep[] = [
     hop: eshopOrderingWait.handled("OrderProcessSaga.onReserveCommitted"),
     label: "Order process confirms the reservation",
   },
-  { hop: eshopOrderingWait.committed(), label: "Order stock confirmed" },
+  {
+    hop: eshopOrderingWait.committed(),
+    label: "Order stock confirmed",
+    functions: ["ConfirmOrderStock"],
+  },
   {
     hop: eshopPaymentWait.handled("OrderPaymentSaga.onOrderStockConfirmed"),
-    label: "Payment requested",
+    label: "Payment saga requests the payment",
   },
-  { hop: eshopPaymentWait.committed(), label: "Payment recorded" },
+  {
+    hop: eshopPaymentWait.committed(),
+    label: "Payment requested",
+    functions: ["RequestPayment"],
+  },
   {
     hop: eshopPaymentWait.handled("PaymentGatewaySaga.onPaymentRequested"),
     label: "Gateway charges the payment",
   },
-  { hop: eshopPaymentWait.committed(), label: "Gateway answered" },
+  {
+    hop: eshopPaymentWait.committed(),
+    label: "Gateway answered",
+    functions: ["ConfirmPayment", "FailPayment"],
+  },
   {
     hop: eshopPaymentWait.handled("OrderPaymentSaga.onPaymentSucceeded"),
-    label: "Payment saga pays the order",
+    label: "Payment saga handles the gateway's answer",
   },
-  { hop: eshopOrderingWait.committed(), label: "Order paid" },
+  {
+    hop: eshopOrderingWait.committed(),
+    label: "Order paid",
+    functions: ["PayOrder"],
+  },
 ];
 
 /** How long the checkout waits for the whole chain, in milliseconds. */
@@ -98,6 +128,52 @@ export interface CheckoutProgress {
   readonly done: boolean;
 }
 
+/** Whether `result` is of `hop`: the same stage, context and subscription. */
+function isOf(result: CommandResult, hop: Hop): boolean {
+  return (
+    result.hop.stage === hop.stage &&
+    result.hop.context === hop.context &&
+    (result.hop.subscription ?? null) === (hop.subscription ?? null)
+  );
+}
+
+/**
+ * The results of each step of {@link CHECKOUT_TO_PAID}, in the order they
+ * arrived: by each result's hop and, where the plan has that hop more than
+ * once, by its function, never by its position in the stream. A step the
+ * chain reached once per product (a basket of two products reserves two
+ * stocks, and confirms each) holds a result per product, so the stream has
+ * more results than the plan has hops. A result of a function no step of its
+ * hop names goes to the first of them that has none yet; a result of a hop
+ * the plan does not have, to none.
+ */
+export function resultsByStep(
+  results: readonly CommandResult[],
+): CommandResult[][] {
+  const steps: CommandResult[][] = CHECKOUT_TO_PAID.map(() => []);
+  for (const result of results) {
+    const candidates = CHECKOUT_TO_PAID.flatMap((step, index) =>
+      isOf(result, step.hop) ? [index] : [],
+    );
+    const index =
+      candidates.length === 1
+        ? candidates[0]
+        : (candidates.find((candidate) =>
+            CHECKOUT_TO_PAID[candidate].functions?.includes(result.function.name),
+          ) ??
+          candidates.find((candidate) => steps[candidate].length === 0) ??
+          candidates.at(-1));
+    if (index !== undefined) steps[index].push(result);
+  }
+  return steps;
+}
+
+/** How many steps of the plan the results reached. */
+export function stepsReached(progress: CheckoutProgress): number {
+  return resultsByStep(progress.results).filter((step) => step.length > 0)
+    .length;
+}
+
 /**
  * Whether the checkout paid its order: the chain reached the last hop of its
  * plan, as the server says by ending neither with a failure nor early.
@@ -105,9 +181,9 @@ export interface CheckoutProgress {
 export function isPaid(progress: CheckoutProgress): boolean {
   return (
     progress.done &&
-    progress.results.length > 0 &&
     !progress.failure &&
-    !progress.ended
+    !progress.ended &&
+    (resultsByStep(progress.results).at(-1)?.length ?? 0) > 0
   );
 }
 

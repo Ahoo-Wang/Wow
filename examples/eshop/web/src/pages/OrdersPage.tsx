@@ -33,9 +33,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
 import { ProblemAlert } from "@/shop/problems";
 import { useSession } from "@/shop/session";
-import { money, useLoad } from "@/shop/useLoad";
+import { money, useLoad, useTitle } from "@/shop/useLoad";
 
 /** An order's status as a badge. */
 export function OrderStatus({ status }: { status: OrderState["status"] }) {
@@ -58,6 +59,7 @@ export function OrderStatus({ status }: { status: OrderState["status"] }) {
  * ships the paid ones.
  */
 export function OrdersPage() {
+  useTitle("Orders");
   const { user, clients } = useSession();
   const [orders, reload] = useLoad(
     (signal) =>
@@ -72,22 +74,29 @@ export function OrdersPage() {
     `orders:${user.id}`,
   );
   const [problem, setProblem] = useState<unknown>();
+  // The order being shipped: its button is busy, so a second press sends nothing.
+  const [shipping, setShipping] = useState<string>();
 
   async function ship(id: string) {
     setProblem(undefined);
+    setShipping(id);
     try {
       await clients.ordering.order.commands.shipOrder(id);
     } catch (error) {
       setProblem(error);
+    } finally {
+      setShipping(undefined);
     }
     reload();
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {problem !== undefined && <ProblemAlert error={problem} />}
+      {problem !== undefined && <ProblemAlert error={problem} service="ordering" />}
       {orders.status === "loading" && <Skeleton className="h-32 w-full" />}
-      {orders.status === "failed" && <ProblemAlert error={orders.error} />}
+      {orders.status === "failed" && (
+        <ProblemAlert error={orders.error} service="ordering" onRetry={reload} />
+      )}
       {orders.status === "loaded" && orders.value.length === 0 && (
         <Empty>
           <EmptyHeader>
@@ -136,9 +145,14 @@ export function OrdersPage() {
                       <Button
                         size="sm"
                         onClick={() => ship(order.aggregateId)}
+                        disabled={shipping === order.aggregateId}
                         aria-label={`Ship ${order.aggregateId}`}
                       >
-                        <TruckIcon data-icon="inline-start" />
+                        {shipping === order.aggregateId ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <TruckIcon data-icon="inline-start" />
+                        )}
                         Ship
                       </Button>
                     )}

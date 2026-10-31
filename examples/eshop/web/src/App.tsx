@@ -11,11 +11,19 @@
  * limitations under the License.
  */
 
-import { NavLink, Outlet, type RouteObject } from "react-router";
+import { Link, NavLink, Outlet, type RouteObject } from "react-router";
 import { StoreIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import { USERS } from "@/shop/session";
 import { useSession } from "@/shop/session";
+import { useLoad, useTitle } from "@/shop/useLoad";
 import { AdminPage } from "@/pages/AdminPage";
 import { BasketPage } from "@/pages/BasketPage";
 import { OrderPage } from "@/pages/OrderPage";
@@ -46,11 +54,51 @@ function UserSwitcher() {
   );
 }
 
+/** How many items the buyer's basket holds, read again whenever this page changes it. */
+function useBasketCount(): number | undefined {
+  const { user, clients, basketRevision } = useSession();
+  const [count] = useLoad(
+    async (signal) =>
+      user.role !== "buyer"
+        ? 0
+        : ((await clients.basket.basket.state.findOwn({ signal }))?.state.items ?? []).reduce(
+            (sum, item) => sum + item.quantity,
+            0,
+          ),
+    `basket-count:${user.id}:${basketRevision}`,
+  );
+  return count.status === "loaded" ? count.value : undefined;
+}
+
+/** A path no route has. */
+function NotFoundPage() {
+  useTitle("Not found");
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>Page not found</EmptyTitle>
+        <EmptyDescription>
+          The shop has no page here. <Link to="/">Browse the shop</Link>.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
 function Shell() {
   const { user } = useSession();
+  const basketCount = useBasketCount();
   const links = [
     { to: "/", label: "Shop", end: true },
-    ...(user.role === "buyer" ? [{ to: "/basket", label: "Basket" }] : []),
+    ...(user.role === "buyer"
+      ? [
+          {
+            to: "/basket",
+            label: "Basket",
+            count: basketCount ? basketCount : undefined,
+          },
+        ]
+      : []),
     { to: "/orders", label: "Orders" },
     ...(user.role === "employee" ? [{ to: "/admin", label: "Catalog admin" }] : []),
   ];
@@ -75,6 +123,12 @@ function Shell() {
               }
             >
               {link.label}
+              {"count" in link && link.count !== undefined && (
+                // The link keeps its name; the count is what the basket page lists.
+                <Badge variant="secondary" className="ml-1" aria-hidden data-testid="basket-count">
+                  {link.count}
+                </Badge>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -82,7 +136,8 @@ function Shell() {
           <UserSwitcher />
         </div>
       </header>
-      <main>
+      {/* Each user's pages start afresh: nothing another user did shows (a checkout's progress, a problem). */}
+      <main key={user.id}>
         <Outlet />
       </main>
     </div>
@@ -99,6 +154,7 @@ export const routes: RouteObject[] = [
       { path: "orders", element: <OrdersPage /> },
       { path: "orders/:id", element: <OrderPage /> },
       { path: "admin", element: <AdminPage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ];

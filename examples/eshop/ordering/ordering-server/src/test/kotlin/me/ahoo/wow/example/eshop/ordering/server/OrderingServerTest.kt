@@ -174,6 +174,39 @@ class OrderingServerTest {
     }
 
     /** The buyer [id]: the user, and the owner of what it creates. */
+    @Test
+    fun `only an employee should ship a paid order, not its buyer (UI-49)`() {
+        val alice = buyer("alice-ships")
+        submit("order-shipped", alice)
+        eventually("order-shipped awaits validation") { status("order-shipped") == "AWAITING_VALIDATION" }
+        post("/eshop-ordering/order/order-shipped/confirm-order-stock", """{"productId":"mug"}""", alice)
+            .status.assert().isEqualTo(OK)
+        post("/eshop-ordering/order/order-shipped/confirm-order-stock", """{"productId":"cap"}""", alice)
+            .status.assert().isEqualTo(OK)
+        post("/eshop-ordering/order/order-shipped/pay-order", """{"paymentId":"p-2","amount":29.00}""", alice)
+            .status.assert().isEqualTo(OK)
+        val refused = post("/eshop-ordering/order/order-shipped/ship-order", "{}", alice)
+        refused.status.assert().describedAs(refused.text).isEqualTo(FORBIDDEN)
+        refused.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+        refused.body!!["detail"].asString().assert().contains("Only an employee ships an order")
+        status("order-shipped").assert().isEqualTo("PAID")
+        post("/eshop-ordering/order/order-shipped/ship-order", "{}", mapOf(USER to "erin", ROLES to "employee"))
+            .status.assert().isEqualTo(OK)
+        status("order-shipped").assert().isEqualTo("SHIPPED")
+    }
+
+    @Test
+    fun `the snapshot rebuild should be an employee's alone (UI-50)`() {
+        val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild"
+        for (caller in listOf(emptyMap(), buyer("alice-rebuilds"))) {
+            val refused = post(rebuild, """{"ids":["order-1"]}""", caller)
+            refused.status.assert().describedAs(refused.text).isEqualTo(FORBIDDEN)
+            refused.body!!["detail"].asString().assert().contains("Only an employee sends wow.snapshot.Rebuild")
+        }
+        post(rebuild, """{"ids":["order-1"]}""", mapOf(USER to "erin", ROLES to "employee"))
+            .status.assert().isEqualTo(OK)
+    }
+
     private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
 
     private fun submit(id: String, headers: Map<String, String> = emptyMap()) {
@@ -210,6 +243,7 @@ class OrderingServerTest {
 
     private companion object {
         const val OK = 200
+        const val FORBIDDEN = 403
         const val BAD_REQUEST = 400
         const val CONFLICT = 409
         const val NOT_FOUND = 404

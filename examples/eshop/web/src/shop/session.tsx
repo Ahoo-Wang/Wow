@@ -58,6 +58,10 @@ interface Session {
   readonly user: User;
   readonly clients: ShopClients;
   switchTo(user: User): void;
+  /** Counts the changes to the user's basket this page made: what reads the basket reads it again on each. */
+  readonly basketRevision: number;
+  /** Says the user's basket changed. */
+  basketChanged(): void;
 }
 
 const SessionContext = createContext<Session | undefined>(undefined);
@@ -74,10 +78,14 @@ export function SessionProvider({
   transport?: typeof fetch;
 }) {
   const [user, setUser] = useState<User>(() => initialUser ?? storedUser());
+  const [basketRevision, setBasketRevision] = useState(0);
+  const clients = useMemo(() => shopClients(user, transport), [user, transport]);
   const session = useMemo<Session>(
     () => ({
       user,
-      clients: shopClients(user, transport),
+      clients,
+      basketRevision,
+      basketChanged: () => setBasketRevision((revision) => revision + 1),
       switchTo(next) {
         try {
           localStorage.setItem(STORAGE_KEY, next.id);
@@ -87,7 +95,7 @@ export function SessionProvider({
         setUser(next);
       },
     }),
-    [user, transport],
+    [user, clients, basketRevision],
   );
   return (
     <SessionContext.Provider value={session}>
