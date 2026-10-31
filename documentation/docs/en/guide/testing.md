@@ -10,7 +10,7 @@ Domain code is tested in the terms it is written in: given what has happened, wh
 
 ## Set up
 
-Add the artifact `me.ahoo.wow:wow-test` to your test dependencies; its version comes from the Wow BOM. The DSL is a set of functions in the package `me.ahoo.wow.test` that a JUnit test calls: `aggregateSpec` for an aggregate; `sagaSpec`, `projectionSpec` and `reactorSpec` for a processor; `scheduleSpec` for a scheduled job. `aggregateSpec`, `sagaSpec`, `projectionSpec` and `reactorSpec` each have a twin ending in `Tests`, which turns the same specification into a tree of tests.
+Add the artifact `me.ahoo.wow:wow-test` to your test dependencies; its version comes from the Wow BOM. The DSL is a set of functions in the package `me.ahoo.wow.test` that a JUnit test calls: `aggregateSpec` for an aggregate; `sagaSpec`, `projectionSpec` and `reactorSpec` for a processor; `scheduleSpec` for a scheduled job. Each has a twin ending in `Tests`, which turns the same specification into a tree of tests. A processor spec that reads through the query API over snapshots in memory also takes `me.ahoo.wow:wow-test-query` ([Reads](#reads)).
 
 A JUnit test function must return `Unit`. The spec functions return `Unit`, so `fun test() = aggregateSpec(...)` is fine; the `Tests` twins return the tree, for a `@TestFactory`.
 
@@ -69,6 +69,7 @@ class AccountSpec {
 | --- | --- |
 | `given(vararg events, scope = null, operator = null, commitTime = now)` | Commits the events as one stream, as if an earlier command had produced them; `scope` leaves the aggregate in that owner and space. `operator` and `commitTime` are the facts of the commit a sourcing function reads ([Read the commit](./aggregates#read-the-commit)). |
 | `givenState(state, version, scope)`, `givenState(version, scope) { … }` | Starts the aggregate in a state at a version, without replaying a history; the block form changes the initial state. The first step of a spec. |
+| `givenRecords(vararg records, scope, operator, commitTime)` | Commits stored records as one stream, as the log holds them: a history the model's classes can no longer write, such as an event the aggregate retired, whose record the kernel skips, or a record of an older revision, read through its upgrades. |
 | `givenReservation(namespace, key, owner)` | Gives a reserved key to another aggregate of the same type, so a command that reserves it is refused. |
 | `givenCommands(vararg commands)` | Sends the commands as the scenario's setup; one that is rejected or throws fails the spec, naming it. |
 | `whenCommand(command, requestId, expectedVersion, caller, scope, …) { … }` | Sends the command through the kernel and checks its outcome in the block. The `caller` (the spec's `aggregateSpec(model, caller = …)` by default) gives its scope, operator and application, as the command gateway derives them; `scope` names another scope the caller acts in. |
@@ -77,6 +78,7 @@ class AccountSpec {
 | `expectNothingDue(within)` | Moves the clock on and fails if a command the aggregate scheduled for itself is due by then. |
 | `ref(name)`, `fork(name, from) { … }` | Marks a point; runs a scenario on a copy of the aggregate, now or from a marked point. |
 | `holds(namespace, key)` | Whether the aggregate holds a reserved key. |
+| `now`, `timer(key)` | The time the spec is at; the timer the aggregate keeps under a schedule's key, in whatever status, or null. |
 
 Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTime` moves it: a decision reads it as `scope.now`, and its commit is recorded at it. Ids a decide function takes are sequential: `id-1`, `id-2`, and so on.
 
@@ -90,14 +92,19 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectEventEnvelope<E> { … }` | The same, with the stream's envelope beside the event (`body`): `aggregateId`, `tenantId`, `version`, `commandId`, `requestId`, `headers`. |
 | `expectEventCount(n)` | It committed exactly `n` events. |
 | `expectUnchanged()` | It was accepted and changed nothing. |
+| `expectVersion(n)` | The aggregate is at version `n` after the command: the committed stream's, or the one it stayed at when the command appended nothing. |
+| `expectDeleted()` | The command committed the aggregate's deletion. |
 | `expectRejected(code) { … }` | It was rejected with this error code, returned or thrown (`reject`, `require`, `check`); the block checks the rejection. |
 | `expectError<T> { … }` | Its decide function threw a `T`. |
 | `expectNoError()` | Nothing was thrown, and the command was not rejected. |
 | `expectState { … }` | The block's checks hold on the state after the command. |
 | `expectState(expected)` | The state after the command equals `expected`, field by field; a mismatch lists each difference. |
-| `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all. |
+| `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all, and fails for a command that committed nothing, since only a committed command answers with results. |
 | `expectScope(scope)`, `expectTags(tags)` | The aggregate is in this scope, or has exactly these tags, after the command. |
 | `expectScheduled(key, command, rule)`, `expectScheduleCancelled(key)` | It scheduled this command under `key`, or cancelled the schedule. |
+| `fork(name) { … }`, `fork(name, model) { … }` | Branches from this command's outcome ([A tree of tests](#a-tree-of-tests)). |
+
+`error` is what the decide function threw, null when it returned a decision. A check that fails ends the block, so the forks after it do not run.
 
 A rejection is a value, checked by its code. A rejection with events commits them, so `expectRejected` goes with `expectEvents`, `expectVersion` and `expectState` to check them and the state they left; a creation rejected with events fails the test, naming the command, since its events could never be committed. An exception decide throws is a failure, checked by its type; one that no `expectError` checks fails the test as it was thrown. After a command that committed nothing, `expectState` checks the state the aggregate is in.
 
@@ -264,7 +271,27 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 }
 ```
 
-`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once.
+`expectDeterministic()` handles the commit again, with a fresh context as the runtime gives each handling, and checks that the saga sends the same commands with the same ids. That is what makes a redelivered commit safe: the target decides each request once. A projection or a reactor has no such check: handling a commit again would run its side effects again.
+
+### Steps
+
+`sagaSpec`, `projectionSpec` and `reactorSpec` take the same steps. Each `when…` step's checks are optional: without a block, a step only fails when a handler throws.
+
+| Step | Does |
+| --- | --- |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. A fork advances copies of its own. |
+| `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | Commits the events on the given aggregate (`on`, by default the only one) and hands the commit to the handlers that read it. `by` is the command class that committed them, which names the commit's command type as the model does; `handler = "onX"` calls only that handler. |
+| `whenEvent(stateEvent, handler) { … }` | Hands a commit built by hand over ([Peer states and published streams](#peer-states-and-published-streams)). |
+| `whenRedelivered(on, handler) { … }` | Hands the latest commit over again, as a subscription that delivers each commit at least once does after a retry or a rebalance. An idempotent handler does the same again, or nothing. |
+| `whenDeliveredLate(version, on, handler) { … }` | Hands an older commit over again after newer ones, as another partition's lag or a replay delivers it. A handler that keeps the newest version leaves what the later commits wrote. |
+| `whenRejected(command, code, message) { … }`, `whenCommitted(command, version, aggregateId, duplicate) { … }` | Hands the rejection, or the success receipt, of a command the spec derived back to the saga ([Rejections and receipts](#rejections-and-receipts)). |
+| `answerCalls { … }` | Answers the saga's synchronous calls ([Synchronous calls](#synchronous-calls)). |
+| `givenQueries(queries)` | Serves the handlers' reads ([Reads](#reads)); without it, a handler that reads fails. |
+| `fork(name) { … }` | Runs a scenario on a copy of the spec as it is now; inside a step's checks, on a copy as that handling left it. In `sagaSpecTests` each step is a test and each fork a container. |
+
+### Which handlers a commit reaches
+
+A commit reaches each handler that reads it, as its subscription would: one that names the commit's aggregate type in `aggregates`, or names none and takes its state type. A handler of one event type, such as `StateTypedEvent<S, E>`, skips a commit without an event of that type, as the runtime does, so a commit every handler skips is handled by none, which `expectHandledBy()` with no names checks. A commit that no handler reads at all fails the spec: it is a mistake of the test, not a skip.
 
 ### Rejections and receipts
 
@@ -293,7 +320,14 @@ fun `a reservation the inventory refused should cancel the order`() = sagaSpec(h
 
 ### Synchronous calls
 
-A saga that calls another service synchronously gets its answers from `answerCalls`: a result, a rejection, or an exception for a service that is down. `expectCalls` and `calls` check what it called:
+A saga that calls another service synchronously gets its answers from `answerCalls`, as the target's command gateway would give them:
+
+- `committedResult(command)`, the default, committed at version 1;
+- `rejectedResult(command, code)`, which the handler gets as a `CommandRejectedException`;
+- `failedResult(command, code)`, which it gets as a `WowProblemException`;
+- an exception thrown from the block, as a target that is down throws it.
+
+A rejection the handler lets through goes to the saga's `@OnRejected` handler of that command, whose commands the aborted handling is left with. The checkout saga has none, so the runtime parks the basket at once, and the spec says so with `expectParked`. `expectCalls` and `calls` check what it called:
 
 <!-- sample: examples/eshop/basket/basket-domain/src/test/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/BasketCheckoutSagaTest.kt#calls -->
 
@@ -310,30 +344,61 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 }
 ```
 
-A saga whose handlers read through the query API gets its reads from `givenQueries`, a fake of the read side, or from the read side over snapshots in memory that `wow-test-query` gives. `givenSnapshots(model, id, *events)` holds the snapshot of an aggregate in the state its events leave it in, at the version of its last event: its model replays them as `givenAggregate` does, and refuses an event it has no sourcing function for. `givenSnapshots(type, id to state)` holds a state as it is given, for a state no model of the test sources. Prefer the events where the model is at hand: a state written as a JSON map skips the state's schema, so a misspelled field is dropped without a word and the state reads back with that field's default. A spec that reads several aggregates gives one `givenQueries(memoryQueries { snapshot(model, id, *events); … })`.
+### Reads
+
+A saga whose handlers read through the query API gets its reads from `givenQueries`, a fake of the read side, or from the read side over snapshots in memory that `wow-test-query` gives. That read side is the query engine of the Manifest the modules on the class path declare: a handler's filters, scope and tenant policies and budgets apply, as on a node. `givenSnapshots(model, id, *events)` holds the snapshot of an aggregate in the state its events leave it in, at the version of its last event: its model replays them as `givenAggregate` does, and refuses an event it has no sourcing function for. `givenSnapshots(type, id to state)` holds a state as it is given, for a state no model of the test sources. Prefer the events where the model is at hand: a state written as a JSON map skips the state's schema, so a misspelled field is dropped without a word and the state reads back with that field's default. A spec that reads several aggregates gives one `givenQueries(memoryQueries { snapshot(model, id, *events); … })`, which also takes `snapshots(type, id to state, …)`; each `givenSnapshots` replaces the queries given before.
+
+### Failures, retries and parking
+
+A handler that throws fails the spec unless the step's checks expect it: `expectError<T>`, `expectRetried` or `expectParked`. The spec decides what the runtime would do with the failure as the runtime's subscriptions do:
+
+- A rejection the handling met parks the aggregate at once, without a retry: the rejection of a call the handler let through, or of a derived command that no `@OnRejected` handler takes ([Rejections and receipts](#rejections-and-receipts)). A rejection is a business outcome, which no retry changes.
+- Any other failure is classified: the handler's `@Retry(recoverable, unrecoverable)` first, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down or pushes back is retried without spending the budget; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
+- A handling that runs longer than its `@Retry(timeout)` is cancelled and counts as a failed attempt. That time is real, not the spec's clock.
+
+`expectRetried(attempt)` passes when the runtime retries the handling after that attempt, the first by default; `expectParked(attempt)` when it parks it then. Both return what was thrown. The spec does not wait out the backoff between attempts, and it uses neither the parked retries nor the application's own `FailureClassifier` beans: test those beside the classifier. [Test a failure](./failures#test-it) shows a reactor retried and then parked.
 
 ### Saga expectations
 
 | Expectation | Passes when |
 | --- | --- |
 | `expectCommands(vararg bodies)`, `expectCommandTypes(vararg types)` | The handlers sent commands of exactly these bodies, or classes, in order. |
-| `expectCommand(body, to)`, `expectCommand<C> { … }` | They sent exactly one command, of this body and to this aggregate, or a `C` the block checks. |
+| `expectCommand(body, to)`, `expectCommand<C> { … }` | They sent exactly one command, of this body and to this aggregate, or a `C` whose body the block checks. |
+| `expectCommandEnvelope<C> { … }` | They sent exactly one command, a `C`, which the block checks with its envelope: the aggregate it goes to (`ref`), its ids, scope, request facts and operator beside its `body`. |
+| `expectCommandCount(n)` | They sent exactly `n` commands. |
 | `expectNoCommand()` | They sent nothing. |
 | `expectCalls(vararg bodies)`, `expectNoCall()` | They called exactly these commands synchronously, or none. |
 | `expectScheduled(…)`, `expectScheduleCancelled(…)`, `expectNoSchedule()` | They scheduled or cancelled a command, or changed no schedule. |
 | `expectHandledBy(vararg functions)` | Exactly these handlers were called, in order. |
-| `expectDeterministic()` | Handling the commit, or the outcome, again sends the same commands, ids included. |
+| `expectDeterministic()` | Handling the commit, or the outcome, again sends the same commands, ids included. A saga's only. |
 | `expectError<T> { … }`, `expectNoError()` | A handler threw a `T`; none threw. |
+| `expectRetried(attempt)`, `expectParked(attempt)` | The handling failed, and the runtime retries it, or parks it, after that attempt ([Failures, retries and parking](#failures-retries-and-parking)). |
 
-`commands`, `calls`, `schedules` and `handled` give the raw results for checks the table does not cover. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath.
+`commands`, `calls`, `schedules`, `handled` and `error` give the raw results for checks the table does not cover.
+
+### Peer states and published streams
+
+A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as the first saga sample does. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
 
 ## Projections and reactors
 
-A projection or a reactor writes to a port, such as a repository or a mail service, that the test fakes. Pass the fake to the processor's generated handlers, feed them commits with `whenEvent`, and check what the fake then holds. `projectionSpec` and `reactorSpec` take the same steps as `sagaSpec` and the expectations that apply to them: `expectHandledBy`, `expectError` and `expectNoError`. Feeding the same commit twice is how you test that a projection is idempotent.
+A projection or a reactor writes to a port, such as a repository or a mail service, that the test fakes. Pass the fake to the processor's generated handlers, feed them commits with `whenEvent`, and check what the fake then holds. `projectionSpec` and `reactorSpec` take the same steps as `sagaSpec` and the expectations that apply to them: `expectHandledBy`, `expectError`, `expectNoError`, `expectRetried` and `expectParked`.
+
+A subscription delivers each commit at least once, and a commit of another partition may arrive after newer ones. `whenRedelivered()` hands the latest commit over again, which tests that a handler is idempotent; `whenDeliveredLate(version)` hands an older one over after newer ones, which tests that a read model keeps the newest version. [Test a projection](./projections#test-them) shows both.
 
 ## Scheduled jobs
 
-A saga's `@OnSchedule` handlers are tested with `scheduleSpec`, against the real job aggregate. Enable an instance of a job with `enable`, move the clock with `advanceTime`, and check the ticks the handlers got and the commands they sent. `whenTick` hands a tick over directly.
+A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`, against the real job aggregate, in the context the generated handlers name. Time stands still at `start` until `advanceTime` moves it.
+
+| Step | Does |
+| --- | --- |
+| `enable(job, tenantId, rule)`, `reschedule(job, tenantId, rule)`, `disable(job, tenantId)` | Enables an instance of a job by its default rule, or another, as `wow.schedule.Enable` does; overrides its rule; disables it. A `SHARDED` job's instance also takes its `partition`. |
+| `advanceTime(duration) { … }` | Moves the time on: each instance runs the slots then due, and its job's handlers get each tick. The block checks what they did with all of them together, with a saga's expectations, and fails when no slot was due; without a block, nothing is checked. |
+| `whenTick(tick) { … }` | Hands a tick to its job's handlers directly, without the job aggregate. |
+| `ticks`, `now`, `instanceOf(job, tenantId)` | The ticks handed over so far, the time, and an instance's state. |
+| `answerCalls { … }`, `givenQueries(queries)` | As in a saga spec. |
+
+Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's ticks and a missed morning.
 
 ## What the compiler generated
 
@@ -368,6 +433,6 @@ Domain tests cover the model. A service test starts the application and calls it
 
 - Run it on the memory backend, with random ports for the public and internal servers and the internal port on the loopback interface.
 - Give the test a caller resolver of its own that reads a test header, so each request has a tenant and an owner.
-- On the memory backend, snapshot queries answer only with `wow.query.memory.enabled: true`.
+- On the memory backend, the snapshot and events queries are served from memory by default, so a test can query what it wrote; `wow.query.memory.enabled: false` turns them off. They run the in-memory engine, not a real store's.
 - A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.transport=memory`.
 - Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the module's `integrationTest` test suite, which the Gradle plugins `me.ahoo.wow` and `me.ahoo.wow.service` register (JUnit Jupiter, the module's classes and everything `testImplementation` gives) and `check` does not run: put the sources under `src/integrationTest/kotlin` and run `./gradlew integrationTest`.
