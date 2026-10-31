@@ -22,6 +22,8 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import tools.jackson.databind.JsonNode
 import java.time.Duration
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 
 /**
  * The whole eShop end to end (work package E.6): [EshopStack]'s five services on PostgreSQL, Kafka and ClickHouse,
@@ -39,6 +41,8 @@ import java.time.Duration
  *   answers the order's number, mid-way through the order process, and a node of another id started in its place;
  *   the order completes with every effect once. The test logs how long the order's partition took no command, the
  *   lease's TTL included.
+ * - **Numbers.** Orders submitted without an id through both ordering nodes at once, which reserve ranges of the
+ *   numbers' one sequence from the database they share, never share a number.
  *
  * The orders are read back from the ordering's state routes, which serve the snapshots: they trail the commits, so
  * every read of a state the flow is still changing is awaited.
@@ -285,6 +289,36 @@ class EshopFullChainTest {
         stack.eventually("the probe $probe cancelled") { stack.orderStatus(probe) == "CANCELLED" }
     }
 
+    @Test
+    @Order(6)
+    fun `the ordering's nodes should never give one order number twice`() {
+        val nodes = stack.ordering.values.toList()
+        nodes.assert().hasSize(2)
+        val pool = Executors.newFixedThreadPool(nodes.size * 2)
+        val numbers = try {
+            pool.invokeAll((0 until ORDERS_ACROSS_NODES).map { n -> Callable { submitNew(nodes[n % nodes.size]) } })
+                .map { it.get() }
+        } finally {
+            pool.shutdown()
+        }
+        numbers.forEach { it.assert().matches(ORDER_NUMBER.toPattern()) }
+        numbers.toSet().assert().describedAs(numbers.toString()).hasSize(ORDERS_ACROSS_NODES)
+    }
+
+    /**
+     * Submits to [node] an order that names no id, as the basket's checkout does, of a product the inventory has no
+     * stock of: the number the node gave it.
+     */
+    private fun submitNew(node: EshopService): String {
+        val submitted = node.post(
+            "/eshop-ordering/order/submit-order",
+            """{"items":[{"productId":"none","unitPrice":1.00,"quantity":1}]}""",
+            mapOf(WAIT to "committed") + EshopStack.buyer("dora"),
+        )
+        submitted.status.assert().describedAs(submitted.body).isEqualTo(OK)
+        return json.readTree(submitted.body)["ref"]["id"].asString()
+    }
+
     /**
      * Submits the order [id] of a product the inventory has no stock of, which the order process then cancels;
      * whether [service] committed it. A try that failed late may have committed it, which the next one finds.
@@ -427,6 +461,7 @@ class EshopFullChainTest {
         const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID
         const val FULL_CHAIN_HOPS = 15
         const val ANSWER = 300
+        const val ORDERS_ACROSS_NODES = 40
         val TAKEOVER_BOUND: Duration = Duration.ofSeconds(90)
     }
 }
