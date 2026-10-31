@@ -55,7 +55,7 @@ wow:
 
 ### 分区 {#partitions}
 
-- **命令主题的分区数与它所属上下文的日志完全相同**（`wow.log.partitions`）。命令在主题中的分区，就是它的聚合在日志中的分区，所以读到它的节点就是拥有这个聚合的节点。分区数不同时，命令会到达不拥有其聚合的节点，所以读取命令主题的节点在启动时检查分区数（`wow.ddl` 为 `auto` 或 `validate` 时），不一致就拒绝启动。节点不接收其命令、只接收台账命令的上下文，只检查主题是否存在：分区数不同时，节点发出警告，并在没有台账命令的情况下运行。绝不要给命令主题增加分区。
+- **命令主题的分区数与它所属上下文的日志完全相同**（`wow.log.partitions`）。命令在主题中的分区，就是它的聚合在日志中的分区，所以读到它的节点就是拥有这个聚合的节点。分区数不同时，命令会到达不拥有其聚合的节点，所以读取命令主题的节点在启动时检查它（不论 `wow.kafka.ddl` 如何），主题缺失或分区数不同就拒绝启动。节点不接收其命令、只接收台账命令的上下文，只检查主题是否存在：分区数不同时，节点发出警告，并在没有台账命令的情况下运行。绝不要给命令主题增加分区。
 - **状态主题或回执主题**可以有任意数量的分区，服务运行时也可以增加分区。读取的节点每隔 `wow.kafka.topics.partition-refresh`（30 秒）查找新分区，并从开头读取它们，不需要重启。
 
 ### 创建主题 {#creating-topics}
@@ -65,8 +65,8 @@ wow:
 | `ddl` | 启动时 |
 | --- | --- |
 | `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
-| `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。发布失败台账的服务即使没有其他上下文调用它，也需要自己的命令主题，用于 ops 的 `wow.ledger.*` 操作。 |
-| `none` | 节点既不创建也不检查：主题由别人管理。 |
+| `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。发布失败台账的服务即使没有其他上下文调用它，也需要自己的命令主题，用于 ops 的 `wow.ledger.*` 操作。它还需要它发送命令的每个对端上下文的命令主题，它从不创建这些主题。 |
+| `none` | 节点不创建也不校验它的主题：主题由别人管理。但接收某个上下文命令的节点，在该命令主题缺失或分区数与日志不同时仍拒绝启动。 |
 
 开发和测试用 `auto`。生产环境中自己创建主题，并设置 `wow.ddl: validate`（或只设 `wow.kafka.ddl`），它在首次启动时就能发现缺失的主题。对 eShop 的 ordering 上下文：
 
@@ -118,4 +118,4 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 `wow.kafka.properties.*` 把设置原样传给每个生产者和消费者，例如 `security.protocol` 和 SASL 设置、`client.id` 或 `linger.ms`。少数设置归 Wow 所有、不能覆盖，因为传输的保证建立在它们之上：`acks=all` 的幂等生产者、不使用消费组、不提交任何东西也不自行重置偏移量的消费者，以及读取时不创建主题。
 
-`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topic-prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。
+`wow.kafka.*` 只接受 Kafka 传输声明的设置（[配置项](../reference/configuration)列出了它们），以及 `properties` 和 `topics.configs` 下的任意键；其他键会使启动失败，并指出该键。`topics.prefix`、`command-intake.enabled`、`ddl` 和 `topics.partition-refresh` 是每个主题传输都有的设置，因此社区传输在它自己的类型下同样接受它们。
