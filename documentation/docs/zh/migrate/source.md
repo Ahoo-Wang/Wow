@@ -56,7 +56,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | `@Saga`、`@Projection`、`@Reactor` |
 | `@OnEvent(vararg aggregates)`、`@OnStateEvent`、`@OnMessage` | `@OnEvent`，一种接收 `StateEvent` 的处理函数 |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<context>.<processor.function>].parked.*`（`executionTimeout` 对应 `claim-ttl`） |
-| `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿 |
+| `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿。把框架的重复 ID 错误改写成领域消息的处理函数，在 V10 中没有对应形式：创建已存在的聚合会在决策之前就得到 `wow.aggregate.exists`，客户端改为匹配这个错误码 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | 命令属性上的 `@AggregateId` | 保留，含义不变：命令体指明聚合，命令的路由不带 `{id}`。9.x 从路径绑定的字段只是重复了路由：删除它（[命令体承载什么](#what-a-command-body-holds)） |
 | 命令字段上的 `@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：租户和所有者是调用方的，期望版本是 `If-Match` |
@@ -138,7 +138,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 - **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 在私有时也能找到的处理函数（`@OnCommand`、`@OnSourcing` 或 `@OnEvent` 函数），在 V10 中是编译错误，Kotlin 的 `protected` 处理函数也一样：把它改成 `internal`。只有仅靠名字绑定、没有注解的私有函数才会被忽略。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
 - **被删除的事件**要退役：删除类和它的溯源函数，在 `retiredEvents` 中列出存储时的名字，并用 `"retire": true` 映射它。
 - **事件与状态中的 Wow 类型。** 存储下来的 `Condition`、`Sort` 或 `Projection`（例如保存的过滤条件）在 V10 中没有对应形式：`Condition` 协议已经没有了，内核的 JSON 没有查询协议的编解码，查询协议的枚举现在也是小写。改存应用自己的类型，用一个 `@Upgrade` 函数把 9.x 的 JSON 升级过去，并写测试覆盖。
-- **事件的信封。** 接收 `DomainEvent<E>` 以读取 `createTime` 或操作人的 9.x 溯源函数，改为接收事件，并以第二个参数接收它所属的提交（`commit: EventStream`）：`createTime` 是 `commit.commitTime`，`header.operator` 是 `commit.operator?.id`，`version` 是 `commit.version`（[读取提交](../guide/aggregates#read-the-commit)）。数据迁移把每条 9.x 流的创建时间和操作人导入为其提交的提交时间和操作人，所以从 9.x 历史重建的状态读到的就是 9.x 记录的值。读取系统时钟的命令函数改读 `scope.now`。
+- **事件的信封。** 接收 `DomainEvent<E>` 以读取 `createTime` 或操作人的 9.x 溯源函数，改为接收事件，并以第二个参数接收它所属的提交（`commit: EventStream`）：`createTime` 是 `commit.commitTime`，`header.operator` 是 `commit.operator?.id`，`version` 是 `commit.version`（[读取提交](../guide/aggregates#read-the-commit)）。数据迁移把每条 9.x 流的创建时间和操作人导入为其提交的提交时间和操作人，所以从 9.x 历史重建的状态读到的就是 9.x 记录的值。读取系统时钟、或接收 `Clock` 来读取时间的命令函数，改读 `scope.now`：决策时间，单位为毫秒（`LocalDateTime.ofInstant(Instant.ofEpochMilli(scope.now), zone)`）。参数默认取 `LocalDate.now()` 或 `LocalDateTime.now()` 的共享辅助函数仍会读取系统时钟，要把决策日期传给它。测试用 `aggregateSpec(…, start = instant)` 和 `advanceTime` 设定时间，而不是注入时钟。
 
 ## 处理器 {#processors}
 

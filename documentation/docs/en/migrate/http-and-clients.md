@@ -39,7 +39,7 @@ Read the 9.x paths from the service's generated 9.x OpenAPI, not from its annota
 
 ## Errors
 
-A 9.x error body, `errorCode`, `errorMsg` and `bindingErrors`, is an RFC 9457 problem in V10, `application/problem+json`: `type` `urn:wow:error:<code>`, `title`, `status`, `detail`, `code`, `violations`, and the command's whole `result` once it reached its aggregate. Every code changed: the framework's are `wow.*` (`wow.aggregate.not-found`, `wow.aggregate.version-mismatch`, `wow.command.busy`), and a domain rejection is `<context>.<aggregate>.<code>`, 422 unless the service declares another status. Search the application for every 9.x code it matches, and map each ([Error Codes](../reference/error-codes)).
+A 9.x error body, `errorCode`, `errorMsg` and `bindingErrors`, is an RFC 9457 problem in V10, `application/problem+json`: `type` `urn:wow:error:<code>`, `title`, `status`, `detail`, `code`, `violations`, and the command's whole `result` once it reached its aggregate. Every code changed: the framework's are `wow.*` (`wow.aggregate.not-found`, `wow.aggregate.version-mismatch`, `wow.command.busy`), and a domain rejection is `<context>.<aggregate>.<code>`, 422 unless the service declares another status. Search the application for every 9.x code it matches, and map each ([Error Codes](../reference/error-codes)). A message a 9.x `@OnError` handler wrote over a framework error is gone too: a creation of an aggregate that already exists, which such a handler often renamed, is `wow.aggregate.exists` (409), answered before the aggregate decides.
 
 ## TypeScript packages
 

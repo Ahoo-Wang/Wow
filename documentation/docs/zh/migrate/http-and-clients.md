@@ -39,7 +39,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 ## 错误 {#errors}
 
-9.x 的错误体 `errorCode`、`errorMsg` 和 `bindingErrors`，在 V10 中是 RFC 9457 problem，`application/problem+json`：`type` 为 `urn:wow:error:<code>`、`title`、`status`、`detail`、`code`、`violations`，命令到达聚合之后还有命令的完整 `result`。每个错误码都变了：框架的错误码是 `wow.*`（`wow.aggregate.not-found`、`wow.aggregate.version-mismatch`、`wow.command.busy`），领域拒绝是 `<context>.<aggregate>.<code>`，除非服务声明了另一个状态，否则为 422。在应用中搜索它匹配的每个 9.x 错误码，并逐一映射（[错误码](../reference/error-codes)）。
+9.x 的错误体 `errorCode`、`errorMsg` 和 `bindingErrors`，在 V10 中是 RFC 9457 problem，`application/problem+json`：`type` 为 `urn:wow:error:<code>`、`title`、`status`、`detail`、`code`、`violations`，命令到达聚合之后还有命令的完整 `result`。每个错误码都变了：框架的错误码是 `wow.*`（`wow.aggregate.not-found`、`wow.aggregate.version-mismatch`、`wow.command.busy`），领域拒绝是 `<context>.<aggregate>.<code>`，除非服务声明了另一个状态，否则为 422。在应用中搜索它匹配的每个 9.x 错误码，并逐一映射（[错误码](../reference/error-codes)）。9.x 的 `@OnError` 处理函数写在框架错误上的消息也没有了：创建已存在的聚合（这类处理函数常把它改写成领域消息）是 `wow.aggregate.exists`（409），在聚合决策之前就会答复。
 
 ## TypeScript 包 {#typescript-packages}
 
