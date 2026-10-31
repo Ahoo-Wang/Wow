@@ -230,23 +230,19 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 | `schedule(key, rule, command, target)` | 定时一条命令，发往这个聚合，除非 `target` 指定了另一个。它与事件一起写入，要么都写入，要么都不写 |
 | `cancelSchedule(key)` | 取消这个聚合在 `key` 下保持的定时 |
 
-结账时用它提交的订单 ID 回答调用方：
+决定可以通过 `putResult` 把它算出的值（比如一个报价）回答给调用方；调用方从结果的 `results` 里读取，这里是 `{"cost": 4.50}`：
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: fragment -->
 
 ```kotlin
-@Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
-    if (state.items.isEmpty()) {
-        reject(Rejections.EMPTY, "The basket is empty.")
-    }
-    val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
-    scope.putResult(ORDER_ID_RESULT, orderId)
-    return BasketCheckedOut(orderId, state.items)
+fun onCommand(command: QuoteShipping, scope: DecideScope): ShippingQuoted {
+    val cost = rates.costOf(state.weight, command.destination)
+    scope.putResult("cost", cost)
+    return ShippingQuoted(command.destination, cost)
 }
 ```
 
-调用方从结果的 `results` 里读取它：`{"orderId": "alice-1"}`。
+命令创建的东西最好按它的聚合 ID 查找，重复的请求也会再次得到它。eShop 的结账不回答订单 ID：订单由 ordering 编号（`SO-261031-42`），等到订单提交（`committed(eshop-ordering)`）的结账，从这一跳的聚合 ID 读到订单号（[Saga](./sagas#call-another-context-synchronously)）。
 
 定时命令的函数要在 `@OnCommand(schedules = [...])` 里声明命令的类，就像订单对 `CancelOrder::class` 做的那样：编译器读不到函数体里的调用，而 Manifest 按完整类型名列出它们。
 
