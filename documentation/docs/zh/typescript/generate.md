@@ -79,7 +79,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | 文件 | 包含 |
 | --- | --- |
 | `contract.ts` | `<Context>Contract`：上下文的名字、上下文级的错误码和它的各个聚合（各带自己的错误码）；`<Context>ErrorCode` 联合类型，以及在其中等待的各跳 |
-| `manifest.ts` | `<Context>Manifest`：上下文各命令的路由，与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
+| `manifest.ts` | `<Context>Manifest`：上下文各命令的路由，以及命令体指明了聚合的命令里承载 ID 的属性（`idProperty`），与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
 | `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端 |
 | `types.ts` | Manifest 的 schema 中的命令、事件和状态 |
 | `<aggregate>/aggregate.ts` | 聚合的描述符、查询能指明的 `state.*` 字段，以及它的事件的联合类型 |

@@ -11,7 +11,7 @@ V10 changes the routes, the headers, the errors and the client packages, and kee
 
 | 9.x | V10 |
 | --- | --- |
-| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`, with `PUT`, `PATCH` and custom actions | `POST /<context>/<aggregate>/{id}/<command>`, the command in kebab case; a creating command also without `{id}`, and every command of an aggregate whose id is its owner's (9.x `OwnerPolicy.AGGREGATE_ID`), as the caller's own. The tenant and owner come from the caller, never the path |
+| `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`, with `PUT`, `PATCH` and custom actions | `POST /<context>/<aggregate>/{id}/<command>`, the command in kebab case; a creating command also without `{id}`, and every command of an aggregate whose id is its owner's (9.x `OwnerPolicy.AGGREGATE_ID`), as the caller's own; a command whose body names its aggregate (`@AggregateId`) only without `{id}`. The tenant and owner come from the caller, never the path |
 | `DELETE …/{id}`, `PUT …/{id}/recover`, `PUT …/{id}/tags` | `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.restore-aggregate`, `POST …/{id}/wow.lifecycle.apply-tags` |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`, their `/state` forms, `…/event/…` | `POST /<context>/<aggregate>/snapshot/query` and `…/events/query`, the operation in the body's `kind` |
 | `GET …/snapshot/schema` | `GET` on the same query route: the capability descriptor, with its `ETag` |
@@ -75,6 +75,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 - **Error codes** are strings the compiler cannot check: grep for each 9.x code.
 - **Exact numbers.** A `Long`, `BigInteger` or `BigDecimal` field is a `string` in V10's types, read exactly. Code that did arithmetic on a `number` now concatenates strings unless it is fixed.
 - **Time zones.** A relative-time filter without `zoneId` reads its days in UTC, where 9.x used the server's zone: pass `zoneId` where a local day was meant.
+- **Commands whose body names their aggregate.** Such a command has no route with `{id}`: a client that sent it to one gets 404, so send it to the route without `{id}`, the id in its body.
 - **Event names.** 9.x `bodyType` class names become `name` values; saved filters and screens keyed on them change.
 - **Snapshot fields.** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator`, `firstOperator` and `tags` remain.
 

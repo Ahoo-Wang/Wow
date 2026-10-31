@@ -32,11 +32,11 @@ fun onOrderSubmitted(
 | 请求 | 派生 |
 | --- | --- |
 | `CommandRequest.of(body, id)` | 一条发往聚合 `id` 的命令，聚合类型是决定 `body` 类的那个类型，在这次提交的租户中 |
-| `CommandRequest.of(body)` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID |
+| `CommandRequest.of(body)` | 一条发往该类型新聚合的创建命令，由目标为它分配 ID；命令体指明了聚合的命令（`@AggregateId`）则发往那个聚合 |
 | `CommandRequest.to(ref, body)` | 一条发往 `ref` 所指聚合的命令，可以是任何类型和租户 |
 | `CommandRequest.of(body, type = type)` | 一条发往 `type` 类型新聚合的创建命令，由目标为它分配 ID |
 
-没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
+命令体指明了聚合的命令（[在命令体中指明聚合](./aggregates#name-the-aggregate-in-the-body)）不需要 ID，无论发往本上下文还是另一个上下文：在命令体之外又给出 ID 的请求必须指明同一个聚合，指明另一个聚合，或命令体里的 ID 为空白时，处理函数失败。没有类型的请求从各上下文声明的命令中找出目标的类型：本服务自己的 Manifest，以及每个对端 api jar 携带的契约。类路径上没有任何上下文决定这个类，或者有多个聚合决定它时，处理函数失败；这时给请求指定类型。`targetTenant` 和 `targetScope` 把命令发往另一个租户或作用域，`expectedVersion` 要求目标处于那个版本。
 
 每条派生命令都是确定的：
 

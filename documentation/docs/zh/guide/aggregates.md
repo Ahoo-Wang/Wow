@@ -21,7 +21,7 @@ outline: deep
 
 ## 编写命令 {#write-the-commands}
 
-命令是 api 模块里的一个数据类。它承载调用方要求的内容，从不承载聚合是谁：ID 来自路由或发送命令的 Saga，租户、所有者和空间来自调用方，期望版本来自 `If-Match`。
+命令是 api 模块里的一个数据类。它承载调用方要求的内容，从不承载调用方是谁：租户、所有者和空间来自调用方，期望版本来自 `If-Match`。聚合 ID 来自路由或发送命令的 Saga，除非命令体本身已经指明了聚合（[在命令体中指明聚合](#name-the-aggregate-in-the-body)）。
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -77,6 +77,33 @@ data class AddBasketItem(
 | 两者都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
 
 每条命令的路由是 `POST /<context>/<aggregate>/{id}/<command>`，命令名采用 kebab case，与 Manifest 列出的路由一致：`POST /eshop-ordering/order/{id}/submit-order`。创建命令还提供不带 `{id}` 的路由，由服务端为聚合分配 ID。准入会先查找同一个请求 ID 已经创建过的聚合并复用它的 ID，所以同一个创建发两次只会创建一个聚合。ID 即所有者 ID 的聚合（每个所有者一个）的每条命令也都提供不带 `{id}` 的路由，指调用方自己的聚合，并且不生成 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
+
+### 在命令体中指明聚合 {#name-the-aggregate-in-the-body}
+
+有些命令的业务数据里本来就有它的聚合 ID：一次补货指明要给哪个商品的库存补货。在这个属性上标注 `@AggregateId`，命令体就指明了聚合，发送方不必再另给 ID：
+
+<!-- sample: fragment -->
+
+```kotlin
+@AllowCreate
+@Summary("Restock a product")
+data class RestockProduct(
+    @AggregateId val productId: String,
+    @field:Positive val quantity: Int,
+)
+```
+
+这样的命令只提供 `POST /<context>/<aggregate>/<command>` 一条路由，不带 `{id}`，作用于命令体指明的聚合。Saga 用 `CommandRequest.of(body)` 发送它，客户端发送时也不带 ID。发往另一个上下文的这类命令进入该上下文的命令主题时按聚合分区，同一个聚合的命令因此保持顺序。准入在授权之前读取命令体，所以策略看到的仍是聚合 `<aggregate>/<id>`。该聚合的生命周期命令保留带 `{id}` 的路由。
+
+| 属性 | 承载 |
+| --- | --- |
+| 有字段或构造参数的 `String` | ID，即命令体里的值 |
+| 计算属性 `String`，如 `val stockId: String get() = "$warehouseId-$sku"` | 由其他字段算出的 ID：只发送那些字段的发送方可以不带它，由服务算出 |
+| 可创建聚合的命令上的 `String?` | ID；为 null 时交给服务端分配，与任何不指明 ID 的创建一样，重试沿用第一次的 ID |
+
+准入会检查这个 ID：空白的 ID 是 `wow.command.malformed`（400）；在命令体之外又指明了另一个聚合的请求（例如 Kotlin 客户端的 `CommandRequest.to(ref, body)`）同样是 `wow.command.malformed`。指明同一个聚合的请求会被接受。
+
+这个属性由命令类或它实现的接口声明，是 public 或 internal，并且 Wow 的 JSON 会写出它（没有 `@JsonIgnore`），所以每个发送方的命令体里都有它。一条命令只有一个属性指明聚合。编译器拒绝把它用在 `@Unaddressed` 命令或挂载命令上（它们的聚合由转换器找到），也拒绝用在 ID 即所有者 ID 的聚合上。接收这类命令的 `CommandTransformer` 会让服务在启动时失败。
 
 ## 编写根 {#write-the-root}
 
