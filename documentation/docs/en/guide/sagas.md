@@ -76,15 +76,19 @@ A derived command answers the saga nothing by default: the saga's hop ends once 
   <!-- sample: fragment -->
 
   ```kotlin
+  private const val STOCK_DEADLINE = "stock-deadline"
+
   @OnEvent
   @Sends(schedules = [CancelOrder::class])
-  fun onOrderAwaitingStock(
-      event: StateTypedEvent<OrderState, OrderAwaitingStock>,
+  fun onOrderAwaitingValidation(
+      event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
       context: SagaContext,
-  ): CommandRequest<ReserveStock> {
+  ): List<CommandRequest<ReserveStock>> {
       val deadline = CommandRequest.of(CancelOrder("No stock in time."), event.ref.id)
       context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), deadline)
-      return CommandRequest.of(ReserveStock(event.ref.id), event.state.productId)
+      return event.state.quantities().map { (productId, quantity) ->
+          CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+      }
   }
 
   @OnEvent
@@ -112,7 +116,7 @@ fun onReserveCommitted(
     CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 ```
 
-`source` is the aggregate whose commit derived the command, here the order; `ref` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt, so no other command costs one. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
+`source` is the aggregate whose commit derived the command, here the order; `ref` is the aggregate the command was committed on, here the product's stock. Only the commands an `@OnCommitted` handler takes ask for a receipt of their commit, so no other command costs one; a rejection's receipt is asked for by the commands an `@OnRejected` handler takes. A command to another context carries the request with it, and the target sends the receipt back on `wow.<sender>.receipts` once the command is committed. The receipt carries the command's result, not the target's state.
 
 A receipt comes for a command the target accepted without change too (`Decision.NoOp`), with its version unchanged, and for one it had already committed, marked as a duplicate. An `@OnCommitted` handler, like an `@OnRejected` one, takes the `SagaContext` when it needs it: it derives, schedules and calls as an `@OnEvent` handler does, and declares what it sends in its own `@Sends`.
 
