@@ -133,3 +133,10 @@ fun interface CommandAuthorizer {
 fun interface CommandValidator {
     fun validate(type: CommandType, body: Any): List<Violation>
 }
+
+/**
+ * The violations every one of these validators finds in [body] of [type], together: the gateway's check of an admitted
+ * command, which a saga's derived command and a command taken from a topic go through too.
+ */
+internal fun List<CommandValidator>.violationsOf(type: CommandType, body: Any): List<Violation> =
+    flatMap { it.validate(type, body) }
