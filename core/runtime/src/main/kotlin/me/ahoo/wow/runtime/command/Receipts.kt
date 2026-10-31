@@ -63,8 +63,9 @@ interface ReceiptHandler {
  *   again; the commit reaches the `@OnCommitted` handler, with a warning that the rejection was compensated before.
  * - A receipt no handler takes is logged and passed over: the saga's hop was complete when the command was accepted.
  * - A command type the contracts do not know, a class that cannot be loaded, a handler that throws, or a command it
- *   derives that fails or is rejected, fails the receipt: retried, then the saga's aggregate parks under the
- *   subscription's name, at the receipt's offset.
+ *   derives that fails, fails the receipt: retried, then the saga's aggregate parks under the subscription's name, at
+ *   the receipt's offset. A rejection the handler meets, of a command it derives or of a call it lets through, parks
+ *   it at once.
  */
 internal class Receipts internal constructor(
     private val context: String,

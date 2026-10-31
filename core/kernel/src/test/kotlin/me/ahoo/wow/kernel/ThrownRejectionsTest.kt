@@ -28,6 +28,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -65,6 +66,11 @@ class ThrownRejectionsTest {
                 "timeout" -> withTimeout(1) { delay(1_000) }
                 "blank schedule key" -> schedule(" ", ScheduleRule.after(1.minutes), Open("x"))
                 "blank cancelled key" -> cancelSchedule(" ")
+                "a returned framework code" -> return@decideSuspending Decision.reject(
+                    FrameworkCodes.COMMAND_INVALID,
+                    "Taken."
+                )
+                "a thrown framework code" -> reject(FrameworkCodes.AGGREGATE_NOT_FOUND, "Gone.")
                 else -> throwing.getValue(body.label)()
             }
             Decision.events(Opened(body.label))
@@ -119,6 +125,9 @@ class ThrownRejectionsTest {
         Triple("blank cancelled key", { error("unreachable") }, null),
         Triple("a Wow API's argument misuse", { throw Misuse.Argument("No aggregate has a state of X.") }, null),
         Triple("a Wow API's state misuse", { throw Misuse.State("No URL calls context x.") }, null),
+        // A domain rejecting with the framework's code misuses Wow's API: the command fails, it is not refused.
+        Triple("a returned framework code", { error("unreachable") }, null),
+        Triple("a thrown framework code", { error("unreachable") }, null),
     )
 
     @TestFactory
@@ -143,6 +152,20 @@ class ThrownRejectionsTest {
                 }
             }
         }
+
+    @Test
+    fun `a rejection with the framework's code should be a misuse of the API, not a refusal`() {
+        listOf(
+            { Rejection.of(FrameworkCodes.COMMAND_INVALID, "Taken.") },
+            { Decision.reject(FrameworkCodes.AGGREGATE_NOT_FOUND, "Gone.") },
+            { reject("wow.anything", "No.") },
+        ).forEach { reject ->
+            runCatching { reject() }.exceptionOrNull().assert().isInstanceOf(Misuse.Argument::class.java)
+                .hasMessageContaining("which the framework reserves for its own codes")
+        }
+        runCatching { Rejection.of(" ", "No code.") }.exceptionOrNull().assert()
+            .isInstanceOf(Misuse.Argument::class.java).hasMessage("A rejection needs a code.")
+    }
 
     @Test
     fun `DecideScope reject should be answered as the rejection it names`() = runTest {

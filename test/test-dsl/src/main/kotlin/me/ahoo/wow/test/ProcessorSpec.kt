@@ -725,7 +725,7 @@ class ProcessorSpec private constructor(
             val calls = ArrayList<Command<*>>()
             val context =
                 rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries, answering(calls))
-            val derived = runBlocking { handler.invoke(rejected, context) }
+            val derived = receiptHandling { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived, calls)
         }
@@ -735,10 +735,20 @@ class ProcessorSpec private constructor(
             val calls = ArrayList<Command<*>>()
             val context =
                 committedContextOf(handler, committed, SequentialIds(), commandTypes, queries, answering(calls))
-            val derived = runBlocking { handler.invoke(committed, context) }
+            val derived = receiptHandling { handler.invoke(committed, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived, calls)
         }
+
+    /**
+     * A receipt handler's commands, as the runtime takes them: a call's rejection it lets through goes to no handler (a
+     * compensation does not compensate itself) but parks the aggregate at once ([CallRejectedHandlingException]).
+     */
+    private fun receiptHandling(handle: suspend () -> List<Command<*>>): List<Command<*>> = try {
+        runBlocking { handle() }
+    } catch (rejected: CommandRejectedException) {
+        throw CallRejectedHandlingException(rejected)
+    }
 
     /** The calls of a receipt's handler: answered by [answer], each recorded into [calls]. */
     private fun answering(calls: MutableList<Command<*>>): CommandCalls = CommandCalls { command ->
