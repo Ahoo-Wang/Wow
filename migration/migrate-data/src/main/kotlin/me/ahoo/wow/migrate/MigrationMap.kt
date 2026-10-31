@@ -59,17 +59,20 @@ import tools.jackson.databind.json.JsonMapper
  *   and a request fact not listed here is not recorded.
  * - [subscriptions] maps the 9.x processors whose failed executions the 9.x compensation service still holds to the
  *   V10 subscriptions that park them ([SubscriptionMapping]).
+ * - [exceptions] are what `draft-map` could not match ([MapDrafter]), one line each, for a person to resolve and then
+ *   delete: the check warns of each it still finds, and reads nothing else from them.
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (.2) as an optional property, not a new format: a map without it reads
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
- * same way, and so did [subscriptions] (.4), and [EventMapping.lifecycle].
+ * same way, and so did [subscriptions] (.4), [EventMapping.lifecycle] and [exceptions].
  */
 internal data class MigrationMap(
     val format: Int,
     val aggregates: List<AggregateMapping>,
     val headers: Map<String, String> = emptyMap(),
     val subscriptions: List<SubscriptionMapping> = emptyList(),
+    val exceptions: List<String> = emptyList(),
 ) {
     init {
         require(format == FORMAT) {

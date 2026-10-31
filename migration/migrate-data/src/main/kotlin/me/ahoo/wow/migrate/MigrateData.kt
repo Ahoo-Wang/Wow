@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.manifest.Manifest
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -27,6 +28,7 @@ import kotlin.system.exitProcess
  * The command line of `wow-migrate-data`:
  *
  * ```text
+ * migrate-data draft-map --config <file> [--out <file>] [--force] [--dry-run]
  * migrate-data check    --config <file>                       the mapping check: a dry run that writes nothing
  * migrate-data import   --config <file> [--dry-run] [--restart | --final] [--snapshots]
  * migrate-data tail     --config <file> [--once]
@@ -36,6 +38,10 @@ import kotlin.system.exitProcess
  * migrate-data export   --config <file> [--dry-run] [--restart]
  * ```
  *
+ * - `draft-map` drafts `migration-map.json` from the event and command names the 9.x store holds and the V10 Manifest
+ *   ([MapDrafter]): every name it matches mapped, every other listed in the draft's `exceptions` and printed, for a
+ *   person to resolve. It writes the map the configuration names, or `--out`, and never over an existing file
+ *   without `--force`; `--dry-run` prints the draft and writes nothing. `check` then reads the draft as any map.
  * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
  * - `import` checks first and does not start on a failed check; then imports every mapped 9.x aggregate, resuming from
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
@@ -107,28 +113,71 @@ internal class MigrateData(
             return USAGE_ERROR
         }
         val config = MigrationConfig.read(Path.of(configPath))
-        val plan = MigrationPlan(
-            MigrationMap.read(Files.readString(Path.of(config.map))),
-            readManifests(config.manifests),
-        )
-        return try {
-            connect(config).use { connections ->
-                runBlocking {
-                    when (command) {
-                        CHECK -> check(plan, connections)
-                        IMPORT -> import(plan, config, connections, options)
-                        TAIL -> tail(plan, config, connections, ONCE in options)
-                        COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
-                        BACKFILL_TAGS -> backfillTags(plan, config, connections, RESTART in options, FORCE in options)
-                        EXPORT -> export(plan, config, connections, DRY_RUN in options, RESTART in options)
-                        else -> snapshot(plan, config, connections, RESTART in options)
-                    }
-                }
-            }
-        } catch (failure: MigrationException) {
-            out.println("FAILED ${failure.message}")
-            FAILED
+        val manifest = readManifests(config.manifests)
+        if (command == DRAFT_MAP) {
+            return reported { connect(config).use { draftMap(config, manifest, it, options) } }
         }
+        val plan = MigrationPlan(MigrationMap.read(Files.readString(Path.of(config.map))), manifest)
+        return reported {
+            connect(config).use { connections ->
+                runBlocking { run(command, plan, config, connections, options, sample) }
+            }
+        }
+    }
+
+    /** Runs [command], one that reads the map, with its [options]. */
+    @Suppress("LongParameterList") // A command's inputs.
+    private suspend fun run(
+        command: String,
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        options: List<String>,
+        sample: Int?,
+    ): Int = when (command) {
+        CHECK -> check(plan, connections)
+        IMPORT -> import(plan, config, connections, options)
+        TAIL -> tail(plan, config, connections, ONCE in options)
+        COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
+        BACKFILL_TAGS -> backfillTags(plan, config, connections, RESTART in options, FORCE in options)
+        EXPORT -> export(plan, config, connections, DRY_RUN in options, RESTART in options)
+        else -> snapshot(plan, config, connections, RESTART in options)
+    }
+
+    /** Runs [step]; a [MigrationException] it throws is printed as `FAILED`, and fails the run. */
+    private inline fun reported(step: () -> Int): Int = try {
+        step()
+    } catch (failure: MigrationException) {
+        out.println("FAILED ${failure.message}")
+        FAILED
+    }
+
+    /**
+     * Drafts the map ([MapDrafter]) to the file the configuration names, or `--out`: never over an existing one
+     * without `--force`, and nowhere on `--dry-run`, which prints it. Each exception is printed with its marker.
+     */
+    private fun draftMap(
+        config: MigrationConfig,
+        manifest: Manifest,
+        connections: MigrationConnections,
+        options: List<String>,
+    ): Int {
+        val path = Path.of(valueOf(options, OUT) ?: config.map)
+        val dryRun = DRY_RUN in options
+        if (!dryRun && Files.exists(path) && FORCE !in options) {
+            out.println("FAILED $path exists: draft-map writes a new map, so pass $FORCE to replace it, or $OUT.")
+            return FAILED
+        }
+        val draft = MapDrafter(manifest).draft(connections.source.inventory(), connections.reservations.prepareKeys())
+        draft.exceptions.forEach(out::println)
+        if (dryRun) {
+            out.println(draft.render())
+            out.println("Dry run: ${draft.summary()} Nothing was written.")
+        } else {
+            Files.writeString(path, draft.render())
+            out.println("Draft written to $path: ${draft.summary()} Resolve them, then run check.")
+        }
+        return OK
     }
 
     /** What is wrong with [command]'s [options] ([sample] is the value of `--sample`); null when nothing is. */
@@ -142,6 +191,8 @@ internal class MigrateData(
             DRY_RUN in options && SNAPSHOTS in options -> "A dry run writes no snapshots: $DRY_RUN or $SNAPSHOTS."
             FINAL in options && (RESTART in options || DRY_RUN in options) ->
                 "The final pass is $FINAL alone: not with $RESTART or $DRY_RUN."
+            OUT in options && valueOf(options, OUT)?.takeUnless { it.startsWith("--") } == null ->
+                "$OUT takes the file to write the draft to."
             else -> null
         }
     }
@@ -511,6 +562,7 @@ internal class MigrateData(
         const val FAILED = 1
         const val USAGE_ERROR = 2
         const val DIFFERS = 3
+        private const val DRAFT_MAP = "draft-map"
         private const val CHECK = "check"
         private const val IMPORT = "import"
         private const val TAIL = "tail"
@@ -526,6 +578,7 @@ internal class MigrateData(
         private const val ONCE = "--once"
         private const val SAMPLE = "--sample"
         private const val FORCE = "--force"
+        private const val OUT = "--out"
 
         /** The order of a tags backfill, printed before it starts. */
         const val TAGS_ORDER = "Tags backfill, in this order: 1. backfill the tags of every V10 log; 2. only then " +
@@ -534,8 +587,9 @@ internal class MigrateData(
 
         /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
         const val IMPORTED_KEYS = ".reservations.jsonl"
-        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS, EXPORT)
+        private val COMMANDS = setOf(DRAFT_MAP, CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS, EXPORT)
         private val KNOWN_OPTIONS = mapOf(
+            DRAFT_MAP to setOf(CONFIG, OUT, FORCE, DRY_RUN),
             CHECK to setOf(CONFIG),
             IMPORT to setOf(CONFIG, DRY_RUN, RESTART, FINAL, SNAPSHOTS),
             TAIL to setOf(CONFIG, ONCE),
@@ -546,6 +600,9 @@ internal class MigrateData(
         )
         private val USAGE = """
             Usage: migrate-data <command> --config <file>
+              draft-map [--out <file>] [--force] [--dry-run]  drafts migration-map.json from the names the 9.x store
+                        holds and the V10 Manifest, listing what it cannot match as exceptions; never replaces a
+                        file without --force; --dry-run prints the draft and writes nothing
               check     checks migration-map.json against the 9.x store and the V10 Manifest; writes nothing
               import    [--dry-run] [--restart | --final] [--snapshots]  imports the 9.x event streams into the V10
                         log, then writes the V10 snapshots with --snapshots; --final is the final pass after 9.x
