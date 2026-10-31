@@ -73,6 +73,7 @@ class PeerCommands(
                 ManifestCreation.REQUIRED -> Creation.REQUIRED
                 ManifestCreation.ALLOWED -> Creation.ALLOWED
             },
+            manifest.idProperty,
         )
     }
 
@@ -101,10 +102,11 @@ class PeerCommands(
 
 /**
  * A command type of a peer context's contract: its full [name] (`ctx.agg.Command`), its class, when on the class path
- * ([type]), and whether it creates its aggregate ([creation]).
+ * ([type]), whether it creates its aggregate ([creation]), and the property of its body that holds its aggregate's id
+ * ([idProperty]; null for one whose request names it).
  */
 @InternalWowApi
-class PeerCommand(val name: String, val type: Class<*>?, val creation: Creation) {
+class PeerCommand(val name: String, val type: Class<*>?, val creation: Creation, val idProperty: String? = null) {
     /** The command type, for authorization and validation; null when its class is not on the class path. */
     val commandType: CommandType? = type?.let { CommandType(name, it) }
 }

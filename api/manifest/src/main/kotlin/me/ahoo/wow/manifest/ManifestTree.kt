@@ -79,6 +79,7 @@ object ManifestTree {
         "mounted" to command.mounted.takeIf { it },
         "system" to command.system.takeIf { it },
         "transformsTo" to command.transformsTo,
+        "idProperty" to command.idProperty,
         "description" to command.description,
     )
 
@@ -267,6 +268,7 @@ object ManifestTree {
         transformsTo = if (node.has("transformsTo")) node.strings("transformsTo") else null,
         description = node.stringOrNull("description"),
         system = node.booleanOrNull("system") ?: false,
+        idProperty = node.stringOrNull("idProperty"),
     )
 
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))

@@ -45,6 +45,7 @@ class OmittedRefsTest {
     data class Reserve(val orderId: String)
     data class Shared(val note: String)
     data class Unknown(val note: String)
+    data class Restock(val productId: String?)
 
     /** Reserve goes to the stock, Shared to two aggregate types, any other class to none. */
     private val types = object : CommandTypes {
@@ -55,6 +56,15 @@ class OmittedRefsTest {
             Shared::class.java -> listOf(stock, ledger)
             else -> emptyList()
         }
+    }
+
+    /** Restock goes to the stock its body names (`@AggregateId`); a creation's body may name none. */
+    private val bodyIds = object : CommandTypes {
+        override fun nameOf(target: AggregateType, command: Class<*>): String? = null
+
+        override fun aggregatesOf(command: Class<*>): List<AggregateType> = listOf(stock)
+
+        override fun aggregateIdOf(target: AggregateType, command: Any): String? = (command as Restock).productId
     }
 
     private val execution = ExecutionId("OrderSaga.onOrderPlaced", order.ref("acme", "o-1"), 3)
@@ -94,6 +104,23 @@ class OmittedRefsTest {
         // It is the same request as the full form's.
         saga().derive(CommandRequest.to(stock.ref("acme", "product-1"), Reserve("o-1"))).requestId.assert()
             .isEqualTo(reserve.requestId)
+    }
+
+    @Test
+    fun `a command whose body names its aggregate should go to it, and a ref beside the body should name the same one`() {
+        val restock = saga(bodyIds).derive(CommandRequest.of(Restock("mug")))
+        restock.ref.assert().isEqualTo(stock.ref("acme", "mug"))
+        saga(bodyIds).derive(CommandRequest.to(stock.ref("acme", "mug"), Restock("mug"))).requestId.assert()
+            .isEqualTo(restock.requestId)
+        // A creation whose body names none goes to the ref beside it, else leaves the id to the target.
+        saga(bodyIds).derive(CommandRequest.of(Restock(null), "cup")).ref.assert().isEqualTo(stock.ref("acme", "cup"))
+        saga(bodyIds).derive(CommandRequest.of(Restock(null))).ref.assert().isEqualTo(stock.unassigned("acme"))
+        val conflicting = CommandRequest.of(Restock("mug"), "cup")
+        assertThrownBy<InvalidDerivedRequestException> { saga(bodyIds).derive(conflicting) }
+            .hasMessageContaining("OrderSaga.onOrderPlaced derives ${Restock::class.java.name} to the aggregate cup")
+            .hasMessageContaining("its body names mug")
+        assertThrownBy<InvalidDerivedRequestException> { saga(bodyIds).derive(CommandRequest.of(Restock(" "))) }
+            .hasMessageContaining("whose body names a blank aggregate id")
     }
 
     @Test

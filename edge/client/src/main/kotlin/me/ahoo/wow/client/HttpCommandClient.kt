@@ -54,7 +54,8 @@ import kotlin.time.Duration.Companion.seconds
  * The [CommandClient] of the peers' HTTP command routes: each command goes, as JSON, to
  * the route its contract gives it (`POST /{context}/{aggregate}/{id}/{command}`, or without the id for a request
  * that names none: a creation, an unaddressed command, or any command of an aggregate whose id is its owner's, which
- * goes to the caller's own), named by [names] from its class and the request's type (the
+ * goes to the caller's own; and for a command whose body names its aggregate, whose body names the request's, as
+ * [CommandBodies] writes it), named by [names] from its class and the request's type (the
  * one whose contract lists the class when the request leaves it out), on the port [transport]'s mode calls, as
  * [caller]:
  *
@@ -154,16 +155,20 @@ class HttpCommandClient internal constructor(
             null
         }
         val id = request.id
-        val route = routeOf(command, type, id != null, root)
+        val declared = declaredOf(command, type, root)
+        // A command whose body names its aggregate goes to its route without an id, the body naming the request's.
+        val byId = id != null && declared.idProperty == null
+        val route = routeOf(declared.name, byId, declared.routes(byId))
         val headers = headersOf(request, plan, targetTenant, targeted)
+        val body = if (command is NamedCommand) command.body else command
         val http = PeerRequest(
             context = type.context,
-            path = CommandRoutes.pathOf(route, id?.let(HttpTransport::encode)),
+            path = CommandRoutes.pathOf(route, id?.takeIf { byId }?.let(HttpTransport::encode)),
             method = route.method,
             caller = caller,
             call = root,
             headers = headers,
-            body = if (command is NamedCommand) ClientJson.write(command.body) else ClientJson.write(command),
+            body = CommandBodies.of(declared.name, body, declared.idProperty, id),
             timeout = plan?.timeout?.let { it + RESPONSE_GRACE }?.takeIf { it > transport.timeoutOf(type.context) },
         )
         val what = if (command is NamedCommand) command.name else command.javaClass.simpleName
@@ -222,12 +227,17 @@ class HttpCommandClient internal constructor(
     }
 
     /**
-     * The route of [command] to [type], to an aggregate by its id when [byId], as its contract lists it: a
-     * [NamedCommand]'s, once the Manifest of its peer declares it; a command object's, as the contract on the class path
-     * names it. A peer described by its Manifest takes named commands alone, and a named command goes only to such a
-     * peer.
+     * The command [name], the property its body names its aggregate in ([idProperty], null for none), and its route
+     * [routes] gives, to an aggregate by its id or without one, as its contract lists them.
      */
-    private suspend fun routeOf(command: Any, type: AggregateType, byId: Boolean, call: CallWire?): RouteManifest {
+    private class Declared(val name: String, val idProperty: String?, val routes: (byId: Boolean) -> RouteManifest?)
+
+    /**
+     * [command] to [type] as its contract declares it: a [NamedCommand], once the Manifest of its peer declares it; a
+     * command object, as the contract on the class path names it. A peer described by its Manifest takes named commands
+     * alone, and a named command goes only to such a peer.
+     */
+    private suspend fun declaredOf(command: Any, type: AggregateType, call: CallWire?): Declared {
         val manifestPeer = described?.describes(type.context) == true
         if (command is NamedCommand) {
             requireUse(manifestPeer) {
@@ -235,7 +245,8 @@ class HttpCommandClient internal constructor(
                     "wow.peers with contract: manifest."
             }
             val declared = described.commandOf(command, type, caller, call)
-            return routeOf("$type.${declared.name}", byId, CommandRoutes.routeOf(declared.routes, byId))
+            val name = "$type.${declared.name}"
+            return Declared(name, declared.idProperty) { CommandRoutes.routeOf(declared.routes, it) }
         }
         checkUse(!manifestPeer) {
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
@@ -246,7 +257,7 @@ class HttpCommandClient internal constructor(
                 "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type name to a " +
                 "peer described by its Manifest.",
         )
-        return routeOf(name, byId, names.routeOf(name, byId))
+        return Declared(name, names.idPropertyOf(name)) { names.routeOf(name, it) }
     }
 
     /** [route], the route of the command [name], or why its contract lists none. */

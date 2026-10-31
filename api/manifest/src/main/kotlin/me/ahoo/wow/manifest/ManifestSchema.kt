@@ -127,6 +127,7 @@ object ManifestSchema {
                 "mounted" to boolean(),
                 "system" to boolean("A system command (wow.*): a lifecycle command, a rebuild or a job command."),
                 "transformsTo" to strings(),
+                "idProperty" to string("The property of the command's body that holds its aggregate's id."),
                 "description" to string(),
             ),
             EVENT to objectOf(

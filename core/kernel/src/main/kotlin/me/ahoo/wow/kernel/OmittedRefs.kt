@@ -48,9 +48,10 @@ internal fun CommandTypes.omittedTargetOf(command: Class<*>, handler: String): A
 /**
  * The aggregate this request derived by the handler [handler] goes to, as
  * [me.ahoo.wow.api.subscribe.SagaContext] describes: its type, else the one [commandTypes] assigns the command's
- * class ([omittedTargetOf]); its target tenant, else [tenantId], the execution's; its id, else none (a creation the
+ * class ([omittedTargetOf]); its target tenant, else [tenantId], the execution's; its id, else the one its body holds
+ * when its command type keeps it there (`@AggregateId`, [CommandTypes.aggregateIdOf]), else none (a creation the
  * target's admission gives one). A request with a wait or a timeout is refused ([InvalidDerivedRequestException]): the
- * subscription waits for none.
+ * subscription waits for none; so is one that names another aggregate than its body, or whose body names a blank one.
  */
 internal fun CommandRequest<*>.derivedTarget(
     handler: String,
@@ -61,7 +62,30 @@ internal fun CommandRequest<*>.derivedTarget(
     if (timeout != null) throw InvalidDerivedRequestException(refusal(handler, "a timeout (CommandRequest.timeout)"))
     val type = type ?: commandTypes.omittedTargetOf(command.javaClass, handler)
     val tenant = targetTenant ?: tenantId
-    return id?.let { type.ref(tenant, it) } ?: type.unassigned(tenant)
+    return idOf(handler, commandTypes.aggregateIdOf(type, command))?.let { type.ref(tenant, it) }
+        ?: type.unassigned(tenant)
+}
+
+/**
+ * The aggregate id this request derived by [handler] names: the one its body names, [inBody], which its id may repeat
+ * but not contradict; else its id. A blank one in the body is refused too.
+ */
+private fun CommandRequest<*>.idOf(handler: String, inBody: String?): String? {
+    if (inBody == null) {
+        return id
+    }
+    if (inBody.isBlank()) {
+        throw InvalidDerivedRequestException(
+            "$handler derives ${command.javaClass.name}, whose body names a blank aggregate id.",
+        )
+    }
+    if (id != null && inBody != id) {
+        throw InvalidDerivedRequestException(
+            "$handler derives ${command.javaClass.name} to the aggregate $id, but its body names $inBody: leave the " +
+                "id out, CommandRequest.of(body), and the body names its aggregate.",
+        )
+    }
+    return inBody
 }
 
 private fun CommandRequest<*>.refusal(handler: String, field: String): String =

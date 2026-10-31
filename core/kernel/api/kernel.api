@@ -47,6 +47,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 
 public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)V
+	public final fun addAggregateId (Ljava/lang/Class;Lkotlin/jvm/functions/Function1;)V
 	public final fun addAlias (Ljava/lang/Class;Ljava/lang/String;)V
 	public final fun addDecider (Ljava/lang/Class;Ljava/lang/String;Lme/ahoo/wow/kernel/DecideFunction;)V
 	public final fun addEvolver (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/functions/Function2;)V

@@ -46,7 +46,7 @@ import kotlin.time.toJavaDuration
  * **internal port** (`wow.peers.<context>.url`), the only
  * one that takes a call; its public port refuses `Wow-Call`. Each call goes to the command's route as the contracts
  * list it ([CommandIndex.routeOf]), those of the peers' api jars on the class path by default, as the
- * [HttpCommandClient] sends one, and carries:
+ * [HttpCommandClient] sends one (a command whose body names its aggregate to its route without an id), and carries:
  *
  * - the command's body as JSON, and its expected version as `If-Match`;
  * - its deterministic request id as `Wow-Request-Id`, so every retry and replay is the same request, which the target
@@ -135,7 +135,8 @@ class HttpCommandCaller internal constructor(
     internal fun requestOf(call: OutgoingCall): PeerRequest {
         val command = call.command
         val ref = command.ref
-        val byId = ref.isAssigned
+        val idProperty = commands.idPropertyOf(call.type)
+        val byId = ref.isAssigned && idProperty == null
         val route = checkNotNull(commands.routeOf(call.type, byId)) {
             "No contract lists a route of ${call.type} ${if (byId) "to an aggregate by its id" else "without an id"}: " +
                 "depend on the api module of ${ref.type.context}, whose jar carries its contract."
@@ -150,7 +151,7 @@ class HttpCommandCaller internal constructor(
                 put(WowHeaders.REQUEST_ID, command.requestId)
                 command.expectedVersion?.let { put(WowHeaders.IF_MATCH, "\"$it\"") }
             },
-            body = ClientJson.write(command.body),
+            body = CommandBodies.of(call.type, command.body, idProperty, ref.id.takeIf { ref.isAssigned }),
         )
     }
 

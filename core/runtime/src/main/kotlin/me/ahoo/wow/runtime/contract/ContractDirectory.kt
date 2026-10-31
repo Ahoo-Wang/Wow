@@ -154,6 +154,12 @@ class ContractDirectory(
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`), as its context's Manifest gives it. */
     fun schemaOf(commandType: String): String? = commands.schemaOf(commandType)
 
+    /**
+     * The property of the body of a command of [commandType] (`ctx.agg.Command`) that holds its aggregate's id, as its
+     * context's Manifest names it; null for one whose request names its aggregate.
+     */
+    fun idPropertyOf(commandType: String): String? = commands.idPropertyOf(commandType)
+
     /** The subscription [name] (`processor.function`) of [context]. */
     fun subscriptionOf(context: String, name: String): SubscriptionManifest? =
         contextOf(context)?.subscriptions?.firstOrNull { it.name == name }

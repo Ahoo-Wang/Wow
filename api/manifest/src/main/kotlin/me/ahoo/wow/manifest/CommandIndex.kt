@@ -29,6 +29,7 @@ class CommandIndex(manifests: List<Manifest>) {
     private val schemasByCommand = HashMap<String, String>()
     private val aggregatesBySchema = HashMap<String, MutableSet<String>>()
     private val routesByCommand = HashMap<String, List<RouteManifest>>()
+    private val idPropertiesByCommand = HashMap<String, String>()
 
     init {
         manifests.forEach { manifest ->
@@ -37,6 +38,7 @@ class CommandIndex(manifests: List<Manifest>) {
                     aggregate.commands.filterNot { it.mounted }.forEach { command ->
                         val type = "${context.name}.${aggregate.name}.${command.name}"
                         routesByCommand.putIfAbsent(type, command.routes)
+                        command.idProperty?.let { idPropertiesByCommand.putIfAbsent(type, it) }
                         if (command.system) return@forEach
                         commandsBySchema.putIfAbsent(command.schema, type)
                         aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) += "${context.name}.${aggregate.name}"
@@ -71,6 +73,12 @@ class CommandIndex(manifests: List<Manifest>) {
 
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`). */
     fun schemaOf(commandType: String): String? = schemasByCommand[commandType]
+
+    /**
+     * The property of the body of a command of [commandType] (`ctx.agg.Command`) that holds its aggregate's id
+     * ([CommandManifest.idProperty]); null for one whose request names its aggregate.
+     */
+    fun idPropertyOf(commandType: String): String? = idPropertiesByCommand[commandType]
 
     /**
      * The route of the command type [commandType] (`ctx.agg.Command`) to an aggregate by its id when [byId], else one

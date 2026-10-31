@@ -64,6 +64,7 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `mounted`: 缺省或取默认值时省略
 - `system`: 缺省或取默认值时省略
 - `transformsTo`
+- `idProperty`
 - `description`
 
 ## `Error`

@@ -204,6 +204,41 @@ class PeerCommandsTest {
     }
 
     @Test
+    fun `a peer's command whose body names its aggregate should go keyed by it, a ref beside it naming the same one`(): Unit =
+        runBlocking {
+            val sales = started()
+            fun restock(body: String, item: String? = null) =
+                ServerCommandRequest.builder(STOCK, "item", "Restock", CommandBody.of(body))
+                    .caller(clerk)
+                    .aggregateId(item)
+                    .wait(WaitPlan.ACCEPTED)
+                    .build()
+            val accepted = sales.gateway.execute(restock("""{"item":"i-7","quantity":2}"""))
+            accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            accepted.ref.assert().isEqualTo(ITEM.ref(TENANT, "i-7"))
+            CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value)).ref.assert()
+                .isEqualTo(ITEM.ref(TENANT, "i-7"))
+            // Authorized as the aggregate the body names, read before the body is decoded for anything else.
+            actions.single().ref.assert().isEqualTo(ITEM.ref(TENANT, "i-7"))
+            sales.gateway.execute(restock("""{"item":"i-7","quantity":2}""", item = "i-7")).status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+            mapOf(
+                restock("""{"item":"i-7","quantity":2}""", item = "i-8") to
+                    "The request names the aggregate i-8, but the body of stock.item.Restock names i-7.",
+                restock("""{"item":" ","quantity":2}""") to "The body of stock.item.Restock names a blank aggregate id.",
+                restock("""{"quantity":2}""") to "The body is not a stock.item.Restock.",
+                restock("""{"item":"i-\u0000","quantity":2}""") to
+                    "The body writes \\u0000 in a string, which no store keeps.",
+            ).forEach { (request, message) ->
+                val refused = sales.gateway.execute(request)
+                refused.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+                refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
+                refused.error!!.message.assert().isEqualTo(message)
+            }
+            topics.messages(COMMANDS).size.assert().isEqualTo(2)
+        }
+
+    @Test
     fun `a wait beyond the peer's COMMITTED should be refused at admission`(): Unit = runBlocking {
         val sales = started()
         listOf(

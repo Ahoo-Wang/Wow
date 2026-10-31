@@ -65,6 +65,9 @@ import kotlin.time.Duration.Companion.seconds
 class HttpCommandClientTest {
     data class DeliverItems(val items: List<String>)
 
+    /** A command whose body names its box (`@AggregateId`); a creation's may name none. */
+    data class Restock(val boxId: String?, val quantity: Int)
+
     private val peer = FakePeer()
 
     @AfterEach
@@ -188,6 +191,30 @@ class HttpCommandClientTest {
             )
             val root = CallWires.decode(peer.taken.first().headers.getValue(WowHeaders.CALL))
             root.ownerId.assert().isEqualTo("alice")
+        }
+
+    @Test
+    fun `a command whose body names its aggregate should go to its route without an id, its body naming the ref's`(): Unit =
+        runBlocking {
+            peer.reply(Reply.json(committed()), Reply.json(committed()), Reply.json(committed()))
+            val client = WowClient.builder()
+                .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+                .service(SERVICE)
+                .contracts(contractOf(BOX, Restock::class.java, idProperty = "boxId"))
+                .build()
+                .commands
+                .of(alice)
+            client.wait(Restock("a b", 1))
+            client.wait(CommandRequest.to(ref, Restock("a b", 2)))
+            // A creation whose body names none is sent with the ref's id in its body, the route having none.
+            client.wait(CommandRequest.to(ref, Restock(null, 3)))
+            peer.taken.map { it.path }.assert().containsOnly("/mail/box/restock")
+            WowJson.mapper.readTree(peer.taken.last().body)["boxId"].asString().assert().isEqualTo("a b")
+            // A ref that names another box than the body is the code's mistake, never sent.
+            assertThrownBy<Misuse.Argument> {
+                runBlocking { client.wait(CommandRequest.to(BOX.ref("t1", "x"), Restock("a b", 1))) }
+            }.hasMessageContaining("The request names the aggregate x, but the body of mail.box.Restock names a b")
+            peer.taken.size.assert().isEqualTo(3)
         }
 
     @Test

@@ -72,6 +72,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
     private var tags: ((S) -> Map<String, Collection<String>>)? = null
+    private val aggregateIds = LinkedHashMap<Class<*>, (Any) -> String?>()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -154,6 +155,23 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
                 produces,
             ),
         )
+    }
+
+    /**
+     * Reads the id of the aggregate a command of type [C] acts on from its body, as its `@AggregateId` property holds
+     * it: its request need not name its aggregate. [read] gives null for a creation that leaves it out, which then gets
+     * an id. [C] is a command this model decides.
+     */
+    inline fun <reified C : Any> aggregateId(noinline read: (C) -> String?) {
+        @Suppress("UNCHECKED_CAST")
+        addAggregateId(C::class.java, read as (Any) -> String?)
+    }
+
+    /** Reads the aggregate id of a command of [commandType] from its body; see the reified overload. */
+    fun addAggregateId(commandType: Class<*>, read: (Any) -> String?) {
+        require(aggregateIds.putIfAbsent(commandType, read) == null) {
+            "$type reads the aggregate id of ${commandType.name} twice."
+        }
     }
 
     /**
@@ -390,6 +408,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         retiredEvents = retired.toList(),
         tags = tags,
         idSource = idSource,
+        aggregateIds = aggregateIds.toMap(),
     )
 
     /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */

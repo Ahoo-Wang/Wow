@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.busyOf
+import me.ahoo.wow.spi.json.BodyAggregateIds
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
@@ -53,6 +54,17 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
     override fun aggregatesOf(command: Class<*>): List<AggregateType> {
         val local = models.values.filter { model -> model.commandTypes.any { it.type == command } }.map { it.type }
         return (local + contracts.aggregatesOf(Manifest.schemaRef(command.name))).distinct()
+    }
+
+    /**
+     * The id of [target]'s aggregate [command] names in its body: as the context's model reads it, or from the property of
+     * its JSON a contract names, for another context's.
+     */
+    override fun aggregateIdOf(target: AggregateType, command: Any): String? {
+        models[target]?.let { model -> return model.aggregateIdOf(command) }
+        val type = nameOf(target, command.javaClass) ?: return null
+        val property = contracts.idPropertyOf(type) ?: return null
+        return BodyAggregateIds.of(ClusterCodec.mapper.valueToTree(command), property)
     }
 }
 

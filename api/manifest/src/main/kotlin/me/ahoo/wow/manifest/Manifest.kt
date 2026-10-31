@@ -352,6 +352,11 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  * [description] is what the command's class says it does: its `@Description`, else the summary of its KDoc; null when
  * it says nothing. It documents the command for a client, and is no part of the contract.
  *
+ * [idProperty] is the property of the command's JSON body that holds the id of the aggregate it acts on, as its class's
+ * `@AggregateId` property declares it; null for a command whose request names the aggregate. Such a command's routes
+ * name no id: a sender reads it from the body, and one that cannot (a computed id it does not send) leaves it to the
+ * service, which reads it from the command.
+ *
  * A [system] command is the framework's, not the domain's: a lifecycle command, a snapshot rebuild or a schedule job's
  * command, named by its full system name (`wow.lifecycle.DeleteAggregate`) and routed on a reserved segment
  * ([CommandRoutes.SYSTEM_SEGMENT_PREFIX]). Every route the edge serves is a command's [routes], a system command's
@@ -370,6 +375,7 @@ class CommandManifest @InternalWowApi constructor(
     val transformsTo: List<String>? = null,
     val description: String? = null,
     val system: Boolean = false,
+    val idProperty: String? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandManifest && valueFields() == other.valueFields()
@@ -378,7 +384,8 @@ class CommandManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
-            "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description, system=$system)"
+            "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description, system=$system, " +
+            "idProperty=$idProperty)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -391,6 +398,7 @@ class CommandManifest @InternalWowApi constructor(
         transformsTo,
         description,
         system,
+        idProperty,
     )
 }
 

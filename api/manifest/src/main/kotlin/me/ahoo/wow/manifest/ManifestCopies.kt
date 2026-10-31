@@ -109,8 +109,20 @@ fun CommandManifest.copyWith(
     transformsTo: List<String>? = this.transformsTo,
     description: String? = this.description,
     system: Boolean = this.system,
-): CommandManifest =
-    CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description, system)
+    idProperty: String? = this.idProperty,
+): CommandManifest = CommandManifest(
+    name,
+    aliases,
+    schema,
+    creation,
+    produces,
+    routes,
+    mounted,
+    transformsTo,
+    description,
+    system,
+    idProperty,
+)
 
 @InternalWowApi
 fun ServiceRouteManifest.copyWith(

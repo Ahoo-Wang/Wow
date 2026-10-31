@@ -154,6 +154,24 @@ class HttpCommandCallerTest {
     }
 
     @Test
+    fun `a command whose body names its aggregate should take the route without an id, its body naming it`(): Unit =
+        runBlocking {
+            val contracts = contractOf(box, HttpCommandClientTest.Restock::class.java, idProperty = "boxId")
+                .map { it.manifest }
+            val caller = HttpCommandCaller(mapOf("mail" to base), SERVICE, contracts = contracts)
+            listOf(mapOf("boxId" to "a b", "quantity" to 1), mapOf("quantity" to 2)).forEach { body ->
+                val call = OutgoingCall(
+                    "mail.box.Restock",
+                    Command("c-1", "r-1", box.ref("t", "a b"), body, scope = Scope("alice"), causation = ROOT),
+                )
+                answer = Triple(200, "application/json", WowJson.mapper.writeValueAsBytes(result(call)))
+                caller.call(call)
+            }
+            taken.map { it.path }.assert().containsOnly("/mail/box/restock")
+            taken.map { WowJson.mapper.readTree(it.body)["boxId"].asString() }.assert().containsOnly("a b")
+        }
+
+    @Test
     fun `a problem with a result should answer the result`(): Unit = runBlocking {
         val call = call()
         val rejected = result(call, CommandResult.Status.REJECTED, ErrorInfo("mail.box.full", "Full."))
