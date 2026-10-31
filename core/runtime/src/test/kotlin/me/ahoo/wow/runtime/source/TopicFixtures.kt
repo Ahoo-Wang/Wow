@@ -43,6 +43,20 @@ fun orderRecord(id: String, version: Int, withState: Boolean = true): StateEvent
     state = if (withState) PublishedState(version, "fp", WowJson.mapper.readTree("""{"total":$version}""")) else null,
 )
 
+/**
+ * A state event as a 9.x service writes it to its state topic `wow.sales.order.state`, the name of the sales
+ * context's published stream: its event stream (the shape the 9.x event store keeps) with the state after it, keyed by
+ * the bare aggregate id, without headers.
+ */
+const val NINE_X_STATE_EVENT: String =
+    """{"id":"0VY3Gwb94OmV00H","contextName":"sales","aggregateName":"order","header":{"command_operator":"user-1",""" +
+        """"trace_id":"0VY3Gwaw4OmV00F","upstream_id":"0VY3Gwaw4OmV00F","upstream_name":"place"},""" +
+        """"aggregateId":"o-1","tenantId":"t","ownerId":"","spaceId":"","commandId":"0VY3Gwaw4OmV00F",""" +
+        """"requestId":"0VY3Gwaw4OmV00F","version":1,"body":[{"id":"0VY3Gwb94OmV00I","name":"order_placed",""" +
+        """"revision":"0.0.1","bodyType":"com.example.sales.api.OrderPlaced","body":{"total":1}}],""" +
+        """"createTime":1792004186903,"firstOperator":"user-1","firstEventTime":1792004186903,""" +
+        """"state":{"id":"o-1","total":1},"deleted":false}"""
+
 /** Publishes [records] to [topic], each keyed by its aggregate, as the transport sink does. */
 suspend fun TopicProducer.publish(vararg records: StateEventRecord, topic: String = ORDER_TOPIC) {
     send(topic, records.map(EnvelopeCodec::message))
