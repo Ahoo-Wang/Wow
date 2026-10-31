@@ -135,7 +135,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 - **名字。** V10 的事件名是 `<context>.<aggregate>.<Name>`；9.x 用的是蛇形命名（`order_created`）。不要用 `@Name` 保留 9.x 的拼写：在迁移映射中映射它。
 - **修订号。** V10 形状与 9.x 所存储的不同的事件（去掉了身份字段、删掉了计算属性），要用更高的 `@Revision`，以及一个从修订号 1 升级的 `@Upgrade` 函数，并由一个使用真实 9.x 载荷的测试覆盖。
-- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
+- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建之前都有值（不用 `lateinit`）。9.x 在私有时也能找到的处理函数（`@OnCommand`、`@OnSourcing` 或 `@OnEvent` 函数），在 V10 中是编译错误，Kotlin 的 `protected` 处理函数也一样：把它改成 `internal`。只有仅靠名字绑定、没有注解的私有函数才会被忽略。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
 - **被删除的事件**要退役：删除类和它的溯源函数，在 `retiredEvents` 中列出存储时的名字，并用 `"retire": true` 映射它。
 - **事件与状态中的 Wow 类型。** 存储下来的 `Condition`、`Sort` 或 `Projection`（例如保存的过滤条件）在 V10 中没有对应形式：`Condition` 协议已经没有了，内核的 JSON 没有查询协议的编解码，查询协议的枚举现在也是小写。改存应用自己的类型，用一个 `@Upgrade` 函数把 9.x 的 JSON 升级过去，并写测试覆盖。
 - **事件的信封。** 接收 `DomainEvent<E>` 以读取 `createTime` 或操作人的 9.x 溯源函数，改为接收事件，并以第二个参数接收它所属的提交（`commit: EventStream`）：`createTime` 是 `commit.commitTime`，`header.operator` 是 `commit.operator?.id`，`version` 是 `commit.version`（[读取提交](../guide/aggregates#read-the-commit)）。数据迁移把每条 9.x 流的创建时间和操作人导入为其提交的提交时间和操作人，所以从 9.x 历史重建的状态读到的就是 9.x 记录的值。读取系统时钟的命令函数改读 `scope.now`。
