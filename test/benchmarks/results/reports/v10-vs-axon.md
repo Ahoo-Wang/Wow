@@ -101,7 +101,7 @@ Both servers had tails at the fixed rates in some sessions (Axon's E1 p99 541 an
 
 The same comparison on an Apple M5 Max (18 cores, 64 GB, macOS 27.2, as the runs record them; they do not record the model, `hw.model`) at `3c138c0237`, run on 2026-10-30 ([`v10-vs-axon-m5max/`](v10-vs-axon-m5max/), `SUMMARY.md`). The container engine is OrbStack 2.2.5, as the session's summary names it; the runs record Docker engine 29.8.2 with 16 CPUs and 32,110 MiB, the store on disk. The sessions are W A A W K K, then one Axon and one Wow session with 32 connections (A32, W32), run by [`compare.sh`](v10-vs-axon-m5max/compare.sh); each runs the fixed rates, then sweeps of E1 and E3 to 4,096 clients (growth 4). Neither server's configuration changed for this machine.
 
-W and W32 pass a blank Kafka address (`--wow.kafka.bootstrap-servers=`), as on the other machines, which at this commit selects the in-memory transport in development, whose topics keep every record: their nodes ran out of heap in their E1 sweeps (X-33, being fixed), so their sweeps are void.
+W and W32 pass a blank Kafka address (`--wow.kafka.bootstrap-servers=`), as on the other machines, which at this commit selects the in-memory transport in development, whose topics keep every record: their nodes ran out of heap in their E1 sweeps (X-33, fixed in #5231, which bounds the in-memory topics and adds `wow.transport=none`), so their sweeps are void.
 
 | Closed-loop peak | Wow, Kafka on (K) | Axon (A) | Axon, 32 connections (A32) | Wow, blank Kafka address (W, W32) |
 | --- | --- | --- | --- | --- |
@@ -138,10 +138,48 @@ The fixed rates ran before the sweeps in every session (`compare.log`), so W's a
 - PostgreSQL's CPU per operation is 1.5–1.8 times Wow's for Axon on E1 (0.348–0.356 ms against 0.201–0.236 ms) and 1.5–1.6 times on E3 (1.112–1.145 ms against 0.708–0.726 ms). Axon commits 1.95–1.97 transactions per E1 and 6.97–7.11 per E3, Wow 1.23–1.69 and 5.71–5.76.
 - Axon's E3 p50 is 3.47–3.58 ms and its p99 11.6–17.7 ms, against Wow's 2.14–2.32 ms and 6.7–7.6 ms. On E1 both have a p50 of 1.47–1.92 ms. K's first session had an E1 p99 of 92.2 ms, Axon's sessions 16.3–23.7 ms and W32 15.7 ms, not examined here. Where each node's time goes was not profiled.
 
+### With an 8 GB heap
+
+The same eight sessions, rerun with an 8 GB heap (`--heap=8g`, so `-Xms8g -Xmx8g -XX:+UseG1GC`) by [`heap-8g/compare.sh`](v10-vs-axon-m5max/heap-8g/compare.sh) ([`v10-vs-axon-m5max/heap-8g/`](v10-vs-axon-m5max/heap-8g/), `SUMMARY.md`). The runs record commit `df12780c32`, with uncommitted changes; that commit adds only the 1 GB reports to `3c138c0237`. Docker records the same 16 CPUs and 32,110 MiB, and the PostgreSQL settings are unchanged. With 1 GB, W and W32 ran out of heap in their E1 sweeps and A32 after its E1 sweep; with 8 GB every session ran every step of both sweeps.
+
+W and W32 again pass a blank Kafka address (`--wow.kafka.bootstrap-servers=`), which at this commit selects the in-memory transport in development (X-33). Their columns measure that development transport, not Wow with Kafka off, and their ceilings, E1 and E3, are that transport's. X-33 (#5231) added `wow.transport=none`, the arm for Kafka off in a rerun; the W arm of [`v10-vs-axon/compare.sh`](v10-vs-axon/compare.sh) already uses it. The values are in session order:
+
+| Closed-loop peak, 8 GB heap | Wow, Kafka on (K) | Axon (A) | Axon, 32 connections (A32) | Wow, in-memory development transport (W) | Wow, in-memory development transport, 32 connections (W32) |
+| --- | --- | --- | --- | --- | --- |
+| E1 | 36,452, 34,783/s (top step) | 4,988, 4,992/s | 8,436/s | 36,685, 36,215/s (top step) | 37,019/s (top step) |
+| E3 | 9,808, 9,867/s | 1,554, 1,555/s | 2,345/s | 4,365, 4,364/s | 4,208/s |
+| E1, one client | 1,104, 1,082/s | 949, 916/s | 944/s | 1,114, 1,133/s | 1,125/s |
+| E3, one client | 515, 517/s | 342, 332/s | 322/s | 533, 540/s | 503/s |
+
+- E1: K peaked at the top step, 36,452 and 34,783/s, 7.0–7.3 times Axon's peaks (4,988 and 4,992/s, at 256 and 64 clients) and 4.1–4.3 times A32's (8,436/s, at 64). K's peaks are lower bounds, and so are the ratios.
+- E3: K peaked at 1,024 clients, 9,808 and 9,867/s, 6.3 times Axon's peaks (1,554 and 1,555/s, at 64) and 4.2 times A32's (2,345/s, at 64). At 4,096 K fell to 8,432 and 5,764/s, refused 186,982 and 376,881 commands as busy (429) and timed out 2,327 and 162 waits (504). No other step of K's sweeps failed a command, and the A and A32 sweeps failed none.
+- A32 ran both sweeps to the end. 32 connections raise Axon's peaks by 69% on E1 and 51% on E3, both at 64 clients.
+- W's and W32's E1 sweeps failed no command and reached 36,685, 36,215 and 37,019/s at 4,096 clients. Their E3 sweeps peaked at 64 clients (4,365, 4,364 and 4,208/s) and fell from 256: 2,548, 2,783 and 2,759/s there, with a p99 of 303 ms in all three, then 462, 732 and 490/s at 1,024, with a p99 of 3.8–4.8 s, and 8, 0 and 18/s at 4,096. Below 4,096 they failed one command (an `EOFException`, W's second session at 1,024). At 4,096 they refused 16,058, 34,417 and 16,320 commands as busy (429) and timed out 6,221, 5,461 and 5,138 waits (504); the two W sessions also answered 21 and 11 HTTP 500s and had 2 and 3 client exceptions (`EOFException`, `HttpTimeoutException`). The sweeps record no node signals, such as heap or GC, so these runs do not tell why that transport's E3 falls past 64 clients.
+- At one client K does 1.1–1.2 times Axon's E1 and 1.5–1.6 times its E3 (A and A32).
+
+The fixed rates ran before the sweeps in every session (`compare.log`). In them every node's heap averaged 2.5–3.1 GB of its 8 GB, with no full collection: W and W32 2.8–3.1 GB, K 2.5–2.9 GB and Axon 2.5–2.7 GB. The values are in session order:
+
+| Fixed rates, 8 GB heap | Wow, Kafka on (K) | Axon (A) | Axon, 32 connections (A32) | Wow, in-memory development transport (W) | Wow, in-memory development transport, 32 connections (W32) |
+| --- | --- | --- | --- | --- | --- |
+| E1 at 2,500/s: p50 | 1.53, 1.61 ms | 1.56, 1.58 ms | 2.45 ms | 1.50, 1.53 ms | 1.53 ms |
+| E1: p99 | 4.6, 53.8 ms | 5.6, 9.7 ms | 153.6 ms | 38.7, 123.4 ms | 9.5 ms |
+| E1: node CPU per op | 0.559, 0.587 ms | 0.410, 0.409 ms | 0.370 ms | 0.449, 0.439 ms | 0.467 ms |
+| E1: PostgreSQL CPU per op | 0.238, 0.223 ms | 0.342, 0.349 ms | 0.306 ms | 0.217, 0.214 ms | 0.232 ms |
+| E1: commits per op | 1.64, 1.48 | 1.98, 1.94 | 1.78 | 1.55, 1.51 | 1.58 |
+| E3 at 700/s: p50 | 2.17, 2.24 ms | 3.41, 3.39 ms | 3.41 ms | 2.04, 2.06 ms | 2.06 ms |
+| E3: p99 | 7.8, 7.5 ms | 8.5, 8.1 ms | 7.5 ms | 6.4, 7.4 ms | 6.9 ms |
+| E3: node CPU per op | 1.623, 1.763 ms | 1.038, 1.032 ms | 1.041 ms | 1.376, 1.361 ms | 1.395 ms |
+| E3: PostgreSQL CPU per op | 0.731, 0.732 ms | 1.106, 1.111 ms | 1.117 ms | 0.700, 0.706 ms | 0.716 ms |
+| E3: commits per op | 5.74, 5.72 | 7.07, 7.07 | 7.17 | 5.81, 5.75 | 5.81 |
+
+- Wow's node costs more CPU per operation than Axon's at these rates. On E1 at 2,500/s K costs 0.559–0.587 ms, W and W32 0.439–0.467 ms and Axon 0.370–0.410 ms (A and A32); on E3 at 700/s K costs 1.623–1.763 ms, W and W32 1.361–1.395 ms and Axon 1.032–1.041 ms. W and W32 publish to the in-memory transport, not to nothing, so these runs do not give Kafka's share of K's cost.
+- PostgreSQL's CPU per operation is 1.3–1.6 times Wow's for Axon on E1 (0.306–0.349 ms against 0.214–0.238 ms) and 1.5–1.6 times on E3 (1.106–1.117 ms against 0.700–0.732 ms). Axon commits 1.78–1.98 transactions per E1 and 7.07–7.17 per E3, Wow 1.48–1.64 and 5.72–5.81.
+- Axon's E3 p50 is 3.39–3.41 ms, against Wow's 2.04–2.24 ms.
+
 ## Limits
 
 - Three machines, one node each, local Docker; no server disk. The rates and sweeps are E1 and E3 only: the Axon server has no state reads (E2, E4) and no large payloads.
 - Axon's configuration is its documented production one without Axon Server, with the two choices above (the tracking processor, 16 segments); Axon Server and its event store were not measured. Wow runs its defaults.
 - The first W session's E1 at 2,500/s had a p99 of 69 ms (one stall in the first measured seconds after the prime); its second session and the K sessions did not.
 - The first round's W arm used `wow.topics.in-memory`, a development mode whose topics keep every record in the JVM: the 1 GB node ran out of heap in its first E1 sweep, so those sessions are void, and W runs with Kafka off instead (which needed the fix that a blank broker address turns Kafka off).
-- On the M5 Max, the W and W32 sweeps and A32's E3 sweep are void (out of heap, [above](#on-the-m5-max)); W's and W32's fixed rates ran with their heap filling.
+- On the M5 Max with a 1 GB heap, the W and W32 sweeps and A32's E3 sweep are void (out of heap, [above](#on-the-m5-max)); W's and W32's fixed rates ran with their heap filling. With an 8 GB heap ([above](#with-an-8-gb-heap)) every sweep ran every step, but W and W32 still ran on the in-memory development transport, so no M5 Max run measures Wow with Kafka off.
