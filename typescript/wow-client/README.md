@@ -126,9 +126,10 @@ aggregate or at admission, rejects with a `CommandRejectedError` (its `code`,
 its `result`, and the `problem` when the service answered one); anything
 else with a `WowProblemError`: the RFC 9457 `problem` as written, its
 `status`, its Wow `code`, its `violations`, and the `result` when the
-service sent one. `stream` emits every result, whatever its status. A
-stream that fails midway errors with the same error, so a `for await`
-throws it.
+service sent one. `stream` emits every result after admission, whatever
+its status; a command refused at admission rejects the `stream` call itself
+with a `WowProblemError` whose `result.status` is `rejected`. A stream that
+fails midway errors with the same error, so a `for await` throws it.
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';

@@ -61,7 +61,7 @@ The single failure type of the port. A backend adapter maps its transport errors
 | `UNAVAILABLE` | Not reached, or reached with an unknown outcome. A retry under the same `requestId` is safe | `reachable`: the server answered with an error of its own (a 5xx, a timeout, a refusal it reported), not the network; `storage`: the browser's own storage would not keep the write (full or turned off), so it never left the device |
 | `UNSUPPORTED` | The backend has no view store at all (a server released before it), so no view can be read or written there, and none is "gone" | |
 
-`detail.code` is the backend's own word for the failure — a Wow server's `errorCode` (`ViewAppRequired`, `ViewInvalid`, …) — so a host can tell apart what the port's code folds together. Diagnostics only: the engine decides by `code`. The engine says a store failure as an issue code such as `view.open.failed.not_found` (see [issue codes](./issues)).
+`detail.code` is the backend's own word for the failure — a Wow service's problem `code` (`view-store.app-required`, `view-store.invalid`, …) — so a host can tell apart what the port's code folds together. Diagnostics only: the engine decides by `code`. The engine says a store failure as an issue code such as `view.open.failed.not_found` (see [issue codes](./issues)).
 
 `isViewStoreError` is structural: an `Error` named `ViewStoreError` with one of the port's codes, so an error raised by a second copy of this package, or by a store that builds the shape itself, is still recognised; the name keeps a stray `{ code: 'NOT_FOUND' }` from an HTTP library out.
 

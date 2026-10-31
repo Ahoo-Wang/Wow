@@ -31,6 +31,8 @@ export const orderStates = new OrderStateClient(ordering);
 
 Each route starts with its context, `/eshop-ordering/order/…`, so one Fetcher at a gateway that routes by that prefix serves every service; `basePath` puts a prefix of the gateway's own before every route.
 
+The generated clients send by the routes of their context's `manifest.ts`, the `<Context>Manifest` the generator writes from the service's Manifest, so they never fetch it at run time. A `CommandClient` you build yourself, `new CommandClient(options, { manifest })`, takes such a Manifest too; without one it fetches `GET /wow/manifest` once, and again only after a fetch that failed. `CommandClient` is the client's name, as in Kotlin: the server's admission is what Wow calls the command gateway.
+
 ## Send a command
 
 <!-- typecheck-context
@@ -45,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ id }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
+`SubmitOrder` creates its aggregate, so its method takes no id: the service generates one, and `result.ref.id` names it. Pass `{ id }` in the options to choose it. A command on an existing aggregate takes its id first, `orders.payOrder(id, body)`. An aggregate whose id is its owner's, such as a shopper's basket, also has an `…Own` method without the id, `baskets.checkoutBasketOwn(body)`, which acts on the caller's own aggregate; its method by id is for a caller with no owner, such as a back office acting for a shopper. `unitPrice` is a `BigDecimal` on the server, so its type is `string`, written into the body as an exact number.
 
 The result says where the command got to:
 
@@ -119,8 +121,7 @@ import { WaitPlan } from '@ahoo-wang/wow-client';
 import { eshopBasketWait } from './generated/basket/index.js';
 import { eshopOrderingWait } from './generated/ordering/index.js';
 
-const placed = await baskets.checkoutBasket(
-  'buyer-1',
+const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
@@ -138,7 +139,7 @@ The call answers with the last hop's result: here the order's commit, so `placed
 
 ## Follow the wait as a stream
 
-Each method has a `…Stream` twin that answers one result per hop as the wait advances, for a page that shows the progress of a long chain:
+Each command method has a `…Stream` twin that answers one result per hop as the wait advances, for a page that shows the progress of a long chain. The lifecycle methods, `deleteAggregate` and the others, have none.
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
@@ -148,8 +149,7 @@ declare const baskets: BasketCommandClient;
 -->
 
 ```ts
-const stream = await baskets.checkoutBasketStream(
-  'buyer-1',
+const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
@@ -168,7 +168,7 @@ for (;;) {
 }
 ```
 
-A command refused at admission rejects the call with its problem, as without a stream. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`).
+A command refused at admission rejects the call before any result streams, with a `WowProblemError` whose `result.status` is `rejected`: a stream call does not turn it into a `CommandRejectedError` as `wait` does, so check `error.result?.status`. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`).
 
 ## When a command fails
 

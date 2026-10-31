@@ -50,7 +50,7 @@ Authorization happens at admission, before the command runs:
 
 - **Per route.** Where CoSec decides a request, its pipeline authorizes it, by an action on a resource, before the route runs.
 - **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command and service route call of a request as its caller ([Where CoSec decides](#where-cosec-decides)). A `CommandAuthorizer` of your own does the same.
-- **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see.
+- **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see ([Authorize reads](#authorize-reads)).
 
 The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
@@ -81,6 +81,48 @@ CoSec's documents, the platform's, each app's and each tenant's, say who may do 
 With `wow.cosec.authorizer.enabled: true`, `CoSecCommandAuthorizer` and `CoSecServiceRouteAuthorizer` authorize each command and service route call in the process, whichever way it reached the command gateway, by its action above, for the principal and in the scope of the request it came from. They are wired only where CoSec decides for itself, which needs CoSec's `AuthorizationChecker`: a service in gateway mode has none, and the switch does nothing there. The switch is off by default: without it, and without an authorizer of your own, a command that passed its route is allowed, except the built-in aggregates' system commands above. A `CommandAuthorizer` of your own is asked beside CoSec's, and a command needs both to allow it ([the composition rule](../guide/spring-boot#beans-the-application-gives)); an authorizer of your own roles that should decide only without CoSec takes `ObjectProvider<CoSecCommandAuthorizer>` and has no objection when there is one, as the platform services' do.
 
 A command that no request carries gets no objection from the CoSec authorizers: a command a saga, a timer or a compensation sends, a scheduled job's command, and a call another service makes on the internal port. CoSec has no request of theirs to decide. Such a command carries the scope and operator of the root command, which admission authorized when the root request arrived; the node's other authorizers still apply to it, and a service's calls on the internal port are what its caller list allows ([Close the internal port](#close-the-internal-port)).
+
+## Authorize reads {#authorize-reads}
+
+A query, a state read and a trace are authorized in layers, each narrowing what the one before allowed:
+
+- **Per route.** Where CoSec decides a request, a policy on the `http:<METHOD>` action of the route's path admits or refuses it ([Action names](#action-names)). Behind a CoSec gateway, the gateway's policies do.
+- **Per scope.** Query admission adds the caller's scope to every query, and a state read checks it: the tenant always; the owner only on an aggregate of `Ownership.OWNER`; the space whenever the caller acts in one. A part the caller has no value for is not added, so a tenant-level caller reads its whole tenant. A filter in the query cannot widen this.
+- **Per tag.** With `wow.query.abac.enabled: true`, the caller's ABAC attributes narrow each query to the aggregates tagged for it ([Tags](../guide/ownership#tag-aggregates)).
+- **Per policy.** A `QueryPolicy` bean of the service's own runs after these, on every query model, state read and trace. It returns a filter that narrows the rows, or throws to refuse the caller.
+
+**A tenant-owned aggregate is read by every caller of its tenant.** `Ownership.TENANT` records no owner, so the scope adds none: a shopper reads the products as staff does, and an owner-level caller reads every such aggregate of its tenant and space. That is right for a catalog, and wrong for an aggregate only some roles may read. Wow has no read role of its own, so such a service brings a policy that refuses a caller without the role. The platform's services do: the ops service's `ReaderRole` admits only a viewer or operator, and the analytics catalog's `AnalyticsCatalogQueryPolicy` only its readers. Where CoSec decides in the ops service itself with its authorizer on, `ReaderRole` steps aside, and CoSec's `http:` policies on the query routes say who reads; in gateway mode the roles decide.
+
+<!-- sample: fragment -->
+
+```kotlin
+class ReaderRole : QueryPolicy {
+    // A role check hides no event stream, so events queries need not name their aggregates.
+    override val events: EventsMode get() = EventsMode.NONE
+
+    override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
+        // Trusted code and subscription handlers read with no caller: the check is not theirs.
+        val who = caller.caller ?: return MatchAllFilter
+        if (OpsRoles.rolesOf(who).none { it in OpsRoles.READERS }) {
+            throw QueryRequestException(
+                "${who.subject ?: "An anonymous caller"} reads no parked entry: it needs ${OpsRoles.VIEWER} or " +
+                    "${OpsRoles.OPERATOR}.",
+                READER_REQUIRED,
+                problem = FrameworkCodes.AUTH_FORBIDDEN,
+            )
+        }
+        return MatchAllFilter
+    }
+}
+```
+
+Register it as a bean of type `QueryPolicy`; the host runs every one, in bean order, after the scope and ABAC policies, and ANDs their filters. Three things to get right:
+
+- **A refusal is 403.** Throw `QueryRequestException` with `problem = FrameworkCodes.AUTH_FORBIDDEN` to answer `wow.auth.forbidden`; without it the refusal reads as a malformed query, 400. A filter that hides an aggregate makes its state read 404 `wow.aggregate.not-found`, as if it were not there, while a refusal answers 403 there too.
+- **Say how it treats event streams.** A policy's `events` defaults to `EventsMode.PINNED`, which assumes its rule reads the state and so makes every events query name its aggregates. A role check reads no state: give it `EventsMode.NONE`.
+- **Step aside when there is no caller.** Trusted code (`NodeQueryApi.trusted()`) and the handlers of subscriptions read without a caller, the whole tenant, as the node's own code. A policy that reads the caller returns `MatchAllFilter` for them, as above; one that does not would restrict the node's own jobs and projections too.
+
+A policy authorizes reads only. Who may change a tenant-owned aggregate is the command authorizer's to decide ([Authorize commands](#authorize-commands)): without one, any caller its route admits may send its commands.
 
 ## Put the gateway in front
 

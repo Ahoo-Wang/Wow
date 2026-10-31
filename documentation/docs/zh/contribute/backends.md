@@ -105,8 +105,15 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
        testImplementation("me.ahoo.wow:wow-tck")
        testImplementation("me.ahoo.wow:wow-query-tck") // when it serves queries
        testImplementation("me.ahoo.wow:wow-tck-containers") // when it runs on one of Wow's containers
+       testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+   }
+
+   tasks.test {
+       useJUnitPlatform()
    }
    ```
+
+   这些测试套件带来的是 JUnit 的 API，不是它的引擎：构建要像上面那样在 JUnit Platform 上运行这些 spec，用 `./gradlew test`（或放置它们的那个源码集）运行。
 
 2. **通过 `StoreTck` 运行整个存储。** 给它一个存储的配置，测试工具会通过你的 `StoreProvider` 打开它（按类型经 `ServiceLoader` 找到，和宿主的做法一样），并对存储打开的每个端口运行对应的 spec：存储保存日志时运行 `EventLogSpec`，保存快照时运行 `SnapshotStoreSpec`，只要保存日志就运行控制面（定时器、检查点、租约、失败账本、预留）。不保存日志的存储必须以一个点出它名字的 `UnsupportedOperationException` 拒绝日志和控制面，测试工具会检查这一点。提供者忘记打开或打开错的端口会在这里失败，而以后端自己的类来喂的单端口 spec 看不到这种错误。测试工具通过存储读取时间（`StoreConfig.clock`），所以要把 `config.clock` 传给每个读取当前时间的端口。报告以后端的类和端口命名，例如 `PostgresStoreTck > EventLog > ...`。
 
@@ -119,12 +126,32 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
            type = PostgresStoreProvider.TYPE,
            resources = StoreResources.of(mapOf("dataSource" to PostgresFixture.dataSource)),
        )
+
+       /** It serves queries and says its pool. */
+       override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
+
+       /** PostgreSQL's jsonb refuses a NUL character. */
+       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
+           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+       )
    }
    ```
 
-   类路径上没有登记的提供者，覆盖 `provider(type)`；`refused(stream)` 的用法与日志的 spec 相同。
+   `facets` 列出存储必须提供的可选 facet（`Store.facet`）：后端提供查询时是它的查询侧 `StoreQueries`，连接池报告其连接时是它的 `StorePool`；测试工具断言每一项都存在，而不是跳过。类路径上没有登记的提供者，覆盖 `provider(type)`；`refused(stream)` 的用法与日志的 spec 相同。
 
-3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。端口是 `@WowSpi`，所以测试类要用 `@OptIn(WowSpi::class)` 选择加入。PostgreSQL 日志的测试就是一个日志所需的全部，外加两个可选钩子，用来运行快照尾读和被拒绝的流的测试：
+   最小的完整例子是 Wow 仓库里的 `test/spi-consumer`：一个像 Wow 之外的后端那样写的存储，主代码只依赖 `:spi` 与 `:query`，不选择加入任何 API，它的提供者登记在 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中。它只保存快照（`holdsLogs = false`），所以整个存储测试就是一个配置和一个 facet，测试工具按设计跳过日志的 spec：
+
+   <!-- sample: fragment -->
+
+   ```kotlin
+   class AcmeSnapshotsStoreTck : StoreTck() {
+       override fun config(): StoreConfig = StoreConfig.of(name = "tck", type = AcmeSnapshotsProvider.TYPE)
+
+       override val facets: List<Class<*>> = listOf(StoreQueries::class.java)
+   }
+   ```
+
+3. **每个端口继承一个 spec。** 每个 spec 都是一个抽象的 JUnit 5 类：实现它的抽象成员，把一个全新的存储交给 spec，别的什么都不用做。它的测试是 final 的，所以后端不能修改或关闭其中某个测试。端口是 `@WowSpi`，编译器会对这种选择加入给出警告，所以测试类用 `@OptIn(WowSpi::class)`（或由测试源码集）选择加入，让构建没有警告。PostgreSQL 日志的测试就是一个日志所需的全部，外加三个可选钩子：读取它尾部时所用的快照存储、它一次往返读取两者的方式，以及它拒绝的流：
 
    <!-- sample: fragment -->
 
@@ -134,6 +161,9 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 
        override fun createSnapshots(context: String): SnapshotStore =
            PostgresSnapshotStore(PostgresFixture.dataSource, context)
+
+       override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
+           (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
        override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -148,29 +178,33 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 
 | Spec | 制品 | 需实现 | 可选 |
 | --- | --- | --- | --- |
-| `StoreTck` | `wow-tck` | `config()`：后端类型的一个存储 | `provider(type)`、`refused(stream)` |
-| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`、`refused(stream)` |
+| `StoreTck` | `wow-tck` | `config()`：后端类型的一个存储 | `provider(type)`、`refused(stream)`、`facets` |
+| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`、`snapshotTailsOf(log, snapshots)`、`refused(stream)` |
 | `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
 | `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
 | `LeaseStoreSpec` | `wow-tck` | `createStore(clock)`：spec 会拨动时钟 | |
 | `FailureLedgerSpec` | `wow-tck` | `createLedger()` | |
 | `ReservationStoreSpec` | `wow-tck` | `createStore(clock)` | |
 | `TimerStoreSpec` | `wow-tck` | `createStore()` | `context`、`logPartitions` |
-| `SinkSpec` | `wow-tck` | `createSink()`、`written(ref)`：目标处保存的版本 | `aggregateType`、`record(ref, version)`、`visibleWithin` |
-| `TopicTransportSpec` | `wow-tck` | `producer`、`source`、`newTopic(partitions)` | `readTimeout` |
+| `SinkSpec` | `wow-tck` | `createSink()`、`written(ref)`：目标处保存的版本 | `aggregateType`、`record(ref, version)`、`visibleWithin`、`provided()` |
+| `TopicTransportSpec` | `wow-tck` | `producer`、`source`、`newTopic(partitions)` | `readTimeout`、`provided()` |
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`、`binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`、`binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`、`createTable(table)` | `semanticDivergences` |
 
-为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，PostgreSQL 和 MongoDB 运行七个存储 spec、`QueryBackendSpec` 和 `EventQueryBackendSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec` 和 `DatasetQueryBackendSpec`。
+为后端提供的每种存储类型运行 `StoreTck`，再用单端口的 spec 覆盖只有它们能到达的部分：后端自己的钩子。其余的 spec，运行后端所实现端口的，而不是全部。在 Wow 自己的后端中，内存后端运行 `StoreTck`、七个存储 spec、`TopicTransportSpec` 和三个查询 spec；PostgreSQL 和 MongoDB 运行七个存储 spec、`QueryBackendSpec` 和 `EventQueryBackendSpec`；Elasticsearch 运行 `SnapshotStoreSpec`、`SinkSpec` 和两个查询 spec；Kafka 运行 `TopicTransportSpec`；ClickHouse 运行 `SinkSpec` 和 `DatasetQueryBackendSpec`。
 
 ### 能力与跳过的测试 {#capabilities}
 
 后端在端口本身上声明它能做什么，spec 通过一个说明原因的 JUnit 假设，跳过它不能做的那些测试：
 
-- **存储的可选能力。** `Store.openSnapshotTails`（一个 `SnapshotTailReader`）让快照尾读的测试经由它运行，读取 `createSnapshots` 返回的快照；没有它时，spec 像节点一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
+- **存储保存什么。** `Store.holdsLogs` 与 `Store.holdsSnapshots` 默认都为 `true`，说明它打开哪些端口。对不保存日志的存储，`StoreTck` 跳过日志的 spec 和控制面（`Skipped: the <type> store holds no log, so no control plane either.`），对不保存快照的存储跳过快照的 spec，并改为检查这样的存储会拒绝它不保存的东西。测试列出的 `facets` 是断言，从不跳过。
+- **存储的可选能力。** 快照尾读的测试用日志的尾部读取 `createSnapshots` 返回的快照：在 `EventLogSpec` 里经由 `snapshotTailsOf`，在 `StoreTck` 下经由存储的 `openSnapshotTails`，即节点使用的一次往返读取；两者都没有时，spec 像节点那时一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。是 `TagsBackfill` 的日志运行标签回填的测试。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
+- **提供者。** `SinkSpec` 和 `TopicTransportSpec` 里的 `provided()` 通过提供者、按它声明的选项打开 Sink 或传输，并运行「提供者只读取这些选项」的测试；没有它时跳过这个测试（`No provider opens this sink.`）。
 - **存储拒绝什么。** `refused` 返回一个后端的存储无法保存的流，比如 PostgreSQL `jsonb` 字符串中的 NUL，spec 期望它的追加被拒绝（`AppendOutcome.Rejected`），并且在 `appendAll` 中只有它单独失败；没有它时，spec 跳过这个测试。
-- **查询后端的存储。** 绑定的存储事实说明存储对哪些特性是原生支持、部分支持还是不支持：keyset 分页、无界流、百分位数、时间维度聚合等。存储不支持的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值导致的跳过：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).`与过滤语义之间已知的差异按用例 ID 列在 `semanticDivergences` 中，它的测试作为已知差异被跳过，而不是隐藏起来。
+- **查询后端的存储。** 绑定的存储事实（`StorageSupport`）说明存储对哪些特性是原生支持、部分支持还是不支持，声明为 `NONE` 的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` spec 读取的事实有 keyset 分页、无界流、`having`、展开元素后在记录根上的分组，以及去重计数。
+- **查询后端的字段。** 字段的绑定说明存储能对它做什么（`QueryCapability`），字段没有绑定某项能力时，spec 跳过这项能力的测试：`Skipped: the storage binds no AGGREGATE_TEMPORAL to state.createdAt (…)`。对排序或 `terms` 分组，spec 不跳过：它期望准入以 `unsupported-capability` 拒绝查询，这正是调用方会得到的回答。
+- **已知差异。** 与过滤语义之间的差异按用例 ID 列在 `semanticDivergences` 中，它的测试以 `Known divergence from the canonical semantics: <id>.` 跳过，而不是隐藏起来。
 
 ### 从 9.x 的 TCK 迁来 {#from-9x}
 
@@ -188,7 +222,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 | `StateAggregateRepositorySpec`、`StateAggregateFactorySpec`、`SnapshotStrategySpec`、`DomainEventStreamSpec` | 已去掉：内核内部实现，不是端口 |
 | Testcontainers 夹具 | `wow-tck-containers`（`WowContainers`），不含 Redis |
 
-`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`TimerStoreSpec` 和 `SinkSpec` 是 V10 新增的：9.x 的后端没有实现这些端口中的任何一个。
+`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`TimerStoreSpec`、`SinkSpec` 和 `StoreTck` 是 V10 新增的：9.x 的后端没有实现这些端口中的任何一个。9.x 的辅助代码中，过滤语义的用例移到了 `wow-query-tck`；模拟聚合、线上样例和空操作的查询后端随 9.x 代码一起去掉了。
 
 ## 规则 {#the-rules}
 

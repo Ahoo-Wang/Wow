@@ -22,9 +22,11 @@ pnpm exec wow-generator generate \
 
 For each bounded context it writes `types.ts` (the command, event and state
 types of the Manifest's schemas), `contract.ts` (`<Context>Contract`: its name,
-error codes and aggregates, and its wait hops) and `client.ts`
-(`<Context>Client`: its gateway and every aggregate's clients), and for each
-aggregate:
+error codes and aggregates, and its wait hops), `manifest.ts`
+(`<Context>Manifest`: the routes its clients send by, so they fetch no Manifest),
+`client.ts` (`<Context>Client`: its `CommandClient` and every aggregate's
+clients), and, for a context with routes of its own, `routes.ts`
+(`<Context>Routes`); and for each aggregate:
 
 - `aggregate.ts`: the aggregate's descriptor, its state fields and its event
   union;

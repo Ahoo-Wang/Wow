@@ -30,8 +30,8 @@ The service keeps views and preferences as two Wow aggregates; `WowViewStore` re
 | View | Owner | How the store reaches it |
 | --- | --- | --- |
 | Personal | The caller's own | As the caller |
-| Shared | The reserved owner `(shared)` (`SHARED_OWNER_ID`) | The store sends `Wow-Scope` naming `(shared)` |
-| Stored system view | `(system)` of the tenant `(platform)` (`SYSTEM_OWNER_ID`, `SYSTEM_TENANT_ID`), whatever the caller's tenant: system views are global | The store sends `Wow-Scope` naming both |
+| Shared | The reserved owner `(shared)` | The store sends `Wow-Scope` naming `(shared)` (`SHARED_SCOPE`) |
+| Stored system view | `(system)` of the tenant `(platform)`, whatever the caller's tenant: system views are global | The store sends `Wow-Scope` naming both (`SYSTEM_SCOPE`) |
 
 The host never sets `Wow-Scope` for the store; it says it itself, and the service refuses any other reserved scope (`wow.auth.forbidden`), so nobody acts as another user.
 

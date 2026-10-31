@@ -19,7 +19,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | --- | --- | --- |
 | Command gateway: send, wait, execute | Kept | Coroutine-based; results arrive as a flow of command results. |
 | Reactor-shaped command gateway | Dropped | Call the gateway from coroutines, or from Java through the client's `CompletableFuture` facade. Handlers may still return `Mono` or `Flux`. |
-| Wait stages `SENT`, `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED` | Replaced | Three stages, `ACCEPTED`, `COMMITTED` and `HANDLED(subscription)`, with `snapshot` as the default. See [Waiting for outcomes](../concepts/waits). |
+| Wait stages `SENT`, `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED` | Replaced | Three stages, `accepted`, `committed` and `handled(subscription)`, with `snapshot` as the default, all lowercase on the wire. See [Waiting for outcomes](../concepts/waits). |
 | Wait chain tail headers (`Command-Wait-Tail-*`) | Replaced | A multi-hop `Wow-Wait` plan. |
 | Waiting across contexts | Kept | Signals go straight to the originating node. |
 | Server-sent events for results | Kept | One event per hop reached. |
@@ -28,7 +28,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Command rewriter (`CommandBuilderRewriter`) | Replaced | A command transformer at admission; it may not change the command's identity. |
 | Commands mounted on another aggregate (`@AggregateRoot(commands)`) | Replaced | `@MountedCommand`, and `@Unaddressed` for commands that do not name their aggregate. |
 | Command validation (Jakarta Bean Validation) | Replaced | Validation at admission: Jakarta constraints on the command class, checked for every command (HTTP, in process, sagas, other contexts) and answered `wow.command.invalid` (400). A rule that needs the state is a rejection. |
-| `@VoidCommand` | Dropped | Send the command and do not wait past `ACCEPTED`. |
+| `@VoidCommand` | Dropped | Send the command and do not wait past `accepted`. |
 | Custom routes (`@CommandRoute`, `@AggregateRoute`) | Dropped | Routes are derived from the Manifest: `POST /{context}/{aggregate}/{id}/{command}`, or without `{id}` for a creation. |
 | `Command-*` request headers | Replaced | `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Request-Id`, `If-Match`, `Wow-Scope`, `Wow-Space`. |
 | Request header aliases | Dropped | Rewrite the headers in your gateway. |
@@ -180,7 +180,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Saga, projection and reactor tests | Kept | — |
 | Java test API | 10.x | The test DSL is Kotlin-only until then. |
 | `TestValidator` | Dropped | — |
-| TCK and Testcontainers fixtures | Kept | — |
+| TCK and Testcontainers fixtures | Kept | One spec per port, and `StoreTck` for a whole store; the bus and dispatcher specs are gone with the buses, the query specs are in `wow-query-tck`, and the fixtures have no Redis. See [From the 9.x TCK](../contribute/backends#from-9x). |
 | `wow-mock` | Dropped | — |
 
 ## Platform services

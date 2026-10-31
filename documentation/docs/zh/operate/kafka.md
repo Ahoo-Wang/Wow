@@ -86,11 +86,11 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 ## 持久的命令摄入 {#durable-command-intake}
 
-默认情况下，命令经集群通道路由到它的聚合的属主，`ACCEPTED` 只表示它通过了准入：执行它之前停止的节点会丢掉它。对于一旦被接收就不能丢的命令，例如异步摄入或吸收负载高峰，用 `wow.aggregates.[<context>.<aggregate>].routing: topic` 让它们的聚合类型经 Kafka 路由：
+默认情况下，命令经集群通道路由到它的聚合的属主，`accepted` 只表示它通过了准入：执行它之前停止的节点会丢掉它。对于一旦被接收就不能丢的命令，例如异步摄入或吸收负载高峰，用 `wow.aggregates.[<context>.<aggregate>].routing: topic` 让它们的聚合类型经 Kafka 路由：
 
 - 准入这种命令的节点把它写进上下文的命令主题，并等待 broker 确认。只等待 `accepted` 的请求在 broker 确认后以 202 返回；从此这条命令就是持久的。
 - 聚合所在分区的属主从主题读取并执行它，所以一个聚合的命令保持顺序。更长的等待，例如 `snapshot`，照常继续。
-- broker 在等待的超时时间内没有确认时，等待在 `ACCEPTED` 结束，结果为失败。用同一个请求 ID 重试不会被决定两次。
+- broker 在等待的超时时间内没有确认时，等待在 `accepted` 结束，结果为失败。用同一个请求 ID 重试不会被决定两次。
 
 只有在边缘准入的命令才走这条路。Saga 或定时器发出的命令本来就是持久的，因为发送方会一直重试直到它提交。
 

@@ -55,7 +55,7 @@ flowchart BT
 
 权威的列表是 `:architecture` 中的 `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES`。它的测试保证的规则包括：
 
-- `:api`、`:query-api` 和 `:manifest` 除了本身无依赖的 `:annotations` 之外没有运行时依赖，`:api` 不使用任何 JSON 库。
+- `:query-api` 只依赖本身无依赖的 `:annotations`，不导入任何 JSON 库；`:manifest` 建立在 `:api` 之上，不导入 JSON 库，也不导入协程。`:api` 多了两个库，各有一个理由：协程的 `Flow`，它的 `QueryApi` 用它流式返回行；Jackson 的树类型（`tools.jackson.databind.node`），自由形状内容的唯一形状。不指明类的读取，即按聚合类型读状态，或读到模型里没有类的事件，结果是 `ObjectNode`，进程内与 HTTP 下一样。`:api` 不导入 Jackson 的其他部分，也不导入任何框架。
 - 内核对集群、订阅、等待或驱动一无所知；运行时只依赖协程和 Jackson，不依赖 Spring、Reactor 或驱动。
 - 后端依赖 `:spi`，提供查询时还依赖 `:query`；后端之间从不相互依赖。
 - Reactor 只出现在 `:reactor` 和 WebFlux 边缘，只有 `:spring-boot` 依赖 Spring Boot。

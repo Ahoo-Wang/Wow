@@ -32,7 +32,7 @@ A domain is tested with the test DSL, `:test-dsl` (artifact `wow-test`): `aggreg
 
 ## The contract suites
 
-A backend implements the ports of `:spi`, and its correctness is the contract, not its own tests. The TCK holds one abstract spec per port: `EventLogSpec`, `SnapshotStoreSpec`, `CheckpointStoreSpec`, `LeaseStoreSpec`, `FailureLedgerSpec`, `ReservationStoreSpec`, `TimerStoreSpec`, `SinkSpec` and `TopicTransportSpec` in `:tck`, and `QueryBackendSpec`, `EventQueryBackendSpec` and `DatasetQueryBackendSpec` in `:query-tck`. A backend's container test extends each spec it implements and supplies a fresh store, and runs the specs of the ports it implements: PostgreSQL and MongoDB run the seven store specs and the snapshot and event query specs. `:tck-containers` starts the shared containers, with pinned images. [Write a Backend](./backends) shows how.
+A backend implements the ports of `:spi`, and its correctness is the contract, not its own tests. The TCK holds one abstract spec per port: `EventLogSpec`, `SnapshotStoreSpec`, `CheckpointStoreSpec`, `LeaseStoreSpec`, `FailureLedgerSpec`, `ReservationStoreSpec`, `TimerStoreSpec`, `SinkSpec` and `TopicTransportSpec` in `:tck`, and `QueryBackendSpec`, `EventQueryBackendSpec` and `DatasetQueryBackendSpec` in `:query-tck`. `StoreTck` runs them all against a whole store, opened through its provider as the host opens it. A backend's container test runs `StoreTck` for each store type it provides, and extends each spec it implements to supply a fresh store of its own: PostgreSQL and MongoDB run the seven store specs and the snapshot and event query specs. `:tck-containers` starts the shared containers, with pinned images. [Write a Backend](./backends) shows how.
 
 ## Documentation and scripts
 

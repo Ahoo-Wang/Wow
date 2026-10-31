@@ -31,6 +31,8 @@ A body is one JSON object: `kind` names the operation, the other properties are 
 
 A property the kind does not have is 400 `wow.query.malformed` with the violation code `unknown-property`; a body without `kind` or with another value is `invalid-value` or `unknown-value`.
 
+Every word the protocol defines is lowercase kebab-case: `kind`, `op`, `type`, `direction`, `total`, `mode`, `unit` and the other enumerated properties, the error and violation codes, and the descriptor's values (`"not-in"`, `"date-histogram"`, `"unknown-field"`, `"snapshot"`). Only that spelling is read: `"NOT_IN"` is `unknown-type`. A custom query model or value type a backend registers follows the same rule, and one that does not is refused when the service starts, with the lowercase spelling in the message. Three kinds of value keep their own spelling, because the protocol does not define them: your domain's values (`"PUBLISHED"` below is the product's status), zone ids and ISO-8601 durations (`Asia/Shanghai`, `PT30M`), and `timeUnit`, which takes the JDK's `TimeUnit` names.
+
 ## Across tenants
 
 A query reads the caller's tenant. A caller with `crossScope` may read other tenants on a query route by naming them in `Wow-Scope`: `tenant=*` for every tenant, or an inner list, `tenant=("t1" "t2")`. This is off until `wow.query.allow-cross-tenant` is on, and while it is off such a query is 403 `wow.auth.forbidden`.
@@ -38,7 +40,7 @@ A query reads the caller's tenant. A caller with `crossScope` may read other ten
 - An aggregate type whose tenant is fixed is still read in that tenant alone. A list that leaves it out is 400 `wow.query.malformed`.
 - Every cross-tenant query is logged at INFO on `me.ahoo.wow.query.CrossTenantAudit`, whether or not a query observer audits.
 - Commands and state reads never cross tenants: a `tenant` of `*` or a list is 400 there.
-- In process, `QueryApi.trusted()` reads every tenant.
+- In process, trusted code reads every tenant through `NodeQueryApi.trusted()`, the read API of the node it runs on: a job, a projection's rebuild, a route of the service's own. A client's `QueryApi`, the one a `WowClient` gives for another service, has only `of(caller)`, because a peer reads for a caller and is never trusted. Trusted snapshot queries read a state by its ref (`state(ref)`), since no tenant pins them; a caller's queries also read it by its aggregate id.
 
 ## Field paths
 
@@ -164,7 +166,7 @@ The products without a brand:
 
 ### Relative time
 
-Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone), `datePattern` (a `DateTimeFormatter` pattern, for a field stored as a formatted string) and `timeUnit` (`MILLISECONDS`, the default, or another `TimeUnit` name, for a field stored as an epoch number).
+Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone), `datePattern` (a `DateTimeFormatter` pattern, for a field stored as a formatted string) and `timeUnit` (`MILLISECONDS`, the default, or another JDK `TimeUnit` name, for a field stored as an epoch number).
 
 | `op` | Further properties | Matches |
 | --- | --- | --- |
@@ -175,7 +177,7 @@ Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai
 | `before-today` | `time`: `"18:00"` or `"18:00:30"` | Before that time of today |
 | `recent-days` | `days`: an integer | Within the last `days` days, today included |
 | `earlier-days` | `days` | Before the last `days` days |
-| `before-now`, `after-now` | `offset`: an ISO-8601 duration, `pt0s` by default | Before or after the server's now plus `offset` (`-PT30M` looks back half an hour) |
+| `before-now`, `after-now` | `offset`: an ISO-8601 duration, `PT0S` by default | Before or after the server's now plus `offset` (`-PT30M` looks back half an hour) |
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
@@ -295,7 +297,12 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 ### `list`
 
-`limit` is the most records returned, at least 1. None takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`size-out-of-range`). A `limit` below 1, a `pagination` index or size below 1, or more than 32 `sort` fields is refused as the body is read (`400 wow.query.malformed`, `invalid-request`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
+`limit` is the most records returned, at least 1. None takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`size-out-of-range`). A `limit` below 1, a `pagination` index or size below 1, or more than 32 `sort` fields is refused as the body is read (`400 wow.query.malformed`, `invalid-request`). With `Accept: text/event-stream` the records stream as server-sent events, one `row` event each, and the stream always ends with an `end` event, `{"reason": …, "resumable": …}`:
+
+- **Resumable.** Where the store pages by keyset (the descriptor's `record.stream.resumable`) and the sort orders a cursor, the server reads the matches in chunks of `wow.query.stream.chunk-size` records (500), with neither the list size nor the budget bounding them, and each `row` carries its position as its `id`. A request with `Last-Event-ID` goes on strictly after that record, on any node. A stream ends after `wow.query.stream.max-hold` (30 seconds) with `hold-expired`, when its store has no permit for the next chunk with `permit-reclaimed`, and when the node stops with `node-stopping`; each of these is resumable, so a client asks again from the last `id`. `complete` ends it once every match was sent.
+- **Not resumable.** Any other list streams as a plain list would answer, under its bounds, its rows without an `id`, and every `end` says `"resumable": false`. Such a list must name its `limit`: without one it is refused, `wow.query.invalid` with `stream-not-resumable`, rather than stopping silently at the default size.
+
+A failure after the first record ends the stream with an `error` event holding the problem. In Kotlin, `stream(query, after)` follows the same rules, each row with its position, and refuses an unresumable list without a `limit` the same way.
 
 ### `paged`
 
@@ -394,7 +401,8 @@ The descriptor's `analysis` says which of these the backend runs.
   "version": "sha256:b3c7…",
   "timeZone": "Z",
   "record": { "identity": "aggregateId", "paging": ["list", "paged", "cursor"], "defaultScope": "active",
-              "rootOperators": ["id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression"] },
+              "rootOperators": ["id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression"],
+              "stream": { "resumable": true } },
   "limits": { "maxListSize": 1000, "defaultListSize": 100, "maxPageSize": 100, "maxPageWindow": 10000, "maxFilterNodes": 128, "...": "..." },
   "analysis": { "metrics": ["count", "numeric", "..."], "...": "..." },
   "fields": [
@@ -403,12 +411,19 @@ The descriptor's `analysis` says which of these the backend runs.
       "aggregate": { "groups": ["terms"], "...": "..." }, "aliases": [] }
   ],
   "elements": [{ "path": "state.lines", "filter": true, "aggregate": true }],
-  "dynamic": [{ "pattern": "tags.{key}", "types": ["string"], "kind": "array", "filter": { "operators": ["eq", "..."] } }],
+  "dynamic": [
+    { "pattern": "tags.{key}", "types": ["string"], "kind": "array", "nullable": false,
+      "filter": { "operators": ["eq", "..."] }, "sort": { "paged": false, "cursor": false }, "aggregate": { "groups": ["terms"], "...": "..." } },
+    { "pattern": "state.deliveryDates.{key}", "types": ["string"], "kind": "scalar", "nullable": true, "semantic": { "type": "temporal-date" },
+      "filter": { "operators": ["eq", "gt", "..."] }, "sort": { "paged": true, "cursor": false }, "aggregate": { "groups": ["terms", "date-histogram"], "...": "..." } }
+  ],
   "constraints": [{ "type": "cursor-unique-sort", "appended": "aggregateId", "fields": ["tenantId", "aggregateId"] }]
 }
 ```
 
-- `fields` lists each path with its value types, the operators its `filter` takes, whether it sorts in a page and in a cursor, and how it groups and aggregates. `elements` are the collections an `element-match` or `elements` entry reaches, and `dynamic` the patterns of map keys, such as `tags.{key}`.
+- `fields` lists each path with its value types, whether it may be `null`, its `semantic` type when it has one (a date, an epoch time, money, a duration, a reference), the operators its `filter` takes, whether it sorts in a page and in a cursor, and how it groups and aggregates. `elements` are the collections an `element-match` or `elements` entry reaches.
+- `dynamic` lists the patterns of map keys, such as `tags.{key}` or a state's `Map<String, LocalDate>`. Each entry says what a field entry says of any one key: `nullable`, `semantic`, `filter`, `sort` and `aggregate`, so a client renders and queries `state.deliveryDates.berlin` as it would a declared field. A semantic annotation on a map property describes its values: `@QueryTemporal` on a `Map<String, Long>` makes each value an epoch time. A key that is also declared on its own is listed in `fields` and named in the pattern's `excludedKeys`.
+- A `terms` group over an array field groups a record under each distinct element, so a record with `["a", "b", "a"]` counts once in `a` and once in `b`; a record with no element, an empty or absent array, joins the `null` group. Every backend that groups an array does it this way; one that cannot says so by leaving `terms` out of the field's `aggregate.groups`, and a query that asks for it is refused with `unsupported-capability`.
 - `record.rootOperators` are the operators that name no field; the combinators `and`, `or` and `nor` apply everywhere.
 - `version` is a digest of the descriptor. The response carries it as its `ETag`; a `GET` with `If-None-Match: "<version>"` answers 304 while the descriptor stays the same, so a client caches it and asks again cheaply.
 
@@ -417,7 +432,7 @@ The descriptor's `analysis` says which of these the backend runs.
 | Code | Status | When |
 | --- | --- | --- |
 | `wow.query.malformed` | 400 | The body does not read as a query: `empty-body`, `body-not-object`, `invalid-json`, `unknown-property`, `unknown-type` (an unknown `op` or `type`), `unknown-value`, `invalid-value`, `invalid-request` (a rule of the query type, such as an empty `operands`) |
-| `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `invalid-cursor`, `storage-unsupported` |
+| `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `invalid-cursor`, `stream-not-resumable`, `storage-unsupported` |
 | `wow.query.failed` | 500 | The backend failed |
 | `wow.query.timeout` | 504 | The query ran longer than `wow.query.budgets.http.timeout`; not retried |
 
