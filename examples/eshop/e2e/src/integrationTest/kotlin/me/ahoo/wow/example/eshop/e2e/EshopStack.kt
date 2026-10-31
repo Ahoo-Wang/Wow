@@ -44,7 +44,9 @@ class EshopStack(
     val kafka: ConfluentKafkaContainer = ConfluentKafkaContainer(KAFKA_IMAGE).also { it.start() }
     val postgres: PostgreSQLContainer =
         PostgreSQLContainer(POSTGRES_IMAGE).withDatabaseName(CATALOG_DATABASE).also { it.start() }
-    val clickhouse: ClickHouseContainer = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
+    val clickhouse: ClickHouseContainer = ClickHouseContainer(
+        DockerImageName.parse(CLICKHOUSE_IMAGE)
+    ).also { it.start() }
 
     init {
         listOf(BASKET_DATABASE, ORDERING_DATABASE, INVENTORY_DATABASE, PAYMENT_DATABASE).forEach { database ->
@@ -60,7 +62,9 @@ class EshopStack(
             check(created.exitCode == 0) { "CREATE DATABASE $database failed: ${created.stderr}" }
         }
         // The nodes do not create topics; each command topic has as many partitions as its context's log (G11).
-        Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)).use { admin ->
+        Admin.create(
+            mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+        ).use { admin ->
             admin.createTopics(
                 listOf(
                     NewTopic("wow.eshop-ordering.commands", partitions, 1),
@@ -95,6 +99,7 @@ class EshopStack(
     val ordering: MutableMap<String, EshopService> = (1..orderingNodes).associateTo(linkedMapOf()) { n ->
         "ordering-$n" to startOrdering("ordering-$n")
     }
+
     /**
      * The basket, whose checkout saga calls the ordering's command gateway synchronously (decision D193) at the first
      * ordering node's internal port, which a replacement of that node takes over ([startOrdering]), as a deployment
@@ -139,7 +144,11 @@ class EshopStack(
      * Its lease group is `<service>/<context>`.
      */
     fun orderingOwnerOf(partition: Int): String? =
-        DriverManager.getConnection(jdbcUrl(ORDERING_DATABASE), postgres.username, postgres.password).use { connection ->
+        DriverManager.getConnection(
+            jdbcUrl(ORDERING_DATABASE),
+            postgres.username,
+            postgres.password
+        ).use { connection ->
             connection.prepareStatement(
                 "SELECT owner FROM wow_lease WHERE subscription_group = ? AND partition = ? AND expires_at > ?",
             ).use { statement ->

@@ -56,10 +56,17 @@ private const val DECLINED_TAIL =
         " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
         " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)"
 
-/** One logical order: the buyer `c<client>-<number>`, whose first checkout is the order `<buyer>-1`. */
+/**
+ * One logical order: the buyer `c<client>-<number>` and its one checkout. The ordering numbers the order
+ * ([orderId]): the checkout's answer names it when it reached the order's commit, and the checks find it by its buyer,
+ * the order's owner, otherwise.
+ */
 class SoakOrder(val client: Int, val number: Int) {
     val buyer = "c$client-$number"
-    val orderId = "$buyer-1"
+
+    /** The number the ordering gave the order, once known; null before, and for a checkout that placed none. */
+    @Volatile
+    var orderId: String? = null
     val scenario = Scenario.of(number)
     val quantity = if (scenario == Scenario.SHORT_STOCK) 2 else 1 + number % 3
 
@@ -110,6 +117,8 @@ data class Attempt(
     val function: String? = null,
     val node: String? = null,
     val detail: String? = null,
+    /** The order the result names (the order or its payment): its number, which the ordering gave it. */
+    val order: String? = null,
 )
 
 /**
@@ -176,20 +185,24 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             "{}",
             buyer + mapOf(WAIT to order.scenario.wait, WAIT_TIMEOUT to "${config.waitTimeout.toSeconds()}s"),
         )
+        order.orderId = checkout.attempts.firstNotNullOfOrNull { it.order }
         val paid = checkout.attempts.any { it.outcome == Outcome.SUCCEEDED && it.function == "PayOrder" }
         if (order.scenario == Scenario.PAID && paid) ship(order)
     }
 
-    /** Ships [order], once paid; the quiescence ships those whose checkout did not see the payment. */
-    fun ship(order: SoakOrder): SoakRequest = send(
-        order,
-        "${order.orderId}:ship",
-        "ship",
-        "ordering",
-        "/eshop-ordering/order/${order.orderId}/ship-order",
-        "{}",
-        mapOf(WAIT to "committed"),
-    )
+    /** Ships [order], once paid and numbered; the quiescence ships those whose checkout did not see the payment. */
+    fun ship(order: SoakOrder): SoakRequest {
+        val id = checkNotNull(order.orderId) { "The order of ${order.buyer} has no number yet." }
+        return send(
+            order,
+            "$id:ship",
+            "ship",
+            "ordering",
+            "/eshop-ordering/order/$id/ship-order",
+            "{}",
+            mapOf(WAIT to "committed"),
+        )
+    }
 
     @Suppress("LongParameterList")
     private fun send(
@@ -254,6 +267,9 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
         private val FIRST_BACKOFF: Duration = Duration.ofSeconds(1)
         private val MAX_BACKOFF: Duration = Duration.ofSeconds(5)
 
+        /** The aggregates a result names an order by: the order, or its payment, whose id is its order's number. */
+        private val NUMBERED = setOf("eshop-ordering" to "order", "eshop-payment" to "payment")
+
         /** How long after its wait's timeout an answer may still come before the wait counts as hanging. */
         val HUNG_GRACE: Duration = Duration.ofSeconds(15)
 
@@ -267,6 +283,7 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             val result = if (status in OK_RANGE) tree else tree["result"]
             val hop = result?.get("hop")?.takeUnless { it.isNull }?.let(::hop)
             val function = result?.get("function")?.get("name")?.asString()
+            val order = result?.get("ref")?.takeUnless { it.isNull }?.let(::orderOf)
             if (status in OK_RANGE) {
                 val duplicate = tree["duplicate"]?.asBoolean() == true
                 return Attempt(
@@ -277,7 +294,8 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
                     null,
                     hop,
                     function,
-                    node
+                    node,
+                    order = order,
                 )
             }
             val code = tree["code"]?.asString()
@@ -293,6 +311,16 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
                     DETAIL
                 )
             )
+        }
+
+        /**
+         * The order a result's aggregate [ref] names: the order itself, or its payment, whose id is its order's number;
+         * null for any other aggregate (the basket's commit).
+         */
+        private fun orderOf(ref: JsonNode): String? {
+            val type = ref["type"] ?: return null
+            val named = type["context"]?.asString() to type["name"]?.asString()
+            return ref["id"]?.asString()?.takeIf { named in NUMBERED }
         }
 
         /** A hop as the `Wow-Wait` header spells it: `stage(context/subscription)`. */

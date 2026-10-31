@@ -12,6 +12,10 @@ data:
   # callers from the CoSec gateway in front of the service. The postgres component (postgres/)
   # puts the service on PostgreSQL instead.
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
+  # The order numbers (SO-<yyMMdd>-<sequence>, the orders' ids): every node reserves ranges of one sequence from the
+  # service's own database, at the same URI (CosId's mongo store; on the postgres component, its jdbc store, whose
+  # tables it creates at the first start), set by the profile in the image (eshop-ordering-ids.yaml). The numbers'
+  # generator is a segment and needs no machine slot, so the replica count needs no setting here, nor a StatefulSet.
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them. The kafka
   # profile's auto is for trying the service out.

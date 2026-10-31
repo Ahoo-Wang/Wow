@@ -3874,12 +3874,9 @@
             "items" : {
               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.BasketItem"
             }
-          },
-          "orderId" : {
-            "type" : "string"
           }
         },
-        "required" : [ "items", "orderId" ],
+        "required" : [ "items" ],
         "description" : "The basket was checked out"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared" : {

@@ -163,16 +163,14 @@ By default a saga derives its commands and the command topic delivers them. When
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        CommandRequest.of(
-            SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
-            checkedOut.orderId,
-        ),
+        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
     )
 }
 ```
 
 - The handler declares the classes it calls in `@Sends(calls = [...])`. The Manifest lists them, a wait follows the call, and `call` refuses any other class.
 - `call` takes a `CommandRequest`, derived as a returned one is, and returns the command's result once it is committed on the target: its deterministic request id makes every retry the same request, which the target decides once. A call waits for the commit, so its request takes no `wait` or `timeout`.
+- A creation may name no id, as the checkout's `SubmitOrder` does: the target gives the aggregate its id (the ordering numbers the order, `SO-261031-42`), and the result names it. A retry or a replay is the same request, answered with the same aggregate, and takes no other id.
 - A refusal throws `CommandRejectedException`, a business outcome that is not retried. A handler that lets it through hands it to the saga's `@OnRejected` handler of the called command, as a derived command's rejection; without one, the aggregate parks at once. A call that fails or reaches no result throws `WowProblemException`, retryable with the same request id: the handler fails and is retried, then parks the aggregate. These are the exceptions a `CommandClient` throws.
 - The node reaches the target on its internal port: its nodes are found by DNS from the service its contract names, or at `wow.peers.<context>.url` ([Configure a peer](./calling-services#configure-a-peer-over-http)). A node does not start when a handler calls a context it cannot reach. A command of the saga's own context is derived, never called.
 - `call` is a `suspend` function, so a saga written in Java derives its commands instead.

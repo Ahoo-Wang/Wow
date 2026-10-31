@@ -159,6 +159,7 @@ class EshopClientTest {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",
+                cosIdOf(context).let { (key, value) -> "--$key=$value" },
             ),
         )
     }

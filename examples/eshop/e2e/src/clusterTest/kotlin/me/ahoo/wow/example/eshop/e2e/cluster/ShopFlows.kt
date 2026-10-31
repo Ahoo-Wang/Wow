@@ -15,25 +15,33 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 
 import me.ahoo.wow.example.eshop.e2e.Answer
 import me.ahoo.wow.example.eshop.e2e.EshopStack
+import me.ahoo.wow.example.eshop.e2e.ORDER_NUMBER
 import me.ahoo.wow.example.eshop.e2e.json
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The eShop's flows as a client drives them through the gateway (the requests of EshopFullChainTest), and what the
- * run did, for the verdict: the stock each product received, every buyer's checkouts (its orders are `<buyer>-<n>`)
- * and the orders shipped.
+ * run did, for the verdict: the stock each product received, every buyer's checkouts, the numbers the ordering gave
+ * the orders their answers named, and the orders shipped.
  */
 class ShopFlows(val shop: Shop) {
     /** Each product's received quantity. */
     val received: MutableMap<String, Int> = ConcurrentHashMap()
 
-    /** Each buyer's checkout attempts: its orders are `<buyer>-1` up to that many. */
+    /** Each buyer's checkout attempts. */
     val checkouts: MutableMap<String, AtomicInteger> = ConcurrentHashMap()
+
+    /**
+     * The order numbers the checkouts' answers named, one per answered checkout that reached the order's commit: the
+     * ordering numbers each order (`SO-<yyMMdd>-<sequence>`), on whichever of its nodes admits it.
+     */
+    val numbers: MutableCollection<String> = ConcurrentLinkedQueue()
 
     /** The orders the run shipped. */
     val shipped: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -72,10 +80,33 @@ class ShopFlows(val shop: Shop) {
         Who.buyer(buyer),
     )
 
-    /** Checks [buyer]'s basket out with [headers] (a Wow-Wait); the answer, whatever it is. */
+    /**
+     * Checks [buyer]'s basket out with [headers] (a Wow-Wait); the answer, whatever it is. An answer that names the
+     * order adds its number to [numbers].
+     */
     fun checkout(buyer: String, headers: Map<String, String> = emptyMap(), timeout: Duration = Shop.TIMEOUT): Answer {
         checkouts.computeIfAbsent(buyer) { AtomicInteger() }.incrementAndGet()
         return shop.post("/eshop-basket/basket/checkout-basket", "{}", Who.buyer(buyer), headers, timeout)
+            .also { answer -> numberOf(answer)?.let(numbers::add) }
+    }
+
+    /**
+     * The number of the order a checkout's [answer] names: its result's aggregate when that is the order, or the
+     * order's payment, whose id is its order's; null for an answer that names neither (the basket's commit alone, a
+     * wait that timed out, a failure).
+     */
+    private fun numberOf(answer: Answer): String? {
+        if (answer.status != OK) return null
+        val ref = runCatching { json.readTree(answer.body)["ref"] }.getOrNull() ?: return null
+        val type = ref["type"]?.let { it["context"].asString() to it["name"].asString() }
+        return ref["id"].asString().takeIf { type in NUMBERED }
+    }
+
+    /** The number of the order a checkout's final [result] names, which must be an order's number. */
+    fun numberOf(result: JsonNode): String {
+        val number = result["ref"]["id"].asString()
+        check(ORDER_NUMBER.matches(number)) { "No order number in $result" }
+        return number
     }
 
     /** Checks out with the wait [chain] and its [waitTimeout]: the final result, failing unless it was answered 200. */
@@ -169,8 +200,27 @@ class ShopFlows(val shop: Shop) {
         }
     }
 
-    /** Every order the run's checkouts may have made: `<buyer>-<n>` for each attempt. */
-    fun candidateOrders(): List<String> = checkouts.flatMap { (buyer, count) -> (1..count.get()).map { "$buyer-$it" } }
+    /**
+     * Every order the ordering holds, by number: the run's, the cluster being the run's own. A checkout whose answer a
+     * fault lost names no order, and its number is the ordering's to give, so the orders are read from the ordering
+     * itself, [ORDER_PAGE] at a time.
+     */
+    fun orders(): List<String> {
+        val orders = mutableListOf<String>()
+        var index = 1
+        while (true) {
+            val answer = shop.post(
+                "/eshop-ordering/order/snapshot/query",
+                """{"kind":"paged","filter":{"op":"match-all"},"sort":[{"field":"aggregateId","direction":"asc"}],""" +
+                    """"pagination":{"index":$index,"size":$ORDER_PAGE}}""",
+                Who.EMPLOYEE,
+            ).require("list the orders")
+            val page = json.readTree(answer.body)["list"].values().map { it["aggregateId"].asString() }
+            orders += page
+            if (page.size < ORDER_PAGE) return orders
+            index++
+        }
+    }
 
     /** [condition], polled until it holds, for at most [deadline]; the failure says [what] and the [detail]. */
     fun eventually(
@@ -199,6 +249,12 @@ class ShopFlows(val shop: Shop) {
         val GATEWAY_FAILURES = setOf(500, 502, 503)
         const val BODY = 600
         const val TRACE_PAGE = 1000
+
+        /** The orders a page of [orders] lists, the ordering's largest list. */
+        const val ORDER_PAGE = 1000
+
+        /** The aggregates a checkout's answer names its order by: the order, or its payment, whose id is the order's. */
+        val NUMBERED = setOf("eshop-ordering" to "order", "eshop-payment" to "payment")
         const val WAIT = "Wow-Wait"
         const val WAIT_TIMEOUT = "Wow-Wait-Timeout"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER

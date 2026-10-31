@@ -91,11 +91,11 @@ class BasketServerTest {
 
         val checkedOut = mine("checkout-basket", "{}", "alice")
         checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
-        checkedOut.body!!["results"]["orderId"].asString().assert().isEqualTo("alice-1")
         state("alice")["items"].isEmpty.assert().isTrue()
         // The saga calls the ordering service's internal port, naming itself, for the buyer: the order belongs to the
-        // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193).
-        val call = ordering.called("/eshop-ordering/order/alice-1/submit-order")
+        // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193). It
+        // names no order: the ordering numbers the order it creates (decision D373).
+        val call = ordering.called("/eshop-ordering/order/submit-order")
         call.service.assert().isEqualTo("eshop-basket-service")
         call.call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         call.call.operator?.id.assert().isEqualTo("alice")

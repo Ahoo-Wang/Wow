@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import me.ahoo.wow.example.eshop.e2e.ORDER_NUMBER
 import me.ahoo.wow.example.eshop.e2e.soak.Invariant
 import me.ahoo.wow.example.eshop.e2e.soak.Invariants
 import java.time.Duration
@@ -44,6 +45,12 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
             "succeeded payment; no payment is requested or settled twice.",
     )
     val flowsSettled = soak.flowsComplete
+    val ordersNumbered = Invariant(
+        "orders.numbered",
+        "Every order is numbered SO-<yyMMdd>-<sequence>, and the checkouts' answers name each number once: the ordering's " +
+            "nodes, two or three while it scales, take one sequence's ranges from one store and never give one number " +
+            "twice; every number answered is an order of the ordering.",
+    )
     val noDuplicateEffects = soak.noDuplicateEffects
     val checkpoints = soak.checkpointsMonotonic
     val parked = soak.parkedEmpty
@@ -56,6 +63,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
             stockConserved,
             paymentOnce,
             flowsSettled,
+            ordersNumbered,
             checkpoints,
             parked,
             snapshots
@@ -101,7 +109,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
         val until = System.nanoTime() + deadline.toNanos()
         var open: Map<String, String?> = emptyMap()
         while (System.nanoTime() < until) {
-            open = flows.candidateOrders().associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
+            open = flows.orders().associateWith { runCatching { flows.orderStatus(it) }.getOrNull() }
                 .filterValues { it != null && it !in SETTLED }
             if (open.isEmpty()) return
             Thread.sleep(POLL.toMillis())
@@ -109,10 +117,28 @@ class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads
         log("orders still open after $deadline: $open")
     }
 
+    /** The orders' numbers: well formed, each answered once, each an order of the ordering ([orders]). */
+    private fun checkNumbers(orders: Set<String>) {
+        val answered = flows.numbers.toList()
+        (orders + answered).forEach { number ->
+            ordersNumbered.check()
+            if (!ORDER_NUMBER.matches(number)) ordersNumbered.violate(mapOf("number" to number, "problem" to "shape"))
+        }
+        answered.groupingBy { it }.eachCount().filterValues { it > 1 }.forEach { (number, times) ->
+            ordersNumbered.violate(mapOf("number" to number, "answered" to times))
+        }
+        (answered.toSet() - orders).forEach {
+            ordersNumbered.violate(
+                mapOf("number" to it, "problem" to "no such order")
+            )
+        }
+    }
+
     fun judge() {
         stopSampling()
-        val orders = flows.candidateOrders().mapNotNull { id -> flows.order(id)?.let { id to it } }.toMap()
-        log("judging ${orders.size} orders of ${flows.candidateOrders().size} checkouts")
+        val orders = flows.orders().mapNotNull { id -> flows.order(id)?.let { id to it } }.toMap()
+        log("judging ${orders.size} orders of ${flows.checkouts.values.sumOf { it.get() }} checkouts")
+        checkNumbers(orders.keys)
         orders.forEach { (id, order) ->
             val status = order["status"].asString()
             flowsSettled.check()

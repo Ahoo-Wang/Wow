@@ -262,23 +262,19 @@ The `DecideScope` is what a decision can ask of the kernel besides its events:
 | `schedule(key, rule, command, target)` | Schedules a command, to this aggregate unless `target` names another. It is written with the events, or not at all |
 | `cancelSchedule(key)` | Cancels the schedule this aggregate keeps under `key` |
 
-A checkout answers the caller with the id of the order it submits:
+A decision answers the caller with a value it worked out, a quote say, through `putResult`; the caller reads it from the result's `results`, here `{"cost": 4.50}`:
 
-<!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+<!-- sample: fragment -->
 
 ```kotlin
-@Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
-    if (state.items.isEmpty()) {
-        reject(Rejections.EMPTY, "The basket is empty.")
-    }
-    val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
-    scope.putResult(ORDER_ID_RESULT, orderId)
-    return BasketCheckedOut(orderId, state.items)
+fun onCommand(command: QuoteShipping, scope: DecideScope): ShippingQuoted {
+    val cost = rates.costOf(state.weight, command.destination)
+    scope.putResult("cost", cost)
+    return ShippingQuoted(command.destination, cost)
 }
 ```
 
-The caller reads it from the result's `results`, `{"orderId": "alice-1"}`.
+What a command creates is better found by its aggregate id, which a repeated request is answered again. The eShop's checkout answers no order id: the ordering numbers the order it creates (`SO-261031-42`), and a checkout that waits for the order's commit, `committed(eshop-ordering)`, reads the number as that hop's aggregate id ([Sagas](./sagas#call-another-context-synchronously)).
 
 A function that schedules a command declares the command's class in `@OnCommand(schedules = [...])`, as the order does with `CancelOrder::class`: the compiler cannot read the calls in a function's body, and the Manifest lists them by full type name.
 

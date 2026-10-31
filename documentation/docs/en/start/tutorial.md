@@ -21,13 +21,15 @@ Then add an item to Alice's basket and check it out, waiting until the order the
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
 curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" \
+ORDER=$(curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{}' \
-  -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
-curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
+  -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)' |
+  jq -r .ref.id)
+echo "$ORDER" # SO-261031-1
+curl -s "localhost:8083/eshop-ordering/order/$ORDER/state" "${BUYER[@]}"
 ```
 
-A buyer has one basket, whose id is the buyer's user id, so the basket's routes name no id: they mean the caller's own basket, `alice`, and the order its checkout submits is `alice-1`. In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
+A buyer has one basket, whose id is the buyer's user id, so the basket's routes name no id: they mean the caller's own basket, `alice`. The ordering context numbers the order the checkout submits, `SO-261031-1`: the day it was issued, then a sequence. The checkout waits for the order's commit in the ordering context, so its answer is that commit's result, and the order's number is its aggregate id. In development the servers read the caller from the `Wow-User` and `Wow-Owner` headers to keep the example short; a real service authenticates it ([Secure a Deployment](../operate/security)). The [eShop README](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) runs the services apart, on Kafka and PostgreSQL.
 
 ## 1. The basket decides
 
@@ -59,19 +61,17 @@ fun onCommand(command: AddBasketItem): BasketItemAdded =
     BasketItemAdded(command.productId, command.unitPrice, command.quantity)
 ```
 
-Checking out refuses an empty basket, names the order it will become, and returns that id to the caller through the command's result:
+Checking out refuses an empty basket, and empties it into the event the saga below turns into an order:
 
 <!-- sample: examples/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
 
 ```kotlin
 @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
+fun onCommand(command: CheckoutBasket): BasketCheckedOut {
     if (state.items.isEmpty()) {
         reject(Rejections.EMPTY, "The basket is empty.")
     }
-    val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
-    scope.putResult(ORDER_ID_RESULT, orderId)
-    return BasketCheckedOut(orderId, state.items)
+    return BasketCheckedOut(state.items)
 }
 ```
 
@@ -89,15 +89,12 @@ The basket context does not create orders: the ordering context owns them. A sag
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        CommandRequest.of(
-            SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
-            checkedOut.orderId,
-        ),
+        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
     )
 }
 ```
 
-`context.call` gives the command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
+The call names no order: the ordering context numbers the order it creates from its order numbers' generator. `context.call` gives the command a request id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate, with the same order and number, instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
 
 In the ordering context, `SubmitOrder`'s constraints were checked on admission, so the `Order` aggregate records the order:
 

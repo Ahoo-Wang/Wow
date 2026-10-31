@@ -1,6 +1,9 @@
 spring:
   application:
     name: eshop-ordering-service
+  config:
+    # The order numbers: CosId's stores and generators.
+    import: classpath:eshop-ordering-ids.yaml
 server:
   port: 8083
 # region internal-port

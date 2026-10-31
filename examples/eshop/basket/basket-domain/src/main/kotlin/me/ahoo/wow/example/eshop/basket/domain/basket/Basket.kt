@@ -17,7 +17,6 @@ import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
-import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
@@ -35,9 +34,8 @@ import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
  * by no id, as "mine", and the first item creates it; Wow forbids a buyer another buyer's basket, and only a caller
  * with no owner, such as a saga or a service, names the basket by its id.
  *
- * [CheckoutBasket] empties the basket into an order: [BasketCheckoutSaga] submits it to the ordering context. The
- * order's id is the basket's id and the number of the checkout (`alice-1`, `alice-2`, ...), so deciding again gives
- * the same event, and the caller is answered it as the result `orderId`.
+ * [CheckoutBasket] empties the basket into an order: [BasketCheckoutSaga] submits it to the ordering context, which
+ * numbers it (`SO-261031-42`).
  */
 @AggregateRoot(idSource = AggregateIdSource.OWNER)
 @Description("A buyer's basket before checkout; its id is the buyer's user id")
@@ -67,20 +65,13 @@ class Basket(private val state: BasketState) {
 
     // region checkout
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
-    fun onCommand(command: CheckoutBasket, scope: DecideScope): BasketCheckedOut {
+    fun onCommand(command: CheckoutBasket): BasketCheckedOut {
         if (state.items.isEmpty()) {
             reject(Rejections.EMPTY, "The basket is empty.")
         }
-        val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
-        scope.putResult(ORDER_ID_RESULT, orderId)
-        return BasketCheckedOut(orderId, state.items)
+        return BasketCheckedOut(state.items)
     }
     // endregion
-
-    companion object {
-        /** The result [CheckoutBasket] answers the caller with: the id of the order it submits. */
-        const val ORDER_ID_RESULT = "orderId"
-    }
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

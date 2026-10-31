@@ -31,7 +31,7 @@ const ORDER = {
   items: [{ productId: "mug", unitPrice: 8.5, quantity: 2 }],
   confirmedProducts: ["mug"],
   totalAmount: 17,
-  paymentId: "alice-1",
+  paymentId: "SO-261031-1",
   cancelReason: null,
 };
 
@@ -40,20 +40,20 @@ function ordering(shipAnswer = (): Answer => ({ json: result() })) {
     [
       "POST",
       /^\/eshop-ordering\/order\/snapshot\/query$/,
-      () => ({ json: [snapshot("alice-1", ORDER, { ownerId: "alice" })] }),
+      () => ({ json: [snapshot("SO-261031-1", ORDER, { ownerId: "alice" })] }),
     ],
     [
       "GET",
-      /^\/eshop-ordering\/order\/alice-1\/state$/,
-      () => ({ json: stateView("eshop-ordering", "order", "alice-1", ORDER, "alice") }),
+      /^\/eshop-ordering\/order\/SO-261031-1\/state$/,
+      () => ({ json: stateView("eshop-ordering", "order", "SO-261031-1", ORDER, "alice") }),
     ],
     [
       "GET",
-      /^\/eshop-payment\/payment\/alice-1\/state$/,
+      /^\/eshop-payment\/payment\/SO-261031-1\/state$/,
       () => ({
-        json: stateView("eshop-payment", "payment", "alice-1", {
+        json: stateView("eshop-payment", "payment", "SO-261031-1", {
           amount: 17,
-          orderId: "alice-1",
+          orderId: "SO-261031-1",
           status: "SUCCEEDED",
         }),
       }),
@@ -80,19 +80,19 @@ describe("the orders", () => {
   it("lets an employee ship a paid order", async () => {
     const { transport, received } = ordering();
     renderShop("/orders", ERIN, transport);
-    await userEvent.click(await screen.findByRole("button", { name: "Ship alice-1" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Ship SO-261031-1" }));
     await waitFor(() =>
       expect(received.some((r) => r.path.endsWith("ship-order"))).toBe(true),
     );
     const ship = received.find((r) => r.path.endsWith("ship-order"));
-    expect(ship?.path).toBe("/eshop-ordering/order/alice-1/ship-order");
+    expect(ship?.path).toBe("/eshop-ordering/order/SO-261031-1/ship-order");
     expect(ship?.headers).toMatchObject({ "wow-user": "erin", "wow-roles": "employee" });
   });
 
   it("shows an order with its items and its payment", async () => {
     const { transport } = ordering();
-    renderShop("/orders/alice-1", ALICE, transport);
-    expect(await screen.findByText("Order alice-1")).toBeInTheDocument();
+    renderShop("/orders/SO-261031-1", ALICE, transport);
+    expect(await screen.findByText("Order SO-261031-1")).toBeInTheDocument();
     expect(screen.getByText("Confirmed")).toBeInTheDocument();
     expect(screen.getByTestId("payment")).toHaveTextContent("SUCCEEDED");
     expect(screen.queryByRole("button", { name: "Ship the order" })).toBeNull();
@@ -102,7 +102,7 @@ describe("the orders", () => {
     const { transport } = ordering(() =>
       problemAnswer(409, "Conflict", "eshop-ordering.order.wrong-status"),
     );
-    renderShop("/orders/alice-1", ERIN, transport);
+    renderShop("/orders/SO-261031-1", ERIN, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Ship the order" }));
     expect(
       await screen.findByText("eshop-ordering.order.wrong-status"),
@@ -113,17 +113,17 @@ describe("the orders", () => {
     const { transport } = fakeServices([
       [
         "GET",
-        /^\/eshop-ordering\/order\/alice-1\/state$/,
-        () => ({ json: stateView("eshop-ordering", "order", "alice-1", ORDER, "alice") }),
+        /^\/eshop-ordering\/order\/SO-261031-1\/state$/,
+        () => ({ json: stateView("eshop-ordering", "order", "SO-261031-1", ORDER, "alice") }),
       ],
       [
         "GET",
-        /^\/eshop-payment\/payment\/alice-1\/state$/,
+        /^\/eshop-payment\/payment\/SO-261031-1\/state$/,
         () => ({ status: 502, json: { title: "Bad Gateway", status: 502 } }),
       ],
     ]);
-    renderShop("/orders/alice-1", ERIN, transport);
-    expect(await screen.findByText("Order alice-1")).toBeInTheDocument();
+    renderShop("/orders/SO-261031-1", ERIN, transport);
+    expect(await screen.findByText("Order SO-261031-1")).toBeInTheDocument();
     expect(await screen.findByTestId("payment")).toHaveTextContent("unavailable (Service unavailable)");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The payment service did not answer (502 Bad Gateway). Try again in a moment.",
@@ -138,16 +138,16 @@ describe("the orders", () => {
     const { transport } = fakeServices([
       [
         "GET",
-        /^\/eshop-ordering\/order\/alice-1\/state$/,
-        () => ({ json: stateView("eshop-ordering", "order", "alice-1", cancelled, "alice") }),
+        /^\/eshop-ordering\/order\/SO-261031-1\/state$/,
+        () => ({ json: stateView("eshop-ordering", "order", "SO-261031-1", cancelled, "alice") }),
       ],
       [
         "GET",
-        /^\/eshop-payment\/payment\/alice-1\/state$/,
+        /^\/eshop-payment\/payment\/SO-261031-1\/state$/,
         () => problemAnswer(404, "Not Found", "wow.aggregate.not-found"),
       ],
     ]);
-    renderShop("/orders/alice-1", ALICE, transport);
+    renderShop("/orders/SO-261031-1", ALICE, transport);
     expect(await screen.findByText("Released")).toBeInTheDocument();
     expect(await screen.findByTestId("payment")).toHaveTextContent(
       "none: the order was cancelled before its payment",
@@ -161,14 +161,14 @@ describe("the orders", () => {
     const { transport, received } = ordering();
     const slow: typeof fetch = async (input, init) => {
       if (String(input).endsWith("ship-order")) {
-        received.push({ method: "POST", path: "/eshop-ordering/order/alice-1/ship-order", headers: {}, body: {} });
+        received.push({ method: "POST", path: "/eshop-ordering/order/SO-261031-1/ship-order", headers: {}, body: {} });
         await pending;
         return new Response(JSON.stringify(result()), { headers: { "Content-Type": "application/json" } });
       }
       return transport(input, init);
     };
     renderShop("/orders", ERIN, slow);
-    const ship = await screen.findByRole("button", { name: "Ship alice-1" });
+    const ship = await screen.findByRole("button", { name: "Ship SO-261031-1" });
     await userEvent.click(ship);
     await userEvent.click(ship);
     expect(ship).toBeDisabled();
@@ -185,7 +185,7 @@ describe("the orders", () => {
         () => problemAnswer(404, "Not Found", "wow.aggregate.not-found"),
       ],
     ]);
-    renderShop("/orders/bob-1", ALICE, transport);
+    renderShop("/orders/SO-261031-2", ALICE, transport);
     expect(await screen.findByText("wow.aggregate.not-found")).toBeInTheDocument();
   });
 });
