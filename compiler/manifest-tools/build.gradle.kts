@@ -12,6 +12,10 @@ dependencies {
     // Build time only (decision D73): schemas are introspected in the plugin's isolated workers (decision D83).
     implementation("com.github.victools:jsonschema-generator")
     implementation("com.github.victools:jsonschema-module-jackson")
+    // The Jakarta constraints of commands, queries and states as validation keywords of their schemas (decision D380);
+    // the module reads the annotations through the API, which it leaves to its user.
+    implementation("com.github.victools:jsonschema-module-jakarta-validation")
+    implementation("jakarta.validation:jakarta.validation-api")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(kotlin("reflect"))
     testImplementation("com.fasterxml.jackson.core:jackson-annotations")

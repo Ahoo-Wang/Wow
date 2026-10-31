@@ -572,7 +572,8 @@
       "properties" : {
         "amount" : {
           "type" : "number",
-          "format" : "decimal"
+          "format" : "decimal",
+          "exclusiveMinimum" : 0
         },
         "orderId" : {
           "type" : "string"

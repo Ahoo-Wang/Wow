@@ -64,6 +64,8 @@ data class AddBasketItem(
 
 网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`Positive`）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
 
+约束是命令契约的一部分。它们是 Manifest 和 OpenAPI 文档中命令 schema 的校验关键字（`quantity` 是 `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`），生成的客户端或 Swagger UI 在发送之前就能看到它们。收紧一个约束，例如提高最小值，是破坏性改变（[Manifest 与兼容](./manifest#the-compatibility-check)）。
+
 需要聚合状态或调用方的规则留在命令函数里，作为带错误码的拒绝（[拒绝与错误码](./rejections)）：下面订单的函数已经没有要检查的了。
 
 命令能否创建它的聚合，由它的类决定：

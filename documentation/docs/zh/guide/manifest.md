@@ -11,7 +11,7 @@ outline: deep
 ## 从片段到服务的 Manifest {#from-fragments-to-the-service-s-manifest}
 
 1. **编译器**写出每个领域模块的片段 `META-INF/wow/manifest/<module>.json`（[编译器生成什么](./generated-code#the-manifest-fragment)）。
-2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。补全后的片段替换模块资源中编译器写出的那个。
+2. **Gradle 插件**（`generateWowManifestFragment`）用片段中类型的 JSON Schema、查询关键字和状态的指纹补全片段。类型上的 Jakarta Bean Validation 约束成为它的 schema 的校验关键字，客户端在发送之前就能看到：`@Positive` 是值为 0 的 `exclusiveMinimum`，`@NotBlank` 是值为 1 的 `minLength`，`@Size` 是长度或条目数的上下界，`@Pattern` 是 `pattern`，`@Email` 是 `email` 格式。字段是否必填、能否为 null，仍然由它的 Kotlin 类型决定。补全后的片段替换模块资源中编译器写出的那个。
 3. **在构建时**，`mergeWowManifest` 把服务运行时类路径上的片段合并成 `build/wow/manifest.json`。
 4. **在启动时**，宿主合并同样的片段，加上框架的错误码，并在 `GET /wow/manifest` 上提供结果。
 
@@ -29,8 +29,10 @@ outline: deep
 
 | 类别 | 例子 | 在 `check` 中 |
 | --- | --- | --- |
-| 增量的 | 新的命令、事件或聚合；新的可选字段 | 基线记录它之前失败 |
-| 破坏性的 | 删除命令或事件；新的必填字段；删除字段或改变字段类型；改变了事件的 schema 却没有新的修订号和升级函数 | 在兼容线内让构建失败，并列出每处改变及其路径 |
+| 增量的 | 新的命令、事件或聚合；新的可选字段；放宽命令的约束 | 基线记录它之前失败 |
+| 破坏性的 | 删除命令或事件；新的必填字段；删除字段或改变字段类型；收紧命令的约束，例如提高最小值或新增 `pattern`；改变了事件的 schema 却没有新的修订号和升级函数 | 在兼容线内让构建失败，并列出每处改变及其路径 |
+
+关于约束的这两行说的是命令，它由客户端发送：更紧的约束会拒绝它们以前发送过的值。状态或事件的 schema 是读者读取的，所以对有读者的聚合，这两行反过来：在那里收紧约束是增量的，放宽约束是破坏性的。
 
 `build/wow/manifest-compatibility.txt` 列出每处改变，包括增量的改变。没有基线时 `check` 也会失败。有意的改变之后，`updateWowManifestBaseline` 记录新的基线：把它与改变一起提交，这样评审时就能看到客户端和对端会看到什么。每次失败都会写明这个任务。eShop 从基线重新生成它的 TypeScript 客户端，所以客户端与它的服务永远不会在不知不觉中偏离。
 
