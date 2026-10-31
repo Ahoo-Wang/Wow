@@ -64,6 +64,8 @@ data class AddBasketItem(
 
 The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`Positive`) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
 
+The constraints are part of the command's contract. They are the validation keywords of its schema in the Manifest and the OpenAPI document (`quantity` is `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`), so a generated client or Swagger UI sees them before it sends. Tightening one, such as raising a minimum, is a breaking change ([The Manifest and Compatibility](./manifest#the-compatibility-check)).
+
 A rule that needs the aggregate's state or the caller stays in the command function, as a rejection with an error code ([Rejections and Error Codes](./rejections)): the order's function below has nothing left to check.
 
 Whether a command may create its aggregate is part of its class:

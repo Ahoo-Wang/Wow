@@ -34,6 +34,8 @@ import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
+import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
+import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -89,6 +91,11 @@ import kotlin.reflect.jvm.kotlinProperty
  *   written where it is used, each element or value nullable as its Kotlin type argument is ([Containers]).
  * - A custom serializer is opaque to introspection: [schemaOverrides] gives the schema of such a class, by binary
  *   name, and a class Jackson does not write as an object fails the generation until it has one.
+ * - A member's Jakarta Bean Validation constraints become the validation keywords of its schema, as victools' Jakarta
+ *   module maps them: `@NotBlank` is `minLength: 1`, `@Positive` is `exclusiveMinimum: 0`, `@Size` is
+ *   `minLength`/`maxLength` (`minItems`/`maxItems` on a collection), `@Min`/`@Max` and `@DecimalMin`/`@DecimalMax` the
+ *   bounds, `@Pattern` the `pattern`, `@Email` the `email` format. They do not decide requiredness or nullability,
+ *   which stay the Kotlin type's: a `@NotNull` on a nullable Kotlin type does not make it required.
  * - The query field annotations of `wow-query-api` become `x-wow-*` keywords of the property schemas
  *   ([QueryKeywords]), and the `@QueryIndex` declarations of a state the `x-wow-index` of its schema
  *   ([QueryIndexes]); an invalid declaration fails the generation.
@@ -255,6 +262,11 @@ internal class SchemaIntrospector(
                     method
                 )
             }
+        // The Jakarta constraints as validation keywords (`@NotBlank` is `minLength: 1`, `@Positive` `exclusiveMinimum:
+        // 0`, `@Size`, `@Min`, `@Max`, `@Pattern`, `@Email`, ...), applied after the checks above: a member's
+        // requiredness and nullability stay its Kotlin type's, which the module's own checks, asked after them, do
+        // not override.
+        builder.with(JakartaValidationModule(JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS))
         return SchemaGenerator(builder.build())
     }
 

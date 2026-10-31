@@ -18,6 +18,14 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -501,6 +509,38 @@ class SchemaIntrospectorTest {
         var spare: Shape? = null
         var shapes: List<Shape> = emptyList()
         var payment: Payment? = null
+    }
+
+    /** A command's Jakarta constraints, as an api module writes them on its fields (`@field:`). */
+    data class Constrained(
+        @field:NotBlank val name: String,
+        @field:Positive val price: BigDecimal,
+        @field:Min(1) @field:Max(9) val count: Int,
+        @field:Size(min = 1, max = 3) val tags: List<String>,
+        @field:Pattern(regexp = "^[a-z]+$") val code: String,
+        @field:Email val email: String?,
+        // A constraint decides no requiredness: the Kotlin type does, so this one stays optional and nullable.
+        @field:NotNull val note: String? = null,
+    )
+
+    @Test
+    fun `a member's Jakarta constraints should be the validation keywords of its schema, not its requiredness`() {
+        val schema = defOf(stateFragment(Constrained::class.java).let(introspector::complete), Constrained::class.java)
+        // Each property as text: a bound is a number of the generator's choosing, an Int or a BigDecimal.
+        val properties = (schema["properties"] as Map<*, *>).mapValues { (_, property) ->
+            (property as Map<*, *>).mapValues { it.value.toString() }
+        }
+        properties["name"].assert().isEqualTo(mapOf("type" to "string", "minLength" to "1"))
+        properties["price"].assert()
+            .isEqualTo(mapOf("type" to "number", "format" to "decimal", "exclusiveMinimum" to "0"))
+        properties["count"].assert()
+            .isEqualTo(mapOf("type" to "integer", "format" to "int32", "minimum" to "1", "maximum" to "9"))
+        properties["tags"].assert()
+            .isEqualTo(mapOf("type" to "array", "items" to "{type=string}", "minItems" to "1", "maxItems" to "3"))
+        properties["code"].assert().isEqualTo(mapOf("type" to "string", "pattern" to "^[a-z]+$"))
+        properties["email"].assert().isEqualTo(mapOf("type" to "[string, null]", "format" to "email"))
+        properties["note"].assert().isEqualTo(mapOf("type" to "[string, null]"))
+        (schema["required"] as List<*>).assert().containsExactlyInAnyOrder("name", "price", "count", "tags", "code")
     }
 
     /** A fragment of the one aggregate `plan` of [state]. */

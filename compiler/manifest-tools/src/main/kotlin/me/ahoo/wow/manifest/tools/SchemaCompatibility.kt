@@ -37,7 +37,10 @@ import me.ahoo.wow.manifest.Manifest
  * | additional properties no longer accepted / now accepted | breaking / additive |
  * | an `x-wow-alias` path removed / added | breaking / additive |
  * | a query semantics keyword (`x-wow-sensitive`, `x-wow-mask`, `x-wow-temporal`, …) changed | breaking |
- * | any other validation keyword (`format`, `pattern`, `minimum`, …) added or changed / removed | breaking / additive |
+ * | a lower bound (`minLength`, `minItems`, `minProperties`, `minimum`, `exclusiveMinimum`) raised / lowered | breaking / additive |
+ * | an upper bound (`maxLength`, `maxItems`, `maxProperties`, `maximum`, `exclusiveMaximum`) lowered / raised | breaking / additive |
+ * | any other validation keyword (`format`, `pattern`, …) changed | breaking |
+ * | a validation keyword, a bound included, added / removed | breaking / additive |
  *
  * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored, and so is a
  * wire `format` (`int32`, `int64`, `float`, `bigint`, `decimal`) added, removed or swapped for another: it says how a
@@ -278,8 +281,29 @@ internal class SchemaCompatibility(
                     keyword in QUERY_SEMANTICS -> breaking(path, "$keyword changed from $oldValue to $newValue")
                     newValue == null -> widened(path, "$keyword $oldValue lifted")
                     oldValue == null -> narrowed(path, "$keyword $newValue imposed")
-                    else -> breaking(path, "$keyword changed from $oldValue to $newValue")
+                    else -> compareBound(path, keyword, oldValue, newValue)
                 }
+            }
+        }
+
+        /**
+         * A bound moved: a lower one raised, or an upper one lowered, accepts fewer values (the Jakarta constraints of a
+         * command's field, which old clients send); the other way, more. Any other keyword changed is breaking.
+         */
+        private fun compareBound(path: String, keyword: String, oldValue: Any, newValue: Any) {
+            val old = (oldValue as? Number)?.toString()?.toBigDecimalOrNull()
+            val new = (newValue as? Number)?.toString()?.toBigDecimalOrNull()
+            val lower = keyword in LOWER_BOUNDS
+            val bound = lower || keyword in UPPER_BOUNDS
+            if (!bound || old == null || new == null) {
+                breaking(path, "$keyword changed from $oldValue to $newValue")
+            } else if (old.compareTo(new) == 0) {
+                // The same bound, written as another number (1 and 1.0).
+                return
+            } else if ((new > old) == lower) {
+                narrowed(path, "$keyword ${if (lower) "raised" else "lowered"} from $oldValue to $newValue")
+            } else {
+                widened(path, "$keyword ${if (lower) "lowered" else "raised"} from $oldValue to $newValue")
             }
         }
     }
@@ -362,6 +386,12 @@ internal class SchemaCompatibility(
             "\$schema", "\$id", "\$comment", "\$defs", "title", "description", "default", "examples", "deprecated",
             "readOnly", "writeOnly", QueryKeywords.INDEX_KEYWORD, WireTypes.CLASS_KEYWORD, WireTypes.UNIQUE_ITEMS,
         )
+
+        /** The bounds a larger value of narrows: a raised one accepts fewer values. */
+        val LOWER_BOUNDS = setOf("minLength", "minItems", "minProperties", "minimum", "exclusiveMinimum")
+
+        /** The bounds a smaller value of narrows: a lowered one accepts fewer values. */
+        val UPPER_BOUNDS = setOf("maxLength", "maxItems", "maxProperties", "maximum", "exclusiveMaximum")
 
         val QUERY_SEMANTICS = setOf(
             QueryKeywords.SENSITIVE_KEYWORD,
