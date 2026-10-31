@@ -310,7 +310,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 }
 ```
 
-A saga whose handlers read through the query API gets its reads from `givenQueries`, a fake of the read side.
+A saga whose handlers read through the query API gets its reads from `givenQueries`, a fake of the read side, or from the read side over snapshots in memory that `wow-test-query` gives. `givenSnapshots(model, id, *events)` holds the snapshot of an aggregate in the state its events leave it in, at the version of its last event: its model replays them as `givenAggregate` does, and refuses an event it has no sourcing function for. `givenSnapshots(type, id to state)` holds a state as it is given, for a state no model of the test sources. Prefer the events where the model is at hand: a state written as a JSON map skips the state's schema, so a misspelled field is dropped without a word and the state reads back with that field's default. A spec that reads several aggregates gives one `givenQueries(memoryQueries { snapshot(model, id, *events); … })`.
 
 ### Saga expectations
 

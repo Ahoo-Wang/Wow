@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
@@ -40,6 +41,7 @@ import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.test.GivenAggregate
 import me.ahoo.wow.test.ProcessorSpec
 import tools.jackson.databind.JsonNode
 import java.util.concurrent.ConcurrentHashMap
@@ -138,6 +140,33 @@ class MemoryQueries @InternalWowApi constructor(
         committed[ref] = Snapshot.of(ref, version, owner, tags, deleted, null, 0, 0, tree)
     }
 
+    /**
+     * Holds the state [events] leave the aggregate [id] of [model] in as its latest snapshot, in [tenantId], at the
+     * version of its last event, one commit per event: [model] replays them as [ProcessorSpec.givenAggregate] does, so
+     * the state is the one the aggregate's own sourcing builds. An event [model] has no sourcing function for is
+     * refused. [owner], [tags] and [deleted] are the snapshot's, as [snapshot] of a state takes them.
+     *
+     * A state given as a map is written to JSON without the state class: a misspelled field is dropped, and the state
+     * reads back with that field's default. Built from the events, the snapshot holds what the aggregate would.
+     */
+    @Suppress("LongParameterList") // One parameter per field of the snapshot a spec may set.
+    fun <S : Any> snapshot(
+        model: AggregateModel<S>,
+        id: String,
+        vararg events: Any,
+        tenantId: String = Caller.DEFAULT_TENANT,
+        owner: Scope = Scope.NONE,
+        tags: Map<String, List<String>> = emptyMap(),
+        deleted: Boolean = false,
+    ): MemoryQueries = apply {
+        require(events.isNotEmpty()) { "The snapshot of $id of ${model.type} is the state of at least one event." }
+        val state = GivenAggregate(model, model.type.ref(tenantId, id), events.toList(), owner).state
+        if (stateTypes.putIfAbsent(model.type, model.stateType) == null) {
+            api = null
+        }
+        snapshot(model.type, id, state, tenantId, owner, events.size, tags, deleted)
+    }
+
     /** Holds each of [states], an aggregate id to its state, as a snapshot of [type] in [tenantId]; see [snapshot]. */
     fun snapshots(
         type: AggregateType,
@@ -225,3 +254,15 @@ fun ProcessorSpec.givenSnapshots(
     vararg states: Pair<String, Any>,
     tenantId: String = Caller.DEFAULT_TENANT,
 ): MemoryQueries = memoryQueries { snapshots(type, *states, tenantId = tenantId) }.also(::givenQueries)
+
+/**
+ * Serves the handlers' reads from a [memoryQueries] holding the snapshot of the aggregate [id] of [model] in
+ * [tenantId], in the state [events] leave it in ([MemoryQueries.snapshot]). It replaces the queries given before: a
+ * spec that reads several aggregates gives one [memoryQueries].
+ */
+fun <S : Any> ProcessorSpec.givenSnapshots(
+    model: AggregateModel<S>,
+    id: String,
+    vararg events: Any,
+    tenantId: String = Caller.DEFAULT_TENANT,
+): MemoryQueries = memoryQueries { snapshot(model, id, *events, tenantId = tenantId) }.also(::givenQueries)
