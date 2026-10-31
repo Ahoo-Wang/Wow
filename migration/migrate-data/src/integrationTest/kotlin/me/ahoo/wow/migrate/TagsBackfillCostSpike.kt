@@ -33,7 +33,7 @@ import kotlin.time.TimeSource
 /**
  * The cost of the tags backfill (R4-Q2c) on [AGGREGATES] aggregates of [STREAMS] streams each, appended without tags,
  * on PostgreSQL and MongoDB in containers: the per-aggregate cost the coordinator asked for. Not a test: run with
- * `./gradlew :migrate-data:integrationTest --tests '*TagsBackfillCostSpike*' -Dwow.spike.tags=true`.
+ * `./gradlew :migrate-data:integrationTest --tests '*TagsBackfillCostSpike*' -Dwow-test.spike.tags=true`.
  */
 internal class TagsBackfillCostSpike {
     class Parcel(var region: String = "")
@@ -42,7 +42,7 @@ internal class TagsBackfillCostSpike {
 
     @Test
     fun `backfill cost per aggregate on PostgreSQL and MongoDB`() {
-        assumeTrue(System.getProperty("wow.spike.tags") == "true", "Run with -Dwow.spike.tags=true")
+        assumeTrue(System.getProperty("wow-test.spike.tags") == "true", "Run with -Dwow-test.spike.tags=true")
         val postgres = HikariDataSource().apply {
             jdbcUrl = WowContainers.postgres.jdbcUrl
             username = WowContainers.postgres.username

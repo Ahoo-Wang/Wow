@@ -64,6 +64,50 @@ object ConfigurationReaderRules {
             allowed.keys.filter { path -> readers.none { it.startsWith("$path:") } }
         }
 
+    /**
+     * The lines of the Kotlin and Java sources, the tests' included, and of the build scripts that read, set or forward a
+     * `wow.*` system property: `System.getProperty` of a `"wow.` literal or of a constant whose value is one,
+     * `systemProperty`, the `PrefixedBy` of the Gradle or system properties, a `-Dwow.` argument. A switch of the test
+     * tooling named under `wow.` reaches the system properties of the test JVM, where a host refuses it as an unknown
+     * configuration key, so the switches are named `wow-test.*`; a key of [runtimeKeys] is a configuration key a build
+     * sets for its tests. Each is `path:line: text`.
+     */
+    fun wowSwitches(repositoryRoot: File, runtimeKeys: Set<String> = emptySet()): List<String> =
+        switchSources(repositoryRoot).flatMap { file ->
+            val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+            val text = file.readText()
+            val constants = WOW_CONSTANT.findAll(text).map { Regex.escape(it.groupValues[1]) }.toList()
+            val constantRead = constants.takeIf { it.isNotEmpty() }
+                ?.let { Regex("(?:System\\.getProperty|systemProperty)\\(\\s*(" + it.joinToString("|") + ")\\b") }
+            text.lines().mapIndexedNotNull { index, line ->
+                val code = line.substringBefore("//").trim()
+                val keys = WOW_SWITCH.findAll(code).map { it.groupValues[1].ifEmpty { it.groupValues[2] } }
+                val switch = !code.startsWith("*") &&
+                    (keys.any { it !in runtimeKeys } || constantRead?.containsMatchIn(code) == true)
+                if (switch) "$path:${index + 1}: $code" else null
+            }
+        }
+
+    /** The Kotlin and Java sources and the build scripts of the repository, past its documentation and Skills. */
+    private fun switchSources(repositoryRoot: File): List<File> = repositoryRoot.walkTopDown()
+        .onEnter { dir ->
+            dir.name !in SKIPPED_DIRS &&
+                dir.relativeTo(repositoryRoot).invariantSeparatorsPath !in setOf("documentation", "skills")
+        }
+        .filter { file ->
+            file.isFile && (
+                file.name.endsWith(".gradle.kts") ||
+                    file.extension in setOf("kt", "java") && "/src/" in file.invariantSeparatorsPath
+                )
+        }
+        .toList()
+
+    private val SKIPPED_DIRS = setOf("build", "node_modules", ".git", ".gradle", ".kotlin", ".claude", ".idea")
+
+    /** A `wow.*` system property read, set or forwarded by its literal name, the name in group 1 or 2. */
+    private val WOW_SWITCH =
+        Regex("(?:System\\.getProperty|systemProperty|PrefixedBy)\\(\\s*\"(wow\\.[\\w.$-]*)|-D(wow\\.[\\w.$-]*)")
+
     private val WOW_CONSTANT = Regex("const val (\\w+)\\s*(?::\\s*String)?\\s*=\\s*\"wow\\.")
     private val ENVIRONMENT_READ =
         Regex("\\.(getProperty|getRequiredProperty|containsProperty|bind|bindOrCreate)\\(|\\bgetProperty\\(")

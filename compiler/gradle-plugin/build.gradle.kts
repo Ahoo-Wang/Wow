@@ -124,10 +124,10 @@ tasks.test {
     val toolsClasspath = fixtureToolsClasspath
     val repository = layout.buildDirectory.dir("fixture-repository")
     doFirst {
-        systemProperty("wow.fixture.repository", repository.get().asFile.toURI().toString())
-        systemProperty("wow.fixture.compileClasspath", compileClasspath.asPath)
-        systemProperty("wow.fixture.processorClasspath", processorClasspath.asPath)
-        systemProperty("wow.fixture.toolsClasspath", toolsClasspath.asPath)
+        systemProperty("wow-test.fixture.repository", repository.get().asFile.toURI().toString())
+        systemProperty("wow-test.fixture.compileClasspath", compileClasspath.asPath)
+        systemProperty("wow-test.fixture.processorClasspath", processorClasspath.asPath)
+        systemProperty("wow-test.fixture.toolsClasspath", toolsClasspath.asPath)
     }
 }
 

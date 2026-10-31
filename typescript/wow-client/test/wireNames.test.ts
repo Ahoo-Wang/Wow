@@ -43,7 +43,7 @@ import {
 /**
  * The wire names the JVM writes for each Wow enumeration this client declares,
  * written by `TypeScriptWireNamesTest` of `:api`. Regenerate it, never edit it:
- * `./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow.snapshot.update=true`.
+ * `./gradlew :api:test --tests "*TypeScriptWireNamesTest" --rerun -Dwow-test.snapshot.update=true`.
  */
 const fixture = JSON.parse(
   readFileSync(new URL('./fixtures/wire-names.json', import.meta.url), 'utf8'),

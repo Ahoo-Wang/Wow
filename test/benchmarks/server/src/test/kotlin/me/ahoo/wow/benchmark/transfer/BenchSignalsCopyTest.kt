@@ -32,8 +32,8 @@ class BenchSignalsCopyTest {
 
     @Test
     fun `the soak's copy should be the benchmark's signals`() {
-        val bench = File(System.getProperty("wow.benchmark.bench-signals"))
-        val soak = File(System.getProperty("wow.benchmark.soak-signals"))
+        val bench = File(System.getProperty("wow-test.benchmark.bench-signals"))
+        val soak = File(System.getProperty("wow-test.benchmark.soak-signals"))
         classOf(soak, "SoakSignals").assert().isEqualTo(classOf(bench, "BenchSignals"))
     }
 }

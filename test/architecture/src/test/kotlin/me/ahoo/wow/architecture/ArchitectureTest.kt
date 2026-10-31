@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 /**
- * Guards the architecture rules. The Gradle `test` task passes the repository root (`wow.repository.root`)
+ * Guards the architecture rules. The Gradle `test` task passes the repository root (`wow-test.repository.root`)
  * and declares the scanned build scripts and sources as inputs.
  */
 class ArchitectureTest {
@@ -636,7 +636,7 @@ class ArchitectureTest {
     }
 
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
     }
 }
 

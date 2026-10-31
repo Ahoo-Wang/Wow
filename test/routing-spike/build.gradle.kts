@@ -8,10 +8,10 @@ dependencies {
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 
-// Spike H2 runs only on demand: ./gradlew :routing-spike:integrationTest -Dwow.spike.h2=true
-// (add -Dwow.spike.h2.quick=true for a shortened matrix that only checks the harness).
+// Spike H2 runs only on demand: ./gradlew :routing-spike:integrationTest -Dwow-test.spike.h2=true
+// (add -Dwow-test.spike.h2.quick=true for a shortened matrix that only checks the harness).
 tasks.named<Test>("integrationTest") {
-    listOf("wow.spike.h2", "wow.spike.h2.quick").forEach {
+    listOf("wow-test.spike.h2", "wow-test.spike.h2.quick").forEach {
         systemProperty(it, providers.systemProperty(it).orElse("false").get())
     }
     maxHeapSize = "4g"
@@ -19,10 +19,10 @@ tasks.named<Test>("integrationTest") {
 
 // Spike H2, stage 2 (decision D155): three node JVMs on the Spring Boot host, forwarding over the real cluster channel
 // (HTTP/2 on the internal port), on a durable PostgreSQL; an owner is killed mid-run. Outside every check and the
-// integration tests: `./gradlew :routing-spike:h2Stage2 -Pwow.h2.stage2.duration=PT5M`, or
-// `-Pwow.h2.stage2.mode=smoke` for a run of seconds that only checks the harness. The Gradle properties
-// `wow.h2.stage2.*` (Stage2Settings) reach the test JVM as system properties; the report and the nodes' output go to
-// build/h2-stage2/. The workflow h2-stage2.yml runs it on a GitHub-hosted runner.
+// integration tests: `./gradlew :routing-spike:h2Stage2 -Pwow-test.h2.stage2.duration=PT5M`, or
+// `-Pwow-test.h2.stage2.mode=smoke` for a run of seconds that only checks the harness. The Gradle properties
+// `wow-test.h2.stage2.*` (Stage2Settings) reach the test JVM as system properties; the report and the nodes' output
+// go to build/h2-stage2/. The workflow h2-stage2.yml runs it on a GitHub-hosted runner.
 val integrationTestSourceSet = sourceSets["integrationTest"]
 val stage2SourceSet = sourceSets.create("stage2") {
     // Stage 1's account model and access distributions.
@@ -50,11 +50,11 @@ tasks.register<Test>("h2Stage2") {
     useJUnitPlatform()
     // The nodes run on the same class path, in JVMs of their own.
     jvmArgumentProviders.add(
-        CommandLineArgumentProvider { listOf("-Dwow.h2.stage2.classpath=${stage2SourceSet.runtimeClasspath.asPath}") },
+        CommandLineArgumentProvider { listOf("-Dwow-test.h2.stage2.classpath=${stage2SourceSet.runtimeClasspath.asPath}") },
     )
     val outputDir = layout.buildDirectory.dir("h2-stage2")
-    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dwow.h2.stage2.dir=${outputDir.get().asFile}") })
-    providers.gradlePropertiesPrefixedBy("wow.h2.stage2.").get().forEach { (name, value) -> systemProperty(name, value) }
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dwow-test.h2.stage2.dir=${outputDir.get().asFile}") })
+    providers.gradlePropertiesPrefixedBy("wow-test.h2.stage2.").get().forEach { (name, value) -> systemProperty(name, value) }
     maxHeapSize = "2g"
     // The driver logs its own progress only (see the file); the repository's DEBUG test logging would cost more than
     // what is measured.

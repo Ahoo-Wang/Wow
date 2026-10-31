@@ -39,7 +39,8 @@ kotlin {
     }
 }
 
-// The tags backfill's cost is measured only on demand: ./gradlew :migrate-data:integrationTest -Dwow.spike.tags=true
+// The tags backfill's cost is measured only on demand:
+// ./gradlew :migrate-data:integrationTest -Dwow-test.spike.tags=true
 tasks.named<Test>("integrationTest") {
-    systemProperty("wow.spike.tags", providers.systemProperty("wow.spike.tags").orElse("false").get())
+    systemProperty("wow-test.spike.tags", providers.systemProperty("wow-test.spike.tags").orElse("false").get())
 }

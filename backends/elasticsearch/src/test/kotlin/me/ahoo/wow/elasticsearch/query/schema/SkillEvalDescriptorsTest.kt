@@ -67,7 +67,7 @@ import kotlin.io.path.writeText
  * or a dataset over the in-memory dataset storage. An eval that teaches a descriptor teaches the wire, so it is
  * rendered by the route's writer rather than written by hand, and a change to the wire fails here until the evals
  * follow. Regenerate them with
- * `./gradlew :elasticsearch:test --tests "*SkillEvalDescriptorsTest" -Dwow.snapshot.update=true`.
+ * `./gradlew :elasticsearch:test --tests "*SkillEvalDescriptorsTest" -Dwow-test.snapshot.update=true`.
  */
 class SkillEvalDescriptorsTest {
     @ParameterizedTest
@@ -82,7 +82,7 @@ class SkillEvalDescriptorsTest {
                 prompt.writeText(text.replaceRange(block.groups[1]!!.range, described))
             } else {
                 block.groupValues[1].assert()
-                    .describedAs("run with -Dwow.snapshot.update=true to rewrite block $index of $prompt")
+                    .describedAs("run with -Dwow-test.snapshot.update=true to rewrite block $index of $prompt")
                     .isEqualTo(described)
             }
         }
@@ -394,7 +394,7 @@ class SkillEvalDescriptorsTest {
         val TEMPORAL = "x-wow-temporal" to mapOf("unit" to "MILLISECONDS")
         val SKILLS: Path = Path.of("..", "..", "skills")
         val DESCRIPTOR_BLOCK = Regex("```json\\n(\\{.*?\\n})\\n```", RegexOption.DOT_MATCHES_ALL)
-        val UPDATE = System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)
+        val UPDATE = System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)
 
         fun string(): Map<String, Any?> = mapOf("type" to "string")
 

@@ -74,7 +74,7 @@ jobs:
           MODE: ${{ inputs.mode || 'full' }}
         run: |
           if [ "$MODE" = smoke ]; then
-            settings=(-Pwow.h2.stage2.mode=smoke)
+            settings=(-Pwow-test.h2.stage2.mode=smoke)
           elif [[ ! "$DURATION" =~ ^P[0-9A-Z.]+$ ]]; then
             echo "::error::Not an ISO-8601 duration: $DURATION"
             exit 1
@@ -82,7 +82,7 @@ jobs:
             echo "::error::Not a rate: $RATE"
             exit 1
           else
-            settings=(-Pwow.h2.stage2.duration="$DURATION" -Pwow.h2.stage2.rate="$RATE")
+            settings=(-Pwow-test.h2.stage2.duration="$DURATION" -Pwow-test.h2.stage2.rate="$RATE")
           fi
           ./gradlew :routing-spike:h2Stage2 "${settings[@]}" --stacktrace
       - name: Summarize the report

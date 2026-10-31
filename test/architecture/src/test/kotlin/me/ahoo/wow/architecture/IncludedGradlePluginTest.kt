@@ -55,7 +55,7 @@ class IncludedGradlePluginTest {
         PLUGIN_DECLARATION.findAll(buildScript.readText()).associate { it.groupValues[1] to it.groupValues[2] }
 
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
         const val INCLUDED = "build-logic/wow-gradle-plugin"
         const val PLUGIN = "compiler/gradle-plugin"
         val SOURCE_DIR = Regex("""(kotlin|resources)\.srcDir\(plugin\.resolve\("([^"]+)"\)\)""")

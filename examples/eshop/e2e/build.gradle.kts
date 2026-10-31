@@ -154,9 +154,9 @@ tasks.register("eshopLocalClasspath") {
 }
 
 // The fault-injection and soak harness (work package C.1, decision D196), outside every check and CI workflow:
-// `./gradlew :eshop-e2e:soakTest -Pwow.soak.duration=PT1H`. It has a source set of its own, on the
+// `./gradlew :eshop-e2e:soakTest -Pwow-test.soak.duration=PT1H`. It has a source set of its own, on the
 // integration tests' classes (EshopService), so integrationTest and :integrationTest neither compile nor run it.
-// The Gradle properties `wow.soak.*` (SoakConfig) reach the test JVM as system properties; the report and the
+// The Gradle properties `wow-test.soak.*` (SoakConfig) reach the test JVM as system properties; the report and the
 // services' output go to build/eshop-soak/.
 val integrationTestSourceSet = sourceSets["integrationTest"]
 val soakTestSourceSet = sourceSets.create("soakTest") {
@@ -187,7 +187,7 @@ tasks.register<Test>("soakTest") {
     eshopServers()
     val soakDir = layout.buildDirectory.dir("eshop-soak")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.soak.dir=${soakDir.get().asFile}") })
-    providers.gradlePropertiesPrefixedBy("wow.soak.").get().forEach { (name, value) -> systemProperty(name, value) }
+    providers.gradlePropertiesPrefixedBy("wow-test.soak.").get().forEach { (name, value) -> systemProperty(name, value) }
     // The nodes' class path takes this source set's output too: SoakSignals and its auto-configuration (D224 note ⑦).
     val soakOutput = soakTestSourceSet.output
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.extra-classpath=${soakOutput.asPath}") })

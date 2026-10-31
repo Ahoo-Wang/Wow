@@ -28,7 +28,7 @@ object MongoLogFixture {
 
     private val contexts = AtomicInteger()
 
-    /** Whether the tests run on a sharded cluster (`wow.mongo.url` names a mongos, roadmap §6 item 18). */
+    /** Whether the tests run on a sharded cluster (`wow-test.mongo.url` names a mongos, roadmap §6 item 18). */
     val sharded: Boolean by lazy { MongoShards.isMongos(client) }
 
     /** The index a collection keeps for its shard key, on a sharded cluster only (decision D277). */
