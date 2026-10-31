@@ -75,6 +75,9 @@ class OrderState {
 data class Reserve(val quantity: Int)
 data class Reserved(val quantity: Int)
 
+/** A restock of the item its body names (`@AggregateId`), which its request need not. */
+data class Restock(val item: String, val quantity: Int)
+
 class ItemState {
     var reserved: Int = 0
 }
@@ -135,6 +138,11 @@ class StockItems {
                 Decision.events(Reserved(body.quantity))
             }
         }
+        decide<Restock> { _, body ->
+            decided += command.id
+            Decision.events(Reserved(-body.quantity))
+        }
+        aggregateId<Restock> { it.item }
         evolve<Reserved> { reserved += it.quantity }
     }
 }
@@ -244,12 +252,20 @@ fun stockManifest(): Manifest = Manifest(
                 aggregateManifest(
                     STOCK,
                     "item",
-                    listOf(Reserve::class.java to ManifestCreation.ALLOWED),
+                    listOf(
+                        Reserve::class.java to ManifestCreation.ALLOWED,
+                        Restock::class.java to ManifestCreation.NONE,
+                    ),
                     listOf(Reserved::class.java)
-                ),
+                ).withIdProperty("Restock", "item"),
             ),
         ),
     ),
+)
+
+/** This aggregate with its [command]'s body naming its aggregate in [property], as the compiler writes `@AggregateId`. */
+private fun AggregateManifest.withIdProperty(command: String, property: String): AggregateManifest = copyWith(
+    commands = commands.map { if (it.name == command) it.copyWith(idProperty = property) else it },
 )
 
 /**

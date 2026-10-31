@@ -18,6 +18,11 @@
               "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note"
             },
             {
+              "name": "Restock",
+              "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Restock",
+              "idProperty": "productId"
+            },
+            {
               "name": "Import",
               "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Import",
               "mounted": true

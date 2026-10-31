@@ -119,6 +119,8 @@ export interface CommandManifest {
   /** A system command (wow.*): a lifecycle command, a rebuild or a job command. */
   readonly system?: boolean;
   readonly transformsTo?: readonly string[];
+  /** The property of the command's body that holds its aggregate's id. */
+  readonly idProperty?: string;
   readonly description?: string;
 }
 

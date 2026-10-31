@@ -213,15 +213,9 @@ internal object ManifestFragmentBuilder {
                         schema = Manifest.schemaRef(command.type),
                         creation = creation,
                         produces = produces(command, binding.afters, eventNames),
-                        // An aggregate whose id is its owner's: every command also by no id, the caller's own.
-                        routes = CommandRoutes.of(
-                            context,
-                            binding.aggregateName,
-                            name,
-                            creation,
-                            command.unaddressed || binding.ownsById,
-                        ),
+                        routes = routesOf(context, binding, command, name),
                         description = command.description,
+                        idProperty = command.aggregateId?.json,
                     )
                 } + binding.mounted.map { mounted ->
                     val name = mounted.commandName ?: simpleName(mounted.type)
@@ -253,6 +247,19 @@ internal object ManifestFragmentBuilder {
             idSource = AggregateIdSource.valueOf(binding.idSource),
         )
     }
+
+    /**
+     * The routes of [command], named [name], of [binding]: by its id and, for one that may create its aggregate or is
+     * unaddressed, by no id; every command of an aggregate whose id is its owner's also by no id, the caller's own; one
+     * whose body holds its aggregate's id by no id alone.
+     */
+    private fun routesOf(context: String, binding: AggregateBinding, command: CommandBinding, name: String) =
+        if (command.aggregateId != null) {
+            listOf(CommandRoutes.unaddressed(context, binding.aggregateName, name))
+        } else {
+            val unaddressed = command.unaddressed || binding.ownsById
+            CommandRoutes.of(context, binding.aggregateName, name, Creation.valueOf(command.creation), unaddressed)
+        }
 
     /** The system commands of [binding]: its lifecycle commands, then its snapshot rebuild when it keeps snapshots. */
     private fun systemCommands(context: String, binding: AggregateBinding): List<CommandManifest> =

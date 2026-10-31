@@ -16,6 +16,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: `include: Array<KClass<*>> = []`, `exclude: Array<KClass<*>> = []`
 
+## `@AggregateId`
+
+[AggregateId](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateId.kt): The property of a command that holds the id of the aggregate the command acts on, its target: a `String` the command's class declares, or an interface it implements does, stored or computed from other properties.
+
+- Targets: `PROPERTY`, `FIELD`
+- Parameters: None.
+
 ## `@AggregateRoot`
 
 [AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.

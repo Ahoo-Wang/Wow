@@ -1,6 +1,5 @@
 {
   "openapi" : "3.1.0",
-  "jsonSchemaDialect" : "https://json-schema.org/draft/2020-12/schema",
   "info" : {
     "title" : "eshop-basket-service",
     "version" : "unversioned",
@@ -3243,6 +3242,10 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "idProperty" : {
+            "type" : "string",
+            "description" : "The property of the command's body that holds its aggregate's id."
           },
           "description" : {
             "type" : "string"

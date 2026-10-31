@@ -703,15 +703,23 @@ class Kernel(
 
     /**
      * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
-     * model names its own commands, [commandTypes] those of other aggregate types.
+     * model names its own commands, [commandTypes] those of other aggregate types. A body that holds its aggregate's
+     * id (`@AggregateId`) names [target]'s.
      */
     private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
-        val type = if (target.type == model.type) {
+        val own = target.type == model.type
+        val type = if (own) {
             model.commandType(body.javaClass).name
         } else {
             commandTypes.nameOf(target.type, body.javaClass) ?: throw Misuse.Argument(
                 "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
                     "its peers names.",
+            )
+        }
+        val inBody = if (own) model.aggregateIdOf(body) else commandTypes.aggregateIdOf(target.type, body)
+        if (inBody != null && inBody != target.id) {
+            throw Misuse.Argument(
+                "${model.type} schedules ${body.javaClass.name} for $target, but its body names the aggregate $inBody.",
             )
         }
         return type to codec.commandText(body)
@@ -1333,6 +1341,13 @@ fun interface CommandTypes {
      * type this gives; none is a missing contract, several a class it must address in full. None by default.
      */
     fun aggregatesOf(command: Class<*>): List<AggregateType> = emptyList()
+
+    /**
+     * The id of the aggregate of [target] that [command] acts on, as its body holds it (`@AggregateId`): read by the
+     * context's model, or from the property of its JSON body a contract names. Null when its command type holds none
+     * there, or when it leaves it null (a creation). None by default.
+     */
+    fun aggregateIdOf(target: AggregateType, command: Any): String? = null
 
     @InternalWowApi
     companion object {

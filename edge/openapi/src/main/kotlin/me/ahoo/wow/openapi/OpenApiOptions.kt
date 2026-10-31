@@ -24,7 +24,7 @@ package me.ahoo.wow.openapi
  * - [errorStatuses] are the statuses the host configures for error codes (`wow.http.errors.[<code>].status`),
  *   which win over the Manifest's tables as they do at the edge.
  * - [securitySchemes] ([withSecuritySchemes]) are how a caller presents its identity, which the host fills from its
- *   caller resolver.
+ *   caller resolver: the parts of one identity, presented together.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -36,8 +36,9 @@ class OpenApiOptions private constructor(
     val openApiEndpoint: Boolean,
     val errorStatuses: Map<String, Int>,
     /**
-     * The ways a caller presents its identity, by scheme name: the document's
-     * `components.securitySchemes`, and its global `security`, any one of them. None by default.
+     * How a caller presents its identity, by scheme name: the document's `components.securitySchemes`, and its
+     * global `security`, one requirement naming them all, since a caller presents them together (the development
+     * callers' `Wow-*` headers). None by default.
      */
     val securitySchemes: Map<String, OpenApiSecurityScheme>,
 ) {

@@ -39,6 +39,7 @@ internal object AnnotationSet {
         "AllowCreate",
         "MountedCommand",
         "Unaddressed",
+        "AggregateId",
         "AfterCommand",
         "Name",
         "Revision",
@@ -76,7 +77,6 @@ internal object AnnotationSet {
         "StatelessSaga" to "use @Saga",
         "Event" to "use @Revision for the event's revision",
         "AggregateName" to "use @Name on the aggregate root",
-        "AggregateId" to IDENTITY,
         "TenantId" to IDENTITY,
         "OwnerId" to IDENTITY,
         "AggregateVersion" to IDENTITY,
@@ -93,9 +93,12 @@ internal object AnnotationSet {
     /** The annotations only a member of an aggregate's state takes: `@Tags`. */
     private val STATE_NAMES = setOf("Tags")
 
+    /** The annotations only a property of a command an aggregate decides takes: `@AggregateId`. */
+    private val COMMAND_NAMES = setOf("AggregateId")
+
     private const val IDENTITY =
-        "a command carries no identity: it is Command.ref, from the route or the command message, and the scope " +
-            "comes from the principal"
+        "a command carries no tenant, owner or version: they are Command.ref's and the scope's, from the route or " +
+            "the command message and the principal; the aggregate id alone may be its body's, @AggregateId"
 
     const val MIGRATION = "the wow-migrate skill rewrites 9.x code for Wow 10"
 
@@ -109,6 +112,7 @@ internal object AnnotationSet {
         where: String,
         processor: Boolean = false,
         state: Boolean = false,
+        command: Boolean = false,
     ): List<String> =
         annotated.annotations.mapNotNull { annotation ->
             val declaration = annotation.annotationType.resolve().declaration
@@ -124,6 +128,10 @@ internal object AnnotationSet {
             if (simpleName in STATE_NAMES && !state) {
                 return@mapNotNull "$where is annotated @$simpleName, which only a member of an aggregate's state takes"
             }
+            if (simpleName in COMMAND_NAMES && !command) {
+                return@mapNotNull "$where is annotated @$simpleName, which only a property of a command an aggregate " +
+                    "decides takes"
+            }
             if (simpleName in NAMES) {
                 return@mapNotNull null
             }
@@ -136,15 +144,21 @@ internal object AnnotationSet {
      * getters) and its functions with their parameters. [role] says what the type is to the model, such as "command";
      * an aggregate's [state] may mark a member `@Tags`.
      */
-    fun problemsOfType(type: KSClassDeclaration, role: String, state: Boolean = false): List<String> {
+    fun problemsOfType(
+        type: KSClassDeclaration,
+        role: String,
+        state: Boolean = false,
+        command: Boolean = false,
+    ): List<String> {
         val name = type.simpleName.asString()
         val where = "$role $name"
         val constructorParameters = (type.primaryConstructor?.parameters.orEmpty()).flatMap {
-            problems(it, "$where's field ${it.name?.asString()}")
+            problems(it, "$where's field ${it.name?.asString()}", command = command)
         }
         val properties = type.getDeclaredProperties().flatMap {
             val field = "$where's field ${it.simpleName.asString()}"
-            problems(it, field, state = state) + listOfNotNull(it.getter).flatMap { getter -> problems(getter, field) }
+            problems(it, field, state = state, command = command) +
+                listOfNotNull(it.getter).flatMap { getter -> problems(getter, field, command = command) }
         }
         val functions = type.getDeclaredFunctions().flatMap { problemsOfFunction(it, where, state = state) }
         return (problems(type, where) + constructorParameters + properties + functions).distinct()

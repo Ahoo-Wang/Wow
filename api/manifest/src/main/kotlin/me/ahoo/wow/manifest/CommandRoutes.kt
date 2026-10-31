@@ -20,7 +20,9 @@ package me.ahoo.wow.manifest
  * [Creation.ALLOWED]) is also `POST /{context}/{aggregate}/{segment}`, where the server generates the id, and so is a
  * mounted or `@Unaddressed` command, whose transformer finds the aggregate it acts on when the request
  * names none. The
- * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable.
+ * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable. A
+ * command whose body holds its aggregate's id ([CommandManifest.idProperty], `@AggregateId`) has that route alone
+ * ([unaddressed]): the request names the aggregate in its body.
  *
  * The [system][CommandManifest.system] commands are routed on reserved segments, and the Manifest lists their routes
  * like any command's, so the edge serves and a client sends them from the Manifest alone:

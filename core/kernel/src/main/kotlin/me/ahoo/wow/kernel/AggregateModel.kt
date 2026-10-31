@@ -250,6 +250,10 @@ class CommandType @InternalWowApi constructor(
  *
  * [tags] derives tags from the state (`@Tags`; 9.x `StateAggregateTagsExtractor`): the keys it returns
  * override the applied tags ([tagsOf]), and the kernel derives them again after every commit and every load.
+ *
+ * [aggregateIds] reads, by command class, the id of the aggregate a command acts on from its body (`@AggregateId`):
+ * such a command's request need not name its aggregate ([aggregateIdOf]). A command decided here takes one, not an
+ * aggregate whose id is its owner's.
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
@@ -267,6 +271,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     retiredEvents: Collection<String> = emptyList(),
     private val tags: ((S) -> Map<String, Collection<String>>)? = null,
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
+    private val aggregateIds: Map<Class<*>, (Any) -> String?> = emptyMap(),
     /**
      * The evolve functions that also read the commit their event belongs to ([EventStream]: its time, operator and
      * version, as the log records them), by event class; the others are in [evolvers].
@@ -375,6 +380,14 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
         val unnamed = this.deciders.keys - commandsByType.keys
         require(unnamed.isEmpty()) { "Command types of $type without a name: $unnamed" }
+        val undecided = aggregateIds.keys - deciders.keys
+        require(undecided.isEmpty()) {
+            "$type reads the aggregate id of ${undecided.map { it.name }} from their bodies, which it decides none of."
+        }
+        require(aggregateIds.isEmpty() || idSource != AggregateIdSource.OWNER) {
+            "$type's id is its owner's: no command of it reads its aggregate id from its body " +
+                "(${aggregateIds.keys.map { it.name }})."
+        }
         val named = this.eventTypes.flatMap { event -> (event.aliases + event.name).map { it to event.type } } +
             this.commandTypes.flatMap { command -> (command.aliases + command.name).map { it to command.type } }
         named.forEach { (name, typeClass) ->
@@ -391,6 +404,17 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /** The decide function for [commandType], or null when the aggregate does not handle it. */
     fun decider(commandType: Class<*>): DecideFunction<S>? = deciders[commandType]
+
+    /** Whether a command of [commandType] holds the id of its aggregate in its body (`@AggregateId`). */
+    @InternalWowApi
+    fun idFromBody(commandType: Class<*>): Boolean = commandType in aggregateIds
+
+    /**
+     * The id of the aggregate [command] acts on, as its body holds it (`@AggregateId`): null when its class holds none
+     * there ([idFromBody]), or when it leaves it null (a creation, which then gets one).
+     */
+    @InternalWowApi
+    fun aggregateIdOf(command: Any): String? = aggregateIds[command.javaClass]?.invoke(command)
 
     /** The after hooks that run for [commandType], in declaration order. */
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()

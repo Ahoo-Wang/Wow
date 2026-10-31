@@ -293,6 +293,7 @@ export interface CommandManifest {
     readonly creation: 'none' | 'required' | 'allowed' | (string & {});
     // (undocumented)
     readonly description?: string;
+    readonly idProperty?: string;
     // (undocumented)
     readonly mounted?: boolean;
     // (undocumented)

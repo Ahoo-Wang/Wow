@@ -46,7 +46,8 @@ class ManifestOpenApiTest {
     fun `the document should be a well-formed OpenAPI 3_1 document`() {
         OpenApiChecks.check(document)
         document["openapi"].assert().isEqualTo("3.1.0")
-        document["jsonSchemaDialect"].assert().isEqualTo("https://json-schema.org/draft/2020-12/schema")
+        // OpenAPI 3.1's default dialect extends the schemas' 2020-12, and Swagger UI takes no other (UI-63).
+        document.containsKey("jsonSchemaDialect").assert().isFalse()
         document.containsKey("servers").assert().isFalse()
     }
 
@@ -442,8 +443,9 @@ class ManifestOpenApiTest {
             ),
         )
         OpenApiChecks.check(secured)
+        // One requirement naming every scheme: a caller presents them together (UI-65).
         secured["security"].assert().isEqualTo(
-            listOf(mapOf("bearer" to emptyList<String>()), mapOf("user" to emptyList()))
+            listOf(mapOf("bearer" to emptyList<String>(), "user" to emptyList()))
         )
         @Suppress("UNCHECKED_CAST")
         (secured["components"] as Map<String, Any?>)["securitySchemes"].assert().isEqualTo(

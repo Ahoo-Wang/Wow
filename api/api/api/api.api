@@ -85,6 +85,9 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/AfterComma
 	public abstract fun include ()[Ljava/lang/Class;
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateId : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateRoot : java/lang/annotation/Annotation {
 	public abstract fun idSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public abstract fun lifecycle ()[Ljava/lang/Class;

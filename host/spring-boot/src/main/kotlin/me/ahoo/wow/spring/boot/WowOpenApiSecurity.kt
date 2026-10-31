@@ -18,12 +18,12 @@ import me.ahoo.wow.openapi.OpenApiSecurityScheme
 
 /**
  * How a caller of the public routes presents its identity, as the springdoc document declares it:
- * the document's security schemes, by name, and its global `security`, any one of them, so that Swagger UI's
- * "Try it out" sends the identity.
+ * the document's security schemes, by name, and its global `security`, one requirement naming them all, since a
+ * caller presents them together, so that Swagger UI's "Try it out" sends the identity.
  *
  * The host fills it from its [CallerResolver] ([of]): CoSec's resolver takes a bearer token ([COSEC]); the host's
- * development callers take the `Wow-*` identity headers ([DEVELOPMENT]), each its own scheme, so Swagger UI's Authorize
- * sets those a request needs; the anonymous caller, and an application's own resolver, declare none. An application with a resolver of its own declares how it
+ * development callers take the `Wow-*` identity headers ([DEVELOPMENT]), each its own scheme in the one requirement,
+ * so Swagger UI's Authorize sets those a request needs and sends them together; the anonymous caller, and an application's own resolver, declare none. An application with a resolver of its own declares how it
  * authenticates by a bean of this type, which replaces the host's.
  */
 class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
@@ -48,8 +48,9 @@ class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
         )
 
         /**
-         * The host's development callers' ([DevelopmentCallerResolver]): the identity headers, by their names, any
-         * of them a request sends.
+         * The host's development callers' ([DevelopmentCallerResolver]): the identity headers, by their names, the
+         * parts of one identity a request sends together (`Wow-User` with `Wow-Owner` or `Wow-Roles`, ...); one it
+         * leaves out takes the default its description gives.
          */
         val DEVELOPMENT: WowOpenApiSecurity = WowOpenApiSecurity(
             listOf(

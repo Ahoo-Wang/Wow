@@ -18,7 +18,6 @@ import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -27,7 +26,10 @@ import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Nullability
 import com.google.devtools.ksp.symbol.Variance
+import me.ahoo.wow.compiler.model.symbol.jsonIgnored
+import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.wireName
 import me.ahoo.wow.manifest.QueryFieldNames
 
 /**
@@ -51,9 +53,6 @@ internal object QueryPropertiesSource {
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
     private const val ANY = "kotlin.Any?"
     private const val STATE = QueryFieldNames.STATE
-    private const val JSON_PROPERTY = "com.fasterxml.jackson.annotation.JsonProperty"
-    private const val JSON_IGNORE = "com.fasterxml.jackson.annotation.JsonIgnore"
-    private const val JSON_IGNORE_PROPERTIES = "com.fasterxml.jackson.annotation.JsonIgnoreProperties"
     private val COLLECTIONS = setOf(
         "kotlin.collections.Iterable",
         "kotlin.collections.Collection",
@@ -124,7 +123,7 @@ internal object QueryPropertiesSource {
         visited: List<String>,
         properties: MutableMap<String, Property>,
     ) {
-        val ignored = owner.ignoredProperties()
+        val ignored = owner.jsonIgnoredProperties()
         owner.getAllProperties().filter { it.isQueryable(ignored) }.forEach { property ->
             val wireName = property.wireName()
             if (!QueryFieldNames.isSegment(wireName)) return@forEach
@@ -169,12 +168,7 @@ internal object QueryPropertiesSource {
     private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>): Boolean =
         isPublic() && extensionReceiver == null &&
             simpleName.asString() !in ignored && wireName() !in ignored &&
-            jacksonAnnotations().none { it.isJsonIgnore() }
-
-    private fun KSPropertyDeclaration.wireName(): String =
-        jacksonAnnotations().filter { it.qualifiedName() == JSON_PROPERTY }
-            .firstNotNullOfOrNull { (it.argument("value") as? String)?.takeIf(String::isNotEmpty) }
-            ?: simpleName.asString()
+            !jsonIgnored()
 
     /** The class whose properties a path continues into: the type itself, or a collection's element type. */
     private fun KSType.nestedClass(): KSClassDeclaration? {
@@ -190,28 +184,4 @@ internal object QueryPropertiesSource {
             type.modifiers.contains(Modifier.INLINE)
         return if (leaf) null else type
     }
-
-    /** Jackson annotations on the property, its getter, or its primary-constructor parameter. */
-    private fun KSPropertyDeclaration.jacksonAnnotations(): List<KSAnnotation> {
-        val name = simpleName.asString()
-        val parameter = (parentDeclaration as? KSClassDeclaration)?.primaryConstructor?.parameters
-            ?.firstOrNull { it.name?.asString() == name }?.annotations.orEmpty()
-        return (annotations + getter?.annotations.orEmpty() + parameter)
-            .filter { it.qualifiedName() == JSON_PROPERTY || it.qualifiedName() == JSON_IGNORE }
-            .toList()
-    }
-
-    private fun KSClassDeclaration.ignoredProperties(): Set<String> = annotations
-        .filter { it.qualifiedName() == JSON_IGNORE_PROPERTIES }
-        .flatMap { (it.argument("value") as? List<*>).orEmpty() }
-        .filterIsInstance<String>()
-        .toSet()
-
-    private fun KSAnnotation.isJsonIgnore(): Boolean =
-        qualifiedName() == JSON_IGNORE && argument("value") as? Boolean ?: true
-
-    private fun KSAnnotation.qualifiedName(): String? =
-        annotationType.resolve().declaration.qualifiedName?.asString()
-
-    private fun KSAnnotation.argument(name: String): Any? = arguments.firstOrNull { it.name?.asString() == name }?.value
 }

@@ -117,6 +117,8 @@ internal data class CommandBinding(
     val creation: String,
     /** Whether the command is `@Unaddressed`: its request may name no aggregate, which a transformer finds. */
     val unaddressed: Boolean = false,
+    /** The command's `@AggregateId` property, which its body names its aggregate by; null when it has none. */
+    val aggregateId: AggregateIdBinding? = null,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
     /**
