@@ -129,7 +129,8 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@Retry(recoverable, unrecoverable)`, `RecoverableExceptionProvider`, `RecoverableException`, `RecoverableType` | `@Retry(recoverable, unrecoverable)` and `FailureClassifier` (`me.ahoo.wow.spi.subscription`) | Same attributes; the nearer listed class decides. A `RecoverableExceptionProvider` becomes a `FailureClassifier` bean returning a `FailureClass`: 9.x `UNRECOVERABLE` → `UNRECOVERABLE` (parks at once, no automatic retries), `RECOVERABLE` and `UNKNOWN` → `RECOVERABLE` (retried within the budget, then parked). A store, broker or connection that is down is `SYSTEMIC` (V10 only): the subscription pauses the partition and retries until it is back, parking nothing (`wow.subscription.systemic.*`). `@Retry(enabled = false)` has no V10 form. |
 | `@OnError` | Removed | Return a rejection, with the events to record when the refusal should be kept (`reject(code, message, events = listOf(...))`); compensate in a `@Saga`'s `@OnRejected` handler. |
 | `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key, tenancy)`; decide the tenancy of every key. See [Reserved keys](#reserved-keys-9x-preparekey). |
-| `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-carry-no-identity). |
+| `@AggregateId` on a command property | Kept: same name, package and meaning | The body names the aggregate; the command's route has no `{id}`. A field 9.x bound from the path is deleted instead. See [Command bodies](#command-bodies-hold-business-data). |
+| `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-hold-business-data). |
 | `@StaticTenantId`, `@StaticAggregateId` | Removed | Fixed tenant is host configuration. |
 | `@AggregateName` | `@Name` on the aggregate root | |
 | `@AggregateRoute`, `@CommandRoute` (`PathVariable`, `HeaderVariable`) | Removed | Routes come from the Manifest. |
@@ -139,13 +140,16 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | none | `@QueryIndex(name, on, with)` | New in V10: declares a query index on a state property, or on the state class with `on`; the backend creates it as the `ddl` of its store (`wow.ddl`: `auto`, `validate`, `none`) says. Add one where a 9.x deployment had a hand-made index on the snapshot collection, and report it. |
 | `@Tag`, `@Schema(name)` (swagger) | Not read | Schemas come from Jackson introspection at build time. |
 
-## Command bodies carry no identity
+## Command bodies hold business data
 
-A command body holds business data only. The aggregate identity is `Command<X>.ref` (`AggregateRef(type, tenantId, id)`), taken from the route or the command message; owner and space are `Command<X>.scope`, taken from the authenticated principal. Delete identity fields from bodies and rewrite every read of them to `command.ref`. A creating command whose id the client chooses uses the route with `{id}`; without it the server generates the id.
+A command body holds business data. The tenant, owner and space are `Command<X>.ref.tenantId` and `Command<X>.scope`, taken from the authenticated principal, and the expected version is `If-Match`: delete those fields and rewrite every read of them. The aggregate is `Command<X>.ref` (`AggregateRef(type, tenantId, id)`), taken from the route or the command message, unless the body names it. Decide per 9.x `@AggregateId`:
 
-A 9.x body that derived its aggregate's id from its own fields (an `Identifier.id` getter such as `"$warehouseId-$code"`) loses that too. In the pinned V10 today, each such command type needs a `CommandTransformer` of its own (one per input type, decision D182) that sets the target id from the body, a saga that sends it names the id (`CommandRequest.of(body, id)`), and a client may post to the route with `{id}`, computed the same way. Whether V10 gets a declarative form for ids derived from the body is a pending decision: check the pinned target.
+- **Bound from the path** (`@CommandRoute.PathVariable` with `@AggregateId`, or a field that only repeated the route): delete it and read `command.ref.id`. The command keeps the route with `{id}`; a creating command whose id the client chooses uses that route, and without it the server generates the id.
+- **Taken from the body's business data** (a field such as `productId`, or an `Identifier.id` getter such as `"$warehouseId-$code"`): keep `@AggregateId` on that property, the same annotation in the same package (`me.ahoo.wow.api.annotation`). The compiler generates its read, the command's route becomes `POST /<context>/<aggregate>/<command>` alone, a saga sends `CommandRequest.of(body)` without an id, and the Manifest lists the property as `idProperty`. A computed getter stays one: the service computes the id from the fields, and a client that sends only the fields leaves it out. A creating command may declare `String?` (null: the server assigns the id). Do not write a `CommandTransformer` for such a command: one that takes it stops the service at start. Report the route change as a REST contract difference: a client that posted such a command to a route with the id gets 404 and must post to the route without it, the id in the body.
 
-Before:
+The property must be a `String` (`String?` only on a command that may create its aggregate), public or internal, and written by Wow's JSON (not `@JsonIgnore`d); one per command. The compiler refuses it on an `@Unaddressed` or mounted command and on an aggregate whose id is its owner's (`idSource = OWNER`). A blank id, or a request that names another aggregate beside the body, is `wow.command.malformed` (400).
+
+Before (an id bound from the path):
 
 ```kotlin
 @CommandRoute(action = "package", appendIdPath = CommandRoute.AppendPath.ALWAYS, method = CommandRoute.Method.PATCH)
@@ -170,6 +174,25 @@ data object ReceiptOrder
 
 @Summary("Ship the order")
 data object ShipOrder
+```
+
+Before and after (an id taken from the body):
+
+<!-- sample: 9.x -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) : Identifier {
+    override val id: String get() = "$warehouseId-$code"
+}
+```
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
 ```
 
 Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now the stream's `ref`, which forces a revision bump and an upgrade function.
@@ -628,7 +651,7 @@ A 9.x starter's own `RouterFunction` routes have no V10 counterpart: a V10 servi
 
 | 9.x starter route | V10 |
 |---|---|
-| A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | A `CommandTransformer` of the command (decision D182) that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Annotate a command that does not create its aggregate `@Unaddressed` (decision D210), so the Manifest, its baseline and the generated clients list that route too. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
+| A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | When the id is in the command's own fields, `@AggregateId` on that property ([Command bodies](#command-bodies-hold-business-data)). Otherwise a `CommandTransformer` of the command that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Annotate a command that does not create its aggregate `@Unaddressed`, so the Manifest, its baseline and the generated clients list that route too. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
 | A lookup of that aggregate (`GET …/preferences`) | A snapshot query (`POST /{context}/{aggregate}/snapshot/query`) filtered by what the id was derived from; nothing found means never written (version 0). |
 | A route that answered "already so" without a command, so the version did not move | `Decision.NoOp` in the aggregate: the command is answered at the unchanged version. |
 | A replay route that found a write by its request id (`…/requests/{requestId}`) | Not needed: a retry with the same `Wow-Request-Id` is answered as a duplicate with the version it committed (`GET …/{id}/state?version=` reads it), and a creation without an id keeps the id of its first attempt (decision D191). |
@@ -713,7 +736,7 @@ Kotlin callers of 9.x `CommandGateway` move to the host's `CommandClient` bean (
 | `send(message, WaitStrategy)` with `waitStage = PROCESSED` / `SNAPSHOT` | `wait(CommandRequest.of(command, id, wait = WaitPlan.COMMITTED))` (or `WaitPlan.SNAPSHOT`, any `Wow-Wait` plan), `timeout = …` |
 | `send(message)` (`SENT`) | `send(command, id)`: answers at ACCEPTED |
 | `CommandResultFlux` / per-stage results | `stream(request)` (or `stream(command, id)`), a flow of one result per hop |
-| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | Gone from the body (decision D68): the request's id; the tenant, owner and space are the caller's, `targetTenant`/`targetScope` for a cross-scope caller |
+| `@AggregateId`, `@TenantId`, `@OwnerId` on the command body | The tenant, owner and space are the caller's, `targetTenant`/`targetScope` for a cross-scope caller. A body that names its aggregate (`@AggregateId`, kept) is sent without an id, `wait(command)`; a ref beside it must name the same aggregate, or the client throws an `IllegalArgumentException` before sending. An id field 9.x bound from the path is deleted, and the id is the request's |
 | `requestId`, `aggregateVersion` on the message | `CommandRequest.of(command, id, requestId = …, expectedVersion = …)` |
 | `CommandResult` with `errorCode` / `CommandResultException` | Only a result that succeeded is answered: a rejection throws `CommandRejectedException` (its `code` and `result`), a technical failure `WowProblemException` (`code`, HTTP `status`, `retryHint`) |
 | A command to an aggregate of another service through the Kafka command bus | The same call: a command whose aggregate's context is a peer's (its `*-api` on the class path, decision D234) goes to that context's command topic `wow.<context>.commands`, as a saga's does (review M-1). Waits: `send` (ACCEPTED, once the broker acknowledged it) and `wait` up to the peer's COMMITTED, the default; a later hop (`snapshot`, `handled(…)`) is refused with `wow.wait.invalid`. Without Kafka (`wow.kafka.bootstrap-servers`) such a command is refused as `wow.command.unhandled` |

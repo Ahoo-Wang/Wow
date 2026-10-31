@@ -27,7 +27,7 @@ V10 when the build or sources show: the Gradle plugins `id("me.ahoo.wow")`, `id(
 
 - The current checkout, its tests, its Manifest and its resolved dependencies are the authority; the references say where to look, not what is true today.
 - Commands are intent, events are committed facts, state is evolved memory. A decide function decides from the command and the state and never mutates; an evolve function applies one event and does no I/O; side effects live in sagas, reactors and projections.
-- Keep handlers non-blocking (`suspend`, or Reactor types with `wow-reactor`), events free of personal data (they are permanent), and identity out of command bodies.
+- Keep handlers non-blocking (`suspend`, or Reactor types with `wow-reactor`), events free of personal data (they are permanent), and the tenant, owner and version out of command bodies.
 - **No checkout is no reason to stop.** When the project, the sources or a shell are not available (only a diff, a snippet or a description), still deliver: write the test, the fix or the code against what was shown, mark each name to confirm in the project, and give the commands to run and what they should show. Never answer with only a plan or a question.
 - Keep read-only requests (review, diagnosis, lookup) read-only: no edits, comments, approvals, merges or remote changes without explicit authorization.
 - Report the answer or the changed files and behavior, each verification command with its result, compatibility or operational risk, and every evidence gap. Never write "should pass" for a test that did not run.

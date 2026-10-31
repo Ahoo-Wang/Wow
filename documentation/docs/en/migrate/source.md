@@ -58,16 +58,19 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` for the in-process budget; the 9.x values become the parked entry's retries, `wow.subscriptions.[<context>.<processor.function>].parked.*` (`executionTimeout` as `claim-ttl`) |
 | `@OnError` | Removed: return a rejection, with the events to record (`reject(code, message, events)`), and compensate in a `@Saga`'s `@OnRejected` handler |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
-| `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the identity is the command's `ref`, the scope the caller's |
+| `@AggregateId` on a command property | Kept, with the same meaning: the body names the aggregate, and the command's route has no `{id}`. A field 9.x bound from the path only repeated the route: delete it ([What a command body holds](#what-a-command-body-holds)) |
+| `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the tenant and owner are the caller's, the expected version is `If-Match` |
 | `@StaticTenantId`, `@StaticAggregateId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |
 
-## Commands carry no identity
+## What a command body holds
 
-A command body holds business data only. The aggregate is `command.ref`, taken from the route; the owner and space are `command.scope`, taken from the authenticated caller. Delete the identity fields and the route annotations; what is left is the business data. The eShop's order is created by a command that carries only its items, the id coming from the route (a command left with no fields becomes an `object`):
+A command body holds business data. The tenant is the caller's, the owner and space are `command.scope`, taken from the authenticated caller, and the expected version comes from `If-Match`: delete the tenant, owner and version fields and the route annotations. The aggregate is `command.ref`, taken from the route, unless the body names it.
+
+A 9.x id field bound from the path (`@CommandRoute.PathVariable` with `@AggregateId`) only repeated the route: delete it and read `command.ref.id`, and the command keeps its route with `{id}`. The eShop's order is created by a command that carries only its items, the id coming from the route (a command left with no fields becomes an `object`):
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -84,6 +87,19 @@ data class SubmitOrder(
     @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
+
+A 9.x id the body took from its own business data, a field such as `productId` or a getter such as `"$warehouseId-$code"`, keeps `@AggregateId`, with the same name, package and meaning ([Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body)). The command's route then has no `{id}`, a saga or a client sends it without one, and it needs no `CommandTransformer`. A computed id stays a getter, which the service computes from the fields:
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
+```
+
+A client that sent such a command to a route with the id sends it to the route without one ([HTTP and TypeScript Clients](./http-and-clients#routes)).
 
 In decide, `CommandMessage<X>` is `Command<X>`, `command.aggregateId.id` is `command.ref.id`, `command.ownerId` is `command.scope.ownerId`, a 9.x `CommandResultAccessor` is `DecideScope.putResult`, and an id generated inside decide comes from `scope.ids.next()`.
 

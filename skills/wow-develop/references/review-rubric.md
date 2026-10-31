@@ -9,7 +9,7 @@ Judge behavior before style. Each finding: file and line, what goes wrong, when 
 - A command function returning `Decision` where its return type could name its events (one event kind: return it, or `E?`), or without `@OnCommand(produces)`.
 - A business rule failed by an exception other than `reject(code, …)` / `RejectedException`, `require` or `check`; an error code without `@ErrorCode`, with the `wow.` prefix, or reused.
 - A check of the command's own shape in decide (a quantity not positive, a blank name, an empty list) with an error code, instead of a Jakarta constraint on the command class; a constraint on a nested value without `@field:Valid` on its property; a service with constraints but no Bean Validation provider (they are then never checked).
-- Identity in a command body (aggregate id, tenant, owner); the caller's identity read from a raw header instead of the `Caller`.
+- A tenant or owner in a command body; an aggregate id field the route also carries (`@AggregateId` when the body is meant to name the aggregate, else `command.ref.id`); a `CommandTransformer` that only copies an id out of the body (`@AggregateId` does it); the caller's identity read from a raw header instead of the `Caller`.
 - A unique key that does not include the tenant without meaning to be global; uniqueness checked by a query instead of `DecideScope.reserve`.
 - An event changed after release without `@Revision` and an `@Upgrade` chain, an event deleted instead of retired, or the Manifest baseline updated to hide a break.
 - A state property without an initial value; personal data in events.

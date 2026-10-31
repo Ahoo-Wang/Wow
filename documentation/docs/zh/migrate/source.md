@@ -58,16 +58,19 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, multiplier, timeout)` 用于进程内的预算；9.x 的值变成停放条目的重试，`wow.subscriptions.[<context>.<processor.function>].parked.*`（`executionTimeout` 对应 `claim-ttl`） |
 | `@OnError` | 已移除：返回拒绝，带上要记录的事件（`reject(code, message, events)`），在 `@Saga` 的 `@OnRejected` 处理函数中补偿 |
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
-| 命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：身份是命令的 `ref`，作用域是调用方的 |
+| 命令属性上的 `@AggregateId` | 保留，含义不变：命令体指明聚合，命令的路由不带 `{id}`。9.x 从路径绑定的字段只是重复了路由：删除它（[命令体承载什么](#what-a-command-body-holds)） |
+| 命令字段上的 `@TenantId`、`@OwnerId`、`@AggregateVersion` | 已移除：租户和所有者是调用方的，期望版本是 `If-Match` |
 | `@StaticTenantId`、`@StaticAggregateId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
 | `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Tags` |
 
-## 命令不携带身份 {#commands-carry-no-identity}
+## 命令体承载什么 {#what-a-command-body-holds}
 
-命令体只保存业务数据。聚合是 `command.ref`，取自路由；所有者和空间是 `command.scope`，取自已认证的调用方。删除身份字段和路由注解，剩下的就是业务数据。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
+命令体保存业务数据。租户是调用方的，所有者和空间是 `command.scope`，取自已认证的调用方，期望版本来自 `If-Match`：删除租户、所有者和版本字段以及路由注解。聚合是 `command.ref`，取自路由，除非命令体指明了它。
+
+9.x 从路径绑定的 ID 字段（`@CommandRoute.PathVariable` 加 `@AggregateId`）只是重复了路由：删除它，读取 `command.ref.id`，命令保留带 `{id}` 的路由。eShop 的订单由一个只携带订单项的命令创建，ID 来自路由（没有字段剩下的命令变成 `object`）：
 
 <!-- sample: examples/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
 
@@ -84,6 +87,19 @@ data class SubmitOrder(
     @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
+
+9.x 由命令体自己的业务数据得出的 ID（`productId` 这样的字段，或 `"$warehouseId-$code"` 这样的 getter）保留 `@AggregateId`，名称、包和含义都不变（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。命令的路由于是不带 `{id}`，Saga 或客户端发送它时都不带 ID，也不需要 `CommandTransformer`。计算出的 ID 仍是一个 getter，由服务从字段算出：
+
+<!-- sample: fragment -->
+
+```kotlin
+data class AdjustStock(val warehouseId: String, val code: String, val delta: Int) {
+    @AggregateId
+    val stockId: String get() = "$warehouseId-$code"
+}
+```
+
+原先把这类命令发往带 ID 路由的客户端，改为发往不带 ID 的路由（[HTTP 与 TypeScript 客户端](./http-and-clients#routes)）。
 
 在 decide 中，`CommandMessage<X>` 是 `Command<X>`，`command.aggregateId.id` 是 `command.ref.id`，`command.ownerId` 是 `command.scope.ownerId`，9.x 的 `CommandResultAccessor` 是 `DecideScope.putResult`，在 decide 中生成的 ID 来自 `scope.ids.next()`。
 
