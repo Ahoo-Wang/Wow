@@ -279,7 +279,7 @@ wow:
 ./gradlew run
 ```
 
-类路径上有 `wow-mongo` 或 `wow-postgres` 时，`--args='--spring.profiles.active=mongo'`（或 `postgres`）会改为把数据放在 MongoDB 或 PostgreSQL 中，配置见模块的 `application-mongo.yaml` 和 `application-postgres.yaml`（[MongoDB](../operate/mongodb)、[PostgreSQL](../operate/postgresql)）。
+类路径上有 `wow-mongo`，或者有 `wow-postgres` 和连接池（`com.zaxxer:HikariCP`，宿主用它创建 `DataSource`）时，`--args='--spring.profiles.active=mongo'`（或 `postgres`）会改为把数据放在 MongoDB 或 PostgreSQL 中，配置见模块的 `application-mongo.yaml` 和 `application-postgres.yaml`（[MongoDB](../operate/mongodb)、[PostgreSQL](../operate/postgresql)）。
 
 节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）：只有开发中的节点（这里是内部端口只绑定回环接口的节点）才能在没有调用方解析器时启动。
 
@@ -318,7 +318,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
   -d '{"kind":"list","filter":{"op":"gte","field":"state.balance","value":100}}'
 ```
 
-第一个请求返回版本和状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice` 的。过滤、排序、分页和其他种类的查询见[查询快照](../guide/queries)。在内存后端上，只有设置了 `wow.query.memory.enabled` 才提供查询；PostgreSQL 和 MongoDB 自己就能提供。
+第一个请求返回版本和状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice` 的。过滤、排序、分页和其他种类的查询见[查询快照](../guide/queries)。在内存后端上，查询默认就由内存提供，`wow.query.memory.enabled: false` 关闭它；PostgreSQL 和 MongoDB 自己就能提供。
 
 ## 从代码发送命令 {#send-commands-from-code}
 

@@ -279,7 +279,7 @@ wow:
 ./gradlew run
 ```
 
-With `wow-mongo` or `wow-postgres` on the class path, `--args='--spring.profiles.active=mongo'` (or `postgres`) keeps the data on MongoDB or PostgreSQL instead, as the module's `application-mongo.yaml` and `application-postgres.yaml` set it ([MongoDB](../operate/mongodb), [PostgreSQL](../operate/postgresql)).
+With `wow-mongo` on the class path, or `wow-postgres` and a connection pool (`com.zaxxer:HikariCP`, from which the host makes the `DataSource`), `--args='--spring.profiles.active=mongo'` (or `postgres`) keeps the data on MongoDB or PostgreSQL instead, as the module's `application-mongo.yaml` and `application-postgres.yaml` set it ([MongoDB](../operate/mongodb), [PostgreSQL](../operate/postgresql)).
 
 The node serves its routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)): only a node in development, here one whose internal port is on the loopback interface, starts without a caller resolver.
 
@@ -318,7 +318,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
   -d '{"kind":"list","filter":{"op":"gte","field":"state.balance","value":100}}'
 ```
 
-The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Snapshots](../guide/queries) describes filters, sorts, pages and the other kinds of query. On the memory backend the queries are served only with `wow.query.memory.enabled`; PostgreSQL and MongoDB serve them themselves.
+The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Snapshots](../guide/queries) describes filters, sorts, pages and the other kinds of query. On the memory backend the queries are served from memory by default, and `wow.query.memory.enabled: false` turns that off; PostgreSQL and MongoDB serve them themselves.
 
 ## Send commands from code
 

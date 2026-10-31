@@ -195,18 +195,14 @@ api 模块包含命令和事件，它们是不带身份字段的数据类，其�
 
 服务器是一个普通的 Spring Boot 应用。catalog 的服务器只需要它的应用类：
 
-<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: test/publication-consumer/catalog-server/src/main/kotlin/com/example/catalog/server/CatalogServer.kt -->
 
 ```kotlin
-package me.ahoo.wow.example.eshop.catalog.server
+package com.example.catalog.server
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-/**
- * The eShop's catalog service on the Wow host: the host finds the product model through `eshop-catalog-domain`'s binding
- * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend.
- */
 @SpringBootApplication(proxyBeanMethods = false)
 class CatalogServer
 
@@ -219,4 +215,4 @@ fun main(args: Array<String>) {
 
 ## 运行 {#run-it}
 
-`./gradlew :catalog-server:run` 在这台机器上启动一个节点。命令、状态读取和查询的提供方式与[快速开始](./quickstart#send-commands)中相同。上线生产之前，过一遍[运行 Wow](../operate/)。
+服务器的 `application.yaml` 写明服务名（`spring.application.name`），并如上所述给它一个数据库或开发环境的 profile 之后，`./gradlew :catalog-server:run` 在这台机器上启动一个节点。命令、状态读取和查询的提供方式与[快速开始](./quickstart#send-commands)中相同。上线生产之前，过一遍[运行 Wow](../operate/)。

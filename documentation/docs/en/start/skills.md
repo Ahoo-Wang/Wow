@@ -33,7 +33,7 @@ Pick by the deliverable, not by the components a task mentions. Numbers from liv
 
 ## When they apply
 
-A Skill applies only to an application that uses Wow, or a task that clearly means to adopt, use, explain or migrate to it: `me.ahoo.wow` imports or `wow-*` dependencies (the Gradle plugin `me.ahoo.wow`, the BOM `me.ahoo.wow:wow-bom`), or the `@ahoo-wang/wow-*` packages on the TypeScript side. General words such as DDD, CQRS, event sourcing, aggregate or saga do not trigger them, and neither does the Wow framework repository itself.
+A Skill applies only to an application that uses Wow, or a task that clearly means to adopt, use, explain or migrate to it: `me.ahoo.wow` imports or `wow-*` dependencies (the Gradle plugin `me.ahoo.wow`, the BOM `me.ahoo.wow:wow-bom`), or the `@ahoo-wang/wow-*` packages on the TypeScript side. General words such as DDD, CQRS, event sourcing, aggregate or saga do not trigger them, and neither does the Wow framework repository itself, except its own view definitions and hosts (the Storybook, the ops console) and the porting of its 9.x platform modules.
 
 ## How they work
 
