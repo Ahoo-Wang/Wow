@@ -40,7 +40,7 @@ These values appear inside most structures.
 | Scope | `{"ownerId", "spaceId"}` | Either may be null. On a command, the caller's scope; on a commit or a snapshot, the aggregate's after the commit. |
 | Causation | `{"correlationId", "causationId"}` | `correlationId` is the root command's id; `causationId` is the direct cause, for a saga's command the commit it handled. A command sent directly by a caller has none and is its own root. |
 | Operator | `{"id", "tenantId", "crossScope"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `crossScope` when it acted in another tenant or scope. |
-| Hop | `{"stage", "context", "subscription"}` | `stage` is `accepted`, `committed` or `handled`; `subscription` only for `handled`; `snapshot` names the snapshot subscription. |
+| Hop | `{"stage", "context", "subscription"}` | `stage` is `accepted`, `committed` or `handled`; `subscription` only for `handled`; the snapshot hop is `handled` with the subscription `wow.snapshot`. |
 
 Times are epoch milliseconds.
 
@@ -48,7 +48,7 @@ Times are epoch milliseconds.
 
 A state read answers `ETag: "<version>-<digest>"`: the aggregate's version, then the first 64 bits of the SHA-256 of the body as 16 hex digits. The tag changes with whatever changes what the caller reads, not only with the version.
 
-A conditional header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` (RFC 9110 §8.8.3). Anything else is 400 `wow.request.malformed`.
+A conditional header is `*` or a comma-separated list of entity tags, each `"<opaque>"` or weak `W/"<opaque>"` (RFC 9110 §8.8.3). An `If-Match` that is anything else is 400 `wow.request.malformed`; an `If-None-Match` that does not parse is ignored.
 
 - **`If-Match` on a command** compares strongly (RFC 9110 §13.1.1). A strong tag names a version, either as a state read tags it (`"3-0123456789abcdef"`) or alone (`"3"`). The command runs when the aggregate is at that version; otherwise it is 412 `wow.aggregate.version-mismatch`. A command takes one expected version: a list whose tags name the same version is that version, and one naming two or more is 400 `wow.request.malformed`. A weak tag, or a tag that names no version, never matches, so a list of only those is 412. `*` on a command that always creates its aggregate is 412; on any other command, unlike RFC 9110, `*` adds no condition, and a missing aggregate stays 404 `wow.aggregate.not-found`.
 - **`If-None-Match` on a state read** compares weakly (§13.1.2). `W/` is ignored, `*` matches any state, and a matching tag answers 304.
@@ -71,7 +71,7 @@ The event stream is the fact: the events one command produced, committed by one 
 | `headers` | The request facts admission recorded, such as `app_id`. |
 | `operator` | Whose name the commit is recorded under; null for an anonymous caller. |
 
-Beside the facts, a log entry has a **position**, its sequence number within its partition, and may have **transport data**: the wait context of an open wait, reservations to confirm, trace context.
+Beside the facts, a log entry has a **position**, its sequence number within its partition, and may have **transport data**: the wait context of an open wait, reservations to confirm and to release, trace context.
 
 Transport data has one form wherever it goes, the JSON object `{wait, reservations, trace, releases}` the envelope and the cluster channel embed; an absent wait, an empty list and an empty trace are left out. A log stores it as the bytes the node wrote and gives them back unchanged, without reading them, so a field a newer version adds needs no change to any backend.
 
@@ -93,7 +93,7 @@ Every message Wow writes to Kafka is an envelope.
 
 | Part | Content |
 | --- | --- |
-| Key | The aggregate reference as text, so one aggregate's messages stay in one Kafka partition and in order. |
+| Key | The aggregate reference as text, so one aggregate's messages stay in one Kafka partition and in order; a creation whose id is not chosen yet is keyed `context.aggregate/tenant/(none):<requestId>`. |
 | Headers | `wow-format`, `wow-kind` and `wow-type`: the envelope's format, kind and type, readable without parsing the value. |
 | Value | `{format, kind, id, type, payload, transport}`. |
 
@@ -356,12 +356,12 @@ How the kernel's outcomes map to a result at `committed`:
 | Committed | `succeeded` | `version` is the new version; `results` as decide returned them |
 | Already committed | `succeeded` | `duplicate` is true; no `results` |
 | No change | `succeeded` | `version` is unchanged |
-| Rejected | `rejected` | `error.code` is the rejection's code; `version` is the one its events reached, else the one the decision saw, and absent for a creation; `duplicate` on a retry |
+| Rejected | `rejected` | `error.code` is the rejection's code; `version` is the one its events reached, else the one the decision saw, and null for a creation; `duplicate` on a retry |
 | Contended | `failed` | `wow.command.contended`; retry with the same request id |
 | Unknown | `failed` | `wow.command.unknown`; retry with the same request id, which cannot commit twice |
 | Wait timed out | `failed` | `wow.wait.timeout`; the waiter stopped waiting, which does not mean the command failed |
 
-Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code`, `violations` and `version`, the aggregate's version the problem answered (a rejection's, or the current one of a state read below its minimum version; never an extension's), and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each hop's result is one event, and the stream closes after the last.
+Over HTTP, a successful command answers 200 with the result. A rejection or a failure answers `application/problem+json` (RFC 9457) with `type` set to `urn:wow:error:<code>`, the extension members `code`, `retry`, `violations` and `version`, the aggregate's version the problem answered (a rejection's, or the current one of a state read below its minimum version; never an extension's), and the whole result under `result`, so a client parses one shape either way. With `Accept: text/event-stream`, each result is one event, and the stream closes after the last.
 
 ## Wait signal
 
@@ -411,7 +411,7 @@ A hop that completes sends a signal straight to the internal port of the node th
 }
 ```
 
-A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop and the context and subscription that sent it.
+A node may send several signals to one node as a JSON array of them. The receiving node deduplicates a signal by its wait id, its hop, its command and the function that produced its result (its context and subscription).
 
 ## Cluster channel
 
@@ -439,7 +439,7 @@ A snapshot is the latest state of one aggregate with its metadata, as the snapsh
 | `operator`, `firstOperator` | The operators of its last and first commits. |
 | `schedules` | The schedules it keeps, each rule by its key. |
 
-These are also the system fields of the `snapshot` query model.
+The `snapshot` query model reads them as its system fields, flattened: `tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `schedules` and `state`; `schemaFingerprint` and `stateRevision` are not among them.
 
 ## Format versions
 

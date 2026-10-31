@@ -15,8 +15,9 @@ outline: deep
 | 方法和路径 | 发送 |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | 命令（kebab case），发往聚合 `{id}` |
-| `POST /<context>/<aggregate>/<command>` | 一条创建命令，发往一个由服务端分配 ID 的新聚合；命令体指明了聚合的命令则发往那个聚合 |
+| `POST /<context>/<aggregate>/<command>` | 一条创建命令，发往一个由服务端分配 ID 的新聚合；命令体指明了聚合的命令则发往那个聚合；挂载命令或 `@Unaddressed` 命令发往其转换器找到的聚合；ID 即所有者 ID 的聚合（`idSource = OWNER`）的任何命令发往调用方自己的那个聚合 |
 | `DELETE /<context>/<aggregate>/{id}` | `DeleteAggregate` |
+| `DELETE /<context>/<aggregate>` | 对 ID 即所有者 ID 的聚合：删除调用方自己的那个聚合（`DeleteAggregate`） |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.restore-aggregate` | `RestoreAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`，请求体为 `{"ownerId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `TransferSpace`，请求体为 `{"spaceId": "…"}` |
@@ -32,6 +33,7 @@ outline: deep
 | --- | --- |
 | `GET /<context>/<aggregate>/{id}/state` | 最新状态；`?version=n`、`?at=<instant>` 或 `?minVersion=n` |
 | `GET /<context>/<aggregate>/{id}/state/trace` | 提交，`?from=`、`?to=`、`?limit=`（100，最多 1,000） |
+| `GET /<context>/<aggregate>/state`、`…/state/trace` | 同上，对 ID 即所有者 ID 的聚合：调用方自己的那个聚合 |
 | `POST /<context>/<aggregate>/snapshot/query` | 快照查询 |
 | `POST /<context>/<aggregate>/events/query` | 事件查询 |
 | 对任一查询路径发 `GET` | 模型的能力描述，版本作为 `ETag` |
@@ -45,6 +47,8 @@ outline: deep
 | `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`） |
 | `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`） |
 
+上下文自己的服务路由（它的代码声明的处理函数）按 Manifest 列出的样子提供。`wow.http.ops.enabled: true`（默认关闭）还提供运维人员的路由：`/wow/ops/parked` 下的停放条目，以及读取节点订阅的 `GET /wow/ops/subscriptions`（[运维控制台](../operate/ops-console)）。
+
 某个上下文路径下的其他任何请求，都是一个 `404` problem。
 
 ## 请求头 {#request-headers}
@@ -52,16 +56,16 @@ outline: deep
 | 请求头 | 用于 | 含义 |
 | --- | --- | --- |
 | `Wow-Request-Id` | 命令 | 调用方给请求的 ID：用同一个 ID 重试会被当作已完成来回答（`duplicate`），绝不会决定两次；同一个 ID 用于另一条命令时是 `wow.command.request-id-reused` |
-| `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot` |
+| `Wow-Wait` | 命令 | 回答之前要等到哪里（见下文）；默认 `snapshot`，没有快照的聚合为 `committed`，在那里显式的 `snapshot` 是 `wow.wait.invalid` |
 | `Wow-Wait-Timeout` | 命令 | 等待多久：`500ms`、`10s`、`1m` 或 ISO-8601；默认 `wow.wait.default-timeout`（10 秒），最长 `wow.wait.max-timeout`（1 分钟） |
 | `If-Match` | 命令 | 聚合必须所处的版本；否则 `412 wow.aggregate.version-mismatch`（[实体标签](./protocols#entity-tags)） |
-| `If-None-Match` | 状态读取 | 状态上一次的 `ETag`；仍然有效时返回 `304`（[实体标签](./protocols#entity-tags)） |
+| `If-None-Match` | 状态读取、能力描述 | 上一次的 `ETag`；仍然有效时返回 `304`（[实体标签](./protocols#entity-tags)） |
 | `Accept: text/event-stream` | 命令、`list` 查询 | 服务端推送事件（见下文） |
 | `Last-Event-ID` | 流式的 `list` 查询 | 从哪个位置之后续读 |
 | `Wow-Scope` | 每个路由 | 对被允许跨作用域行事的调用方：要在其中行事的租户、所有者和空间，一个 RFC 8941 字典，`tenant="t1", owner="u1", space="s1"`。在查询路由上，打开 `wow.query.allow-cross-tenant` 时，`tenant=*` 或 `tenant=("t1" "t2")` 可以跨租户读取 |
 | `Wow-Space` | 每个路由 | 在调用方自己的空间中，要在其中行事的那个 |
 
-带有 `Wow-Call`（服务同步调用的请求头）的请求，在公开端口上会以 `403 wow.auth.forbidden` 拒绝：调用只在内部端口上接收。`wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
+带有 `Wow-Call`（服务同步调用的请求头）的命令请求或上下文自有服务路由的请求，在公开端口上会以 `403 wow.auth.forbidden` 拒绝：调用只在内部端口上接收。`wow.http.request-facts` 列出的请求头会复制进命令，并写进它的事件流。
 
 ## Wow-Wait {#wow-wait}
 
@@ -88,10 +92,10 @@ hop  := "accepted" ["(" context ")"]
 | --- | --- |
 | `200` | 等待结束时命令的结果；一个状态；一个查询的回答 |
 | `202` | 等待止于 `accepted` 的命令 |
-| `304` | 请求指明了其 `ETag` 的状态 |
+| `304` | 请求指明了其 `ETag` 的状态或能力描述 |
 | `4xx`、`5xx` | 一个 RFC 9457 problem（见下文）；稍后重试可能成功时带 `Retry-After` |
 
-**服务端推送事件。** 带 `Accept: text/event-stream` 的命令在准入后以 `200` 回答，然后每到达一跳发一个事件，事件以这一跳的阶段命名，数据是结果，直到等待结束；准入时被拒绝则返回一个 problem。流式的 `list` 每条记录发一个 `row` 事件，它的 `id` 是这一行的位置，然后是一个 `end` 事件：`{"reason":"complete"}`，或者在 `wow.query.stream.max-hold` 之后的 `{"reason":"hold-expired","resumable":true}`。
+**服务端推送事件。** 带 `Accept: text/event-stream` 的命令在准入后以 `200` 回答，然后随着等待推进，每个结果发一个事件（多条派生命令到达的同一跳各发一个），`id` 是结果的序号，事件以这一跳的阶段命名，数据是结果，直到等待结束；准入时被拒绝则返回一个 problem。流式的 `list` 每条记录发一个 `row` 事件，它的 `id` 是这一行位置的游标（排序无法续读的列表没有 `id`），然后是一个 `end` 事件 `{"reason", "resumable"}`：全部记录发完为 `complete`（`"resumable":false`），`wow.query.stream.max-hold` 之后为 `hold-expired`，节点停止为 `node-stopping`，存储没能及时给下一块查询许可为 `permit-reclaimed`。可续读的流中，除 `complete` 外都可以用 `Last-Event-ID` 续读。第一行之后的失败以一个携带 problem 的 `error` 事件结束流。
 
 ## Problem {#problems}
 
@@ -105,7 +109,9 @@ hop  := "accepted" ["(" context ")"]
 | `title` | 给人看的错误码简短摘要，每次出现都相同：框架错误码的标题（[错误码](./error-codes)），领域错误码的 `@ErrorCode(description)` |
 | `detail` | 给人看的、这次请求发生了什么：拒绝或失败的消息 |
 | `violations` | 字段级的违规：`path`、`code`、`message`。命令约束的 `code` 是约束名的小写 kebab 形式：`NotBlank` 是 `not-blank`。 |
+| `retry` | 每个 problem 都有：重试能做什么，`none`、`same-request`（用同一个 `Wow-Request-Id` 重发）或 `new-request`；不是 `none` 时带 `Retry-After` |
 | `result` | 命令产生了结果时，命令完整的结果 |
-| 其他任何成员 | 拒绝的结构化扩展，按名字 |
+| `version` | problem 所回答的聚合版本：拒绝的版本，或低于 `minVersion` 的状态读取时的当前版本 |
+| 其他任何成员 | 拒绝的结构化扩展，按名字；与上面某个成员或 `instance` 同名的扩展会被略去 |
 
 领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。
