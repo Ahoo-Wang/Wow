@@ -375,4 +375,30 @@ class SchemaCompatibilityTest {
         changes(obj("a" to STRING, required = listOf("a")), obj("a" to STRING))
             .assert().containsExactly("ADDITIVE s.a: field made optional")
     }
+
+    @Test
+    fun `stored records should be read back as an input whose constraints no record is checked against`() {
+        fun stored(old: Any?, new: Any?) = SchemaCompatibility(mapOf("t" to old), mapOf("t" to new))
+            .compare("s", "#/\$defs/t", "#/\$defs/t", direction = SchemaDirection.STORED)
+            .map { it.toString() }
+        // The structure is read back as an input's: an old record without a field the class now requires breaks.
+        stored(obj("a" to STRING), obj("a" to STRING, "b" to STRING, required = listOf("b")))
+            .assert().containsExactly("BREAKING s.b: required field added")
+        stored(obj("a" to mapOf("enum" to listOf("x", "y"))), obj("a" to mapOf("enum" to listOf("x"))))
+            .assert().containsExactly("BREAKING s.a: enum value y removed")
+        // A format says how a value is decoded: changed, it is still breaking.
+        stored(obj("a" to STRING + ("format" to "date-time")), obj("a" to STRING + ("format" to "date")))
+            .assert().containsExactly("BREAKING s.a: format changed from date-time to date")
+        // A constraint, whichever way it moves, is additive: no stored record is checked against it.
+        stored(obj("a" to STRING), obj("a" to STRING + ("minLength" to 1)))
+            .assert().containsExactly("ADDITIVE s.a: minLength 1 imposed")
+        stored(obj("a" to STRING + ("maxLength" to 16)), obj("a" to STRING + ("maxLength" to 8)))
+            .assert().containsExactly("ADDITIVE s.a: maxLength lowered from 16 to 8")
+        stored(obj("a" to STRING + ("maxLength" to 8)), obj("a" to STRING + ("maxLength" to 16)))
+            .assert().containsExactly("ADDITIVE s.a: maxLength raised from 8 to 16")
+        stored(obj("a" to STRING + ("pattern" to "^a")), obj("a" to STRING + ("pattern" to "^b")))
+            .assert().containsExactly("ADDITIVE s.a: pattern changed from ^a to ^b")
+        stored(obj("a" to NUMBER + ("multipleOf" to 2)), obj("a" to NUMBER))
+            .assert().containsExactly("ADDITIVE s.a: multipleOf 2 lifted")
+    }
 }

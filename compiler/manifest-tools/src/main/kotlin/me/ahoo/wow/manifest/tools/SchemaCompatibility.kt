@@ -21,7 +21,8 @@ import me.ahoo.wow.manifest.Manifest
  *
  * The table is an [input][SchemaDirection.INPUT]'s, a schema old clients send. An [output][SchemaDirection.OUTPUT]'s,
  * a schema old clients read, mirrors it: what accepts more breaks it and what accepts less does not, and an optional
- * field removed is additive.
+ * field removed is additive. A [stored][SchemaDirection.STORED] one's, the service's own records, is an input's but for
+ * the bounds, `pattern` and `multipleOf`, which are additive whichever way they move.
  *
  * | Change | Kind |
  * | --- | --- |
@@ -52,9 +53,12 @@ import me.ahoo.wow.manifest.Manifest
  * Which way a schema's values flow: an [INPUT] is what old clients send, such as a command or a
  * route's request, so it may only accept more; an [OUTPUT] is what old clients read, such as a route's response, so it
  * may only produce less: a type widened, an enum value added, a field made optional or an alternative added breaks
- * it, and a required field added or an optional one removed does not.
+ * it, and a required field added or an optional one removed does not. A [STORED] schema is what the service's own
+ * records were written with, an event's or a state's, which it reads back: an input for the structure, but no stored
+ * record is checked against a constraint (a bound, a `pattern`, a `multipleOf`), so a constraint changed either way
+ * is additive there; whether it breaks is its readers' to say, an [OUTPUT]'s.
  */
-enum class SchemaDirection { INPUT, OUTPUT }
+enum class SchemaDirection { INPUT, OUTPUT, STORED }
 
 internal class SchemaCompatibility(
     private val baselineDefs: Map<String, Any?>,
@@ -96,13 +100,20 @@ internal class SchemaCompatibility(
     private inner class Comparison(private val direction: SchemaDirection) {
         val changes = mutableListOf<ManifestChange>()
 
-        /** A change that accepts fewer values: breaking for an input, which old clients send; additive for an output. */
-        private fun narrowed(path: String, description: String) =
-            if (direction == SchemaDirection.INPUT) breaking(path, description) else additive(path, description)
+        /**
+         * A change that accepts fewer values: breaking for an input, which old clients send; additive for an output, and
+         * for stored records when it is a [constraint], which no stored record is checked against.
+         */
+        private fun narrowed(path: String, description: String, constraint: Boolean = false) =
+            if (direction == SchemaDirection.OUTPUT || constraint && direction == SchemaDirection.STORED) {
+                additive(path, description)
+            } else {
+                breaking(path, description)
+            }
 
         /** A change that accepts more values: additive for an input; breaking for an output, which old clients read. */
         private fun widened(path: String, description: String) =
-            if (direction == SchemaDirection.INPUT) additive(path, description) else breaking(path, description)
+            if (direction == SchemaDirection.OUTPUT) breaking(path, description) else additive(path, description)
 
         /** The pairs of definitions being compared, so a recursive type ends the comparison instead of looping. */
         private val comparing = mutableSetOf<Pair<String, String>>()
@@ -280,7 +291,7 @@ internal class SchemaCompatibility(
                     keyword == FORMAT && listOfNotNull(oldValue, newValue).all { it in WIRE_FORMATS } -> Unit
                     keyword in QUERY_SEMANTICS -> breaking(path, "$keyword changed from $oldValue to $newValue")
                     newValue == null -> widened(path, "$keyword $oldValue lifted")
-                    oldValue == null -> narrowed(path, "$keyword $newValue imposed")
+                    oldValue == null -> narrowed(path, "$keyword $newValue imposed", keyword in CONSTRAINTS)
                     else -> compareBound(path, keyword, oldValue, newValue)
                 }
             }
@@ -296,12 +307,17 @@ internal class SchemaCompatibility(
             val lower = keyword in LOWER_BOUNDS
             val bound = lower || keyword in UPPER_BOUNDS
             if (!bound || old == null || new == null) {
-                breaking(path, "$keyword changed from $oldValue to $newValue")
+                val description = "$keyword changed from $oldValue to $newValue"
+                if (direction == SchemaDirection.STORED && keyword in CONSTRAINTS) {
+                    additive(path, description)
+                } else {
+                    breaking(path, description)
+                }
             } else if (old.compareTo(new) == 0) {
                 // The same bound, written as another number (1 and 1.0).
                 return
             } else if ((new > old) == lower) {
-                narrowed(path, "$keyword ${if (lower) "raised" else "lowered"} from $oldValue to $newValue")
+                narrowed(path, "$keyword ${if (lower) "raised" else "lowered"} from $oldValue to $newValue", true)
             } else {
                 widened(path, "$keyword ${if (lower) "lowered" else "raised"} from $oldValue to $newValue")
             }
@@ -392,6 +408,12 @@ internal class SchemaCompatibility(
 
         /** The bounds a smaller value of narrows: a lowered one accepts fewer values. */
         val UPPER_BOUNDS = setOf("maxLength", "maxItems", "maxProperties", "maximum", "exclusiveMaximum")
+
+        /**
+         * The constraints a value is checked against when it is written, never when a stored record is read back
+         * ([SchemaDirection.STORED]). A `format` is not among them: it says how the value is decoded.
+         */
+        val CONSTRAINTS = LOWER_BOUNDS + UPPER_BOUNDS + setOf("pattern", "multipleOf")
 
         val QUERY_SEMANTICS = setOf(
             QueryKeywords.SENSITIVE_KEYWORD,

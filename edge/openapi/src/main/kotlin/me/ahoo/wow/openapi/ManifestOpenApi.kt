@@ -26,7 +26,7 @@ import me.ahoo.wow.manifest.withoutClassNames
  *   [command result][WowSchemas.COMMAND_RESULT] as JSON or as server-sent events, one per hop.
  * - The lifecycle commands each aggregate lists, the state reads and the trace,
  *   the query routes of each query model and their descriptors.
- * - The framework's endpoints under `/wow`: the Manifest, this document, a global id and the datasets,
+ * - The framework's endpoints under `/wow`: the Manifest, this document and the datasets,
  *   as [OpenApiOptions] says the host serves them.
  * - Errors as RFC 9457 problems, one response per status listing the codes answered with it ([ErrorResponses]): the
  *   framework's table (`wow.storage.unavailable`, `wow.schedule.not-due`, ...) and each context's domain codes.

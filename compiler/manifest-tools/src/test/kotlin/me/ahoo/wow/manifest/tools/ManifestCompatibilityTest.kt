@@ -307,7 +307,8 @@ class ManifestCompatibilityTest {
             row(
                 "event schema broken without a new revision",
                 BASELINE.def("shop.ItemAdded", NARROWED_EVENT),
-                "BREAKING $CART.events[ItemAdded].schema.quantity: required field added without a new revision and its @Upgrade",
+                "BREAKING $CART.events[ItemAdded].schema.quantity: required field added: the subscribers of its " +
+                    "published stream read the event, which a new revision does not change",
             ),
             row(
                 "event schema broken with a new revision, of a published aggregate",
@@ -359,7 +360,8 @@ class ManifestCompatibilityTest {
             row(
                 "query field removed",
                 BASELINE.def("shop.CartState", schema()),
-                "BREAKING $CART.state.items: field removed without a new state revision",
+                "BREAKING $CART.state.items: field removed: the snapshot query's clients and the subscribers of " +
+                    "its published stream read the state, which a new state revision does not change",
             ),
             row(
                 "state field removed with a new state revision, of a queried and published aggregate",
@@ -807,6 +809,7 @@ class ManifestCompatibilityTest {
         assertThrows<IllegalStateException> { gate() }.message.assert().contains(
             "The Manifest of project ':shop-server' has 1 breaking change(s) within its compatibility line 10 " +
                 "(version 10.2.0):\n  - $CART.commands[AddItem]: command removed\n",
+            "add a new event beside the old one",
             "a break needs the service's next major version, then run updateWowManifestBaseline of project ':shop-server'",
         ).doesNotContain(directory.path)
         assertThrows<IllegalStateException> { record() }.message.assert().contains(
@@ -893,6 +896,64 @@ class ManifestCompatibilityTest {
 
     private fun route(change: (ServiceRouteManifest) -> ServiceRouteManifest) =
         routeBaseline.context { it.copyWith(routes = it.routes.map(change)) }
+
+    @Test
+    fun `a structural change of an unread state or event should ask for a new revision`() {
+        fun changes(current: Manifest) = ManifestCompatibility.compare(UNEXPOSED, current).changes.map { it.toString() }
+
+        changes(UNEXPOSED.def("shop.ItemAdded", NARROWED_EVENT)).assert().containsExactly(
+            "BREAKING $CART.events[ItemAdded].schema.quantity: required field added without a new revision and its " +
+                "@Upgrade",
+        )
+        changes(UNEXPOSED.def("shop.CartState", schema())).assert()
+            .containsExactly("BREAKING $CART.state.items: field removed without a new state revision")
+        // The events query, which every aggregate lists, is a reader that a new revision does not keep.
+        val queried = UNEXPOSED.cart { it.copyWith(queries = listOf(QueryManifest("events"))) }
+        ManifestCompatibility.compare(queried, queried.def("shop.ItemAdded", NARROWED_EVENT)).changes
+            .map { it.toString() }.assert().containsExactly(
+                "BREAKING $CART.events[ItemAdded].schema.quantity: required field added: the events query's " +
+                    "clients read the event, which a new revision does not change",
+            )
+    }
+
+    @Test
+    fun `a constraint of a state or an event should count for its readers alone`() {
+        val bounded = { max: Int ->
+            schema(
+                "productId" to STRING + ("maxLength" to max),
+                required = listOf("productId")
+            )
+        }
+        val published = BASELINE.def("shop.ItemAdded", bounded(16))
+        fun changes(baseline: Manifest, max: Int) =
+            ManifestCompatibility.compare(baseline, baseline.def("shop.ItemAdded", bounded(max))).changes
+                .map { it.toString() }
+
+        // Tightened: the readers read less than before, and no stored record is checked against it.
+        changes(published, 8).assert()
+            .containsExactly("ADDITIVE $CART.events[ItemAdded].schema.productId: maxLength lowered from 16 to 8")
+        // Loosened: the readers may read a value they were not built for.
+        changes(published, 32).assert().containsExactly(
+            "BREAKING $CART.events[ItemAdded].schema.productId: maxLength raised from 16 to 32: the subscribers " +
+                "of its published stream read it",
+        )
+        // Without readers, neither way breaks.
+        val unexposed = UNEXPOSED.def("shop.ItemAdded", bounded(16))
+        changes(unexposed, 8).assert()
+            .containsExactly("ADDITIVE $CART.events[ItemAdded].schema.productId: maxLength lowered from 16 to 8")
+        changes(unexposed, 32).assert()
+            .containsExactly("ADDITIVE $CART.events[ItemAdded].schema.productId: maxLength raised from 16 to 32")
+        // A state's constraint the same way.
+        val state = BASELINE.def("shop.CartState", schema("items" to mapOf("type" to "array", "items" to STRING)))
+        ManifestCompatibility.compare(
+            state,
+            state.def(
+                "shop.CartState",
+                schema("items" to mapOf("type" to "array", "items" to STRING, "maxItems" to 4))
+            ),
+        ).changes.map { it.toString() }.assert()
+            .containsExactly("ADDITIVE $CART.state.items: maxItems 4 imposed")
+    }
 
     @Test
     fun `a state or an event that its readers would no longer read should break whatever its revision`() {
