@@ -177,7 +177,8 @@ interface RowQueries<R : Any> {
      * the budget. Each row comes with its [position][Positioned.position]: the same query streamed again [after] it
      * goes on strictly after that row, on this node or another. A query whose sort cannot order a cursor streams as
      * [list] does, under its bounds, its rows without positions, and cannot be resumed ([after] is then
-     * `wow.query.invalid`).
+     * `wow.query.invalid`); such a query names its limit, or it is refused as `wow.query.invalid`
+     * (`stream-not-resumable`) rather than stopping unannounced at the default list size.
      */
     fun stream(query: ListQuery, after: String? = null): Flow<Positioned<R>>
 

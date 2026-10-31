@@ -30,7 +30,7 @@ ID 即所有者 ID 的聚合的每种读取，包括 `?version=`、`?at=`、`?mi
 状态按它的调用方所看到的样子读取：
 
 - 租户是调用方的租户，或者对被允许跨作用域行事的调用方，是 `Wow-Scope` 指明的租户。
-- 不在调用方所有者或空间之内的状态，或者快照查询的策略对调用方隐藏的状态，都返回 `404 wow.aggregate.not-found`，与不存在的状态完全一样。只有审计知道原因。对于属于租户的聚合，不检查调用方的所有者。
+- 不在调用方作用域之内的状态，或者快照查询的策略对调用方隐藏的状态（开启时包括基于属性的访问），都返回 `404 wow.aggregate.not-found`，与不存在的状态完全一样。只有审计知道原因。对 `Ownership.OWNER` 的聚合，作用域是调用方的所有者和空间；对属于租户的聚合，只是它的空间（[谁能读取它](./ownership#who-reads-it)）。直接拒绝调用方的策略，例如角色检查，改为返回 `403 wow.auth.forbidden`。
 - 每个状态，以及轨迹中的每个事件，都像快照查询那样脱敏。
 
 ## 用 ETag 缓存 {#cache-with-etags}
@@ -78,8 +78,8 @@ basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-
 - `snapshots<OrderStateView>()` 读取另一个上下文的聚合，状态解码为它 api 生成的视图（`<State>View`，状态的字段；自由结构的内容为 `ObjectNode`）；`snapshots<ProductState>()` 读取本服务的类型，状态解码为这个类。`snapshots(type)` 按名字读取一个类型，状态为 JSON。
 - 类型化的读取读整个状态。投影字段的查询用 `dynamic<ObjectNode>()`（或 `Map`，或投影字段组成的类）读取它的行：投影会去掉视图要求的字段。
 - 对调用方不能看到的状态，`state(id)` 返回 `null`，与不存在的状态一样。`state(id, minVersion)` 用于写后即可查，版本没有及时达到时抛出 `MinVersionNotReachedException`。
-- `trusted()` 以受信任的代码读取：不受任何租户、所有者或空间限制。把它用于系统任务，绝不要用于有调用方的请求。
+- `trusted()` 以受信任的代码读取：不受任何租户、所有者或空间限制，读取调用方的策略（例如角色检查）也不适用。把它用于系统任务，绝不要用于有调用方的请求。
 - 列在 `wow.peers` 下的对端，用同样的调用经 HTTP 读取（[调用其他服务](./calling-services#configure-a-peer-over-http)）。
-- 在 Saga、投影或反应器中，`context.queries` 读取正在处理的这次提交所在的整个租户。
+- 在 Saga、投影或反应器中，`context.queries` 读取正在处理的这次提交所在的整个租户：不受所有者、空间、属性或角色限制。
 
 同一个 `QueryApi` 也执行快照查询：见[查询快照](./queries)。
