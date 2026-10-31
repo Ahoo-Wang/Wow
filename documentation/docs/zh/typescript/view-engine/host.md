@@ -53,7 +53,7 @@ import { OrderSnapshotQueryClient } from './generated/index.js';
 const fetcher = new Fetcher({ baseURL: '/api', timeout: 30_000 });
 
 export const engine = new ViewEngine({
-  store: new MemoryViewStore({ snapshot: localStorageSnapshot('my-app:views') }),
+  store: new MemoryViewStore({ snapshot: localStorageSnapshot('my-app:views'), local: true }),
   resources: [
     // The generated client of the order's snapshot query route, as a source.
     {
@@ -295,7 +295,7 @@ export function CustomerPage({ id, name }: { id: string; name: string }) {
 
 - **读者能走多远是一个明确的档位** `interaction`：默认 `static`，只有结果；`interactive` 增加排序、翻页、仪表盘的筛选、后续操作和“在工作台中打开”。更多的开关在档位之内选择开启：`withTitle`、`withSearch`、`withExport`、`detail`、`expandable` 等。
 - **仪表盘的每个筛选都有一个模式**（`filterModes`）：`adjustable` 归读者调整；`locked` 显示但固定；`hidden` 不显示但仍然生效。锁定和隐藏的值属于页面，从不经过地址传递。
-- **嵌入的每一种离开方式**都经过 `onNavigate`；没有它，这些方式就不存在。
+- **嵌入的每一种离开方式**都经过它的 `onNavigate`，否则经过 `ViewHost` 的 `router` 或 `navigate`；三者都没有，这些方式就不存在。
 
 **锁定不是安全边界。** 锁定的条件是在浏览器里拼出来并随查询发送的；任何人都可以改脚本或直接调用 API。租户、归属和权限由 Wow 服务强制执行，见[读模型](../../concepts/read-models#who-sees-what)。
 

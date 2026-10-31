@@ -83,10 +83,11 @@ import {
 
 export const devStore = new MemoryViewStore({
   snapshot: localStorageSnapshot('my-app:views'),
+  local: true,
 });
 ```
 
-浏览器拒绝的写入，例如配额已满，以 `UNAVAILABLE` 失败。标签页之间不会互相覆盖：每次写入之前，存储重新读取文档，合并进另一个标签页已存的内容，并拒绝已被另一个标签页超越的写入。ops 控制台就是这样保存运维人员的视图的，因为 ops 服务不承载视图存储。
+`local: true` 告诉引擎这些视图没有别人读取：它不共享任何视图，拒绝每一次受众变更，保存副本时不询问给谁，也不为保存的视图提供链接。浏览器拒绝的写入，例如配额已满，以 `UNAVAILABLE` 失败。标签页之间不会互相覆盖：每次写入之前，存储重新读取文档，合并进另一个标签页已存的内容，并拒绝已被另一个标签页超越的写入。ops 控制台就是这样保存运维人员的视图的，因为 ops 服务不承载视图存储。
 
 ## 在 Wow 的视图存储上 {#wowviewstore-views-on-a-wow-service}
 
@@ -158,8 +159,9 @@ export const store = new WowViewStore({ fetcher, permissions });
 | `instance(id).save`、`rename`、`delete` | 保存、重命名、删除视图 | 必填 |
 | `instance(id).changeAudience` | 设为共享、设为个人 | 允许 |
 | `editSystem` | 发布为系统视图；编辑和取消发布存储的系统视图 | **拒绝** |
+| `editDatasetWording` | 编辑定义的数据集的措辞：标题、记录名词与字段标签 | **拒绝** |
 
-`editSystem` 是唯一一个不提供即拒绝的权限：系统视图会到达每个租户的每个读者，所以只有明确说明的宿主才开放它。
+`editSystem` 与 `editDatasetWording` 是不提供即拒绝的权限：系统视图会到达每个租户的每个读者，数据集的措辞会到达租户的每个读者，所以只有明确说明的宿主才开放它们。
 
 ### 系统视图 {#system-views}
 
@@ -181,7 +183,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 - 每次写入都把端口的请求 ID 作为 `Wow-Request-Id`、把 revision 作为 `If-Match` 发送，并等待快照。服务对请求 ID 去重（包括创建），所以重试得到的是第一次尝试的结果。
 - 过期的 revision 是 `CONFLICT`，并带上视图现在的样子。
-- 一次列表最多读取每种受众的 1,000 个视图；超出的视图仍可按 id 读取。
+- 服务对一个定义最多列出 1,000 个存储的系统视图；共享与个人视图分页读取，总数最多到 `listedViews`。超出的视图仍可按 id 读取。
 
 ### 错误 {#errors}
 

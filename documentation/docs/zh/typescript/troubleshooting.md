@@ -37,12 +37,12 @@ description: Wow TypeScript 包、编译器和服务给出的消息是什么意�
 
 ## 服务的回答 {#service-answers}
 
-拒绝以 `WowProblemError` reject；它的 `code` 是下面这些之一，或者生成的 `<Context>Contract.<Aggregate>.Errors` 中的某个领域错误码。全部错误码见[错误码](../reference/error-codes)。
+被聚合或在准入时（包括 `wow.command.invalid`）拒绝的命令以 `CommandRejectedError` reject，带有它的 `code`、`result` 和服务回答的 `problem`；其他拒绝以及查询的拒绝以 `WowProblemError` reject。`code` 是下面这些之一，或者生成的 `<Context>Contract.<Aggregate>.Errors` 中的某个领域错误码。全部错误码见[错误码](../reference/error-codes)。
 
 | `code` | 状态 | 原因 | 修复 |
 | --- | --- | --- | --- |
-| 领域错误码 `<context>.<aggregate>.<name>` | 除非服务另行指定，否则为 422 | 聚合拒绝了命令 | 显示 `problem.detail`；请求本身需要改变 |
-| `wow.command.invalid` | 400 | 命令未通过校验 | 在每个 `violations` 的 `path` 旁边显示它 |
+| 领域错误码 `<context>.<aggregate>.<name>` | 除非服务另行指定，否则为 422 | 聚合拒绝了命令 | 显示 `error.result.error?.message`；请求本身需要改变 |
+| `wow.command.invalid` | 400 | 命令未通过校验 | 在每个 `error.result.error?.violations` 的 `path` 旁边显示它 |
 | `wow.aggregate.not-found` | 404 | 没有那个 ID 的聚合 | 处理不存在的情况 |
 | `wow.aggregate.version-mismatch` | 409，带 `expectedVersion` 时为 412 | 另一次写入抢先了 | 重新读取状态，再决定一次 |
 | `wow.command.request-id-reused` | 409 | 请求 ID 已被另一条命令使用 | 为新命令生成新的请求 ID |

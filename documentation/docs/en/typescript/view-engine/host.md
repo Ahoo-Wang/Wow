@@ -53,7 +53,7 @@ import { OrderSnapshotQueryClient } from './generated/index.js';
 const fetcher = new Fetcher({ baseURL: '/api', timeout: 30_000 });
 
 export const engine = new ViewEngine({
-  store: new MemoryViewStore({ snapshot: localStorageSnapshot('my-app:views') }),
+  store: new MemoryViewStore({ snapshot: localStorageSnapshot('my-app:views'), local: true }),
   resources: [
     // The generated client of the order's snapshot query route, as a source.
     {
@@ -295,7 +295,7 @@ export function CustomerPage({ id, name }: { id: string; name: string }) {
 
 - **How far a reader may go is one explicit tier**, `interaction`: `static` by default, the result alone; `interactive` adds sorting, pages, a board's filters, follow-ups and "Open in the workbench". Further switches opt in within the tier: `withTitle`, `withSearch`, `withExport`, `detail`, `expandable` and more.
 - **A board's filters each take a mode** (`filterModes`): `adjustable`, the reader's; `locked`, shown but fixed; `hidden`, not shown but still applied. Locked and hidden values are the page's and never travel through the address.
-- **Every way off an embed** goes through `onNavigate`; without it, those ways do not exist.
+- **Every way off an embed** goes through its `onNavigate`, or else the `ViewHost`'s `router` or `navigate`; with none of them, those ways do not exist.
 
 **Locking is not a security boundary.** A locked condition is put together in the browser and sent with the query; anyone can edit the script or call the API directly. Tenancy, ownership and permissions are enforced by the Wow service, as [Read models](../../concepts/read-models#who-sees-what) describes.
 

@@ -38,7 +38,7 @@ export const salesOrderDescriptor = snapshot as unknown as QueryModelDescriptor;
 | 能力 | 操作符、排序、聚合、检索、上限 | 实时的描述；随存储变化 | 不写就随部署；写了只能收窄 |
 | 选择 | 列哪些字段、什么顺序、什么措辞、单元格与语气、收窄、行的身份、系统视图 | 定义 | 全部由你决定 |
 
-字段的种类从事实推出：枚举值或你写的 `options` 得到 `enum`；时间得到 `datetime` 或 `date`；布尔、数字和字符串各归其类；带元素的数组是 `elementMatch`。推不出来的，例如对象，需要你写 `kind`。
+字段的种类从事实推出：枚举值或你写的 `options` 得到 `enum`（是非值仍是 `boolean`：`options` 只是给它的两个答案命名）；时间得到 `datetime` 或 `date`；布尔、数字和字符串各归其类；在 `elements` 里列出元素的数组是 `elementMatch`。推不出来的，例如对象，需要你写 `kind`。
 
 ## 3. 一份定义，逐项选择 {#_3-a-definition-choice-by-choice}
 
@@ -587,7 +587,7 @@ describe('the order views', () => {
 | `definition.field.undescribed`、`definition.option.undescribed` | 描述里没有的路径或值：去掉它，不要猜另一个 |
 | `definition.field.unlabelled` | 给字段一个读者的词 |
 | `definition.field.deprecated` | 换成替代的路径，或保留并写明理由 |
-| `capability.field.protected` | 列了敏感字段：只在读者必须看到掩码值时保留，并断言这条发现 |
+| `capability.field.protected` | 列了受保护（机密）字段，只显示、从不按它过滤、排序或搜索：只在读者必须看到掩码值时保留，并断言这条发现 |
 | `definition.record.row-key-*`、`definition.record.row-field-*` | 身份或某个 `rowFields` 项不是列出的、可排序的、有值的字段 |
 | `definition.view.*`、`filter.*`、`analysis.*`、`dashboard.*` | 某个系统视图或仪表盘的配置 |
 

@@ -27,7 +27,7 @@ Most "not applicable" rows below are for this reason.
 
 - **Keyboard only**: every core task was walked with real key presses — Tab, Shift+Tab, the arrows, Enter, Space, Esc and modifier combinations — in Chromium and WebKit, at desktop width and down to 320 pixels. After each press the walk recorded which element held focus, whether a focus indicator was drawn and fully visible, and what the live regions said.
 - **Screen readers**: the names, roles, states and structure were read from the browser's own accessibility tree and from ARIA snapshots, and the live regions after every press. They show what should be spoken, not how a screen reader speaks it. A maintainer spot-checked two scenes with VoiceOver by hand, and both passed.
-- **Automated checks**: every Storybook story runs axe after its interactions, and a violation fails it; unit tests carry their own axe assertions; the built-in themes' contrast is held by the contrast-matrix tests, in both modes, on every preset.
+- **Automated checks**: every Storybook story runs axe after its interactions, and a violation fails it, except a few very long tables, judged at shorter lengths; unit tests carry their own axe assertions; the built-in themes' contrast is held by the contrast-matrix tests, in both modes, on every preset.
 - **Forced colours, reduced motion and text spacing**: menus, selection, the current view and focus were walked under forced colours; reduced motion holds the animations; WCAG's text spacing cuts no text off.
 
 ## Working through each surface
@@ -63,7 +63,7 @@ Most "not applicable" rows below are for this reason.
 
 | Criterion | Level | Result | Notes |
 |---|---|---|---|
-| 1.1.1 Non-text Content | A | Supports | Icon-only buttons are named (one string for the name and the tooltip); charts are named `role=img` with a summary sentence and a data table; an image in a panel without `alt` takes the panel's title |
+| 1.1.1 Non-text Content | A | Supports | Icon-only buttons are named (one string for the name and the tooltip); charts are named `role=img` with a summary sentence and a data table; a linked image without `alt` is named by the panel's title, and an unlinked one is decorative (`alt=""`) inside its titled panel |
 | 1.2.1 Audio-only and Video-only (Prerecorded) | A | Not applicable | No audio or video |
 | 1.2.2 Captions (Prerecorded) | A | Not applicable | As above |
 | 1.2.3 Audio Description or Media Alternative (Prerecorded) | A | Not applicable | As above |
@@ -82,7 +82,7 @@ Most "not applicable" rows below are for this reason.
 | 1.4.10 Reflow | AA | Supports | No horizontal page scrolling at 320px; data tables and charts scroll inside their own frames (the two-dimensional exception) |
 | 1.4.11 Non-text Contrast | AA | Supports | The focus ring, row and card focus, the mark on the menu item under the keyboard, borders and rules are ≥3:1 under the built-in presets (held by the contrast matrix and browser stories) |
 | 1.4.12 Text Spacing | AA | Supports | With WCAG's line, letter, word and paragraph spacing injected, no text is cut off; glyphs in the 20px badges stay whole |
-| 1.4.13 Content on Hover or Focus | AA | Supports | Tooltips open on focus too, close with Esc, can be hovered and do not vanish on their own; so does the whole-text tooltip on cut text |
+| 1.4.13 Content on Hover or Focus | AA | Supports | Tooltips open on focus too, close with Esc, can be hovered and do not vanish on their own; the whole-text tooltip on cut text opens on hover only (Known gaps) |
 
 ### 2. Operable
 

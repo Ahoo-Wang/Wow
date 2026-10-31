@@ -38,7 +38,7 @@ A committed copy, rather than a request at run time, because:
 | Capabilities | Operators, sorting, aggregation, search, limits | The live description; they change with the store | Left out, they follow the deployment; written, they can only narrow |
 | Choices | Which fields, in what order, in what words, cells and tones, narrowing, the row's identity, system views | The definition | All yours |
 
-A field's kind follows from the facts: an enum, or `options` you write, makes `enum`; a time makes `datetime` or `date`; booleans, numbers and strings take their own; an array with entries is `elementMatch`. What cannot be told, such as an object, needs a `kind` from you.
+A field's kind follows from the facts: an enum, or `options` you write, makes `enum` (a yes-or-no stays `boolean`: its `options` name its two answers); a time makes `datetime` or `date`; booleans, numbers and strings take their own; an array whose entries you list in `elements` is `elementMatch`. What cannot be told, such as an object, needs a `kind` from you.
 
 ## 3. A definition, choice by choice
 
@@ -587,7 +587,7 @@ It needs no browser: run it in a Node environment. Each finding has a `code`, a 
 | `definition.field.undescribed`, `definition.option.undescribed` | A path or value the description does not have: drop it; do not guess another |
 | `definition.field.unlabelled` | Give the field the readers' word |
 | `definition.field.deprecated` | Move to the replacement path, or keep it and give the reason |
-| `capability.field.protected` | A sensitive field is listed: keep it only where readers must see it masked, and assert the finding |
+| `capability.field.protected` | A protected (confidential) field is listed, shown but never filtered, sorted or searched by: keep it only where readers must see it masked, and assert the finding |
 | `definition.record.row-key-*`, `definition.record.row-field-*` | The identity or a `rowFields` entry is not a listed, sortable field that holds a value |
 | `definition.view.*`, `filter.*`, `analysis.*`, `dashboard.*` | A system view's or a board's config |
 
