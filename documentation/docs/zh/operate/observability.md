@@ -23,10 +23,10 @@ outline: deep
 | 组件 | 何时 `DOWN`（未就绪） | 何时 `DEGRADED` |
 | --- | --- | --- |
 | `node` | 节点没有在运行：启动中、排空中或已停止 | |
-| `stores` | 某个日志持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 某个日志在 `wow.health.stores.window`（1 分钟）内失败过 |
+| `stores` | 某个日志，或写入需要的某个存储（存放日志的存储、某个聚合类型的主快照存储），持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 其中某个在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `ownership` | 它的租约存储不可用，或者在 `wow.health.ownership.handover-grace`（1 分钟）之后，节点仍没有拥有某个租约组中应得的任何分区 | 它在这么长时间内拥有的分区集合不是它应得的那份，或者租约存储最近失败过 |
-| `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | |
-| `subscriptions` | 从不 | 某个订阅落后了 `lag-degraded-at`（10,000）个条目，或有 `parked-degraded-at`（100）个停放条目 |
+| `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | 在 `wow.health.topics.required: false` 时仍在加入中 |
+| `subscriptions` | 从不 | 某个订阅落后了 `lag-degraded-at`（10,000）个条目，有 `parked-degraded-at`（100）个停放条目或比上一次采样时多，或暂停了某个分区 |
 | `executor` | | 执行器的在途量达到其上限的 `saturation`（90%） |
 | `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。只有这一项会让存活探针失败 | |
 
