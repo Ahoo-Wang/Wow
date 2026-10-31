@@ -194,19 +194,17 @@ class SoakChecks(
     fun settle(load: SoakLoad) {
         val begun = System.nanoTime()
         val shipping = mutableSetOf<String>()
-        val byOrder = load.orders.associateBy { it.orderId }
+        val byBuyer = load.orders.associateBy { it.buyer }
         var pending: List<String> = emptyList()
         while (System.nanoTime() - begun < config.quiescence.toNanos()) {
+            val numbers = runCatching { orderNumbers() }.getOrNull()
             val statuses = runCatching { orderStatuses() }.getOrNull()
-            val checkedOut = runCatching { checkedOutOrders() }.getOrNull()
-            if (statuses != null && checkedOut != null) {
-                checkedOut.filter { statuses[it] == "PAID" && it !in shipping }.forEach { id ->
-                    byOrder[id]?.takeIf { it.scenario == Scenario.PAID }?.let { order ->
-                        shipping += id
-                        load.ship(order)
-                    }
-                }
-                pending = checkedOut.filter { statuses[it] != "SHIPPED" && statuses[it] != "CANCELLED" }
+            val checkedOut = runCatching { checkedOutBuyers() }.getOrNull()
+            if (numbers != null && statuses != null && checkedOut != null) {
+                // The orders whose checkout's answer did not name them, found by their buyer.
+                numbers.forEach { (buyer, number) -> byBuyer[buyer]?.let { it.orderId = it.orderId ?: number } }
+                shipPaid(load, checkedOut.mapNotNull { buyer -> byBuyer[buyer] }, statuses, shipping)
+                pending = unsettled(checkedOut, numbers, statuses)
                 if (pending.isEmpty()) break
             }
             Thread.sleep(SETTLE_POLL.toMillis())
@@ -220,15 +218,51 @@ class SoakChecks(
         awaitSnapshots()
     }
 
+    /** Ships each of [orders] that is paid and meant to be shipped, once ([shipping] holds those shipped). */
+    private fun shipPaid(
+        load: SoakLoad,
+        orders: List<SoakOrder>,
+        statuses: Map<String, String?>,
+        shipping: MutableSet<String>
+    ) {
+        orders.filter { it.scenario == Scenario.PAID }.forEach { order ->
+            val id = order.orderId ?: return@forEach
+            if (statuses[id] == "PAID" && shipping.add(id)) load.ship(order)
+        }
+    }
+
+    /**
+     * The orders of the [checkedOut] buyers not settled yet (neither shipped nor cancelled), by number; a checkout
+     * whose order the ordering has not submitted yet counts too, by its buyer.
+     */
+    private fun unsettled(
+        checkedOut: List<String>,
+        numbers: Map<String, String>,
+        statuses: Map<String, String?>,
+    ): List<String> = checkedOut.mapNotNull { buyer ->
+        val number = numbers[buyer] ?: return@mapNotNull "$buyer (no order yet)"
+        number.takeIf { statuses[it] != "SHIPPED" && statuses[it] != "CANCELLED" }
+    }
+
     private fun orderStatuses(): Map<String, String?> = stack.connect(SoakStack.DATABASES.getValue("ordering")).use {
         SoakDatabase(it, "ordering").snapshotStates(ORDER_TABLE).mapValues { (_, state) -> state["status"]?.asString() }
     }
 
-    private fun checkedOutOrders(): List<String> = stack.connect(SoakStack.DATABASES.getValue("basket")).use {
+    /**
+     * The number of each buyer's order, by the order's owner: the ordering numbers the orders, and each soak buyer
+     * checks out once.
+     */
+    private fun orderNumbers(): Map<String, String> = stack.connect(SoakStack.DATABASES.getValue("ordering")).use {
+        SoakDatabase(it, "ordering").snapshotOwners(ORDER_TABLE).entries
+            .mapNotNull { (id, owner) -> owner?.let { buyer -> buyer to id } }.toMap()
+    }
+
+    /** The buyers whose checkout the basket committed. */
+    private fun checkedOutBuyers(): List<String> = stack.connect(SoakStack.DATABASES.getValue("basket")).use {
         SoakDatabase(
             it,
             "basket"
-        ).requestIds(BASKET_TABLE, "%:checkout").keys.map { id -> id.removeSuffix(":checkout") + "-1" }
+        ).requestIds(BASKET_TABLE, "%:checkout").keys.map { id -> id.removeSuffix(":checkout") }
     }
 
     private fun awaitSnapshots() {
@@ -356,15 +390,17 @@ class SoakChecks(
                 val expectedBasket = listOf("BasketItemAdded") + if (checkedOut) listOf("BasketCheckedOut") else emptyList()
                 expect(order, "basket", names(basket), expectedBasket)
             }
-            val events = names(ordersLog[order.orderId].orEmpty())
-            val payment = names(payments[order.orderId].orEmpty())
-            val stock = stockByOrder[order.orderId].orEmpty()
+            // An order with no number yet has nothing in the ordering's or the payment's logs: "" names none.
+            val id = order.orderId.orEmpty()
+            val events = names(ordersLog[id].orEmpty())
+            val payment = names(payments[id].orEmpty())
+            val stock = stockByOrder[id].orEmpty()
             if (!checkedOut) {
                 expect(order, "order", events, emptyList())
                 return@forEach
             }
             invariants.flowsComplete.check()
-            val status = orderStates[order.orderId]?.get("status")?.asString()
+            val status = orderStates[id]?.get("status")?.asString()
             val (expectedOrder, expectedPayment, expectedStock) = expected(order)
             if (status != expectedOrder.second) {
                 invariants.flowsComplete.violate(
@@ -381,7 +417,7 @@ class SoakChecks(
             }
             expect(order, "order", events, expectedOrder.first)
             // A settled order leaves no schedule behind: paying or cancelling it cancels its grace period.
-            val pending = pendingSchedules(ordersLog[order.orderId].orEmpty())
+            val pending = pendingSchedules(ordersLog[id].orEmpty())
             if (status == expectedOrder.second && pending.isNotEmpty()) {
                 invariants.flowsComplete.violate(
                     linkedMapOf("order" to order.orderId, "status" to status, "pendingSchedules" to pending),
