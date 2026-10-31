@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'wow\.standby'
+pattern: 'wow\.node\.standby'
 match: contains
 target: last_message
 ---
