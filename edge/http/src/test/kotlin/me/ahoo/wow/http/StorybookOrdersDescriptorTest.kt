@@ -85,7 +85,7 @@ internal object WalkthroughOrders {
 /**
  * Holds `ordersDescriptor.json`, the storybook walkthrough's descriptor, to the descriptor the HTTP query route answers
  * for [WalkthroughOrders] over the in-memory query storage, written by the route's writer. Regenerate it with
- * `./gradlew :http:test --tests "*StorybookOrdersDescriptorTest" -Dwow.snapshot.update=true`.
+ * `./gradlew :http:test --tests "*StorybookOrdersDescriptorTest" -Dwow-test.snapshot.update=true`.
  */
 class StorybookOrdersDescriptorTest {
     @Test
@@ -111,7 +111,7 @@ class StorybookOrdersDescriptorTest {
         if (UPDATE) {
             GOLDEN.writeText(actual)
         } else {
-            actual.assert().describedAs("run with -Dwow.snapshot.update=true to rewrite $GOLDEN")
+            actual.assert().describedAs("run with -Dwow-test.snapshot.update=true to rewrite $GOLDEN")
                 .isEqualTo(GOLDEN.readText())
         }
     }
@@ -127,6 +127,6 @@ class StorybookOrdersDescriptorTest {
             "integration",
             "ordersDescriptor.json",
         )
-        val UPDATE = System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)
+        val UPDATE = System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)
     }
 }

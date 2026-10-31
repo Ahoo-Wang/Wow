@@ -75,6 +75,6 @@ class DesignIdsTest {
     }
 
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
     }
 }

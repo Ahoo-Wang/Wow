@@ -19,7 +19,7 @@ val moduleDirs = listOf(
     listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
     listOf("api", "domain", "server").map { "platform/analytics/catalog/$it" }
 tasks.named<Test>("test") {
-    systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
+    systemProperty("wow-test.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(
         moduleDirs.flatMap {
             listOf(
@@ -44,6 +44,16 @@ tasks.named<Test>("test") {
             exclude("**/build/**", "**/node_modules/**", ".git/**", ".gradle/**", ".claude/**", "documentation/designs/**")
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("designIdSources")
+    // The switch rule reads every Kotlin and Java source, the tests' included, and every build script.
+    inputs.files(
+        rootProject.fileTree(rootDir) {
+            include("**/src/**/*.kt", "**/src/**/*.java", "**/*.gradle.kts")
+            exclude(
+                "**/build/**", "**/node_modules/**", ".git/**", ".gradle/**", ".claude/**", "documentation/**",
+                "skills/**",
+            )
+        },
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("switchSources")
     // The included build of the Gradle plugin, which compiles :gradle-plugin's sources and has none of its own.
     inputs.files(
         rootProject.fileTree("build-logic/wow-gradle-plugin") { exclude("build/**", ".gradle/**", ".kotlin/**") },

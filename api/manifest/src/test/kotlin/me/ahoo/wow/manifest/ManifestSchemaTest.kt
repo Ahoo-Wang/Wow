@@ -125,12 +125,12 @@ class ManifestSchemaTest {
     fun `the published copy of the schema should be the schema`() {
         val actual = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(ManifestSchema.schema) + "\n"
         val copy = Path.of("src/main/resources/${ManifestSchema.RESOURCE}")
-        if (System.getProperty("wow.snapshot.update").equals("true", ignoreCase = true)) {
+        if (System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)) {
             copy.parent.createDirectories()
             copy.writeText(actual)
         }
-        copy.exists().assert().describedAs("Run with -Dwow.snapshot.update=true to write $copy.").isTrue()
-        copy.readText().assert().describedAs("Run with -Dwow.snapshot.update=true to write $copy.").isEqualTo(actual)
+        copy.exists().assert().describedAs("Run with -Dwow-test.snapshot.update=true to write $copy.").isTrue()
+        copy.readText().assert().describedAs("Run with -Dwow-test.snapshot.update=true to write $copy.").isEqualTo(actual)
         javaClass.classLoader.getResource(ManifestSchema.RESOURCE).assert().isNotNull()
     }
 

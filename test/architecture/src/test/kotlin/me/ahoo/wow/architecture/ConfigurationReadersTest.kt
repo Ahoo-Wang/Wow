@@ -64,8 +64,58 @@ class ConfigurationReadersTest {
             .assert().containsExactly("4", "5", "7", "10")
     }
 
+    @Test
+    fun `no test tooling should name its switch under wow`() {
+        ConfigurationReaderRules.wowSwitches(repositoryRoot, RUNTIME_KEYS.keys).assert()
+            .describedAs("Name the switch wow-test.<name>: a host refuses an unknown wow.* system property.")
+            .isEmpty()
+    }
+
+    @Test
+    fun `every runtime key a build sets for its tests should still be set`() {
+        val found = ConfigurationReaderRules.wowSwitches(repositoryRoot)
+        RUNTIME_KEYS.keys.filter { key -> found.none { "\"$key\"" in it } }.assert()
+            .describedAs("Remove these entries: no build sets them for its tests any more.")
+            .isEmpty()
+    }
+
+    @Test
+    fun `the switch rule should catch a literal, a constant, a forwarded prefix and an argument`(@TempDir root: File) {
+        // Written WOW. here and turned to wow. below, so that this file names no switch itself.
+        File(root, "core/runtime/src/test/kotlin/Switches.kt").apply { parentFile.mkdirs() }.writeText(
+            """
+            const val SWITCH = "WOW.mongo.url"
+            val a = System.getProperty("WOW.snapshot.update")
+            val b = System.getProperty(SWITCH)
+            val c = System.getProperty("wow-test.snapshot.update")
+            val d = environment.getProperty("WOW.routing")
+            // System.getProperty("WOW.snapshot.update") in a comment
+            """.trimIndent().replace("WOW.", "wow."),
+        )
+        File(root, "core/runtime/build.gradle.kts").writeText(
+            """
+            systemProperty("WOW.spike.h1", "true")
+            providers.gradlePropertiesPrefixedBy("WOW.soak.")
+            jvmArgs("-DWOW.h2.stage2.dir=x")
+            systemProperty("WOW.internal.host", "127.0.0.1")
+            systemProperty("wow-test.spike.h1", "true")
+            """.trimIndent().replace("WOW.", "wow."),
+        )
+        ConfigurationReaderRules.wowSwitches(root, setOf("wow.internal.host"))
+            .map { it.substringBefore(": ").substringAfterLast('/') }
+            .assert().containsExactlyInAnyOrder(
+                "Switches.kt:2", "Switches.kt:3", "build.gradle.kts:1", "build.gradle.kts:2", "build.gradle.kts:3",
+            )
+    }
+
     private companion object {
-        const val REPOSITORY_ROOT = "wow.repository.root"
+        const val REPOSITORY_ROOT = "wow-test.repository.root"
+
+        /** The configuration keys a build may set for its tests as system properties, each with its reason. */
+        val RUNTIME_KEYS: Map<String, String> = mapOf(
+            "wow.internal.host" to "the internal port's host, which the servers' and the quickstart's tests bind to " +
+                "the loopback: a configuration key, which the host knows",
+        )
 
         /** The files that may, each with its reason. */
         val ALLOWED: Map<String, String> = mapOf(

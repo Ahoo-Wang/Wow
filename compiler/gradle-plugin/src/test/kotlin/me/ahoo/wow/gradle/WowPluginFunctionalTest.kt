@@ -88,13 +88,13 @@ class WowPluginFunctionalTest {
 
             repositories {
                 mavenCentral()
-                maven { url = uri("${System.getProperty("wow.fixture.repository")}") }
+                maven { url = uri("${System.getProperty("wow-test.fixture.repository")}") }
             }
 
             dependencies {
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
-                ksp(files(${classpath("wow.fixture.processorClasspath")}))
-                wowTools(files(${classpath("wow.fixture.toolsClasspath")}))
+                implementation(files(${classpath("wow-test.fixture.compileClasspath")}))
+                ksp(files(${classpath("wow-test.fixture.processorClasspath")}))
+                wowTools(files(${classpath("wow-test.fixture.toolsClasspath")}))
                 $dependencies
             }
 

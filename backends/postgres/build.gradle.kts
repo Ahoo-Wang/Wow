@@ -15,7 +15,7 @@ dependencies {
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 
-// Spike H1 measures throughput only on demand: ./gradlew :postgres:integrationTest -Dwow.spike.h1=true
+// Spike H1 measures throughput only on demand: ./gradlew :postgres:integrationTest -Dwow-test.spike.h1=true
 tasks.named<Test>("integrationTest") {
-    systemProperty("wow.spike.h1", providers.systemProperty("wow.spike.h1").orElse("false").get())
+    systemProperty("wow-test.spike.h1", providers.systemProperty("wow-test.spike.h1").orElse("false").get())
 }

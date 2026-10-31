@@ -44,7 +44,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The log and the leases across a failover of a replica set of three (roadmap §6 item 18), when `wow.mongo.url`
+ * The log and the leases across a failover of a replica set of three (roadmap §6 item 18), when `wow-test.mongo.url`
  * names one (`test/mongo-cluster/cluster.sh test rs`, whose members restart when stopped); skipped otherwise.
  *
  * What a failover may do to an append is make its outcome unknown, never lose a commit: every append acknowledged as
@@ -62,7 +62,7 @@ class MongoFailoverTest {
 
     @BeforeEach
     fun onReplicaSet() {
-        assumeTrue(onThree, "Runs on a replica set of three: -Dwow.mongo.url of one.")
+        assumeTrue(onThree, "Runs on a replica set of three: -Dwow-test.mongo.url of one.")
         awaitHealthy()
     }
 
@@ -222,7 +222,7 @@ class MongoFailoverTest {
         const val MEMBERS = 3
 
         /** The system property naming the cluster's container, which cluster.sh sets. */
-        const val CONTAINER = "wow.mongo.container"
+        const val CONTAINER = "wow-test.mongo.container"
         const val AFTER = "after"
         const val WRITERS = 8
         const val APPENDS = 40

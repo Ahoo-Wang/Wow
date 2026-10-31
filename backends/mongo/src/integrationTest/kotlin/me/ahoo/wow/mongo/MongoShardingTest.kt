@@ -48,7 +48,7 @@ import kotlin.time.Duration.Companion.minutes
 
 /**
  * The log, the snapshots, the reservations and the timers on a sharded cluster (decisions D277, D307, D308), when
- * `wow.mongo.url` names a mongos (`test/mongo-cluster/cluster.sh test sharded`); skipped otherwise.
+ * `wow-test.mongo.url` names a mongos (`test/mongo-cluster/cluster.sh test sharded`); skipped otherwise.
  */
 class MongoShardingTest {
     private val client = MongoLogFixture.client
@@ -56,7 +56,7 @@ class MongoShardingTest {
 
     @BeforeEach
     fun onSharded() {
-        assumeTrue(MongoLogFixture.sharded, "Runs on a sharded cluster: -Dwow.mongo.url of a mongos.")
+        assumeTrue(MongoLogFixture.sharded, "Runs on a sharded cluster: -Dwow-test.mongo.url of a mongos.")
     }
 
     @Test
@@ -164,7 +164,7 @@ class MongoShardingTest {
     @Test
     fun `concurrent reserves of the same keys through two routers leave each key one owner`(): Unit = runBlocking {
         val hosts = ConnectionString(WowContainers.mongoUrl).hosts
-        assumeTrue(hosts.size > 1, "Needs two mongos routers in wow.mongo.url.")
+        assumeTrue(hosts.size > 1, "Needs two mongos routers in wow-test.mongo.url.")
         val routers = hosts.take(2).map { MongoClients.create("mongodb://$it/") }
         try {
             val type = AggregateType(MongoLogFixture.newContext(), "user")
