@@ -55,12 +55,12 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | --- | --- | --- | --- |
 | `wow.query.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome` | A query of an aggregate type's snapshots or events, from its admission to its end. `wow.query.type`: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`. `wow.outcome`: `ok`, `cached` (its count or total came from the cache), `error`, `cancelled` |
 | `wow.query.dataset.duration` | Timer | `wow.context`, `wow.dataset`, `wow.query.type`, `wow.outcome` | A query of a dataset, from its admission to its end; its types and outcomes as `wow.query.duration`'s: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`; `ok`, `cached`, `error`, `cancelled` |
-| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | Event queries pinned to their aggregate, read in batches (`wow.read=batch`) or by points (`wow.read=point`) |
+| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | The aggregates pinned events queries named and checked, by how they were read: by one query of the snapshots (`wow.read=batch`), or one by one (`wow.read=point`) |
 | `wow.query.limit.current` | Gauge | `wow.store` | A store's current bound on concurrent queries |
 | `wow.query.pressure` | Gauge | `wow.store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `wow.store` | The times an adaptive bound went down |
 
-Gauges are sampled every `wow.node.sample-interval` (10 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
+The node's gauges, the executor's, the append queue's and the subscriptions', are sampled every `wow.node.sample-interval` (10 s), and one whose subject is gone, a subscription that moved to another node say, is removed; the query bounds' gauges, `wow.query.limit.current` and `wow.query.pressure`, are read live.
 
 ### Analytics catalog server
 

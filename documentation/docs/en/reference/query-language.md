@@ -58,6 +58,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 | `tags` | object of string arrays | Its tags; `tags.<key>` names one |
 | `firstEventTime`, `lastEventTime` | integer | Its first and last event time, epoch milliseconds |
 | `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, crossScope}`; `null` for an anonymous caller. Filter on `operator.id` |
+| `schedules` | object | The schedules it keeps, each rule by its key: `type` (`at`, `after` or `cron`) with `epochMillis`, `millis`, or `expression`, `zone` and `misfire`; `schedules.<key>` names one |
 | `state.*` | as the state schema says | The state, as the completed Manifest fragment's state schema describes it |
 
 A path the model does not know is 400 `wow.query.invalid`, `unknown-field`. The fields of a collection's elements are named only inside an `element-match` of that collection, relative to an element (`element-scope-required` otherwise). The [capability descriptor](#the-capability-descriptor) lists every path with the operators, sorts and aggregations it takes.
@@ -140,7 +141,7 @@ A value is a JSON scalar: a string, a number, a boolean, or `null` where the ope
 }
 ```
 
-The predicate matches one element: both conditions hold on the same line. It cannot hold a system-field filter or a `search` of the whole model.
+The predicate matches one element: both conditions hold on the same line. It cannot hold a system-field filter, a `search` of the whole model or an `expression` (`400 wow.query.malformed`, `invalid-request`).
 
 ### Presence
 
@@ -263,7 +264,7 @@ There is no `not`: a `nor` of one operand negates it.
 
 ### Limits and cost
 
-A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and `max-filter-values` values (1000) over HTTP (`filter-too-large`). Some operators cannot use an index: `nor`, `ne`, `not-in`, `contains`, `ends-with`, a case-insensitive or empty `starts-with`, `is-empty`, `is-not-empty-string`, `is-null`, `is-not-null`, `not-exists` and `expression`. With `wow.query.budgets.http.allow-expensive-operators: false` they are refused (`expensive-operator-disabled`).
+Over HTTP, a filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128), the caller's scope included, and any one node lists at most `max-filter-values` values (1000), such as an `in`'s (`filter-too-large`). Some operators cannot use an index: `nor`, `ne`, `not-in`, `contains`, `ends-with`, a case-insensitive or empty `starts-with`, `is-empty`, `is-not-empty-string`, `is-null`, `is-not-null`, `not-exists` and `expression`. With `wow.query.budgets.http.allow-expensive-operators: false` they are refused (`expensive-operator-disabled`).
 
 ## Sort and projection
 
@@ -299,7 +300,7 @@ A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and
 
 `limit` is the most records returned, at least 1. None takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`size-out-of-range`). A `limit` below 1, a `pagination` index or size below 1, or more than 32 `sort` fields is refused as the body is read (`400 wow.query.malformed`, `invalid-request`). With `Accept: text/event-stream` the records stream as server-sent events, one `row` event each, and the stream always ends with an `end` event, `{"reason": …, "resumable": …}`:
 
-- **Resumable.** Where the store pages by keyset (the descriptor's `record.stream.resumable`) and the sort orders a cursor, the server reads the matches in chunks of `wow.query.stream.chunk-size` records (500), with neither the list size nor the budget bounding them, and each `row` carries its position as its `id`. A request with `Last-Event-ID` goes on strictly after that record, on any node. A stream ends after `wow.query.stream.max-hold` (30 seconds) with `hold-expired`, when its store has no permit for the next chunk with `permit-reclaimed`, and when the node stops with `node-stopping`; each of these is resumable, so a client asks again from the last `id`. `complete` ends it once every match was sent.
+- **Resumable.** Where the store pages by keyset (the descriptor's `record.stream.resumable`) and the sort orders a cursor, the server reads the matches in chunks of `wow.query.stream.chunk-size` records (500), at most the request's `limit` when it names one and every match when it names none; no budget bounds them (neither `default-list-size` nor `max-list-size`), and each `row` carries its position as its `id`. A request with `Last-Event-ID` goes on strictly after that record, on any node. A stream ends after `wow.query.stream.max-hold` (30 seconds) with `hold-expired`, when its store has no permit for the next chunk with `permit-reclaimed`, and when the node stops with `node-stopping`; each of these is resumable, so a client asks again from the last `id`. `complete` ends it once every match was sent.
 - **Not resumable.** Any other list streams as a plain list would answer, under its bounds, its rows without an `id`, and every `end` says `"resumable": false`. Such a list must name its `limit`: without one it is refused, `wow.query.invalid` with `stream-not-resumable`, rather than stopping silently at the default size.
 
 A failure after the first record ends the stream with an `error` event holding the problem. In Kotlin, `stream(query, after)` follows the same rules, each row with its position, and refuses an unresumable list without a `limit` the same way.
@@ -356,7 +357,7 @@ A count is for a filtered, bounded number; fixed statistics, such as orders per 
 
 ### `aggregate`
 
-An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default). With a `sort`, the first `limit` groups in that order are returned: a top-N. Without one, more groups than `limit` is refused (`too-many-groups`) rather than cut in key order: add a sort for a top-N, or raise `limit`.
+An aggregation groups the matches and computes metrics per group. `limit` is the most groups (100 by default). With a `sort`, the first `limit` groups in that order are returned: a top-N. Without one, more groups than `limit` is refused, 400 `wow.query.too-many-groups` (the violation `too-many-groups` at `limit`), rather than cut in key order: add a sort for a top-N, or raise `limit`.
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
@@ -383,7 +384,7 @@ Each row holds the group aliases and the metric aliases.
 
 - **`elements`**: `[{"path": "state.lines", "filter": …}]` expands a collection so the groups and metrics run over its elements (at most 5 levels); a field is then relative to the innermost element, and a group with `"scope": "root"` reads the record's absolute path instead.
 - **`groupBy`**: `terms` (`field` or `expression`, optional `missingKey`), `histogram` (`field` or `expression`, `interval`), `date-histogram` (`field`, `unit`: `year`, `quarter`, `month`, `week`, `day`, `hour`, `minute`, `second`, `timeZone`, `dense`) and `date-part` (`field`, `part`: `day-of-week`, `day-of-month`, `hour-of-day`, `month-of-year`, `timeZone`, `dense`); each has an `alias`. `dense` fills the empty buckets and needs the group to be the only one.
-- **`metrics`**: `count`, `numeric` (`function`: `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `expression`), `distinct-count` (`expression`), `percentile` (`expression`, `percentile`), `any`, `first` and `last` (`field`, `orderBy`, by default `lastEventTime`), and `derived` (`expression` over other metrics: `metric-ref`, `constant`, `binary`, `total`, `running`, `previous`, `rank`). Each but `derived` takes an optional `filter`, counting only what matches.
+- **`metrics`**: `count`, `numeric` (`function`: `sum`, `avg`, `min`, `max`, `stddev`, `variance`, `expression`), `distinct-count` (`expression`), `percentile` (`expression`, `percentile`), `any` (`field`), `first` and `last` (`field`, `orderBy`: by default the model's event time, `lastEventTime` on the snapshots and `commitTime` on the events; required inside `elements`, `first-last-requires-order-by` otherwise), and `derived` (`expression` over other metrics: `metric-ref`, `constant`, `binary`, `total`, `running`, `previous`, `rank`). Each but `derived` takes an optional `filter`, counting only what matches.
 - **`sort`** names group and metric aliases; groups not named sort ascending after them.
 - **`having`** keeps the groups whose metrics match: `condition` (`metric`, `operator`, `value`), `between` (`metric`, `lower`, `upper`), `in` (`metric`, `values`), `is-null` (`metric`, `negated`), `and` and `or` (`operands`).
 
@@ -434,6 +435,9 @@ The descriptor's `analysis` says which of these the backend runs.
 | `wow.query.malformed` | 400 | The body does not read as a query: `empty-body`, `body-not-object`, `invalid-json`, `unknown-property`, `unknown-type` (an unknown `op` or `type`), `unknown-value`, `invalid-value`, `invalid-request` (a rule of the query type, such as an empty `operands`) |
 | `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `unknown-field`, `unsupported-capability`, `value-mismatch`, `element-scope-required`, `size-out-of-range`, `filter-too-large`, `expensive-operator-disabled`, `invalid-cursor`, `stream-not-resumable`, `storage-unsupported` |
 | `wow.query.failed` | 500 | The backend failed |
+| `wow.query.too-many-groups` | 400 | An `aggregate` without a `sort` found more groups than its `limit` |
+| `wow.query.busy` | 429 | The store already runs as many queries as its bound allows; the query did not run (`Retry-After`) |
+| `wow.storage.unavailable` | 503 | The store could not be reached or did not answer in time |
 | `wow.query.timeout` | 504 | The query ran longer than `wow.query.budgets.http.timeout`; not retried |
 
 Each violation of the problem's `violations` has a `path` (the JSON path in the body, such as `filter.operands`), a `code` and a `message`.
