@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Who ships an order. An order is its buyer's (decision D189): the buyer reads it, and the kernel keeps every other
+ * Who ships an order. An order is its buyer's: the buyer reads it, and the kernel keeps every other
  * buyer from it. The [orderingAuthorizer] keeps the buyer from shipping it, which only an employee does, a
  * tenant-level caller: in development, a `Wow-User` without a `Wow-Owner`; behind the CoSec gateway, a principal of
  * the role `employee`. The order process's commands reach the order on the context's command topic, outside
