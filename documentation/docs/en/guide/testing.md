@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in `tenant` by default).
+`accountModel()` is the model factory the compiler generated for the `Account` aggregate. A factory takes the context's name, which defaults to the module's, and the domain services the command functions need; pass stubs of them. `aggregateSpec` runs one aggregate, `id` in `tenantId` (`aggregate-1` in the default tenant, `(0)`, or in the `caller`'s tenant when one is given).
 
 ### Arrange and act
 
@@ -100,7 +100,7 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectState { … }` | The block's checks hold on the state after the command. |
 | `expectState(expected)` | The state after the command equals `expected`, field by field; a mismatch lists each difference. |
 | `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all, and fails for a command that committed nothing, since only a committed command answers with results. |
-| `expectScope(scope)`, `expectTags(tags)` | The aggregate is in this scope, or has exactly these tags, after the command. |
+| `expectScope(scope)`, `expectTags(tags)` | The committed stream leaves the aggregate in this scope (a command that commits nothing fails it), or the aggregate has exactly these tags after the command. |
 | `expectScheduled(key, command, rule)`, `expectScheduleCancelled(key)` | It scheduled this command under `key`, or cancelled the schedule. |
 | `fork(name) { … }`, `fork(name, model) { … }` | Branches from this command's outcome ([A tree of tests](#a-tree-of-tests)). |
 
@@ -250,7 +250,7 @@ A cron rule steps through its slots as the runtime does: moving past several slo
 
 A processor is tested through the handlers the compiler generated for it: for each `@Saga`, `@Projection` or `@Reactor` class, a function `<processor>Handlers(services…)` in its package. It constructs only that processor, with the services the test passes (`orderSummaryProjectionHandlers(summaries = …)`; none for a processor that takes none).
 
-`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event, each committed at 2026-01-01T00:00:00Z. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's state, its api's generated view (`OrderStateView`), which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`:
+`sagaSpec` hands a commit to the saga's handlers that read it, as their subscriptions would, and checks the commands they send. `givenAggregate(model, id, vararg history)` gives the aggregate: its model sources the state and the version from the history, one commit per event, each committed at 2026-01-01T00:00:00Z. `whenEvent(events, by = Command::class)` hands over its next commit, whose command type the model names. A peer's state, its api's generated view (`OrderStateView`), which no model of the module sources, is built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does. The order process's test gives the module's own order:
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
@@ -356,7 +356,7 @@ A handler that throws fails the spec unless the step's checks expect it: `expect
 - Any other failure is classified: the handler's `@Retry(recoverable, unrecoverable)` first, then the failure classifiers of the modules on the class path, then the built-in rules ([How a failure is classified](./failures#how-a-failure-is-classified)). An unrecoverable failure parks at once; a downstream that is down or pushes back is retried without spending the budget; any other is retried until the handling has spent `@Retry(maxAttempts)`, 5 by default.
 - A handling that runs longer than its `@Retry(timeout)` is cancelled and counts as a failed attempt. That time is real, not the spec's clock.
 
-`expectRetried(attempt)` passes when the runtime retries the handling after that attempt, the first by default; `expectParked(attempt)` when it parks it then. Both return what was thrown. The spec does not wait out the backoff between attempts, and it uses neither the parked retries nor the application's own `FailureClassifier` beans: test those beside the classifier. [Test a failure](./failures#test-it) shows a reactor retried and then parked.
+`expectRetried(attempt)` passes when the runtime retries the handling after that attempt, the first by default; `expectParked(attempt)` when it parks it then. Both return what was thrown. The spec does not wait out the backoff between attempts, and it uses neither the parked retries nor the application's own `FailureClassifier` beans: test those beside the classifier. [Test a failure](./failures#test-it) shows a reactor retried, then handed the same commit again.
 
 ### Saga expectations
 
@@ -378,13 +378,13 @@ A handler that throws fails the spec unless the step's checks expect it: `expect
 
 ### Peer states and published streams
 
-A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as the first saga sample does. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
+A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
 
 ## Projections and reactors
 
 A projection or a reactor writes to a port, such as a repository or a mail service, that the test fakes. Pass the fake to the processor's generated handlers, feed them commits with `whenEvent`, and check what the fake then holds. `projectionSpec` and `reactorSpec` take the same steps as `sagaSpec` and the expectations that apply to them: `expectHandledBy`, `expectError`, `expectNoError`, `expectRetried` and `expectParked`.
 
-A subscription delivers each commit at least once, and a commit of another partition may arrive after newer ones. `whenRedelivered()` hands the latest commit over again, which tests that a handler is idempotent; `whenDeliveredLate(version)` hands an older one over after newer ones, which tests that a read model keeps the newest version. [Test a projection](./projections#test-them) shows both.
+A subscription delivers each commit at least once, and a commit of another partition may arrive after newer ones. `whenRedelivered()` hands the latest commit over again, which tests that a handler is idempotent; `whenDeliveredLate(version)` hands an older one over after newer ones, which tests that a read model keeps the newest version. [Test a projection](./projections#test-them) shows `whenRedelivered`.
 
 ## Scheduled jobs
 
@@ -393,12 +393,12 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`,
 | Step | Does |
 | --- | --- |
 | `enable(job, tenantId, rule)`, `reschedule(job, tenantId, rule)`, `disable(job, tenantId)` | Enables an instance of a job by its default rule, or another, as `wow.schedule.Enable` does; overrides its rule; disables it. A `SHARDED` job's instance also takes its `partition`. |
-| `advanceTime(duration) { … }` | Moves the time on: each instance runs the slots then due, and its job's handlers get each tick. The block checks what they did with all of them together, with a saga's expectations, and fails when no slot was due; without a block, nothing is checked. |
+| `advanceTime(duration) { … }` | Moves the time on: each instance runs the slots then due, and its job's handlers get each tick. The block checks what they did with all of them together, with a saga's expectations, and fails when no slot was due; without a block, it fails only when a handler or a job command throws. |
 | `whenTick(tick) { … }` | Hands a tick to its job's handlers directly, without the job aggregate. |
 | `ticks`, `now`, `instanceOf(job, tenantId)` | The ticks handed over so far, the time, and an instance's state. |
 | `answerCalls { … }`, `givenQueries(queries)` | As in a saga spec. |
 
-Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's ticks and a missed morning.
+Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's morning tick.
 
 ## What the compiler generated
 

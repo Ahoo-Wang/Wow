@@ -149,6 +149,6 @@ fun `the morning job should receive yesterday's deliveries`() = scheduleSpec(
 }
 ```
 
-- `advanceTime` moves the clock and hands over the ticks that fell due; given an expectation block, it fails when none did, so a wrong rule does not pass quietly. Without one, it checks nothing. `ticks` lists the ticks handed over.
+- `advanceTime` moves the clock and hands over the ticks that fell due; given an expectation block, it fails when none did, so a wrong rule does not pass quietly. Without one, it fails only when a handler or a job command throws. `ticks` lists the ticks handed over.
 - `reschedule` and `disable` send the instance's other commands, and `enable` takes a `tenantId`, a `rule` or a `partition` for the other scopes.
 - `whenTick` hands the handler a tick of the test's own, without the job aggregate: a slot the clock would take long to reach, or a tick with `skipped` set.

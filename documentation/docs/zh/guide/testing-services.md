@@ -108,4 +108,4 @@ Gradle 插件 `me.ahoo.wow.service` 从服务的模块合并出它的 Manifest�
 
 ## 跨服务测试 {#test-across-services}
 
-相互调用的服务以同样的方式一起测试：在测试的 JVM 中启动每个服务，让一个指向另一个的内部端口，再驱动整个流程。eShop 的 `:eshop-e2e` 模块就是这样运行五个服务的，它的集成测试还在容器中基于 Kafka 和 PostgreSQL 运行它们。
+相互调用的服务以同样的方式一起测试：在测试的 JVM 中启动每个服务，让一个指向另一个的内部端口，再驱动整个流程。eShop 的 `:eshop-e2e` 模块就是这样每次运行两个服务的；它运行全部五个服务的测试套件让每个服务各在自己的 JVM 中运行，基于容器中的 PostgreSQL、Kafka 和 ClickHouse。
