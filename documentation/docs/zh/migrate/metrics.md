@@ -39,7 +39,7 @@ V10 还度量了 9.x 没有度量的东西：等待（`wow.wait.timeouts`）、�
 
 | 9.x Span | V10 Span |
 | --- | --- |
-| `<aggregate>.<Command>`（处理一条命令） | `admit <context>.<aggregate>`（SERVER），其下有 `execute <context>.<aggregate>` 和 `decide <context>.<aggregate>` |
+| `<aggregate>.<Command>`（处理一条命令） | `admit <context>.<aggregate>`（INTERNAL），其下有 `execute <context>.<aggregate>` 和 `decide <context>.<aggregate>` |
 | `<aggregate>.<Command>.command send` | 在准入之内；经由主题时：`send <topic>` |
 | `<aggregate>.<Event>.event.append` | `append <context>.<aggregate>` |
 | `<aggregate>.event.load`、`<aggregate>.event.existsRequestId` | 没有 Span：属于 `execute` |

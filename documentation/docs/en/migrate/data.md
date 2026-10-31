@@ -16,7 +16,7 @@ There are two ways to cut over:
 | Steps | Import, compare, snapshots and tags, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and activation |
 | Use it when | The service can stop writing for as long as a full import takes | A full import takes longer than the service can stop writing |
 
-The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, a full offline import took 97 seconds; the online path stopped writes for 116 seconds, of which its final pass took 13. The online path pays off only once the history is much larger than the final window.
+The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 243.4 seconds, of which the full import took 98.2; the online path stopped them for 159.5 seconds, of which its final pass took 15.2 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
 
 ## What moves, and what does not
 
@@ -34,9 +34,9 @@ Each imported stream keeps its version, command id, request id and commit time, 
 
 - **The rewritten source.** The V10 service compiles and its domain tests pass. Its build has produced the merged Manifest of each service whose aggregates you migrate.
 - **The map.** The `wow-migrate` Skill wrote `migration-map.json` while rewriting the source. It names, for each 9.x aggregate, its V10 type and every command and event mapping. See [The map](../reference/migrate-data#the-map). For a large service, `draft-map` drafts the renames from the 9.x store and the Manifest, and lists what it cannot match for you to resolve ([Draft the map](../reference/migrate-data#draft-the-map)).
-- **Reads on the 9.x store.** The tool only reads the 9.x MongoDB store, unless you let it create the index the tail needs.
+- **Reads on the 9.x store.** The tool only reads the 9.x MongoDB store, unless you let it create the index the tail needs, and except for the rollback's `export`, which writes back to it.
 - **An empty V10 target**, or one this tool alone has written to.
-- **The V10 domain modules on a class path.** `compare` and `snapshot` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.
+- **The V10 domain modules on a class path.** `compare`, `snapshot` and `backfill-tags` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.
 - **The partition count of each V10 context**, the one the service will run with. A log refuses another.
 
 Rehearse the whole procedure against a copy of production data before the real cut-over.

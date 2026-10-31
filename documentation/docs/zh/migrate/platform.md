@@ -41,4 +41,4 @@ V10 视图存储按原样读取这些历史：
 
 9.x 的数据集注册中心为分析服务描述数据集。在 V10 中，分析的控制面是分析目录：它把数仓的表当作来源（ClickHouse Sink 保存的表由它在 `wow_catalog` 中的那一行描述），在来源之上把数据集定义为宽表，并把每个版本发布为一个 ClickHouse 视图，每个服务节点都在 `/wow/dataset/<context>/<name>/query` 下提供它。数据集的行带上调用方的作用域，每一列的脱敏遵循它的来源。
 
-分析目录还在孵化中，尚未作为发布制品发布。9.x 的数据集定义不迁移：数据集要在 V10 数仓之上重新定义，因为它的表与 9.x 的不同。服务也可以不借助分析目录，在 `META-INF/wow/dataset/` 中声明基于它自己的表的数据集（[ClickHouse](../operate/clickhouse#datasets)）。
+分析目录还在孵化中：每次发布都带上它服务端的镜像，但它的模块不作为 Maven 制品发布。9.x 的数据集定义不迁移：数据集要在 V10 数仓之上重新定义，因为它的表与 9.x 的不同。服务也可以不借助分析目录，在 `META-INF/wow/dataset/` 中声明基于它自己的表的数据集（[ClickHouse](../operate/clickhouse#datasets)）。

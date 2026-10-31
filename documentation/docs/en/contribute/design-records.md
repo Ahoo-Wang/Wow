@@ -21,6 +21,7 @@ Wow 10 was redesigned as a whole, and its records live together in [`documentati
 | `reviews.md` | The review ledger |
 | `roadmap.md`, `progress.md` | The milestones and work packages, and where the work stands |
 | `docs-plan.md` | The plan of the user documentation and the Skills |
+| `YYYY-MM-DD-<topic>-design.md` | A dated record of one decision's design, implementation or review, such as the subscription side's |
 
 `00` keeps to conclusions and reasons; detail lives in the topic records, and where they disagree the topic record wins and `00` is fixed in the same change. Each record states its date, baseline and status: draft, adopted, in progress, implemented or superseded.
 

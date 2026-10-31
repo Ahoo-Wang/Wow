@@ -46,9 +46,9 @@ A backend implements the ports of `:spi`, and its correctness is the contract, n
 
 `ci.yml` runs on every pull request, scoped by the paths it changes: a documentation-only or TypeScript-only change skips the JVM jobs.
 
-- **JVM:** `:check` in three shards, one of them with the publication check, and `:integrationTest` in four shards.
+- **JVM:** `:check` in four shards (`host`, `apps`, `tooling` and `rest`, the last with the publication check), and `:integrationTest` in four shards.
 - **TypeScript:** static checks, the unit matrix, the package checks, the Storybook interactions, the eShop web app and the consoles.
 - **Documentation:** the site, its layout and repository hygiene.
-- **Coverage:** Codecov requires 90% of changed main code covered, and no module's coverage may drop by more than 1%.
+- **Coverage:** the coverage job requires at least 89% of the changed main-source lines covered (`.github/scripts/patch-coverage.mjs`, Codecov's 90% target less its 1% threshold), judged from the run's own reports; Codecov's statuses are informational. The nightly run on `main` fails on a drop of more than 0.5 point overall or 1 point on a flag (`coverage-trend.mjs`).
 
-`ci-gate` is the one required check: it passes when every job that ran passed, and, where the run uploaded coverage, when Codecov's patch status passes. In CI a failed test runs again up to twice, to show whether it is flaky, but a test that passes only on a retry still fails the build: a flaky test is fixed, not tolerated.
+`ci-gate` is the merge signal, which branch protection requires with PR Safety: it passes when every job that ran passed, and, on a run with coverage, when the coverage job's patch verdict does not fail. In CI a failed test runs again up to twice, to show whether it is flaky, but a test that passes only on a retry still fails the build: a flaky test is fixed, not tolerated.

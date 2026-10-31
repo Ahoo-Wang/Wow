@@ -57,7 +57,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 
 | 9.x | V10 |
 | --- | --- |
-| `CommandClient.send(…)` with `commandHeaders` and `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(body, { id, wait: WaitPlan.SNAPSHOT })` |
+| `CommandClient.send(…)` with `commandHeaders` and `waitStrategy({ stage: CommandStage.SNAPSHOT })` | The generated `<Aggregate>CommandClient.<command>(id, body, { wait: WaitPlan.SNAPSHOT })`, or `<command>(body, { id, wait })` for a creation command |
 | `sendAndWaitStream` | The generated `…Stream` method |
 | `QueryClientFactory`, `<aggregate>QueryClientFactory` | The generated `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
 | `pagedState`, `listState`, `singleState` | `paged`, `list`, `single`, answering whole records: read `record.state`, or project with a literal `include` |

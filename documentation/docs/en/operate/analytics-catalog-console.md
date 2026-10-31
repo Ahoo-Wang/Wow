@@ -5,7 +5,7 @@ description: Deploy the analytics catalog's console, sign the data owners in, an
 
 # The Analytics Catalog Console
 
-The analytics catalog is the control plane of the analytics platform: it knows the warehouse's tables as sources, defines datasets as wide tables over them, and publishes each version of a dataset as a ClickHouse view that every service node serves ([Platform Services](../migrate/platform#dataset-registry-→-analytics-catalog)). Its console is where the data owners do that work: review the sources, draft and publish the datasets, approve what needs an approver, and read the rows of every dataset served. This page explains how the console fits together, how to deploy it, who may do what, and how to work with it. The analytics catalog is incubating, and not yet published as a release artifact.
+The analytics catalog is the control plane of the analytics platform: it knows the warehouse's tables as sources, defines datasets as wide tables over them, and publishes each version of a dataset as a ClickHouse view that every service node serves ([Platform Services](../migrate/platform#dataset-registry-→-analytics-catalog)). Its console is where the data owners do that work: review the sources, draft and publish the datasets, approve what needs an approver, and read the rows of every dataset served. This page explains how the console fits together, how to deploy it, who may do what, and how to work with it. The analytics catalog is incubating: each release ships its server's image, but its modules are not published as Maven artifacts.
 
 ## How it fits together
 
