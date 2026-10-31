@@ -15,7 +15,7 @@ description: 跟随一次购物篮结账在 eShop 的两个限界上下文之间
 ./gradlew :eshop-e2e:eshopLocal
 ```
 
-然后把十个杯子收入库存（订单会预留它们），把一件加入 Alice 的购物篮并结账，一直等到结账所提交的订单在 ordering 上下文中提交：
+然后把十个杯子收入库存（订单会预留它们），把两个加入 Alice 的购物篮并结账，一直等到结账所提交的订单在 ordering 上下文中提交：
 
 ```bash
 BUYER=(-H 'Wow-User: alice' -H 'Wow-Owner: alice')
