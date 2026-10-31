@@ -48,4 +48,4 @@ A Wow service is a Spring Boot application that runs as one or more nodes. Its n
 **Operations**
 
 - The ops service collects every service's failure ledger, and someone watches it ([The Ops Service and Console](./ops-console)).
-- The configuration logs no warning about an unknown `wow.*` key at startup.
+- Every `wow.*` key, and every `WOW_…` variable of a Wow group, is one the node knows: an unknown one refuses the start.
