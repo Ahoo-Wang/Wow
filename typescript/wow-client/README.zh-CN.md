@@ -111,8 +111,9 @@ Manifest（`GET /wow/manifest`）。
 `CommandClient` 一致：被拒绝的命令（聚合拒绝或在准入时拒绝）以 `CommandRejectedError`
 reject（它的 `code`、`result`，服务回答了问题时还有 `problem`）；其他情况以
 `WowProblemError` reject：原样的 RFC 9457 `problem`、`status`、Wow 的 `code`、
-`violations`，服务发送了结果时还有 `result`。`stream` 发出每个结果，不论状态。
-中途失败的流以同一个错误结束，`for await` 会抛出它。
+`violations`，服务发送了结果时还有 `result`。`stream` 发出准入之后的每个结果，不论
+状态；在准入时被拒绝的命令，让 `stream` 调用本身以 `result.status` 为 `rejected` 的
+`WowProblemError` reject。中途失败的流以同一个错误结束，`for await` 会抛出它。
 
 ```ts
 import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';

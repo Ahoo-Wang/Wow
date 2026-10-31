@@ -19,7 +19,7 @@ outline: deep
 | --- | --- | --- |
 | 命令网关：发送、等待、执行 | 保留 | 基于协程；结果以命令结果的 flow 到达。 |
 | Reactor 形态的命令网关 | 放弃 | 在协程里调用网关，或者在 Java 里通过客户端的 `CompletableFuture` 门面调用。处理函数仍可以返回 `Mono` 或 `Flux`。 |
-| 等待阶段 `SENT`、`PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED` | 替代 | 三个阶段 `ACCEPTED`、`COMMITTED` 和 `HANDLED(subscription)`，默认 `snapshot`。见[等待结果](../concepts/waits)。 |
+| 等待阶段 `SENT`、`PROCESSED`、`SNAPSHOT`、`PROJECTED`、`EVENT_HANDLED`、`SAGA_HANDLED` | 替代 | 三个阶段 `accepted`、`committed` 和 `handled(subscription)`，默认 `snapshot`，在线上都是小写。见[等待结果](../concepts/waits)。 |
 | 等待链尾部请求头（`Command-Wait-Tail-*`） | 替代 | 多跳的 `Wow-Wait` 计划。 |
 | 跨上下文等待 | 保留 | 信号直接发往发起节点。 |
 | 用服务端推送事件返回结果 | 保留 | 每到达一跳一个事件。 |
@@ -28,7 +28,7 @@ outline: deep
 | 命令改写器（`CommandBuilderRewriter`） | 替代 | 准入时的命令转换器；它不能改变命令的身份。 |
 | 挂在另一个聚合上的命令（`@AggregateRoot(commands)`） | 替代 | `@MountedCommand`；不指明聚合的命令用 `@Unaddressed`。 |
 | 命令校验（Jakarta Bean Validation） | 替代 | 在准入时校验：命令类上的 Jakarta 约束，对每条命令（HTTP、进程内、Saga、其他上下文）检查，回答 `wow.command.invalid`（400）。需要状态的规则是拒绝。 |
-| `@VoidCommand` | 放弃 | 发送命令，等待不超过 `ACCEPTED`。 |
+| `@VoidCommand` | 放弃 | 发送命令，等待不超过 `accepted`。 |
 | 自定义路由（`@CommandRoute`、`@AggregateRoute`） | 放弃 | 路由从 Manifest 推出：`POST /{context}/{aggregate}/{id}/{command}`，创建命令不带 `{id}`。 |
 | `Command-*` 请求头 | 替代 | `Wow-Wait`、`Wow-Wait-Timeout`、`Wow-Request-Id`、`If-Match`、`Wow-Scope`、`Wow-Space`。 |
 | 请求头别名 | 放弃 | 在你的网关里改写请求头。 |
@@ -180,7 +180,7 @@ outline: deep
 | Saga、投影与反应器测试 | 保留 | — |
 | Java 测试 API | 10.x | 在此之前测试 DSL 只支持 Kotlin。 |
 | `TestValidator` | 放弃 | — |
-| TCK 与 Testcontainers 测试夹具 | 保留 | — |
+| TCK 与 Testcontainers 测试夹具 | 保留 | 每个端口一个 spec，整个存储用 `StoreTck`；总线与分发器的 spec 随总线一起去掉，查询的 spec 在 `wow-query-tck` 中，测试夹具不再有 Redis。见[从 9.x 的 TCK 迁来](../contribute/backends#from-9x)。 |
 | `wow-mock` | 放弃 | — |
 
 ## 平台服务 {#platform-services}

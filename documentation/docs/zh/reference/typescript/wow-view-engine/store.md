@@ -61,7 +61,7 @@ export interface WriteOptions {
 | `UNAVAILABLE` | 没到达，或到达了但结局未知。用同一个 `requestId` 重试是安全的 | `reachable`：服务端答了自己的错误（5xx、超时或它报告的拒绝），不是网络；`storage`：浏览器自己的存储不肯保存（满了或被关），写入从未离开设备 |
 | `UNSUPPORTED` | 后端根本没有视图存储（早于它发布的服务端），所以那里读写不了任何视图，也没有哪个是「不见了」 | |
 
-`detail.code` 是后端自己对失败的说法——Wow 服务端的 `errorCode`（`ViewAppRequired`、`ViewInvalid`……）——让宿主分辨端口代码合在一起的情况。只作诊断：引擎按 `code` 决定。引擎把存储失败说成 issue code，如 `view.open.failed.not_found`（见 [Issue code](./issues)）。
+`detail.code` 是后端自己对失败的说法——Wow 服务的 problem `code`（`view-store.app-required`、`view-store.invalid`……）——让宿主分辨端口代码合在一起的情况。只作诊断：引擎按 `code` 决定。引擎把存储失败说成 issue code，如 `view.open.failed.not_found`（见 [Issue code](./issues)）。
 
 `isViewStoreError` 是结构判断：一个名为 `ViewStoreError`、带端口代码之一的 `Error` 就是，所以第二份本包、或自己构造这个形状的存储抛出的错误也认得出；名字把 HTTP 库里随手一个 `{ code: 'NOT_FOUND' }` 挡在外面。
 

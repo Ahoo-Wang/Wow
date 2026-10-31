@@ -50,7 +50,7 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 
 - **按路由。** 在 CoSec 决定请求的地方，它的管道在路由运行之前，按一个资源上的动作为请求授权。
 - **按动作。** 设置 `wow.cosec.authorizer.enabled: true` 后，CoSec 还会以调用方的身份为请求的每条命令和每次服务路由调用授权（[CoSec 在哪里决定](#where-cosec-decides)）。你自己的 `CommandAuthorizer` 也做同样的事。
-- **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，查询也只返回调用方可以看的东西。
+- **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，查询也只返回调用方可以看的东西（[授权读取](#authorize-reads)）。
 
 运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
@@ -81,6 +81,48 @@ Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任�
 设置 `wow.cosec.authorizer.enabled: true` 后，`CoSecCommandAuthorizer` 和 `CoSecServiceRouteAuthorizer` 在进程内为每条命令和每次服务路由调用授权，无论它经哪条路径到达命令网关：按上面的动作，以它所来自的请求的主体、在那个请求的作用域中授权。只有 CoSec 自己做决定的地方才装配它们，这需要 CoSec 的 `AuthorizationChecker`：网关模式的服务没有它，这个开关在那里不起作用。开关默认关闭：没有它、也没有你自己的授权器时，通过了路由的命令就被允许，上面内置聚合的系统命令除外。你自己的 `CommandAuthorizer` 与 CoSec 的授权器一同询问，命令需要两者都允许（[组合规则](../guide/spring-boot#beans-the-application-gives)）；只应在没有 CoSec 时才决定的、按你自己的角色授权的授权器，注入 `ObjectProvider<CoSecCommandAuthorizer>`，在存在它时不提出异议，平台服务就是这样做的。
 
 不由请求携带的命令，CoSec 的授权器不提出异议：Saga、定时器或补偿发出的命令，定时任务的命令，以及其他服务在内部端口上的调用。CoSec 没有属于它们的请求可以决定。这样的命令带着根命令的作用域和操作人，而根命令在根请求到达时已经由准入授权过；节点的其他授权器仍然作用于它，服务在内部端口上的调用由它的调用方列表决定（[关上内部端口](#close-the-internal-port)）。
+
+## 授权读取 {#authorize-reads}
+
+查询、状态读取和 trace 分层授权，每一层收窄前一层允许的范围：
+
+- **按路由。** 在 CoSec 决定请求的地方，路由路径上 `http:<METHOD>` 动作的策略放行或拒绝它（[动作名称](#action-names)）。在 CoSec 网关之后，由网关的策略决定。
+- **按作用域。** 查询准入把调用方的作用域加进每个查询，状态读取也检查它：租户总是加上；所有者只对 `Ownership.OWNER` 的聚合加上；调用方在某个空间里行事时，加上空间。调用方没有值的那一项不加，所以租户级调用方读取整个租户。查询里的过滤条件不能放宽它。
+- **按标签。** 设置 `wow.query.abac.enabled: true` 后，调用方的 ABAC 属性把每个查询收窄到为它打了标签的聚合（[标签](../guide/ownership#tag-aggregates)）。
+- **按策略。** 服务自己的 `QueryPolicy` bean 在这些之后运行，作用于每个查询模型、状态读取和 trace。它返回一个收窄行的过滤条件，或者抛出异常拒绝调用方。
+
+**属于租户的聚合，租户里的每个调用方都能读取。** `Ownership.TENANT` 不记录所有者，所以作用域不加所有者：购物者和员工一样读取商品，所有者级调用方也能读取它所在租户和空间里的每个这样的聚合。这对商品目录是对的，对只有某些角色才能读取的聚合就不对了。Wow 没有自己的读取角色，所以这样的服务要自带一个拒绝没有该角色的调用方的策略。平台的服务就是这样做的：运维服务的 `ReaderRole` 只放行查看者或操作员，分析目录的 `AnalyticsCatalogQueryPolicy` 只放行它的读者。CoSec 在运维服务内部决定且开启了它的授权器时，`ReaderRole` 让开，由 CoSec 在查询路由上的 `http:` 策略决定谁能读取；在网关模式下由角色决定。
+
+<!-- sample: fragment -->
+
+```kotlin
+class ReaderRole : QueryPolicy {
+    // A role check hides no event stream, so events queries need not name their aggregates.
+    override val events: EventsMode get() = EventsMode.NONE
+
+    override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
+        // Trusted code and subscription handlers read with no caller: the check is not theirs.
+        val who = caller.caller ?: return MatchAllFilter
+        if (OpsRoles.rolesOf(who).none { it in OpsRoles.READERS }) {
+            throw QueryRequestException(
+                "${who.subject ?: "An anonymous caller"} reads no parked entry: it needs ${OpsRoles.VIEWER} or " +
+                    "${OpsRoles.OPERATOR}.",
+                READER_REQUIRED,
+                problem = FrameworkCodes.AUTH_FORBIDDEN,
+            )
+        }
+        return MatchAllFilter
+    }
+}
+```
+
+把它注册为 `QueryPolicy` 类型的 bean；宿主按 bean 顺序，在作用域与 ABAC 策略之后运行每一个，并把它们的过滤条件用 AND 合起来。有三点要做对：
+
+- **拒绝是 403。** 抛出带 `problem = FrameworkCodes.AUTH_FORBIDDEN` 的 `QueryRequestException`，回答 `wow.auth.forbidden`；不带它，拒绝会被读成格式错误的查询，即 400。隐藏聚合的过滤条件让它的状态读取返回 404 `wow.aggregate.not-found`，就像它不存在一样，而拒绝在那里也回答 403。
+- **说明它怎样对待事件流。** 策略的 `events` 默认为 `EventsMode.PINNED`，它假定策略的规则读取状态，于是要求每个事件查询都指明它的聚合。角色检查不读取状态：给它 `EventsMode.NONE`。
+- **没有调用方时让开。** 受信代码（`NodeQueryApi.trusted()`）和订阅的处理函数不带调用方地读取，读的是整个租户，作为节点自己的代码。读取调用方的策略对它们返回 `MatchAllFilter`，如上所示；不这样做的策略，也会限制节点自己的作业和投影。
+
+策略只授权读取。谁能修改属于租户的聚合由命令授权器决定（[授权命令](#authorize-commands)）：没有授权器时，路由放行的任何调用方都能发送它的命令。
 
 ## 把网关放在前面 {#put-the-gateway-in-front}
 

@@ -55,7 +55,7 @@ flowchart BT
 
 The authoritative list is `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES` in `:architecture`. Its tests hold, among others:
 
-- `:api`, `:query-api` and `:manifest` have no runtime dependencies but `:annotations`, which has none, and `:api` uses no JSON library.
+- `:query-api` depends on `:annotations` alone, which depends on nothing, and imports no JSON library; `:manifest` builds on `:api` and imports no JSON library and no coroutines. `:api` adds two libraries, each for one reason: the coroutines' `Flow`, which its `QueryApi` streams rows with, and Jackson's tree types (`tools.jackson.databind.node`), the one shape of free-form content. A read that names no class, a state read by its aggregate type or an event no class of the model has, is an `ObjectNode`, in process and over HTTP alike. `:api` imports no other part of Jackson and no framework.
 - The kernel knows nothing of the cluster, subscriptions, waits or drivers; the runtime depends on coroutines and Jackson only, not on Spring, Reactor or a driver.
 - A backend depends on `:spi`, and on `:query` when it serves queries; backends never depend on each other.
 - Reactor appears only in `:reactor` and the WebFlux edge, and only `:spring-boot` depends on Spring Boot.

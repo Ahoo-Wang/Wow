@@ -163,7 +163,7 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | Member | Role |
 |---|---|
 | `id`, `label` | An id unique among the actions of one binding; the label may be `text(key)` |
-| `run(row, input)` | Sends the command for one record. It resolves once the read model reflects it — a Wow command waits for `CommandStage.SNAPSHOT` (or the stage the host's projection needs) — because the engine reads the view again right after. It throws when the command was refused; what it throws is read for the source's own reason. A command is a write, so make it idempotent: one that times out or loses the network has an outcome nobody knows, and the reader, told to check, may press again |
+| `run(row, input)` | Sends the command for one record. It resolves once the read model reflects it — a Wow command waits for its snapshot, the default plan (or the hop the host's projection needs) — because the engine reads the view again right after. It throws when the command was refused; what it throws is read for the source's own reason. A command is a write, so make it idempotent: one that times out or loses the network has an outcome nobody knows, and the reader, told to check, may press again |
 | `available(row, context)` | `true` when the record takes the command now, else why not. Asked with the input where one is known, so a choice can refuse one option and offer the rest |
 | `hidden(row, context)` | The record does not show the action at all — the reader may not do it — as against `available`, which shows it disabled with why |
 | `changesAt(row, context)` | When `available` next changes on its own, as a `Date`; the engine asks again then, so the host keeps no timer |

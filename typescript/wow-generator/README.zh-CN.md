@@ -19,8 +19,10 @@ pnpm exec wow-generator generate \
 ```
 
 每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）、
-`contract.ts`（`<Context>Contract`：上下文名、错误码与各聚合，以及等待节点）和
-`client.ts`（`<Context>Client`：网关与每个聚合的客户端）；每个聚合写出：
+`contract.ts`（`<Context>Contract`：上下文名、错误码与各聚合，以及等待节点）、
+`manifest.ts`（`<Context>Manifest`：客户端发送所按的路由，所以它们不拉取 Manifest）、
+`client.ts`（`<Context>Client`：它的 `CommandClient` 与每个聚合的客户端），对有自己路由的
+上下文还有 `routes.ts`（`<Context>Routes`）；每个聚合写出：
 
 - `aggregate.ts`：聚合的描述、状态字段与事件联合类型；
 - `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；

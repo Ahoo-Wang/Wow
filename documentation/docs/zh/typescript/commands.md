@@ -31,6 +31,8 @@ export const orderStates = new OrderStateClient(ordering);
 
 每个路由都以它的上下文开头，例如 `/eshop-ordering/order/…`，所以放在一个按这个前缀路由的网关上的 Fetcher 能服务所有服务；`basePath` 在每个路由前加上网关自己的前缀。
 
+生成的客户端按它所在上下文的 `manifest.ts` 里的路由发送，即生成器根据服务的 Manifest 写出的 `<Context>Manifest`，所以运行时从不去拉取 Manifest。自己构建的 `CommandClient`，`new CommandClient(options, { manifest })`，同样接收这样的 Manifest；不给时它拉取一次 `GET /wow/manifest`，只在拉取失败后才再拉取。客户端的名字是 `CommandClient`，与 Kotlin 一致：Wow 所说的命令网关，指的是服务端的准入。
+
 ## 发送命令 {#send-a-command}
 
 <!-- typecheck-context
@@ -45,7 +47,7 @@ const result = await orders.submitOrder({
 console.log(result.ref.id, result.version, result.status);
 ```
 
-`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ id }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
+`SubmitOrder` 会创建它的聚合，所以它的方法不接收 ID：服务生成一个，`result.ref.id` 给出它。在选项中传入 `{ id }` 可以自己选定。作用于已有聚合的命令先接收它的 ID：`orders.payOrder(id, body)`。ID 取其所有者的聚合，例如购物者的购物车，还有一个不带 ID 的 `…Own` 方法，`baskets.checkoutBasketOwn(body)`，作用于调用方自己的聚合；按 ID 的方法给没有所有者的调用方用，例如代购物者操作的后台。`unitPrice` 在服务端是 `BigDecimal`，所以它的类型是 `string`，以精确数字写入命令体。
 
 结果说明命令到达了哪里：
 
@@ -119,8 +121,7 @@ import { WaitPlan } from '@ahoo-wang/wow-client';
 import { eshopBasketWait } from './generated/basket/index.js';
 import { eshopOrderingWait } from './generated/ordering/index.js';
 
-const placed = await baskets.checkoutBasket(
-  'buyer-1',
+const placed = await baskets.checkoutBasketOwn(
   {},
   {
     wait: WaitPlan.of(
@@ -138,7 +139,7 @@ console.log(`order ${placed.ref.id} at version ${placed.version}`);
 
 ## 以流的形式跟随等待 {#follow-the-wait-as-a-stream}
 
-每个方法都有一个 `…Stream` 孪生方法，随着等待推进，每一跳回答一个结果，用于展示一条长链进度的页面：
+每个命令方法都有一个 `…Stream` 孪生方法，随着等待推进，每一跳回答一个结果，用于展示一条长链进度的页面。生命周期方法（`deleteAggregate` 等）没有。
 
 <!-- typecheck-context
 import { WaitPlan } from '@ahoo-wang/wow-client';
@@ -148,8 +149,7 @@ declare const baskets: BasketCommandClient;
 -->
 
 ```ts
-const stream = await baskets.checkoutBasketStream(
-  'buyer-1',
+const stream = await baskets.checkoutBasketOwnStream(
   {},
   {
     wait: WaitPlan.of(
@@ -168,7 +168,7 @@ for (;;) {
 }
 ```
 
-在准入时被拒绝的命令，会像不用流时一样以它的 problem reject 这次调用。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。
+在准入时被拒绝的命令，会在任何结果流出之前 reject 这次调用，抛出的是 `result.status` 为 `rejected` 的 `WowProblemError`：流式调用不会像 `wait` 那样把它转成 `CommandRejectedError`，所以要检查 `error.result?.status`。准入之后的拒绝是流的最后一个结果，带着它的 `status` 和 `error`。当某个 Saga 不再发出任何东西时，链会在计划结束之前结束：那个结果带有 `chainEnded`，`pending` 指明不会到来的那些跳。eShop 的结账页面就是这样把它十五跳的链一直跟随到支付的（`examples/eshop/web/src/shop/checkout.ts`）。
 
 ## 命令失败时 {#when-a-command-fails}
 

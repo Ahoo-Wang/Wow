@@ -35,16 +35,25 @@ A product is read by every shopper and changed by staff, so it belongs to its te
 class Product(private val state: ProductState) {
 ```
 
-The compiler writes the ownership into the Manifest, where query admission reads it.
+The compiler writes the ownership into the Manifest, `"ownership": "tenant"` (an `OWNER` aggregate leaves it out, as the default), where query admission and the state routes read it. Changing it later changes who reads the aggregate, so the contract's compatibility check refuses it as a breaking change.
 
 ## What the kernel checks
 
-The first command's caller gives an `OWNER` aggregate its scope. After that, the kernel refuses a command whose caller's owner or space differs from the aggregate's, with `wow.aggregate.forbidden`, and query admission adds the caller's owner and space to every query. A part the caller has no value for is not checked:
+The first command's caller gives an `OWNER` aggregate its scope. After that, the kernel refuses a command whose caller's owner or space differs from the aggregate's, with `wow.aggregate.forbidden`. A part the caller has no value for is not checked:
 
 - An **owner-level** caller, whose scope has an owner, reaches only its own aggregates.
-- A **tenant-level** caller, without an owner, such as a member of staff, reaches every aggregate of its tenant. What it may do is decided by action-level authorization, such as CoSec's.
+- A **tenant-level** caller, without an owner, such as a member of staff, reaches every aggregate of its tenant, within its space when it acts in one. What it may do is decided by action-level authorization, such as CoSec's.
 
-The writes of a `TENANT` aggregate are not checked against an owner at all: action-level authorization decides who may change a product.
+A `TENANT` aggregate records no owner, so its writes are not checked against one; the caller's space still is. Action-level authorization alone decides who may change a product: without an authorizer, any caller its route admits may send its commands ([Authorize commands](../operate/security#authorize-commands)).
+
+## Who reads it
+
+Reads follow the same scope. Query admission adds it to every query of the aggregate type, its event streams included, and the state routes check it on a state read and a trace:
+
+- An `OWNER` aggregate is read within the caller's tenant, owner and space, each where the caller has one: an owner-level caller reads its own, a tenant-level one the whole tenant.
+- A `TENANT` aggregate is read within the caller's tenant and space; the owner is never added. Every caller of the tenant reads a product, a shopper as much as a member of staff.
+
+So `TENANT` does not restrict reads by role. An aggregate that belongs to its tenant but that only some callers may read, such as the failures an operator console lists or the sources of an analytics catalog, needs a read policy of the service's own: a `QueryPolicy` bean that refuses a caller without the role ([Authorize reads](../operate/security#authorize-reads)). Trusted code and the handlers of subscriptions read the whole tenant without a caller, and such a policy steps aside for them.
 
 ## One aggregate per owner
 

@@ -31,6 +31,8 @@ outline: deep
 
 该种类没有的属性会返回 400 `wow.query.malformed`，violation 代码为 `unknown-property`；没有 `kind` 或 `kind` 为其他值的请求体，是 `invalid-value` 或 `unknown-value`。
 
+协议自己定义的词一律是小写短横线：`kind`、`op`、`type`、`direction`、`total`、`mode`、`unit` 等枚举类属性，错误码与 violation 代码，以及描述符里的取值（`"not-in"`、`"date-histogram"`、`"unknown-field"`、`"snapshot"`）。只认这一种写法：`"NOT_IN"` 是 `unknown-type`。后端注册的自定义查询模型或值类型遵守同一规则，不符合的会在服务启动时被拒绝，消息里给出小写的写法。有三类取值保留自己的写法，因为它们不是协议定义的：领域的取值（下文的 `"PUBLISHED"` 是商品的状态）、时区 ID 与 ISO-8601 时长（`Asia/Shanghai`、`PT30M`），以及 `timeUnit`，它取 JDK 的 `TimeUnit` 名称。
+
 ## 跨租户 {#across-tenants}
 
 查询读取调用方的租户。带 `crossScope` 的调用方可以在查询路由上通过 `Wow-Scope` 指明其他租户来读取它们：`tenant=*` 表示每个租户，或者一个内部列表 `tenant=("t1" "t2")`。在 `wow.query.allow-cross-tenant` 打开之前这项功能是关闭的，关闭时这样的查询返回 403 `wow.auth.forbidden`。
@@ -38,7 +40,7 @@ outline: deep
 - 租户固定的聚合类型仍然只在那个租户中读取。不包含它的列表返回 400 `wow.query.malformed`。
 - 无论是否有查询观察者做审计，每个跨租户查询都会在 `me.ahoo.wow.query.CrossTenantAudit` 上以 INFO 级别记录。
 - 命令和状态读取从不跨租户：在那里，`tenant` 为 `*` 或列表会返回 400。
-- 在进程内，`QueryApi.trusted()` 读取每个租户。
+- 在进程内，受信代码通过 `NodeQueryApi.trusted()` 读取每个租户，这是它所在节点的读取 API：作业、投影的重建、服务自己的路由。客户端的 `QueryApi`，即 `WowClient` 为另一个服务给出的那个，只有 `of(caller)`，因为对端总是代调用方读取，从不受信。受信的快照查询按 ref 读取状态（`state(ref)`），因为没有租户限定它们；调用方的查询还可以按聚合 ID 读取。
 
 ## 字段路径 {#field-paths}
 
@@ -164,7 +166,7 @@ outline: deep
 
 ### 相对时间 {#relative-time}
 
-每个操作符都接收 `field`，以及可选的 `zoneId`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）、`datePattern`（`DateTimeFormatter` 模式，用于以格式化字符串存储的字段）和 `timeUnit`（`MILLISECONDS`，默认，或其他 `TimeUnit` 名称，用于以纪元数字存储的字段）。
+每个操作符都接收 `field`，以及可选的 `zoneId`（IANA 时区，例如 `Asia/Shanghai`，或者偏移量，例如 `+08:00`；默认 UTC，从不使用服务器自己的时区）、`datePattern`（`DateTimeFormatter` 模式，用于以格式化字符串存储的字段）和 `timeUnit`（`MILLISECONDS`，默认，或其他 JDK `TimeUnit` 名称，用于以纪元数字存储的字段）。
 
 | `op` | 其他属性 | 匹配 |
 | --- | --- | --- |
@@ -175,7 +177,7 @@ outline: deep
 | `before-today` | `time`：`"18:00"` 或 `"18:00:30"` | 今天那个时间之前 |
 | `recent-days` | `days`：整数 | 最近 `days` 天之内，包括今天 |
 | `earlier-days` | `days` | 最近 `days` 天之前 |
-| `before-now`、`after-now` | `offset`：ISO-8601 时长，默认 `pt0s` | 服务器当前时间加上 `offset` 之前或之后（`-PT30M` 表示往回看半小时） |
+| `before-now`、`after-now` | `offset`：ISO-8601 时长，默认 `PT0S` | 服务器当前时间加上 `offset` 之前或之后（`-PT30M` 表示往回看半小时） |
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/relative-time.json -->
 
@@ -295,7 +297,12 @@ outline: deep
 
 ### `list` {#list}
 
-`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`size-out-of-range`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`invalid-request`）。带 `Accept: text/event-stream` 时，每条记录是一个 `row` 事件（`id` 是从 0 开始的序号）；在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。
+`limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`size-out-of-range`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`invalid-request`）。带 `Accept: text/event-stream` 时，记录以服务端推送事件的形式流出，每条一个 `row` 事件，流总是以一个 `end` 事件结束，`{"reason": …, "resumable": …}`：
+
+- **可续读。** 存储按 keyset 分页（描述符的 `record.stream.resumable`）且排序能构成游标时，服务端按每块 `wow.query.stream.chunk-size` 条（500）分块读取匹配的记录，不受列表大小与预算的限制，每个 `row` 以它的位置作为 `id`。带 `Last-Event-ID` 的请求从那条记录之后严格地继续，在任何节点上都一样。流运行 `wow.query.stream.max-hold`（30 秒）后以 `hold-expired` 结束，存储在下一块之前没有空闲许可时以 `permit-reclaimed` 结束，节点停止时以 `node-stopping` 结束；这几种都可以续读，客户端从最后一个 `id` 再请求即可。所有匹配都发送完时以 `complete` 结束。
+- **不可续读。** 其他列表按普通列表的方式流出，受它的上限约束，行不带 `id`，每个 `end` 都是 `"resumable": false`。这样的列表必须写明 `limit`：不写会被拒绝，`wow.query.invalid`，代码 `stream-not-resumable`，而不是悄悄停在默认条数。
+
+在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。在 Kotlin 里，`stream(query, after)` 遵守同样的规则，每行带它的位置，对不写 `limit` 的不可续读列表同样拒绝。
 
 ### `paged` {#paged}
 
@@ -394,7 +401,8 @@ outline: deep
   "version": "sha256:b3c7…",
   "timeZone": "Z",
   "record": { "identity": "aggregateId", "paging": ["list", "paged", "cursor"], "defaultScope": "active",
-              "rootOperators": ["id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression"] },
+              "rootOperators": ["id", "ids", "aggregate-id", "aggregate-ids", "tenant-id", "owner-id", "space-id", "deletion", "expression"],
+              "stream": { "resumable": true } },
   "limits": { "maxListSize": 1000, "defaultListSize": 100, "maxPageSize": 100, "maxPageWindow": 10000, "maxFilterNodes": 128, "...": "..." },
   "analysis": { "metrics": ["count", "numeric", "..."], "...": "..." },
   "fields": [
@@ -403,12 +411,19 @@ outline: deep
       "aggregate": { "groups": ["terms"], "...": "..." }, "aliases": [] }
   ],
   "elements": [{ "path": "state.lines", "filter": true, "aggregate": true }],
-  "dynamic": [{ "pattern": "tags.{key}", "types": ["string"], "kind": "array", "filter": { "operators": ["eq", "..."] } }],
+  "dynamic": [
+    { "pattern": "tags.{key}", "types": ["string"], "kind": "array", "nullable": false,
+      "filter": { "operators": ["eq", "..."] }, "sort": { "paged": false, "cursor": false }, "aggregate": { "groups": ["terms"], "...": "..." } },
+    { "pattern": "state.deliveryDates.{key}", "types": ["string"], "kind": "scalar", "nullable": true, "semantic": { "type": "temporal-date" },
+      "filter": { "operators": ["eq", "gt", "..."] }, "sort": { "paged": true, "cursor": false }, "aggregate": { "groups": ["terms", "date-histogram"], "...": "..." } }
+  ],
   "constraints": [{ "type": "cursor-unique-sort", "appended": "aggregateId", "fields": ["tenantId", "aggregateId"] }]
 }
 ```
 
-- `fields` 列出每条路径，以及它的值类型、它的 `filter` 接受的操作符、它能否在分页和游标中排序，以及它怎样分组和聚合。`elements` 是 `element-match` 或 `elements` 项能到达的集合，`dynamic` 是 map 键的模式，例如 `tags.{key}`。
+- `fields` 列出每条路径，以及它的值类型、能否为 `null`、它的 `semantic` 语义类型（若有：日期、纪元时间、金额、时长、引用）、它的 `filter` 接受的操作符、它能否在分页和游标中排序，以及它怎样分组和聚合。`elements` 是 `element-match` 或 `elements` 项能到达的集合。
+- `dynamic` 列出 map 键的模式，例如 `tags.{key}`，或者状态里的 `Map<String, LocalDate>`。每一项都说明字段项对任意一个键会说明的内容：`nullable`、`semantic`、`filter`、`sort` 和 `aggregate`，所以客户端可以像对待声明过的字段一样展示和查询 `state.deliveryDates.berlin`。map 属性上的语义注解描述的是它的值：`Map<String, Long>` 上的 `@QueryTemporal` 让每个值都是纪元时间。另外单独声明过的键列在 `fields` 里，并写在该模式的 `excludedKeys` 中。
+- 数组字段上的 `terms` 分组，把一条记录分到它的每个不同元素下，所以 `["a", "b", "a"]` 在 `a` 与 `b` 里各算一次；没有元素的记录（数组为空或不存在）进入 `null` 组。每个能按数组分组的后端都这样做；不能的后端会在该字段的 `aggregate.groups` 里不列出 `terms`，请求它的查询以 `unsupported-capability` 被拒绝。
 - `record.rootOperators` 是不指明字段的操作符；组合操作符 `and`、`or` 和 `nor` 在任何地方都适用。
 - `version` 是能力描述的摘要。响应把它作为 `ETag` 携带；描述不变时，带 `If-None-Match: "<version>"` 的 `GET` 返回 304，所以客户端可以缓存它，并低成本地再次询问。
 
@@ -417,7 +432,7 @@ outline: deep
 | 错误码 | 状态 | 何时 |
 | --- | --- | --- |
 | `wow.query.malformed` | 400 | 请求体无法读成查询：`empty-body`、`body-not-object`、`invalid-json`、`unknown-property`、`unknown-type`（未知的 `op` 或 `type`）、`unknown-value`、`invalid-value`、`invalid-request`（违反了查询类型的规则，例如 `operands` 为空） |
-| `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `unknown-field`、`unsupported-capability`、`value-mismatch`、`element-scope-required`、`size-out-of-range`、`filter-too-large`、`expensive-operator-disabled`、`invalid-cursor`、`storage-unsupported` |
+| `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `unknown-field`、`unsupported-capability`、`value-mismatch`、`element-scope-required`、`size-out-of-range`、`filter-too-large`、`expensive-operator-disabled`、`invalid-cursor`、`stream-not-resumable`、`storage-unsupported` |
 | `wow.query.failed` | 500 | 后端失败 |
 | `wow.query.timeout` | 504 | 查询运行的时间超过了 `wow.query.budgets.http.timeout`；不会重试 |
 

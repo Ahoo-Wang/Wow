@@ -86,11 +86,11 @@ The producer is idempotent and waits for every in-sync replica (`acks=all`), wha
 
 ## Durable command intake
 
-By default a command is routed over the cluster channel to the owner of its aggregate, and `ACCEPTED` only means it passed admission: a node that stops before running it loses it. For commands that must not be lost once accepted, such as asynchronous intake or absorbing load peaks, route their aggregate type through Kafka with `wow.aggregates.[<context>.<aggregate>].routing: topic`:
+By default a command is routed over the cluster channel to the owner of its aggregate, and `accepted` only means it passed admission: a node that stops before running it loses it. For commands that must not be lost once accepted, such as asynchronous intake or absorbing load peaks, route their aggregate type through Kafka with `wow.aggregates.[<context>.<aggregate>].routing: topic`:
 
 - The node that admits such a command writes it to the context's command topic and waits for the broker. A request that waits only for `accepted` is answered 202 once the broker has acknowledged it; from then on, the command is durable.
 - The owner of the aggregate's partition reads it from the topic and executes it, so one aggregate's commands keep their order. A longer wait, such as `snapshot`, goes on as usual.
-- If the broker does not acknowledge within the wait's timeout, the wait ends at `ACCEPTED`, failed. A retry with the same request id is not decided twice.
+- If the broker does not acknowledge within the wait's timeout, the wait ends at `accepted`, failed. A retry with the same request id is not decided twice.
 
 Only commands admitted at the edge take this route. A command a saga or a timer sends is already durable, because its sender retries until it commits.
 

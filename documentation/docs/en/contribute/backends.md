@@ -105,8 +105,15 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
        testImplementation("me.ahoo.wow:wow-tck")
        testImplementation("me.ahoo.wow:wow-query-tck") // when it serves queries
        testImplementation("me.ahoo.wow:wow-tck-containers") // when it runs on one of Wow's containers
+       testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+   }
+
+   tasks.test {
+       useJUnitPlatform()
    }
    ```
+
+   The kits bring JUnit's API, not its engine: the build runs the specs on the JUnit Platform, as above, and `./gradlew test` (or the source set that holds them) runs them.
 
 2. **Run the whole store through `StoreTck`.** Give it the configuration of a store, and the kit opens it through your `StoreProvider` (found by `ServiceLoader` from its type, as the host finds it) and runs every port's spec against what the store opens: `EventLogSpec` when the store holds logs, `SnapshotStoreSpec` when it holds snapshots, and the control plane (timers, checkpoints, leases, the failure ledger, reservations) wherever it holds logs. A store that holds no log must refuse the log and the control plane with an `UnsupportedOperationException` that names it, and the kit checks that it does. A port the provider forgets to open, or opens wrong, fails here, where the per-port specs, fed the backend's own classes, cannot see it. The kit reads the time through the store (`StoreConfig.clock`), so pass `config.clock` to every port that reads the current time. The report names the backend's class and the port, `PostgresStoreTck > EventLog > ...`.
 
@@ -119,12 +126,32 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
            type = PostgresStoreProvider.TYPE,
            resources = StoreResources.of(mapOf("dataSource" to PostgresFixture.dataSource)),
        )
+
+       /** It serves queries and says its pool. */
+       override val facets: List<Class<*>> = listOf(StoreQueries::class.java, StorePool::class.java)
+
+       /** PostgreSQL's jsonb refuses a NUL character. */
+       override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
+           events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+       )
    }
    ```
 
-   Override `provider(type)` for a provider the class path does not list, and `refused(stream)` as in the log's spec.
+   `facets` lists the optional facets the store must offer (`Store.facet`): its query side, `StoreQueries`, when the backend serves queries, its `StorePool` when the pool reports its connections; the kit asserts that each is there rather than skipping. Override `provider(type)` for a provider the class path does not list, and `refused(stream)` as in the log's spec.
 
-3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, so the test class opts in with `@OptIn(WowSpi::class)`. The PostgreSQL log's test is the whole of what a log needs, with the two optional hooks that run the snapshot-tail and refused-stream tests:
+   The smallest complete example is `test/spi-consumer` in the Wow repository: a store written as a backend outside Wow writes one, its main code on `:spi` and `:query` alone and opting in to nothing, its provider listed in `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`. It holds snapshots only (`holdsLogs = false`), so its whole store test is a configuration and a facet, and the kit skips the log's specs by design:
+
+   <!-- sample: fragment -->
+
+   ```kotlin
+   class AcmeSnapshotsStoreTck : StoreTck() {
+       override fun config(): StoreConfig = StoreConfig.of(name = "tck", type = AcmeSnapshotsProvider.TYPE)
+
+       override val facets: List<Class<*>> = listOf(StoreQueries::class.java)
+   }
+   ```
+
+3. **Extend one spec per port.** Each spec is an abstract JUnit 5 class: implement its abstract members, which hand the spec a fresh store, and nothing else. Its tests are final, so a backend cannot change or switch off one of them. The ports are `@WowSpi`, an opt-in the compiler warns about, so the test class opts in with `@OptIn(WowSpi::class)` (or the test source set does) to keep the build free of warnings. The PostgreSQL log's test is the whole of what a log needs, with the three optional hooks: the snapshot store its tails are read with, its one-round-trip read of them, and a stream it refuses:
 
    <!-- sample: fragment -->
 
@@ -134,6 +161,9 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 
        override fun createSnapshots(context: String): SnapshotStore =
            PostgresSnapshotStore(PostgresFixture.dataSource, context)
+
+       override fun snapshotTailsOf(log: EventLog, snapshots: SnapshotStore): SnapshotTailReader =
+           (log as PostgresEventLog).snapshotTailsWith(snapshots as PostgresSnapshotStore)
 
        /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it. */
        override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -148,29 +178,33 @@ A backend's correctness is the contract, not its own tests. The TCK holds one ab
 
 | Spec | Artifact | Implement | Optional |
 | --- | --- | --- | --- |
-| `StoreTck` | `wow-tck` | `config()`: a store of the backend's type | `provider(type)`, `refused(stream)` |
-| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`, `refused(stream)` |
+| `StoreTck` | `wow-tck` | `config()`: a store of the backend's type | `provider(type)`, `refused(stream)`, `facets` |
+| `EventLogSpec` | `wow-tck` | `createLog(context, partitions)` | `createSnapshots(context)`, `snapshotTailsOf(log, snapshots)`, `refused(stream)` |
 | `SnapshotStoreSpec` | `wow-tck` | `createStore(context)` | |
 | `CheckpointStoreSpec` | `wow-tck` | `createStore()` | |
 | `LeaseStoreSpec` | `wow-tck` | `createStore(clock)`: the spec moves the clock | |
 | `FailureLedgerSpec` | `wow-tck` | `createLedger()` | |
 | `ReservationStoreSpec` | `wow-tck` | `createStore(clock)` | |
 | `TimerStoreSpec` | `wow-tck` | `createStore()` | `context`, `logPartitions` |
-| `SinkSpec` | `wow-tck` | `createSink()`, `written(ref)`: the versions the destination holds | `aggregateType`, `record(ref, version)`, `visibleWithin` |
-| `TopicTransportSpec` | `wow-tck` | `producer`, `source`, `newTopic(partitions)` | `readTimeout` |
+| `SinkSpec` | `wow-tck` | `createSink()`, `written(ref)`: the versions the destination holds | `aggregateType`, `record(ref, version)`, `visibleWithin`, `provided()` |
+| `TopicTransportSpec` | `wow-tck` | `producer`, `source`, `newTopic(partitions)` | `readTimeout`, `provided()` |
 | `QueryBackendSpec` | `wow-query-tck` | `store(snapshots)`, `binding(type)` | `semanticDivergences` |
 | `EventQueryBackendSpec` | `wow-query-tck` | `store(streams)`, `binding(type)` | |
 | `DatasetQueryBackendSpec` | `wow-query-tck` | `createDatasetBindings()`, `createTable(table)` | `semanticDivergences` |
 
-Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
+Run `StoreTck` for every store type the backend provides, and the per-port specs for what only they reach: a hook of the backend's own. Of the other specs, run those of the ports the backend implements, not all of them. Among Wow's own, the in-memory backend runs `StoreTck`, the seven store specs, `TopicTransportSpec` and the three query specs; PostgreSQL and MongoDB run the seven store specs, `QueryBackendSpec` and `EventQueryBackendSpec`; Elasticsearch runs `SnapshotStoreSpec`, `SinkSpec` and the two query specs; Kafka runs `TopicTransportSpec`; ClickHouse runs `SinkSpec` and `DatasetQueryBackendSpec`.
 
 ### Capabilities and skipped tests {#capabilities}
 
 A backend declares what it can do on the ports themselves, and the spec skips, through a JUnit assumption that names the reason, the tests of what it does not:
 
-- **A store's optional capabilities.** `Store.openSnapshotTails` (a `SnapshotTailReader`) runs the snapshot-tail tests through it, over the snapshots `createSnapshots` returns; without it the spec reads the snapshot and the tail apart, as the node does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **What a store holds.** `Store.holdsLogs` and `Store.holdsSnapshots`, both `true` by default, say which ports it opens. `StoreTck` skips the log's specs and the control plane of a store without logs (`Skipped: the <type> store holds no log, so no control plane either.`) and the snapshot spec of one without snapshots, and checks instead that such a store refuses what it does not hold. The `facets` the test lists are asserted, never skipped.
+- **A store's optional capabilities.** The snapshot-tail tests read the snapshots `createSnapshots` returns with the log's tails: through `snapshotTailsOf` in `EventLogSpec`, or the store's `openSnapshotTails` under `StoreTck`, the one-round-trip read the node uses; without one, the spec reads the snapshot and the tail apart, as the node then does, and without `createSnapshots` it skips them. `EventLog.appendsAcrossPartitions` runs the test of one `appendAll` across partitions. A log that is a `TagsBackfill` runs the tags backfill test. `SnapshotStore.rebuilds` (a `SnapshotRebuildStore`) runs the rebuild tests.
+- **A provider.** `provided()` in `SinkSpec` and `TopicTransportSpec` opens the Sink or the transport through its provider, from the options it declares, and runs the test that the provider reads only those; without it that test is skipped (`No provider opens this sink.`).
 - **What a store refuses.** `refused` returns a stream the backend's storage cannot hold, such as a NUL in a PostgreSQL `jsonb` string, and the spec expects its append to be rejected (`AppendOutcome.Rejected`) and, in an `appendAll`, to fail alone; without it the spec skips that test.
-- **A query backend's storage.** The binding's storage facts say which features the storage serves natively, partly or not at all: keyset pages, unbounded streams, percentiles, temporal aggregation and the others. The spec skips the tests of a feature the storage does not serve, and says which fact declined it and its value: `Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` A known divergence from the filter semantics is listed by its case id in `semanticDivergences`, and its test is skipped as a known divergence rather than hidden.
+- **A query backend's storage.** The binding's storage facts (`StorageSupport`) say which features the storage serves natively, partly or not at all, and the spec skips the tests of a feature it declares `NONE`, naming the fact and its value: `Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` The facts the specs read are keyset pages, unbounded streams, `having`, groups at the record's root over expanded elements, and distinct counts.
+- **A query backend's fields.** A field's bindings say what the storage can do with it (`QueryCapability`), and the spec skips a test of a capability the field is not bound to: `Skipped: the storage binds no AGGREGATE_TEMPORAL to state.createdAt (…)`. For a sort or a `terms` group the spec does not skip: it expects admission to refuse the query with `unsupported-capability`, the answer a caller gets.
+- **A known divergence.** A divergence from the filter semantics is listed by its case id in `semanticDivergences`, and its test is skipped with `Known divergence from the canonical semantics: <id>.` rather than hidden.
 
 ### From the 9.x TCK {#from-9x}
 
@@ -188,7 +222,7 @@ A backend declares what it can do on the ports themselves, and the spec skips, t
 | `StateAggregateRepositorySpec`, `StateAggregateFactorySpec`, `SnapshotStrategySpec`, `DomainEventStreamSpec` | Removed: kernel internals, not ports |
 | The Testcontainers fixtures | `wow-tck-containers` (`WowContainers`), without Redis |
 
-`CheckpointStoreSpec`, `LeaseStoreSpec`, `FailureLedgerSpec`, `TimerStoreSpec` and `SinkSpec` are new in V10: a 9.x backend implemented none of these ports.
+`CheckpointStoreSpec`, `LeaseStoreSpec`, `FailureLedgerSpec`, `TimerStoreSpec`, `SinkSpec` and `StoreTck` are new in V10: a 9.x backend implemented none of these ports. Of 9.x's helpers, the filter semantics cases moved to `wow-query-tck`; the mock aggregates, the wire samples and the no-op query backends went with the 9.x code.
 
 ## The rules
 

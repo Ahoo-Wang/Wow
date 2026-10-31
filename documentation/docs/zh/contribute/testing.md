@@ -32,7 +32,7 @@ Wow 的每个改动都附带测试，放在能覆盖改动内容的最窄层次�
 
 ## 契约测试套件 {#the-contract-suites}
 
-后端实现 `:spi` 的端口，它的正确性由契约决定，而不是由它自己的测试决定。TCK 为每个端口提供一个抽象 spec：`:tck` 中的 `EventLogSpec`、`SnapshotStoreSpec`、`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`ReservationStoreSpec`、`TimerStoreSpec`、`SinkSpec` 和 `TopicTransportSpec`，以及 `:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec` 和 `DatasetQueryBackendSpec`。后端的容器测试继承它实现的每个 spec，并提供一个全新的存储，它运行自己所实现端口的 spec：PostgreSQL 和 MongoDB 运行七个存储 spec 以及快照与事件的查询 spec。`:tck-containers` 启动共享的容器，镜像版本固定。[编写后端](./backends)展示怎样做。
+后端实现 `:spi` 的端口，它的正确性由契约决定，而不是由它自己的测试决定。TCK 为每个端口提供一个抽象 spec：`:tck` 中的 `EventLogSpec`、`SnapshotStoreSpec`、`CheckpointStoreSpec`、`LeaseStoreSpec`、`FailureLedgerSpec`、`ReservationStoreSpec`、`TimerStoreSpec`、`SinkSpec` 和 `TopicTransportSpec`，以及 `:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec` 和 `DatasetQueryBackendSpec`。`StoreTck` 对整个存储运行它们，像宿主那样经由提供者打开存储。后端的容器测试为它提供的每种存储类型运行 `StoreTck`，并继承它实现的每个 spec，提供它自己的全新存储：PostgreSQL 和 MongoDB 运行七个存储 spec 以及快照与事件的查询 spec。`:tck-containers` 启动共享的容器，镜像版本固定。[编写后端](./backends)展示怎样做。
 
 ## 文档与脚本 {#documentation-and-scripts}
 
