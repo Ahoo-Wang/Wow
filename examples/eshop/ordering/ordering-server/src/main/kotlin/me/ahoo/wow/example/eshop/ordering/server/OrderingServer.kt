@@ -27,7 +27,7 @@ import kotlin.time.toKotlinDuration
  * `eshop-ordering-domain`'s binding index and serves its routes on the public port and the cluster on the internal
  * one. It runs on the memory backend by default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`).
  *
- * It numbers the orders it creates (decision D373): CosId's generator `eshop-ordering.order` gives each new order its id,
+ * It numbers the orders it creates: CosId's generator `eshop-ordering.order` gives each new order its id,
  * `SO-<yyMMdd>-<sequence>`, from ranges each node reserves in one store (`eshop-ordering-ids.yaml`).
  *
  * Its sagas send the inventory's commands, so the node needs a command transport: the `kafka` profile gives it Kafka,

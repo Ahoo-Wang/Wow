@@ -30,7 +30,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * default for the rest of the shop. The call names no order id: the ordering numbers the order it creates
  * (`SO-261031-42`, its order numbers' generator), and the call's request id comes from the basket's commit, so
  * handling the commit again, after a retry or a replay, is the same request: the ordering context decides it once
- * and answers with the same order and number, without taking another (decision D191).
+ * and answers with the same order and number, without taking another.
  *
  * The order belongs to the buyer: the call carries the basket's scope, whose owner is its buyer, and the buyer as its
  * operator, which the ordering service trusts because the call reaches its internal port, which only the platform's

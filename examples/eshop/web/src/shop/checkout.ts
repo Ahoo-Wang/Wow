@@ -192,7 +192,7 @@ export function isPaid(progress: CheckoutProgress): boolean {
 
 /**
  * The order a checkout's result names: the order a hop of the ordering acted
- * on. Its id is its number, which the ordering gave it (decision D373): the
+ * on. Its id is its number, which the ordering gave it: the
  * basket's own hops name no order.
  */
 export function orderIdOf(result: CommandResult): string | undefined {

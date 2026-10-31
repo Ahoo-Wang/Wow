@@ -48,7 +48,7 @@ dependencies {
     // after its commits, for the payment to read.
     implementation("me.ahoo.wow:wow-cocache")
     implementation(libs.cocache.spring.boot.starter)
-    // The order numbers (decision D373): wow-cosid gives the order aggregate its ids from CosId's generator named after
+    // The order numbers: wow-cosid gives the order aggregate its ids from CosId's generator named after
     // it, which CosId's starter builds from eshop-ordering-ids.yaml; its ranges are kept in the service's PostgreSQL
     // or MongoDB database (CosId's jdbc and mongo stores), or in its memory on the memory backend (MemoryRangeStores).
     implementation("me.ahoo.wow:wow-cosid")

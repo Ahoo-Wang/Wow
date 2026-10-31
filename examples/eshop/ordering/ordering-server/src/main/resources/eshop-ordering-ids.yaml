@@ -1,7 +1,7 @@
-# The order numbers (decision D373). An order's id is its number, SO-<yyMMdd>-<sequence> (SO-261031-42), which the
+# The order numbers. An order's id is its number, SO-<yyMMdd>-<sequence> (SO-261031-42), which the
 # ordering gives the order a SubmitOrder without an id creates, at admission: a retried or replayed request is answered
-# with the number it was given, and takes no other (decision D191). wow-cosid takes the order's ids from CosId's
-# generator named after the aggregate, eshop-ordering.order (decision D369), a segment: every node of the service
+# with the number it was given, and takes no other. wow-cosid takes the order's ids from CosId's
+# generator named after the aggregate, eshop-ordering.order, a segment: every node of the service
 # reserves ranges of one sequence from one store, so no two nodes give one number, and no machine slot is needed. The
 # sequence never restarts, so a number is unique by its sequence alone; the day the number was issued (UTC) goes
 # before it. Imported by application.yaml; a JVM that runs several services on one class path (EshopLocal) imports it
