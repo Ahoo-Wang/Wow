@@ -31,6 +31,7 @@ import {
   checkManifest,
   fetchManifest,
   type RouteManifest,
+  type RoutingCommand,
   type RoutingManifest,
 } from './manifest.js';
 import {
@@ -56,7 +57,10 @@ import { formatWaitPlan, formatWaitTimeout, WaitPlan } from './wait.js';
  *   a creation, whose id the server assigns, an `@Unaddressed` command, or
  *   any command of an aggregate whose id is its owner's (the Manifest's
  *   `idSource: "owner"`), which goes to the caller's own; the route without
- *   `{id}` then sends it.
+ *   `{id}` then sends it. A command whose body names its aggregate (the
+ *   Manifest's `idProperty`) goes by that route too, whether `id` is given or
+ *   not: a given one is the one its body names, or is written into a body
+ *   that names none.
  * - `targetTenant`, `targetScope`: the tenant and scope a caller allowed to
  *   act across scopes acts in (`Wow-Scope`); the caller's own when absent.
  * - `wait` (`Wow-Wait`), a {@link WaitPlan}, and `timeout` in milliseconds
@@ -235,12 +239,15 @@ function planOf(request: CommandRequest): WaitPlan | undefined {
   return (request.wait ?? WaitPlan.DEFAULT).within(request.timeout);
 }
 
-/** The route of `request` among `routes`: its method and path, the id in it. */
+/**
+ * The route of `request` among `routes`, by `id` (the request's, none for a
+ * command whose body names its aggregate): its method and path, the id in it.
+ */
 function routeOf(
   request: CommandRequest,
   routes: readonly RouteManifest[],
+  id: string | undefined,
 ): { method: 'POST' | 'DELETE'; path: string } {
-  const id = request.id;
   const route = routes.find(
     item => item.path.includes(ID) === (id !== undefined),
   );
@@ -264,6 +271,32 @@ function routeOf(
         ? route.path
         : route.path.replace(ID, encodeURIComponent(id)),
   };
+}
+
+/**
+ * The body `request` sends, `{}` when it has none. Of a command whose body
+ * names its aggregate in `idProperty`, the route has no id: the request's id,
+ * when it names one, is the body's too, written into a body that names none.
+ *
+ * @throws TypeError when the body names another aggregate than the request
+ */
+function bodyOf(
+  request: CommandRequest,
+  idProperty: string | undefined,
+): object {
+  const body = request.body ?? {};
+  const id = request.id;
+  if (idProperty === undefined || id === undefined) return body;
+  const named: unknown = (body as Record<string, unknown>)[idProperty];
+  if (named === undefined || named === null) {
+    return { ...body, [idProperty]: id };
+  }
+  if (named !== id) {
+    throw new TypeError(
+      `The request names the aggregate ${id}, but the body of ${request.command} names ${String(named)}: send it without an id.`,
+    );
+  }
+  return body;
 }
 
 /** The aggregate type a full type name `context.aggregate.Command` names. */
@@ -442,14 +475,22 @@ export class CommandClient {
     requestId: string,
     accept?: string,
   ): Promise<Response> {
-    const route = routeOf(request, await this.routesOf(request));
+    const declared = await this.commandOf(request);
+    const idProperty = declared.idProperty;
+    const route = routeOf(
+      request,
+      declared.routes,
+      idProperty === undefined ? request.id : undefined,
+    );
     const scope = targetOf(request);
     const bodyNumbers = this.bodyNumbers[request.command];
     return send(this.client, {
       method: route.method,
       path: route.path,
       headers: commandHeaders(request, plan, requestId, accept),
-      ...(route.method === 'DELETE' ? {} : { body: request.body ?? {} }),
+      ...(route.method === 'DELETE'
+        ? {}
+        : { body: bodyOf(request, idProperty) }),
       ...(bodyNumbers === undefined ? {} : { bodyNumbers }),
       options: {
         ...(scope === undefined ? {} : { scope }),
@@ -461,13 +502,11 @@ export class CommandClient {
   }
 
   /**
-   * The routes of `request`'s command in the Manifest: a domain command's
-   * among its aggregate's commands, by name or former name; a system
-   * command's among its type's, else among its context's (a job's).
+   * `request`'s command as the Manifest lists it, with its routes: a domain
+   * command among its aggregate's commands, by name or former name; a system
+   * command among its type's, else among its context's (a job's).
    */
-  private async routesOf(
-    request: CommandRequest,
-  ): Promise<readonly RouteManifest[]> {
+  private async commandOf(request: CommandRequest): Promise<RoutingCommand> {
     const command = request.command;
     const system = command.startsWith(SYSTEM_PREFIX);
     const type = request.type ?? (system ? undefined : typeNamed(command));
@@ -497,7 +536,7 @@ export class CommandClient {
         `The Manifest lists no command ${name} of ${type.context}.${type.name}.`,
       );
     }
-    return declared.routes;
+    return declared;
   }
 
   /** The Manifest given, or the service's, fetched once (again after a failure). */

@@ -267,6 +267,113 @@ describe('Manifest clients', () => {
     expect(read('probe/thing/aggregate.ts')).toContain("idSource: 'owner',");
   });
 
+  it('sends a command whose body names its aggregate by no id alone, and takes no computed id', async () => {
+    const route = (segment: string) => [
+      { method: 'POST', path: `/probe/thing/${segment}` },
+    ];
+    const { read } = await generateCompiling(
+      manifest(
+        {
+          commands: [
+            {
+              name: 'Restock',
+              schema: schema('a.Restock'),
+              creation: 'allowed',
+              routes: route('restock'),
+              idProperty: 'thingId',
+            },
+            {
+              name: 'Count',
+              schema: schema('a.Count'),
+              routes: route('count'),
+              idProperty: 'thingId',
+            },
+            {
+              name: 'Audit',
+              schema: schema('a.Audit'),
+              routes: route('audit'),
+              idProperty: 'thingId',
+            },
+            // A schema outside $defs, and one that lists no properties: the id is none the service computes.
+            {
+              name: 'Tag',
+              schema: '#/components/schemas/Tag',
+              routes: route('tag'),
+              idProperty: 'thingId',
+            },
+            {
+              name: 'Mark',
+              schema: schema('a.Mark'),
+              routes: route('mark'),
+              idProperty: 'thingId',
+            },
+          ],
+        },
+        {
+          'a.Restock': {
+            type: 'object',
+            required: ['thingId', 'n'],
+            properties: {
+              thingId: { type: 'string' },
+              n: { type: 'integer' },
+            },
+          },
+          'a.Count': {
+            type: 'object',
+            required: ['sku', 'thingId'],
+            properties: {
+              sku: { type: 'string' },
+              thingId: { type: 'string', readOnly: true },
+            },
+          },
+          'a.Audit': {
+            type: 'object',
+            required: ['thingId'],
+            properties: { thingId: { type: 'string', readOnly: true } },
+          },
+          'a.Mark': { type: 'object' },
+        },
+      ),
+      `import { ThingCommandClient } from './out/index.js';
+       const commands = new ThingCommandClient();
+       void [
+         commands.restock({ thingId: 't1', n: 1 }), commands.restockStream({ thingId: 't1', n: 1 }),
+         commands.count({ sku: 's' }), commands.countStream({ sku: 's' }), commands.audit(),
+         commands.tag({ thingId: 't1' }), commands.tag(), commands.mark({ thingId: 't1' }),
+       ];
+       // @ts-expect-error the body names the aggregate, and the method takes no id
+       void commands.restock('t1', { thingId: 't1', n: 1 });
+       // @ts-expect-error nor in its options
+       void commands.restock({ thingId: 't1', n: 1 }, { id: 't1' });`,
+    );
+    const client = read('probe/thing/commandClient.ts');
+    expect(client).toContain(
+      'restock(body: Restock, options?: CommandOptions): Promise<CommandResult> {',
+    );
+    expect(client).toContain(
+      "return this.client.wait({ ...options, command: 'probe.thing.Restock', body });",
+    );
+    expect(client).toContain('Its body names its aggregate: `thingId`.');
+    expect(client).toContain(
+      "count(body: Omit<Count, 'thingId'>, options?: CommandOptions)",
+    );
+    expect(client).toContain(
+      'Its body names its aggregate: `thingId`, which the service computes from the fields given.',
+    );
+    // A body that requires nothing but its computed id may be left out.
+    expect(client).toContain(
+      "audit(body: Omit<Audit, 'thingId'> = {}, options?: CommandOptions)",
+    );
+    expect(client).toContain(
+      'tag(body: object = {}, options?: CommandOptions)',
+    );
+    expect(client).toContain('mark(body: Mark = {}, options?: CommandOptions)');
+    expect(client).not.toContain("Omit<Mark, 'thingId'>");
+    expect(read('probe/manifest.ts')).toContain(
+      "{ name: 'Restock', routes: [{ method: 'POST', path: '/probe/thing/restock' }], idProperty: 'thingId' },",
+    );
+  });
+
   it('warns of a schema $defs does not hold', async () => {
     const result = await generateCold(
       manifest({

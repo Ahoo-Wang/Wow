@@ -92,8 +92,18 @@ export interface CommandModel {
   readonly ownMethod?: string;
   /** The body's type name, or undefined when its schema is unknown. */
   readonly bodyType: string;
-  /** The body may be left out: its schema requires nothing. */
+  /** The body may be left out: its schema requires nothing the method takes. */
   readonly bodyOptional: boolean;
+  /**
+   * The property of its body that names its aggregate (the Manifest's
+   * `idProperty`): the command then has no route by id, and its method no id.
+   */
+  readonly idProperty?: string;
+  /**
+   * Its `idProperty` is computed (`readOnly` in its schema): the service
+   * computes it from the body's fields, so the method takes the body without it.
+   */
+  readonly idComputed?: boolean;
   readonly creation: string;
   readonly mounted: boolean;
   readonly produces: readonly string[];
@@ -631,13 +641,30 @@ function mergeTextNumbers(
   );
 }
 
+/** Whether `schema` requires nothing but `omitted`, a property the method does not take. */
 function emptyBody(
   types: SchemaTypes,
   schema: JsonSchema | undefined,
+  omitted?: string,
 ): boolean {
   if (schema === undefined) return true;
   const resolved = types.resolve(schema);
-  return !Array.isArray(resolved.required) || resolved.required.length === 0;
+  return (
+    !Array.isArray(resolved.required) ||
+    resolved.required.every(name => name === omitted)
+  );
+}
+
+/** Whether the property `name` of `schema` is computed: `readOnly`, written by the service and never read back. */
+function computedProperty(
+  types: SchemaTypes,
+  schema: JsonSchema | undefined,
+  name: string,
+): boolean {
+  if (schema === undefined) return false;
+  const properties = types.resolve(schema).properties;
+  const property = isObject(properties) ? properties[name] : undefined;
+  return isObject(property) && property.readOnly === true;
 }
 
 /** The domain commands of `aggregate`: its system commands left out. */
@@ -881,6 +908,11 @@ function aggregateModel(
       taken.add(ownMethod);
     }
     const key = schemaKey(command.schema);
+    const bodySchema = key === undefined ? undefined : types.schemaOf(key);
+    const idProperty = command.idProperty;
+    const idComputed =
+      idProperty !== undefined &&
+      computedProperty(types, bodySchema, idProperty);
     return {
       name: command.name,
       method,
@@ -891,8 +923,11 @@ function aggregateModel(
       bodyType: typeOfRef(types, command.schema, `${where}.${command.name}`),
       bodyOptional: emptyBody(
         types,
-        key === undefined ? undefined : types.schemaOf(key),
+        bodySchema,
+        idComputed ? idProperty : undefined,
       ),
+      ...(idProperty === undefined ? {} : { idProperty }),
+      ...(idComputed ? { idComputed } : {}),
       creation: command.creation ?? 'none',
       mounted: command.mounted ?? false,
       produces: command.produces ?? [],

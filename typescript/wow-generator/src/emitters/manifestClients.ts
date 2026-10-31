@@ -251,20 +251,25 @@ function emitContract(
 
 /**
  * The routing part of the service's Manifest, as data: each aggregate's
- * commands, its lifecycle commands among them, with their routes. Its clients
- * send by it, so they fetch no Manifest; it holds no schema.
+ * commands, its lifecycle commands among them, with their routes, and the
+ * property of the body that names the aggregate of a command whose body does.
+ * Its clients send by it, so they fetch no Manifest; it holds no schema.
  */
 function emitRouting(context: ContextModel, modules: ModuleSet): void {
   const module = modules.module(`${context.directory}/manifest.ts`);
   const name = `${context.typeName}Manifest`;
   module.imports.add(WOW_CLIENT, ['MANIFEST_FORMAT', 'RoutingManifest']);
-  const command = (commandName: string, routes: readonly Route[]) =>
-    `          { name: ${quoteStringLiteral(commandName)}, routes: ${routesLiteral(routes)} },`;
+  const command = (
+    commandName: string,
+    routes: readonly Route[],
+    idProperty?: string,
+  ) =>
+    `          { name: ${quoteStringLiteral(commandName)}, routes: ${routesLiteral(routes)}${idProperty === undefined ? '' : `, idProperty: ${quoteStringLiteral(idProperty)}`} },`;
   const aggregates = context.aggregates.map(aggregate => {
     const commands = [
       ...aggregate.commands
         .filter(item => item.routes.length > 0)
-        .map(item => command(item.name, item.routes)),
+        .map(item => command(item.name, item.routes, item.idProperty)),
       ...aggregate.lifecycle.map(item => command(item.name, item.routes)),
     ];
     return `      {\n        name: ${quoteStringLiteral(aggregate.name)},\n        commands: [\n${commands.join('\n')}\n        ],\n      },`;
@@ -536,6 +541,9 @@ function commandDoc(command: CommandModel, own?: boolean): string {
           command.ownMethod +
           "` sends it to the caller's own."
         : undefined,
+      command.idProperty === undefined
+        ? undefined
+        : `Its body names its aggregate: \`${command.idProperty}\`${command.idComputed ? ', which the service computes from the fields given' : ''}.`,
       creates,
       command.produces.length > 0
         ? `Produces ${command.produces.map(event => `\`${event}\``).join(', ')}.`
@@ -561,7 +569,11 @@ function commandMethods(
   stream: boolean,
   own?: boolean,
 ): string {
-  const body = command.bodyType === 'unknown' ? 'object' : command.bodyType;
+  const type = command.bodyType === 'unknown' ? 'object' : command.bodyType;
+  // A computed id is the service's to compute from the fields: no input here.
+  const body = command.idComputed
+    ? `Omit<${type}, ${quoteStringLiteral(command.idProperty!)}>`
+    : type;
   const bodyParam = command.bodyOptional
     ? `body: ${body} = {}`
     : `body: ${body}`;

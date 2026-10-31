@@ -295,6 +295,61 @@ describe('CommandClient', () => {
     ]);
   });
 
+  it("sends a command whose body names its aggregate by no id, the body naming the request's", async () => {
+    const STOCK = '/shop/stock';
+    const named = manifestOf([
+      context('shop', [
+        aggregate('stock', [
+          {
+            name: 'Restock',
+            aliases: [],
+            schema: '#/$defs/Restock',
+            creation: 'allowed',
+            routes: [{ method: 'POST', path: `${STOCK}/restock` }],
+            idProperty: 'productId',
+          },
+        ]),
+      ]),
+    ]);
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: named });
+    const command = 'shop.stock.Restock';
+    await commands.wait({ command, body: { productId: 'mug', quantity: 1 } });
+    await commands.wait({
+      command,
+      body: { productId: 'mug', quantity: 2 },
+      id: 'mug',
+    });
+    // A body that names none is given the request's id, which the route has no place for.
+    await commands.wait({ command, body: { quantity: 3 }, id: 'cup' });
+    await commands.wait({
+      command,
+      body: { productId: null, quantity: 4 },
+      id: 'cup',
+    });
+    expect(requests.map(r => [r.method, r.url])).toEqual(
+      Array(4).fill(['POST', `${BASE_URL}/shop/stock/restock`]),
+    );
+    expect(requests.map(r => r.body)).toEqual([
+      { productId: 'mug', quantity: 1 },
+      { productId: 'mug', quantity: 2 },
+      { quantity: 3, productId: 'cup' },
+      { productId: 'cup', quantity: 4 },
+    ]);
+    // A body that names another aggregate, or holds no string id, is the code's mistake: nothing is sent.
+    await expect(
+      commands.wait({ command, body: { productId: 'mug' }, id: 'cup' }),
+    ).rejects.toThrow(
+      'The request names the aggregate cup, but the body of shop.stock.Restock names mug: send it without an id.',
+    );
+    await expect(
+      commands.wait({ command, body: { productId: 7 }, id: 'cup' }),
+    ).rejects.toThrow(
+      'The request names the aggregate cup, but the body of shop.stock.Restock names 7: send it without an id.',
+    );
+    expect(requests).toHaveLength(4);
+  });
+
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     await new CommandClient(client(), { manifest: TEST_MANIFEST }).wait({

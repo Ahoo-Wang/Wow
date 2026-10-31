@@ -80,7 +80,7 @@ Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the fir
 | `RetryManifest` | interface | A subscription's retry budget. | — |
 | `RouteManifest` | interface | A route of the edge: a method and a path, {id} the aggregate id. | — |
 | `RouteParameterManifest` | interface | A path variable or query parameter of a service route, and its scalar schema. | — |
-| `RoutingCommand` | type | A command as a `RoutingManifest` lists it: its name, former names and routes. | — |
+| `RoutingCommand` | type | A command as a `RoutingManifest` lists it: its name, former names and routes, and the property of its body that names its aggregate, for a command whose body does (`idProperty`). | — |
 | `RoutingManifest` | interface | What a `CommandClient` reads of a Manifest to send a command: each context's aggregates and their commands with their routes, and the context's own system commands; and what a `ServiceRoutes` reads to call a service route: the context's routes. | — |
 | `RoutingServiceRoute` | type | A service route as a `RoutingManifest` lists it: its name and its route. | — |
 | `SNAPSHOT_SUBSCRIPTION` | const | The name of the built-in subscription that writes snapshots. | — |
