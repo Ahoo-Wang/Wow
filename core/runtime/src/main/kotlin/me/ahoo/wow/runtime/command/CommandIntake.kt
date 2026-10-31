@@ -173,9 +173,11 @@ class CommandIntake internal constructor(
      * Refuses [wire], of an aggregate type or a command type this context does not know, as
      * [FrameworkCodes.COMMAND_UNHANDLED]: a sender's mistake, or a contract the sender has and this service does
      * not yet, which no retry here mends. It is the sender's rejection, not a failure of the aggregate it names, so
-     * that aggregate's later commands go on: the node waiting on [wait] is signalled the rejection at the context's
-     * COMMITTED hop, and the receipt goes where [wire] says, as for a decide function's rejection; the sender's saga
-     * takes it in its `@OnRejected` handler, or parks there without one.
+     * the command is settled and that aggregate's later commands go on. No aggregate decided it, so the wait ends
+     * here: the node waiting on [wait], unless the wait has expired, is signalled the rejection at the first COMMITTED
+     * hop its chain names before a HANDLED one, the context's when it names none. The receipt goes where [wire] says,
+     * but unlike a decide function's rejection it carries neither the rest of the wait chain nor a version; the
+     * sender's saga takes it in its `@OnRejected` handler, or parks there without one.
      */
     private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
         logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
