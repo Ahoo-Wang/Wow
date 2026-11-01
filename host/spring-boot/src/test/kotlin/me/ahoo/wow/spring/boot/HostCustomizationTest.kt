@@ -14,6 +14,9 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.Authorization
@@ -30,6 +33,7 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
@@ -153,6 +157,49 @@ class HostCustomizationTest {
             val sequence = AtomicInteger()
             return AggregateIdGenerator { "acct-${sequence.incrementAndGet()}" }
         }
+    }
+}
+
+/**
+ * A transformer that takes the service's command client, as a 9.x rewriter that sent commands did: the client sends
+ * through the node's gateway, which the node is assembled with the transformer, so the host builds the client on its
+ * first use, not as a dependency of the node.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class HostSendingTransformerTest {
+    private val host = startHost(sources = listOf(HostTestApp::class.java, SendingTransformer::class.java))
+
+    @AfterAll
+    fun close() {
+        host.close()
+    }
+
+    @Test
+    fun `a transformer that takes the command client should start with the host and send through it`() {
+        val id = host.post("/bank/account/open-account", """{"owner":"alice"}""").body!!["ref"]["id"].asString()
+        host.post("/bank/account/$id/deposit", """{"amount":5}""").status.assert().isEqualTo(200)
+        val audits = host.context.getBean(AuditingDeposit::class.java).opened
+        audits.map { it.status }.assert().containsExactly(CommandResult.Status.SUCCEEDED)
+        audits.single().ref.id.assert().isNotEqualTo(id)
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class SendingTransformer {
+        @Bean
+        fun auditingDeposit(commands: CommandClient): AuditingDeposit = AuditingDeposit(commands)
+    }
+}
+
+/** Opens an audit account through [commands] before each deposit goes on unchanged. */
+class AuditingDeposit(private val commands: CommandClient) : CommandTransformer {
+    override val input: CommandType = CommandType("bank.account.Deposit", Deposit::class.java)
+
+    /** What opening each audit account answered. */
+    val opened: MutableList<CommandResult> = CopyOnWriteArrayList()
+
+    override suspend fun transform(input: CommandInput): CommandTarget {
+        opened += commands.wait(OpenAccount("audit"))
+        return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
     }
 }
 

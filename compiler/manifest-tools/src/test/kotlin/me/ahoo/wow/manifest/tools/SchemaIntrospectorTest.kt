@@ -54,8 +54,12 @@ import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import java.io.File
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.net.URLClassLoader
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -711,6 +715,43 @@ class SchemaIntrospectorTest {
             (value["key"] as Map<*, *>)["readOnly"].assert().describedAs(name).isEqualTo(true)
         }
         (state["key"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
+    }
+
+    /** The fixtures compiled in Kotlin's JVM default [mode], `noCompatibility` or `enable`, by a loader of their own. */
+    private fun jvmDefaultFixtures(mode: String): ClassLoader {
+        val classes = System.getProperty("wow-test.jvm-default.$mode").split(File.pathSeparator)
+        return URLClassLoader(classes.map { File(it).toURI().toURL() }.toTypedArray(), javaClass.classLoader)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["noCompatibility", "enable"])
+    fun `computed properties should be in the schema as Jackson writes them, in each JVM default mode`(mode: String) {
+        val fixtures = jvmDefaultFixtures(mode)
+        val stateType = fixtures.loadClass("me.ahoo.wow.manifest.tools.jvmdefault.TicketState")
+        // In `enable` mode the class repeats each default getter of its interfaces as a bridge, which the generator
+        // offers, and Jackson skips for the interface's getter; in `no-compatibility` mode it holds none.
+        stateType.declaredMethods.any { it.name == "getStage" && it.isBridge }.assert().isEqualTo(mode == "enable")
+        val completed = SchemaIntrospector(fixtures).complete(stateFragment(stateType))
+        val written = StateJson.mapper.readTree(
+            StateJson.mapper.writeValueAsString(stateType.getConstructor(String::class.java).newInstance("t")),
+        )
+        val state = defOf(completed, stateType)
+        val properties = state["properties"] as Map<*, *>
+        properties.keys.assert().isEqualTo(written.propertyNames().asSequence().toSet())
+        // The interface's computed properties and the class's own: read-only, and required unless nullable.
+        (properties["stage"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
+        properties["held"].assert().isEqualTo(mapOf("type" to "boolean", "readOnly" to true))
+        properties["note"].assert().isEqualTo(mapOf("type" to listOf("string", "null"), "readOnly" to true))
+        properties["empty"].assert().isEqualTo(mapOf("type" to "boolean", "readOnly" to true))
+        (state["required"] as List<*>).assert()
+            .containsExactlyInAnyOrder("id", "lines", "ticket", "stage", "held", "empty")
+        // Of a value whose interface computes the property a generic interface declares: a string, as it is written.
+        val ticketSchema = properties["ticket"] as Map<*, *>
+        val ticketTarget = (ticketSchema["\$ref"] as? String)?.let { completed.defs[it.substringAfterLast('/')] }
+        val ticket = ((ticketTarget ?: ticketSchema) as Map<*, *>)["properties"] as Map<*, *>
+        ticket.keys.assert().isEqualTo(written.get("ticket").propertyNames().asSequence().toSet())
+        ticket["id"].assert().isEqualTo(mapOf("type" to "string", "readOnly" to true))
+        ticket["label"].assert().isEqualTo(mapOf("type" to "string", "readOnly" to true))
     }
 
     class RoutedState(val id: String) {

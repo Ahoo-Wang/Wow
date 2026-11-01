@@ -90,7 +90,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 ## 上限 {#bounds}
 
-每个查询都在一个预算下运行：HTTP 用 `wow.query.budgets.http.*`，Kotlin 中用 `wow.query.budgets.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
+每个查询都在一个预算下运行：HTTP 用 `wow.query.budgets.http.*`，Kotlin 中用 `wow.query.budgets.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。9.x 的 `limit(Int.MAX_VALUE)` 同样会被拒绝：必须读全部匹配的代码（任务或迁移步骤，而不是代表调用方的读取）用 `NodeQueryApi.trusted().unbounded()`，它不受进程内预算限制、改用自己的超时（`wow.query.unbounded-timeout`），并读取所有租户；或者以流读取。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
 
 ## 声明索引 {#declare-indexes}
 

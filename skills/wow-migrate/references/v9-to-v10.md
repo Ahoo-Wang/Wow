@@ -917,6 +917,7 @@ A 9.x service whose peers stay on 9.x cannot move alone: V10 reads only V10 publ
 | `IListQuery.queryState(api)` | `api.list(query).map { it.state }`, `query` a `ListQuery` |
 | `ISingleQuery`, `IListQuery`, `IPagedQuery`, `ICursorQuery`, `ICountQuery`, `IPagedList` as parameter, return or implemented types | The classes `SingleQuery`, `ListQuery`, `PagedQuery`, `CursorQuery`, `CountQuery`, `PagedList` (built with `of` or the DSL); code generic over queries takes `Queryable<Q>` or `FilterCapable<Q>`. There is nothing to implement: the interfaces are gone |
 | `ListQuery(limit = 0)`, every match on the query gateway | `limit` left out takes the entry's default list size, and `0` is refused; every match is `queryApi.trusted().unbounded()` or `stream` |
+| `limit(Int.MAX_VALUE)` for every match | Refused: an in-process list returns at most `max-list-size` (1,000), and a larger limit fails (`size-out-of-range`). Code that must see every match, such as a job, a backfill or a migration step, reads them with `NodeQueryApi.trusted().unbounded()` or streams them; a read for a caller pages instead |
 | An aggregation cut at its `limit` in key order | A `sort` for a top-N; without one, more groups than `limit` fail with `wow.query.too-many-groups` (400) |
 | `Pagination.offset()` as an `Int` | A `Long` |
 | `@EnableCoApi(clients = […])` | Nothing to declare: the host creates the clients; `wow.peer.mode` (`service`, default, or `user`) and `wow.peer.forwarded-headers` |

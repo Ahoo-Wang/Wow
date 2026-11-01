@@ -25,7 +25,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Server-sent events for results | Kept | One event per hop reached. |
 | Request id idempotency | Kept | The request id is unique per tenant and aggregate type; a reuse with another command type is refused. |
 | Bloom filter idempotency checker | Replaced | Each cached aggregate keeps its most recent requests, derived from the log; storage answers the rest. |
-| Command rewriter (`CommandBuilderRewriter`) | Replaced | A command transformer at admission; it may not change the command's identity. |
+| Command rewriter (`CommandBuilderRewriter`) | Replaced | A command transformer at admission; it may not change the command's identity. One that sent commands of its own takes the service's `CommandClient` as a constructor parameter, as any bean does. |
 | Commands mounted on another aggregate (`@AggregateRoot(commands)`) | Replaced | `@MountedCommand`, and `@Unaddressed` for commands that do not name their aggregate. |
 | Command validation (Jakarta Bean Validation) | Replaced | Validation at admission: Jakarta constraints on the command class, checked for every command (HTTP, in process, sagas, timers, other contexts) and answered `wow.command.invalid` (400). A rule that needs the state is a rejection. |
 | `@VoidCommand` | Dropped | Send the command and do not wait past `accepted`. |

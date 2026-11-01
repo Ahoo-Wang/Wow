@@ -90,7 +90,7 @@ A query is admitted as its caller:
 
 ## Bounds
 
-Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query.budgets.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
+Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query.budgets.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. So is 9.x's `limit(Int.MAX_VALUE)`: code that must read every match, a job or a migration step rather than a read for a caller, uses `NodeQueryApi.trusted().unbounded()`, which drops the in-process budget for its own timeout (`wow.query.unbounded-timeout`) and reads every tenant, or streams them. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
 
 ## Declare indexes
 
