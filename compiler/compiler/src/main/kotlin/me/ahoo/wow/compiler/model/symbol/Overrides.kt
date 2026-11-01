@@ -44,5 +44,6 @@ internal fun KSFunctionDeclaration.handlerName(where: String, problems: MutableL
 
 private const val NAME = "me.ahoo.wow.api.annotation.Name"
 
-private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
+/** Whether this annotation is of the annotation class [qualifiedName]. */
+internal fun KSAnnotation.isOf(qualifiedName: String): Boolean =
     annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName

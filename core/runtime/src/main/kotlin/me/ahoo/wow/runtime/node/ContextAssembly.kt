@@ -433,7 +433,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 clock = clock,
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), clock, observer = observer)
-            firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
+            firing.firer = ContextTimerFirer(models, coordinator, sender, observer, admission.validators)
             return ContextNode(
                 context,
                 models,

@@ -14,10 +14,11 @@
 package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 @BoundedContext(
-    name = ViewStoreContext.NAME,
+    // `ViewStoreContext.NAME` as a literal: KSP may not evaluate another module's constant.
+    // ViewStoreBoundedContextTest holds the two equal.
+    name = "view-store",
     description = "The view engine's saved views, view preferences and dataset wording",
 )
 object ViewStoreBoundedContext
