@@ -1,0 +1,102 @@
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-11-01T00:28:20.732-07:00  WARN 33856 --- [transfer-service] [           main] me.ahoo.wow.runtime.node.JdkCheck        : Wow runs on JDK 21, which pins a virtual thread that blocks inside synchronized code, as database drivers, Kafka clients and Java agents do, to its carrier: enough of them stop every store call of a node, whose liveness then fails and restarts it. Run Wow on JDK 25, which does not pin them (JDK 24 and later).
+2026-11-01T00:28:20.824-07:00  INFO 33856 --- [transfer-service] [           main] o.s.boot.reactor.netty.NettyWebServer    : Netty started on port 18082 (http)
+2026-11-01T00:28:21.240-07:00  WARN 33856 --- [transfer-service] [ctor-http-nio-3] m.a.w.h.caller.AnonymousCallerResolver   : No CallerResolver is configured: every request is served as the anonymous caller (tenant (0), no scope).
+2026-11-01T00:36:45.301-07:00  WARN 33856 --- [transfer-service] [tcher-worker-12] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-13b5-76dc-94f0-f72fa0f534b8 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1 dropped so far.
+2026-11-01T00:36:55.358-07:00  WARN 33856 --- [transfer-service] [tcher-worker-17] m.a.w.r.subscription.PartitionPause      : Subscription TransferSaga.onPrepared pauses partition 50 of group transfer-service/transfer on 3 aggregates failed within 10s, the last (transfer.account/(0)/acc-0029146) with me.ahoo.wow.api.problem.WowProblemException: The derived command 2ffc801f-6168-3cda-8136-d45884d7a4c9 on transfer.account/(0)/acc-0051804 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0051804 did not reply in time; whether the command committed is unknown. Retry it with the same request id.; it retries until a handling succeeds, parking nothing.
+
+me.ahoo.wow.api.problem.WowProblemException: The derived command 2ffc801f-6168-3cda-8136-d45884d7a4c9 on transfer.account/(0)/acc-0051804 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0051804 did not reply in time; whether the command committed is unknown. Retry it with the same request id.
+	at me.ahoo.wow.manifest.FrameworkErrors.problemOf(FrameworkErrors.kt:346) ~[wow-manifest-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.client.InProcessCommandClient$Companion.problemOf$me_ahoo_wow_wow_runtime(InProcessCommandClient.kt:116) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.failureOf(DerivedCommands.kt:203) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.executeHere(DerivedCommands.kt:148) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.access$executeHere(DerivedCommands.kt:91) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands$executeHere$1.invokeSuspend(DerivedCommands.kt) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.internal.ScopeCoroutine.afterResume(Scopes.kt:35) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:47) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:98) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:807) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+
+2026-11-01T00:36:55.358-07:00  WARN 33856 --- [transfer-service] [tcher-worker-10] m.a.w.r.subscription.PartitionPause      : Subscription TransferSaga.onPrepared pauses partition 24 of group transfer-service/transfer on 3 aggregates failed within 10s, the last (transfer.account/(0)/acc-0087773) with me.ahoo.wow.api.problem.WowProblemException: The derived command 3b85111a-1d0e-305c-8e52-1cd6661955f0 on transfer.account/(0)/acc-0094616 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0094616 did not reply in time; whether the command committed is unknown. Retry it with the same request id.; it retries until a handling succeeds, parking nothing.
+
+me.ahoo.wow.api.problem.WowProblemException: The derived command 3b85111a-1d0e-305c-8e52-1cd6661955f0 on transfer.account/(0)/acc-0094616 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0094616 did not reply in time; whether the command committed is unknown. Retry it with the same request id.
+	at me.ahoo.wow.manifest.FrameworkErrors.problemOf(FrameworkErrors.kt:346) ~[wow-manifest-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.client.InProcessCommandClient$Companion.problemOf$me_ahoo_wow_wow_runtime(InProcessCommandClient.kt:116) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.failureOf(DerivedCommands.kt:203) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.executeHere(DerivedCommands.kt:148) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.access$executeHere(DerivedCommands.kt:91) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands$executeHere$1.invokeSuspend(DerivedCommands.kt) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.internal.ScopeCoroutine.afterResume(Scopes.kt:35) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:47) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:98) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:807) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+
+2026-11-01T00:36:58.567-07:00  WARN 33856 --- [transfer-service] [atcher-worker-6] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-4548-7bab-8c65-360f0ef5e67f to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 100 dropped so far.
+2026-11-01T00:36:58.640-07:00  WARN 33856 --- [transfer-service] [atcher-worker-2] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-4444-76eb-9b9e-605b846a64a5 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 200 dropped so far.
+2026-11-01T00:36:58.976-07:00  WARN 33856 --- [transfer-service] [tcher-worker-14] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-491b-7e65-b5d4-cf236f154c00 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 300 dropped so far.
+2026-11-01T00:37:02.583-07:00  WARN 33856 --- [transfer-service] [atcher-worker-1] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-573e-768e-948c-4d78a6835b03 to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 400 dropped so far.
+2026-11-01T00:37:12.603-07:00  WARN 33856 --- [transfer-service] [tcher-worker-17] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-7d3b-764d-9631-f8ec544098d8 to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 500 dropped so far.
+2026-11-01T00:37:14.161-07:00  WARN 33856 --- [transfer-service] [atcher-worker-4] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-833b-7058-a05a-7ff4f79475be to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 600 dropped so far.
+2026-11-01T00:37:15.757-07:00  WARN 33856 --- [transfer-service] [tcher-worker-17] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-8914-7c8e-87b1-93100117dd37 to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 700 dropped so far.
+2026-11-01T00:37:15.969-07:00  WARN 33856 --- [transfer-service] [tcher-worker-11] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-8aef-7462-8558-2bf907938cbf to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 800 dropped so far.
+2026-11-01T00:37:19.236-07:00  WARN 33856 --- [transfer-service] [atcher-worker-4] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-9843-7adc-b29f-4876f3131ec0 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 900 dropped so far.
+2026-11-01T00:37:23.952-07:00  WARN 33856 --- [transfer-service] [atcher-worker-6] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-aabb-7ae5-9aa6-b567cd2ecb96 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1000 dropped so far.
+2026-11-01T00:37:30.357-07:00  WARN 33856 --- [transfer-service] [atcher-worker-3] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-c2c3-7e5b-b4d8-07f964756dd1 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1100 dropped so far.
+2026-11-01T00:37:30.677-07:00  WARN 33856 --- [transfer-service] [atcher-worker-6] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960a-c4ad-7fed-9a08-fecd8bf7bf00 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1200 dropped so far.
+2026-11-01T00:38:23.435-07:00  WARN 33856 --- [transfer-service] [ctor-http-nio-8] i.netty.channel.DefaultChannelPipeline   : An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+
+io.netty.handler.codec.http2.Http2Exception$StacklessHttp2Exception: Maximum number of RST frames reached
+	at io.netty.handler.codec.http2.Http2MaxRstFrameListener.onRstStreamRead(..)(Unknown Source) ~[netty-codec-http2-4.2.19.Final.jar:4.2.19.Final]
+
+2026-11-01T00:38:23.456-07:00  WARN 33856 --- [transfer-service] [ctor-http-nio-5] i.netty.channel.DefaultChannelPipeline   : An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+
+io.netty.handler.codec.http2.Http2Exception$StacklessHttp2Exception: Maximum number of RST frames reached
+	at io.netty.handler.codec.http2.Http2MaxRstFrameListener.onRstStreamRead(..)(Unknown Source) ~[netty-codec-http2-4.2.19.Final.jar:4.2.19.Final]
+
+2026-11-01T00:38:53.444-07:00  WARN 33856 --- [transfer-service] [ctor-http-nio-5] i.netty.channel.DefaultChannelPipeline   : An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+
+io.netty.handler.codec.http2.Http2Exception$StacklessHttp2Exception: Maximum number of RST frames reached
+	at io.netty.handler.codec.http2.Http2MaxRstFrameListener.onRstStreamRead(..)(Unknown Source) ~[netty-codec-http2-4.2.19.Final.jar:4.2.19.Final]
+
+2026-11-01T00:38:53.460-07:00  WARN 33856 --- [transfer-service] [ctor-http-nio-6] i.netty.channel.DefaultChannelPipeline   : An exceptionCaught() event was fired, and it reached at the tail of the pipeline. It usually means the last handler in the pipeline did not handle the exception.
+
+io.netty.handler.codec.http2.Http2Exception$StacklessHttp2Exception: Maximum number of RST frames reached
+	at io.netty.handler.codec.http2.Http2MaxRstFrameListener.onRstStreamRead(..)(Unknown Source) ~[netty-codec-http2-4.2.19.Final.jar:4.2.19.Final]
+
+2026-11-01T00:39:57.134-07:00  WARN 33856 --- [transfer-service] [tcher-worker-10] m.a.w.r.subscription.PartitionPause      : Subscription TransferSaga.onPrepared pauses partition 52 of group transfer-service/transfer on 3 aggregates failed within 10s, the last (transfer.account/(0)/acc-0048974) with me.ahoo.wow.api.problem.WowProblemException: The derived command cf8f0303-4f83-3c47-af03-a93c2a49c606 on transfer.account/(0)/acc-0030873 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0030873 did not reply in time; whether the command committed is unknown. Retry it with the same request id.; it retries until a handling succeeds, parking nothing.
+
+me.ahoo.wow.api.problem.WowProblemException: The derived command cf8f0303-4f83-3c47-af03-a93c2a49c606 on transfer.account/(0)/acc-0030873 failed: wow.command.unknown The owner of transfer.account/(0)/acc-0030873 did not reply in time; whether the command committed is unknown. Retry it with the same request id.
+	at me.ahoo.wow.manifest.FrameworkErrors.problemOf(FrameworkErrors.kt:346) ~[wow-manifest-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.client.InProcessCommandClient$Companion.problemOf$me_ahoo_wow_wow_runtime(InProcessCommandClient.kt:116) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.failureOf(DerivedCommands.kt:203) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.executeHere(DerivedCommands.kt:148) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands.access$executeHere(DerivedCommands.kt:91) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at me.ahoo.wow.runtime.binding.DerivedCommands$executeHere$1.invokeSuspend(DerivedCommands.kt) ~[wow-runtime-10.0.0-alpha.7.jar:10.0.0-alpha.7]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.internal.ScopeCoroutine.afterResume(Scopes.kt:35) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.AbstractCoroutine.resumeWith(AbstractCoroutine.kt:101) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:47) ~[kotlin-stdlib-2.4.21.jar:2.4.21]
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:98) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:807) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+
+2026-11-01T00:40:22.605-07:00  WARN 33856 --- [transfer-service] [atcher-worker-8] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-637b-7f84-a037-05cb1cbbe000 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1300 dropped so far.
+2026-11-01T00:40:23.550-07:00  WARN 33856 --- [transfer-service] [tcher-worker-18] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-67e4-7f4f-a9da-1c2a538faa1f to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1400 dropped so far.
+2026-11-01T00:40:30.628-07:00  WARN 33856 --- [transfer-service] [tcher-worker-12] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-82da-7d0d-9f24-62039867908e to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1500 dropped so far.
+2026-11-01T00:40:31.057-07:00  WARN 33856 --- [transfer-service] [tcher-worker-19] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-84ef-7dd6-8b09-a08a5b7aaa21 to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 1600 dropped so far.
+2026-11-01T00:40:31.090-07:00  WARN 33856 --- [transfer-service] [tcher-worker-12] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-848a-7105-8d44-f57ec734b901 to 127.0.0.1:19091 (java.io.IOException: too many concurrent streams); 1700 dropped so far.
+2026-11-01T00:40:33.483-07:00  WARN 33856 --- [transfer-service] [tcher-worker-11] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-8ed4-7f90-814d-ea73928b8429 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1800 dropped so far.
+2026-11-01T00:40:33.539-07:00  WARN 33856 --- [transfer-service] [tcher-worker-16] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-8ee0-70f7-a82d-3a399ee77c94 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 1900 dropped so far.
+2026-11-01T00:40:33.885-07:00  WARN 33856 --- [transfer-service] [atcher-worker-2] m.a.wow.http.internal.HttpSignalSender   : Dropped the signal of wait 01a1960d-90aa-7bff-9404-92cd006f5390 to 127.0.0.1:19090 (java.io.IOException: too many concurrent streams); 2000 dropped so far.
