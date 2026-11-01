@@ -16,10 +16,13 @@ package me.ahoo.wow.runtime.timer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.admission.CommandValidator
+import me.ahoo.wow.runtime.admission.violationsOf
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandSender
@@ -81,6 +84,11 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
  * only the request facts that propagate ([RequestFacts.PROPAGATED]), such as the calling application:
  * not where its request came from. It is not waited for: a scheduled command is in no caller's wait chain.
  *
+ * A command to an aggregate of its own context is checked by the node's command [validators] before it is
+ * forwarded, as the gateway checks an admitted one: one they find violations in is the timer's rejected command
+ * ([me.ahoo.wow.api.result.FrameworkCodes.COMMAND_INVALID], logged with them) and is never decided. One to another
+ * context is checked there, at its intake.
+ *
  * Each firing is observed by [observer], its outcome the [TimerOutcomes] it answers: the command goes
  * on in the firing's trace.
  */
@@ -89,6 +97,7 @@ internal class ContextTimerFirer(
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
     private val observer: Observer = Observer.NONE,
+    private val validators: List<CommandValidator> = emptyList(),
 ) : TimerFirer {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
@@ -113,6 +122,14 @@ internal class ContextTimerFirer(
         val model = models[timer.target.type] ?: return send(wire)
         val command = checkNotNull(ClusterCodec.command(model, wire)) {
             "${model.type} has no command type ${timer.commandType}, which the timer ${timer.id} sends."
+        }
+        val violations = validators.violationsOf(model.commandType(command.body.javaClass), command.body)
+        if (violations.isNotEmpty()) {
+            logger.info {
+                "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which the node's validators " +
+                    "refused: ${FrameworkCodes.COMMAND_INVALID} $violations"
+            }
+            return ObservedOutcome.REJECTED
         }
         val settlement = coordinator.forward(model, command, null)
         settlement.rejection?.let { rejection ->
