@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ForwardEndpoint
@@ -108,6 +109,11 @@ class ContextNode internal constructor(
     val queries: ContextQueries = ContextQueries.NONE,
     /** The events of other contexts' published streams, decoded into their api classes; none by default. */
     val peerEvents: PeerEvents = PeerEvents.NONE,
+    /**
+     * The node's command validators, the gateway's: the commands the context's sagas derive, and those its intake
+     * takes from its topic, are checked as admitted ones are.
+     */
+    val validators: List<CommandValidator> = emptyList(),
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate: a saga's derived command, one

@@ -185,6 +185,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
             inFlight,
             ledgerOnly = ledgerOnly,
             clock = clock,
+            validators = it.validators,
         )
     }
 

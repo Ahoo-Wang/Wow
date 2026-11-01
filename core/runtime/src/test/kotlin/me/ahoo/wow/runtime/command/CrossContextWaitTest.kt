@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.CommandReceipt
@@ -37,9 +38,11 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.node.AdmissionPlugins
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -180,7 +183,7 @@ class CrossContextWaitTest {
         }
     }
 
-    private fun stockNode(): ServiceNode = ServiceNode(
+    private fun stockNode(admission: AdmissionPlugins = AdmissionPlugins()): ServiceNode = ServiceNode(
         STOCK_SERVICE,
         "stock-1",
         "stock-1.internal:9090",
@@ -193,6 +196,7 @@ class CrossContextWaitTest {
         subscriptions = SubscriptionBindings(mapOf(STOCK to listOf(board, picker))),
         contracts = ContractDirectory(stockManifest, listOf(peer(salesManifest))),
         topics = SourceTopics(topics, PREFIX, topics, intake = true),
+        admission = admission,
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
@@ -218,8 +222,11 @@ class CrossContextWaitTest {
     }
 
     /** Both services started, the stock node reading the order stream. */
-    private suspend fun started(stockContract: Manifest = stockManifest): ServiceNode {
-        stockNode().also {
+    private suspend fun started(
+        stockContract: Manifest = stockManifest,
+        stockAdmission: AdmissionPlugins = AdmissionPlugins(),
+    ): ServiceNode {
+        stockNode(stockAdmission).also {
             it.start()
             it.topicSubscriptions.getValue(ORDERS).awaitStarted()
         }
@@ -364,6 +371,38 @@ class CrossContextWaitTest {
         }
 
     @Test
+    fun `a command a saga derived that the other context's validators refuse should be rejected as invalid`(): Unit =
+        runBlocking {
+            // The stock node's admission validators, as Bean Validation's constraints would be: at most 5 a reservation.
+            val atMostFive = CommandValidator { _, body ->
+                if (body is Reserve && body.quantity > MAX_RESERVED) {
+                    listOf(Violation("quantity", "max", "must be at most $MAX_RESERVED"))
+                } else {
+                    emptyList()
+                }
+            }
+            val sales = started(stockAdmission = AdmissionPlugins(validators = listOf(atMostFive)))
+            val result = sales.place(
+                "o-big",
+                MAX_RESERVED + 1,
+                Hop.committed(),
+                SAGA_HOP,
+                Hop.committed(STOCK)
+            ).toList()
+                .last()
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.hop.assert().isEqualTo(Hop.committed(STOCK))
+            result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+            result.error!!.violations.map { it.path to it.code }.assert().containsExactly("quantity" to "max")
+            // The saga's @OnRejected handler takes it by receipt, with the violations, as a decided rejection.
+            eventually { cancelled.size == 1 }
+            val rejected = rejections.single()
+            rejected.commandId.assert().isEqualTo(result.commandId)
+            rejected.error.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
+            rejected.error.violations.map { it.path }.assert().containsExactly("quantity")
+        }
+
+    @Test
     fun `a command type the other context does not know should end the wait REJECTED at once`(): Unit = runBlocking {
         // Review X-5: the sales service has a newer stock contract; the stock intake rejects what it does not know.
         val sales = started(renamed(stockManifest, "Reserve", "ReserveV2"))
@@ -489,6 +528,9 @@ class CrossContextWaitTest {
         const val SAGA = "OrderSaga.onOrderPlaced"
         const val BOARD = "Board.onOrder"
         const val PICKER = "Picker.onOrder"
+
+        /** The most a reservation may take by the stock node's validators, in the validation test. */
+        const val MAX_RESERVED = 5
         val SAGA_HOP = Hop.handled(SAGA, SALES)
     }
 }

@@ -620,6 +620,12 @@ class Kernel(
         val decision = observer.deciding(command).observe {
             withContext(deciding) { decideAll(model, decider, scope, state, command.body) }
         }
+        // Checked for every decision, a rejection that writes nothing included: its state is cached again as it is.
+        if (before != null) {
+            check(codec.stateText(state) == before) {
+                "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
+            }
+        }
         rejectedUnwritten(decision, model, commandType, version, command)?.let { return it }
         // A rejection's events are committed as any are, the rejection recorded on their stream.
         val rejection = (decision as? Decision.Rejected)?.let {
@@ -629,11 +635,6 @@ class Kernel(
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
             is Decision.Rejected -> decision.events
-        }
-        if (before != null) {
-            check(codec.stateText(state) == before) {
-                "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
-            }
         }
         // A rejection commits its own events alone: what the refused decision scheduled is not.
         val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()

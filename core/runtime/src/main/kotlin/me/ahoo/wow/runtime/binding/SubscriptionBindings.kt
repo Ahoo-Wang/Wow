@@ -126,7 +126,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val receipts = receiptsOf(context, bound)
-        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
+        val derived =
+            DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators)
         return local.map { handler ->
             val name = handler.name
             val filter = SubscriptionFilter(
@@ -180,7 +181,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             return emptyList()
         }
         val receipts = receiptsOf(context, bound)
-        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
+        val derived =
+            DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators)
         return sourced.map { handler ->
             val name = handler.name
             val types = handler.aggregates.mapTo(LinkedHashSet()) {
@@ -243,7 +245,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
     /** The receipt handlers of the sagas of [bound], of [context], signalling their hops through its coordinator. */
     private fun receiptsOf(context: ContextNode, bound: List<ProcessorBinding<*>>): SagaReceipts = SagaReceipts(
         bound,
-        DerivedCommands(context.models, context.coordinator, context.sender, context.creations),
+        DerivedCommands(context.models, context.coordinator, context.sender, context.creations, context.validators),
         context.ids,
         context.context,
         context.coordinator::signal,

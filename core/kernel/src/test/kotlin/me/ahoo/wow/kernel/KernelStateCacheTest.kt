@@ -31,6 +31,9 @@ class KernelStateCacheTest {
     data class Add(val amount: Int)
     data class Refuse(val reason: String)
 
+    /** Changes the state it decides on, which only events may, and rejects. */
+    data class Spoil(val reason: String)
+
     /** Rejected below a total of [atLeast], changes nothing from it on. */
     data class Check(val atLeast: Int)
     data class Added(val amount: Int)
@@ -44,6 +47,10 @@ class KernelStateCacheTest {
         initial { Counter(it.id) }
         decide<Add>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
         decide<Refuse> { _, body -> Decision.reject("refused", body.reason) }
+        decide<Spoil> { state, body ->
+            state.total = -1
+            Decision.reject("spoiled", body.reason)
+        }
         decide<Check> { state, body ->
             if (state.total < body.atLeast) {
                 Decision.reject(
@@ -110,6 +117,22 @@ class KernelStateCacheTest {
         send(Refuse("no"))
         cache.states.getValue(ref).version.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a rejection whose decision changed the state fails when purity is verified, and the state is not kept`() =
+        runTest {
+            val verifying = Kernel(log, states = cache, options = KernelOptions(verifyDecidePurity = true))
+            verifying.execute(model, Command("c-1", "r-1", ref, Add(1)))
+            val failure = runCatching { verifying.execute(model, Command("c-2", "r-2", ref, Spoil("no"))) }
+                .exceptionOrNull()
+            failure.assert().isInstanceOf(IllegalStateException::class.java)
+            failure?.message.assert().contains("changed the state")
+            // The changed state was not cached again, as a failed attempt's never is: the next command decides on the
+            // state the log holds.
+            cache.states.containsKey(ref).assert().isFalse()
+            val next = verifying.execute(model, Command("c-3", "r-3", ref, Add(2))) as CommandOutcome.Committed
+            (next.state as Counter).total.assert().isEqualTo(3)
+        }
 
     @Test
     fun `a conflict drops the evolved state and the retry reloads`() = runTest {
