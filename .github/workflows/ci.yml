@@ -138,6 +138,14 @@ jobs:
             platform/analytics/catalog/**/build/generated/wow/**
             platform/analytics/catalog/**/build/classes/kotlin/wowContract/**
             platform/analytics/catalog/**/build/wow/**
+            platform/view-store/**/build/generated/ksp/**
+            platform/view-store/**/build/generated/wow/**
+            platform/view-store/**/build/classes/kotlin/wowContract/**
+            platform/view-store/**/build/wow/**
+            platform/ops/**/build/generated/ksp/**
+            platform/ops/**/build/generated/wow/**
+            platform/ops/**/build/classes/kotlin/wowContract/**
+            platform/ops/**/build/wow/**
           if-no-files-found: ignore
           retention-days: 3
       # The release rehearsal of the Maven publications (R.1), signed with a
@@ -280,6 +288,14 @@ jobs:
             platform/analytics/catalog/**/build/generated/wow/**
             platform/analytics/catalog/**/build/classes/kotlin/wowContract/**
             platform/analytics/catalog/**/build/wow/**
+            platform/view-store/**/build/generated/ksp/**
+            platform/view-store/**/build/generated/wow/**
+            platform/view-store/**/build/classes/kotlin/wowContract/**
+            platform/view-store/**/build/wow/**
+            platform/ops/**/build/generated/ksp/**
+            platform/ops/**/build/generated/wow/**
+            platform/ops/**/build/classes/kotlin/wowContract/**
+            platform/ops/**/build/wow/**
           if-no-files-found: ignore
           retention-days: 3
 
