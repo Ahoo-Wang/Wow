@@ -92,6 +92,8 @@ Run the tool from a checkout of the Wow release you migrate to:
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.
 
+**Events V10 does not read.** V10 reads events with Jackson 3, whose Kotlin module refuses some shapes 9.x's Jackson 2 read: a `null` element in a collection of a non-null type, such as a `List<String>` holding `null`. Wow keeps that strictness for new data, so a 9.x event of such a shape does not decode in V10, and the state that holds it does not rebuild, in `compare`, in `snapshot` or in the service. `check --decode` reads every 9.x event with the V10 models and lists, in one pass, each one that does not read, with its type, revision, stream and the reason. Do not loosen the class for old data: give each type it lists an `@Upgrade` that cleans the old shape, such as dropping the `null` elements, from the revision the map gives the 9.x events (`toRevision`, 1 for the 9.x shape), raising the class's `@Revision` above it if it is not already, and run it again until it passes.
+
 ## 3. Stop 9.x writing
 
 Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep serving reads from its own store, but nothing may commit until V10 takes over: a stream 9.x commits after the import is not in V10.
