@@ -109,7 +109,7 @@ tasks.test {
 Once the Kotlin JVM plugin is applied, `me.ahoo.wow`:
 
 - adds `wow-kernel`, which the generated models and the binding index build on;
-- applies KSP with `wow-compiler` of the plugin's version, so the module's aggregates compile into models and its part of the contract;
+- applies KSP with `wow-compiler` of the plugin's version, so the module's aggregates compile into models and its part of the contract, and runs the build's KSP tasks one at a time: KSP runs that overlap in a Gradle daemon can fail to read their class path, and then generate nothing of what they could not resolve;
 - completes that part with the JSON Schemas of the module's types (`generateWowManifestFragment`), and offers the contract its api module declares;
 - registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Test Domain Code](../guide/testing)).
 
