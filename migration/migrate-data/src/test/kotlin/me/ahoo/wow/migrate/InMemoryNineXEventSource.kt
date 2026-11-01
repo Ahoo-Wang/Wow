@@ -34,6 +34,8 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
             commands = held.mapNotNull { it.commandName }.groupingBy { it }.eachCount().mapValues { it.value.toLong() },
             streamsWithoutCommand = held.count { it.commandName == null }.toLong(),
             streamEventTypes = held.groupingBy { stream -> stream.eventTypes() }.eachCount().mapValues { it.value.toLong() },
+            refusedIds = held.filter { RefusedIds.reasonOf(it.aggregateId.id) != null }.groupingBy { it.aggregateId }
+                .eachCount().mapValues { it.value.toLong() },
         )
     }
 

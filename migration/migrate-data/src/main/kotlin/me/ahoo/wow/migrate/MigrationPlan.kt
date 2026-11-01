@@ -47,6 +47,17 @@ internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
     fun of(aggregate: NineXAggregate): AggregatePlan =
         aggregates[aggregate] ?: throw MigrationException("migration-map.json does not map the 9.x aggregate $aggregate.")
 
+    /** The instances whose streams the map excludes ([Exclusion.stream]): each 9.x aggregate with an id as named. */
+    private val excludedStreams: Set<Pair<NineXAggregate, String>> =
+        map.excluded.mapNotNull { it.excludedStream() }.toSet()
+
+    /**
+     * Whether the map excludes the streams of [aggregate]'s instance [id], in every tenant: the import, the snapshot
+     * writing and the comparison pass over it.
+     */
+    fun excludes(aggregate: NineXAggregate, id: String): Boolean =
+        aggregate to RefusedIds.nameOf(id) in excludedStreams
+
     /** The V10 contexts the plan writes to. */
     val contexts: Set<String>
         get() = aggregates.values.map { it.target.context }.toSortedSet()

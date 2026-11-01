@@ -136,7 +136,10 @@ internal class StateComparison(
             if (page.isEmpty()) {
                 checkpoint = checkpoint.copy(completed = true)
             } else {
-                val sampled = page.filter { options.sampled(it.aggregateId) }
+                // An instance the map excludes has no V10 state to compare.
+                val sampled = page.filter {
+                    !plan.excludes(aggregate, it.aggregateId.id) && options.sampled(it.aggregateId)
+                }
                 val differences = coroutineScope {
                     sampled.map { snapshot ->
                         async { permits.withPermit { compare(aggregatePlan, model, kernel, log, snapshot) } }

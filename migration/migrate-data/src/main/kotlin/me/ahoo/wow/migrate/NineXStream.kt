@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -27,11 +28,40 @@ internal data class NineXAggregate(val context: String, val name: String) {
     override fun toString(): String = "$context.$name"
 }
 
-/** One 9.x aggregate instance: its id within its tenant. */
+/**
+ * One 9.x aggregate instance: its id within its tenant. 9.x took any id, so it may be one V10 refuses ([RefusedIds]):
+ * the mapping check reports such an instance, and the map excludes it ([Exclusion.stream]).
+ */
 internal data class NineXAggregateId(val id: String, val tenantId: String) : Comparable<NineXAggregateId> {
     override fun compareTo(other: NineXAggregateId): Int = compareValuesBy(this, other, { it.id }, { it.tenantId })
 
     override fun toString(): String = "$tenantId/$id"
+}
+
+/**
+ * The 9.x aggregate ids V10 refuses: an empty one (or none at all), a blank one, and [AggregateRef.UNASSIGNED], the
+ * id of a ref admission has not given one yet. A 9.x data defect, an instance of such an id cannot be imported.
+ */
+internal object RefusedIds {
+    /** How the map's `stream` names the empty 9.x aggregate id, which a JSON string shows as nothing. */
+    const val EMPTY: String = "(empty)"
+
+    /** Why V10 refuses [id] as an aggregate id; null when it takes it. */
+    fun reasonOf(id: String): String? = when {
+        id.isEmpty() -> "empty"
+        id.isBlank() -> "blank"
+        id == AggregateRef.UNASSIGNED -> "the id V10 gives a ref admission has not given one yet"
+        else -> null
+    }
+
+    /** [id] as the map's `stream` names it: the empty id as [EMPTY], any other as it is. */
+    fun nameOf(id: String): String = id.ifEmpty { EMPTY }
+
+    /** The 9.x aggregate id the map's `stream` [name] names: [EMPTY] the empty one, any other itself. */
+    fun idOf(name: String): String = if (name == EMPTY) "" else name
+
+    /** [name], a map's `stream`, as the JSON string a person copies into the map. */
+    fun quoted(name: String): String = WowJson.mapper.writeValueAsString(name)
 }
 
 /** One event of a 9.x stream: its [name] and 9.x [revision] (`0.0.1` unless `@Event` said otherwise), and [body]. */
@@ -70,7 +100,8 @@ internal data class NineXStream(
 
         /**
          * Reads a stream from its JSON [node]; its id is `id`, or `_id` in a MongoDB document. A field the stream
-         * needs and lacks fails with a [MigrationException] naming it.
+         * needs and lacks fails with a [MigrationException] naming it; an aggregate id it lacks reads as the empty one,
+         * which V10 refuses ([RefusedIds]), so the import can pass over an instance the map excludes.
          */
         fun parse(node: JsonNode): NineXStream {
             require(node is ObjectNode) { "A 9.x event stream is a JSON object." }
@@ -78,7 +109,7 @@ internal data class NineXStream(
             return NineXStream(
                 id = id,
                 aggregate = NineXAggregate(node.requiredText("contextName"), node.requiredText("aggregateName")),
-                aggregateId = NineXAggregateId(node.requiredText("aggregateId"), node.requiredText("tenantId")),
+                aggregateId = NineXAggregateId(node.textOf("aggregateId").orEmpty(), node.requiredText("tenantId")),
                 ownerId = node.textOf("ownerId").orEmpty(),
                 spaceId = node.textOf("spaceId").orEmpty(),
                 commandId = node.requiredText("commandId"),

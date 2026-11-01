@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
+import me.ahoo.wow.migrate.Exclusion
 import me.ahoo.wow.migrate.MigrationMap
 import me.ahoo.wow.migrate.MigrationPlan
 import me.ahoo.wow.migrate.NineXSnapshot
@@ -63,6 +64,20 @@ internal object NineXExample {
 
     /** Every stream of the example. */
     fun streams(): List<NineXStream> = (ORDER_STREAMS + CART_STREAMS).map(::stream)
+
+    /**
+     * The example's cart as the instance [id], its last event removing [productIds], a JSON array: `[null]` is a shape
+     * 9.x's Jackson 2 read, and the V10 model's Jackson 3 refuses.
+     */
+    fun cartRemoving(id: String, productIds: String): List<NineXStream> = CART_STREAMS.map(::stream).map { stream ->
+        val copy = stream.copy(id = "${stream.id}-$id", aggregateId = stream.aggregateId.copy(id = id))
+        if (stream.version == CART_STREAMS.size) {
+            val removed = stream.events.single().copy(body = WowJson.mapper.readTree("""{"productIds":$productIds}"""))
+            copy.copy(events = listOf(removed))
+        } else {
+            copy
+        }
+    }
 
     /**
      * The 9.x snapshots of the example after its streams, as the 9.x `SnapshotSerializer` lays them out: the captured
@@ -161,6 +176,14 @@ internal object NineXExample {
     }
 
     val plan: MigrationPlan get() = MigrationPlan(map, manifest)
+
+    /** The example's plan, its map excluding the streams of the 9.x orders it names by [streams]. */
+    fun planExcluding(vararg streams: String): MigrationPlan {
+        val excluded = streams.map { stream ->
+            Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = stream)
+        }
+        return MigrationPlan(map.copy(excluded = excluded), manifest)
+    }
 
     private fun aggregate(name: String, commands: List<String>, events: List<EventManifest>) = AggregateManifest(
         name = name,

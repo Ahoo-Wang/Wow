@@ -33,23 +33,29 @@ class SnapshotWriterTest {
     private val store = InMemorySnapshotStore()
     private val checkpoints = InMemoryCheckpointRepository()
     private val reports = mutableListOf<SnapshotProgress>()
+    private val printed = mutableListOf<String>()
     private val models = MigrationModels(listOf(NineXExample.orderModel, NineXExample.cartModel))
 
-    private suspend fun imported() {
-        val importer = EventStreamImporter(events, NineXExample.plan, { log }, checkpoints)
+    private suspend fun imported(source: NineXEventSource = events, plan: MigrationPlan = NineXExample.plan) {
+        val importer = EventStreamImporter(source, plan, { log }, checkpoints)
         importer.importAll(order)
         importer.importAll(cart)
     }
 
-    private fun writer(source: NineXEventSource = events, options: ImportOptions = ImportOptions()) = SnapshotWriter(
+    private fun writer(
+        source: NineXEventSource = events,
+        options: ImportOptions = ImportOptions(),
+        plan: MigrationPlan = NineXExample.plan,
+    ) = SnapshotWriter(
         source,
-        NineXExample.plan,
+        plan,
         models,
         { log },
         { store },
         checkpoints,
         options,
         { reports += it },
+        report = { printed += it },
     )
 
     @Test
@@ -90,15 +96,55 @@ class SnapshotWriterTest {
     }
 
     @Test
-    fun `snapshots need the full import, and an instance missing from the log stops them`() = runTest {
+    fun `an instance the map excludes has no snapshot`() = runTest {
+        val empty = streams.first { it.aggregate == order && it.version == 1 }.let {
+            it.copy(id = "empty", aggregateId = it.aggregateId.copy(id = ""))
+        }
+        val source = InMemoryNineXEventSource(streams + empty)
+        val excluding = NineXExample.planExcluding(RefusedIds.EMPTY)
+        imported(source, excluding)
+        writer(source, plan = excluding).writeAll(order).written.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `snapshots need the full import, and every instance whose snapshot is not written is reported`() = runTest {
         assertThrows<MigrationException> { writer().writeAll(order) }.message!!.assert()
             .contains("run the import before writing snapshots")
-        imported()
-        val later = streams.first { it.aggregate == order && it.version == 1 }.let {
-            it.copy(id = "later", aggregateId = it.aggregateId.copy(id = "later"))
+        // A cart the import copied as 9.x stored it, whose last event the V10 model does not read.
+        val unreadable = NineXExample.cartRemoving("cart-null", "[null]")
+        imported(InMemoryNineXEventSource(streams + unreadable))
+        val missing = (1..2).map { n ->
+            streams.first { it.aggregate == order && it.version == 1 }
+                .let { it.copy(id = "later-$n", aggregateId = it.aggregateId.copy(id = "later-$n")) }
         }
-        val ahead = InMemoryNineXEventSource(streams + later)
-        assertThrows<MigrationException> { writer(ahead).writeAll(order) }.message!!.assert()
-            .contains("has no complete history in the V10 log")
+        val ahead = InMemoryNineXEventSource(streams + unreadable + missing)
+        writer(ahead, ImportOptions(pageSize = 1)).also { writer ->
+            writer.writeAll(order).also {
+                it.written.assert().isEqualTo(1)
+                it.failed.assert().isEqualTo(2)
+                it.done.assert().isFalse()
+                it.render().assert()
+                    .isEqualTo(
+                        "example-service.order snapshots: 3 instances, 1 V10 snapshots written, 0 already there, 2 failed"
+                    )
+            }
+            writer.writeAll(cart).failed.assert().isEqualTo(1)
+        }
+        printed.assert().contains(
+            "FAILED example.order/(0)/later-1, the 9.x instance example-service.order/(0)/later-1 has no complete " +
+                "history in the V10 log: run the import first.",
+            "FAILED example.order/(0)/later-2, the 9.x instance example-service.order/(0)/later-2 has no complete " +
+                "history in the V10 log: run the import first.",
+        )
+        printed.last().assert().startsWith(
+            "FAILED example.cart/(0)/cart-null, the 9.x instance example-service.cart/(0)/cart-null: " +
+                "example.cart/(0)/cart-null v4: the event example.cart.CartItemRemoved@1 does not read: ",
+        ).contains("productIds")
+        // The walk starts again from the first instance, and passes over the snapshot it wrote.
+        checkpoints.load().snapshotsOf(order).assert().isEqualTo(SnapshotCheckpoint())
+        writer(events).writeAll(order).also {
+            it.skipped.assert().isEqualTo(1)
+            it.done.assert().isTrue()
+        }
     }
 }

@@ -23,9 +23,9 @@ internal data class NineXEventType(val name: String, val revision: String) {
 
 /**
  * What the 9.x store holds of [aggregate], found by scanning it: how many [streams], the [events] of each type and the
- * [commands] of each name (the number of streams each produced), how many streams record no command name, and
+ * [commands] of each name (the number of streams each produced), how many streams record no command name,
  * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
- * would leave empty.
+ * would leave empty, and [refusedIds]: the number of streams of each instance whose id V10 refuses ([RefusedIds]).
  */
 internal data class NineXInventory(
     val aggregate: NineXAggregate,
@@ -34,6 +34,7 @@ internal data class NineXInventory(
     val commands: Map<String, Long>,
     val streamsWithoutCommand: Long = 0,
     val streamEventTypes: Map<Set<NineXEventType>, Long> = emptyMap(),
+    val refusedIds: Map<NineXAggregateId, Long> = emptyMap(),
 )
 
 /**
@@ -87,6 +88,8 @@ internal data class MappingReport(
  * - no stream holds only dropped events, which would leave its version empty (map them with `retire` instead);
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
+ * - no instance the map imports has an id V10 refuses ([RefusedIds]): the problem lists each, by the name the map
+ *   excludes it by ([Exclusion.stream]);
  * - every mapping target is in the Manifest, whether or not the store uses it;
  * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once;
  * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
@@ -94,15 +97,18 @@ internal data class MappingReport(
  *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
  *   warning: it is reported and not imported.
  *
- * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet. An aggregate or a
- * `PrepareKey` the map excludes ([MigrationMap.excluded]) is a warning with its reason instead of a problem; one the
- * map also maps, or excludes twice, is a problem, and one the store does not hold a warning.
+ * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet. An aggregate, an
+ * instance's streams or a `PrepareKey` the map excludes ([MigrationMap.excluded]) is a warning with its reason instead
+ * of a problem; one the map also maps, or excludes twice, is a problem, and one the store does not hold a warning, as
+ * is an instance's streams of an aggregate the map does not import. Whether the store holds an instance whose id V10
+ * takes is asked of [NineXEventSource.tenantsOf] ([check]'s `tenantsOf`).
  */
 internal class MappingCheck(private val plan: MigrationPlan) {
     fun check(
         inventories: List<NineXInventory>,
         prepareKeys: Map<String, Long> = emptyMap(),
         compensation: NineXCompensationInventory? = null,
+        tenantsOf: (NineXAggregate, String) -> List<String> = { _, _ -> emptyList() },
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -118,7 +124,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 warnings += "the $subject (${it.streams} streams) is excluded: ${exclusion.reason}"
             } ?: run { problems += "the $subject (${it.streams} streams) is not mapped" }
         }
-        exclusionProblems(held.keys, prepareKeys.keys, problems, warnings)
+        exclusionProblems(held, prepareKeys.keys, tenantsOf, problems, warnings)
         plan.aggregates.values.forEach { aggregate ->
             val inventory = held[aggregate.source]
             if (inventory == null) {
@@ -201,11 +207,12 @@ internal class MappingCheck(private val plan: MigrationPlan) {
 
     /**
      * The excluded entries the map maps too, or excludes twice, are problems; one the store does not hold is a
-     * warning.
+     * warning. An instance's streams are a warning whatever they are ([streamWarning]).
      */
     private fun exclusionProblems(
-        held: Set<NineXAggregate>,
+        held: Map<NineXAggregate, NineXInventory>,
         prepareKeys: Set<String>,
+        tenantsOf: (NineXAggregate, String) -> List<String>,
         problems: MutableList<String>,
         warnings: MutableList<String>,
     ) {
@@ -214,9 +221,14 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             .forEach { problems += "the $it is excluded twice" }
         val reserved = plan.aggregates.values.flatMap { aggregate -> aggregate.mapping.reservations.map { it.from } }
         excluded.distinctBy { it.subject() }.forEach { exclusion ->
+            val stream = exclusion.excludedStream()
+            if (stream != null) {
+                warnings += streamWarning(exclusion, stream.first, RefusedIds.idOf(stream.second), held, tenantsOf)
+                return@forEach
+            }
             val aggregate = exclusion.source()
             val (mapped, holds) = if (aggregate != null) {
-                (aggregate in plan.aggregates) to (aggregate in held)
+                (aggregate in plan.aggregates) to (aggregate in held.keys)
             } else {
                 (exclusion.prepareKey in reserved) to (exclusion.prepareKey in prepareKeys)
             }
@@ -225,6 +237,34 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 !holds -> warnings += "the 9.x store holds no ${exclusion.subject().removePrefix("9.x ")}, which " +
                     "the map excludes"
             }
+        }
+    }
+
+    /**
+     * The warning of [exclusion], the streams of [aggregate]'s instance [id]: excluded with its reason, with the
+     * tenants that hold it; or why it leaves nothing out, the store holding no such instance or the map not importing
+     * [aggregate]. The instances whose id V10 refuses are the inventory's; whether the store holds another is
+     * [tenantsOf]'s.
+     */
+    private fun streamWarning(
+        exclusion: Exclusion,
+        aggregate: NineXAggregate,
+        id: String,
+        held: Map<NineXAggregate, NineXInventory>,
+        tenantsOf: (NineXAggregate, String) -> List<String>,
+    ): String {
+        if (aggregate !in plan.aggregates) {
+            return "the ${exclusion.subject()} is excluded, but the map does not import $aggregate"
+        }
+        val tenants = if (RefusedIds.reasonOf(id) != null) {
+            held[aggregate]?.refusedIds.orEmpty().keys.filter { it.id == id }.map { it.tenantId }
+        } else {
+            tenantsOf(aggregate, id)
+        }
+        return if (tenants.isEmpty()) {
+            "the 9.x store holds no ${exclusion.subject().removePrefix("9.x ")}, which the map excludes"
+        } else {
+            "the ${exclusion.subject()} of the tenants ${tenants.distinct().sorted()} is excluded: ${exclusion.reason}"
         }
     }
 
@@ -298,6 +338,10 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                     "${types.map { it.toString() }.sorted()}, so their versions would be empty: map them with " +
                     "retire to a name in the aggregate's retiredEvents"
             }
+        val refused = inventory.refusedIds.filterKeys { !plan.excludes(subject, it.id) }
+        if (refused.isNotEmpty()) {
+            problems += refusedProblem(subject, refused)
+        }
         if (inventory.streamsWithoutCommand > 0 && aggregate.commandTypeOf(null) == null) {
             problems += "$subject: ${inventory.streamsWithoutCommand} streams record no command and there is no " +
                 "defaultCommand"
@@ -309,5 +353,19 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             .forEach { warnings += "$subject: no stream holds the 9.x event ${it.from}@${it.fromRevision ?: "*"}" }
         aggregate.mapping.commands.filter { it.from !in inventory.commands }
             .forEach { warnings += "$subject: no stream records the 9.x command ${it.from}" }
+    }
+
+    /**
+     * The problem of the instances of [aggregate] whose id V10 refuses, with the number of streams of each, which the
+     * map does not exclude: each id by the name the map excludes it by, so a person can copy it.
+     */
+    private fun refusedProblem(aggregate: NineXAggregate, refused: Map<NineXAggregateId, Long>): String {
+        val listed = refused.entries.groupBy { it.key.id }.toSortedMap().map { (id, instances) ->
+            "${RefusedIds.quoted(RefusedIds.nameOf(id))} (${RefusedIds.reasonOf(id)}: " +
+                "${instances.sumOf { it.value }} streams of the tenants ${instances.map { it.key.tenantId }.sorted()})"
+        }
+        return "$aggregate: V10 refuses these 9.x aggregate ids, so the streams of their instances cannot be " +
+            "imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
+            "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
     }
 }

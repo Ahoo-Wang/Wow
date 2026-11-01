@@ -159,6 +159,17 @@ class StateComparisonTest {
     }
 
     @Test
+    fun `an instance the map excludes is not compared`() = runTest {
+        imported()
+        val empty = changed("order-snapshot.json") { it.put("aggregateId", "") }
+        comparison(NineXExample.snapshots() + empty, NineXExample.planExcluding(RefusedIds.EMPTY)).compare(order).also {
+            it.passed.assert().isTrue()
+            it.snapshots.assert().isEqualTo(2)
+            it.compared.assert().isEqualTo(1)
+        }
+    }
+
+    @Test
     fun `a version the V10 log does not hold is a difference`() = runTest {
         imported()
         val ahead = changed("order-snapshot.json") { it.put("version", 5) }

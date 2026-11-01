@@ -951,6 +951,7 @@ A reader that used the cached state to decide a command now asks the owner inste
 - It registers the Kotlin module only and never discovers modules on the class path: a 9.x Jackson module registered by SPI (joda-money, a custom `Module`) is not applied. Give such a type its own `@JsonSerialize`/`@JsonDeserialize` or `@JsonValue`/`@JsonCreator`, or a plain field type, and cover it with a round-trip test; how the Manifest schema describes such a type was not verified here.
 - 9.x read and wrote fields of any visibility; V10 uses Jackson's default visibility, so a property without a public getter (a Java field with neither getter nor annotation) is left out of events, state and snapshots. Check each event and state class.
 - Unknown properties are ignored, and decimals read into untyped values stay `BigDecimal`.
+- Jackson 3's Kotlin module refuses a `null` element in a collection of a non-null type (`List<String>`, `Set<String>`, a map's values), which 9.x's Jackson 2 read, and Wow keeps that strictness for new data: a 9.x event of that shape does not decode in V10, and its aggregate's state does not rebuild. Keep the class's type non-null; give the event type an `@Upgrade` from the revision the map gives the 9.x events that cleans the old shape (drop the `null` elements), the class's `@Revision` above it. `migrate-data check --decode` lists every such event before the import (`data.md`).
 
 ## Datasets
 

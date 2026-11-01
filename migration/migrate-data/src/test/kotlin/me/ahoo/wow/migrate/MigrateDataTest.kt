@@ -431,6 +431,45 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `check --decode reads every 9x event with the V10 models, and lists each that does not read`() {
+        val config = config().toString()
+        run("check", "--config", config, "--decode").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("example-service.order decoded: 4 streams, 4 events, every one read")
+            .contains("Decode check passed: the V10 models read every 9.x event.")
+        NineXExample.cartRemoving("cart-null", "[null]").forEach(source::add)
+        run("check", "--config", config, "--decode").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("PROBLEM decode: the 9.x event cart_item_removed@0.0.1 of 9.x stream ")
+            .contains(
+                "Decode check failed: 1 9.x events of 1 types do not read, and 0 streams do not convert. Give each " +
+                    "type an @Upgrade that cleans its old shape.",
+            )
+        // Nothing is decoded on a map the check fails.
+        val payment = NineXExample.stream("cart-stream-v1.json").let {
+            it.copy(id = "payment-1", aggregate = NineXAggregate("example-service", "payment"))
+        }
+        source.add(payment)
+        run("check", "--config", config, "--decode").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().endsWith("Decode check not run: the mapping check failed.${System.lineSeparator()}")
+    }
+
+    @Test
+    fun `snapshot should print every instance whose snapshot it cannot write, then fail`() {
+        NineXExample.cartRemoving("cart-null", "[null]").forEach(source::add)
+        val config = config().toString()
+        run("import", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        run("snapshot", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains(
+            "FAILED example.cart/(0)/cart-null, the 9.x instance example-service.cart/(0)/cart-null: "
+        )
+            .contains(
+                "FAILED 1 instances of [example-service.cart] have no V10 snapshot, each printed above: fix them, then " +
+                    "run snapshot again, which walks every instance of those aggregates again and passes over the " +
+                    "snapshots written.",
+            )
+            .doesNotContain("Snapshots done.")
+    }
+
+    @Test
     fun `compare and snapshot need the import first`() {
         run("compare", "--config", config().toString()).assert().isEqualTo(MigrateData.FAILED)
         printed.assert().contains("FAILED The full import of example-service.order has not completed")

@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
@@ -306,6 +307,62 @@ class MappingCheckTest {
         report.warnings.assert().contains(
             "the 9.x store holds no aggregate example-service.archive, which the map excludes",
             "the 9.x store holds no PrepareKey archive_no, which the map excludes",
+        )
+    }
+
+    @Test
+    fun `an instance whose id V10 refuses should fail it, each listed by the name the map excludes it by`() {
+        val refused = mapOf(
+            NineXAggregateId("", "t2") to 1L,
+            NineXAggregateId("", "t1") to 2L,
+            NineXAggregateId(" ", "t1") to 1L,
+            NineXAggregateId(AggregateRef.UNASSIGNED, "t1") to 1L,
+        )
+        val inventories = example.map { if (it.aggregate == order) it.copy(refusedIds = refused) else it }
+        check(inventories = inventories).problems.assert().containsExactly(
+            "example-service.order: V10 refuses these 9.x aggregate ids, so the streams of their instances cannot " +
+                "be imported; " +
+                "exclude each with {\"aggregate\": \"example-service.order\", \"stream\": <the id as listed>, " +
+                "\"reason\": \"…\"}: \"(empty)\" (empty: 3 streams of the tenants [t1, t2]), \" \" (blank: 1 streams " +
+                "of the tenants [t1]), \"(none)\" (the id V10 gives a ref admission has not given one yet: 1 streams of " +
+                "the tenants [t1])",
+        )
+        // Each excluded, by the name the problem lists it by, warns with its reason instead.
+        val map = NineXExample.map.copy(
+            excluded = listOf(RefusedIds.EMPTY, " ", AggregateRef.UNASSIGNED).map {
+                Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = it)
+            },
+        )
+        val report = check(map, inventories)
+        report.passed.assert().isTrue()
+        report.warnings.assert().contains(
+            "the 9.x stream example-service.order \"(empty)\" of the tenants [t1, t2] is excluded: A 9.x defect",
+            "the 9.x stream example-service.order \" \" of the tenants [t1] is excluded: A 9.x defect",
+            "the 9.x stream example-service.order \"(none)\" of the tenants [t1] is excluded: A 9.x defect",
+        )
+    }
+
+    @Test
+    fun `an excluded stream should warn, whether the store holds it or not, and one excluded twice fail`() {
+        val map = NineXExample.map.copy(
+            excluded = listOf(
+                Exclusion(aggregate = "example-service.order", reason = "Corrupt", stream = "o-1"),
+                Exclusion(aggregate = "example-service.order", reason = "Corrupt, twice", stream = "o-1"),
+                Exclusion(aggregate = "example-service.order", reason = "Gone", stream = "o-9"),
+                Exclusion(aggregate = "example-service.order", reason = "No id", stream = RefusedIds.EMPTY),
+                Exclusion(aggregate = "example-service.payment", reason = "Not imported", stream = "p-1"),
+            ),
+        )
+        val held = mapOf((order to "o-1") to listOf("t2", "t1", "t2"))
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest))
+            .check(example, tenantsOf = { aggregate, id -> held[aggregate to id].orEmpty() })
+        report.problems.assert().containsExactly("the 9.x stream example-service.order \"o-1\" is excluded twice")
+        report.warnings.assert().contains(
+            "the 9.x stream example-service.order \"o-1\" of the tenants [t1, t2] is excluded: Corrupt",
+            "the 9.x store holds no stream example-service.order \"o-9\", which the map excludes",
+            "the 9.x store holds no stream example-service.order \"(empty)\", which the map excludes",
+            "the 9.x stream example-service.payment \"p-1\" is excluded, but the map does not import " +
+                "example-service.payment",
         )
     }
 

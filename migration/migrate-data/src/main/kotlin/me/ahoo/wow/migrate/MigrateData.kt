@@ -29,7 +29,7 @@ import kotlin.system.exitProcess
  *
  * ```text
  * migrate-data draft-map --config <file> [--out <file>] [--force] [--dry-run]
- * migrate-data check    --config <file>                       the mapping check: a dry run that writes nothing
+ * migrate-data check    --config <file> [--decode]            the mapping check: a dry run that writes nothing
  * migrate-data import   --config <file> [--dry-run] [--restart | --final] [--snapshots]
  * migrate-data tail     --config <file> [--once]
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
@@ -42,7 +42,9 @@ import kotlin.system.exitProcess
  *   ([MapDrafter]): every name it matches mapped, every other listed in the draft's `exceptions` and printed, for a
  *   person to resolve. It writes the map the configuration names, or `--out`, and never over an existing file
  *   without `--force`; `--dry-run` prints the draft and writes nothing. `check` then reads the draft as any map.
- * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
+ * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest; `--decode` then, once
+ *   that passed, reads every 9.x event of the mapped aggregates with the V10 models ([DecodeCheck]), printing each that
+ *   does not read, and fails when one does not.
  * - `import` checks first and does not start on a failed check; then imports every mapped 9.x aggregate, resuming from
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
  *   final complete pass once 9.x has stopped writing; `--final` is the shorter final pass when the tail followed 9.x
@@ -68,7 +70,8 @@ import kotlin.system.exitProcess
  *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
  *   and execution that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
- *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
+ *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped). Each
+ *   instance whose snapshot it cannot write is printed, and it fails once it has walked every aggregate.
  *
  * - `backfill-tags` records the tags of every stream the V10 log appended before format 1 learned them,
  *   each aggregate of the configured contexts' Manifests replayed with its V10 model ([TagsBackfiller]),
@@ -136,7 +139,7 @@ internal class MigrateData(
         options: List<String>,
         sample: Int?,
     ): Int = when (command) {
-        CHECK -> check(plan, connections)
+        CHECK -> if (DECODE in options) decodeCheck(plan, config, connections) else check(plan, connections)
         IMPORT -> import(plan, config, connections, options)
         TAIL -> tail(plan, config, connections, ONCE in options)
         COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
@@ -216,9 +219,45 @@ internal class MigrateData(
             inventoryOf(connections.source),
             connections.reservations.prepareKeys(),
             connections.compensation?.inventory(),
+            connections.source::tenantsOf,
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED
+    }
+
+    /**
+     * The mapping check, then, once it passed, every 9.x event of the mapped aggregates decoded by the V10 models
+     * ([DecodeCheck]): each that does not read is printed, and the check fails.
+     */
+    private suspend fun decodeCheck(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections
+    ): Int {
+        if (check(plan, connections) != OK) {
+            out.println("Decode check not run: the mapping check failed.")
+            return FAILED
+        }
+        val decoding = DecodeCheck(
+            source = connections.source,
+            plan = plan,
+            models = models(config),
+            options = config.options(),
+            report = { out.println(it.render()) },
+        )
+        val reports = plan.aggregates.keys.map { decoding.check(it).also { report -> out.println(report.render()) } }
+        val failed = reports.filterNot { it.passed }
+        if (failed.isEmpty()) {
+            out.println("Decode check passed: the V10 models read every 9.x event.")
+            return OK
+        }
+        out.println(
+            "Decode check failed: ${failed.sumOf { it.failed.values.sum() }} 9.x events of " +
+                "${failed.flatMap { it.failed.keys }.distinct().size} types do not read, and " +
+                "${failed.sumOf { it.unconverted }} streams do not convert. Give each type an @Upgrade that cleans " +
+                "its old shape.",
+        )
+        return FAILED
     }
 
     private suspend fun import(
@@ -420,8 +459,17 @@ internal class MigrateData(
             checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
             options = config.options(restart = restart),
             progress = { out.println(it.render()) },
+            report = out::println,
         )
-        plan.aggregates.keys.forEach { writer.writeAll(it) }
+        val failed = plan.aggregates.keys.map { writer.writeAll(it) }.filter { it.failed > 0 }
+        if (failed.isNotEmpty()) {
+            out.println(
+                "FAILED ${failed.sumOf { it.failed }} instances of ${failed.map { it.aggregate }} have no V10 " +
+                    "snapshot, each printed above: fix them, then run snapshot again, which walks every instance of " +
+                    "those aggregates again and passes over the snapshots written.",
+            )
+            return FAILED
+        }
         out.println("Snapshots done.")
         return OK
     }
@@ -590,6 +638,7 @@ internal class MigrateData(
         private const val SAMPLE = "--sample"
         private const val FORCE = "--force"
         private const val OUT = "--out"
+        private const val DECODE = "--decode"
 
         /** The order of a tags backfill, printed before it starts. */
         const val TAGS_ORDER = "Tags backfill, in this order: 1. backfill the tags of every V10 log; 2. only then " +
@@ -601,7 +650,7 @@ internal class MigrateData(
         private val COMMANDS = setOf(DRAFT_MAP, CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS, EXPORT)
         private val KNOWN_OPTIONS = mapOf(
             DRAFT_MAP to setOf(CONFIG, OUT, FORCE, DRY_RUN),
-            CHECK to setOf(CONFIG),
+            CHECK to setOf(CONFIG, DECODE),
             IMPORT to setOf(CONFIG, DRY_RUN, RESTART, FINAL, SNAPSHOTS),
             TAIL to setOf(CONFIG, ONCE),
             COMPARE to setOf(CONFIG, SAMPLE, RESTART),
@@ -614,7 +663,9 @@ internal class MigrateData(
               draft-map [--out <file>] [--force] [--dry-run]  drafts migration-map.json from the names the 9.x store
                         holds and the V10 Manifest, listing what it cannot match as exceptions; never replaces a
                         file without --force; --dry-run prints the draft and writes nothing
-              check     checks migration-map.json against the 9.x store and the V10 Manifest; writes nothing
+              check     [--decode]  checks migration-map.json against the 9.x store and the V10 Manifest, then
+                        with --decode reads every 9.x event with the V10 models, listing each that fails; writes
+                        nothing
               import    [--dry-run] [--restart | --final] [--snapshots]  imports the 9.x event streams into the V10
                         log, then writes the V10 snapshots with --snapshots; --final is the final pass after 9.x
                         stops: the tail from its checkpoint, then the reservations and compensation walked again

@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.migrate.example.NineXExample
 import org.bson.BsonUndefined
 import org.bson.Document
@@ -76,6 +77,26 @@ class NineXStreamTest {
     )
     fun `a stream missing what the import needs fails naming it`(text: String) {
         assertThrows<MigrationException> { NineXStream.parse(text) }
+    }
+
+    @Test
+    fun `a stream without an aggregate id should read as one of the empty id, which V10 refuses`() {
+        val stream = """{"id":"s","contextName":"c","aggregateName":"a","tenantId":"t","commandId":"c","version":1,""" +
+            """"createTime":1,"body":[{"name":"e"}]}"""
+        NineXStream.parse(stream).aggregateId.assert().isEqualTo(NineXAggregateId("", "t"))
+        NineXStream.parse(stream.replace(""""tenantId"""", """"aggregateId":" ","tenantId"""")).aggregateId.id
+            .assert().isEqualTo(" ")
+        listOf("", " ", AggregateRef.UNASSIGNED, "o-1").map(RefusedIds::reasonOf).assert().containsExactly(
+            "empty",
+            "blank",
+            "the id V10 gives a ref admission has not given one yet",
+            null,
+        )
+        RefusedIds.nameOf("").assert().isEqualTo(RefusedIds.EMPTY)
+        RefusedIds.nameOf("o-1").assert().isEqualTo("o-1")
+        RefusedIds.idOf(RefusedIds.EMPTY).assert().isEmpty()
+        RefusedIds.idOf("o-1").assert().isEqualTo("o-1")
+        RefusedIds.quoted("a\tb").assert().isEqualTo("\"a\\tb\"")
     }
 
     @Test

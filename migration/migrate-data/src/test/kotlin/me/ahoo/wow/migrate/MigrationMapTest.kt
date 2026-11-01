@@ -188,6 +188,37 @@ class MigrationMapTest {
     }
 
     @Test
+    fun `format 1 excludes the streams of one 9x instance, the empty id by its name`() {
+        val map = MigrationMap.read(
+            """{"format":1,"aggregates":[],"excluded":[{"aggregate":"s.order","stream":"(empty)","reason":"No id"},
+               {"aggregate":"s.order","stream":" ","reason":"A blank id"}]}""",
+        )
+        val (empty, blank) = map.excluded
+        empty.source().assert().isEqualTo(NineXAggregate("s", "order"))
+        empty.excludedStream().assert().isEqualTo(NineXAggregate("s", "order") to RefusedIds.EMPTY)
+        empty.subject().assert().isEqualTo("9.x stream s.order \"(empty)\"")
+        blank.subject().assert().isEqualTo("9.x stream s.order \" \"")
+        Exclusion(aggregate = "s.order", reason = "All of it").excludedStream().assert().isNull()
+        val plan = MigrationPlan(map, NineXExample.manifest)
+        plan.excludes(NineXAggregate("s", "order"), "").assert().isTrue()
+        plan.excludes(NineXAggregate("s", "order"), " ").assert().isTrue()
+        plan.excludes(NineXAggregate("s", "order"), "o-1").assert().isFalse()
+        plan.excludes(NineXAggregate("s", "cart"), "").assert().isFalse()
+    }
+
+    @Test
+    fun `an excluded stream names its aggregate and a 9x aggregate id, the empty one by its name`() {
+        assertThrows<IllegalArgumentException> { Exclusion(prepareKey = "order_no", reason = "Key", stream = "o-1") }
+            .message.assert().startsWith("An excluded stream names its aggregate")
+        assertThrows<IllegalArgumentException> { Exclusion(aggregate = "s.order", reason = "Empty", stream = "") }
+            .message.assert().isEqualTo(
+                "An excluded stream of s.order names its 9.x aggregate id; the empty one is (empty)."
+            )
+        assertThrows<IllegalArgumentException> { Exclusion(aggregate = "s.order", stream = "o-1") }.message.assert()
+            .isEqualTo("The excluded 9.x stream s.order \"o-1\" needs a reason.")
+    }
+
+    @Test
     fun `an excluded entry names an aggregate or a PrepareKey, and why`() {
         assertThrows<IllegalArgumentException> { Exclusion(reason = "Nothing named") }
         assertThrows<IllegalArgumentException> { Exclusion("s.audit", "audit_no", "Both named") }

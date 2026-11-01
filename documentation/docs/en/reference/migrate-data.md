@@ -21,17 +21,18 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | Command | Options | What it does |
 | --- | --- | --- |
 | `draft-map` | `--out <file>`, `--force`, `--dry-run` | Drafts the map from the names the 9.x store holds and the V10 Manifests, and lists what it cannot match as exceptions: see [Draft the map](#draft-the-map). |
-| `check` | | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
+| `check` | `--decode` | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
-| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. |
+| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. |
 | `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then rewrites the Elasticsearch events documents indexed without them. |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
 | Option | Meaning |
 | --- | --- |
 | `--config <file>` | The configuration file. Required by every command. |
+| `--decode` | After a mapping check that passed, `check` reads every 9.x event of the mapped aggregates with the services' V10 models (the configuration's `classpath`), as the service reads it when it loads the aggregate, upgrades included. It prints a `PROBLEM decode:` line for each event that does not read, with its 9.x type and revision, its stream and the reason, and goes on, then a count by type; it fails when one does not read. |
 | `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing; `draft-map` prints the draft and writes nothing. |
 | `--out <file>` | `draft-map` writes the draft there instead of the map the configuration names. |
 | `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. |
@@ -59,7 +60,7 @@ Lines that need attention start with a marker:
 | Marker | Meaning |
 | --- | --- |
 | `PROBLEM` | The check found something that stops the import. |
-| `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing. |
+| `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing; or `snapshot` could not write an instance's snapshot. |
 | `WARNING` | The check found something that does not stop it, such as a mapping nothing uses. |
 | `DIFFERS` | `compare` found a difference: a state, a reservation or a parked entry. |
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
@@ -115,7 +116,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
 | `target.uri`, `target.database` | | The MongoDB target, a replica set. |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
-| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
+| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models, and `check --decode` reads the 9.x events with them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
 | `compensation.uri` | the source's | The server of that database. |
 | `compensation.service` | | The V10 service whose failure ledger receives the unresolved executions: its `wow.service`, or `spring.application.name`. |
@@ -179,7 +180,8 @@ A service whose aggregates keep their logs in different V10 stores is migrated b
     { "from": "order-service.OrderProjector", "to": "OrderReports" }
   ],
   "excluded": [
-    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" }
+    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" },
+    { "aggregate": "order-service.order", "stream": "(empty)", "reason": "A 9.x defect: an order stored without an id" }
   ]
 }
 ```
@@ -195,7 +197,9 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, `local_first`, wait headers) cannot be listed: each becomes a field of its own or goes. An older 9.x wrote them with dots (`trace.id`, `upstream.id`, `upstream.name`, `command.operator`, `command.wait.*`), which read as the same headers, and some of its streams name their command only as `command.name`. |
 | `subscriptions` | The 9.x processors with unresolved compensation executions, mapped to V10 subscriptions; see below. |
 | `exceptions` | What `draft-map` could not match, one line each, for a person to resolve and then delete. The check warns of each line it still finds. |
-| `excluded` | The 9.x aggregates (`aggregate`, `contextName.aggregateName`) and `PrepareKey`s (`prepareKey`) the map leaves out on purpose, each with its `reason`, which is required. The check warns of each with its reason, where it would otherwise fail; it fails an entry the map also maps, or excludes twice, and warns of one the store does not hold. `import` reads none of them. `draft-map` never writes one. |
+| `excluded` | The 9.x aggregates (`aggregate`, `contextName.aggregateName`) and `PrepareKey`s (`prepareKey`) the map leaves out on purpose, each with its `reason`, which is required. An entry with `aggregate` and `stream` leaves out the streams of one instance of that aggregate, named by its 9.x aggregate id, in every tenant: an instance V10 cannot take, such as one whose id it refuses (below). The check warns of each with its reason, where it would otherwise fail; it fails an entry the map also maps, or excludes twice, and warns of one the store does not hold, and of an instance's streams whose aggregate the map does not import. `import`, `snapshot` and `compare` read none of them. `draft-map` never writes one. |
+
+V10 refuses some ids 9.x took: an empty aggregate id (or none at all), a blank one, and `(none)`, the id V10 gives a request whose aggregate admission has not chosen yet. An instance with such an id cannot be imported, a 9.x data defect. The check fails with one `PROBLEM` per aggregate, listing each such id with the number of its streams and its tenants, written as the JSON string an `excluded` entry names it by: the empty id is `"(empty)"`, so it can be copied. Decide what each instance's streams were, then exclude it, as the sample does with `{ "aggregate": "order-service.order", "stream": "(empty)", "reason": "…" }`.
 
 ### Aggregates
 

@@ -19,6 +19,7 @@ import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Sorts
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.json.WowJson
 import org.bson.BsonUndefined
 import org.bson.Document
@@ -73,6 +74,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             ),
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
         val shapes = streamEventTypesOf(collection)
+        val refused = refusedIdsOf(collection)
         return (events.map { it.first.aggregate() } + commands.map { it.first.aggregate() }).distinct().map { aggregate ->
             val ofAggregate = commands.filter { it.first.aggregate() == aggregate }
             NineXInventory(
@@ -90,9 +92,41 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                 streamsWithoutCommand = ofAggregate.filter { it.first.getString("command").isNullOrBlank() }
                     .sumOf { it.second },
                 streamEventTypes = shapes[aggregate].orEmpty(),
+                refusedIds = refused[aggregate].orEmpty(),
             )
         }
     }
+
+    /**
+     * The number of streams of each instance whose id V10 refuses ([RefusedIds]), per aggregate: an absent or null id
+     * read as the empty one, as [NineXStream.parse] reads it.
+     */
+    private fun refusedIdsOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<NineXAggregateId, Long>> =
+        collection.aggregate(
+            listOf(
+                Aggregates.match(
+                    Filters.or(
+                        Filters.eq(AGGREGATE_ID, null),
+                        Filters.regex(AGGREGATE_ID, "^\\s*$"),
+                        Filters.eq(AGGREGATE_ID, AggregateRef.UNASSIGNED),
+                    ),
+                ),
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
+                            .append("id", Document("\$ifNull", listOf("\$aggregateId", "")))
+                            .append("tenant", "\$tenantId"),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
+            .filter { (id, _) -> RefusedIds.reasonOf(id.getString("id")) != null }
+            .groupBy({ it.first.aggregate() }) { (id, count) ->
+                NineXAggregateId(id.getString("id"), id.getString("tenant").orEmpty()) to count
+            }
+            .mapValues { (_, instances) -> instances.toMap() }
 
     /**
      * The number of streams by the set of event types each holds, per aggregate: grouped by the store on the set
@@ -145,7 +179,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID))
             .projection(Document(AGGREGATE_ID, 1).append(TENANT_ID, 1))
             .limit(limit)
-            .map { NineXAggregateId(it.getString(AGGREGATE_ID), it.getString(TENANT_ID)) }
+            .map { NineXAggregateId(it.getString(AGGREGATE_ID).orEmpty(), it.getString(TENANT_ID)) }
             .toList()
     }
 

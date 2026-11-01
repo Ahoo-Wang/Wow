@@ -49,7 +49,10 @@ import tools.jackson.databind.json.JsonMapper
  *     { "from": "example-service.CartSaga" },
  *     { "from": "example-service.OrderSaga", "to": "OrderSaga", "functions": { "onEvent": "onOrderCreated" } }
  *   ],
- *   "excluded": [ { "aggregate": "example-service.audit", "reason": "Another V10 store takes it" } ]
+ *   "excluded": [
+ *     { "aggregate": "example-service.audit", "reason": "Another V10 store takes it" },
+ *     { "aggregate": "example-service.order", "stream": "(empty)", "reason": "A 9.x defect: an order without an id" }
+ *   ]
  * }
  * ```
  *
@@ -62,8 +65,9 @@ import tools.jackson.databind.json.JsonMapper
  *   V10 subscriptions that park them ([SubscriptionMapping]).
  * - [exceptions] are what `draft-map` could not match ([MapDrafter]), one line each, for a person to resolve and then
  *   delete: the check warns of each it still finds, and reads nothing else from them.
- * - [excluded] are the 9.x aggregates and `PrepareKey`s the map leaves out on purpose ([Exclusion]): the check warns of
- *   each with its reason, and the import reads none of them. `draft-map` never writes one: a person decides it.
+ * - [excluded] are the 9.x aggregates, single instances' streams and `PrepareKey`s the map leaves out on purpose
+ *   ([Exclusion]): the check warns of each with its reason, and the import reads none of them. `draft-map` never
+ *   writes one: a person decides it.
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (.2) as an optional property, not a new format: a map without it reads
@@ -106,8 +110,17 @@ internal data class MigrationMap(
  * A 9.x [aggregate] (`contextName.aggregateName`) or [prepareKey] the map leaves out on purpose, for the [reason] a
  * person gives: it names one of them. A 9.x store whose aggregates go to several V10 stores is migrated by one map per
  * V10 store, each excluding what another one takes.
+ *
+ * With [stream], it leaves out the streams of one instance of [aggregate] alone, named by its 9.x aggregate id in
+ * every tenant: an instance V10 cannot take, such as one whose id it refuses ([RefusedIds]), a 9.x data defect. The
+ * empty id is named [RefusedIds.EMPTY], as the check's problem prints it.
  */
-internal data class Exclusion(val aggregate: String? = null, val prepareKey: String? = null, val reason: String = "") {
+internal data class Exclusion(
+    val aggregate: String? = null,
+    val prepareKey: String? = null,
+    val reason: String = "",
+    val stream: String? = null,
+) {
     init {
         require((aggregate == null) != (prepareKey == null)) {
             "An excluded entry names an aggregate or a prepareKey, one of them: $this"
@@ -116,16 +129,27 @@ internal data class Exclusion(val aggregate: String? = null, val prepareKey: Str
             "A 9.x aggregate is named contextName.aggregateName: $aggregate"
         }
         require(prepareKey == null || prepareKey.isNotBlank()) { "An excluded PrepareKey has a name." }
+        require(stream == null || aggregate != null) { "An excluded stream names its aggregate: $this" }
+        require(stream == null || stream.isNotEmpty()) {
+            "An excluded stream of $aggregate names its 9.x aggregate id; the empty one is ${RefusedIds.EMPTY}."
+        }
         require(reason.isNotBlank()) { "The excluded ${subject()} needs a reason." }
     }
 
-    /** The 9.x aggregate it leaves out; null for a `PrepareKey`. */
+    /** The 9.x aggregate it leaves out, or one instance of; null for a `PrepareKey`. */
     fun source(): NineXAggregate? = aggregate?.lastIndexOf('.')?.let {
         NineXAggregate(aggregate.substring(0, it), aggregate.substring(it + 1))
     }
 
+    /** The 9.x aggregate and the instance id, as [stream] names it, whose streams it leaves out; null for any other. */
+    fun excludedStream(): Pair<NineXAggregate, String>? = stream?.let { name -> source()?.let { it to name } }
+
     /** What it leaves out, as a message names it. */
-    fun subject(): String = aggregate?.let { "9.x aggregate $it" } ?: "9.x PrepareKey $prepareKey"
+    fun subject(): String = when {
+        stream != null -> "9.x stream $aggregate ${RefusedIds.quoted(stream)}"
+        aggregate != null -> "9.x aggregate $aggregate"
+        else -> "9.x PrepareKey $prepareKey"
+    }
 }
 
 /**
