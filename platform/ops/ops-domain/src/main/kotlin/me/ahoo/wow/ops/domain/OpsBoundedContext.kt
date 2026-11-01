@@ -14,10 +14,11 @@
 package me.ahoo.wow.ops.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.ops.api.OpsContext
 
 @BoundedContext(
-    name = OpsContext.NAME,
+    // `OpsContext.NAME` as a literal: KSP may not evaluate another module's constant. OpsBoundedContextTest holds
+    // the two equal.
+    name = "ops",
     description = "Wow ops: every service's failure ledger in one view, and an operator's actions on it",
 )
 object OpsBoundedContext

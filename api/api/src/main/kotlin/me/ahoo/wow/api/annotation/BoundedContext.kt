@@ -23,6 +23,8 @@ import java.lang.annotation.Inherited
  * @param name the context's name, unique within the service: lower-case letters, digits and hyphens, starting with a
  *   letter (`[a-z][a-z0-9-]*`), such as `eshop-catalog`. A dot is never part of it, since it separates
  *   the context from the aggregate in type names (`context.aggregate.Command`); the compiler refuses such a name.
+ *   Write it as a literal: a constant of another module may have no value yet when the compiler reads it, and the
+ *   compilation then fails.
  * @param description what the context is for, for documentation.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
