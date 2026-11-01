@@ -160,8 +160,8 @@ its statements one at a time.
 ## Dependencies
 
 - `@ahoo-wang/fetcher` — core HTTP client types
-- `@ahoo-wang/fetcher-eventstream` — event stream types
-- `@ahoo-wang/fetcher-decorator` — decorator type references
+- `@ahoo-wang/fetcher-eventstream` — event stream types; an optional peer: only the OpenAPI clients import it
+- `@ahoo-wang/fetcher-decorator` — decorator type references; an optional peer: only the OpenAPI clients import it
 - `@ahoo-wang/fetcher-openapi` — OpenAPI type definitions; a devDependency, not a peer: the source only
   `import type`s it, so nothing of it survives the build
 - `@ahoo-wang/wow-client` — what the Manifest's clients import
