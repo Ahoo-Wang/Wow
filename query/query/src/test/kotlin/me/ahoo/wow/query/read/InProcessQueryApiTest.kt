@@ -155,6 +155,9 @@ class InProcessQueryApiTest {
         latest: (me.ahoo.wow.api.aggregate.AggregateRef) -> Snapshot<JsonNode>? = { null },
         policies: List<QueryPolicy> = emptyList(),
         snapshots: QueryBindings<AggregateType> = storage,
+        models: ReadModels = ReadModels(
+            listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get)),
+        ),
     ): InProcessQueryApi {
         val events = InMemoryEventQueryStorage({ type -> if (type == cart) streams else emptyList() })
         val engine = QueryEngine.Builder(manifest)
@@ -166,9 +169,7 @@ class InProcessQueryApiTest {
             .build()
         return InProcessQueryApi(
             engine,
-            ReadModels(
-                listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get))
-            ),
+            models,
             latest = { latest(it) },
             defaultListSize = defaultListSize,
         )
@@ -224,6 +225,53 @@ class InProcessQueryApiTest {
         val tree = api().of(alice).snapshots(cart).single(SingleQuery(AggregateIdFilter("c-1")))!!.state
         tree.assert().isInstanceOf(ObjectNode::class.java)
         tree["items"].asInt().assert().isEqualTo(2)
+    }
+
+    /** A cart's state as a mutable class holds it: its lines and quantities in getter-only properties, sourced. */
+    class SourcedCart {
+        val lines = sortedSetOf<String>()
+        val quantities = mutableMapOf<String, Int>()
+    }
+
+    @Test
+    fun `a typed read should fill a state's getter-only collections, as its snapshot holds them`(): Unit = runBlocking {
+        val text = """{"lines":["s-2","s-1"],"quantities":{"s-1":2}}"""
+        storage.save(
+            SnapshotRecord(
+                ref = cart.ref("acme", "c-1"),
+                version = 2,
+                schemaFingerprint = "f",
+                state = text,
+                scope = Scope("alice"),
+                firstEventTime = 10,
+                lastEventTime = 20,
+                tags = emptyMap(),
+                operator = operator,
+            ),
+        )
+        // A query reads the store; a state read, the state the node committed.
+        val latest = { ref: me.ahoo.wow.api.aggregate.AggregateRef ->
+            Snapshot.of<JsonNode>(
+                ref = ref,
+                version = 2,
+                scope = Scope("alice"),
+                deleted = false,
+                tags = emptyMap(),
+                operator = null,
+                firstEventTime = 10,
+                lastEventTime = 20,
+                state = WowJson.mapper.readTree(text),
+            )
+        }
+        val models = ReadModels(listOf(ReadModels.Model(cart, SourcedCart::class.java) { null }))
+        val carts = api(latest = latest, models = models).trusted().snapshots<SourcedCart>()
+        listOf(
+            carts.single(SingleQuery(AggregateIdFilter("c-1")))!!.state,
+            carts.state(cart.ref("acme", "c-1"))!!.state,
+        ).forEach { state ->
+            state.lines.assert().containsExactly("s-1", "s-2")
+            state.quantities.assert().isEqualTo(mapOf("s-1" to 2))
+        }
     }
 
     @Test

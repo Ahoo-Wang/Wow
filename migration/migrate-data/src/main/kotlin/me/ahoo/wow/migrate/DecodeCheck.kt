@@ -79,8 +79,9 @@ internal data class DecodeReport(
  * ([EventCodec.decodeUnlessRetired]). It writes nothing.
  *
  * Every event that does not read is [report]ed as it is found, by its 9.x type, its stream and the model's reason,
- * and the walk goes on, so one pass lists all of them: Jackson 3 refuses some shapes 9.x's Jackson 2 wrote, such as a
- * null element of a list of non-null strings, and each type that fails needs an `@Upgrade` that cleans its old shape.
+ * and the walk goes on, so one pass lists all of them: the models' Kotlin module refuses some shapes 9.x events
+ * stored, such as a null element of a list of non-null strings, and each type that fails needs an `@Upgrade` that
+ * cleans its old shape.
  * Instances are walked as the import walks them, [ImportOptions.concurrency] at a time; an instance the map excludes
  * ([MigrationPlan.excludes]) is passed over.
  */

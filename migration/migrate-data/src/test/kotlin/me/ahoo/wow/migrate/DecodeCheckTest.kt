@@ -72,7 +72,7 @@ class DecodeCheckTest {
             "PROBLEM decode: the 9.x event cart_item_removed@0.0.1 of 9.x stream 0VY3GwaC4OmV00C-cart-null " +
                 "(example-service.cart/(0)/cart-null v4), read as example.cart.CartItemRemoved revision 1: ",
         )
-        // Jackson 3 refuses the null element 9.x's Jackson 2 read, saying where it is.
+        // The Kotlin module refuses the null element a 9.x event stored, saying where it is.
         reported.first().reason.assert().isEqualTo(
             "Invalid `null` value encountered for property \"productIds\" (at " +
                 "me.ahoo.wow.migrate.example.CartItemRemoved[\"productIds\"]->java.util.LinkedHashSet[0])",

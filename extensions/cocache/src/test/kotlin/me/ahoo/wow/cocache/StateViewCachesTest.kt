@@ -34,6 +34,7 @@ import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.test.query.MemoryQueries
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -225,5 +226,17 @@ class StateViewCachesTest {
         String(codec.encode(OrderView("book", 2))).assert().isEqualTo("""{"item":"book","quantity":2}""")
         codec.decode("""{"item":"pen","added":true}""".toByteArray()).assert().isEqualTo(OrderView("pen"))
         codec.toString().assert().contains(OrderView::class.java.name)
+    }
+
+    /** A view of a state that holds its lines in a getter-only set, filled by sourcing. */
+    class BasketView {
+        val lines = sortedSetOf<String>()
+    }
+
+    @Test
+    fun `a view's getter-only collection should be filled from its JSON and from the owner's state`() {
+        val codec = StateViewCodec(BasketView::class.java)
+        codec.decode("""{"lines":["pear","apple"]}""".toByteArray()).lines.assert().containsExactly("apple", "pear")
+        codec.viewOf(WowJson.mapper.readTree("""{"lines":["pen"],"total":1}""")).lines.assert().containsExactly("pen")
     }
 }

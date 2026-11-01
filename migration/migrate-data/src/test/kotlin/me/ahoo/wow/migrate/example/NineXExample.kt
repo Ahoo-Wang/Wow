@@ -67,7 +67,7 @@ internal object NineXExample {
 
     /**
      * The example's cart as the instance [id], its last event removing [productIds], a JSON array: `[null]` is a shape
-     * 9.x's Jackson 2 read, and the V10 model's Jackson 3 refuses.
+     * a 9.x event stored, which the V10 model's Kotlin module refuses.
      */
     fun cartRemoving(id: String, productIds: String): List<NineXStream> = CART_STREAMS.map(::stream).map { stream ->
         val copy = stream.copy(id = "${stream.id}-$id", aggregateId = stream.aggregateId.copy(id = id))

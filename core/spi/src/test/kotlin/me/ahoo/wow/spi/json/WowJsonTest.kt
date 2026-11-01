@@ -66,6 +66,33 @@ class WowJsonTest {
         price.assert().isEqualTo(Price(2.5, BigDecimal("2.50"), mapOf("fee" to BigDecimal("0.30"))))
     }
 
+    /** A class as 9.x's domains wrote one: collections in getter-only properties, filled as it goes. */
+    class Basket(val id: String) {
+        val items = sortedSetOf<String>()
+        val lines = mutableListOf<String>()
+        val counts = mutableMapOf<String, Int>()
+        val label: String = "draft"
+
+        /** A computed property, a getter with no field: written, never read. */
+        val doubled: List<Int> get() = listOf(items.size * 2)
+    }
+
+    @Test
+    fun `a property with no setter should read back into its field, by the mapper and an older reader alike`() {
+        val text = """{"id":"b","items":["apple","pear"],"lines":["l-1"],"counts":{"apple":2},"label":"stored",""" +
+            """"doubled":[9]}"""
+        listOf(WowJson.mapper, WowJson.readerBuilder().build()).forEach { mapper ->
+            val read = mapper.readValue<Basket>(text)
+            read.items.assert().containsExactly("apple", "pear")
+            read.lines.assert().containsExactly("l-1")
+            read.counts.assert().isEqualTo(mapOf("apple" to 2))
+            read.label.assert().isEqualTo("stored")
+            read.doubled.assert().containsExactly(4)
+            mapper.readTree(mapper.writeValueAsString(read)).assert()
+                .isEqualTo(mapper.readTree(text.replace("[9]", "[4]")))
+        }
+    }
+
     @Test
     fun `the mapper registers the Kotlin module and Wow's transport and enum modules only and ignores unknown properties`() {
         WowJson.mapper.registeredModules().map { it.moduleName }

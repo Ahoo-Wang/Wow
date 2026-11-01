@@ -273,6 +273,20 @@ class KernelSnapshotTest {
         codec.decodeState(model, codec.stateText(Computed().apply { total = 2 })).total.assert().isEqualTo(2)
     }
 
+    /** A state holding a set it fills and a value of its body set at construction, in `val`s with no setter. */
+    class Labeled(val id: String) {
+        val tags = sortedSetOf<String>()
+        val label: String = "draft"
+    }
+
+    @Test
+    fun `a state's vals should read back as its snapshot holds them`() {
+        val model = aggregate<Labeled>("test", "labeled") { initial { Labeled(it.id) } }
+        val state = codec.decodeState(model, """{"id":"l-1","tags":["a","b"],"label":"final"}""")
+        state.tags.assert().containsExactly("a", "b")
+        state.label.assert().isEqualTo("final")
+    }
+
     @Test
     fun `a snapshot whose state would lose data is ignored`() = runTest {
         // Without getters as setters, Jackson leaves the cart's items empty instead of failing.

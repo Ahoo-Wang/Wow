@@ -331,6 +331,7 @@ fun onSourcing(event: OrderSubmitted) {
 - Every event the aggregate can produce needs a sourcing function, even one that changes nothing.
 - A sourcing function that changes the state in place returns nothing. One that returns the state type returns the new state instead, for an immutable state.
 - Give every property a value before the first event. The kernel serializes the state as it is, for snapshots and for the published stream.
+- A property in a `val` with no setter reads back into its field from a snapshot, or from a state a query returns: a collection or map the state fills as it goes (`val items = sortedSetOf<String>()`, a `MutableList` or a `MutableMap`) and a value set at construction alike. A computed property, a getter with no field behind it, is written and not read.
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
 
 ### Read the commit
