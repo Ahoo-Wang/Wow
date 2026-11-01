@@ -109,7 +109,7 @@ tasks.test {
 应用 Kotlin JVM 插件之后，`me.ahoo.wow`：
 
 - 加上 `wow-kernel`，生成的模型和绑定索引建立在它之上；
-- 应用 KSP 和插件同版本的 `wow-compiler`，把模块的聚合编译为模型和它的那部分契约；
+- 应用 KSP 和插件同版本的 `wow-compiler`，把模块的聚合编译为模型和它的那部分契约，并让构建中的 KSP 任务逐个运行：在同一个 Gradle 守护进程中重叠的 KSP 运行可能读不到自己的类路径，于是对没能解析的部分什么都不生成；
 - 用模块中类型的 JSON Schema 补全这部分（`generateWowManifestFragment`），并提供给声明它的 api 模块；
 - 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[测试领域代码](../guide/testing)）。
 

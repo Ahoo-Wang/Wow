@@ -52,6 +52,7 @@ import me.ahoo.wow.compiler.model.subscription.SubscriptionResolver
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.BoundedContextArguments
 import me.ahoo.wow.compiler.model.symbol.ModelNames.REACTOR_TYPES
+import me.ahoo.wow.compiler.model.symbol.neverValidated
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.ErrorManifest
@@ -183,6 +184,12 @@ internal class ModelSymbolProcessor(
      */
     private val unreadContexts = sortedSetOf<String>()
 
+    /**
+     * The symbols the last round deferred: one still deferred when KSP ends never validated, and fails the compilation
+     * ([finish]) rather than leaving the model without it.
+     */
+    private var waiting: List<KSAnnotated> = emptyList()
+
     /** Whether the KSP option naming the context was checked against the rule of a context name, once per build. */
     private var optionChecked = false
 
@@ -229,8 +236,9 @@ internal class ModelSymbolProcessor(
             reportUnclaimedUpgrades()
             reportUnclaimedMounted()
         }
-        return deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver) +
+        waiting = deferred + deferredErrorCodes + deferredMounted + processSubscriptions(resolver) +
             processRoutes(resolver)
+        return waiting
     }
 
     /**
@@ -439,13 +447,14 @@ internal class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (unreadContexts.isNotEmpty()) {
+        if (unreadContexts.isNotEmpty() || waiting.isNotEmpty()) {
             unreadContexts.forEach {
                 logger.error(
                     "@BoundedContext of $it: KSP evaluated no value for its name or description, so nothing of the " +
                         "module was generated; an argument must be a constant KSP can read, a literal or a const val",
                 )
             }
+            waiting.forEach { logger.error(it.neverValidated(), it) }
             return
         }
         val collected = listOf(bindings, subscriptions, errorCodes.values, routes)

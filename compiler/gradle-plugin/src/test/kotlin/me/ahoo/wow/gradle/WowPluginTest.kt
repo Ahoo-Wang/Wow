@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.gradle
 
+import com.google.devtools.ksp.gradle.KspAATask
 import com.google.devtools.ksp.gradle.KspExtension
 import groovy.json.JsonSlurper
 import me.ahoo.test.asserts.assert
@@ -32,6 +33,7 @@ import org.gradle.api.ProjectConfigurationException
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
+import org.gradle.api.internal.TaskInternal
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.SourceSetContainer
@@ -100,6 +102,19 @@ class WowPluginTest {
         ksp.arguments.assert()
             .containsEntry("wow.model", "generate")
             .containsEntry("wow.manifest.module", "shop")
+    }
+
+    @Test
+    fun `its KSP tasks should run one at a time, through the build's service`() {
+        val project = project()
+        (project as ProjectInternal).evaluate()
+        val registration = project.gradle.sharedServices.registrations.getByName(KspRuns.NAME)
+        registration.maxParallelUsages.get().assert().isEqualTo(1)
+        project.tasks.withType(KspAATask::class.java).toList().assert().isNotEmpty().allSatisfy { task ->
+            (task as TaskInternal).requiredServices.isServiceRequired(registration.service).assert().isTrue()
+        }
+        // Gradle creates it when a KSP task runs.
+        registration.service.get().assert().isInstanceOf(KspRuns::class.java)
     }
 
     @Test
