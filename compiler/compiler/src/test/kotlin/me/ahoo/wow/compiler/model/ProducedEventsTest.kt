@@ -146,6 +146,23 @@ class ProducedEventsTest {
     }
 
     @Test
+    fun `a suppression whose names have no value should still be warned of`() {
+        // Not a constant: KSP evaluates no value for it, so it suppresses nothing (and the compiler refuses it).
+        val (_, result) = compileModel(
+            "generate",
+            cart(
+                "object Names { val unlisted: String = \"UnlistedEvents\" }\n" +
+                    "@Suppress(Names.unlisted) fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                    "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+                "fun onSourcing(event: Bumped) {}",
+            ),
+        )
+        result.messages.assert()
+            .contains("onCommand returns me.ahoo.wow.api.decide.Decision, which names no event it produces")
+            .doesNotContain("Exception")
+    }
+
+    @Test
     fun `a command function inherited from a library should not be warned of`() {
         // Its author, not the subclass's, lists what it produces, and its @Suppress does not reach the subclass.
         val library = compileLibrary(

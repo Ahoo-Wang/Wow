@@ -47,6 +47,7 @@ import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
+import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
@@ -512,7 +513,7 @@ internal class AggregateAnalyzer(
      * is what the processor reads.
      */
     private fun KSFunctionDeclaration.suppresses(name: String): Boolean = annotations.any { annotation ->
-        annotation.annotationType.resolve().declaration.qualifiedName?.asString() == SUPPRESS &&
+        annotation.isOf(SUPPRESS) &&
             annotation.arguments.any { argument -> (argument.value as? List<*>)?.contains(name) == true }
     }
 
