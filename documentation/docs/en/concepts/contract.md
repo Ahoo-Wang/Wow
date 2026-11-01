@@ -12,12 +12,12 @@ A service has many readers: its own runtime, HTTP clients, a TypeScript front en
 The Manifest is a JSON document the compiler builds from your domain model. For each bounded context of the service it lists:
 
 - the **aggregates**: the schema of each state, whether snapshots are kept, who an aggregate belongs to, and the lifecycle commands it handles;
-- the **commands**: name, schema, creation rule, the events each can produce, the error codes it can reject with, and its route;
+- the **commands**: name, schema, creation rule, the events each can produce, and its route;
 - the **events**: name, former names, revision and schema;
 - the **queries** each aggregate offers;
 - the **subscriptions**: each projection, saga and reactor function, what it reads and, for a saga, the commands it sends;
 - the **published streams**: which aggregates are published, on which topic, with or without state;
-- the **error codes**, with their HTTP status and description.
+- the **error codes**: the framework's `wow.*` codes and those the domain declares with `@ErrorCode`, with their HTTP status and description.
 
 The schemas are JSON Schema. Names are stable model names, `context.aggregate.Name`, not class names.
 
@@ -36,13 +36,13 @@ A service's domain is often spread over several Gradle modules. The compiler see
 
 The schemas come from Jackson itself. The build loads the compiled classes and asks Jackson how it would serialize them, so naming strategies, `@JsonProperty`, custom serializers and Kotlin defaults all show up as they really are on the wire. This happens at build time only; at run time nothing is introspected.
 
-The service publishes its Manifest at `GET /wow/manifest` on its public port, authorized like any other route.
+The service publishes its Manifest at `GET /wow/manifest` on its public port, authenticated like every route (401 without a caller); any authenticated caller may read it.
 
 ## What is derived from it
 
 - **HTTP routes.** The runtime builds the command, query and state routes from the Manifest. There are no route annotations.
 - **OpenAPI.** The service serves an OpenAPI document derived from the Manifest. In a Spring Boot host with springdoc, the Wow routes are merged into springdoc's documents as well.
-- **TypeScript client.** `wow-generator` reads the Manifest and generates a typed client: commands, their errors, query fields, events. The front end commits the generated code and regenerates it in CI.
+- **TypeScript client.** `wow-generator` reads the Manifest and generates a typed client: commands, the error codes of each context and aggregate, query fields, events. The front end commits the generated code and regenerates it in CI.
 - **Views.** The view engine derives default views and what a view may ask for from the Manifest.
 - **Admission.** The runtime decodes a command by its type name, checks a wait plan against the subscriptions, and maps error codes to HTTP status, all from the Manifest.
 

@@ -32,11 +32,12 @@ Admission turns a request into a command the kernel can trust. In order, it:
 1. finds the command type the request names;
 2. establishes the identity: which aggregate, in which tenant, for which owner and space. Each fact has one rule, and conflicting sources reject the request;
 3. checks that the caller may perform this action;
-4. decodes the body and validates it;
-5. lets a configured transformer rewrite the command, without changing its identity;
-6. builds the command, which nothing changes afterwards.
+4. decodes the body;
+5. lets a configured transformer rewrite the command: its type, its aggregate and its body, never its scope, request id, expected version or wait plan; a changed type or aggregate is authorized again;
+6. validates the result;
+7. builds the command, which nothing changes afterwards.
 
-Every entry point admits the same way: HTTP, a command sent by a saga, a command read from a Kafka command topic, a synchronous call from another service. Admission also records the wait plan on the command. The default plan waits until the snapshot holds the commit, so a caller can read its own write as soon as the command returns ([Waiting for outcomes](./waits)).
+Every entry point a caller uses admits the same way: HTTP, an in-process command client, a synchronous call from another service. A command read from a Kafka command topic was admitted where it was sent, and a command a saga derives is not admitted again: its root command was. Admission also records the wait plan on the command. The default plan waits until the snapshot holds the commit, so a caller can read its own write as soon as the command returns ([Waiting for outcomes](./waits)).
 
 A command that has no aggregate id yet, a creation, gets one at admission. If the same caller already committed a creation with the same request id, admission reuses that id, so a retried creation does not create a second aggregate.
 
@@ -54,7 +55,7 @@ It is what makes writing fast. If any node could execute any command, each node 
 | Local | Runs the command where it arrived | One node; the memory backend |
 | Kafka (per aggregate type) | Writes the command to the context's command topic; the partition's owner consumes it | Asynchronous commands that must survive a crash once accepted; absorbing bursts |
 
-When the owner cannot take a forwarded command, the receiving node runs it locally rather than wait: when the connection fails, when the peer answers that it does not own the partition, when too many forwards are in flight to it, or when no owner is known, for example during a hand-over. That costs at most a few conflict retries. But once a forwarded request has been sent, a timeout is **not** a reason to run it locally. The owner may still be deciding, and a second decision on another node would repeat whatever I/O decide does. The caller gets a timeout instead, and retries with the same request id.
+When the owner cannot take a forwarded command, the receiving node runs it locally rather than wait: when the connection fails, when the peer answers that it does not own the partition, when too many forwards are in flight to it, or when no owner is known, for example during a hand-over. That costs at most a few conflict retries. But once a forwarded request has been sent, a timeout is **not** a reason to run it locally. The owner may still be deciding, and a second decision on another node would repeat whatever I/O decide does. The caller gets `wow.command.unknown` (503) instead, and retries with the same request id.
 
 ## Execution
 

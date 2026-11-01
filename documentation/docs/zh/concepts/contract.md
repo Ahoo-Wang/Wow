@@ -12,12 +12,12 @@ description: Manifest 描述什么、编译器怎样构建它、从它推出什�
 Manifest 是编译器从你的领域模型构建的一份 JSON 文档。对服务的每个限界上下文，它列出：
 
 - **聚合**：每个状态的 schema、是否保留快照、聚合归谁所有，以及它处理的生命周期命令；
-- **命令**：名字、schema、创建语义、每条命令可能产生的事件、可能拒绝时用的错误码，以及它的路由；
+- **命令**：名字、schema、创建语义、每条命令可能产生的事件，以及它的路由；
 - **事件**：名字、旧名字、修订号和 schema；
 - 每个聚合提供的**查询**；
 - **订阅**：每个投影、Saga 和反应器函数，它读什么，对 Saga 还有它发出的命令；
 - **发布的事件流**：哪些聚合被发布、发布在哪个主题、带不带状态；
-- **错误码**，以及它们的 HTTP 状态和说明。
+- **错误码**：框架的 `wow.*` 错误码和领域用 `@ErrorCode` 声明的错误码，以及它们的 HTTP 状态和说明。
 
 schema 用 JSON Schema 表示。名字是稳定的模型名 `context.aggregate.Name`，而不是类名。
 
@@ -36,13 +36,13 @@ annotations ─▶ compiler ─▶ Manifest ─┬▶ HTTP routes (at run time)
 
 schema 来自 Jackson 本身。构建过程加载编译好的类，询问 Jackson 会怎样序列化它们，所以命名策略、`@JsonProperty`、自定义序列化器和 Kotlin 默认值，都按它们在线上的真实样子体现出来。这只发生在构建时；运行时不做任何内省。
 
-服务在公开端口的 `GET /wow/manifest` 上发布它的 Manifest，与其他路由一样需要授权。
+服务在公开端口的 `GET /wow/manifest` 上发布它的 Manifest，与所有路由一样需要认证（没有调用方时 401），任何已认证的调用方都能读取。
 
 ## 从它推出什么 {#what-is-derived-from-it}
 
 - **HTTP 路由。** 运行时从 Manifest 构建命令、查询和状态路由。没有路由注解。
 - **OpenAPI。** 服务提供一份从 Manifest 推出的 OpenAPI 文档。在带 springdoc 的 Spring Boot 宿主里，Wow 的路由也会合并进 springdoc 的文档。
-- **TypeScript 客户端。** `wow-generator` 读取 Manifest，生成类型化的客户端：命令及其错误、查询字段、事件。前端提交生成的代码，并在 CI 里重新生成。
+- **TypeScript 客户端。** `wow-generator` 读取 Manifest，生成类型化的客户端：命令、每个上下文和聚合的错误码、查询字段、事件。前端提交生成的代码，并在 CI 里重新生成。
 - **视图。** 视图引擎从 Manifest 推出默认视图，以及一个视图可以请求什么。
 - **准入。** 运行时按类型名解码命令、对照订阅检查等待计划、把错误码映射到 HTTP 状态，依据都是 Manifest。
 
