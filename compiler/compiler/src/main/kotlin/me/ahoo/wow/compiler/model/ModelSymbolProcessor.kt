@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.compiler.model
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
@@ -52,6 +50,7 @@ import me.ahoo.wow.compiler.model.subscription.ModuleEvent
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionResolver
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.BoundedContextArguments
 import me.ahoo.wow.compiler.model.symbol.ModelNames.REACTOR_TYPES
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.manifest.ContextName
@@ -177,6 +176,13 @@ internal class ModelSymbolProcessor(
      */
     private val boundedContexts = sortedMapOf<String, String>()
 
+    /**
+     * The declarations whose `@BoundedContext` has an argument KSP has not evaluated yet, by name: what the module
+     * generates is named after its context, so nothing is generated in such a round, and one still unread when KSP
+     * ends fails the compilation ([finish]).
+     */
+    private val unreadContexts = sortedSetOf<String>()
+
     /** Whether the KSP option naming the context was checked against the rule of a context name, once per build. */
     private var optionChecked = false
 
@@ -184,7 +190,11 @@ internal class ModelSymbolProcessor(
         if (mode == Mode.OFF) {
             return emptyList()
         }
-        collectBoundedContexts(resolver)
+        val unread = collectBoundedContexts(resolver)
+        if (unread.isNotEmpty()) {
+            // Named after the module's context, nothing is generated while its name is unread: this round's symbols wait.
+            return unread + ROUND_ANNOTATIONS.flatMap { resolver.getSymbolsWithAnnotation(it) }.distinct()
+        }
         queryApi = queryApi ?: QueryPropertiesSource.available(resolver)
         resolver.getSymbolsWithAnnotation(UpgradeResolver.UPGRADE).filterIsInstance<KSFunctionDeclaration>().forEach {
             it.containingFile?.let { file -> sources += file }
@@ -395,30 +405,49 @@ internal class ModelSymbolProcessor(
         ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context())) }
     }
 
-    @OptIn(KspExperimental::class)
-    private fun collectBoundedContexts(resolver: Resolver) {
+    /**
+     * Collects the module's `@BoundedContext`s: the declarations returned are those with an argument KSP has not
+     * evaluated yet, deferred to the next round, if KSP runs one ([unreadContexts]).
+     */
+    private fun collectBoundedContexts(resolver: Resolver): List<KSClassDeclaration> {
         val declarations = resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT).filterIsInstance<KSClassDeclaration>()
-        declarations.forEach { declaration ->
+        val unread = declarations.filter { declaration ->
+            val name = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString()
+            val read = declaration.annotations.filter(BoundedContextArguments::isBoundedContext)
+                .map(BoundedContextArguments::of).toList()
+            if (null in read) {
+                unreadContexts += name
+                return@filter true
+            }
+            unreadContexts -= name
             declaration.containingFile?.let { sources += it }
-            declaration.getAnnotationsByType(BoundedContext::class).forEach {
-                boundedContexts[it.name] = it.description
+            read.filterNotNull().forEach { context ->
+                boundedContexts[context.name] = context.description
                 if (mode == Mode.GENERATE) {
-                    val problem = ContextName.problem(it.name)
-                    if (problem != null) {
-                        logger.error("@BoundedContext: $problem", declaration)
-                    }
+                    ContextName.problem(context.name)?.let { logger.error("@BoundedContext: $it", declaration) }
                 }
             }
-        }
+            false
+        }.toList()
         if (mode == Mode.GENERATE && !optionChecked) {
             optionChecked = true
             manifest.context?.let(ContextName::problem)?.let {
                 logger.error("KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION}: $it")
             }
         }
+        return unread
     }
 
     override fun finish() {
+        if (unreadContexts.isNotEmpty()) {
+            unreadContexts.forEach {
+                logger.error(
+                    "@BoundedContext of $it: KSP evaluated no value for its name or description, so nothing of the " +
+                        "module was generated; an argument must be a constant KSP can read, a literal or a const val",
+                )
+            }
+            return
+        }
         val collected = listOf(bindings, subscriptions, errorCodes.values, routes)
         if (collected.all { it.isEmpty() }) {
             return
@@ -518,6 +547,18 @@ internal class ModelSymbolProcessor(
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
 
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
+
+        /** The annotations of the symbols a round processes, besides `@BoundedContext`: what waits for its name. */
+        val ROUND_ANNOTATIONS: List<String> = listOf(
+            UpgradeResolver.UPGRADE,
+            ErrorCodeResolver.ERROR_CODE,
+            MountedCommandResolver.MOUNTED_COMMAND,
+            AGGREGATE_ROOT,
+            ServiceRouteResolver.SERVICE_ROUTE,
+            SubscriptionResolver.ON_EVENT,
+            SubscriptionResolver.ON_REJECTED,
+            SubscriptionResolver.ON_COMMITTED,
+        ) + SubscriptionResolver.KIND_ANNOTATIONS + SubscriptionResolver.REMOVED_KIND_ANNOTATIONS
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()
