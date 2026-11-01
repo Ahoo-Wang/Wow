@@ -364,8 +364,14 @@ internal class SchemaIntrospector(
             // A getter takes no argument, so a function of arguments is no property's; nor is a static method, which
             // the generator does not offer. A computed container's items are no member of their own: [Containers]
             // writes the container whole, its items referring to their type, so no item scope is offered.
+            val raw = method.rawMember
+            if (raw.parameterCount != 0) return null
+            // The property Jackson writes by a getter of the method's name, of the declaring type or a supertype,
+            // and not by that very method: a class Kotlin compiles in its default mode (`-jvm-default=enable`)
+            // repeats each default getter of its interfaces as a bridge, which the generator offers and Jackson
+            // skips for the interface's getter.
             val property = getBeanDescriptionForClass(method.declaringType).findProperties()
-                .firstOrNull { it.getter?.annotated == method.rawMember } ?: return null
+                .firstOrNull { it.getter?.name == raw.name } ?: return null
             val declaring = method.declaringType.erasedType
             val backed = generateSequence(declaring) { it.superclass }.any { type ->
                 type.declaredFields.any { it.name == property.internalName && !Modifier.isStatic(it.modifiers) }
