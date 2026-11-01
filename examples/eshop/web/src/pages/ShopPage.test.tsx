@@ -116,10 +116,11 @@ describe("the shop", () => {
       expect(router.state.location.search).toBe("?q=mug&category=mugs"),
     );
     await router.navigate(-1);
-    await waitFor(() =>
-      expect(router.state.location.search).toBe("?q=mug&category=mugs&sort=price-desc&page=2"),
-    );
-    expect(screen.getByLabelText("Sort by")).toHaveValue("price-desc");
+    // The page renders the address it went back to after the router moves: wait for both.
+    await waitFor(() => {
+      expect(router.state.location.search).toBe("?q=mug&category=mugs&sort=price-desc&page=2");
+      expect(screen.getByLabelText("Sort by")).toHaveValue("price-desc");
+    });
   });
 
   it("shows each product's stock in one query, and offers no product that is out of it (UI-55)", async () => {
