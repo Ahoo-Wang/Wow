@@ -1,6 +1,6 @@
 # V10 milestone snapshot 2 on Apple M5 Max
 
-The second milestone saturation snapshot of Wow 10 on an Apple M5 Max: single-node closed-loop sweeps on disk (PostgreSQL and MongoDB), reproduction of multi-node concurrency conflicts (X-34), and investigation of in-memory transport behavior under overload (X-40). Measured on 2026-11-01 at `30d0c0348e` (`main`), compared against the first M5 Max snapshot (`cebdb88d0`, 2026-10-30). Between the two snapshots, `main` moved by 6 commits. The raw runs, scripts, and logs are in [`v10-m5max-snapshot-2/`](v10-m5max-snapshot-2/).
+The second milestone saturation snapshot of Wow 10 on an Apple M5 Max: single-node closed-loop sweeps on disk (PostgreSQL and MongoDB), reproduction of multi-node concurrency conflicts (X-34), and investigation of in-memory transport behavior under overload (X-40). Measured on 2026-11-01 at `30d0c0348e` (`main`), compared against the first M5 Max snapshot (`cebdb88d0`, 2026-10-30). Between the two snapshots, `main` moved by 78 commits. The raw runs, scripts, and logs are in [`v10-m5max-snapshot-2/`](v10-m5max-snapshot-2/).
 
 ## Setup
 
@@ -89,19 +89,20 @@ Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) wer
    ```text
    Subscription TransferSaga.onPrepared pauses partition 10 of group transfer-service/transfer on 3 aggregates failed within 10s...
    ```
-4. **Degradation to Local Execution without Lease (Root Cause of 409)**:
+4. **Degradation to Local Execution without Lease (the likely cause of 409)**:
    In `CommandRouter.kt`:
    ```kotlin
    val degraded: suspend () -> Settlement = { withContext(ExecutionLease.NOT_HELD) { local() } }
    val peer = ownership.forwardTarget(partition) ?: return degraded()
    return forward(ownership, peer, model, command, wait) ?: degraded()
    ```
-   When `forward()` fails before transmission or is refused by an overloaded peer, it calls `unsent()` and returns `null`. This causes `CommandRouter` to fall back to `degraded()`, executing the command **locally on the receiving node without holding the partition lease** (`ExecutionLease.NOT_HELD`).
+   When `forward()` fails before the owner surely received the command (the connection or transport fails before delivery, which this load makes likely, since the internal HTTP/2 channel was refusing new streams, as the dropped signals above show; a `NOT_OWNER` or `EXPIRED` refusal; a full in-flight budget; or an unknown owner), it calls `unsent()` and returns `null`. `CommandRouter` then falls back to `degraded()`, executing the command **locally on the receiving node without holding the partition lease** (`ExecutionLease.NOT_HELD`). A forward that times out after the request was sent does not degrade: by design (D223) the sender answers 503 `wow.command.unknown`, which is where this run's thousands of 503s come from.
    Simultaneously, the true partition owner (or another node that also degraded) executes in-flight commands on the exact same aggregate. Both nodes attempt to append version $V+1$ of the aggregate to the shared event store (PostgreSQL `event_stream` or MongoDB `events`). One node commits; the other receives `AppendOutcome.Conflict`.
-   After exhausting optimistic retry attempts in `Kernel.execute`, the failing node returns `CommandOutcome.Contended(maxAttempts)`, answered to the client as HTTP 409 `wow.command.contended`.
+   After exhausting optimistic retry attempts in `Kernel.execute`, the failing node returns `CommandOutcome.Contended(maxAttempts)`, answered to the client as HTTP 409 `wow.command.contended`. The event store's version check is what refuses the second writer, so no event is lost or duplicated: the 409 is the safe outcome the design gives two writers.
 
 ### 3. Verdict
-- **Confirmed**: 409 `wow.command.contended` is directly caused by `CommandRouter`'s fallback degradation (`degraded()` running `local()` with `ExecutionLease.NOT_HELD`) when inter-node forward calls fail or time out under severe single-host resource saturation.
+- **Likely, not proven per command**: the 409s are consistent with `CommandRouter`'s degradation to local execution without the lease (`degraded()`), which happens only when a forward surely did not reach the owner, during severe single-host saturation. The logs show the internal channel refusing streams and forwards failing, but no log line ties an individual 409 to a degraded execution of the same aggregate, so the chain is inferred from the code, not traced command by command.
+- **Expected and safe**: by design two writers end in a version conflict the store refuses; the 409 tells the caller to retry, and no data is corrupted.
 - **Scope**: Occurs on both PostgreSQL and MongoDB when cluster internal communication degrades.
 
 ---
@@ -133,7 +134,7 @@ Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) wer
 - **Heap and GC**: On 8 GB heap, G1 GC maintained young generation collections comfortably; average heap usage remained under 2.5 GB throughout the sweeps, and in-memory bounded queues did not accumulate uncollected garbage.
 
 ### 4. Verdict
-- **Confirmed Fixed by X-33**: Under the current codebase, in-memory transport under 8 GB heap behaves strictly within design specifications during overload: all excessive requests are handled cleanly as HTTP 429 `wow.command.busy` (aggregate lane admission rejection) or HTTP 504 `wow.wait.timeout` (wait plan expiration). HTTP 500 and EOF errors no longer occur.
+- **Not reproduced on this build**: with the in-memory transport and with `wow.transport=none`, both on an 8 GB heap, every overloaded request was answered 429 `wow.command.busy` or 504 `wow.wait.timeout`, with no HTTP 500 or EOF. That is consistent with X-33's bounded in-memory topics having removed the cause, but a non-reproduction alone does not prove it.
 
 ---
 
@@ -153,7 +154,8 @@ Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) wer
 
 1. **Capacity Consistency**:
    - Single-node throughput on M5 Max remains consistent with the first snapshot: E1 uniform reaches ≥ 36,388.7/s on PostgreSQL and ≥ 23,382.3/s on MongoDB; E3 uniform reaches 8,674.6/s on PostgreSQL and 6,531.7/s on MongoDB at concurrency 1,024.
-2. **X-34 Root Cause Identified**:
-   - 409 contention in 3-node clusters on a single host is verified to stem from `CommandRouter`'s fallback to unleased local execution (`ExecutionLease.NOT_HELD`) upon forward timeouts. When co-located nodes starve on shared CPU and cluster HTTP/2 channels drop signals, concurrent local writes collide on the database version slot.
-3. **X-40 Resolution Verified**:
-   - The bounded in-memory transport introduced in X-33 prevents unbounded memory growth; under 8 GB heap, high-concurrency overload produces only expected 429 and 504 status codes with zero HTTP 500 failures.
+2. **X-34: the likely cause, and a candidate issue**:
+   - The 409s in 3-node clusters on one host are consistent with degraded local execution after forwards that never reached the owner; the store's version check refuses the second writer, so the outcome is safe (see above).
+   - Candidate issue: under this load the internal HTTP/2 client hit `too many concurrent streams`, dropping over 1,300 wait signals and failing forwards. The internal client's connection and stream limits deserve their own investigation.
+3. **X-40: not reproduced**:
+   - On this build, an 8 GB heap with the in-memory transport or with `wow.transport=none` answered overload only with 429 and 504, with zero HTTP 500s; consistent with X-33, not a proof of it.
