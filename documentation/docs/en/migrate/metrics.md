@@ -39,7 +39,7 @@ V10 also measures what 9.x did not: the waits (`wow.wait.timeouts`), the executo
 
 | 9.x span | V10 span |
 | --- | --- |
-| `<aggregate>.<Command>` (a command handled) | `admit <context>.<aggregate>` (SERVER), with `execute <context>.<aggregate>` and `decide <context>.<aggregate>` under it |
+| `<aggregate>.<Command>` (a command handled) | `admit <context>.<aggregate>` (INTERNAL), with `execute <context>.<aggregate>` and `decide <context>.<aggregate>` under it |
 | `<aggregate>.<Command>.command send` | Within the admission; through a topic: `send <topic>` |
 | `<aggregate>.<Event>.event.append` | `append <context>.<aggregate>` |
 | `<aggregate>.event.load`, `<aggregate>.event.existsRequestId` | No span: part of `execute` |

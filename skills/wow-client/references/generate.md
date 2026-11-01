@@ -12,7 +12,7 @@ pnpm exec wow-generator generate --input ./manifest.json --output ./src/generate
 
 - `--input` takes a file or an http(s) URL (`-H 'Authorization: Bearer …'` for a protected one, with the token from the environment); prefer the Manifest the service commits, so a build does not depend on a running service.
 - Several services: one output directory per service, or one run per Manifest into subdirectories (the eShop's web app runs `scripts/generate.mjs` over the five services' Manifests).
-- Exit codes: `0` generated; `2` input or usage; `3` configuration; `4` the document cannot be generated, or `--strict` and a warning; `5` output (a path escapes, the manifest file is newer); `130` interrupted. Report the code, not "failed".
+- Exit codes: `0` generated; `1` internal (rerun with `--verbose`); `2` input or usage; `3` configuration; `4` the document cannot be generated, or `--strict` and a warning; `5` output (a path escapes, the manifest file is newer); `130` interrupted. Report the code, not "failed".
 
 ## What it writes
 

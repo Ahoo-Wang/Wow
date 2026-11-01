@@ -166,7 +166,8 @@ export const orderActions = (commands: OrderCommands) =>
 | `confirm` | 先问什么 |
 | `form` | 除了记录之外，命令还需要什么 |
 | `moves` | 看板卡片拖到另一栏时它设置的字段 |
-| `run(row, input)` | 为一条记录发送命令 |
+| `run(row, input, { signal })` | 为一条记录发送命令；超过 `timeout` 或按下**不再等待**时，signal 中止它 |
+| `done` | 结果行用它代替“已完成” |
 | `timeout` | 一条记录的 `run` 等多久 |
 
 每条规则都拿到 `{ now, input? }`：`now` 是引擎给的 `Date`，所以规则从不读时钟；`input` 是选中的选项或填好的表单。抛出异常的规则会拒绝这条记录。
@@ -234,7 +235,7 @@ export const ordersDefinition = defineView(descriptor, {
 | 位置 | 绘制什么 |
 | --- | --- |
 | 一行或一张卡片 | 主操作是一个按钮；其余在它的“…的操作”菜单里 |
-| 选择栏 | 主操作带上数量，然后是其余操作；不是全部都能执行时显示“{able}/{count}” |
+| 选择栏 | 各操作按声明的顺序排列，主操作带上数量；不是全部都能执行时显示“{able}/{count}” |
 | 记录详情 | `on` 包含 `detail` 的操作 |
 | 仪表盘的记录面板 | 与工作台上一样；命令之后，整个仪表盘重新读取 |
 
@@ -307,17 +308,17 @@ export const dealActions = (
 | 完成 | `run` resolve 了 | 重新读取视图 |
 | 失败 | `run` reject 了：服务拒绝了命令 | 显示服务给出的原因；记录保持选中 |
 | 未执行 | 轮到它时，记录已不再符合条件 | 显示原因；记录保持选中 |
-| 未知 | 没有回答：超时、中止、连接断开、操作的 `timeout`，或**停止等待** | “结果未知，刷新查看”；取消选中这条记录 |
+| 未知 | 没有回答：超时、中止、连接断开、操作的 `timeout`，或**不再等待** | “结果未知，先刷新核对”；取消选中这条记录 |
 
 **`run` 在读模型反映出这条命令之后才 resolve**，否则随后的刷新读到的是旧状态，读者会以为什么都没发生。Wow 命令等待 `snapshot`，或者等待视图所读的那个订阅。
 
 **结果未知的记录会被取消选中**，免得诱人盲目地再执行一次。读者仍可能再按一次，所以要让命令幂等：发送行上显示的版本（`version` 列在 `record.rowFields` 里），客户端的请求 ID 让一次发送的重试只算一次。
 
-失败或结果未知时的原始错误还会传给环境的 `onError`，用于监控。
+`run` 失败或没有回答时抛出的错误（中止除外）还会传给环境的 `onError`，用于监控；因 `timeout` 或**不再等待**而结果未知的，没有错误可传。
 
 ## 插槽 {#slots}
 
-声明表达不了的东西，例如一个外链或你自己的控件，放进插槽：`bind` 上的 `slots: { row, bulk, global }`，绘制在声明的操作之后。发送命令的插槽调用它上下文的 `run`，结果报告方式与声明的操作相同。能声明的就声明。
+声明表达不了的东西，例如一个外链或你自己的控件，放进插槽：`bind` 上的 `slots: { row, bulk, global }`，绘制在声明的操作之后。发送命令的 `row` 或 `bulk` 插槽调用它上下文的 `run`，结果报告方式与声明的操作相同。能声明的就声明。
 
 ## 测试操作 {#harness}
 
@@ -375,4 +376,4 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, 'Buyer asked');
 
 ## 一个完整的示例 {#a-complete-example}
 
-ops 控制台的 [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) 为停放条目声明了恢复、跳过、标记为可恢复和应用重试规格，带表单和确认；[`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) 用 `actionHarness` 测试它们。
+ops 控制台的 [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) 为停放条目声明了重试、跳过、标记可恢复性和应用重试规格，带表单和确认；[`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) 用 `actionHarness` 测试它们。

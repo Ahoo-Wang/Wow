@@ -9,7 +9,7 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 
 ## 从这里开始：两条路
 
-宿主只做一个选择，写在 `ViewHost` 上（包的 README 的快速上手）：
+宿主只做一个选择，写在 `ViewHost` 上（[承载引擎](./host)）：
 
 | 路         | 适合                                  | 写法                                                                                                                                                  |
 | ---------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -127,7 +127,7 @@ Storybook 的[宿主自定义主题](/storybook/?path=/story/view-engine-能力-
 <html data-fve-preset="azure"></html>
 ```
 
-主色取你的颜色的色相，选中项（`accent`）、视图列表里悬停的那一个（`sidebar-accent`）与选中行（`row-selected`）的淡色也取它；焦点环本来就是主色的预设（`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），在视图自己身上算；每套预设只给它在自己的底上量出来的**边界**：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线——有一个测试在每套、两种明暗下扫过整个 sRGB——太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、`input`、状态色与图表八色仍是预设自己的。
+主色取你的颜色的色相，选中项（`accent`）、视图列表里悬停的那一个（`sidebar-accent`）与选中行（`row-selected`）的淡色也取它；焦点环本来就是主色的预设（`azure`、`porcelain`、`contrast`）里焦点环也跟着变。派生在 OKLCH 里算、只写一处（`styles.css`），在视图自己身上算；每套预设只给它在自己的底上量出来的**边界**：`neutral` 把主色亮度夹在亮色 0.40～0.50、暗色 0.68～0.80，`contrast` 为了 7:1 夹在 0.25～0.36 与 0.80～0.90。所以任何颜色都守得住你挂的那一套的每一条对比度线——有一个测试在每套、两种明暗下扫过整个 sRGB——太亮或太暗的品牌色会比品牌手册深一些或浅一些。灰、`input`、状态色与图表八色仍是预设自己的。
 
 - `--fve-dark-brand` 给暗色一个自己的颜色；不写，暗色也从 `--fve-brand` 派生。
 - 变量挂在视图之上的哪里都行——`:root`、某个包裹层，或面的 `tokens`（弹层会离开包裹层，只给某一块视图时用 `tokens`）。
@@ -362,7 +362,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 - **Tailwind v3 的 HSL 通道**——写成或读到 `222.2 47.4% 11.2%` 的颜色，或桥接会读到的 v3 shadcn 主题——并给出要的 `hsl()` 写法；
 - **你改了的品牌色边界**（`--fve-brand-*`，或你的预设里的 `--fvp-brand-*`）：越界或上下颠倒，以及一遍扫过整个 sRGB 的品牌色，因为边界是对任何颜色的承诺；
 - **对比度**：`src/ui/theme/pairs.ts` 的每一对，两种明暗、每种涨跌约定，在你自己的每套预设上，以及你 `:root` 上的变量所落在的内置预设上（不用 `--preset` 点名就是全部）；给了品牌色时两种回到色域的方式都量；
-- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过上面那三道门。
+- **图表八色**：带了自己的色板或传了 `--brand-chart` 时，过它的三道门：相邻色在每种视觉（正常、红色盲、绿色盲、蓝色盲）下都分得开，每一色离卡片 3:1，图表两种墨色之一在每个标记内 4.5:1。
 
 有错误退出码是 1，只有警告是 0；`--json` 把结果打成数据。它读 `dist/theme-tokens.json`、`dist/theme-source.css`（`styles.css` 里原样的 token 规则）与 `dist/themes.css`，在 Node 22.12 及以上运行，不需要页面。它看不见页面运行时做的事——脚本里设的变量、它不知道是你的选择器——所以浏览器里画出来的样子仍以 Storybook 的对比度矩阵为准。
 
@@ -384,7 +384,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 
 ## 密度
 
-`<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`porcelain` 舒适）；`default` 画出的与以前一模一样。
+`<html>` 上的 `data-fve-density`——`compact`、`default` 或 `comfortable`——决定表格、视图列表与仪表盘面板排得多紧：表头行 32、40 或 44px，值两侧 6、8 或 12px，视图列表一项 24、28 或 32px，面板内边距 8、12 或 16px。控件、字号与仪表盘的 80px 行高都不变。面上的 `density` 钉住单个视图。两者都不设时，面按预设的推荐（`--fvp-preset-density`；内置预设都不设，所以是 `default`）；`default` 画出的与以前一模一样。
 
 ### 单独改一个长度
 
@@ -604,7 +604,7 @@ pnpm exec wow-view-engine theme-check src/theme.css --preset azure --preset porc
 | 谁渲染                    | `ViewSurface`，以及各工作台与嵌入                 | 你自己的 DOM                                                     |
 | token、utility、preflight | 有                                                | 有                                                               |
 | 涂底色与文字色            | 涂                                                | **不涂**——想要本包那张底，自己涂 `var(--background)` 与 `var(--foreground)` |
-| 明暗                      | 祖先上的 `.dark`，或 `theme` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
+| 明暗                      | 祖先上的 `.dark`，或 `colorMode` 用 `data-theme` 钉住 | 只认祖先上的 `.dark`                                             |
 | 措辞、语言、时区、tooltip | 有，走 `ViewSurface` 的 props                     | 没有                                                             |
 
 **`fve-tokens` 许诺的是 token，不是 utility，也不是组件。** 边界里，主题的 token 以 shadcn 的名字声明——`--background`、`--foreground`、`--card`、`--card-foreground`、`--primary`、`--muted`、`--border`、`--radius` 等等——已按预设、你的覆盖与明暗解析好。你自己的 Tailwind 主题照 shadcn/ui 的做法映射它们（`--color-card: var(--card)`），你自己的类（`bg-card`）与你自己那份 shadcn/ui 在这里就穿上本主题；纯 CSS 用 `var(--card)` 读。引擎的 `fve:` utility 是引擎自己的：样式表只在引擎某个组件写着它的时候才有这一条，今天可用的，下一个版本可能就没了。本包渲染所用的 shadcn 原语是 vendored 的，靠 `shadcn add --diff` 升级，同样不公开——所以请用你自己的组件与类搭 chrome，由这道边界把本主题的配色交给它们：

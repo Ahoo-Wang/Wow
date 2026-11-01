@@ -60,11 +60,11 @@ declare const error: unknown;
 if (error instanceof CommandRejectedError) {
   if (error.code === EshopBasketContract.Basket.Errors.EMPTY) {
     // the domain refused: say so in the audience's words
+  } else if (error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND) {
+    // a rejected result too, as are wow.aggregate.exists, deleted and version-mismatch
   }
 } else if (error instanceof WowProblemError) {
-  if (error.code === FrameworkErrorCodes.AGGREGATE_NOT_FOUND) {
-    // …
-  }
+  // not rejected: busy, unavailable, a timed-out wait…; retry as error.retry says
 }
 ```
 

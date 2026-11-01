@@ -11,7 +11,7 @@ A Wow service's routes, waits, problems and query language are typed in TypeScri
 
 | Package | Does | Needs |
 | --- | --- | --- |
-| `@ahoo-wang/wow-client` | Commands with their waits, state reads, snapshot, event and dataset queries, the Manifest, and the problems a service answers with. The query DSL is its `/dsl` entry | `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` |
+| `@ahoo-wang/wow-client` | Commands with their waits, state reads, snapshot, event and dataset queries, the Manifest, and the problems a service answers with. The query DSL is its `/dsl` entry, the service routes its `/routes` entry | `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-eventstream` |
 | `@ahoo-wang/wow-generator` | The typed clients of a service, generated from its Manifest; also models and clients from any OpenAPI 3 document. CLI `wow-generator` | `wow-client` |
 | `@ahoo-wang/wow-react` | React hooks that keep a query, its result and its loading state | `wow-client`, React 19 |
 | `@ahoo-wang/wow-view-engine` | Configurable data views over Wow data: records, analyses and dashboards | `wow-client`, React 19 |

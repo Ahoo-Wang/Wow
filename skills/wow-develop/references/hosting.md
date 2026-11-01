@@ -29,8 +29,8 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 `wow-spring-boot` wires everything from the class path: add the server module's dependencies, a `@SpringBootApplication`, and configuration. Common keys (verify each):
 
 - `wow.service` (or `spring.application.name`): the service's name.
-- `wow.backend`: `auto` (the default: the one backend on the class path), `memory`, `postgres`, `mongo`. PostgreSQL needs a `DataSource` bean; MongoDB a sync `MongoClient` bean on a replica set; memory is one node and serves no snapshot queries unless `wow.query.memory.enabled`.
-- `wow.internal.port` (9090), `wow.internal.host`, `wow.internal.token` (the cluster token; a node without one starts only in a development profile or on loopback).
+- `wow.backend`: `auto` (the default: PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient` bean, refusing to start without either outside a development profile or a loopback internal port), `memory`, `postgres`, `mongo`. PostgreSQL needs a `DataSource` bean; MongoDB a sync `MongoClient` bean on a replica set; memory is one node, and its snapshot queries are served while `wow.query.memory.enabled` (on by default).
+- `wow.internal.port` (9090), `wow.internal.host`. The internal port carries no authentication: keep it on the platform's network, behind a NetworkPolicy, where only the service's own nodes and its trusted peers reach it.
 - `wow.log.partitions` (64; a power of two dividing 4096): set once, before the log holds entries.
 - `wow.routing`, `wow.wait.default-timeout`, `wow.subscriptions.[<context>.<name>].start` (a subscription by its context and name), `wow.subscription.retry.*`, `wow.subscription.parked.*`, `wow.aggregates.[<context>.<aggregate>].tenant`.
 - `wow.kafka.bootstrap-servers`, `wow.kafka.command-intake.enabled` (`cross-context.md`); `wow.transport` for local runs without Kafka.

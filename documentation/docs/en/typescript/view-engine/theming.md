@@ -9,7 +9,7 @@ The theme is the host's look, not a way of observing: nothing about it is saved 
 
 ## Start here: two paths
 
-A host makes one choice, on `ViewHost` (the package README's quick start):
+A host makes one choice, on `ViewHost` ([Host the engine](./host)):
 
 | Path                   | For                                                 | Write                                                                              |
 | ---------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -127,7 +127,7 @@ A brand colour is not a preset: give it as `--fve-brand` and wear whichever pres
 <html data-fve-preset="azure"></html>
 ```
 
-The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); where a preset's focus ring is its primary (`porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
+The primary takes your colour's hue, and so do faint tints of the selected item (`accent`), the hovered view in the list (`sidebar-accent`) and a selected row (`row-selected`); where a preset's focus ring is its primary (`azure`, `porcelain`, `contrast`) the ring follows too. The colours are derived in OKLCH, once, in `styles.css`, on the view itself, and each preset only gives the **bounds** it holds them to on its own grounds: `neutral` clamps the primary's lightness to 0.40–0.50 in light and 0.68–0.80 in dark, `contrast` to 0.25–0.36 and 0.80–0.90 for its 7:1. So any colour holds every contrast line of the preset you wear — a test sweeps the whole sRGB range on every preset, in both modes — and a very light or very dark brand comes out deeper or lighter than its book. The greys, `input`, the status colours and the chart palette stay the preset's.
 
 - `--fve-dark-brand` gives the dark half its own colour; left out, dark derives from `--fve-brand`.
 - Put the variable anywhere above the view — `:root`, a wrapper, or a surface's `tokens` (popups leave a wrapper, so for one view use `tokens`).
@@ -362,7 +362,7 @@ It reads your stylesheets (several are put together in the order given) and repo
 - **Tailwind v3's HSL channels** — a colour written or read as `222.2 47.4% 11.2%`, or a v3 shadcn theme the bridge would read — with the `hsl()` it wants;
 - **the brand's bounds** you move (`--fve-brand-*`, or `--fvp-brand-*` in your preset): out of range or crossed, and a sweep of brand colours across sRGB, since a bound is a promise for every colour;
 - **contrast**: every pair of `src/ui/theme/pairs.ts`, in both modes and every change convention, on each preset of yours and on the built-in presets your `:root` variables are worn on (all of them unless you name some with `--preset`), a brand colour you give in both gamut mappings;
-- **the chart palette**, when you bring one or pass `--brand-chart`: the three gates above.
+- **the chart palette**, when you bring one or pass `--brand-chart`: its three gates, neighbouring slots apart to every eye (normal, protan, deutan and tritan vision), each slot at 3:1 off the card, and one of the chart's two inks at 4.5:1 inside every mark.
 
 It exits 1 on an error and 0 on warnings alone; `--json` prints the findings as data. It reads `dist/theme-tokens.json`, `dist/theme-source.css` (the token rules of `styles.css`, as written) and `dist/themes.css`, and runs in Node 22.12 or later, outside any page. What it cannot see is what your page does at run time — a variable set from script, a selector it does not know is yours — so the contrast matrix in Storybook stays the check of what a browser paints.
 
@@ -384,7 +384,7 @@ It is the host's call by market and reader — never switched by the interface l
 
 ## Density
 
-`data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`porcelain` comfortable), and at `default` it draws exactly what it drew before.
+`data-fve-density` on `<html>` — `compact`, `default` or `comfortable` — sets how tightly tables, the view list and dashboard panels sit: a header row of 32, 40 or 44px, 6, 8 or 12px beside a value, views of 24, 28 or 32px, 8, 12 or 16px round a panel. Controls, type and the dashboard's 80px row never change. `density` on a surface pins one view. Without either, a surface sits where its preset recommends (`--fvp-preset-density`; no built-in preset sets one, so `default`), and at `default` it draws exactly what it drew before.
 
 ### One length of your own
 
@@ -568,7 +568,7 @@ Popups — menus, lists, popovers, tooltips and dialogs — are portalled to `<b
 }
 ```
 
-A view that fills the screen (「铺满屏幕」 on a workbench or an embed) is pinned to the viewport at level `0`: it covers the page's ordinary content, and chrome the host raised on purpose still covers it. A shell whose sidebar is `position: fixed` above that — shadcn's sidebar sits at `z-index: 10` — would hide the view's first columns, so such a host lifts the expanded view above its chrome and below the popups:
+A view that fills the screen ("Fill the screen" on a workbench or an embed) is pinned to the viewport at level `0`: it covers the page's ordinary content, and chrome the host raised on purpose still covers it. A shell whose sidebar is `position: fixed` above that — shadcn's sidebar sits at `z-index: 10` — would hide the view's first columns, so such a host lifts the expanded view above its chrome and below the popups:
 
 ```css
 :root {
@@ -604,7 +604,7 @@ Every rule of the stylesheet is scoped at build time, so the theme's tokens, and
 | Rendered by                           | `ViewSurface`, and every workbench and embed                 | your own markup                                                          |
 | Tokens, utilities, preflight          | yes                                                          | yes                                                                      |
 | Paints a background and a text colour | yes                                                          | **no** — paint `var(--background)` and `var(--foreground)` yourself     |
-| Light or dark                         | a `.dark` ancestor, or `theme` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
+| Light or dark                         | a `.dark` ancestor, or `colorMode` pinning one with `data-theme` | a `.dark` ancestor, and nothing else                                     |
 | Wording, locale, time zone, tooltips  | yes, through `ViewSurface`'s props                           | no                                                                       |
 
 **What `fve-tokens` promises is the tokens, not the utilities and not components.** Inside the boundary the theme's tokens are declared under their shadcn names — `--background`, `--foreground`, `--card`, `--card-foreground`, `--primary`, `--muted`, `--border`, `--radius` and the rest — resolved for the preset, your overrides and the mode. Your own Tailwind theme maps them the way shadcn/ui's does (`--color-card: var(--card)`), so your own classes (`bg-card`) and your own copy of shadcn/ui wear this theme there; plain CSS reads them with `var(--card)`. The engine's `fve:` utilities are its own: the stylesheet holds one only while a component of the engine writes it, so one that works today can be gone in the next release. The shadcn primitives this package renders with are vendored, updated with `shadcn add --diff`, and not public either — so build your chrome from your own components and classes, and let the boundary give them this theme's colours:

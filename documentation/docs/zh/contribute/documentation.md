@@ -52,7 +52,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 ### 设计记录
 
-设计记录解释代码为什么是现在的形状：问题、约束、兼容边界、决定以及被否决的方案。跨 JVM 模块的记录放在 `documentation/designs/`，命名为 `YYYY-MM-DD-<topic>-design.md`；单个 TypeScript 包或应用的设计留在它自己的 `docs/design/`。整体重新设计的主版本把它的记录集中在 `documentation/designs/v<major>/`：索引 `README.md`、架构总览与各专题记录、里程碑路线图 `roadmap.md`，以及记录待决与已决事项的台账 `decisions.md`。该目录不再分子目录。
+设计记录解释代码为什么是现在的形状：问题、约束、兼容边界、决定以及被否决的方案。跨 JVM 模块的记录放在 `documentation/designs/`，命名为 `YYYY-MM-DD-<topic>-design.md`；单个 TypeScript 包或应用的设计留在它自己的 `docs/design/`。整体重新设计的主版本把它的记录集中在 `documentation/designs/`：索引 `README.md`、架构总览与各专题记录、里程碑路线图 `roadmap.md`，以及记录待决与已决事项的台账 `decisions.md`。该目录不再分子目录。
 
 - 开头写明日期、源码基线和状态：提议、已确认、实施中、已实施或已取代。
 - 实现合并时更新状态，并把每个用户可见的合同移到对应的文档站页面。文档站可以链接设计记录说明缘由，但合同本身不依赖设计记录。
@@ -130,7 +130,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 `.github/scripts/docs-consistency.mjs`（`pnpm check:docs-consistency`）也在这个作业里运行。每个英文页面都有对应的中文页面，反之亦然；生成的页面可以只有英文。两者的标题层级序列与代码块的语言序列必须一致。YAML 或 properties 代码块里设置的每个 `wow.*` 键，都必须是 Spring Boot 配置元数据里的键，按 Spring 的宽松绑定规则比较。
 
-配置项、错误码、注解、Manifest 格式、已发布模块与 API 级别的参考页（`reference/{configuration,error-codes,annotations,manifest,modules,api-levels}.md`）由 `.github/scripts/docs-reference.mjs` 从源码生成；提交的页面与源码给出的不一致时，同一个作业失败。改动源码时，在同一个改动里用 `pnpm docs:reference` 重新生成。
+配置项、平台模块的配置项、错误码、注解、Manifest 格式、已发布模块与 API 级别的参考页（`reference/{configuration,module-configuration,error-codes,annotations,manifest,modules,api-levels}.md`）由 `.github/scripts/docs-reference.mjs` 从源码生成；提交的页面与源码给出的不一致时，同一个作业失败。改动源码时，在同一个改动里用 `pnpm docs:reference` 重新生成。
 
 同一工作流的 Documentation 作业在文档站或其示例变化时，用锁定的依赖构建 VitePress 站点。该检查只看结构：文档是否仍然有效、是否只有一个归属、是否是改头换面的工作材料，仍由 review 判断。
 

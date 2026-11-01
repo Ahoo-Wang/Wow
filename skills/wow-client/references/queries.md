@@ -15,7 +15,7 @@ Three ways to read, by what the screen needs:
 
 ## Queries and the DSL
 
-The body names its operation; the client sets it: `single`, `list`, `stream`, `paged`, `cursor`, `count`, `aggregate`. Build bodies with `@ahoo-wang/wow-client/dsl` (the root entry exports it too; `/dsl` alone loads no HTTP code):
+The body names its operation; the client sets it: `single`, `list`, `stream`, `paged`, `cursor`, `count`, `aggregate`. Build bodies with `@ahoo-wang/wow-client/dsl` (the root entry does not export it; `/dsl` alone loads no HTTP code):
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -46,7 +46,7 @@ const page = await orders.paged(
 
 ## What the backend admits: the descriptor
 
-`describe(version?)` reads the model's capability descriptor (`GET` on the query route, its `ETag` the version; pass the version held and a 304 answers `{ notModified: true }`): every field with the operators, sorts and aggregation it admits, the limits, and the constraints (`COUNT_REQUIRES_FILTER`, `AGGREGATE_REQUIRED`, …). Read it before offering a filter the backend refuses: the same query can be fine on MongoDB and refused on PostgreSQL or Elasticsearch.
+`describe(version?)` reads the model's capability descriptor (`GET` on the query route, its `ETag` the version; pass the version held and a 304 answers `{ notModified: true }`): every field with the operators, sorts and aggregation it admits, the limits, and the constraints (`count-requires-filter`, `aggregate-required`, …). Read it before offering a filter the backend refuses: the same query can be fine on MongoDB and refused on PostgreSQL or Elasticsearch.
 
 ## Exact numbers in reads
 
