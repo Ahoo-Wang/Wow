@@ -275,18 +275,18 @@ internal interface MigrationConnections : Closeable {
 }
 
 /**
- * The connections [config] names: a 9.x MongoDB store, and a V10 log on PostgreSQL or MongoDB whose schema each
+ * The connections [configured] names: a 9.x MongoDB store, and a V10 log on PostgreSQL or MongoDB whose schema each
  * context's first use creates (with the configured partition count, which an existing log must already have), with
  * the snapshot store of each context and the reservation store on the same backend (their default names, as the
  * host's).
  */
 internal class ConfiguredConnections(
-    config: MigrationConfig,
+    configured: MigrationConfig,
     environment: (String) -> String? = System::getenv,
 ) : MigrationConnections {
-    /** [config] with its connection strings read from the environment where it says `env:NAME`. */
-    private val config: MigrationConfig = config.resolved(environment)
-    private val sourceClient: MongoClient = MongoClients.create(this.config.source.uri)
+    /** [configured] with its connection strings read from the environment where it says `env:NAME`: all it reads. */
+    private val config: MigrationConfig = configured.resolved(environment)
+    private val sourceClient: MongoClient = MongoClients.create(config.source.uri)
     override val source: MongoNineXEventSource =
         MongoNineXEventSource(sourceClient.getDatabase(config.source.database))
     override val snapshots: NineXSnapshotSource =

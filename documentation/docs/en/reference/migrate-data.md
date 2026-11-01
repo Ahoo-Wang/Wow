@@ -108,14 +108,14 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `map` | required | The migration map. |
 | `manifests` | required | The merged V10 Manifests of the services the streams go to. |
 | `checkpoint` | `migrate-data.checkpoint.json` | The checkpoint file. |
-| `source.uri`, `source.database` | required | The 9.x MongoDB event store. |
+| `source.uri`, `source.database` | required | The 9.x MongoDB event store. `draft-map` and `check` fail when the database holds no event stream, naming it: a misspelt name, or an unset `env:` variable's, reads as an empty store. |
 | `source.createCommitTimeIndex` | `false` | Lets `tail` create the `(createTime, _id)` index it needs on each event stream collection. Otherwise it refuses to start without it and prints the command. |
 | `target.type` | required | `postgres` or `mongo`. |
 | `target.jdbcUrl`, `target.username`, `target.password` | | The PostgreSQL target. |
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
 | `target.uri`, `target.database` | | The MongoDB target, a replica set. |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
-| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models. The dependencies the models take are stand-ins: the tool runs no decide function. |
+| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
 | `compensation.uri` | the source's | The server of that database. |
 | `compensation.service` | | The V10 service whose failure ledger receives the unresolved executions: its `wow.service`, or `spring.application.name`. |
@@ -128,7 +128,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `final.lookbackMillis` | `60000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose commit time is set before the write is visible. Make it twice the larger of the measured clock skew and the slowest 9.x commit. |
 | `final.maxTailAgeMillis` | `600000` | How recently the tail's last pass must have ended for `import --final` to accept it. |
 
-A service whose aggregates keep their logs in different V10 stores is migrated by one run per store, each with a map of the aggregates that store holds.
+A service whose aggregates keep their logs in different V10 stores is migrated by one run per store, each with a map of the aggregates that store holds, which excludes the others (`excluded`).
 
 ## The map
 
@@ -177,6 +177,9 @@ A service whose aggregates keep their logs in different V10 stores is migrated b
   "subscriptions": [
     { "from": "order-service.OrderSaga", "functions": { "onEvent": "onOrderCreated" } },
     { "from": "order-service.OrderProjector", "to": "OrderReports" }
+  ],
+  "excluded": [
+    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" }
   ]
 }
 ```
@@ -189,9 +192,10 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | --- | --- |
 | `format` | `1`. |
 | `aggregates` | One entry per 9.x aggregate; see below. |
-| `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, `local_first`, wait headers) cannot be listed: each becomes a field of its own or goes. |
+| `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, `local_first`, wait headers) cannot be listed: each becomes a field of its own or goes. An older 9.x wrote them with dots (`trace.id`, `upstream.id`, `upstream.name`, `command.operator`, `command.wait.*`), which read as the same headers, and some of its streams name their command only as `command.name`. |
 | `subscriptions` | The 9.x processors with unresolved compensation executions, mapped to V10 subscriptions; see below. |
 | `exceptions` | What `draft-map` could not match, one line each, for a person to resolve and then delete. The check warns of each line it still finds. |
+| `excluded` | The 9.x aggregates (`aggregate`, `contextName.aggregateName`) and `PrepareKey`s (`prepareKey`) the map leaves out on purpose, each with its `reason`, which is required. The check warns of each with its reason, where it would otherwise fail; it fails an entry the map also maps, or excludes twice, and warns of one the store does not hold. `import` reads none of them. `draft-map` never writes one. |
 
 ### Aggregates
 

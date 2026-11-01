@@ -19,6 +19,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) : NineXEventSource {
     private val streams = CopyOnWriteArrayList(streams)
 
+    override val store: String = "the in-memory store"
+
     fun add(stream: NineXStream) {
         streams += stream
     }

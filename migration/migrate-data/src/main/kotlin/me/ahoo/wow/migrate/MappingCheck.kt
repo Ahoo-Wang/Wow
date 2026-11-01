@@ -94,7 +94,9 @@ internal data class MappingReport(
  *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
  *   warning: it is reported and not imported.
  *
- * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet.
+ * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet. An aggregate or a
+ * `PrepareKey` the map excludes ([MigrationMap.excluded]) is a warning with its reason instead of a problem; one the
+ * map also maps, or excludes twice, is a problem, and one the store does not hold a warning.
  */
 internal class MappingCheck(private val plan: MigrationPlan) {
     fun check(
@@ -109,9 +111,14 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         }
         plan.aggregates.values.forEach { aggregate -> problems += targetProblems(aggregate) }
         val held = inventories.associateBy { it.aggregate }
+        val excluded = plan.map.excluded.associateBy { it.subject() }
         inventories.filter { it.aggregate !in plan.aggregates }.forEach {
-            problems += "the 9.x aggregate ${it.aggregate} (${it.streams} streams) is not mapped"
+            val subject = "9.x aggregate ${it.aggregate}"
+            excluded[subject]?.let { exclusion ->
+                warnings += "the $subject (${it.streams} streams) is excluded: ${exclusion.reason}"
+            } ?: run { problems += "the $subject (${it.streams} streams) is not mapped" }
         }
+        exclusionProblems(held.keys, prepareKeys.keys, problems, warnings)
         plan.aggregates.values.forEach { aggregate ->
             val inventory = held[aggregate.source]
             if (inventory == null) {
@@ -192,6 +199,35 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         }
     }
 
+    /**
+     * The excluded entries the map maps too, or excludes twice, are problems; one the store does not hold is a
+     * warning.
+     */
+    private fun exclusionProblems(
+        held: Set<NineXAggregate>,
+        prepareKeys: Set<String>,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
+        val excluded = plan.map.excluded
+        excluded.groupBy { it.subject() }.filterValues { it.size > 1 }.keys
+            .forEach { problems += "the $it is excluded twice" }
+        val reserved = plan.aggregates.values.flatMap { aggregate -> aggregate.mapping.reservations.map { it.from } }
+        excluded.distinctBy { it.subject() }.forEach { exclusion ->
+            val aggregate = exclusion.source()
+            val (mapped, holds) = if (aggregate != null) {
+                (aggregate in plan.aggregates) to (aggregate in held)
+            } else {
+                (exclusion.prepareKey in reserved) to (exclusion.prepareKey in prepareKeys)
+            }
+            when {
+                mapped -> problems += "the ${exclusion.subject()} is both mapped and excluded"
+                !holds -> warnings += "the 9.x store holds no ${exclusion.subject().removePrefix("9.x ")}, which " +
+                    "the map excludes"
+            }
+        }
+    }
+
     private fun reservationProblems(
         prepareKeys: Map<String, Long>,
         problems: MutableList<String>,
@@ -200,8 +236,14 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         val mappings = plan.aggregates.values.flatMap { aggregate -> aggregate.mapping.reservations.map { it.from } }
         mappings.groupBy { it }.filterValues { it.size > 1 }.keys
             .forEach { problems += "the 9.x PrepareKey $it is mapped twice" }
+        val excluded = plan.map.excluded.associateBy { it.subject() }
         prepareKeys.filterKeys { it !in mappings }.forEach { (name, keys) ->
-            problems += "the 9.x PrepareKey $name ($keys keys) has no reservation mapping: its keys would be free in V10"
+            val exclusion = excluded["9.x PrepareKey $name"]
+            exclusion?.let { warnings += "the 9.x PrepareKey $name ($keys keys) is excluded: ${it.reason}" }
+                ?: run {
+                    problems += "the 9.x PrepareKey $name ($keys keys) has no reservation mapping: its keys would be " +
+                        "free in V10"
+                }
         }
         mappings.distinct().filter { it !in prepareKeys }
             .forEach { warnings += "the 9.x store holds no PrepareKey $it" }

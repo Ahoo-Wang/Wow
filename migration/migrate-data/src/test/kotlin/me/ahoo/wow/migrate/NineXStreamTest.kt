@@ -89,6 +89,52 @@ class NineXStreamTest {
         NineXHeaders.isFramework("command_operator").assert().isTrue()
         NineXHeaders.isFramework("command_wait_endpoint").assert().isTrue()
         NineXHeaders.isFramework("app_id").assert().isFalse()
+        // An older 9.x's dotted forms are framework headers too.
+        listOf("trace.id", "upstream.id", "upstream.name", "command.operator", "command.wait.endpoint", "command.name")
+            .forEach { NineXHeaders.isFramework(it).assert().describedAs(it).isTrue() }
+        NineXHeaders.isFramework("app.id").assert().isFalse()
+    }
+
+    private fun streamWith(header: String): NineXStream = NineXStream.parse(
+        """
+        {"_id":"s1","contextName":"c","aggregateName":"a","aggregateId":"i","tenantId":"t","commandId":"cmd",
+         "version":1,"createTime":5,"header":$header,"body":[{"name":"e"}]}
+        """.trimIndent(),
+    )
+
+    @Test
+    fun `an older 9x's dotted framework headers should read as the underscore ones`() {
+        val stream = streamWith(
+            """
+            {"upstream.name":"create_order","upstream.id":"cmd","trace.id":"root","command.operator":"user-1",
+             "command.wait.endpoint":"wait","app_id":"a1"}
+            """.trimIndent(),
+        )
+        stream.commandName.assert().isEqualTo("create_order")
+        stream.header.assert().isEqualTo(
+            mapOf(
+                "upstream_name" to "create_order",
+                "upstream_id" to "cmd",
+                "trace_id" to "root",
+                "command_operator" to "user-1",
+                "command_wait_endpoint" to "wait",
+                "app_id" to "a1",
+            ),
+        )
+    }
+
+    @Test
+    fun `a stream naming its command only as command name should record that command`() {
+        streamWith("""{"command.name":"create_order"}""").run {
+            commandName.assert().isEqualTo("create_order")
+            header.assert().isEqualTo(mapOf("upstream_name" to "create_order"))
+        }
+        // Where an upstream form names it too, that one wins, and the underscore form over the dotted one.
+        streamWith("""{"command.name":"other","upstream.name":"dotted"}""").commandName.assert().isEqualTo("dotted")
+        streamWith("""{"upstream.name":"dotted","upstream_name":"current","command.name":"other"}""").run {
+            commandName.assert().isEqualTo("current")
+            header.assert().isEqualTo(mapOf("upstream_name" to "current"))
+        }
     }
 
     @Test

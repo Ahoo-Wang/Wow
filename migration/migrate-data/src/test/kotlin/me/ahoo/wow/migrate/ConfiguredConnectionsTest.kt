@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import com.mongodb.client.MongoDatabase
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
@@ -48,6 +49,48 @@ class ConfiguredConnectionsTest {
         connections.eventSinks!!.sinkOf("example", "order").index.assert().isEqualTo("app_wow_events__example__order")
         connections.close()
         pool.isClosed.assert().isTrue()
+    }
+
+    /** The name of the database [store] reads, held as its one `MongoDatabase`. */
+    private fun databaseOf(store: Any): String = store.javaClass.declaredFields
+        .single { MongoDatabase::class.java.isAssignableFrom(it.type) }
+        .apply { isAccessible = true }.get(store).let { (it as MongoDatabase).name }
+
+    @Test
+    fun `every value written env NAME should be read from the environment, and only the value read used`() {
+        val environment = mapOf(
+            "SOURCE_URI" to "mongodb://localhost:27017",
+            "SOURCE_DB" to "example_db",
+            "PG_URL" to "jdbc:postgresql://localhost:5432/wow",
+            "PG_USER" to "wow",
+            "PG_PASSWORD" to "secret",
+        )
+        val written = config().copy(
+            source = SourceConfig("env:SOURCE_URI", "env:SOURCE_DB"),
+            target = TargetConfig(
+                TargetConfig.POSTGRES,
+                jdbcUrl = "env:PG_URL",
+                username = "env:PG_USER",
+                password = "env:PG_PASSWORD",
+            ),
+        )
+        val connections = ConfiguredConnections(written) { environment[it] }
+        connections.source.store.assert().isEqualTo("the MongoDB database example_db")
+        listOf(connections.snapshots, connections.reservations, connections.nineXTarget).forEach {
+            databaseOf(it).assert().isEqualTo("example_db")
+        }
+        val store = connections.snapshotStoreOf("example") as PostgresSnapshotStore
+        val pool = store.javaClass.declaredFields.single { it.type == javax.sql.DataSource::class.java }
+            .apply { isAccessible = true }.get(store) as HikariDataSource
+        pool.jdbcUrl.assert().isEqualTo("jdbc:postgresql://localhost:5432/wow")
+        pool.username.assert().isEqualTo("wow")
+        pool.password.assert().isEqualTo("secret")
+        connections.close()
+
+        // A MongoDB target's client is made from its URI as read: `env:TARGET_URI` itself is no connection string.
+        val mongo = mapOf("TARGET_URI" to "mongodb://localhost:27017", "TARGET_DB" to "wow") + environment
+        val target = TargetConfig(TargetConfig.MONGO, uri = "env:TARGET_URI", database = "env:TARGET_DB")
+        ConfiguredConnections(written.copy(target = target)) { mongo[it] }.close()
     }
 
     @Test

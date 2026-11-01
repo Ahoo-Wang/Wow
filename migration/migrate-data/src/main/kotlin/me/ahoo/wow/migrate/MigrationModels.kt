@@ -22,6 +22,9 @@ import java.lang.reflect.Proxy
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Clock
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 /**
  * The V10 aggregate models the state comparison and the snapshot writing rebuild states with: the services' own
@@ -50,9 +53,12 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
         fun of(providers: List<ModelProvider>): MigrationModels = try {
             MigrationModels(providers.flatMap { it.models(STAND_INS) })
         } catch (missing: MissingDependencyException) {
+            val named = missing.qualifier?.let { " named \"$it\"" }.orEmpty()
             throw MigrationException(
-                "The V10 models take a ${missing.type.name}, which the tool cannot stand in for (only interfaces): " +
-                    "${missing.message}",
+                "${missing.building ?: "A V10 model"} takes a ${missing.fullType.typeName}$named, which the tool " +
+                    "can neither stand in for nor build: it stands in for an interface, which rebuilding a state " +
+                    "never calls, and builds ${BUILT.keys.joinToString(" and ") { it.name }}. Take the dependency " +
+                    "as an interface in the model, so the tool stands in for it.",
             )
         }
 
@@ -77,12 +83,22 @@ internal class MigrationModels(models: Collection<AggregateModel<*>>) {
             return URLClassLoader(urls.toTypedArray(), parent)
         }
 
+        /** The standard JDK types the tool builds for a model, which rebuilding a state never reads either. */
+        private val BUILT: Map<Class<*>, () -> Any> = mapOf(
+            Clock::class.java to { Clock.systemUTC() },
+            ZoneId::class.java to { ZoneOffset.UTC },
+        )
+
         /**
-         * A stand-in for each dependency of an interface type: building a model only hands it to the aggregate's
-         * factory, and a call, which only a decide function would make, fails.
+         * A dependency of a type of [BUILT], built, and a stand-in for each of an interface type: building a model only
+         * hands them to the aggregate's factory, and a call to a stand-in, which only a decide function would make,
+         * fails.
          */
         val STAND_INS: Dependencies = Dependencies { type, qualifier ->
-            if (!type.isInterface) {
+            val built = BUILT[type]
+            if (built != null) {
+                built()
+            } else if (!type.isInterface) {
                 null
             } else {
                 Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { proxy, method, arguments ->

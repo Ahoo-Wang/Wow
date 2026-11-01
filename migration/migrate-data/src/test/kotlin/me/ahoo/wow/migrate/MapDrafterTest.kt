@@ -340,6 +340,8 @@ class MapDrafterTest {
         val inventories = InMemoryNineXEventSource(NineXExample.streams()).inventory()
         val draft = MapDrafter(NineXExample.manifest).draft(inventories)
         MigrationMap.read(draft.render()).assert().isEqualTo(draft.map)
+        // What to leave out is a person's decision: a draft never excludes.
+        draft.render().assert().doesNotContain("excluded")
         draft.aggregates.map { it.from to it.to }.assert().containsExactly(
             "example-service.cart" to "example.cart",
             "example-service.order" to "example.order",
