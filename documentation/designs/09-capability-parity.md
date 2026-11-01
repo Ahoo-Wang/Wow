@@ -93,7 +93,7 @@
 | 快照策略（版本间隔） | `SnapshotStrategy` | B | 每版本写（D4） |
 | 按聚合关闭快照 | 无 | A | `@AggregateRoot(snapshot = false)`（D195） |
 | 按聚合配置存储 | `storage-routing` | A | `wow.stores`、`runtime/log/LogGroupRouter.kt`、`SnapshotStoreRouter.kt`（D177、6.0g） |
-| 快照重建（单个与批量） | `RegenerateSnapshot*`、`snapshot/{afterId}/{limit}` | A | `POST /{ctx}/snapshot/{agg}/wow.snapshot.rebuild`（D172，`WowRoutes.kt`） |
+| 快照重建（单个与批量） | `RegenerateSnapshot*`、`snapshot/{afterId}/{limit}` | A | `POST /{ctx}/{agg}/wow.snapshot.rebuild`（D172；系统命令的路由，在公开端口上没有授权器时拒绝，UI-50） |
 | 历史状态（按版本、按时间、追踪） | `state/{version}`、`state/time/{t}`、`state/tracing` | A | `GET …/state?version=&at=`、`…/state/trace`（D40，`WowRoutes.kt`） |
 | 单聚合事件流读取 | `event/{head}/{tail}` | A | `events` 模型（D235，`query/query/.../query/events/`） |
 | 停放失败的恢复与跳过 | `event/compensation` | B | 停放与台账（D14、D141、P.1）；Skill 覆盖 |
