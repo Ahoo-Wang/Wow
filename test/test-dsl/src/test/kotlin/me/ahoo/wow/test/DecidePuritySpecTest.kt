@@ -68,4 +68,41 @@ class DecidePuritySpecTest {
         generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
             .assert().contains("changed the state")
     }
+
+    /** A state whose `lateinit` owner only its creation event's sourcing assigns. */
+    class Account(val id: String) {
+        lateinit var owner: String
+    }
+
+    @Test
+    fun `a state whose lateinit the creation event assigns should be created, purity verified`() {
+        val accounts = aggregate<Account>("bank", "account") {
+            initial { Account(it.id) }
+            decide<Fund>(Creation.REQUIRED) { _, body -> Decision.events(Funded(body.amount)) }
+            evolve<Funded> { owner = "owner-${it.amount}" }
+        }
+        aggregateSpec(accounts) {
+            whenCommand(Fund(3)) {
+                expectEvents(Funded(3))
+                expectState { owner.assert().isEqualTo("owner-3") }
+            }
+        }
+    }
+
+    @Test
+    fun `a creation that changes a fresh state should still fail the spec`() {
+        val sneaky = aggregate<Wallet>("bank", "wallet") {
+            initial { Wallet(it.id) }
+            decide<Fund>(Creation.REQUIRED) { state, body ->
+                state.balance = body.amount
+                Decision.events(Funded(body.amount))
+            }
+            evolve<Funded> { balance += it.amount }
+        }
+        val failure = runCatching {
+            aggregateSpec(sneaky) { whenCommand(Fund(3)) { expectEvents(Funded(3)) } }
+        }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
+            .assert().contains("changed the state")
+    }
 }

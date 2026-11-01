@@ -56,6 +56,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
+import tools.jackson.core.JacksonException
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -88,7 +89,9 @@ import kotlin.coroutines.CoroutineContext
  *
  * [KernelOptions.verifyDecidePurity] makes the kernel fail a command whose decide function or after hook changed the state: with
  * mutable state nothing else stops that, and a change that bypasses events silently drifts from the log. The
- * test DSL turns it on; it costs two serializations of the state per command.
+ * test DSL turns it on; it costs two serializations of the state per command. A fresh state (version 0) with a
+ * `lateinit` property still unassigned cannot be written, and is not checked: the creation event's sourcing assigns
+ * it, and no state is written before that.
  *
  * [states] keeps states between commands; see [StateCache] for when a state is kept or dropped. On a miss, the state
  * comes from the aggregate's snapshot in [snapshots] and the log's tail after it when the snapshot fits the model's
@@ -601,6 +604,19 @@ class Kernel(
         }
     }
 
+    /**
+     * [state] as decide receives it, for the purity check; null when it is fresh ([version] 0) and cannot be written
+     * because a `lateinit` property is still unassigned, which the creation event's sourcing assigns. Any other failure
+     * to write it fails the command.
+     */
+    private fun purityBaseline(state: Any, version: Int): String? = try {
+        codec.stateText(state)
+    } catch (failure: JacksonException) {
+        val unassigned = generateSequence<Throwable>(failure) { it.cause }
+            .any { it is UninitializedPropertyAccessException }
+        if (version == 0 && unassigned) null else throw failure
+    }
+
     /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
     @Suppress("LongParameterList")
     private suspend fun <S : Any> prepare(
@@ -614,7 +630,7 @@ class Kernel(
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
         val version = loaded.version
-        val before = if (options.verifyDecidePurity) codec.stateText(state) else null
+        val before = if (options.verifyDecidePurity) purityBaseline(state, version) else null
         // A command a client sends while deciding takes a request id derived from this one's, anew each attempt.
         val deciding = DecidingCommand(command.id)
         val decision = observer.deciding(command).observe {
