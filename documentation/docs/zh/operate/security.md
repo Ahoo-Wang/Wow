@@ -22,7 +22,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 ## 认证调用方 {#authenticate-callers}
 
-宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
+宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发 profile（`wow.dev-profiles` 中的某个 profile）中的节点从任何客户端都能设置的 `Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant` 和 `Wow-App` 请求头读取调用方，不带 `Wow-User` 的请求是默认租户的匿名调用方（[调用方是谁](../guide/http#who-the-caller-is)）；仅因内部端口只绑定回环接口而处于开发中的节点，以这个匿名调用方处理每个请求。两者都会记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
 
 ::: warning wow-cosec 在 10.0 中是实验性的
 `wow-cosec` 跟随 CoSec 8.0.0，而 CoSec 8.0.0 仍是预发布版本，所以 `wow-cosec` 在 10.x 内可能改变。它的类型（`CoSecCallerResolver`、`CoSecCallerOptions`、`CoSecCommandAuthorizer`、`CoSecServiceRouteAuthorizer`、`CoSecActions`）以及宿主的 `CoSecAutoConfiguration` 和 `CoSecRouteMapAutoConfiguration` 都是 `@ExperimentalWowApi`（[API 级别](../reference/api-levels)），`wow.cosec.*` 配置键也可能随之改变。只靠依赖和配置键启用 CoSec 的服务无需再做什么；在 Kotlin 代码里用到这些类型时，以 `@OptIn(ExperimentalWowApi::class)` 选择使用。CoSec 8 正式发布后，一个 10.x 的次版本会去掉这个标记。不用 CoSec 的服务不受影响：其余 API 的级别不变。
@@ -32,7 +32,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 - **租户和主体标识**来自主体；CoSec 的默认租户 `(0)` 即 `wow.tenant.default`。没有已认证主体的请求，或者安全上下文不是 CoSec 的管道构建的请求，返回 401。
 - **所有者。** 主体是所有者级调用方，作用于它自己的聚合；除非它具有 `wow.cosec.tenant-level` 中的某个角色或策略，这时它是租户级调用方，作用于它租户的每个聚合，例如为每个买家发货的员工。
-- **空间**是 CoSec 作用域的空间。客户端在 `CoSec-Space-Id` 中指明它，只有当主体在那个空间中有角色时 CoSec 才接受；不带它时，请求处于 CoSec 的默认空间，这不是任何 Wow 空间。CoSec 宿主不读取 `Wow-Space`。
+- **空间**是 CoSec 作用域的空间。客户端在 `CoSec-Space-Id` 中指明它，只有当主体在那个空间中有角色时 CoSec 才接受；不带它时，请求处于 CoSec 的默认空间，这不是任何 Wow 空间。CoSec 宿主不从 `Wow-Space` 取空间：`Wow-Space` 指明的空间与 CoSec 的不同时，请求返回 403 `wow.auth.forbidden`。
 - **应用。** 调用方的应用（`Caller.app`），也就是提交记录的请求事实 `app_id`，是 CoSec 作用域的应用：宿主自己的应用（`cosec.authorization.scope.app-id`）；没有时，是请求声明且被 CoSec 接受的 `CoSec-App-Id`；再没有时，在 CoSec 网关之后，是网关转发的应用。作用域没有应用时，调用方也没有应用。
 - **角色和属性。** 调用方的 `roles` 属性列出主体在作用域空间中的角色，`policies` 列出它的策略，键以 `abac.` 开头的主体属性是它的 ABAC 属性。在 CoSec 网关之后，主体没有策略，所以那里只有 `wow.cosec.tenant-level` 和 `wow.cosec.cross-scope` 的角色能匹配，ABAC 属性来自网关转发的声明（`cosec.gateway.identity.claims`）。
 - **在别处行事。** 只有具有 `wow.cosec.cross-scope` 中某个角色或策略的主体，才能在 `Wow-Scope` 里指明另一个租户或作用域。

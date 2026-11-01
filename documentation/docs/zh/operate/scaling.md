@@ -30,10 +30,10 @@ outline: deep
 | --- | --- | --- |
 | `wow.executor.max-in-flight`：节点上的在途命令 | 4,096 | 命令以 `wow.command.busy` 拒绝（429，带 `Retry-After`） |
 | `wow.executor.lane-capacity`：等待同一个聚合的命令 | 1,024 | 同上，针对这个聚合 |
-| 存储的并发查询 | PostgreSQL 上为追加连接池的一半，自适应 | 查询以 `wow.query.busy` 拒绝（429） |
-| `wow.query.dataset.max-concurrent`：同时运行的数据集查询 | 固定上限，不自适应 | 查询在一个短队列中等待，然后以 `wow.query.busy` 拒绝 |
+| 存储的并发查询 | 与追加共用的连接池的四分之一（至少 2），自适应，最多升到一半；查询专用连接池则为全部；连接池不报告大小时为 16 | 查询以 `wow.query.busy` 拒绝（429） |
+| `wow.query.dataset.max-concurrent`：同时运行的数据集查询 | 8，固定上限，不自适应 | 查询在一个短队列中等待，然后以 `wow.query.busy` 拒绝 |
 
-带 `Retry-After` 的拒绝是背压，不是错误：客户端稍后重试，遇到它的 Saga 会放慢它的分区，而不是停放任何东西（[失败与重试](../guide/failures#how-a-failure-is-classified)）。
+带 `Retry-After` 的拒绝是背压，不是错误：客户端稍后重试，遇到它的 Saga 会重试该条目并放慢它的分区，同一条目被拒绝 20 次（`wow.subscription.backpressure.max-attempts`）后才停放该聚合（[失败与重试](../guide/failures#how-a-failure-is-classified)）。
 
 **查询永远不会让追加饿死。** 每个存储的快照查询和 `events` 查询都在它们自己的上限下运行。除非 `wow.query.max-concurrent` 把它固定下来，这个上限会随存储的写入压力自适应：追加变慢或等待连接时减半，恢复后再增长回来。为查询使用单独的连接池或只读副本，可以完全消除这种争用（[PostgreSQL](./postgresql#size-the-pools)）。
 

@@ -23,7 +23,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Bulkhead | 舱壁 | The concurrency limit, with a short queue, that keeps queries from using up the connections writes need. See [Read models](../concepts/read-models#reads-must-not-slow-down-writes). |
 | Caller | 调用方 | Who sends a request, as the host authenticated it: tenant, scope, subject, attributes and whether it is a service; it lives only as long as the request. See [Identity](../concepts/identity#who-the-caller-is). |
 | Causation | 因果 | The root command and the direct cause recorded with a commit that a saga's command produced. |
-| Chain | 等待链 | A wait plan of several hops, possibly across contexts, where only a saga hop can be followed by another hop. See [Waiting for outcomes](../concepts/waits#waiting-for-a-chain). |
+| Chain | 等待链 | A wait plan of several hops, possibly across contexts: the command's own stages in order, then, only after a saga's `HANDLED` hop, the hops of the commands it derived. See [Waiting for outcomes](../concepts/waits#waiting-for-a-chain). |
 | Checkpoint | 检查点 | The position up to which a subscription has handled every entry of a partition. See [Subscriptions](../concepts/subscriptions#how-subscriptions-read-the-log). |
 | Cluster channel | 集群通道 | The internal channel between the nodes of one service, which forwards commands to the owners of their partitions. See [Writing](../concepts/write-path#the-cluster-channel). |
 | Command | 命令 | A request to change one aggregate, carrying business data only; its identity comes from admission. |
@@ -57,7 +57,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Internal port | 内部端口 | The port of a node that serves the cluster channel, wait signals and calls from other services, never exposed outside the cluster. See [Identity](../concepts/identity#the-internal-port). |
 | Lane | 车道 | The queue in which one aggregate's commands run one at a time. See [Writing](../concepts/write-path#execution). |
 | Lease | 租约 | A node's claim, kept in storage and renewed, to own a partition. |
-| Lifecycle command | 生命周期命令 | A command every aggregate handles without code: delete, restore, transfer the owner or the space, apply tags. See [Deciding and evolving](../concepts/programming-model#lifecycle-commands). |
+| Lifecycle command | 生命周期命令 | A command an aggregate handles without code, every one by default (`@AggregateRoot(lifecycle)`): delete, restore, transfer the owner or the space, apply tags. See [Deciding and evolving](../concepts/programming-model#lifecycle-commands). |
 | Manifest | Manifest | The single description of a service, built by the compiler, from which routes, OpenAPI, clients, views and contracts are derived. See [One contract](../concepts/contract). |
 | Operator | 操作人 | Who a commit is recorded under: the caller's subject, its tenant and whether it acted elsewhere. See [Identity](../concepts/identity#who-the-caller-is). |
 | Owner | 所有者 | The principal an aggregate belongs to within its tenant. |
@@ -84,7 +84,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Sink | Sink | A subscription that copies commits out of the service, to Kafka, ClickHouse or Elasticsearch. See [Subscriptions](../concepts/subscriptions#sinks). |
 | Slot | 槽位 | One of 4,096 fixed buckets an aggregate hashes to; a slot maps to a partition. See [The log is the bus](../concepts/event-log#partitions). |
 | Snapshot | 快照 | The latest committed state of an aggregate with its metadata; the default read model. See [Read models](../concepts/read-models). |
-| `SNAPSHOT` | `SNAPSHOT` | Short for `HANDLED(snapshot)`, the default wait stage. See [Waiting for outcomes](../concepts/waits#the-default-is-the-snapshot). |
+| `SNAPSHOT` | `SNAPSHOT` | Short for `HANDLED(wow.snapshot)`: the built-in snapshot subscription has written the commit; the default wait plan. See [Waiting for outcomes](../concepts/waits#the-default-is-the-snapshot). |
 | Space | 空间 | A further partition of a tenant, such as a shop or a team, that an aggregate and a caller can belong to. |
 | State | 状态 | The data of an aggregate, built by evolving its events in order. |
 | State event | 状态事件 | One commit's event stream together with the aggregate's state after it: what handlers receive and published streams carry. |

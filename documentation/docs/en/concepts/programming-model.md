@@ -11,7 +11,7 @@ A Wow domain model is made of plain classes and functions. This page explains wh
 
 | Function | Gets | Returns | May do I/O | When it fails |
 | --- | --- | --- | --- | --- |
-| Decide | the current state and a command | a decision: events, no change, or a rejection | Yes, through dependencies bound when the model is built | The command is rejected or fails; nothing is written. |
+| Decide | the current state and a command | a decision: events, no change, or a rejection | Yes, through dependencies bound when the model is built | The command is rejected or fails. A failure writes nothing; a rejection writes only the events it carries, if any. |
 | Evolve | the state and one event | nothing (it changes the state), or a new state | **No** | It is a defect in the model, and it fails fast. |
 | Project | a committed change and the state after it | nothing | Yes; it makes its writes idempotent | The aggregate is parked for that projection. |
 | React | a committed change and the state after it | nothing | Yes; it makes its effects idempotent | The aggregate is parked for that reactor. |
@@ -32,7 +32,7 @@ A decision has three outcomes, and all three are values, not exceptions:
 
 - **Events**: one or more events to append, in order.
 - **No change**: the command is accepted, and nothing is appended.
-- **Rejected**: a rejection with an error code, a message and, optionally, field violations. The code is declared on the model and listed in the Manifest, so clients and other services know it ahead of time.
+- **Rejected**: a rejection with an error code, a message and, optionally, structured extensions and events appended with it. A code declared on the model with `@ErrorCode` is listed in the Manifest with its HTTP status, so clients and other services know it ahead of time.
 
 There is no error handler on an aggregate. A rejection is the branch of decide that returns one. A compensating action after a failure belongs in a saga.
 

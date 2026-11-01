@@ -67,7 +67,7 @@ Lines that need attention start with a marker:
 | `RESOLVED` | A parked entry imported earlier was resolved, because its 9.x execution is settled. |
 | `REFUSED` | `export` found a stream with a type 9.x cannot read: an aggregate no 9.x aggregate maps to, or an event beyond the map's revision. Nothing is exported. |
 | `CONFLICT` | `export` found a stream 9.x holds at the same version with another command or tenant. Nothing is exported. |
-| `VERDICT` | `export --dry-run`'s conclusion for a context: switch back, export N streams, or no rollback by export since a given time. |
+| `VERDICT` | `export`'s conclusion for a context, printed by every run, `--dry-run` included: switch back, export N streams, no rollback by export since a given time, or none because 9.x was written after the cut-over. |
 | `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10. |
 | `UNMATCHED`, `AMBIGUOUS`, `UNSOURCED`, `RENAMED`, `REVIEW` | `draft-map`'s exceptions, also written into the draft: see [Draft the map](#draft-the-map). |
 | `CUTOVER` | After a pass that appended to a context's log (`import`, `import --restart`, `import --final`, each round of `tail`), where the imported history now ends: the cut-over, recorded at the log's head in each partition. |
@@ -189,7 +189,7 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | --- | --- |
 | `format` | `1`. |
 | `aggregates` | One entry per 9.x aggregate; see below. |
-| `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, wait headers) cannot be listed: each becomes a field of its own or goes. |
+| `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, `local_first`, wait headers) cannot be listed: each becomes a field of its own or goes. |
 | `subscriptions` | The 9.x processors with unresolved compensation executions, mapped to V10 subscriptions; see below. |
 | `exceptions` | What `draft-map` could not match, one line each, for a person to resolve and then delete. The check warns of each line it still finds. |
 
@@ -216,6 +216,7 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | `fields` | Renames top-level payload fields, 9.x name to V10 name. For system events whose shape V10 fixes, such as 9.x `OwnerTransferred.toOwnerId`; a domain event's changes belong in its upgrade functions. |
 | `upgrade` | The upgrade function the Skill wrote, recorded for the report; the tool does not run it. |
 | `retire` | Writes the record as stored under the name `to`, which the V10 aggregate lists as retired, so loading skips it and the stream keeps its version. The check fails when `to` is not retired in the Manifest. |
+| `lifecycle` | `{to, fields}`: the system lifecycle event written right after this event in the same stream, for a 9.x domain event that implemented one (`UserDeleted : AggregateDeleted`). `to` is `wow.lifecycle.AggregateDeleted`, `AggregateRestored`, `OwnerTransferred`, `SpaceTransferred` or `TagsApplied`; `fields` builds its payload from the 9.x payload, 9.x name to V10 name, and gives `ownerId`, `spaceId` or `tags` for the last three. Not with `drop` or `retire`. |
 | `drop` | Leaves the event out of its stream. A stream whose every event is dropped would have an empty version, which the check refuses: map such events with `retire`. |
 
 ### Reservations

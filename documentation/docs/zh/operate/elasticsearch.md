@@ -41,7 +41,7 @@ wow:
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`wait-for`、`immediate` 或 `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | `wow.snapshot.stores`，否则为日志的存储 |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | 其中供写端和状态读取读的那个；从不是 Elasticsearch | `wow.snapshot.primary`，否则为第一个 |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | 其中供写端和状态读取读的那个；从不是 Elasticsearch | 类型自己列出 `snapshot.stores` 时为其中第一个；否则为 `wow.snapshot.primary`，再否则为 `wow.snapshot.stores` 的第一个 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储 | 它的主快照存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
@@ -59,13 +59,13 @@ wow:
 
 `query.events.store` 指向 Elasticsearch 存储的聚合，它的 `events` 查询从那个索引提供：事件条件是一个 nested 查询，`expand("events")` 聚合是一个 nested 聚合，不指明聚合的查询会检索索引，而不是扫描日志。索引显示的是 Sink 已写入的内容：一次提交在 Sink 写入并且索引刷新之后才可检索，刷新默认为一秒。
 
-每个 Sink 都作为名为 `elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
+每个 Sink 都作为名为 `wow.elasticsearch-sink.<aggregate>` 的订阅运行，所以它从检查点续读，也可以从日志开头重新开始。宿主会自行启动这些 Sink，不需要单独的配置：对 `query.events.store` 指向的每个 Elasticsearch 存储，它把正好这些聚合的流写入该存储，不论服务是否发布它们。
 
 ## 存储组合 {#store-combinations}
 
 每个聚合类型各自选择存储：日志和主快照在 PostgreSQL 或 MongoDB 上（`wow.log.store`、`wow.aggregates.[<context>.<aggregate>].log.store`），快照的副本和事件检索在 Elasticsearch 上，如上面的示例所设。由此有两点：
 
-- **命令和状态读取留在主存储上。** 命令从主快照存储和其后的日志加载状态，状态读取（`GET …/state`）读取主存储，所以两者都不必等待 Elasticsearch 的刷新。每个快照存储由它自己的一个订阅从日志写入，第一个是 `snapshot`，其余每个是 `snapshot:<store>`，并且只保留它收到的最高版本，所以副本只会落后，并且可以重建。宿主拒绝把 Elasticsearch 作为聚合的主快照存储或唯一的快照存储，并指出相应的配置项。
+- **命令和状态读取留在主存储上。** 命令从主快照存储和其后的日志加载状态，状态读取（`GET …/state`）读取主存储，所以两者都不必等待 Elasticsearch 的刷新。每个快照存储由它自己的一个订阅从日志写入，默认快照存储（`wow.snapshot.stores` 的第一个，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`，并且只保留它收到的最高版本，所以副本只会落后，并且可以重建。宿主拒绝把 Elasticsearch 作为聚合的主快照存储或唯一的快照存储，并指出相应的配置项。
 - **事件查询跟随 Sink。** 聚合的 `query.events.store` 指向该存储后，它的 `events` 查询读取 Elasticsearch，因此看到的是 Sink 已写入的内容：提交在提交后不久才可检索，而不是立即可检索。它的快照可以留在日志的存储上，两项设置相互独立。
 
 ## 重建 {#rebuild}

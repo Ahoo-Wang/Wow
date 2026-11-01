@@ -40,7 +40,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | 作用域 | `{"ownerId", "spaceId"}` | 两者都可以为 null。在命令上是调用方的作用域；在提交或快照上是提交后聚合的作用域。 |
 | 因果 | `{"correlationId", "causationId"}` | `correlationId` 是根命令的 ID；`causationId` 是直接原因，对 Saga 的命令是它处理的那次提交。调用方直接发出的命令没有因果，它自己就是根。 |
 | 操作人 | `{"id", "tenantId", "crossScope"}` | 提交以谁的名义记录：调用方的主体标识和它自己的租户；它在另一个租户或作用域中行事时 `crossScope` 为 true。 |
-| 跳 | `{"stage", "context", "subscription"}` | `stage` 是 `accepted`、`committed` 或 `handled`；只有 `handled` 才有 `subscription`；`snapshot` 指快照订阅。 |
+| 跳 | `{"stage", "context", "subscription"}` | `stage` 是 `accepted`、`committed` 或 `handled`；只有 `handled` 才有 `subscription`；快照那一跳是 `handled`，`subscription` 为 `wow.snapshot`。 |
 
 时间都是纪元毫秒。
 
@@ -48,7 +48,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 
 状态读取回答 `ETag: "<版本>-<摘要>"`：聚合的版本，接着是响应体 SHA-256 的前 64 位，写成 16 个十六进制数字。凡是改变调用方所读内容的变化都会改变标签，而不只是版本。
 
-条件头是 `*`，或逗号分隔的实体标签列表，每个标签是 `"<opaque>"` 或弱标签 `W/"<opaque>"`（RFC 9110 §8.8.3）。其他写法返回 400 `wow.request.malformed`。
+条件头是 `*`，或逗号分隔的实体标签列表，每个标签是 `"<opaque>"` 或弱标签 `W/"<opaque>"`（RFC 9110 §8.8.3）。`If-Match` 写成其他形式时返回 400 `wow.request.malformed`；无法解析的 `If-None-Match` 会被忽略。
 
 - **命令上的 `If-Match`** 用强比较（RFC 9110 §13.1.1）。强标签指一个版本：或者是状态读取给出的形式（`"3-0123456789abcdef"`），或者只写版本（`"3"`）。聚合处于该版本时命令才执行，否则返回 412 `wow.aggregate.version-mismatch`。一条命令只带一个期望版本：各标签指同一个版本时就是这个版本，指两个及以上不同版本时返回 400 `wow.request.malformed`。弱标签或不指版本的标签永远不匹配，所以只含这类标签的列表返回 412。`*` 用在总是创建聚合的命令上返回 412；用在其他命令上时，与 RFC 9110 不同，`*` 不增加条件，聚合不存在仍返回 404 `wow.aggregate.not-found`。
 - **状态读取上的 `If-None-Match`** 用弱比较（§13.1.2）。忽略 `W/`，`*` 匹配任何状态，标签匹配时回答 304。
@@ -71,7 +71,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | `headers` | 准入记录的请求事实，例如 `app_id`。 |
 | `operator` | 提交以谁的名义记录；匿名调用方为 null。 |
 
-在事实之外，日志条目还有一个**位置**，即它在分区内的序号，并且可能带有**传输段**：未结束的等待的等待上下文、要确认的预留、追踪上下文。
+在事实之外，日志条目还有一个**位置**，即它在分区内的序号，并且可能带有**传输段**：未结束的等待的等待上下文、要确认和要释放的预留、追踪上下文。
 
 传输段无论到哪里都只有一种形式，即信封与集群通道嵌入的 JSON 对象 `{wait, reservations, trace, releases}`；没有等待、列表为空、追踪为空时都省略。日志把它当作节点写下的字节原样保存、原样返回，从不解读，所以新版本给它加字段时，任何后端都不用改。
 
@@ -93,7 +93,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 
 | 部分 | 内容 |
 | --- | --- |
-| 键 | 聚合引用的文本形式，所以一个聚合的消息留在同一个 Kafka 分区里，并保持顺序。 |
+| 键 | 聚合引用的文本形式，所以一个聚合的消息留在同一个 Kafka 分区里，并保持顺序；尚未选定 ID 的创建命令以 `context.aggregate/tenant/(none):<requestId>` 为键。 |
 | 头 | `wow-format`、`wow-kind` 和 `wow-type`：信封的格式、种类和类型，不解析值就能读到。 |
 | 值 | `{format, kind, id, type, payload, transport}`。 |
 
@@ -356,12 +356,12 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | 已提交 | `succeeded` | `version` 是新版本；`results` 即决定函数返回的结果 |
 | 早已提交 | `succeeded` | `duplicate` 为 true；没有 `results` |
 | 无变化 | `succeeded` | `version` 不变 |
-| 被拒绝 | `rejected` | `error.code` 是拒绝的错误码；`version` 是拒绝的事件到达的版本，否则是决策所见的版本，创建命令没有；重试时 `duplicate` 为 true |
+| 被拒绝 | `rejected` | `error.code` 是拒绝的错误码；`version` 是拒绝的事件到达的版本，否则是决策所见的版本，创建命令为 null；重试时 `duplicate` 为 true |
 | 争用 | `failed` | `wow.command.contended`；用同一请求 ID 重试 |
 | 未知 | `failed` | `wow.command.unknown`；用同一请求 ID 重试，它不可能提交两次 |
 | 等待超时 | `failed` | `wow.wait.timeout`；等待者不再等待，并不表示命令失败 |
 
-在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code`、`violations` 和 `version`（problem 所回答的聚合版本：拒绝的版本，或低于最小版本的状态读取时的当前版本；扩展不会占用这个名字），整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每一跳的结果是一个事件，最后一跳之后关闭流。
+在 HTTP 上，成功的命令以 200 返回结果。拒绝或失败返回 `application/problem+json`（RFC 9457）：`type` 设为 `urn:wow:error:<code>`，扩展成员 `code`、`retry`、`violations` 和 `version`（problem 所回答的聚合版本：拒绝的版本，或低于最小版本的状态读取时的当前版本；扩展不会占用这个名字），整个结果放在 `result` 下，所以客户端无论哪种情况都只解析一种形状。带 `Accept: text/event-stream` 时，每个结果是一个事件，最后一个之后关闭流。
 
 ## 等待信号 {#wait-signal}
 
@@ -411,7 +411,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 }
 ```
 
-一个节点可以把发往同一节点的几个信号放在一个 JSON 数组里发送。接收节点按等待 ID、跳，以及发出信号的上下文和订阅来对信号去重。
+一个节点可以把发往同一节点的几个信号放在一个 JSON 数组里发送。接收节点按等待 ID、跳、命令，以及产生结果的函数（它的上下文和订阅）来对信号去重。
 
 ## 集群通道 {#cluster-channel}
 
@@ -439,7 +439,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | `operator`、`firstOperator` | 它最后一次和第一次提交的操作人。 |
 | `schedules` | 它保持的定时，每条规则按它的键。 |
 
-这些也是 `snapshot` 查询模型的系统字段。
+`snapshot` 查询模型把它们作为系统字段读取，并展开为：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`、`schedules` 和 `state`；`schemaFingerprint` 和 `stateRevision` 不在其中。
 
 ## 格式版本 {#format-versions}
 

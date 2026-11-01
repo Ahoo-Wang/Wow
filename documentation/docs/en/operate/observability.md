@@ -23,10 +23,10 @@ The components:
 | Component | `DOWN` (not ready) when | `DEGRADED` when |
 | --- | --- | --- |
 | `node` | The node is not running: starting, draining or stopped | |
-| `stores` | A log has kept failing for `wow.health.stores.down-after` (15 s) with no success since | A log failed within `wow.health.stores.window` (1 min) |
+| `stores` | A log, or a store the writes need (one holding a log, a type's primary snapshot store), has kept failing for `wow.health.stores.down-after` (15 s) with no success since | One of them failed within `wow.health.stores.window` (1 min) |
 | `ownership` | Its lease store is down, or the node owns none of its share of a lease group's partitions past `wow.health.ownership.handover-grace` (1 min) | It owns another set than its share for that long, or the lease store failed lately |
-| `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | |
-| `subscriptions` | Never | A subscription is `lag-degraded-at` (10,000) entries behind, or has `parked-degraded-at` (100) parked entries |
+| `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | It is still joining, with `wow.health.topics.required: false` |
+| `subscriptions` | Never | A subscription is `lag-degraded-at` (10,000) entries behind, has `parked-degraded-at` (100) parked entries or more than at the last sample, or has paused a partition |
 | `executor` | | The executor runs at `saturation` (90 %) of its in-flight bound |
 | `liveness` | The node is stuck for `wow.health.liveness.stall-timeout` (3 min): its dispatcher does not tick, the threads of its backends' driver calls run nothing, a reconcile of its partitions does not end, or commands in flight do not finish while every log answers. This alone fails liveness | |
 

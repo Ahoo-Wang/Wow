@@ -45,7 +45,7 @@ A service keeps its log, snapshots, timers, checkpoints, leases, failure ledger 
 
 ## Not a dual write {#not-a-dual-write}
 
-A copy on Elasticsearch is not written beside the primary in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `snapshot` for the first store, `snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the primary; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
+A copy on Elasticsearch is not written beside the primary in the command's path. The command commits to the log, and each snapshot store is written from the log by a subscription of its own: `wow.snapshot` for the default snapshot store (the first of `wow.snapshot.stores`, else the log's store), `wow.snapshot:<store>` for each other, each with its own checkpoint. A snapshot store keeps the highest version it was given, so a store that receives a commit twice, or late, ends where the log says. Elasticsearch can lag the primary; it never diverges from it for good, and it is rebuilt from the log whenever needed ([Rebuild and Replay](./replay)).
 
 ## Elasticsearch is never the log, nor the primary {#elasticsearch-is-never-the-log}
 

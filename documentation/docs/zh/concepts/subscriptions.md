@@ -22,7 +22,7 @@ description: 投影、Saga、反应器、快照和 Sink 怎样读日志，处理
 ```mermaid
 flowchart LR
     LOG[(分区 p)] --> TAIL[每个分区一个尾随读<br/>在分区的属主上]
-    TAIL --> S1[snapshot]
+    TAIL --> S1[wow.snapshot]
     TAIL --> S2[OrderProjection.onEvent]
     TAIL --> S3[PaymentSaga.onOrderPlaced]
     S1 & S2 & S3 --> CP[(检查点<br/>按订阅和分区)]

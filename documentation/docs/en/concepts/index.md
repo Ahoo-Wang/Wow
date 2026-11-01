@@ -87,7 +87,7 @@ The nodes of one service talk to each other over one internal channel, the clust
 
 ## Where Wow runs
 
-All the services of one system run in the same cluster and can call each other directly. Each service listens on two ports: a public port for its HTTP API, and an internal port for the cluster channel, wait signals and calls from other services. The internal port is never exposed outside the cluster, and every request to it is authenticated.
+All the services of one system run in the same cluster and can call each other directly. Each service listens on two ports: a public port for its HTTP API, and an internal port for the cluster channel, wait signals and calls from other services. The internal port is never exposed outside the cluster; every request to it names the service it comes from (`Wow-Service`), and since it takes no token, the network policy that keeps it inside the cluster is its boundary.
 
 A service needs a log backend, PostgreSQL or MongoDB. Kafka is needed once events or commands cross contexts. ClickHouse is needed for datasets and analytics.
 
