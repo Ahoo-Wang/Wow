@@ -104,6 +104,26 @@ internal data class MigrationConfig(
         lookbackMillis = lookbackMillis,
     )
 
+    /**
+     * This configuration with every connection string written `env:NAME` read from the [environment] variable `NAME`:
+     * the URIs, the database names, the target's JDBC URL, user name and password. An unset variable fails, naming it.
+     */
+    fun resolved(environment: (String) -> String? = System::getenv): MigrationConfig {
+        fun read(value: String?): String? = resolve(value, environment)
+        return copy(
+            source = source.copy(uri = read(source.uri)!!, database = read(source.database)!!),
+            target = target.copy(
+                jdbcUrl = read(target.jdbcUrl),
+                username = read(target.username),
+                password = read(target.password),
+                uri = read(target.uri),
+                database = read(target.database),
+            ),
+            compensation = compensation?.let { it.copy(database = read(it.database)!!, uri = read(it.uri)) },
+            elasticsearch = elasticsearch?.let { it.copy(uri = read(it.uri)!!) },
+        )
+    }
+
     /** The partition count of [context]. */
     fun partitionsOf(context: String): Int =
         partitions[context] ?: throw MigrationException("The configuration gives the V10 context $context no partitions.")
@@ -162,8 +182,9 @@ internal data class FinalPassConfig(val lookbackMillis: Long = 60_000, val maxTa
 }
 
 /**
- * The 9.x MongoDB event store: its connection [uri] and [database]. The tool does not write to it unless
- * [createCommitTimeIndex] is set: then the tail creates the `(createTime, _id)` index it reads by where it is missing;
+ * The 9.x MongoDB event store: its connection [uri] and [database]. The tool writes to it only for a rollback
+ * (`export`, which writes back what V10 wrote after the cut-over) and when [createCommitTimeIndex] is set: then the
+ * tail creates the `(createTime, _id)` index it reads by where it is missing;
  * otherwise the tail refuses to start without it, naming the collections and the command that creates it, so the
  * operator decides when to build it on a large collection.
  */
@@ -259,10 +280,13 @@ internal interface MigrationConnections : Closeable {
  * the snapshot store of each context and the reservation store on the same backend (their default names, as the
  * host's).
  */
-internal class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
-    private val sourceClient: MongoClient = MongoClients.create(
-        requireNotNull(MigrationConfig.resolve(config.source.uri)),
-    )
+internal class ConfiguredConnections(
+    config: MigrationConfig,
+    environment: (String) -> String? = System::getenv,
+) : MigrationConnections {
+    /** [config] with its connection strings read from the environment where it says `env:NAME`. */
+    private val config: MigrationConfig = config.resolved(environment)
+    private val sourceClient: MongoClient = MongoClients.create(this.config.source.uri)
     override val source: MongoNineXEventSource =
         MongoNineXEventSource(sourceClient.getDatabase(config.source.database))
     override val snapshots: NineXSnapshotSource =
@@ -270,12 +294,12 @@ internal class ConfiguredConnections(private val config: MigrationConfig) : Migr
     override val nineXTarget: NineXEventTarget =
         MongoNineXEventTarget(sourceClient.getDatabase(config.source.database))
     private val targetClient: MongoClient? = config.target.uri?.takeIf { config.target.type == TargetConfig.MONGO }
-        ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
+        ?.let { MongoClients.create(it) }
     private val dataSource = lazy {
         HikariDataSource().apply {
             jdbcUrl = config.target.jdbcUrl
             config.target.username?.let { username = it }
-            MigrationConfig.resolve(config.target.password)?.let { password = it }
+            config.target.password?.let { password = it }
             maximumPoolSize = config.target.poolSize
             poolName = "wow-migrate-data"
         }
@@ -325,8 +349,7 @@ internal class ConfiguredConnections(private val config: MigrationConfig) : Migr
 
     override fun checkpointStore(): CheckpointStore = checkpointStore
 
-    private val compensationClient: MongoClient? = config.compensation?.uri
-        ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
+    private val compensationClient: MongoClient? = config.compensation?.uri?.let { MongoClients.create(it) }
 
     override val compensation: NineXCompensationSource? = config.compensation?.let {
         MongoNineXCompensationSource((compensationClient ?: sourceClient).getDatabase(it.database))
@@ -346,7 +369,7 @@ internal class ConfiguredConnections(private val config: MigrationConfig) : Migr
     override fun failureLedger(): FailureLedger = failureLedger
 
     private val elasticsearch: Rest5Client? = config.elasticsearch?.let {
-        Rest5Client.builder(HttpHost.create(requireNotNull(MigrationConfig.resolve(it.uri)))).build()
+        Rest5Client.builder(HttpHost.create(it.uri)).build()
     }
 
     override val eventSinks: ElasticsearchEventSinks? = elasticsearch?.let {

@@ -18,7 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * A subscription's partition paused on a systemic failure: since [since] (epoch milliseconds), for
  * [reason], [subscription] of the subscription [group] handles nothing in [partition] but one probe at a time, until a
- * handling succeeds.
+ * handling succeeds. [reason] says it in full, the failure's message and aggregate included, for the log; [failure] is
+ * the class name of the failure that paused it, all the health details show, since a message may carry data.
  */
 @InternalWowApi
 data class PausedPartition(
@@ -27,6 +28,7 @@ data class PausedPartition(
     val partition: Int,
     val since: Long,
     val reason: String,
+    val failure: String,
 )
 
 /**

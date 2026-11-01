@@ -37,7 +37,7 @@ import java.util.Date
  * The full import walks an aggregate's version-1 documents by `(aggregateId, tenantId)`, and reads an instance's
  * streams through 9.x's unique `(aggregateId, version)` index. The tail reads by `(createTime, _id)`, which 9.x does
  * not index. The tail needs that index; [ensureCommitTimeIndex] creates it only when the operator opts in
- * (`source.createCommitTimeIndex`), the only write the tool can make to a 9.x store.
+ * (`source.createCommitTimeIndex`), the only write the tool makes to a 9.x store but the rollback `export`'s streams.
  */
 internal class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
     override fun inventory(): List<NineXInventory> =

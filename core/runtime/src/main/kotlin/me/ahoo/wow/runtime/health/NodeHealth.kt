@@ -462,7 +462,8 @@ class NodeHealth(
                 mapOf(
                     "partition" to it.partition,
                     "pausedMillis" to (clock.millis() - it.since).coerceAtLeast(0),
-                    "reason" to it.reason,
+                    // The class name alone: a failure's message may carry data.
+                    "failure" to it.failure,
                 )
             }
         }

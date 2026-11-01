@@ -60,7 +60,7 @@ interface SinkProvider {
  */
 @WowSpi
 interface StreamSinks : AutoCloseable {
-    /** The name the sink subscriptions take, before the aggregate's: `clickhouse-sink` say. */
+    /** The name the sink subscriptions take, before the aggregate's: `wow.clickhouse-sink` say. */
     val processor: String
 
     /** The sink of the stream [context] publishes of [aggregate]. */

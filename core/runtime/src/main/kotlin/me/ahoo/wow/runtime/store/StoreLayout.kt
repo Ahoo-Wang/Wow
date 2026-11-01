@@ -32,7 +32,7 @@ import me.ahoo.wow.spi.store.Store
  * (`wow.log.store`) unless the logs map names another for its type (`wow.aggregates.[<context>.<aggregate>].log.store`);
  * its snapshots on the stores of its placement (`.snapshot.stores`, `.snapshot.primary`), else of [snapshotDefault]
  * (`wow.snapshot.stores`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store (the
- * first of `wow.snapshot.stores`) is each context's default one, whose subscription is `snapshot`.
+ * first of `wow.snapshot.stores`) is each context's default one, whose subscription is `wow.snapshot`.
  */
 @InternalWowApi
 class StoreLayout(

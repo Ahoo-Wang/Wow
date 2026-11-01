@@ -21,7 +21,7 @@ Every aggregate's state can be read by its id, with nothing to configure: the la
 
 Every read of an aggregate whose id is its owner's, `?version=`, `?at=`, `?minVersion=` and `/state/trace` included, is also served without the id: its id is the owner of the scope the caller reads in. A caller with no owner names the id; without one it is answered `400 wow.query.malformed`, and an unauthenticated caller `401 wow.auth.unauthenticated` ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
 
-A state answers its aggregate's `ref` and `version`, its `scope` (owner and space), its `deleted` mark, its `tags`, and the `state` itself. A trace answers `{"ref", "commits"}`: each commit's version, commit time, command and request ids, command type, events, and the aggregate after it. The next page of a trace starts after the last commit's version.
+A state answers the record a snapshot query returns for the aggregate: `tenantId`, `aggregateId` and `version`; `ownerId` and `spaceId`, `null` when it has none; its `deleted` mark and its `tags`; `firstEventTime` and `lastEventTime`; `operator` and `firstOperator`, who sent its last command and its first; `schedules`, the schedules it keeps by key, each with its rule; and the `state` itself. [Query Language](../reference/query-language#field-paths) describes each field. A trace answers `{"ref", "commits"}`: each commit's version, commit time, command and request ids, command type, events, and the aggregate after it. The next page of a trace starts after the last commit's version.
 
 The latest state is the snapshot, or, before the aggregate's first snapshot, its log replayed. A deleted aggregate's state reads like any other, with `deleted` set.
 

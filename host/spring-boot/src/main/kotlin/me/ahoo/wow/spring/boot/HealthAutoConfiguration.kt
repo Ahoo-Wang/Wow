@@ -116,6 +116,7 @@ class HealthAutoConfiguration {
             NodeHealth.NODE,
             NodeHealth.OWNERSHIP,
             NodeHealth.STORES,
+            NodeHealth.SECONDARY_STORES,
             NodeHealth.TOPICS,
             NodeHealth.SUBSCRIPTIONS,
             NodeHealth.EXECUTOR,

@@ -36,12 +36,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * The built-in `snapshot` subscription of one bounded [context]: keeps the latest
+ * The built-in `wow.snapshot` subscription of one bounded [context]: keeps the latest
  * snapshot of every aggregate of the [models] given, the aggregate types whose snapshots are enabled. Register
  * [subscription] in the context's [me.ahoo.wow.runtime.subscription.SubscriptionRuntime] and give [views] to the
  * [me.ahoo.wow.runtime.Executor]: it then runs on each partition's owner, checkpoints, parks and signals like any
- * subscription, and completes the default wait, `SNAPSHOT` (`HANDLED(snapshot)`). An aggregate
- * type not among [models] has no snapshot, and its default wait is `COMMITTED`.
+ * subscription, and completes the default wait, `snapshot` (`handled(wow.snapshot)`). An aggregate
+ * type not among [models] has no snapshot, and its default wait is `committed`.
  *
  * - **Merged writes**: of an aggregate's entries waiting together, only the latest is written; the waits on the
  *   earlier ones complete with it ([Subscription.coalesces]).
@@ -86,7 +86,7 @@ class SnapshotSubscription(
     private val codec: EventCodec = EventCodec(),
     views: SharedStates? = null,
     capacity: Int = SharedStateOptions.DEFAULT_CAPACITY,
-    /** The subscription's name, and its reader's: `snapshot` unless it writes another target than the default. */
+    /** The subscription's name, and its reader's: `wow.snapshot` unless it writes another target than the default. */
     val name: String = Hop.SNAPSHOT_SUBSCRIPTION,
     /** Whether the subscription answers the `snapshot` hop of an aggregate of a type: it writes the primary target. */
     answers: (AggregateType) -> Boolean = { true },
