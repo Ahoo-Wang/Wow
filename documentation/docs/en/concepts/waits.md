@@ -15,7 +15,7 @@ Sending a command and knowing what came of it are two different things. A comman
 | `committed` | The command's events are appended to the log, or the command was settled without appending: a rejection, no change, or a duplicate. |
 | `handled(subscription)` | A named subscription has handled the commit. The subscription may be in another context. |
 
-`snapshot` is short for `handled(snapshot)`: the built-in subscription that writes snapshots has written this commit. A subscription's kind, projection, saga or reactor, comes from the Manifest, so it needs no stage of its own.
+`snapshot` is short for `handled(wow.snapshot)`: the built-in subscription that writes snapshots, `wow.snapshot`, has written this commit. A subscription's kind, projection, saga or reactor, comes from the Manifest, so it needs no stage of its own.
 
 Stages travel in lowercase, as every value Wow puts on the wire does: in the `Wow-Wait` header, in a result's `hop.stage`, and in the TypeScript client's `WaitPlan`. Kotlin names them `Stage.ACCEPTED`, `Stage.COMMITTED` and `Stage.HANDLED`, and builds hops with `Hop.accepted()`, `Hop.committed()`, `Hop.handled(subscription)` and `Hop.snapshot()`. The header's keywords are read in any case, but a stage in JSON is read only in lowercase, and a stage a newer writer adds is read as unknown rather than refused.
 

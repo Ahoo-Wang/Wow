@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
@@ -760,11 +761,17 @@ class WowProperties {
             )
         }
 
-        /** The subscription `wow.subscriptions.[<key>]` configures, refused unless it reads `<context>.<name>`. */
-        private fun subscriptionOf(key: String): SubscriptionId = requireNotNull(SubscriptionId.parse(key)) {
-            "wow.subscriptions.[$key] names no subscription: a subscription is configured by its context and name, " +
-                "wow.subscriptions.[<context>.<name>], such as wow.subscriptions.[shop.CartSaga.onOrderCreated]."
-        }
+        /**
+         * The subscription `wow.subscriptions.[<key>]` configures, refused unless it reads `<context>.<name>`: a
+         * [WowConfigurationException] of the key.
+         */
+        private fun subscriptionOf(key: String): SubscriptionId = configNotNull(
+            SubscriptionId.parse(key),
+            "wow.subscriptions.[$key]",
+            "Name it by its context and name, wow.subscriptions.[<context>.<name>], such as " +
+                "wow.subscriptions.[shop.CartSaga.onOrderCreated].",
+            key,
+        ) { "wow.subscriptions.[$key] names no subscription: a subscription is configured by its context and name." }
     }
 
     /**

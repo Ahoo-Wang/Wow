@@ -48,8 +48,10 @@ object TopicTransportOptions {
     val DDL: ProviderOption<Ddl> = ProviderOption.enumeration(
         "ddl",
         "how the node manages the topics its contexts own at its start: auto creates the missing ones, then " +
-            "validates them; validate creates none and refuses the start when one is missing or a command topic does " +
-            "not have exactly wow.log.partitions partitions; none creates and checks nothing. wow.ddl when not set.",
+            "validates them; validate creates none and refuses the start when one is missing, or when the command " +
+            "topic of a context that takes commands from it has another number of partitions than that context's " +
+            "log (a peer's command topic is only checked to exist); none creates and checks nothing. wow.ddl when " +
+            "not set.",
         Ddl::class.java,
     )
 

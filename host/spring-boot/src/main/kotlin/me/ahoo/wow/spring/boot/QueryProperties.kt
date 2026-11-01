@@ -101,9 +101,11 @@ class QueryProperties {
 
     /**
      * How many snapshot and `events` queries each store runs at once, whichever entry asks; beyond it a query waits,
-     * then is `wow.query.busy` (429, with `Retry-After`). Not set, each store's provider derives one from its pool:
-     * PostgreSQL a quarter of a pool the appends share, at least 2, or all of a `query-data-source` of its own, 16
-     * otherwise. `0` for no bound; `wow.stores.<name>.query.max-concurrent` overrides it for one store.
+     * then is `wow.query.busy` (429, with `Retry-After`). Not set, each store derives one from the pool it reports: a
+     * quarter of a pool its queries share with the appends, at least 2 (MongoDB's, and PostgreSQL's or
+     * Elasticsearch's own pool), or the whole of a pool of their own (PostgreSQL's `query-data-source`,
+     * Elasticsearch's `query-client`); 16 for a store that reports none. That bound then adapts to the store's write
+     * pressure (`adaptive`). `0` for no bound; `wow.stores.<name>.query.max-concurrent` overrides it for one store.
      */
     var maxConcurrent: Int? = null
 

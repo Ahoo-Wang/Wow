@@ -169,7 +169,14 @@ class SubscriptionRoutesTest {
             4,
             runs = true,
             head = 9,
-            paused = PausedPartition(GROUP, "Board.onAdded", 0, 1_000, "StorageUnavailableException"),
+            paused = PausedPartition(
+                GROUP,
+                "Board.onAdded",
+                0,
+                1_000,
+                "StorageUnavailableException",
+                "me.ahoo.wow.spi.StorageUnavailableException",
+            ),
             throttled = ThrottledPartition(GROUP, "Board.onAdded", 0, 2, 2_000),
         )
         val view = SubscriptionsView(

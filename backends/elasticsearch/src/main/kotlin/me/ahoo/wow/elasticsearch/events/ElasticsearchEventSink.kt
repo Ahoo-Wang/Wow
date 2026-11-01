@@ -207,7 +207,7 @@ class ElasticsearchEventSink internal constructor(
 /**
  * The event search Sinks of one Elasticsearch store: [sinkOf] gives the [ElasticsearchEventSink] of
  * an aggregate type, its index in the store's names (`index-prefix`), created as the store's DDL mode says. The host
- * assembles them as the published streams' sinks, each a sink subscription named `elasticsearch-sink.<aggregate>`
+ * assembles them as the published streams' sinks, each a sink subscription named `wow.elasticsearch-sink.<aggregate>`
  * ([PROCESSOR]).
  */
 @InternalWowApi
@@ -224,7 +224,7 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
 
     @InternalWowApi
     companion object {
-        /** The processor name of the event search Sink's subscriptions: `elasticsearch-sink.<aggregate>`. */
+        /** The processor name of the event search Sink's subscriptions: `wow.elasticsearch-sink.<aggregate>`. */
         const val PROCESSOR: String = "wow.elasticsearch-sink"
 
         /**

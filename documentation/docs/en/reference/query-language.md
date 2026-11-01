@@ -58,6 +58,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 | `tags` | object of string arrays | Its tags; `tags.<key>` names one |
 | `firstEventTime`, `lastEventTime` | integer | Its first and last event time, epoch milliseconds |
 | `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, crossScope}`; `null` for an anonymous caller. Filter on `operator.id` |
+| `schedules` | object of rules | The schedules the aggregate keeps, by key: each rule's `type`, and its time as `epochMillis`, `millis` or `expression` with `zone`; `schedules.<key>` names one |
 | `state.*` | as the state schema says | The state, as the completed Manifest fragment's state schema describes it |
 
 A path the model does not know is 400 `wow.query.invalid`, `unknown-field`. The fields of a collection's elements are named only inside an `element-match` of that collection, relative to an element (`element-scope-required` otherwise). The [capability descriptor](#the-capability-descriptor) lists every path with the operators, sorts and aggregations it takes.

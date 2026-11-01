@@ -15,7 +15,7 @@ description: 发出命令后调用方可以等待什么、为什么默认等待�
 | `committed` | 命令的事件已追加到日志，或者命令没有追加就有了结论：拒绝、无变化或重复。 |
 | `handled(subscription)` | 某个指定的订阅已处理了这次提交。这个订阅可以在另一个上下文里。 |
 
-`snapshot` 是 `handled(snapshot)` 的简写：内置的快照订阅已经写入了这次提交。订阅的种类（投影、Saga 或反应器）来自 Manifest，所以不需要各自的阶段。
+`snapshot` 是 `handled(wow.snapshot)` 的简写：内置的快照订阅 `wow.snapshot` 已经写入了这次提交。订阅的种类（投影、Saga 或反应器）来自 Manifest，所以不需要各自的阶段。
 
 阶段在线上一律写成小写，和 Wow 放到线上的所有取值一样：`Wow-Wait` 请求头里、结果的 `hop.stage` 里、TypeScript 客户端的 `WaitPlan` 里都是如此。Kotlin 里它们是 `Stage.ACCEPTED`、`Stage.COMMITTED` 和 `Stage.HANDLED`，用 `Hop.accepted()`、`Hop.committed()`、`Hop.handled(subscription)` 和 `Hop.snapshot()` 构建跳。请求头里的关键字不区分大小写；JSON 里的阶段只按小写读取，新版本写入方加的阶段读作未知，而不是拒绝。
 

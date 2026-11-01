@@ -24,6 +24,7 @@ The components:
 | --- | --- | --- |
 | `node` | The node is not running: starting, draining or stopped | |
 | `stores` | A log has kept failing for `wow.health.stores.down-after` (15 s) with no success since | A log failed within `wow.health.stores.window` (1 min) |
+| `secondaryStores` | Never: each store instance off the write path (an additional snapshot store, a query or search store) is `DOWN` by the same rule as `stores`, but its outage degrades the reads it serves, not the node, so readiness leaves it out | It failed within `wow.health.stores.window` (1 min) |
 | `ownership` | Its lease store is down, or the node owns none of its share of a lease group's partitions past `wow.health.ownership.handover-grace` (1 min) | It owns another set than its share for that long, or the lease store failed lately |
 | `topics` | A topic of another context it reads is still joining (unless `wow.health.topics.required: false`) | |
 | `subscriptions` | Never | A subscription is `lag-degraded-at` (10,000) entries behind, or has `parked-degraded-at` (100) parked entries |

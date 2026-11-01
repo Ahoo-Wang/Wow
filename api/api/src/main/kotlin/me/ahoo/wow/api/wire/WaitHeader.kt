@@ -38,7 +38,7 @@ import java.time.Duration as JavaDuration
  *
  * Keywords are case-insensitive and white space around the tokens is ignored: `handled(order/payment-saga) >
  * committed(inventory)`. A subscription is named as in the Manifest and may hold dots (`processor.function`), so the
- * context of a `handled` hop is set apart by `/`. `handled(snapshot)` is the same hop as `snapshot`. The timeout is
+ * context of a `handled` hop is set apart by `/`. `handled(wow.snapshot)` is the same hop as `snapshot`. The timeout is
  * `<n>ms`, `<n>s`, `<n>m` or an ISO-8601 duration (`PT10S`), and positive.
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].

@@ -58,7 +58,8 @@ class SnapshotPlacement @InternalWowApi constructor(
  * each aggregate type, [fallback] for a type that has none: by default the [default] store alone.
  *
  * Each store has a built-in subscription of its own, with its own checkpoints, which writes the snapshots of the types
- * it is a target of ([subscriptionOf]): `snapshot` for the [default] store, as before targets, and `snapshot:<store>`
+ * it is a target of ([subscriptionOf]): `wow.snapshot` for the [default] store, as before targets, and
+ * `wow.snapshot:<store>`
  * for each other one. A store named so keeps its subscription, and so its checkpoints, whatever the targets list:
  * adding a target to a type, switching its primary or dropping a target moves no checkpoint. The `snapshot` hop of a
  * wait is the primary target's subscription of the command's aggregate type.
@@ -89,7 +90,10 @@ class SnapshotTargets(
         this.placements.mapValues { (_, placement) -> stores.getValue(placement.primary) },
     )
 
-    /** The subscription of the store [store]: `snapshot` for the [default] store, `snapshot:<store>` for another. */
+    /**
+     * The subscription of the store [store]: `wow.snapshot` for the [default] store, `wow.snapshot:<store>` for
+     * another.
+     */
     fun subscriptionOf(store: String): String =
         if (store == default) Hop.SNAPSHOT_SUBSCRIPTION else "${Hop.SNAPSHOT_SUBSCRIPTION}:$store"
 

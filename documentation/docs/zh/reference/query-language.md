@@ -58,6 +58,7 @@ outline: deep
 | `tags` | 由字符串数组组成的对象 | 它的标签；`tags.<key>` 指明其中一个 |
 | `firstEventTime`、`lastEventTime` | integer | 它第一个和最后一个事件的时间，纪元毫秒 |
 | `operator`、`firstOperator` | object 或 `null` | 谁发送了最后一条和第一条命令：`{id, tenantId, crossScope}`；匿名调用方为 `null`。按 `operator.id` 过滤 |
+| `schedules` | 规则组成的 object | 聚合按键保存的定时计划：每条规则的 `type`，以及以 `epochMillis`、`millis` 或带 `zone` 的 `expression` 表示的时间；`schedules.<key>` 指明其中一条 |
 | `state.*` | 由状态 schema 决定 | 状态，按补全后的 Manifest 片段中的状态 schema 描述 |
 
 模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。

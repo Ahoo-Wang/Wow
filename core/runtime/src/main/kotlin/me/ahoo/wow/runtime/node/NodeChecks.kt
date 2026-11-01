@@ -103,18 +103,27 @@ internal object NodeChecks {
 
     /**
      * A start, a parked retry spec or a retry budget configured in [options] for a subscription the node does not have
-     * ([names]) is a typo, not a no-op.
+     * ([names]) is a typo, not a no-op: a [WowConfigurationException] of its key under `wow.subscriptions`.
      */
     fun subscriptionsNamed(node: String, names: Set<SubscriptionId>, options: SubscriptionOptions) {
-        configured(node, names, "start", options.starts.keys)
-        configured(node, names, "parked retry spec", options.parked.specs.keys)
-        configured(node, names, "retry budget", options.retries.keys)
+        configured(node, names, "start", "start", options.starts.keys)
+        configured(node, names, "parked retry spec", "parked", options.parked.specs.keys)
+        configured(node, names, "retry budget", "retry", options.retries.keys)
     }
 
-    private fun configured(node: String, names: Set<SubscriptionId>, what: String, keys: Set<SubscriptionId>) {
+    private fun configured(
+        node: String,
+        names: Set<SubscriptionId>,
+        what: String,
+        setting: String,
+        keys: Set<SubscriptionId>,
+    ) {
         keys.firstOrNull { it !in names }?.let {
-            throw IllegalArgumentException(
+            throw WowConfigurationException(
+                "wow.subscriptions.[$it].$setting",
+                it.toString(),
                 "A $what is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",
+                SUBSCRIPTION_FIX,
             )
         }
     }
@@ -124,6 +133,11 @@ internal object NodeChecks {
 
     /** What a node without the command transport it needs changes. */
     const val TRANSPORT_FIX: String = "Give the node a command transport: its topic transport, with its source."
+
+    /** What a setting of a subscription the node does not have changes. */
+    const val SUBSCRIPTION_FIX: String =
+        "Name a subscription of the node by its context and name, wow.subscriptions.[<context>.<processor.function>], " +
+            "or remove the setting."
 
     private const val ROUTED_FIX: String = "Route through the command topic only the aggregate types the node serves."
 }
