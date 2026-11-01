@@ -66,6 +66,20 @@ internal object NineXExample {
     fun streams(): List<NineXStream> = (ORDER_STREAMS + CART_STREAMS).map(::stream)
 
     /**
+     * The example's cart as the instance [id], its last event removing [productIds], a JSON array: `[null]` is a shape
+     * 9.x's Jackson 2 read, and the V10 model's Jackson 3 refuses.
+     */
+    fun cartRemoving(id: String, productIds: String): List<NineXStream> = CART_STREAMS.map(::stream).map { stream ->
+        val copy = stream.copy(id = "${stream.id}-$id", aggregateId = stream.aggregateId.copy(id = id))
+        if (stream.version == CART_STREAMS.size) {
+            val removed = stream.events.single().copy(body = WowJson.mapper.readTree("""{"productIds":$productIds}"""))
+            copy.copy(events = listOf(removed))
+        } else {
+            copy
+        }
+    }
+
+    /**
      * The 9.x snapshots of the example after its streams, as the 9.x `SnapshotSerializer` lays them out: the captured
      * 9.x states (`order-state.json`, `cart-state.json`) with the metadata of the streams they fold.
      */

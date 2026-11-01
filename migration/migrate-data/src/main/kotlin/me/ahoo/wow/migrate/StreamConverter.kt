@@ -51,11 +51,11 @@ import tools.jackson.databind.node.ObjectNode
 internal class StreamConverter(private val plan: MigrationPlan) {
     fun convert(stream: NineXStream): EventStreamRecord {
         val aggregate = plan.of(stream.aggregate)
-        val subject = "9.x stream ${stream.id} (${stream.aggregate}/${stream.aggregateId} v${stream.version})"
+        val subject = subjectOf(stream)
         refuseId(stream, subject)
         val commandType = aggregate.commandTypeOf(stream.commandName)
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
-        val events = eventsOf(aggregate, stream, subject)
+        val events = eventsOf(aggregate, stream, subject).flatMap { it.second }
         if (events.isEmpty()) {
             // The mapping check counts such streams and fails before the import.
             throw MigrationException(
@@ -90,12 +90,28 @@ internal class StreamConverter(private val plan: MigrationPlan) {
         )
     }
 
-    private fun eventsOf(aggregate: AggregatePlan, stream: NineXStream, subject: String): List<EventRecord> =
-        stream.events.flatMapIndexed { position, event ->
+    /**
+     * The events of [stream], each with the V10 records [convert] writes of it: none for an event the map drops, and
+     * the mapped event then its lifecycle event for one composed with it. A stream that does not convert fails as
+     * [convert] fails it.
+     */
+    fun eventsOf(stream: NineXStream): List<Pair<NineXEvent, List<EventRecord>>> =
+        eventsOf(plan.of(stream.aggregate), stream, subjectOf(stream))
+
+    /** [stream] as a message names it. */
+    fun subjectOf(stream: NineXStream): String =
+        "9.x stream ${stream.id} (${stream.aggregate}/${stream.aggregateId} v${stream.version})"
+
+    private fun eventsOf(
+        aggregate: AggregatePlan,
+        stream: NineXStream,
+        subject: String,
+    ): List<Pair<NineXEvent, List<EventRecord>>> =
+        stream.events.mapIndexed { position, event ->
             val mapping = aggregate.eventOf(event.name, event.revision)
                 ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
-            val to = mapping.to ?: return@flatMapIndexed emptyList()
-            listOfNotNull(
+            val to = mapping.to ?: return@mapIndexed event to emptyList()
+            event to listOfNotNull(
                 EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping)),
                 mapping.lifecycle?.let { lifecycle -> lifecycleOf(lifecycle, event, "$subject, event $position") },
             )

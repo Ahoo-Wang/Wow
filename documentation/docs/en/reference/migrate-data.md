@@ -21,17 +21,18 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | Command | Options | What it does |
 | --- | --- | --- |
 | `draft-map` | `--out <file>`, `--force`, `--dry-run` | Drafts the map from the names the 9.x store holds and the V10 Manifests, and lists what it cannot match as exceptions: see [Draft the map](#draft-the-map). |
-| `check` | | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
+| `check` | `--decode` | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
-| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. |
+| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. |
 | `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then rewrites the Elasticsearch events documents indexed without them. |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
 | Option | Meaning |
 | --- | --- |
 | `--config <file>` | The configuration file. Required by every command. |
+| `--decode` | After a mapping check that passed, `check` reads every 9.x event of the mapped aggregates with the services' V10 models (the configuration's `classpath`), as the service reads it when it loads the aggregate, upgrades included. It prints a `PROBLEM decode:` line for each event that does not read, with its 9.x type and revision, its stream and the reason, and goes on, then a count by type; it fails when one does not read. |
 | `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing; `draft-map` prints the draft and writes nothing. |
 | `--out <file>` | `draft-map` writes the draft there instead of the map the configuration names. |
 | `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. |
@@ -59,7 +60,7 @@ Lines that need attention start with a marker:
 | Marker | Meaning |
 | --- | --- |
 | `PROBLEM` | The check found something that stops the import. |
-| `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing. |
+| `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing; or `snapshot` could not write an instance's snapshot. |
 | `WARNING` | The check found something that does not stop it, such as a mapping nothing uses. |
 | `DIFFERS` | `compare` found a difference: a state, a reservation or a parked entry. |
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
@@ -115,7 +116,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
 | `target.uri`, `target.database` | | The MongoDB target, a replica set. |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
-| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
+| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare`, `snapshot` and `backfill-tags` rebuild states with their models, and `check --decode` reads the 9.x events with them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
 | `compensation.uri` | the source's | The server of that database. |
 | `compensation.service` | | The V10 service whose failure ledger receives the unresolved executions: its `wow.service`, or `spring.application.name`. |

@@ -21,17 +21,18 @@ outline: deep
 | 命令 | 选项 | 做什么 |
 | --- | --- | --- |
 | `draft-map` | `--out <file>`、`--force`、`--dry-run` | 根据 9.x 存储里的名字和 V10 的 Manifest 起草映射文件，并把它匹配不上的列为例外：见[起草映射文件](#draft-the-map)。 |
-| `check` | | 对照 9.x 存储和 V10 的 Manifest 检查映射文件。不写任何东西。 |
+| `check` | `--decode` | 对照 9.x 存储和 V10 的 Manifest 检查映射文件。不写任何东西。 |
 | `import` | `--dry-run`、`--restart` 或 `--final`、`--snapshots` | 先检查，然后导入每个已映射的 9.x 聚合，再导入预留键和未解决的补偿执行，从检查点续做。 |
 | `tail` | `--once` | 追踪 9.x 在导入之后提交的内容，直到被停止。 |
 | `compare` | `--sample <percent>`、`--restart` | 把每个 9.x 快照与 V10 在快照版本上从日志重建的状态比较，然后比较预留和停放的条目。 |
-| `snapshot` | `--restart` | 为每个导入的聚合写入它最后一个版本的 V10 快照。 |
+| `snapshot` | `--restart` | 为每个导入的聚合写入它最后一个版本的 V10 快照。状态无法重建的实例逐个打印出来并继续，遍历完所有聚合后失败；下次运行会重新遍历这些聚合，跳过已写入的快照。 |
 | `backfill-tags` | `--restart`、`--force` | 为每条追加时没有标签的 V10 流记录标签，然后改写没有标签就被索引的 Elasticsearch 事件文档。 |
 | `export` | `--dry-run`、`--restart` | 为回滚把 V10 在切换之后写入的流写回 9.x 存储；拒绝带有 V10 独有类型的流。 |
 
 | 选项 | 含义 |
 | --- | --- |
 | `--config <file>` | 配置文件。每个命令都必须指定。 |
+| `--decode` | 映射检查通过后，`check` 用服务的 V10 模型（配置中的 `classpath`）读取已映射聚合的每个 9.x 事件，与服务加载聚合时的读法相同，包括升级函数。每个读不出的事件打印一行 `PROBLEM decode:`，给出它的 9.x 类型和修订版本、所在事件流和原因，然后继续，最后按类型给出计数；只要有一个读不出，检查就失败。 |
 | `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入；`draft-map` 打印草稿，不写入。 |
 | `--out <file>` | `draft-map` 把草稿写到这里，而不是配置里指定的映射文件。 |
 | `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。 |
@@ -59,7 +60,7 @@ outline: deep
 | 标记 | 含义 |
 | --- | --- |
 | `PROBLEM` | 检查发现了会阻止导入的问题。 |
-| `FAILED` | 某一步停下了，并给出原因；或者 `import --final` 拒绝了某个聚合（它的导入没有完成，或者它的追尾没有一直追到 9.x 停止），并且什么都没写。 |
+| `FAILED` | 某一步停下了，并给出原因；或者 `import --final` 拒绝了某个聚合（它的导入没有完成，或者它的追尾没有一直追到 9.x 停止），并且什么都没写；或者 `snapshot` 无法写入某个实例的快照。 |
 | `WARNING` | 检查发现了不阻止导入的问题，例如没有被用到的映射。 |
 | `DIFFERS` | `compare` 发现了差异：状态、预留或停放的条目。 |
 | `UNRESOLVED` | 某个预留键或补偿执行无法安置，没有导入。 |
@@ -115,7 +116,7 @@ outline: deep
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |
 | `target.uri`、`target.database` | | MongoDB 目标，必须是副本集。 |
 | `partitions` | | 每个 V10 上下文的分区数，必须与服务自己的相同。 |
-| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
+| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |
 | `compensation.uri` | 与来源相同 | 该数据库所在的服务器。 |
 | `compensation.service` | | 接收未解决执行的 V10 服务，其失败台账会收到它们：填它的 `wow.service` 或 `spring.application.name`。 |
