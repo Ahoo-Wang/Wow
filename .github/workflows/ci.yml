@@ -124,6 +124,22 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: ./gradlew :check :code-coverage-report:coverageReport "-Pwow.check.shard=$SHARD" --stacktrace
+      - name: Upload the X-54 diagnostics of a failed shard
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: x54-diagnostics-check-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            examples/eshop/**/build/generated/ksp/**
+            examples/eshop/**/build/generated/wow/**
+            examples/eshop/**/build/classes/kotlin/wowContract/**
+            examples/eshop/**/build/wow/**
+            platform/analytics/catalog/**/build/generated/ksp/**
+            platform/analytics/catalog/**/build/generated/wow/**
+            platform/analytics/catalog/**/build/classes/kotlin/wowContract/**
+            platform/analytics/catalog/**/build/wow/**
+          if-no-files-found: ignore
+          retention-days: 3
       # The release rehearsal of the Maven publications (R.1), signed with a
       # throwaway key the check generates (gpg): every release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
@@ -250,6 +266,22 @@ jobs:
             **/build/test-results/integrationTest/
           if-no-files-found: ignore
           retention-days: 14
+      - name: Upload the X-54 diagnostics of a failed shard
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: x54-diagnostics-integration-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            examples/eshop/**/build/generated/ksp/**
+            examples/eshop/**/build/generated/wow/**
+            examples/eshop/**/build/classes/kotlin/wowContract/**
+            examples/eshop/**/build/wow/**
+            platform/analytics/catalog/**/build/generated/ksp/**
+            platform/analytics/catalog/**/build/generated/wow/**
+            platform/analytics/catalog/**/build/classes/kotlin/wowContract/**
+            platform/analytics/catalog/**/build/wow/**
+          if-no-files-found: ignore
+          retention-days: 3
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page, the documentation's code samples equal the
