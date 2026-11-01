@@ -298,17 +298,7 @@ internal class AggregateAnalyzer(
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
         }
-        // Only where the function's source is compiled: its author is the one who can list them, and a library's
-        // `@Suppress` does not reach a subclass compiled against it.
-        if (open == null && returned == null && producesListed.isEmpty() && function.origin in SOURCE &&
-            !function.suppresses(UNLISTED_EVENTS)
-        ) {
-            warnings += "$name returns ${returnType?.render() ?: "a type"}, which names no event it produces, and " +
-                "lists none in @OnCommand(produces): the Manifest lists no event of it, so the kernel does not " +
-                "refuse an event it was not meant to produce. List the events it may produce in " +
-                "@OnCommand(produces = [...]); a function that only rejects or does nothing suppresses this with " +
-                "@Suppress(\"$UNLISTED_EVENTS\")"
-        }
+        unlistedEvents(function, returnType, open, returned, producesListed)?.let { warnings += it }
         val creation = when {
             command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
             command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
@@ -490,6 +480,32 @@ internal class AggregateAnalyzer(
      */
     private fun KSFunctionDeclaration.isAnnotatedOrOverrides(annotation: String): Boolean =
         generateSequence(this) { it.findOverridee() as? KSFunctionDeclaration }.any { it.hasAnnotation(annotation) }
+
+    /**
+     * The warning of a command [function] whose events neither its [returnType] ([returned]) nor its `produces`
+     * ([produces]) names: the Manifest lists none of them, so the kernel refuses no event it was not meant to produce.
+     * None for an [open] return type, refused already; nor where the function's source is not compiled here, since its
+     * author is the one who lists them, and a library's `@Suppress` does not reach a subclass compiled against it.
+     */
+    private fun unlistedEvents(
+        function: KSFunctionDeclaration,
+        returnType: KSType?,
+        open: KSClassDeclaration?,
+        returned: List<String>?,
+        produces: List<String>,
+    ): String? {
+        if (open != null || returned != null || produces.isNotEmpty()) {
+            return null
+        }
+        if (function.origin !in SOURCE || function.suppresses(UNLISTED_EVENTS)) {
+            return null
+        }
+        return "${function.simpleName.asString()} returns ${returnType?.render() ?: "a type"}, which names no event " +
+            "it produces, and lists none in @OnCommand(produces): the Manifest lists no event of it, so the kernel " +
+            "does not refuse an event it was not meant to produce. List the events it may produce in " +
+            "@OnCommand(produces = [...]); a function that only rejects or does nothing suppresses this with " +
+            "@Suppress(\"$UNLISTED_EVENTS\")"
+    }
 
     /**
      * Whether this function is annotated `@Suppress` naming [name]. The annotation is kept only in the source, which
