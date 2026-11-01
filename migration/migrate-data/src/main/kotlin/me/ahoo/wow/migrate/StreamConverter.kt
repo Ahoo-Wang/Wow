@@ -45,12 +45,14 @@ import tools.jackson.databind.node.ObjectNode
  *   payload without one fails the stream, naming the event's position.
  *
  * Every failure is a [MigrationException] naming the stream: the mapping check passed, so one means the store changed
- * since, or a stream is malformed.
+ * since, or a stream is malformed. A stream of an aggregate id V10 refuses ([RefusedIds]) fails too, naming the entry
+ * that excludes it.
  */
 internal class StreamConverter(private val plan: MigrationPlan) {
     fun convert(stream: NineXStream): EventStreamRecord {
         val aggregate = plan.of(stream.aggregate)
         val subject = "9.x stream ${stream.id} (${stream.aggregate}/${stream.aggregateId} v${stream.version})"
+        refuseId(stream, subject)
         val commandType = aggregate.commandTypeOf(stream.commandName)
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
         val events = eventsOf(aggregate, stream, subject)
@@ -75,6 +77,16 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             causation = Causation(correlationId, correlationId),
             headers = aggregate.headers.mapNotNull { (from, to) -> stream.header[from]?.let { to to it } }.toMap(),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
+        )
+    }
+
+    /** Fails [stream], which [subject] names, when V10 refuses its aggregate id, naming the entry that excludes it. */
+    private fun refuseId(stream: NineXStream, subject: String) {
+        val reason = RefusedIds.reasonOf(stream.aggregateId.id) ?: return
+        val name = RefusedIds.quoted(RefusedIds.nameOf(stream.aggregateId.id))
+        throw MigrationException(
+            "$subject: its aggregate id is $reason, which V10 refuses; exclude it with {\"aggregate\": " +
+                "\"${stream.aggregate}\", \"stream\": $name, \"reason\": \"…\"}.",
         )
     }
 

@@ -60,7 +60,8 @@ internal data class ImportOptions(
 /**
  * The throughput of an import or a tail pass of [aggregate] so far (monitoring during the migration):
  * the [instances] walked, the streams [imported] and [skipped] (already in the log, from an earlier run), the
- * [events] imported and the request ids [rewritten] because another instance of the type holds them.
+ * [events] imported, the request ids [rewritten] because another instance of the type holds them, and the instances
+ * [excluded] by the map ([Exclusion.stream]), whose streams the full import passes over.
  */
 internal data class ImportProgress(
     val aggregate: NineXAggregate,
@@ -71,6 +72,7 @@ internal data class ImportProgress(
     val rewritten: Long,
     val elapsedMillis: Long,
     val done: Boolean,
+    val excluded: Long = 0,
 ) {
     /** The streams handled per second. */
     val streamsPerSecond: Double
@@ -78,7 +80,8 @@ internal data class ImportProgress(
 
     fun render(): String =
         "$aggregate${if (done) " done" else ""}: $instances instances, $imported streams imported, $skipped skipped, " +
-            "$events events, $rewritten request ids rewritten, ${"%.1f".format(streamsPerSecond)} streams/s"
+            "$events events, $rewritten request ids rewritten, ${if (excluded > 0) "$excluded excluded, " else ""}" +
+            "${"%.1f".format(streamsPerSecond)} streams/s"
 
     private companion object {
         const val MILLIS_PER_SECOND = 1000.0
@@ -94,6 +97,8 @@ internal data class ImportProgress(
  *
  * **Tail** ([tailOnce]): the streams committed since the full import started, by commit time, again and again until
  * cut-over; each new stream's instance is brought up to date from that version on.
+ *
+ * Both pass over the instances the map excludes ([MigrationPlan.excludes]).
  *
  * **Idempotence.** Every append can meet a stream an earlier run imported; the log's unique keys tell it
  * (step 3), and nothing is written twice:
@@ -134,12 +139,14 @@ internal class EventStreamImporter(
             if (page.isEmpty()) {
                 break
             }
+            val (excluded, imported) = page.partition { plan.excludes(aggregate, it.id) }
             coroutineScope {
-                page.map { id ->
+                imported.map { id ->
                     async { permits.withPermit { importInstance(aggregatePlan, id, 1, stats) } }
                 }.awaitAll()
             }
-            stats.instances.addAndGet(page.size.toLong())
+            stats.instances.addAndGet(imported.size.toLong())
+            stats.excluded.addAndGet(excluded.size.toLong())
             checkpoint = checkpoint.copy(after = page.last())
             save(aggregate, checkpoint)
             progress(stats.report(done = false))
@@ -168,7 +175,7 @@ internal class EventStreamImporter(
             if (page.isEmpty()) {
                 break
             }
-            tailPage(aggregatePlan, page, reached, stats)
+            tailPage(aggregatePlan, page.filterNot { plan.excludes(aggregate, it.aggregateId.id) }, reached, stats)
             // A page is in commit-time order: its last stream is its latest.
             val last = page.last()
             latest = maxOf(latest, last.createTime)
@@ -377,6 +384,7 @@ internal class EventStreamImporter(
         val skipped = AtomicLong()
         val events = AtomicLong()
         val rewritten = AtomicLong()
+        val excluded = AtomicLong()
 
         fun imported(record: EventStreamRecord) {
             imported.incrementAndGet()
@@ -392,6 +400,7 @@ internal class EventStreamImporter(
             rewritten = rewritten.get(),
             elapsedMillis = clock() - startedAt,
             done = done,
+            excluded = excluded.get(),
         )
     }
 }

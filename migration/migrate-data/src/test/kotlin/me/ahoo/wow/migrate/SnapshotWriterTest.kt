@@ -35,15 +35,19 @@ class SnapshotWriterTest {
     private val reports = mutableListOf<SnapshotProgress>()
     private val models = MigrationModels(listOf(NineXExample.orderModel, NineXExample.cartModel))
 
-    private suspend fun imported() {
-        val importer = EventStreamImporter(events, NineXExample.plan, { log }, checkpoints)
+    private suspend fun imported(source: NineXEventSource = events, plan: MigrationPlan = NineXExample.plan) {
+        val importer = EventStreamImporter(source, plan, { log }, checkpoints)
         importer.importAll(order)
         importer.importAll(cart)
     }
 
-    private fun writer(source: NineXEventSource = events, options: ImportOptions = ImportOptions()) = SnapshotWriter(
+    private fun writer(
+        source: NineXEventSource = events,
+        options: ImportOptions = ImportOptions(),
+        plan: MigrationPlan = NineXExample.plan,
+    ) = SnapshotWriter(
         source,
-        NineXExample.plan,
+        plan,
         models,
         { log },
         { store },
@@ -87,6 +91,17 @@ class SnapshotWriterTest {
             it.written.assert().isEqualTo(0)
             it.skipped.assert().isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `an instance the map excludes has no snapshot`() = runTest {
+        val empty = streams.first { it.aggregate == order && it.version == 1 }.let {
+            it.copy(id = "empty", aggregateId = it.aggregateId.copy(id = ""))
+        }
+        val source = InMemoryNineXEventSource(streams + empty)
+        val excluding = NineXExample.planExcluding(RefusedIds.EMPTY)
+        imported(source, excluding)
+        writer(source, plan = excluding).writeAll(order).written.assert().isEqualTo(1)
     }
 
     @Test

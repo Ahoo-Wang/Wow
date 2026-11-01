@@ -179,7 +179,8 @@ A service whose aggregates keep their logs in different V10 stores is migrated b
     { "from": "order-service.OrderProjector", "to": "OrderReports" }
   ],
   "excluded": [
-    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" }
+    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" },
+    { "aggregate": "order-service.order", "stream": "(empty)", "reason": "A 9.x defect: an order stored without an id" }
   ]
 }
 ```
@@ -195,7 +196,9 @@ A V10 name without a dot is a simple name in the aggregate's namespace (`OrderCr
 | `headers` | The 9.x stream headers kept as request facts, 9.x key to V10 name. Every other header is dropped. A 9.x framework header (`trace_id`, `upstream_id`, `upstream_name`, `command_operator`, `local_first`, wait headers) cannot be listed: each becomes a field of its own or goes. An older 9.x wrote them with dots (`trace.id`, `upstream.id`, `upstream.name`, `command.operator`, `command.wait.*`), which read as the same headers, and some of its streams name their command only as `command.name`. |
 | `subscriptions` | The 9.x processors with unresolved compensation executions, mapped to V10 subscriptions; see below. |
 | `exceptions` | What `draft-map` could not match, one line each, for a person to resolve and then delete. The check warns of each line it still finds. |
-| `excluded` | The 9.x aggregates (`aggregate`, `contextName.aggregateName`) and `PrepareKey`s (`prepareKey`) the map leaves out on purpose, each with its `reason`, which is required. The check warns of each with its reason, where it would otherwise fail; it fails an entry the map also maps, or excludes twice, and warns of one the store does not hold. `import` reads none of them. `draft-map` never writes one. |
+| `excluded` | The 9.x aggregates (`aggregate`, `contextName.aggregateName`) and `PrepareKey`s (`prepareKey`) the map leaves out on purpose, each with its `reason`, which is required. An entry with `aggregate` and `stream` leaves out the streams of one instance of that aggregate, named by its 9.x aggregate id, in every tenant: an instance V10 cannot take, such as one whose id it refuses (below). The check warns of each with its reason, where it would otherwise fail; it fails an entry the map also maps, or excludes twice, and warns of one the store does not hold, and of an instance's streams whose aggregate the map does not import. `import`, `snapshot` and `compare` read none of them. `draft-map` never writes one. |
+
+V10 refuses some ids 9.x took: an empty aggregate id (or none at all), a blank one, and `(none)`, the id V10 gives a request whose aggregate admission has not chosen yet. An instance with such an id cannot be imported, a 9.x data defect. The check fails with one `PROBLEM` per aggregate, listing each such id with the number of its streams and its tenants, written as the JSON string an `excluded` entry names it by: the empty id is `"(empty)"`, so it can be copied. Decide what each instance's streams were, then exclude it, as the sample does with `{ "aggregate": "order-service.order", "stream": "(empty)", "reason": "…" }`.
 
 ### Aggregates
 

@@ -53,7 +53,8 @@ internal data class SnapshotProgress(
  *   skips them; a snapshot written since at a higher version stays.
  * - **Checkpointed.** Instances are walked as the import walks them ([NineXEventSource.aggregateIds]), a page of
  *   [ImportOptions.pageSize] at a time, [ImportOptions.concurrency] at a time, and the checkpoint
- *   ([SnapshotCheckpoint]) moves after each page; [ImportOptions.restart] walks every instance again.
+ *   ([SnapshotCheckpoint]) moves after each page; [ImportOptions.restart] walks every instance again. An instance the
+ *   map excludes ([MigrationPlan.excludes]) has no history in the V10 log, and is passed over.
  *
  * The full import of the aggregate must be complete. The host still claims and backfills the snapshot tables:
  * its snapshot subscription then finds each snapshot written and passes over it.
@@ -95,7 +96,8 @@ internal class SnapshotWriter(
                 checkpoint.copy(completed = true)
             } else {
                 val written = coroutineScope {
-                    page.map { id -> async { permits.withPermit { write(target, id) } } }.awaitAll()
+                    page.filterNot { plan.excludes(aggregate, it.id) }
+                        .map { id -> async { permits.withPermit { write(target, id) } } }.awaitAll()
                 }
                 checkpoint.copy(
                     after = page.last(),

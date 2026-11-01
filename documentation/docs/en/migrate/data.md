@@ -87,7 +87,8 @@ Run the tool from a checkout of the Wow release you migrate to:
 - a retired event is not retired in the Manifest;
 - dropping events would leave a stream with no events: a version cannot be empty, so map such an event as retired instead;
 - a `PrepareKey` the store holds has no reservation mapping;
-- a 9.x processor with unresolved compensation executions has no subscription mapping.
+- a 9.x processor with unresolved compensation executions has no subscription mapping;
+- an instance has an aggregate id V10 refuses (empty, blank or `(none)`), a 9.x data defect: the problem lists each, as the map's `excluded` names it (`{ "aggregate": …, "stream": "(empty)", "reason": … }`), so a person can decide what its streams were and exclude it ([The map](../reference/migrate-data#top-level)).
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.
 

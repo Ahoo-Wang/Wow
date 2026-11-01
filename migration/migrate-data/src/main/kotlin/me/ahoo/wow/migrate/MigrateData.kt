@@ -216,6 +216,7 @@ internal class MigrateData(
             inventoryOf(connections.source),
             connections.reservations.prepareKeys(),
             connections.compensation?.inventory(),
+            connections.source::tenantsOf,
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED

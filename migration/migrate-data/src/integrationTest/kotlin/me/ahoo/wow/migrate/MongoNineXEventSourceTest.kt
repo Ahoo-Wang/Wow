@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.migrate.example.NineXExample
 import org.junit.jupiter.api.Test
 
@@ -81,6 +82,37 @@ class MongoNineXEventSourceTest {
             source.streams(order, NineXAggregateId("$id-order", "(0)"), 1, 1).single().commandName.assert()
                 .isEqualTo("create_order")
         }
+    }
+
+    @Test
+    fun `the inventory should list the instances whose id V10 refuses, an absent or null id as the empty one`() {
+        val text = NineXExample.resource("order-stream-v1.json")
+        fun insert(stream: String, aggregateId: String?, tenantId: String = "(0)") = NineXMongoStore.insert(
+            database,
+            text.replace("\"0VY3Gwb94OmV00H\"", "\"$stream\"").replace("\"tenantId\":\"(0)\"", "\"tenantId\":\"$tenantId\"")
+                .replace(
+                    "\"aggregateId\":\"0VY3GwaK4OmV00E\",",
+                    aggregateId?.let { "\"aggregateId\":${RefusedIds.quoted(it)}," }.orEmpty(),
+                ),
+        )
+        insert("absent", null)
+        NineXMongoStore.insert(database, text.replace("\"0VY3Gwb94OmV00H\"", "\"null\"").replace("\"0VY3GwaK4OmV00E\"", "null"))
+        insert("empty", "")
+        insert("empty-t2", "", tenantId = "t2")
+        insert("blank", " ")
+        insert("unassigned", AggregateRef.UNASSIGNED)
+        source.inventory().first { it.aggregate == order }.refusedIds.assert().isEqualTo(
+            mapOf(
+                NineXAggregateId("", "(0)") to 3L,
+                NineXAggregateId("", "t2") to 1L,
+                NineXAggregateId(" ", "(0)") to 1L,
+                NineXAggregateId(AggregateRef.UNASSIGNED, "(0)") to 1L,
+            ),
+        )
+        // Each reads as the in-memory store reads it, the absent and null ids as the empty one.
+        source.aggregateIds(order, null, 10).assert().contains(NineXAggregateId("", "(0)"), NineXAggregateId("", "t2"))
+        source.streams(order, NineXAggregateId("", "t2"), 1, 10).single().id.assert().isEqualTo("empty-t2")
+        source.committedSince(order, 0, null, 100).count { it.aggregateId.id.isEmpty() }.assert().isEqualTo(4)
     }
 
     @Test

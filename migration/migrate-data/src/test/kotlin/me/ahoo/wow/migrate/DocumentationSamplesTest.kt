@@ -49,6 +49,8 @@ class DocumentationSamplesTest {
         map.subscriptions.map { it.from }
             .assert().containsExactly("order-service.OrderSaga", "order-service.OrderProjector")
         map.headers.assert().containsEntry("app_id", "app_id")
-        map.excluded.single().source().assert().isEqualTo(NineXAggregate("order-service", "audit"))
+        val (audit, defect) = map.excluded
+        audit.source().assert().isEqualTo(NineXAggregate("order-service", "audit"))
+        defect.excludedStream().assert().isEqualTo(NineXAggregate("order-service", "order") to RefusedIds.EMPTY)
     }
 }

@@ -41,7 +41,8 @@ class EventStreamImporterTest {
         source: NineXEventSource,
         options: ImportOptions = ImportOptions(),
         target: EventLog = log,
-    ) = EventStreamImporter(source, NineXExample.plan, { target }, checkpoints, options, { now }, { reports += it })
+        plan: MigrationPlan = NineXExample.plan,
+    ) = EventStreamImporter(source, plan, { target }, checkpoints, options, { now }, { reports += it })
 
     private fun copyOf(stream: NineXStream, id: String, version: Int = stream.version, createTime: Long = stream.createTime) =
         stream.copy(
@@ -132,6 +133,31 @@ class EventStreamImporterTest {
         checkpoints.load().of(order)!!.tailedTo.assert().isEqualTo(created.createTime)
         importer(source).tailOnce(order).imported.assert().isEqualTo(0)
     }
+
+    @Test
+    fun `an instance the map excludes is passed over by the import and the tail, and one it does not stops it`(): Unit =
+        runTest {
+            val first = NineXExample.stream("order-stream-v1.json")
+            val source = InMemoryNineXEventSource(listOf(copyOf(first, "order-1"), copyOf(first, "")))
+            val excluding = NineXExample.planExcluding(RefusedIds.EMPTY)
+            importer(source, plan = excluding).importAll(order).also {
+                it.instances.assert().isEqualTo(1)
+                it.imported.assert().isEqualTo(1)
+                it.excluded.assert().isEqualTo(1)
+                it.render().assert().contains("1 excluded")
+            }
+            source.add(copyOf(first, "", version = 2, createTime = first.createTime + 1))
+            importer(source, plan = excluding).tailOnce(order).also {
+                it.imported.assert().isEqualTo(0)
+                it.skipped.assert().isEqualTo(1)
+            }
+            // Without its entry, its first stream stops the import, naming the entry that excludes it.
+            assertThrows<MigrationException> { importer(source, ImportOptions(restart = true)).importAll(order) }
+                .message.assert().contains(
+                    "its aggregate id is empty, which V10 refuses; exclude it with {\"aggregate\": " +
+                        "\"example-service.order\", \"stream\": \"(empty)\", \"reason\": \"…\"}.",
+                )
+        }
 
     @Test
     fun `the tail skips with one log read an instance whose latest stream the log already holds`(): Unit = runTest {

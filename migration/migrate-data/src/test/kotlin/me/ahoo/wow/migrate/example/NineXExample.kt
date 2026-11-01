@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SystemCommands
+import me.ahoo.wow.migrate.Exclusion
 import me.ahoo.wow.migrate.MigrationMap
 import me.ahoo.wow.migrate.MigrationPlan
 import me.ahoo.wow.migrate.NineXSnapshot
@@ -161,6 +162,14 @@ internal object NineXExample {
     }
 
     val plan: MigrationPlan get() = MigrationPlan(map, manifest)
+
+    /** The example's plan, its map excluding the streams of the 9.x orders it names by [streams]. */
+    fun planExcluding(vararg streams: String): MigrationPlan {
+        val excluded = streams.map { stream ->
+            Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = stream)
+        }
+        return MigrationPlan(map.copy(excluded = excluded), manifest)
+    }
 
     private fun aggregate(name: String, commands: List<String>, events: List<EventManifest>) = AggregateManifest(
         name = name,
