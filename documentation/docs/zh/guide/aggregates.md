@@ -127,6 +127,8 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 返回 `Decision` 的函数没有告诉编译器它能产生哪些事件，所以要在 `@OnCommand(produces = [...])` 里列出它们。Manifest 会发布这份列表。返回类型本身已经指明事件的函数，例如返回某个事件类或它们的密封类型，不必重复列出。
 
+返回 `Decision`（或 `Any`、类型参数）且没有列出 `produces` 的函数可以编译，但会得到一条警告：它的事件不在 Manifest 中，所以内核无法拒绝它本不该产生的事件，客户端和对端也不知道它会提交什么。把这些事件列在 `produces` 里。只拒绝或什么都不改变的函数没有事件可列；在它上面写 `@Suppress("UnlistedEvents")` 表明这一点并消除警告。从库中继承的命令函数，在继承它的模块里不会被警告：由它的作者列出它产生的事件。
+
 返回类型是接口或抽象类、又不是密封的，会导致编译错误。这样的函数返回的是几个实现中的一个，而这个类型说不出是哪几个。改为把它们列出来：把这个类型改成以这些事件为子类的密封接口，直接返回事件类本身，或者返回 `Decision` 并写上 `produces`。元素类型（`List<OrderEvent>`）和密封类型的子类也适用同样的规则。
 
 聚合以根类名的 snake case 命名（`Order` 是 `order`，`ViewPreferences` 是 `view_preferences`），或者用 `@Name` 指定。

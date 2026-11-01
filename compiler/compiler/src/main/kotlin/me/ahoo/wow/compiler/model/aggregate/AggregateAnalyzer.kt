@@ -298,6 +298,17 @@ internal class AggregateAnalyzer(
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
         }
+        // Only where the function's source is compiled: its author is the one who can list them, and a library's
+        // `@Suppress` does not reach a subclass compiled against it.
+        if (open == null && returned == null && producesListed.isEmpty() && function.origin in SOURCE &&
+            !function.suppresses(UNLISTED_EVENTS)
+        ) {
+            warnings += "$name returns ${returnType?.render() ?: "a type"}, which names no event it produces, and " +
+                "lists none in @OnCommand(produces): the Manifest lists no event of it, so the kernel does not " +
+                "refuse an event it was not meant to produce. List the events it may produce in " +
+                "@OnCommand(produces = [...]); a function that only rejects or does nothing suppresses this with " +
+                "@Suppress(\"$UNLISTED_EVENTS\")"
+        }
         val creation = when {
             command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
             command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
@@ -480,6 +491,15 @@ internal class AggregateAnalyzer(
     private fun KSFunctionDeclaration.isAnnotatedOrOverrides(annotation: String): Boolean =
         generateSequence(this) { it.findOverridee() as? KSFunctionDeclaration }.any { it.hasAnnotation(annotation) }
 
+    /**
+     * Whether this function is annotated `@Suppress` naming [name]. The annotation is kept only in the source, which
+     * is what the processor reads.
+     */
+    private fun KSFunctionDeclaration.suppresses(name: String): Boolean = annotations.any { annotation ->
+        annotation.annotationType.resolve().declaration.qualifiedName?.asString() == SUPPRESS &&
+            annotation.arguments.any { argument -> (argument.value as? List<*>)?.contains(name) == true }
+    }
+
     /** The JVM binary name of this class: `a.b.Outer$Inner` for a nested class. */
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean = annotations.any {
         it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
@@ -491,5 +511,15 @@ internal class AggregateAnalyzer(
         const val ON_DELETED = "onDeleted"
         const val ON_COMMAND = "onCommand"
         const val AFTER_COMMAND = "afterCommand"
+        const val SUPPRESS = "kotlin.Suppress"
+
+        /** The origins of a declaration whose source this compilation reads. */
+        val SOURCE: Set<Origin> = setOf(Origin.KOTLIN, Origin.JAVA)
+
+        /**
+         * The name a command function suppresses the warning of a return type that names no event with, where it
+         * lists none in `@OnCommand(produces)` either: one that only rejects or does nothing.
+         */
+        const val UNLISTED_EVENTS = "UnlistedEvents"
     }
 }

@@ -127,6 +127,8 @@ The compiler finds every non-private function annotated `@OnCommand`, or named `
 
 A function that returns `Decision` does not tell the compiler which events it can produce, so it lists them in `@OnCommand(produces = [...])`. The Manifest publishes that list. A function whose return type already names its events, such as an event class or a sealed type of them, does not repeat them.
 
+A function that returns `Decision` (or `Any`, or a type parameter) and lists no `produces` compiles, with a warning: its events are not in the Manifest, so the kernel cannot refuse an event it was not meant to produce, and the clients and peers do not know what it commits. List them in `produces`. A function that only rejects or changes nothing has no event to list; `@Suppress("UnlistedEvents")` on it says so and silences the warning. A command function inherited from a library is not warned of in the module that subclasses it: its author lists what it produces.
+
 A return type that is an interface or abstract class, and not sealed, is a compile error. Such a function returns one of several implementations, and the type does not say which ones. List them instead: make the type a sealed interface whose subclasses are the events, return the event classes themselves, or return a `Decision` with `produces`. The same holds for an element type (`List<OrderEvent>`) and for a subclass of a sealed type.
 
 The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`.
