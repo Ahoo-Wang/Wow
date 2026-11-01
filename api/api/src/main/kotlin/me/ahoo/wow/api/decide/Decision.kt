@@ -141,13 +141,16 @@ class Rejection @InternalWowApi constructor(
     companion object {
 
         /**
-         * The rejection [code] with [message] and the structured [extensions]. [code] is not one of the framework's
-         * (`wow.*`): those carry the framework's meaning, such as an HTTP status and whether a client retries.
+         * The rejection [code] with [message] and the structured [extensions]. [code] is not blank and not one of the
+         * framework's (`wow.*`): those carry the framework's meaning, such as an HTTP status and whether a client
+         * retries. Either is a [Misuse] of this API, so a decide function that rejects with one fails its command
+         * (`wow.command.failed`) rather than being answered as a refusal.
          */
         @JvmStatic
         @JvmOverloads
         fun of(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Rejection {
-            require(!code.startsWith(FrameworkCodes.PREFIX)) {
+            requireUse(code.isNotBlank()) { "A rejection needs a code." }
+            requireUse(!code.startsWith(FrameworkCodes.PREFIX)) {
                 "The rejection code $code starts with ${FrameworkCodes.PREFIX}, which the framework reserves for its own codes: " +
                     "reject with a code of the aggregate."
             }
