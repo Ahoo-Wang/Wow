@@ -8,7 +8,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 - Events arrive as the upstream api's classes when their revision is the one its contract (in the api jar, `META-INF/wow/contract.json`) declares; otherwise as `PublishedEvent` (`name`, `revision`, JSON text). A typed handler is not called for a `PublishedEvent`: keep one that is, when the reaction must not miss a newer revision.
 - Nullable state (`StateEvent<View?>`) when the upstream publishes no state (`publishState = false`).
 - Needs `wow-kafka`, `wow.kafka.bootstrap-servers`, and the upstream's `*-api` module on the class path.
-- Start: from the beginning by default, so a new subscriber reads the history; one that must not act on history says `start = OnEvent.Start.END` (and the review checks one that must not miss history and starts at the end).
+- Start: a projection from the beginning, so a new subscriber reads the history; a reactor's or a saga's handler where the service joins the stream, from the beginning when no other subscription of the service has read it yet, else from the end, so a handler added later does not act on the history; one that must not act on history says `start = OnEvent.Start.END` (and the review checks one that must not miss history and starts at the end).
 
 ## Sending another context commands
 
@@ -18,7 +18,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 
 ## Calling another context synchronously
 
-When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@Sends(calls = [SubmitOrder::class])` on the handler; an undeclared call fails the handling as unrecoverable, and a rejection the handler lets through goes to the saga's `@OnRejected` handler of the called command. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when its context has no URL: `wow.peers.<context>.url` (or `wow.peers.<context>.url`). Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
+When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@Sends(calls = [SubmitOrder::class])` on the handler; an undeclared call fails the handling as unrecoverable, and a rejection the handler lets through goes to the saga's `@OnRejected` handler of the called command. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when the node's caller cannot reach its context: `wow.peers.<context>.url` sets the address, else `wow.peer.discovery` (DNS SRV records by default) finds its service. Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
 
 ## One tenant space
 

@@ -15,9 +15,9 @@ The job: serve and read the read side of a V10 service, and keep its contract (t
 
 ## Reading in Kotlin: `QueryApi`
 
-`QueryApi` (`me.ahoo.wow.api.read`, a bean of the host) runs the same admission, visibility, bulkhead and budget as the public port:
+`NodeQueryApi` (`me.ahoo.wow.api.read`, a bean of the host; its `QueryApi` part is what a client has) runs the same admission, visibility, bulkhead and budget as the public port:
 
-- `queryApi.of(caller)` reads within that caller's scope; `queryApi.trusted()` reads every tenant (trusted code only); `trusted().unbounded()` drops the budget, under `wow.query.unbounded-timeout`.
+- `queries.of(caller)` reads within that caller's scope; `queries.trusted()`, on `NodeQueryApi` alone, reads every tenant (trusted code only); `trusted().unbounded()` drops the budget, under `wow.query.unbounded-timeout`.
 - From a command function: a `QueryApi` or `NodeQueryApi` service of the model, read as the caller rebuilt from the command, or `trusted()` filtered by the command's tenant ([model.md](model.md), "A decide function that queries").
 - A subscription handler reads through its context's `queries`: the whole tenant of the commit it handles, as trusted code pinned to that tenant.
 - `snapshots<S>()` (or `snapshots(type)`), `events(type)`, `datasets<R>(name)`; each has `single`, `list` (a `Flow`), `stream`, `paged`, `cursor`, `count`, `aggregate`. A typed snapshot row reads the whole record; a query with a projection goes through `dynamic<T>()`.
@@ -31,7 +31,7 @@ Annotations of `wow-query-api` (`me.ahoo.wow.api.query.annotation`) on state fie
 
 - `@QueryIndex`: an index for filters and sorts that must stay index scans; the `ddl` of their store (`wow.ddl` by default) manages them at startup.
 - `@Sensitive`: masked in every result; its level decides whether a query may still compare the raw value.
-- `@QueryDecimal(scale)`, `@QueryDuration(unit)`, `@QueryTemporal`, `@QueryReference(aggregate)`: how consumers format, total and link a field; never inferred.
+- `@QueryDecimal(scale)`, `@QueryDuration(unit)`, `@QueryTemporal`, `@QueryReference(aggregateName, contextName)`, `@QueryMoney(currency | currencyField, scale)`: how consumers format, total and link a field; never inferred.
 - `@QueryAlias`: the field's earlier paths, so saved queries keep working after a rename.
 - `@Tags` on the state (`model.md`) feeds ABAC: `wow.query.abac.*` matches the caller's `abac.<key>` attributes against the aggregates' tags.
 
@@ -44,7 +44,7 @@ Annotations of `wow-query-api` (`me.ahoo.wow.api.query.annotation`) on state fie
   - state history: `GET /<ctx>/<agg>/{id}/state?version=` or `?at=`, and `GET …/{id}/state/trace`;
   - read your writes: `GET /<ctx>/<agg>/{id}/state?minVersion=<the command result's version>` (or `QueryApi` `state(id, minVersion)`): 409 `wow.query.min-version-not-reached` with the current `version` when it is not committed within the wait; paged totals are counted with their page (`wow.query.count-cache.paged-totals=false`), so they agree with the rows;
   - queries: `POST` and `GET` (the descriptor) of `/<ctx>/<agg>/{model}/query`, the model `snapshot` or `events` (one record per committed event stream, decision D235); the body's `kind` is `single`, `list`, `paged`, `cursor`, `count` or `aggregate`;
-  - snapshot rebuild: `POST /<ctx>/snapshot/<agg>/wow.snapshot.rebuild` (decision D172);
+  - snapshot rebuild: `POST /<ctx>/<agg>/wow.snapshot.rebuild` with `{"ids": [...]}` (decision D172), refused on the public port unless a command authorizer allows it;
   - datasets under `/wow/dataset`, the parked entries under `/wow/ops/parked` (`wow.http.ops.enabled`), the Manifest at `GET /wow/manifest`, the OpenAPI document at `GET /wow/openapi`.
 
 The body of a query names its operation in `kind`; relative-time operators without `zoneId` read days in UTC, never the server's zone. Capabilities are not in the Manifest: they depend on the backend, so the `GET` descriptor is their authority, and the same query can be admitted on MongoDB and refused on PostgreSQL. Over HTTP: lists and pages are bounded (`wow.query.budgets.http.*`), totals are `BOUNDED` (an exact total is refused unless `allow-exact-count`), and a store's query bulkhead answers 429 `wow.query.busy` with `Retry-After`. Cross-tenant queries are off unless `wow.query.allow-cross-tenant`, for a `crossScope` caller only, and audited.
