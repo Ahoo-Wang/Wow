@@ -192,6 +192,60 @@ class QueryPropertiesTest {
     }
 
     @Test
+    fun `an interface-typed property should name its getters' paths, as the schema does, other shapes none`() {
+        val labeled = SourceFile.kotlin(
+            "Shelf.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Stock(val by: Int)
+            data class Stocked(val by: Int)
+
+            interface Keyed {
+                val code: String
+                val key: String get() = "k-${'$'}code"
+            }
+            data class Label(override val code: String) : Keyed
+            sealed interface Mark
+            data class Dot(val size: Int) : Mark
+            abstract class Shape { val sides: Int = 0 }
+            class Square : Shape()
+            sealed class Kind { data object Plain : Kind() }
+
+            @AggregateRoot
+            class Shelf(private val state: ShelfState) {
+                fun onCommand(command: Stock): Stocked = Stocked(command.by)
+            }
+
+            class ShelfState {
+                var keyed: Keyed = Label("a")
+                var mark: Mark = Dot(1)
+                var shape: Shape = Square()
+                var kind: Kind = Kind.Plain
+                var at: java.time.Instant = java.time.Instant.EPOCH
+                var due: javax.xml.datatype.Duration? = null
+                fun onSourcing(event: Stocked) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", labeled)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.properties("sample.ShelfStateProperties").assert().isEqualTo(
+            linkedMapOf(
+                "STATE__KEYED" to "state.keyed",
+                "STATE__KEYED__CODE" to "state.keyed.code",
+                "STATE__KEYED__KEY" to "state.keyed.key",
+                "STATE__MARK" to "state.mark",
+                "STATE__SHAPE" to "state.shape",
+                "STATE__KIND" to "state.kind",
+                "STATE__AT" to "state.at",
+                "STATE__DUE" to "state.due",
+            ),
+        )
+    }
+
     /**
      * The generated object's own constants, in declaration order, as name to path; the snapshot's system fields are
      * those of the `SnapshotProperties` it extends.

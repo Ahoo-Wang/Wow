@@ -678,6 +678,41 @@ class SchemaIntrospectorTest {
             .isEqualTo(StateJson.fingerprint(LedgerState::class.java))
     }
 
+    /** A value's key, which its interface computes. */
+    interface Keyed {
+        val code: String
+
+        val key: String get() = "k-$code"
+    }
+
+    data class Label(override val code: String) : Keyed
+
+    class LabeledState(val id: String) : Keyed {
+        override val code: String = "s"
+        var label: Label = Label("a")
+        var keyed: Keyed = Label("b")
+    }
+
+    @Test
+    fun `a property an interface's default getter computes should be in the schema as Jackson writes it`() {
+        val completed = introspector.complete(stateFragment(LabeledState::class.java))
+        val written = StateJson.mapper.readTree(StateJson.mapper.writeValueAsString(LabeledState("l")))
+        fun propertiesOf(schema: Map<*, *>): Map<*, *> {
+            val target = (schema["\$ref"] as? String)?.let { completed.defs[it.substringAfterLast('/')] as Map<*, *> }
+            return (target ?: schema)["properties"] as Map<*, *>
+        }
+        // Of the state, of a class implementing the interface, and of a property the interface types: Jackson writes
+        // the default getter's property, and the schema holds it, read-only.
+        val state = propertiesOf(defOf(completed, LabeledState::class.java))
+        state.keys.assert().isEqualTo(written.propertyNames().asSequence().toSet())
+        listOf("label", "keyed").forEach { name ->
+            val value = propertiesOf(state[name] as Map<*, *>)
+            value.keys.assert().describedAs(name).isEqualTo(written.get(name).propertyNames().asSequence().toSet())
+            (value["key"] as Map<*, *>)["readOnly"].assert().describedAs(name).isEqualTo(true)
+        }
+        (state["key"] as Map<*, *>)["readOnly"].assert().isEqualTo(true)
+    }
+
     class RoutedState(val id: String) {
         var target: AggregateRef? = null
         var source: AggregateRef? = null

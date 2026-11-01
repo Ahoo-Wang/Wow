@@ -225,4 +225,62 @@ class KernelHooksTest {
         Kernel(InMemoryEventLog()).execute(sneaky, command(Open("me")))
             .assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }
+
+    /** [body] as a command to an instance of [model]. */
+    private fun commandOf(model: AggregateModel<*>, body: Any) =
+        Command("c-${++sequence}", "r-$sequence", model.type.ref("t", "x-1"), body)
+
+    /** A state whose `lateinit` property only the creation event's sourcing assigns, as a 9.x state's often is. */
+    class Late(val id: String) {
+        lateinit var by: String
+    }
+
+    @Test
+    fun `a fresh state with an unassigned lateinit should be created with purity verified, and checked after`() =
+        runTest {
+            val late = aggregate<Late>("test", "late") {
+                initial { Late(it.id) }
+                decide<Open>(Creation.REQUIRED) { _, command -> Decision.events(Opened(command.by)) }
+                decide<Touch> { _, command -> Decision.events(Touched(command.reason)) }
+                evolve<Opened> { by = it.by }
+                evolve<Touched> { }
+            }
+            val kernel = Kernel(InMemoryEventLog(), options = KernelOptions(verifyDecidePurity = true))
+            listOf(Open("me"), Touch("t")).forEach { body ->
+                val outcome = kernel.execute(late, commandOf(late, body))
+                outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            }
+            // Past version 0 it is written as any state is: one still unassigned fails.
+            val unassigned = aggregate<Late>("test", "late") {
+                initial { Late(it.id) }
+                decide<Open>(Creation.REQUIRED) { _, command -> Decision.events(Opened(command.by)) }
+                decide<Touch> { _, command -> Decision.events(Touched(command.reason)) }
+                evolve<Opened> { }
+                evolve<Touched> { }
+            }
+            val log = InMemoryEventLog()
+            val strict = Kernel(log, options = KernelOptions(verifyDecidePurity = true))
+            strict.execute(unassigned, commandOf(unassigned, Open("me")))
+            val touch = commandOf(unassigned, Touch("t"))
+            runCatching { strict.execute(unassigned, touch) }.exceptionOrNull().assert().isNotNull()
+        }
+
+    /** A fresh state Jackson cannot write for another reason than an unassigned `lateinit`. */
+    class Broken(val id: String) {
+        val total: Int get() = error("not computable")
+    }
+
+    @Test
+    fun `a fresh state that cannot be written for another reason should fail when purity is verified`() = runTest {
+        val broken = aggregate<Broken>("test", "broken") {
+            initial { Broken(it.id) }
+            decide<Open>(Creation.REQUIRED) { _, command -> Decision.events(Opened(command.by)) }
+            evolve<Opened> { }
+        }
+        val failure = runCatching {
+            Kernel(InMemoryEventLog(), options = KernelOptions(verifyDecidePurity = true))
+                .execute(broken, commandOf(broken, Open("me")))
+        }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.any { it.message == "not computable" }.assert().isTrue()
+    }
 }
