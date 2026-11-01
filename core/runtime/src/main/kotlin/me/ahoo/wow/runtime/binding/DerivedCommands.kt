@@ -253,12 +253,8 @@ internal class DerivedCommands(
         val violations: List<Violation> = emptyList(),
     ) {
         /** The error a wait at the saga's hop ends with. */
-        val error: ErrorInfo get() = rejection.toError().let { ErrorInfo(
-            it.code,
-            it.message,
-            violations,
-            it.extensions
-        ) }
+        val error: ErrorInfo
+            get() = ErrorInfo(rejection.code, rejection.message, violations, rejection.extensions)
 
         /** The rejection as the saga's `@OnRejected` handler takes it, from the saga's [execution] that derived it. */
         fun toReceipt(execution: ExecutionId): CommandReceipt.Rejected<Any> = CommandReceipt.Rejected(
