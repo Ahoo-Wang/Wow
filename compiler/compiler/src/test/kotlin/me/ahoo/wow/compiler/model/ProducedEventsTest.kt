@@ -128,6 +128,24 @@ class ProducedEventsTest {
     }
 
     @Test
+    fun `a suppression naming something else should still be warned of`() {
+        compiled(
+            "@Suppress(\"SomethingElse\") fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+        ).assert().contains("onCommand returns me.ahoo.wow.api.decide.Decision, which names no event it produces")
+    }
+
+    @Test
+    fun `a suppression should be found among other annotations and names`() {
+        // @OnCommand is no suppression, and UnlistedEvents is one of the names @Suppress holds.
+        compiled(
+            "@me.ahoo.wow.api.annotation.OnCommand @Suppress(\"SomethingElse\", \"UnlistedEvents\") " +
+                "fun onBump(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+        ).assert().doesNotContain("names no event it produces")
+    }
+
+    @Test
     fun `a command function inherited from a library should not be warned of`() {
         // Its author, not the subclass's, lists what it produces, and its @Suppress does not reach the subclass.
         val library = compileLibrary(
