@@ -27,7 +27,8 @@ import java.util.zip.ZipFile
 /**
  * The three plugins by role (decision D363 ①), built with Gradle TestKit: the quickstart's single module, which applies
  * `me.ahoo.wow.service` alone; a domain module whose api module does not declare it; the integration test suite; and
- * a domain, its api and its service under Gradle's isolated projects, since no plugin configures another project.
+ * a domain, its api and its service under Gradle's isolated projects, since no plugin configures another project; and
+ * the KSP tasks of every module, which run one at a time ([KspRuns]).
  */
 class PluginRolesFunctionalTest {
     private fun classpath(property: String): String =
@@ -283,6 +284,32 @@ class PluginRolesFunctionalTest {
             """,
         )
         module(root, "bank-server", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":bank-domain"))""")
+    }
+
+    @Test
+    fun `the KSP tasks of every module should run one at a time`(@TempDir root: File) {
+        settings(root, "bank", "bank-domain", "bank-server")
+        module(root, "bank-domain", WowPlugin.ID)
+        module(root, "bank-server", WowPlugin.SERVICE_ID, dependencies = """implementation(project(":bank-domain"))""")
+        // Which build service a task uses has no public getter: the task's own record of them is read.
+        val report = """
+            tasks.register("kspRuns") {
+                val runs = gradle.sharedServices.registrations.named("${KspRuns.NAME}")
+                val ksp = tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }
+                doLast {
+                    ksp.forEach { task ->
+                        val used = (task as org.gradle.api.internal.TaskInternal).requiredServices
+                            .isServiceRequired(runs.get().service)
+                        println("KSP-RUNS ${'$'}{task.path} ${'$'}used ${'$'}{runs.get().maxParallelUsages.get()}")
+                    }
+                }
+            }
+        """.trimIndent()
+        listOf("bank-domain", "bank-server").forEach { File(root, "$it/build.gradle.kts").appendText("\n$report\n") }
+        val output = runner(root, "kspRuns").build().output
+        listOf(":bank-domain", ":bank-server").forEach { module ->
+            output.assert().contains("KSP-RUNS $module:kspKotlin true 1", "KSP-RUNS $module:kspTestKotlin true 1")
+        }
     }
 
     @Test
