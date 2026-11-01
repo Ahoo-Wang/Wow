@@ -49,15 +49,27 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EshopOrderFlowTest {
     private val kafka = ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
-    private val postgres = PostgreSQLContainer("postgres:17-alpine").withDatabaseName(BASKET_DATABASE).also { it.start() }
+    private val postgres = PostgreSQLContainer(
+        "postgres:17-alpine"
+    ).withDatabaseName(BASKET_DATABASE).also { it.start() }
 
     init {
         listOf(ORDERING_DATABASE, INVENTORY_DATABASE).forEach { database ->
-            postgres.execInContainer("psql", "-U", postgres.username, "-d", BASKET_DATABASE, "-c", "CREATE DATABASE $database")
+            postgres.execInContainer(
+                "psql",
+                "-U",
+                postgres.username,
+                "-d",
+                BASKET_DATABASE,
+                "-c",
+                "CREATE DATABASE $database"
+            )
                 .exitCode.assert().isEqualTo(0)
         }
         // The node does not create topics; each command topic has as many partitions as its context's log.
-        Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)).use { admin ->
+        Admin.create(
+            mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+        ).use { admin ->
             admin.createTopics(
                 listOf(
                     NewTopic("wow.eshop-ordering.commands", PARTITIONS, 1),
@@ -104,37 +116,39 @@ class EshopOrderFlowTest {
         addItem("alice", "cap", CAP_PRICE, 1)
 
         // The wait follows the checkout into the ordering context: it answers once the order is committed there.
-        val checkedOut = checkout("alice", mapOf(WAIT to CHECKOUT_CHAIN, WAIT_TIMEOUT to "30s"))
+        val checkedOut = checkout("alice")
         checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("succeeded")
         checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
         checkedOut["hop"]["stage"].asString().assert().isEqualTo("committed")
-        checkedOut["ref"]["id"].asString().assert().isEqualTo("alice-1")
+        // The ordering numbered the order: the number is the order's id.
+        val number = checkedOut["ref"]["id"].asString()
+        number.assert().matches(ORDER_NUMBER.toPattern())
         basketItems("alice").assert().isEmpty()
 
-        eventually("alice-1 confirmed") { orderStatus("alice-1") == "STOCK_CONFIRMED" }
+        eventually("$number confirmed") { orderStatus(number) == "STOCK_CONFIRMED" }
         // The order belongs to its buyer (decision D189): the checkout saga's call carried the basket's scope.
-        val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
+        val view = json.readTree(ordering.get("/eshop-ordering/order/$number/state", buyer("alice")).body)
         view["ownerId"].asString().assert().isEqualTo("alice")
         // Another buyer does not see it: not found, as an order that does not exist (decision D254 ④).
-        val hidden = ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob"))
+        val hidden = ordering.get("/eshop-ordering/order/$number/state", buyer("bob"))
         hidden.status.assert().isEqualTo(NOT_FOUND)
         json.readTree(hidden.body)["code"].asString().assert().isEqualTo("wow.aggregate.not-found")
-        stock("mug")["reservations"]["alice-1"].asInt().assert().isEqualTo(2)
-        stock("cap")["reservations"]["alice-1"].asInt().assert().isEqualTo(1)
+        stock("mug")["reservations"][number].asInt().assert().isEqualTo(2)
+        stock("cap")["reservations"][number].asInt().assert().isEqualTo(1)
 
-        val paid = pay("alice-1", "29.00")
+        val paid = pay(number, "29.00")
         paid.status.assert().describedAs(paid.body).isEqualTo(OK)
-        ordering.post("/eshop-ordering/order/alice-1/ship-order", "{}").status.assert().isEqualTo(OK)
-        orderStatus("alice-1").assert().isEqualTo("SHIPPED")
+        ordering.post("/eshop-ordering/order/$number/ship-order", "{}").status.assert().isEqualTo(OK)
+        orderStatus(number).assert().isEqualTo("SHIPPED")
 
-        eventually("the reservations of alice-1 committed") {
-            stock("mug")["reservations"]["alice-1"] == null && stock("cap")["reservations"]["alice-1"] == null
+        eventually("the reservations of $number committed") {
+            stock("mug")["reservations"][number] == null && stock("cap")["reservations"][number] == null
         }
         stock("mug")["onHand"].asInt().assert().isEqualTo(8)
         stock("cap")["onHand"].asInt().assert().isEqualTo(4)
         // Long past its grace period, the paid order is still shipped: paying it cancelled the scheduled cancellation.
         Thread.sleep(GRACE.plusSeconds(2).toMillis())
-        orderStatus("alice-1").assert().isEqualTo("SHIPPED")
+        orderStatus(number).assert().isEqualTo("SHIPPED")
     }
 
     @Test
@@ -143,12 +157,12 @@ class EshopOrderFlowTest {
         receive("pad", 10)
         addItem("bob", "pad", PAD_PRICE, 1)
         addItem("bob", "pen", PEN_PRICE, 3)
-        checkout("bob")
+        val number = orderOf("bob")
 
-        eventually("bob-1 cancelled") { orderStatus("bob-1") == "CANCELLED" }
-        order("bob-1")["cancelReason"].asString().assert().contains("pen").contains("are available")
+        eventually("$number cancelled") { orderStatus(number) == "CANCELLED" }
+        order(number)["cancelReason"].asString().assert().contains("pen").contains("are available")
         // Whether the pad was reserved before the cancellation or not, the order holds none of it in the end.
-        eventually("the pad of bob-1 released") { stock("pad")["reservations"]["bob-1"] == null }
+        eventually("the pad of $number released") { stock("pad")["reservations"][number] == null }
         stock("pad")["available"].asInt().assert().isEqualTo(10)
         stock("pen")["available"].asInt().assert().isEqualTo(1)
     }
@@ -157,14 +171,14 @@ class EshopOrderFlowTest {
     fun `an order not paid within its grace period should cancel itself and release its stock`() {
         receive("hat", 4)
         addItem("carol", "hat", HAT_PRICE, 2)
-        checkout("carol")
-        eventually("carol-1 confirmed") { orderStatus("carol-1") == "STOCK_CONFIRMED" }
+        val number = orderOf("carol")
+        eventually("$number confirmed") { orderStatus(number) == "STOCK_CONFIRMED" }
         stock("hat")["available"].asInt().assert().isEqualTo(2)
 
-        eventually("carol-1 cancelled for want of payment") { orderStatus("carol-1") == "CANCELLED" }
-        order("carol-1")["cancelReason"].asString().assert().contains("payment grace period")
-        eventually("the hats of carol-1 released") { stock("hat")["available"].asInt() == 4 }
-        val late = pay("carol-1", "30.00")
+        eventually("$number cancelled for want of payment") { orderStatus(number) == "CANCELLED" }
+        order(number)["cancelReason"].asString().assert().contains("payment grace period")
+        eventually("the hats of $number released") { stock("hat")["available"].asInt() == 4 }
+        val late = pay(number, "30.00")
         late.status.assert().isEqualTo(CONFLICT)
         json.readTree(late.body)["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
@@ -183,11 +197,22 @@ class EshopOrderFlowTest {
         added.status.assert().describedAs(added.body).isEqualTo(OK)
     }
 
-    private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = basket.post("/eshop-basket/basket/checkout-basket", "{}", headers + buyer(buyer))
+    /**
+     * Checks [buyer]'s basket out, waiting for the order's commit in the ordering context: the answer is that commit's
+     * result, which names the order by its number.
+     */
+    private fun checkout(buyer: String): JsonNode {
+        val checkedOut = basket.post(
+            "/eshop-basket/basket/checkout-basket",
+            "{}",
+            mapOf(WAIT to CHECKOUT_CHAIN, WAIT_TIMEOUT to "30s") + buyer(buyer),
+        )
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }
+
+    /** Checks [buyer]'s basket out, and answers the number of the order it placed. */
+    private fun orderOf(buyer: String): String = checkout(buyer)["ref"]["id"].asString()
 
     /** The headers of the buyer [id]: the user, and the owner of what it creates. */
     private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
@@ -206,9 +231,13 @@ class EshopOrderFlowTest {
     private fun basketItems(buyer: String): List<JsonNode> =
         checkNotNull(basket.state("/eshop-basket/basket/$buyer/state"))["items"].values().toList()
 
-    private fun order(id: String): JsonNode = checkNotNull(ordering.state("/eshop-ordering/order/$id/state")) { "No order $id." }
+    private fun order(id: String): JsonNode = checkNotNull(ordering.state("/eshop-ordering/order/$id/state")) {
+        "No order $id."
+    }
 
-    private fun orderStatus(id: String): String? = ordering.state("/eshop-ordering/order/$id/state")?.get("status")?.asString()
+    private fun orderStatus(id: String): String? = ordering.state(
+        "/eshop-ordering/order/$id/state"
+    )?.get("status")?.asString()
 
     private fun stock(product: String): JsonNode =
         checkNotNull(inventory.state("/eshop-inventory/stock/$product/state")) { "No stock of $product." }

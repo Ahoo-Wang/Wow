@@ -40,7 +40,7 @@ submitted.ref.assert().isEqualTo(ref)
 | 异常 | 何时 | 重试 |
 | --- | --- | --- |
 | `CommandRejectedException` | 聚合拒绝了命令，或者准入拒绝了它（未知、格式错误或无效的命令，被禁止的调用方）。`code` 是错误码 | 否：同一个请求会再次被拒绝 |
-| `WowProblemException` | 技术故障：节点繁忙或正在关闭、存储或 broker 不可用、等待超时。`code` 和 `status` 说明是哪一种 | 按它的 `retryHint`：是否重试、是否用同一个请求 ID，以及多久之后 |
+| `WowProblemException` | 技术故障：节点繁忙或正在关闭、存储或 broker 不可用、等待超时。`code` 和 `status` 说明是哪一种 | 按它的 `retry` 和 `retryAfter`：是否重试、是否用同一个请求 ID，以及多久之后 |
 
 `stream` 发出每个结果，无论状态如何。按错误码捕获拒绝的例子，见[拒绝与错误码](./rejections#what-the-caller-receives)。
 

@@ -55,8 +55,8 @@ import tools.jackson.databind.node.ObjectNode
  *   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id", "tags": { "region": "region" } },
  *   "storage": { "table": "db.shop_order_state_flat" },
  *   "fields": {
- *     "id": { "types": ["STRING"], "nullable": false },
- *     "phone": { "types": ["STRING"], "sensitive": { "level": "CONFIDENTIAL", "keepSuffix": 4 } }
+ *     "id": { "types": ["string"], "nullable": false },
+ *     "phone": { "types": ["string"], "sensitive": { "level": "confidential", "keepSuffix": 4 } }
  *   }
  * }
  * ```

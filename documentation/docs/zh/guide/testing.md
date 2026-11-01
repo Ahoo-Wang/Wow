@@ -61,7 +61,7 @@ class AccountSpec {
 }
 ```
 
-`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是 `tenant` 中的 `aggregate-1`）。
+`accountModel()` 是编译器为 `Account` 聚合生成的模型工厂。工厂接收上下文的名字（默认为模块所在的上下文），以及命令函数需要的领域服务；传入它们的桩。`aggregateSpec` 运行一个聚合，即 `tenantId` 中的 `id`（默认是默认租户 `(0)` 中的 `aggregate-1`；给了 `caller` 时是它的租户）。
 
 ### 准备与执行 {#arrange-and-act}
 
@@ -100,7 +100,7 @@ class AccountSpec {
 | `expectState { … }` | 块中的检查在命令之后的状态上成立。 |
 | `expectState(expected)` | 命令之后的状态逐字段等于 `expected`；不一致时列出每一处差异。 |
 | `expectResult(key, value)`、`results` | 命令已提交，且决定函数为调用方放入了这个值（`putResult`）；`results` 读取全部结果，命令什么都没提交时读取它会失败，因为只有已提交的命令才带着结果回答。 |
-| `expectScope(scope)`、`expectTags(tags)` | 命令之后，聚合处于这个作用域，或者恰好带有这些标签。 |
+| `expectScope(scope)`、`expectTags(tags)` | 命令提交的事件流使聚合处于这个作用域（没有提交的命令会使它失败），或者命令之后聚合恰好带有这些标签。 |
 | `expectScheduled(key, command, rule)`、`expectScheduleCancelled(key)` | 在 `key` 下定时了这条命令，或取消了这个定时。 |
 | `fork(name) { … }`、`fork(name, model) { … }` | 从这条命令的结果分叉（[测试树](#a-tree-of-tests)）。 |
 
@@ -250,7 +250,7 @@ cron 规则像运行时那样逐个时间槽推进：一次越过多个时间槽
 
 处理器通过编译器为它生成的处理函数来测试：对每个 `@Saga`、`@Projection` 或 `@Reactor` 类，在它的包里有一个函数 `<processor>Handlers(services…)`。它只构建这一个处理器，使用测试传入的服务（`orderSummaryProjectionHandlers(summaries = …)`；不需要服务的处理器什么也不传）。
 
-`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交，都提交于 2026-01-01T00:00:00Z。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。对端的状态是它 api 生成的视图（`OrderStateView`），模块里没有模型来溯源它，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建：
+`sagaSpec` 像订阅那样，把一次提交交给读取它的 Saga 处理函数，并检查它们发出的命令。`givenAggregate(model, id, vararg history)` 给出聚合：由它的模型从历史推出状态和版本，每个事件一次提交，都提交于 2026-01-01T00:00:00Z。`whenEvent(events, by = Command::class)` 交出它的下一次提交，命令类型按模型的命名。对端的状态是它 api 生成的视图（`OrderStateView`），模块里没有模型来溯源它，仍用 `stateEvent(ref, state, vararg events, version, …)` 手工构建，`OrderPaymentSagaTest` 就是这样做的。订单流程的测试给出模块自己的订单：
 
 <!-- sample: examples/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSagaTest.kt#saga -->
 
@@ -356,7 +356,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 - 其他失败要先分类：先看处理函数的 `@Retry(recoverable, unrecoverable)`，再看类路径上各模块的失败分类器，最后是内置规则（[失败如何分类](./failures#how-a-failure-is-classified)）。不可恢复的失败立即停放；宕机或施加背压的下游会重试，且不消耗预算；其余失败会一直重试，直到这次处理用完 `@Retry(maxAttempts)`，默认是 5 次。
 - 运行时间超过 `@Retry(timeout)` 的处理会被取消，算作一次失败的尝试。这个时间是真实时间，不是规格的时钟。
 
-`expectRetried(attempt)` 在运行时会于这次尝试之后重试处理时通过，默认是第一次尝试；`expectParked(attempt)` 在运行时会于那时停放它时通过。两者都返回抛出的异常。规格不等待尝试之间的退避，也不使用停放后的重试和应用自己的 `FailureClassifier` Bean：在分类器旁边测试它们。[测试失败](./failures#test-it)给出了一个先重试、再停放的反应器。
+`expectRetried(attempt)` 在运行时会于这次尝试之后重试处理时通过，默认是第一次尝试；`expectParked(attempt)` 在运行时会于那时停放它时通过。两者都返回抛出的异常。规格不等待尝试之间的退避，也不使用停放后的重试和应用自己的 `FailureClassifier` Bean：在分类器旁边测试它们。[测试失败](./failures#test-it)给出了一个先被重试、再收到同一次提交的反应器。
 
 ### Saga 的断言 {#saga-expectations}
 
@@ -378,13 +378,13 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 
 ### 对端状态与发布的事件流 {#peer-states-and-published-streams}
 
-对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像第一个 Saga 样例那样。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
+对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像 `OrderPaymentSagaTest` 那样。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
 
 ## 投影与反应器 {#projections-and-reactors}
 
 投影或反应器写入一个端口，例如仓储或邮件服务，测试为它提供假实现。把假实现传给处理器生成的处理函数，用 `whenEvent` 喂给它们提交，然后检查假实现里有什么。`projectionSpec` 和 `reactorSpec` 的步骤与 `sagaSpec` 相同，断言只有适用于它们的那些：`expectHandledBy`、`expectError`、`expectNoError`、`expectRetried` 和 `expectParked`。
 
-订阅对每次提交至少投递一次，另一个分区的提交也可能在较新的提交之后才到达。`whenRedelivered()` 把最近一次提交再交一次，用来测试处理函数是否幂等；`whenDeliveredLate(version)` 在较新的提交之后交出一次较旧的提交，用来测试读模型是否保留最新的版本。[测试投影](./projections#test-them)给出了两者。
+订阅对每次提交至少投递一次，另一个分区的提交也可能在较新的提交之后才到达。`whenRedelivered()` 把最近一次提交再交一次，用来测试处理函数是否幂等；`whenDeliveredLate(version)` 在较新的提交之后交出一次较旧的提交，用来测试读模型是否保留最新的版本。[测试投影](./projections#test-them)给出了 `whenRedelivered`。
 
 ## 定时任务 {#scheduled-jobs}
 
@@ -393,12 +393,12 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec(handlers, start)` 测试，
 | 步骤 | 作用 |
 | --- | --- |
 | `enable(job, tenantId, rule)`、`reschedule(job, tenantId, rule)`、`disable(job, tenantId)` | 按默认规则或另一条规则启用任务的一个实例，就像 `wow.schedule.Enable` 那样；覆盖它的规则；停用它。`SHARDED` 任务的实例还要给出它的 `partition`。 |
-| `advanceTime(duration) { … }` | 推进时间：每个实例运行那时到期的时间槽，它的任务的处理函数收到每次触发。块用 Saga 的断言，一起检查处理函数对所有触发做了什么；没有到期的时间槽时块会失败；没有块时什么都不检查。 |
+| `advanceTime(duration) { … }` | 推进时间：每个实例运行那时到期的时间槽，它的任务的处理函数收到每次触发。块用 Saga 的断言，一起检查处理函数对所有触发做了什么；没有到期的时间槽时块会失败；没有块时，只有处理函数或任务命令抛出异常才会失败。 |
 | `whenTick(tick) { … }` | 不经任务聚合，直接把一次触发交给它的任务的处理函数。 |
 | `ticks`、`now`、`instanceOf(job, tenantId)` | 至今交出的触发、当前时间，以及一个实例的状态。 |
 | `answerCalls { … }`、`givenQueries(queries)` | 与 Saga 规格中相同。 |
 
-一次越过多个时间槽时只运行最近的那个，其余的计入触发的 `skipped`，除非任务的规则要求补跑。失败的触发按它的任务的 `@Retry` 重试或停放，见[失败、重试与停放](#failures-retries-and-parking)。`scheduleSpecTests` 让每个带检查的 `advanceTime` 和每个 `whenTick` 各成为一个测试。[测试定时任务](./scheduling#test-it)给出了一个任务的触发与错过的早晨。
+一次越过多个时间槽时只运行最近的那个，其余的计入触发的 `skipped`，除非任务的规则要求补跑。失败的触发按它的任务的 `@Retry` 重试或停放，见[失败、重试与停放](#failures-retries-and-parking)。`scheduleSpecTests` 让每个带检查的 `advanceTime` 和每个 `whenTick` 各成为一个测试。[测试定时任务](./scheduling#test-it)给出了一个任务早晨的触发。
 
 ## 编译器生成了什么 {#what-the-compiler-generated}
 

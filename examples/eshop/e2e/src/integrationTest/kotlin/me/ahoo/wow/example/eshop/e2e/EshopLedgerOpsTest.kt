@@ -53,10 +53,20 @@ class EshopLedgerOpsTest {
 
     init {
         listOf(INVENTORY_DATABASE, PAYMENT_DATABASE, OPS_DATABASE).forEach { database ->
-            postgres.execInContainer("psql", "-U", postgres.username, "-d", ORDERING_DATABASE, "-c", "CREATE DATABASE $database")
+            postgres.execInContainer(
+                "psql",
+                "-U",
+                postgres.username,
+                "-d",
+                ORDERING_DATABASE,
+                "-c",
+                "CREATE DATABASE $database"
+            )
                 .exitCode.assert().isEqualTo(0)
         }
-        Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)).use { admin ->
+        Admin.create(
+            mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers)
+        ).use { admin ->
             admin.createTopics(
                 listOf(
                     NewTopic("wow.eshop-ordering.commands", PARTITIONS, 1),
@@ -142,7 +152,9 @@ class EshopLedgerOpsTest {
         outage.delete()
         val retried = ops.post("/ops/parked/$id/retry", """{"reason":"The gateway is back."}""", OPERATOR)
         retried.status.assert().describedAs(retried.body).isEqualTo(OK)
-        eventually("the entry resolved in the ops view") { opsState(id)?.get("status")?.asString() == ParkedStatus.RESOLVED }
+        eventually(
+            "the entry resolved in the ops view"
+        ) { opsState(id)?.get("status")?.asString() == ParkedStatus.RESOLVED }
         opsState(id)!!["outcome"].asString().assert().isEqualTo("retried")
         listed(exhausted).assert().isEmpty()
         eventually("carol-1 paid") { orderStatus("carol-1") == "PAID" }

@@ -169,7 +169,7 @@ class ScheduleSpec internal constructor(
     /**
      * Moves the time on by [duration]: each instance runs the slots then due, and the handlers of its job get each
      * tick, in order. [expect] checks what the handlers did with all of them together, and fails when no slot was
-     * due; without it, nothing is checked.
+     * due; without it, the step fails only when a handler or a job's command throws.
      */
     fun advanceTime(duration: Duration, expect: (ProcessorExpectations.() -> Unit)? = null) {
         if (expect == null) {

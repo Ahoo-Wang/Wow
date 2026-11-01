@@ -10,7 +10,7 @@ The Wow compiler reads Java sources as it reads Kotlin: the same annotations, th
 
 ## Set up the module
 
-A Java domain module applies the Kotlin JVM plugin, `kotlin("jvm")`, and the Gradle plugin `me.ahoo.wow`, as a Kotlin one does: KSP processes the module's Java sources within the Kotlin compilation, and the models it generates are Kotlin. The plugin fails to configure a module without the Kotlin JVM plugin, naming the fix. The smoke test, a project of Wow's own build, applies KSP and the compiler by hand instead.
+A Java domain module applies the Kotlin JVM plugin, `kotlin("jvm")`, and the Gradle plugin `me.ahoo.wow`, as a Kotlin one does: KSP processes the module's Java sources within the Kotlin compilation, and the models it generates are Kotlin. The plugin fails to configure a module without the Kotlin JVM plugin, naming the fix. The smoke test, a project of Wow's own build, applies them the same way.
 
 ## Commands and events
 

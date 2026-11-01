@@ -51,10 +51,15 @@ function basket(
   ]);
 }
 
+/** The number the ordering gives the order. */
+const ORDER = "SO-261031-1";
+
+/** The results of the first `count` hops of the chain: the ordering's act on the order, numbered [ORDER]. */
 function hops(count: number) {
   return CHECKOUT_TO_PAID.slice(0, count).map((step, index) =>
     result({
       context: step.hop.context ?? "eshop-basket",
+      ...(step.hop.context === "eshop-ordering" ? { aggregate: "order", id: ORDER } : {}),
       hop: step.hop,
       function: {
         kind: FunctionKind.SAGA,
@@ -62,7 +67,6 @@ function hops(count: number) {
         processor: "saga",
         name: `Step${index}`,
       },
-      results: index === 0 ? { orderId: "alice-1" } : {},
     }),
   );
 }
@@ -115,9 +119,9 @@ describe("the basket", () => {
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     const status = await screen.findByText(/Paid:/);
-    expect(within(status).getByRole("link", { name: "alice-1" })).toHaveAttribute(
+    expect(within(status).getByRole("link", { name: ORDER })).toHaveAttribute(
       "href",
-      "/orders/alice-1",
+      `/orders/${ORDER}`,
     );
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps).toHaveLength(15);
@@ -159,8 +163,9 @@ describe("the basket", () => {
   });
 
   it("groups a basket of two products' results by hop and function, not by their place in the stream (UI-45)", async () => {
-    // What the services streamed for alice-4 in a local run: 19 results for 15
-    // hops, since the order reserves, and confirms, each of its two products.
+    // What the services streamed for alice's order of a mug and a cap in a
+    // local run (EshopLocal): 19 results for 15 hops, since the order
+    // reserves, and confirms, each of its two products.
     const { transport } = basket(() => ({ stream: checkoutTwoProducts }));
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
@@ -200,6 +205,8 @@ describe("the basket", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(await screen.findByText(/Paid:/)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The order by the number the ordering gave it, which the order's hops name.
+    expect(screen.getByRole("link", { name: ORDER })).toHaveAttribute("href", `/orders/${ORDER}`);
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps.map((step) => step.dataset.state)).toEqual(Array(15).fill("reached"));
     expect(within(steps[14]).getByText("PayOrder")).toBeInTheDocument();
@@ -236,7 +243,7 @@ describe("the basket", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(
       await screen.findByText("The payment was declined, and order", { exact: false }),
-    ).toHaveTextContent("The payment was declined, and order alice-1 was cancelled.");
+    ).toHaveTextContent(`The payment was declined, and order ${ORDER} was cancelled.`);
     expect(
       screen.getByText(
         /The chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order: Step13 sent no further command/,
@@ -244,7 +251,7 @@ describe("the basket", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/committed\(eshop-ordering\) will not come/)).toBeInTheDocument();
     expect(screen.queryByText(/Paid:/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "alice-1" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: ORDER })).toBeInTheDocument();
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps[13].dataset.state).toBe("reached");
     expect(steps[14].dataset.state).toBe("not-reached");
@@ -261,10 +268,27 @@ describe("the basket", () => {
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(await screen.findByText("eshop-ordering.order.empty")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Order alice-1 was cancelled.");
+    // The ordering refused the order itself: no order was created, so none is numbered or named.
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     const steps = screen.getAllByTestId("checkout-hop");
     expect(steps[2].dataset.state).toBe("failed");
     expect(steps[3].dataset.state).toBe("not-reached");
+  });
+
+  it("names the order that a rejected reservation cancels, by its number", async () => {
+    const rejected = result({
+      context: "eshop-inventory",
+      aggregate: "stock",
+      hop: CHECKOUT_TO_PAID[6].hop,
+      status: CommandResultStatus.REJECTED,
+      error: { code: "eshop-inventory.stock.insufficient", message: "Short" },
+    });
+    const { transport } = basket(() => ({ events: [...hops(6), rejected] }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(await screen.findByText("eshop-inventory.stock.insufficient")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(`Order ${ORDER} was cancelled.`);
+    expect(screen.getAllByTestId("checkout-hop")[6].dataset.state).toBe("failed");
   });
 
   it("shows the problem of a checkout refused at admission", async () => {

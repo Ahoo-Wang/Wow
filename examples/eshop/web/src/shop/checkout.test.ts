@@ -41,15 +41,17 @@ const README_CHAIN =
   " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)" +
   " > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)";
 
+/** The number the ordering gives the order. */
+const ORDER = "SO-261031-1";
+
 /** The results of the first `count` hops of the chain, the basket's first. */
 function hops(count: number) {
   return CHECKOUT_TO_PAID.slice(0, count).map((step, index) =>
     result({
       context: step.hop.context ?? "eshop-basket",
       aggregate: index < 2 ? "basket" : "order",
-      id: index < 2 ? "alice" : "alice-1",
+      id: index < 2 ? "alice" : ORDER,
       hop: step.hop,
-      results: index === 0 ? { orderId: "alice-1" } : {},
     }),
   );
 }
@@ -77,7 +79,7 @@ describe("the checkout", () => {
     expect(received[0].headers["wow-wait-timeout"]).toBe("30s");
     expect(received[0].headers.accept).toBe("text/event-stream");
     expect(received[0].headers["wow-user"]).toBe("alice");
-    expect(progress).toMatchObject({ orderId: "alice-1", done: true });
+    expect(progress).toMatchObject({ orderId: ORDER, done: true });
     expect(progress.results).toHaveLength(15);
     expect(progress.failure).toBeUndefined();
     expect(seen.map((p) => p.results.length)).toEqual([
@@ -146,7 +148,7 @@ describe("the checkout", () => {
   });
 
   it("groups the results by hop and function, so a basket of two products reaches each hop once (UI-45)", () => {
-    const at = (step: number, name: string, id = "alice-1") =>
+    const at = (step: number, name: string, id = ORDER) =>
       result({
         context: CHECKOUT_TO_PAID[step].hop.context ?? "eshop-basket",
         aggregate: "order",
@@ -179,11 +181,11 @@ describe("the checkout", () => {
     expect(resultsByStep([at(14, "Unknown")]).findIndex((step) => step.length > 0)).toBe(2);
   });
 
-  it("reads the order id from a result, or from an order's hop", () => {
-    expect(orderIdOf(result({ results: { orderId: "bob-2" } }))).toBe("bob-2");
+  it("reads the order's number from a hop of the order, and none from the basket's", () => {
     expect(
-      orderIdOf(result({ context: "eshop-ordering", aggregate: "order", id: "bob-3" })),
-    ).toBe("bob-3");
+      orderIdOf(result({ context: "eshop-ordering", aggregate: "order", id: "SO-261031-3" })),
+    ).toBe("SO-261031-3");
+    expect(orderIdOf(result({ context: "eshop-basket", aggregate: "basket", id: "bob" }))).toBeUndefined();
     expect(orderIdOf(result())).toBeUndefined();
   });
 });

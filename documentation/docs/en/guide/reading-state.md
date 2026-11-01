@@ -30,7 +30,7 @@ The latest state is the snapshot, or, before the aggregate's first snapshot, its
 A state is read as its caller sees it:
 
 - The tenant is the caller's, or the one `Wow-Scope` names for a caller allowed to act across scopes.
-- A state outside the caller's owner or space, or one the snapshot queries' policies hide from the caller, answers `404 wow.aggregate.not-found`, exactly as a missing state does. Only the audit learns why. The caller's owner is not checked for an aggregate that belongs to its tenant.
+- A state outside the caller's scope, or one the snapshot queries' policies hide from the caller (attribute-based access included, when it is on), answers `404 wow.aggregate.not-found`, exactly as a missing state does. Only the audit learns why. The scope is the caller's owner and space for an aggregate of `Ownership.OWNER`, and its space alone for one that belongs to its tenant ([Who reads it](./ownership#who-reads-it)). A policy that refuses the caller outright, such as a role check, answers `403 wow.auth.forbidden` instead.
 - Every state, and every event of a trace, is masked as the snapshot queries mask it.
 
 ## Cache with ETags
@@ -78,8 +78,8 @@ basket.bean<QueryApi>().of(bob).snapshots<OrderStateView>().state("client-alice-
 - `snapshots<OrderStateView>()` reads another context's aggregate, its state decoded as the view its api generates (`<State>View`, the state's fields; free-shape content an `ObjectNode`); `snapshots<ProductState>()` reads a type of this service, its state decoded as the class. `snapshots(type)` reads a type by its name, its state as JSON.
 - A typed read reads whole states. A query that projects fields reads its rows through `dynamic<ObjectNode>()` (or a `Map`, or a class of the projected fields): a projection leaves out fields the view requires.
 - `state(id)` answers `null` for a state the caller may not see, alike to a missing one. `state(id, minVersion)` reads your own write, and throws `MinVersionNotReachedException` when the version is not reached in time.
-- `trusted()` reads as trusted code: no tenant, owner or space restricts it. Use it for system jobs, never for a request that has a caller.
+- `trusted()` reads as trusted code: no tenant, owner or space restricts it, and no policy that reads the caller, such as a role check, applies. Use it for system jobs, never for a request that has a caller.
 - A peer listed under `wow.peers` is read over HTTP with the same calls ([Call Other Services](./calling-services#configure-a-peer-over-http)).
-- In a saga, a projection or a reactor, `context.queries` reads the whole tenant of the commit being handled.
+- In a saga, a projection or a reactor, `context.queries` reads the whole tenant of the commit being handled: no owner, space, attribute or role restricts it.
 
 The same `QueryApi` runs the snapshot queries: [Query Snapshots](./queries).

@@ -135,6 +135,12 @@ class SoakDatabase(private val connection: Connection, val context: String) {
             row.getString(1) to json.readTree(row.getString(2))
         }.toMap()
 
+    /** The owner (`owner_id`) of each aggregate of [table]'s snapshots, by id: an order's buyer. */
+    fun snapshotOwners(table: String): Map<String, String?> =
+        query("SELECT aggregate_id, owner_id FROM \"${table.replaceFirst("wow_log__", "wow_snapshot__")}\"") { row ->
+            row.getString(1) to row.getString(2)
+        }.toMap()
+
     /** Every commit of [table], by aggregate in version order. */
     fun commits(table: String): Map<String, List<Commit>> = query(
         "SELECT aggregate_id, version, request_id, events FROM \"$table\" ORDER BY aggregate_id, version",

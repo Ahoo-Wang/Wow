@@ -82,10 +82,11 @@ Each `row` event's `id` is its position. A stream ends with `{"reason":"complete
 
 A query is admitted as its caller:
 
-- The caller's tenant, owner and space are added to every query. A tenant-level caller, without an owner, sees every aggregate of its tenant; an aggregate that belongs to its tenant (`Ownership.TENANT`) is not restricted by owner.
-- With attribute-based access on, the caller's attributes are matched against each aggregate's tags.
+- The caller's tenant is added to every query, and so are its owner and space where it has them: the owner on an aggregate of `Ownership.OWNER`, the space on every aggregate. A tenant-level caller, without an owner, sees every aggregate of its tenant within its space; an aggregate that belongs to its tenant (`Ownership.TENANT`) is seen by every caller of the tenant within its space, owner-level ones included ([Who reads it](./ownership#who-reads-it)).
+- With attribute-based access on (`wow.query.abac.enabled`), the caller's attributes are matched against each aggregate's tags, whatever its ownership.
+- The service's own query policies (`QueryPolicy` beans) run after these. They may narrow the rows or refuse the caller, which is how a service keeps an aggregate of its tenant to some roles ([Authorize reads](../operate/security#authorize-reads)).
 - Deleted aggregates are left out unless the query names their deletion state, `deletion(DeletionState.ALL)` or `deleted`.
-- A query that is refused answers `400 wow.query.invalid`, its violations naming each rule it broke; a `single` that matches nothing `404 wow.query.not-found`.
+- A query the read side refuses answers `400 wow.query.invalid`, its violations naming each rule it broke; a caller a role policy refuses, or one that names a `Wow-Scope` it may not, `403 wow.auth.forbidden`; a `single` that matches nothing `404 wow.query.not-found`.
 
 ## Bounds
 

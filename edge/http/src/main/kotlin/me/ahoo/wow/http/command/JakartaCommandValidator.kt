@@ -25,8 +25,8 @@ import me.ahoo.wow.runtime.admission.CommandValidator
  * The Jakarta Bean Validation adapter of [CommandValidator]: the command body's constraints, checked
  * by [validator], become the [Violation]s of `wow.command.invalid` (400).
  *
- * A violation's path is the property path (`items[0].quantity`, empty for the body itself), its code the simple name
- * of the constraint annotation (`NotBlank`, `Min`), its message the interpolated one.
+ * A violation's path is the property path (`items[0].quantity`, empty for the body itself), its code the constraint
+ * annotation's name on the wire (`not-blank`, `min`), its message the interpolated one.
  *
  * `jakarta.validation-api` is a compile-only dependency of this module: the host constructs this validator only when
  * the application provides a [Validator] (a Bean Validation provider on its classpath).

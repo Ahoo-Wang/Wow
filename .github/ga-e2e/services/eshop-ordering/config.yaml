@@ -21,6 +21,9 @@ data:
   WOW_CLICKHOUSE_USERNAME: wow
   WOW_CLICKHOUSE_PASSWORD: wow
   SPRING_PROFILES_ACTIVE: mongo,kafka,clickhouse,cosec
+  # The order numbers' ranges are in the service's own database (deploy/eshop-ordering/configmap.yaml): the scaling
+  # scenario's 2→3→2 replicas need no machine slot or other setting, and the verdict holds every order's number to its
+  # shape and to one order (orders.numbered).
   # eshop.ordering.payment-grace-period (30m in the image): the grace-period scenario waits it out.
   ESHOP_ORDERING_PAYMENTGRACEPERIOD: 120s
   # The OpenTelemetry Java agent (F6, kustomization.yaml) with no collector: Micrometer's meters, Wow's among them,

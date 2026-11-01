@@ -55,6 +55,11 @@ class GaE2eTest {
     private val backend = System.getProperty("ga.backend", "postgres")
     private val report = ClusterReport(File(System.getProperty("ga.report", "build/ga-e2e")), backend)
     private val kube = Kube { println("[ga-e2e] $it") }
+
+    /** The number of alice's paid order, which the security scenario reads as mallory. */
+    @Volatile
+    private var aliceOrder = "SO-000000-0"
+
     private val flows = ShopFlows(
         Shop(
             System.getProperty("ga.gateway", "http://localhost:30080"),
@@ -153,12 +158,14 @@ class GaE2eTest {
         result["hop"]["stage"].asString().assert().isEqualTo("committed")
         result["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
         result["function"]["name"].asString().assert().isEqualTo("PayOrder")
-        flows.eventually("alice-1 paid") { flows.orderStatus("alice-1") == "PAID" }
-        flows.ship("alice-1")
-        flows.eventually("the reservations of alice-1 committed") {
-            flows.stock("mug")["reservations"]["alice-1"] == null && flows.stock("cap")["reservations"]["alice-1"] == null
+        val number = flows.numberOf(result)
+        aliceOrder = number
+        flows.eventually("$number paid") { flows.orderStatus(number) == "PAID" }
+        flows.ship(number)
+        flows.eventually("the reservations of $number committed") {
+            flows.stock("mug")["reservations"][number] == null && flows.stock("cap")["reservations"][number] == null
         }
-        val events = flows.trace("/eshop-ordering/order/alice-1").flatMap { it.events }
+        val events = flows.trace("/eshop-ordering/order/$number").flatMap { it.events }
         events.assert().containsExactly(
             "OrderSubmitted",
             "OrderAwaitingValidation",
@@ -170,7 +177,7 @@ class GaE2eTest {
             "ScheduleCancelled",
             "OrderShipped",
         )
-        "alice-1 paid in one Wow-Wait of 15 hops and shipped: ${events.joinToString(", ")}"
+        "$number paid in one Wow-Wait of 15 hops and shipped: ${events.joinToString(", ")}"
     }
 
     @Test
@@ -184,9 +191,11 @@ class GaE2eTest {
         ended["status"].asString().assert().describedAs(ended.toString()).isEqualTo("succeeded")
         ended["hop"]["subscription"].asString().assert().isEqualTo("OrderPaymentSaga.onPaymentSucceeded")
         ended["chainEnded"].asBoolean().assert().isTrue()
-        flows.eventually("erin-1 cancelled") { flows.orderStatus("erin-1") == "CANCELLED" }
-        checkNotNull(flows.payment("erin-1"))["status"].asString().assert().isEqualTo("FAILED")
-        "erin-1 declined over the gateway's limit: the wait ended at the payment saga, the order cancelled"
+        // The payment saga's hop names the payment, whose id is its order's number.
+        val number = flows.numberOf(ended)
+        flows.eventually("$number cancelled") { flows.orderStatus(number) == "CANCELLED" }
+        checkNotNull(flows.payment(number))["status"].asString().assert().isEqualTo("FAILED")
+        "$number declined over the gateway's limit: the wait ended at the payment saga, the order cancelled"
     }
 
     @Test
@@ -197,16 +206,16 @@ class GaE2eTest {
     ) {
         flows.addItem("bob", "pad", flows.price("pad"), 1)
         flows.addItem("bob", "pen", flows.price("pen"), 3)
-        flows.checkout("bob").status.assert().isEqualTo(ShopFlows.OK)
-        flows.eventually("bob-1 cancelled") { flows.orderStatus("bob-1") == "CANCELLED" }
-        checkNotNull(flows.order("bob-1"))["cancelReason"].asString().assert().contains("pen")
-        // The compensation: the pad reserved for bob-1 is released.
+        val number = flows.numberOf(flows.checkoutWaiting("bob", ShopFlows.TO_ORDERING))
+        flows.eventually("$number cancelled") { flows.orderStatus(number) == "CANCELLED" }
+        checkNotNull(flows.order(number))["cancelReason"].asString().assert().contains("pen")
+        // The compensation: the pad reserved for $number is released.
         flows.eventually("the pad released") {
-            flows.stock("pad")["available"].asInt() == Deployment.STOCK.getValue("pad") && flows.stock("pad")["reservations"]["bob-1"] == null
+            flows.stock("pad")["available"].asInt() == Deployment.STOCK.getValue("pad") && flows.stock("pad")["reservations"][number] == null
         }
         flows.stock("pen")["available"].asInt().assert().isEqualTo(Deployment.STOCK.getValue("pen"))
-        flows.payment("bob-1").assert().isNull()
-        "bob-1 cancelled for the pen, the pad's reservation released, no payment requested"
+        flows.payment(number).assert().isNull()
+        "$number cancelled for the pen, the pad's reservation released, no payment requested"
     }
 
     @Test
@@ -325,8 +334,8 @@ class GaE2eTest {
         val mallory = Who.buyer("mallory")
         val service = mapOf("Wow-Service" to "eshop-basket-service")
         // A service's name does not open alice's order to mallory.
-        val read = shop.get("/eshop-ordering/order/alice-1/state", mallory, service)
-        check(read.status != ShopFlows.OK) { "mallory read alice-1 naming a service: ${read.status}" }
+        val read = shop.get("/eshop-ordering/order/$aliceOrder/state", mallory, service)
+        check(read.status != ShopFlows.OK) { "mallory read $aliceOrder naming a service: ${read.status}" }
         // A call is taken on the internal port alone (D208), whatever the request carries.
         val call = shop.post(
             "/eshop-ordering/order/mallory-x/submit-order",
@@ -335,7 +344,7 @@ class GaE2eTest {
             service + ("Wow-Call" to "{}"),
         )
         call.status.assert().describedAs(call.body).isEqualTo(FORBIDDEN)
-        val anonymous = shop.get("/eshop-ordering/order/alice-1/state", null)
+        val anonymous = shop.get("/eshop-ordering/order/$aliceOrder/state", null)
         anonymous.status.assert().describedAs(anonymous.body).isEqualTo(UNAUTHORIZED)
         "mallory with Wow-Service: ${read.status}; Wow-Call: ${call.status}; no token at the gateway: ${anonymous.status}"
     }
@@ -351,16 +360,16 @@ class GaE2eTest {
         val started = System.currentTimeMillis()
         ops.outage(true)
         flows.addItem("olga", "mug", flows.price("mug"), 1)
-        flows.checkout("olga").status.assert().isEqualTo(ShopFlows.OK)
+        val number = flows.numberOf(flows.checkoutWaiting("olga", ShopFlows.TO_ORDERING))
         val id = Ledger.parkedId(
             "eshop-payment-service",
             "eshop-payment",
             GATEWAY_SAGA,
-            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "olga-1")
+            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, number)
         )
         flows.eventually("the parked payment listed by ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         val received = System.currentTimeMillis() - started
-        flows.orderStatus("olga-1").assert().isEqualTo("STOCK_CONFIRMED")
+        flows.orderStatus(number).assert().isEqualTo("STOCK_CONFIRMED")
         shop.post("/ops/parked/$id/retry", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
         ops.outage(false)
         with(flows) {
@@ -374,9 +383,9 @@ class GaE2eTest {
             "the entry resolved in ops",
             OPS_BOUND
         ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
-        flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
+        flows.eventually("$number paid") { flows.orderStatus(number) == "PAID" }
         ops.exhausted(started).assert().doesNotContain(id)
-        reads.parked("payment").filter { it["aggregateId"] == "olga-1" }.assert().isEmpty()
+        reads.parked("payment").filter { it["aggregateId"] == number }.assert().isEmpty()
         "parked, seen in ops after $received ms, retried by an operator, resolved and paid; the ledger entry is gone"
     }
 
@@ -389,18 +398,18 @@ class GaE2eTest {
         val started = System.currentTimeMillis()
         ops.outage(true)
         flows.addItem("gus", "mug", flows.price("mug"), 1)
-        flows.checkout("gus").status.assert().isEqualTo(ShopFlows.OK)
+        val number = flows.numberOf(flows.checkoutWaiting("gus", ShopFlows.TO_ORDERING))
         val id = Ledger.parkedId(
             "eshop-payment-service",
             "eshop-payment",
             GATEWAY_SAGA,
-            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "gus-1")
+            EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, number)
         )
-        flows.eventually("the parked payment of gus-1 in ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
+        flows.eventually("the parked payment of $number in ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         flows.eventually(
-            "gus-1 cancelled by its grace period",
+            "$number cancelled by its grace period",
             GRACE.plusSeconds(90)
-        ) { flows.orderStatus("gus-1") == "CANCELLED" }
+        ) { flows.orderStatus(number) == "CANCELLED" }
         val cancelled = System.currentTimeMillis() - started
         ops.outage(false)
         // The charge the gateway never made is skipped: the order it was for is cancelled.
@@ -412,12 +421,12 @@ class GaE2eTest {
             ).committed("skip $id")
         }
         flows.eventually(
-            "the entry of gus-1 resolved in ops",
+            "the entry of $number resolved in ops",
             OPS_BOUND
         ) { ops.entry(id)?.get("status")?.asString() == "resolved" }
-        val events = flows.trace("/eshop-ordering/order/gus-1").flatMap { it.events }
+        val events = flows.trace("/eshop-ordering/order/$number").flatMap { it.events }
         events.assert().contains("ScheduleSet")
-        "gus-1 cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(
+        "$number cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(
             ", "
         )}"
     }
@@ -486,26 +495,32 @@ class GaE2eTest {
             ) { round -> deleteOwnerMidCheckout(if (round == 1) "carol" else "carol$round") }
         }
 
-    /** Force-deletes the owner of [buyer]'s first order's partition mid-checkout; the order is paid once and shipped. */
+    /**
+     * Force-deletes the owner of [buyer]'s order's partition mid-checkout; the order is paid once and shipped. The
+     * ordering numbers the order, so its partition, and the pod that owns it, are known once the checkout answers at
+     * the order's commit: the pod is deleted then, while the order process goes on (the reservation, the payment).
+     */
     private fun deleteOwnerMidCheckout(buyer: String): String {
-        val order = "$buyer-1"
         flows.addItem(buyer, "kite", flows.price("kite"), 2)
-        val owner = probes.partitionOwner(order)
+        var order = ""
+        var owner = ""
         val load = Load(flows).start()
         try {
             Outages.measure(
                 report,
-                "delete the owner of $order's partition ($owner)",
+                "delete the owner of $buyer's order's partition",
                 TAKEOVER_BOUND,
                 "checkout to the ordering",
                 probes::probeToOrdering,
                 settled = { kube.pods(Deployment.ORDERING).count { it.ready && !it.deleting } == 2 },
             ) {
-                val checkout = thread { flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING) }
-                Thread.sleep(MID_CHECKOUT.toMillis())
-                report.note("force-deleting $owner, at ${kube.pods(Deployment.ORDERING).find { it.name == owner }?.ip}")
+                order = flows.numberOf(flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING))
+                owner = probes.partitionOwner(order)
+                report.note(
+                    "force-deleting $owner, the owner of $order's partition, at " +
+                        "${kube.pods(Deployment.ORDERING).find { it.name == owner }?.ip}",
+                )
                 kube.deletePod(owner, force = true)
-                checkout.join()
             }
         } finally {
             load.stop()
@@ -688,7 +703,6 @@ class GaE2eTest {
         /** The ordering's payment grace period in this deployment (services/eshop-ordering/config.yaml). */
         val GRACE: Duration = Duration.ofSeconds(120)
         val OPS_BOUND: Duration = Duration.ofSeconds(90)
-        val MID_CHECKOUT: Duration = Duration.ofMillis(150)
         val SCALE_BOUND: Duration = Duration.ofSeconds(30)
         val ROLLING_BOUND: Duration = Duration.ofSeconds(60)
         val TAKEOVER_BOUND: Duration = Duration.ofSeconds(120)

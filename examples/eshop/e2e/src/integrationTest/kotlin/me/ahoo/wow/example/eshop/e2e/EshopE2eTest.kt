@@ -30,7 +30,10 @@ class EshopE2eTest {
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 inventory.contexts().assert().containsExactly("eshop-inventory")
 
-                val product = catalog.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
+                val product = catalog.post(
+                    "/eshop-catalog/product/create-product",
+                    """{"name":"Wow mug","price":8.50}"""
+                )
                 product.status.assert().describedAs(product.body).isEqualTo(200)
                 val productId = json.readTree(product.body)["ref"]["id"].asString()
                 productId.assert().isNotBlank()

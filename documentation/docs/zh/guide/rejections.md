@@ -10,7 +10,7 @@ outline: deep
 
 ## 拒绝，还是失败 {#reject-or-fail}
 
-决定函数可以用三种方式拒绝命令，结果都一样：什么都不写（拒绝可以带事件，见[下文](#reject-with-events)），用 `onAppendFailure` 登记的补偿会执行，调用方拿到错误码和消息，用同一个请求 ID 再发一次仍会被拒绝。无论命令从哪里来，拒绝都不会重试，也不会停放任何东西。消息会展示给调用方，要写给他们看。
+决定函数可以用三种方式拒绝命令，结果都一样：什么都不写（拒绝可以带事件，见[下文](#reject-with-events)），用 `onAppendFailure` 登记的补偿会执行，调用方拿到错误码和消息，用同一个请求 ID 再发一次会重新决定，所以只要状态没有变化，它仍会被拒绝；带事件的拒绝则按记录下的结果回答。无论命令从哪里来，拒绝都不会重试，也不会停放任何东西。消息会展示给调用方，要写给他们看。
 
 | 决定函数 | 调用方得到 |
 | --- | --- |
@@ -138,7 +138,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 ## 决定函数里的远程调用 {#remote-calls-in-a-decide-function}
 
-版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`CommandRequest.requestId` 可以覆盖它）。同一次决定里并发发出的命令，其序号没有稳定的顺序，所以要逐个发送，或者在重发必须去重时传入 `CommandRequest.requestId`；`JavaCommandClient` 的 future 不会推导任何东西，所以在那里也要显式传入请求 ID；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
+版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 和调用的顺序推导所发命令的请求 ID，只要调用保持顺序，重复的调用就是同一个请求（`CommandRequest.requestId` 可以覆盖它）。同一次决定里并发发出的命令，其序号没有稳定的顺序，所以要逐个发送，或者在重发必须去重时传入 `CommandRequest.requestId`；`JavaCommandClient` 的 future 不会推导任何东西，所以在那里也要显式传入请求 ID；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝：目标的错误码是领域错误码、`wow.command.invalid` 或 `wow.command.refused` 时带上它；目标的其他框架错误码回答为 `wow.command.failed`（500），目标的错误码放在扩展 `rejectedCode` 中；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
 
 ## 框架用来拒绝的错误码 {#codes-the-framework-rejects-with}
 

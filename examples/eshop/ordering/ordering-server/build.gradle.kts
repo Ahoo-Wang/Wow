@@ -48,6 +48,13 @@ dependencies {
     // after its commits, for the payment to read.
     implementation("me.ahoo.wow:wow-cocache")
     implementation(libs.cocache.spring.boot.starter)
+    // The order numbers: wow-cosid gives the order aggregate its ids from CosId's generator named after
+    // it, which CosId's starter builds from eshop-ordering-ids.yaml; its ranges are kept in the service's PostgreSQL
+    // or MongoDB database (CosId's jdbc and mongo stores), or in its memory on the memory backend (MemoryRangeStores).
+    implementation("me.ahoo.wow:wow-cosid")
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    runtimeOnly("me.ahoo.cosid:cosid-store-jdbc")
+    runtimeOnly("me.ahoo.cosid:cosid-store-mongo")
     // The `clickhouse` profile: the order stream is written to ClickHouse by the Sink, and the sales dataset of
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation("me.ahoo.wow:wow-clickhouse")

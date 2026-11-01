@@ -39,9 +39,8 @@ import java.math.BigDecimal
 /** The checkout saga: a checked-out basket becomes an order in the ordering context, through a synchronous call. */
 class BasketCheckoutSagaTest {
     private val handlers = basketCheckoutSagaHandlers()
-    private val order = EshopOrderingContract.Order.ref(DEFAULT_TENANT, "alice-1")
     private val alice = Operator.of("alice", DEFAULT_TENANT)
-    private val checkedOut = BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2)))
+    private val checkedOut = BasketCheckedOut(listOf(BasketItem("mug", BigDecimal("8.50"), 2)))
 
     /** Alice's basket, holding two mugs, in her scope. */
     private fun ProcessorSpec.basket() =
@@ -59,11 +58,15 @@ class BasketCheckoutSagaTest {
             expectCalls(SubmitOrder(listOf(OrderItem("mug", BigDecimal("8.50"), 2))))
             expectNoCommand()
             val submit = calls.single()
-            submit.ref.assert().isEqualTo(order)
+            // A new order with no id yet: the ordering numbers the order it creates.
+            submit.ref.type.assert().isEqualTo(EshopOrderingContract.Order.TYPE)
+            submit.ref.tenantId.assert().isEqualTo(DEFAULT_TENANT)
+            submit.ref.isAssigned.assert().isFalse()
             // In the basket's scope, for its buyer: the order belongs to the buyer (decisions D163, D189).
             submit.scope.assert().isEqualTo(Scope(ownerId = "alice"))
             submit.operator.assert().isEqualTo(alice)
-            // Handling the commit again calls with the same request, which the ordering context decides once.
+            // Handling the commit again calls with the same request, which the ordering context decides once,
+            // answering with the same order and number.
             expectDeterministic()
         }
     }

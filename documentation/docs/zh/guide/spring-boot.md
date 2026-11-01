@@ -124,7 +124,7 @@ dependencies {
 | Bean | 作用 |
 | --- | --- |
 | 领域服务 | 命令函数和处理器的参数，按类型获取，或用 `@Name` 按名字获取 |
-| `CallerResolver` | 把已认证的主体变成调用方；否则是匿名调用方 |
+| `CallerResolver` | 把已认证的主体变成调用方。没有它时，开发 profile 下宿主读取开发请求头，内部端口只在回环地址上时使用匿名调用方，其他情况下不启动 |
 | `CommandAuthorizer` | 说明它是否反对调用方向某个聚合发送命令 |
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
 | `GlobalIdGenerator`、`AggregateIdGenerator` | 生成请求 ID 和聚合 ID；按类型由 `wow.aggregates.[<context>.<aggregate>].id-generator` 指定 |
@@ -143,7 +143,7 @@ dependencies {
 
 Spring 绑定它认识的键、忽略其余的键，所以拼错的键会悄悄什么都不做。宿主在启动时把环境中的每个 `wow.*` 键与类路径上的配置元数据比较：
 
-- 未知的键会阻止启动，并指明它：写错的设置会保留默认值，而有些默认值允许一切。更早版本的键会给出取代它的键；不在类路径上的模块的键（没有 wow-cosid 时的 `wow.cosid.*`）会给出那个模块。
+- 未知的键会阻止启动，并指明它：写错的设置会保留默认值，而有些默认值允许一切。更早版本的键与其他未知键一样被拒绝，消息指向迁移指南的配置页，那里列出它今天的键；不在类路径上的模块的键（没有 wow-cosid 时的 `wow.cosid.*`）会给出那个模块。
 - 在设置的映射之下，例如 `wow.aggregates`、`wow.stores`、`wow.callers` 和 `wow.peers`，每一项自己的键会一直检查到叶子。
 
 Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。所有的键见[配置项](../reference/configuration)。

@@ -6,7 +6,7 @@ outline: deep
 
 # Unique Keys Across Aggregates
 
-An aggregate decides alone, so it cannot see whether another aggregate already uses a value. When a value must be unique across aggregates, such as a user name, an email address or a brand's name, the decision reserves it. A reservation is held by one aggregate at a time, commits with the aggregate's events, and is given up if they are not written. This page keeps the eShop's brand names unique.
+An aggregate decides alone, so it cannot see whether another aggregate already uses a value. When a value must be unique across aggregates, such as a user name, an email address or a brand's name, the decision reserves it. A reservation is held by one aggregate at a time, commits with the aggregate's events, and is given up if they are not written, or if the decision is a rejection, even one that commits events. This page keeps the eShop's brand names unique.
 
 ## Reserve a key
 
@@ -31,7 +31,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 ## What happens to a reservation
 
 1. `reserve` records the key as **pending** for this aggregate, with an expiry.
-2. When the decision's events are appended, the reservation is **confirmed**.
+2. When the decision's events are appended, the reservation is **confirmed**, unless the decision is a rejection.
 3. When they are surely not appended (the decision rejects, the version conflicts and the command is decided again, or deciding fails), this attempt **gives its reservation up**. A process that dies first leaves it to expire.
 
 A key the aggregate already holds stays held whatever an attempt does, so deciding a command again never loses it.
@@ -62,7 +62,7 @@ A key is unique among the aggregates of one type. When a value must be unique ac
 
 ## Where reservations are kept
 
-An aggregate type's reservations are kept with its log, in the store `wow.aggregates.<context>.<aggregate>.log.store` names (or the default log store), in a table or collection of their own per type: `wow_reservation__<context>__<aggregate>`. A confirmation is so as durable as the commit it belongs to. They replace 9.x's `PrepareKey`; migrate-data imports what 9.x confirmed ([Migrate the Data](../migrate/data)).
+An aggregate type's reservations are kept with its log, in the store `wow.aggregates.[<context>.<aggregate>].log.store` names (or the default log store), in a table or collection of their own per type: `wow_reservation__<context>__<aggregate>`. A confirmation is so as durable as the commit it belongs to. They replace 9.x's `PrepareKey`; migrate-data imports what 9.x confirmed ([Migrate the Data](../migrate/data)).
 
 ## Test it
 

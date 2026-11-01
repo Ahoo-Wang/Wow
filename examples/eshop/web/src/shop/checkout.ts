@@ -112,7 +112,10 @@ export const CHECKOUT_TIMEOUT = 30_000;
 /** The checkout's progress: the results of the hops reached so far. */
 export interface CheckoutProgress {
   readonly results: readonly CommandResult[];
-  /** The order the checkout placed, once a result names it. */
+  /**
+   * The order the checkout placed, its number (`SO-261031-42`), once a hop of
+   * the ordering names it: the order's commit, `committed(eshop-ordering)`.
+   */
   readonly orderId?: string;
   /**
    * Set when a hop ended the chain without success: rejected, failed, or with
@@ -187,10 +190,12 @@ export function isPaid(progress: CheckoutProgress): boolean {
   );
 }
 
-/** The order id a checkout's result names: its `orderId` result, or the order a hop of the ordering acted on. */
+/**
+ * The order a checkout's result names: the order a hop of the ordering acted
+ * on. Its id is its number, which the ordering gave it: the
+ * basket's own hops name no order.
+ */
 export function orderIdOf(result: CommandResult): string | undefined {
-  const named = (result.results as { orderId?: unknown }).orderId;
-  if (typeof named === "string") return named;
   const { type, id } = result.ref;
   return type.context === "eshop-ordering" && type.name === "order"
     ? id

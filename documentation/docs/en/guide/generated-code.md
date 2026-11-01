@@ -8,7 +8,7 @@ outline: deep
 
 The Wow compiler is a KSP processor. It reads a domain module's annotated classes at build time and writes Kotlin sources and resources beside them, in `build/generated/ksp/main/`. Nothing is found by scanning or reflection when the service runs: the host loads what the compiler wrote. A model the compiler cannot bind fails the build with a message that names the function and the rule. This page lists what it writes and where each part is used.
 
-For the eShop's ordering domain module, the compiler writes:
+For the eShop's ordering domain module, the compiler writes, among others:
 
 ```text
 build/generated/ksp/main/
@@ -54,7 +54,7 @@ wow {
 }
 ```
 
-A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes its name from the contracts of the contexts it hosts, so the server module that hosts them does not repeat it; contracts that name different services fail its build, and with none it is named after the server's project path. The eShop's domain modules, which are projects of Wow's own build and cannot apply the plugins yet, declare it with the build's equivalent, `extra["wowContractService"]`.
+A peer that depends on the api module finds the service by that name, and the service refuses to start under any other `spring.application.name`. The service's own Manifest takes its name from the contracts of the contexts it hosts, so the server module that hosts them does not repeat it; contracts that name different services fail its build, and with none it is named after the server's project path. The eShop's domain modules declare it the same way, as the ordering's `wow { service = "eshop-ordering-service" }` does.
 
 An api module also compiles `<Context>Contract` from it, such as `EshopOrderingContract`:
 

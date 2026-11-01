@@ -57,8 +57,9 @@ data class RemoveBasketItem(
 data object ClearBasket
 
 /**
- * Checks the basket out: its items become an order in the ordering context, and the basket is emptied. The order's id
- * is answered as the result `orderId`.
+ * Checks the basket out: its items become an order in the ordering context, and the basket is emptied. The ordering
+ * numbers the order (`SO-261031-42`): a checkout that waits for the order's commit in the ordering context
+ * (`committed(eshop-ordering)`, a hop of the checkout's chain) is answered its number as that hop's aggregate id.
  */
 @Summary("Check the basket out")
 data object CheckoutBasket

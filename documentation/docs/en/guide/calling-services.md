@@ -40,7 +40,7 @@ A command always has an accountable caller: the client sends as the anonymous ca
 | Exception | When | Retry |
 | --- | --- | --- |
 | `CommandRejectedException` | The aggregate rejected the command, or admission did (unknown, malformed or invalid command, forbidden caller). `code` is the error code | No: the same request is rejected again |
-| `WowProblemException` | A technical failure: a busy or closing node, a store or broker down, a wait that timed out. `code` and `status` say which | As its `retryHint` says: whether to retry, whether with the same request id, and after how long |
+| `WowProblemException` | A technical failure: a busy or closing node, a store or broker down, a wait that timed out. `code` and `status` say which | As its `retry` and `retryAfter` say: whether to retry, whether with the same request id, and after how long |
 
 `stream` emits every result, whatever its status. [Rejections and Error Codes](./rejections#what-the-caller-receives) shows a rejection caught by its code.
 

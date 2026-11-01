@@ -27,7 +27,6 @@ export interface ApplyTags {
  */
 export interface BasketCheckedOut {
   items: BasketItem[];
-  orderId: string;
 }
 
 

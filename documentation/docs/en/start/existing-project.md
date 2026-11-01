@@ -195,18 +195,14 @@ The api module holds the commands and events, data classes without identity fiel
 
 The server is an ordinary Spring Boot application. The catalog's needs nothing more than its class:
 
-<!-- sample: examples/eshop/catalog/catalog-server/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/server/CatalogServer.kt -->
+<!-- sample: test/publication-consumer/catalog-server/src/main/kotlin/com/example/catalog/server/CatalogServer.kt -->
 
 ```kotlin
-package me.ahoo.wow.example.eshop.catalog.server
+package com.example.catalog.server
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
-/**
- * The eShop's catalog service on the Wow host: the host finds the product model through `eshop-catalog-domain`'s binding
- * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend.
- */
 @SpringBootApplication(proxyBeanMethods = false)
 class CatalogServer
 
@@ -219,4 +215,4 @@ Domain services the command functions take are beans of the application. A `Data
 
 ## Run it
 
-`./gradlew :catalog-server:run` starts one node on this machine. Commands, state reads and queries are served as in the [Quickstart](./quickstart#send-commands). Before production, go through [Running Wow](../operate/).
+Once the server's `application.yaml` names the service (`spring.application.name`) and, as above, gives it a database or a development profile, `./gradlew :catalog-server:run` starts one node on this machine. Commands, state reads and queries are served as in the [Quickstart](./quickstart#send-commands). Before production, go through [Running Wow](../operate/).

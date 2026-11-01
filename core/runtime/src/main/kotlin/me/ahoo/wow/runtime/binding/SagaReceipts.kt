@@ -14,12 +14,14 @@
 package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandReceipt
+import me.ahoo.wow.kernel.CallRejectedHandlingException
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -57,8 +59,10 @@ import java.time.Clock
  *
  * A command a handler derives that is rejected in turn is not handed to a handler again (a compensation does not
  * compensate itself): every such command is still executed, and their rejections fail the handling together with
- * [DerivedCommandRejectedException], which parks the aggregate once. A
- * technical failure throws, for the caller to retry.
+ * [DerivedCommandRejectedException], which parks the aggregate once. A synchronous call's rejection the handler lets
+ * through is not handed to a handler either: it parks the aggregate at once ([CallRejectedHandlingException]), as the
+ * rejection of a call a saga's `@OnEvent` handler made does when no `@OnRejected` handler takes it, and an
+ * `@OnCommitted` handler's hop ends REJECTED with it. A technical failure throws, for the caller to retry.
  */
 internal class SagaReceipts(
     sagas: Collection<ProcessorBinding<*>>,
@@ -96,7 +100,7 @@ internal class SagaReceipts(
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val calls = SagaCalls(caller, served, commandTypes, wait = null)
         val context = rejectionContextOf(handler, rejected, ids, commandTypes, queries, calls)
-        val executed = derived.execute(call(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
+        val executed = derived.execute(handle(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
         executed.rejected.parking()?.let { throw it }
         return calls.called + executed.executed
     }
@@ -116,7 +120,12 @@ internal class SagaReceipts(
         val next = DerivedCommands.waitOf(wait, context, handler.name)
         val calls = SagaCalls(caller, served, commandTypes, next)
         val sagaContext = committedContextOf(handler, committed, ids, commandTypes, queries, calls)
-        val commands = call(handler.blocking) { handler.invoke(committed, sagaContext) }
+        val commands = try {
+            handle(handler.blocking) { handler.invoke(committed, sagaContext) }
+        } catch (rejected: CallRejectedHandlingException) {
+            signalHop(wait, handler.name, committed, calls.called, rejected.error)
+            throw rejected
+        }
         val executed = derived.execute(commands, next)
         val sent = calls.called + executed.executed
         signalHop(wait, handler.name, committed, sent, executed.rejected.firstOrNull()?.error)
@@ -156,7 +165,14 @@ internal class SagaReceipts(
         signal(wait, result)
     }
 
-    /** Calls [handle]: on a virtual thread when it is [blocking]. */
-    private suspend fun call(blocking: Boolean, handle: suspend () -> List<Command<*>>): List<Command<*>> =
-        if (blocking) withContext(SubscriptionBindings.BLOCKING) { handle() } else handle()
+    /**
+     * Calls [handler]: on a virtual thread when it is [blocking]. A call's rejection it lets through parks the aggregate
+     * at once ([CallRejectedHandlingException]): a business outcome, which no retry changes.
+     */
+    private suspend fun handle(blocking: Boolean, handler: suspend () -> List<Command<*>>): List<Command<*>> =
+        try {
+            if (blocking) withContext(SubscriptionBindings.BLOCKING) { handler() } else handler()
+        } catch (rejected: CommandRejectedException) {
+            throw CallRejectedHandlingException(rejected)
+        }
 }

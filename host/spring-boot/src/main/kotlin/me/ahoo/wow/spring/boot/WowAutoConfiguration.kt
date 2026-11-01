@@ -149,9 +149,11 @@ import jakarta.validation.Validator as JakartaValidator
  *   `wowAggregateIdGenerator` bean (the global generator's ids unless replaced); the fixed tenants of
  *   `wow.aggregates.*.tenant`, and `wow.wait.default-timeout`, the node's default wait timeout for every entry.
  * - **Ports**: the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
- *   [CallerResolver] (anonymous otherwise); the cluster channel and the wait signals ([internalRoutes]) on an
- *   [InternalPort] of their own at `wow.internal.port`, never on the public server, the node's address learned once
- *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client. Each request
+ *   [CallerResolver] (without one, the development callers in a development profile, the anonymous caller on a
+ *   loopback-only internal port, and no start elsewhere); the cluster channel and the wait signals
+ *   ([internalRoutes]) on an [InternalPort] of their own at `wow.internal.port`, never on the public server, the
+ *   node's address learned once it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share
+ *   one JDK client. Each request
  *   between nodes names the node's service (`Wow-Service`): a forward is taken from a node of the same
  *   service alone, a signal from any service, the origin of a wait that crossed services. No token: the internal port
  *   is reachable by the platform's own pods alone, a NetworkPolicy's boundary.

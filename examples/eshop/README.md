@@ -57,7 +57,8 @@ OrderProcessSaga's @OnRejected sends CancelOrder ──▶ CANCELLED ──Relea
 A declined payment's CancelOrder, and the grace period's scheduled one for an order not paid in time, do the same.
 ```
 
-- **Order ids.** The basket numbers its checkouts: `alice`'s first order is `alice-1`. The checkout answers it as the result `orderId`.
+- **Order numbers.** An order's id is its number, `SO-<yyMMdd>-<sequence>` (`SO-261031-42`), which the ordering gives the order a `SubmitOrder` without an id creates, at admission. The basket names no order: its checkout saga calls `SubmitOrder` without one, and the call's request id comes from the basket's commit, so a retry or a replay is the same request, answered with the same order and number, and takes no other. A checkout learns the number from its wait: the result of `committed(eshop-ordering)`, and of every later hop of the ordering, names the order as its aggregate id. A checkout that waits for the basket's commit alone learns none.
+  - **Where the numbers come from.** `wow-cosid` takes the order's ids from CosId's generator named after the aggregate, `eshop-ordering.order` (`ordering-server/src/main/resources/eshop-ordering-ids.yaml`, which the ordering's `application.yaml` imports). It is a segment: each node reserves ranges of one sequence from one store, so no two nodes give one number, and no machine slot is needed at any replica count. The store is the service's own database: CosId's `jdbc` store in the `postgres` profile, which creates its tables (`cosid_range`, ...) if they are missing, its `mongo` store in the `mongo` profile, and the service's memory on the memory backend. The day is the day the number was issued, in UTC, and the sequence never restarts, so a number is unique by its sequence alone, whatever the day or a node's clock; numbers have gaps (a node's unused range when it stops) and are not issued in order across nodes. `wow-cosid` also needs CosId's `default` generator, for aggregate types with none of their own; the ordering has no other, and it is a UUIDv7, which needs no machine slot either.
 - **States.** `SUBMITTED → AWAITING_VALIDATION → STOCK_CONFIRMED → PAID → SHIPPED`, or `CANCELLED` from any state before `PAID`.
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command, written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
@@ -226,10 +227,11 @@ curl -s -X POST localhost:8084/eshop-inventory/stock/mug/receive-stock \
   -H 'Content-Type: application/json' -d '{"quantity":10}'
 curl -s -X POST localhost:8082/eshop-basket/basket/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" -H 'Content-Type: application/json' -d '{}' \
-  -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
-curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"   # alice's order: STOCK_CONFIRMED, then PAID
-curl -s localhost:8085/eshop-payment/payment/alice-1/state
+ORDER=$(curl -s -X POST localhost:8082/eshop-basket/basket/checkout-basket "${BUYER[@]}" -H 'Content-Type: application/json' -d '{}' \
+  -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)' |
+  jq -r .ref.id)                                                          # the order's number, SO-261031-1
+curl -s "localhost:8083/eshop-ordering/order/$ORDER/state" "${BUYER[@]}"  # alice's order: STOCK_CONFIRMED, then PAID
+curl -s "localhost:8085/eshop-payment/payment/$ORDER/state"
 ```
 
 ## Web UI

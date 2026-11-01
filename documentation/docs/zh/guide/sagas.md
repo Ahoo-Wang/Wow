@@ -76,15 +76,19 @@ fun onOrderSubmitted(
   <!-- sample: fragment -->
 
   ```kotlin
+  private const val STOCK_DEADLINE = "stock-deadline"
+
   @OnEvent
   @Sends(schedules = [CancelOrder::class])
-  fun onOrderAwaitingStock(
-      event: StateTypedEvent<OrderState, OrderAwaitingStock>,
+  fun onOrderAwaitingValidation(
+      event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
       context: SagaContext,
-  ): CommandRequest<ReserveStock> {
+  ): List<CommandRequest<ReserveStock>> {
       val deadline = CommandRequest.of(CancelOrder("No stock in time."), event.ref.id)
       context.schedule(STOCK_DEADLINE, ScheduleRule.after(10.minutes), deadline)
-      return CommandRequest.of(ReserveStock(event.ref.id), event.state.productId)
+      return event.state.quantities().map { (productId, quantity) ->
+          CommandRequest.of(ReserveStock(event.ref.id, quantity), productId)
+      }
   }
 
   @OnEvent
@@ -112,7 +116,7 @@ fun onReserveCommitted(
     CommandRequest.of(ConfirmOrderStock(committed.ref.id), committed.source.id)
 ```
 
-`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求回执，所以其他命令不需要为此付出任何代价。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
+`source` 是那次派生出命令的提交所属的聚合，这里是订单；`ref` 是提交了命令的聚合，这里是商品的库存。只有 `@OnCommitted` 处理函数接收的命令才会要求提交的回执，所以其他命令不需要为此付出任何代价；拒绝的回执由 `@OnRejected` 处理函数接收的命令要求。发往另一个上下文的命令随身带着这个请求，目标在命令提交后通过 `wow.<sender>.receipts` 发回回执。回执带着命令的结果，而不是目标的状态。
 
 目标未作改变就接受的命令（`Decision.NoOp`）也会收到回执，版本不变；目标先前已经提交过的命令也会收到回执，标为重复。`@OnCommitted` 处理函数与 `@OnRejected` 处理函数一样，需要时接收 `SagaContext`：它像 `@OnEvent` 处理函数一样派生、定时和调用，并在它自己的 `@Sends` 中声明它发送的命令。
 
@@ -163,16 +167,14 @@ fun onReleaseRejected(rejected: CommandReceipt.Rejected<ReleaseReservation>) = U
 suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
     val checkedOut = event.event
     context.call(
-        CommandRequest.of(
-            SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
-            checkedOut.orderId,
-        ),
+        CommandRequest.of(SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) })),
     )
 }
 ```
 
 - 处理函数在 `@Sends(calls = [...])` 里声明它调用的类。Manifest 列出它们，等待会跟随这次调用，`call` 拒绝其他任何类。
 - `call` 接收一个 `CommandRequest`，像返回的请求一样派生，在命令于目标上提交后返回它的结果：确定的请求 ID 让每次重试都是同一个请求，目标只决定一次。调用等待的是提交，所以它的请求不带 `wait` 或 `timeout`。
+- 创建命令可以不带 ID，就像结账的 `SubmitOrder`：由目标给聚合分配 ID（ordering 为订单编号，`SO-261031-42`），结果里写明它。重试或重放是同一个请求，得到同一个聚合，不会再取别的 ID。
 - 拒绝会抛出 `CommandRejectedException`，这是业务结果，不会重试。处理函数放过它时，它像派生命令的拒绝一样交给 Saga 处理被调用命令的 `@OnRejected` 处理函数；没有这样的处理函数时，聚合立即停放。失败或没有得到结果的调用抛出 `WowProblemException`，可以用同一个请求 ID 重试：处理函数失败并重试，之后停放这个聚合。它们就是 `CommandClient` 抛出的异常。
 - 节点通过目标的内部端口访问它：按目标契约声明的服务经 DNS 找到它的节点，或者使用 `wow.peers.<context>.url`（[配置对端](./calling-services#configure-a-peer-over-http)）。处理函数调用的上下文无法到达时，节点不会启动。Saga 自己上下文的命令总是派生，从不调用。
 - `call` 是一个 `suspend` 函数，所以用 Java 写的 Saga 改为派生它的命令。

@@ -27,11 +27,11 @@ import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import me.ahoo.wow.test.server.Answer
-import me.ahoo.wow.test.server.wowServer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.math.BigDecimal
 import java.sql.DriverManager
@@ -55,8 +55,9 @@ class CatalogPostgresTest {
             "spring.datasource.username" to postgres.username,
             "spring.datasource.password" to postgres.password,
             "wow.log.partitions" to 4,
-            // The test's class path holds the basket's domain too (EshopSharedJvmTest).
+            // The test's class path holds the basket's domain too (EshopSharedJvmTest), and CosId for the ordering.
             "wow.contexts.include" to "eshop-catalog",
+            cosIdOf("catalog"),
         ),
     )
 
@@ -131,11 +132,25 @@ class CatalogPostgresTest {
     fun `the snapshot table should carry the storefront's indexes`() {
         // The backend prefixes each index with its table and shortens a long name with a hash, so the definitions,
         // not the Manifest's index names, say which keys each index leads with.
-        val definitions = DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { db ->
+        val definitions = DriverManager.getConnection(
+            postgres.jdbcUrl,
+            postgres.username,
+            postgres.password
+        ).use { db ->
             db.prepareStatement("SELECT indexdef FROM pg_indexes WHERE tablename = ? AND indexname LIKE ?").use {
                 it.setString(1, "wow_snapshot__eshop_catalog__product")
                 it.setString(2, "%ix_product_state%")
-                it.executeQuery().use { rows -> generateSequence { if (rows.next()) rows.getString(1) else null }.toList() }
+                it.executeQuery().use { rows ->
+                    generateSequence {
+                        if (rows.next()) {
+                            rows.getString(
+                                1
+                            )
+                        } else {
+                            null
+                        }
+                    }.toList()
+                }
             }
         }
         definitions.assert().hasSize(4)

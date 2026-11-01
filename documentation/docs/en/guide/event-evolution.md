@@ -70,7 +70,7 @@ object ViewUpgrades {
 }
 ```
 
-- An upgrade function is top-level, or a member of an `object` (with `@JvmStatic`).
+- An upgrade function is top-level, a member of an `object` or a companion object, or a Java static method; not private.
 - It takes and returns a Jackson 3 `JsonNode` or `ObjectNode` (`tools.jackson.databind`): it works on the record, not on the class, which no longer matches it.
 - It is pure: no I/O, no services, and it does not suspend. It may fail, as the view's does for a record it cannot read; the read then fails and names the record.
 - An event at revision `n` needs exactly one upgrade from each revision 1 to `n - 1`. A gap or a duplicate fails the compilation.

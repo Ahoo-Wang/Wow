@@ -20,7 +20,7 @@ val client = WowClient.builder()
     .endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090"))))
     .service("basket-service")
     .build()
-client.commands.of(caller).wait(SubmitOrder(items), OrderingContract.Order.ref(tenant, orderId))
+client.commands.of(caller).wait(CommandRequest.to(OrderingContract.Order.ref(tenant, orderId), SubmitOrder(items)))
 ```
 
   Java 代码通过 `JavaCommandClient.of(client.commands)` 和 `JavaQueryApi.of(client.queries)` 使用它（[调用其他服务](./calling-services)）。

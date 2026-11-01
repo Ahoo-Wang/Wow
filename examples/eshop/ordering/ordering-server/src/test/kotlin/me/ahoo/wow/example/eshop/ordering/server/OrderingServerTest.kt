@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
@@ -35,6 +36,9 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /** The test's command transport in place of Kafka, as the guide gives it: the sagas' commands to the inventory stay in memory. */
 // region topics
@@ -139,6 +143,41 @@ class OrderingServerTest {
         // A blank user is no user: the anonymous caller, of the whole tenant.
         read("order-alice", mapOf(USER to " ")).status.assert().isEqualTo(OK)
     }
+
+    // region numbers
+    @Test
+    fun `an order submitted without an id should be numbered once per request (D373, D191)`() {
+        val before = LocalDate.now(ZoneOffset.UTC)
+        val first = submitNew("checkout-1")
+        val after = LocalDate.now(ZoneOffset.UTC)
+        // SO-<yyMMdd>-<sequence>: the day it was issued, in UTC, then the sequence.
+        val number = NUMBER.matchEntire(first["ref"]["id"].asString()).assert().isNotNull().actual()!!
+        number.groupValues[1].assert().isIn(before.format(DAY), after.format(DAY))
+        first["duplicate"].asBoolean().assert().isFalse()
+
+        // The same request again, as a retried or replayed checkout sends it: the same order and number, no other.
+        val retried = submitNew("checkout-1")
+        retried["ref"]["id"].asString().assert().isEqualTo(number.value)
+        retried["duplicate"].asBoolean().assert().isTrue()
+
+        // Another request is another order, with a later number.
+        val next = NUMBER.matchEntire(submitNew("checkout-2")["ref"]["id"].asString()).assert().isNotNull().actual()!!
+        next.groupValues[2].toLong().assert().isGreaterThan(number.groupValues[2].toLong())
+        // The number is the order's id: the order is read by it.
+        read(number.value, buyer("alice-numbers")).status.assert().isEqualTo(OK)
+    }
+
+    /** Submits an order that names no id, as the basket's checkout does, with the request id [requestId]. */
+    private fun submitNew(requestId: String): JsonNode {
+        val submitted = post(
+            "/eshop-ordering/order/submit-order",
+            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
+            buyer("alice-numbers") + (WowHeaders.REQUEST_ID to requestId),
+        )
+        submitted.status.assert().describedAs(submitted.text).isEqualTo(OK)
+        return submitted.body!!
+    }
+    // endregion
 
     @Test
     fun `an order without items, or with an invalid one, should be invalid before the order decides`() {
@@ -251,5 +290,9 @@ class OrderingServerTest {
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)
         val GRACE_AND_POLL: Duration = Duration.ofMillis(3_000)
+
+        /** An order's number: `SO-`, the day it was issued (`yyMMdd`), `-`, its sequence. */
+        val NUMBER = Regex("""SO-(\d{6})-(\d+)""")
+        val DAY: DateTimeFormatter = DateTimeFormatter.ofPattern("yyMMdd")
     }
 }

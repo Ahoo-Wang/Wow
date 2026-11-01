@@ -327,7 +327,9 @@ private class Changes(val schemas: SchemaCompatibility) {
     /**
      * The state schema: a breaking change keeps the contract only when the aggregate's
      * state revision was raised, so the stored snapshots are rebuilt from the log, and no one else reads the state
-     * ([Exposure.state]); a lowered revision breaks.
+     * ([Exposure.state]): the snapshot query's clients do, whenever the aggregate keeps snapshots. A lowered revision
+     * breaks. The stored snapshots are compared as [SchemaDirection.STORED], so a constraint counts for the readers
+     * alone ([readerBreaks]).
      */
     private fun compareState(
         path: String,
@@ -339,7 +341,8 @@ private class Changes(val schemas: SchemaCompatibility) {
             "$path.state",
             baseline.state.schema,
             current.state.schema,
-            queryRoot = true
+            queryRoot = true,
+            direction = SchemaDirection.STORED,
         )
         val old = baseline.snapshot.stateRevision
         val new = current.snapshot.stateRevision
@@ -369,10 +372,13 @@ private class Changes(val schemas: SchemaCompatibility) {
             }
 
             else -> list += schemaChanges.map {
-                if (it.kind == ChangeKind.BREAKING) {
-                    it.copy(description = "${it.description} without a new state revision")
-                } else {
-                    it
+                when {
+                    it.kind != ChangeKind.BREAKING -> it
+                    exposure.state.isEmpty() -> it.copy(description = "${it.description} without a new state revision")
+                    else -> it.copy(
+                        description = "${it.description}: ${exposure.state.joinToString(" and ")} read the state, " +
+                            "which a new state revision does not change",
+                    )
                 }
             }
         }
@@ -445,10 +451,15 @@ private class Changes(val schemas: SchemaCompatibility) {
     /**
      * An event: a breaking schema change keeps the contract only when its revision was
      * raised, so the service's own old records are upgraded, and no one else reads the event ([Exposure.events]).
+     * Every aggregate lists the events query, whose clients read its events, so a structural change of a service's
+     * event breaks within its line, its revision raised or not: the revision and its `@Upgrade` keep the service's own
+     * history readable, and a new event beside the old one keeps the contract. The stored records are compared as
+     * [SchemaDirection.STORED], so a constraint counts for the readers alone ([readerBreaks]).
      */
     fun compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
-        val schemaChanges = schemas.compare("$path.schema", baseline.schema, current.schema)
+        val schemaChanges =
+            schemas.compare("$path.schema", baseline.schema, current.schema, direction = SchemaDirection.STORED)
         when {
             current.revision < baseline.revision -> {
                 breaking("$path.revision", "revision lowered from ${baseline.revision} to ${current.revision}")
@@ -462,6 +473,7 @@ private class Changes(val schemas: SchemaCompatibility) {
                 list += schemaChanges.map {
                     when {
                         it.kind != ChangeKind.BREAKING -> it
+                        // Only a Manifest whose aggregate lists no events query and publishes no stream.
                         readers.isEmpty() -> it.copy(
                             kind = ChangeKind.ADDITIVE,
                             description = "${it.description} (upgraded from revision ${baseline.revision})",
@@ -477,10 +489,15 @@ private class Changes(val schemas: SchemaCompatibility) {
             }
 
             else -> list += schemaChanges.map {
-                if (it.kind == ChangeKind.BREAKING) {
-                    it.copy(description = "${it.description} without a new revision and its @Upgrade")
-                } else {
-                    it
+                when {
+                    it.kind != ChangeKind.BREAKING -> it
+                    exposure.events.isEmpty() ->
+                        it.copy(description = "${it.description} without a new revision and its @Upgrade")
+
+                    else -> it.copy(
+                        description = "${it.description}: ${exposure.events.joinToString(" and ")} read the event, " +
+                            "which a new revision does not change",
+                    )
                 }
             }
         }

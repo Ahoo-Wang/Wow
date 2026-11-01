@@ -33,7 +33,7 @@ description: 安装六个 Wow Agent Skills，为手头的工作选择合适的�
 
 ## 何时适用 {#when-they-apply}
 
-Skill 只适用于使用 Wow 的应用，或明确要引入、使用、解释或迁移到 Wow 的任务：`me.ahoo.wow` import 或 `wow-*` 依赖（Gradle 插件 `me.ahoo.wow`、BOM `me.ahoo.wow:wow-bom`），或 TypeScript 侧的 `@ahoo-wang/wow-*` 包。DDD、CQRS、事件溯源、聚合或 Saga 这类通用词不会触发它们，Wow 框架仓库本身也不会。
+Skill 只适用于使用 Wow 的应用，或明确要引入、使用、解释或迁移到 Wow 的任务：`me.ahoo.wow` import 或 `wow-*` 依赖（Gradle 插件 `me.ahoo.wow`、BOM `me.ahoo.wow:wow-bom`），或 TypeScript 侧的 `@ahoo-wang/wow-*` 包。DDD、CQRS、事件溯源、聚合或 Saga 这类通用词不会触发它们，Wow 框架仓库本身也不会，但它自己的视图定义与宿主（Storybook、ops 控制台）以及移植它的 9.x 平台模块除外。
 
 ## 它们怎样工作 {#how-they-work}
 

@@ -34,7 +34,7 @@ A snapshot that is wrong for another reason, a defect fixed since, say, is rewri
 ```bash
 curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild" \
   -H "Content-Type: application/json" \
-  -d '{"ids": ["alice-1", "alice-2"]}'
+  -d '{"ids": ["SO-261031-1", "SO-261031-2"]}'
 ```
 
 The route sends the system command `wow.snapshot.Rebuild` to the context's built-in rebuild aggregate, through admission like any command, so the authorizer decides who may send it; a service without a command authorizer refuses it on the public port (403 `wow.auth.forbidden`), never allowing it by default ([Authorize commands](./security#authorize-commands)). A built-in subscription then rewrites each named snapshot from the log, in every target store.

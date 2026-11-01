@@ -10,7 +10,7 @@ Wow 编译器读取 Java 源码就像读取 Kotlin 源码一样：同样的注�
 
 ## 准备模块 {#set-up-the-module}
 
-Java 领域模块和 Kotlin 领域模块一样，应用 Kotlin JVM 插件 `kotlin("jvm")` 和 Gradle 插件 `me.ahoo.wow`：KSP 在 Kotlin 编译中处理模块的 Java 源码，它生成的模型是 Kotlin 代码。没有 Kotlin JVM 插件的模块，插件会配置失败，并指出修正方法。冒烟测试作为 Wow 自己构建中的一个项目，则是手动应用 KSP 和编译器。
+Java 领域模块和 Kotlin 领域模块一样，应用 Kotlin JVM 插件 `kotlin("jvm")` 和 Gradle 插件 `me.ahoo.wow`：KSP 在 Kotlin 编译中处理模块的 Java 源码，它生成的模型是 Kotlin 代码。没有 Kotlin JVM 插件的模块，插件会配置失败，并指出修正方法。冒烟测试作为 Wow 自己构建中的一个项目，也是这样应用的。
 
 ## 命令与事件 {#commands-and-events}
 
