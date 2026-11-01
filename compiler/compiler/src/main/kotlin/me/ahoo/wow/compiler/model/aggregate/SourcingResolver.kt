@@ -108,17 +108,11 @@ internal object SourcingResolver {
         problems: MutableList<String>,
     ): SourcingBinding? {
         val name = function.simpleName.asString()
-        if (function.parameters.size !in 1..2) {
-            problems += "sourcing function $name must take its event, and may take its commit ($EVENT_STREAM) second"
+        parametersProblem(function, name)?.let {
+            problems += it
             return null
         }
-        val commit = function.parameters.getOrNull(1)?.type?.resolve()
-        if (commit != null && !isCommit(commit)) {
-            val rendered = commit.render() + if (commit.isMarkedNullable) "?" else ""
-            problems += "sourcing function $name takes $rendered second: a sourcing function's second parameter is " +
-                "the commit of its event, a $EVENT_STREAM"
-            return null
-        }
+        val commit = function.parameters.size == 2
         if (Modifier.SUSPEND in function.modifiers) {
             problems += "sourcing function $name suspends: evolving does no I/O"
         }
@@ -141,7 +135,7 @@ internal object SourcingResolver {
                 function = name,
                 returnsState = returnsState,
                 type = event.binaryName(),
-                commit = commit != null,
+                commit = commit,
                 declaration = event,
             )
         }
@@ -151,11 +145,34 @@ internal object SourcingResolver {
                 "whose subclasses are the events"
             return null
         }
-        return eventBinding(event, name, returnsState, commit != null).also {
+        return eventBinding(event, name, returnsState, commit).also {
             if (it.revision < 1) {
                 problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
             }
         }
+    }
+
+    /**
+     * What is wrong with the parameters of the sourcing [function] named [name]: null when it takes its event, and its
+     * commit or nothing second.
+     */
+    private fun parametersProblem(function: KSFunctionDeclaration, name: String): String? {
+        if (function.parameters.size !in 1..2) {
+            return "sourcing function $name must take its event, and may take its commit ($EVENT_STREAM) second"
+        }
+        val unresolved = function.parameters.map { it.type.resolve() }.firstOrNull { it.isError }
+        if (unresolved != null) {
+            return "sourcing function $name takes ${unresolved.render()}, which does not resolve: a sourcing " +
+                "function takes (event[, commit: EventStream]), the event's own class and, to read when it was " +
+                "committed and by whom, its $EVENT_STREAM; 9.x's DomainEvent<E> is (event: E, commit: EventStream)"
+        }
+        val commit = function.parameters.getOrNull(1)?.type?.resolve()
+        if (commit == null || isCommit(commit)) {
+            return null
+        }
+        val rendered = commit.render() + if (commit.isMarkedNullable) "?" else ""
+        return "sourcing function $name takes $rendered second: a sourcing function's second parameter is the " +
+            "commit of its event, a $EVENT_STREAM"
     }
 
     /** Whether [type] is the commit of an event, a sourcing function's second parameter: a non-null `EventStream`. */

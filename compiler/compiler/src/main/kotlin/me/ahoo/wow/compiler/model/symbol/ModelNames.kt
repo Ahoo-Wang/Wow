@@ -61,6 +61,30 @@ internal object ModelNames {
         "me.ahoo.wow.ioc.",
         "me.ahoo.wow.saga.",
     )
+
+    /**
+     * The Wow types a function may take after its command, as it takes a domain service: the node's read API and its
+     * command client, which every host binds. An allow-list, not the 9.x packages subtracted from Wow's: another Wow 10
+     * type (a ref, a caller) is no service, and no host would pass one.
+     */
+    val SERVICES = setOf(
+        "me.ahoo.wow.api.read.QueryApi",
+        "me.ahoo.wow.api.read.NodeQueryApi",
+        "me.ahoo.wow.api.client.CommandClient",
+    )
+
+    /**
+     * The packages and types only 9.x has, a function taking one refused as code still written for 9.x; the other
+     * types under [FRAMEWORK_PACKAGES] are Wow 10's own, or of packages both share.
+     */
+    val NINE_X_ONLY = listOf(
+        "me.ahoo.wow.api.command.",
+        "me.ahoo.wow.api.event.",
+        "me.ahoo.wow.api.exception.",
+        "me.ahoo.wow.api.messaging.",
+        "me.ahoo.wow.api.modeling.",
+        "me.ahoo.wow.api.Identifier",
+    ) + FRAMEWORK_PACKAGES.filterNot { it == "me.ahoo.wow.api." }
     val REACTOR_TYPES = setOf(
         "reactor.core.publisher.Mono",
         "reactor.core.publisher.Flux",
@@ -115,9 +139,13 @@ private fun KSType.argumentOf(): String = javaTypeOf() ?: "${declaration.qualifi
 
 private const val TYPES = "me.ahoo.wow.kernel.Types"
 
-/** This type's qualified name, with its type arguments (`*` for a star projection). */
+/**
+ * This type's qualified name, with its type arguments (`*` for a star projection); a type that does not resolve has
+ * no qualified name, and is the name the code wrote, which KSP gives as `<ERROR TYPE: Name>`.
+ */
 internal fun KSType.render(): String {
-    val name = declaration.qualifiedName!!.asString()
+    val name = declaration.qualifiedName?.asString()
+        ?: declaration.simpleName.asString().removeSurrounding("<ERROR TYPE: ", ">")
     if (arguments.isEmpty()) {
         return name
     }

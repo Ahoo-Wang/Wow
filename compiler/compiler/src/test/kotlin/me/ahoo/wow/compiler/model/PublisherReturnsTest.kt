@@ -18,6 +18,7 @@ import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
+import java.io.File
 
 /**
  * D372 S13: a handler that returns a Reactor publisher is checked by what the publisher emits, as one that returns
@@ -93,6 +94,67 @@ class PublisherReturnsTest {
         )
         val (_, result) = compileModel("generate", options, model, handlers)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+    }
+
+    @Test
+    fun `a publisher returned without wow-reactor should fail the compilation, naming the module`() {
+        val reactive = SourceFile.kotlin(
+            "Reactive.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.AfterCommand
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.OnRejected
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.client.CommandRequest
+            import me.ahoo.wow.api.subscribe.CommandReceipt
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import reactor.core.publisher.Mono
+
+            @CreateAggregate
+            data class OpenTab(val id: String)
+            data class TabOpened(val id: String)
+            data class TabNoted(val id: String)
+
+            @AggregateRoot
+            class Tab(val id: String) {
+                fun onCommand(command: OpenTab): Mono<TabOpened> = Mono.just(TabOpened(command.id))
+
+                @AfterCommand
+                fun noted(command: OpenTab): Mono<TabNoted> = Mono.just(TabNoted(command.id))
+
+                fun onSourcing(event: TabOpened) = Unit
+
+                fun onSourcing(event: TabNoted) = Unit
+            }
+
+            @Projection
+            class Tabs {
+                @OnEvent
+                fun onTab(event: StateEvent<Tab>): Mono<Void> = Mono.empty()
+            }
+
+            @Saga
+            class Retrying {
+                @OnRejected
+                fun retry(rejected: CommandReceipt.Rejected<OpenTab>): Mono<CommandRequest<OpenTab>> = Mono.empty()
+            }
+            """.trimIndent(),
+        )
+        val withoutWowReactor = { entry: File -> "/core/reactor/" !in entry.invariantSeparatorsPath }
+        val (_, result) = compileModel("generate", options, withoutWowReactor, reactive)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        val fix = "returns a Reactor publisher, which needs wow-reactor: add me.ahoo.wow:wow-reactor to the module, " +
+            "or make"
+        result.messages.assert()
+            .contains("onCommand $fix onCommand a suspend function")
+            .contains("noted $fix noted a suspend function")
+            .contains("onTab $fix onTab a suspend function")
+            .contains("retry $fix retry a suspend function")
     }
 
     @Suppress("LongMethod") // The broken sources, whole.
