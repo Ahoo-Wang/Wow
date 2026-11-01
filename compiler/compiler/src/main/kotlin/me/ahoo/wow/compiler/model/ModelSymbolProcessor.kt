@@ -165,6 +165,9 @@ internal class ModelSymbolProcessor(
     /** Whether the module has `wow-query-api`, so each state gets its `<State>Properties` ([QueryPropertiesSource]). */
     private var queryApi: Boolean? = null
 
+    /** Whether the module has `wow-reactor`, whose `awaitResult` the code generated for a Reactor return calls. */
+    private var reactor: Boolean? = null
+
     /** The states whose `<State>Properties` were generated. */
     private val propertiesOf = mutableSetOf<String>()
 
@@ -186,6 +189,7 @@ internal class ModelSymbolProcessor(
         }
         collectBoundedContexts(resolver)
         queryApi = queryApi ?: QueryPropertiesSource.available(resolver)
+        reactor = reactor ?: reactorAvailable(resolver)
         resolver.getSymbolsWithAnnotation(UpgradeResolver.UPGRADE).filterIsInstance<KSFunctionDeclaration>().forEach {
             it.containingFile?.let { file -> sources += file }
             upgrades += UpgradeResolver.read(it)
@@ -202,8 +206,11 @@ internal class ModelSymbolProcessor(
         // Former names two types claim are found across the module, the aggregates of earlier rounds included.
         val duplicates = AliasCheck.duplicates(bindings + analyzed.map { it.second }, context())
         analyzed.forEach { (root, analyzedBinding) ->
+            val publishers = analyzedBinding.commands.filter { it.reactor }.map { it.function } +
+                analyzedBinding.afters.filter { it.reactor }.map { it.function }
             val binding = analyzedBinding.copy(
-                problems = analyzedBinding.problems + duplicates[analyzedBinding.root].orEmpty(),
+                problems = analyzedBinding.problems + duplicates[analyzedBinding.root].orEmpty() +
+                    reactorProblems(publishers),
             )
             bindings += binding
             if (mode == Mode.GENERATE) {
@@ -373,7 +380,10 @@ internal class ModelSymbolProcessor(
         processors.filter { it.validate() }.forEach { processor ->
             processor.containingFile?.let { sources += it }
             packages += processor.packageName.asString()
-            val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES, events)
+            val resolved = SubscriptionResolver.resolve(processor, REACTOR_TYPES, events)
+            val publishers = resolved.handlers.filter { it.reactor }.map { it.function } +
+                (resolved.rejections + resolved.commits).filter { it.reactor }.map { it.function }
+            val binding = resolved.copy(problems = resolved.problems + reactorProblems(publishers))
             subscriptions += binding
             if (mode == Mode.GENERATE) {
                 binding.warnings.forEach { logger.warn("${binding.processor}: $it", processor) }
@@ -386,6 +396,24 @@ internal class ModelSymbolProcessor(
         }
         return deferred
     }
+
+    @OptIn(KspExperimental::class)
+    private fun reactorAvailable(resolver: Resolver): Boolean = resolver
+        .getFunctionDeclarationsByName(resolver.getKSNameFromString(REACTOR_AWAIT), includeTopLevel = true).any()
+
+    /**
+     * The functions of [publishers], each returning a Reactor publisher, when the module has no `wow-reactor`: the
+     * generated code would not compile.
+     */
+    private fun reactorProblems(publishers: List<String>): List<String> =
+        if (reactor == true) {
+            emptyList()
+        } else {
+            publishers.distinct().map {
+                "$it returns a Reactor publisher, which needs wow-reactor: add me.ahoo.wow:wow-reactor to the " +
+                    "module, or make $it a suspend function"
+            }
+        }
 
     private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
         codeGenerator.createNewFile(
@@ -518,6 +546,9 @@ internal class ModelSymbolProcessor(
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
 
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
+
+        /** The function of `wow-reactor` the code generated for a Reactor return awaits the publisher with. */
+        const val REACTOR_AWAIT = "me.ahoo.wow.reactor.awaitResult"
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()

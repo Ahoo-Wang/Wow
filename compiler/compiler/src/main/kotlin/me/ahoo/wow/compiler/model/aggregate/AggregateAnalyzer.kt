@@ -38,9 +38,11 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY
 import me.ahoo.wow.compiler.model.symbol.ModelNames.COMMAND
 import me.ahoo.wow.compiler.model.symbol.ModelNames.DECIDE_SCOPE
 import me.ahoo.wow.compiler.model.symbol.ModelNames.FRAMEWORK_PACKAGES
+import me.ahoo.wow.compiler.model.symbol.ModelNames.NINE_X_ONLY
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING_ANNOTATION
+import me.ahoo.wow.compiler.model.symbol.ModelNames.SERVICES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.STRING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotationIn
@@ -394,7 +396,8 @@ internal class AggregateAnalyzer(
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
      * takes, qualified by the parameter's `@Name`. One type with one qualifier, or none, is one
-     * dependency, however many functions take it. A framework type of 9.x has no Wow 10 counterpart to pass.
+     * dependency, however many functions take it. Of Wow's types, only the services every host binds are dependencies
+     * ([SERVICES]): a framework type of 9.x has no Wow 10 counterpart to pass, and no host passes any other.
      */
     @OptIn(KspExperimental::class)
     private fun argument(
@@ -413,8 +416,19 @@ internal class AggregateAnalyzer(
             }
             return "this"
         }
-        if (FRAMEWORK_PACKAGES.any { rendered.startsWith(it) }) {
+        if (type.isError) {
+            problems += "$where is of $rendered, which does not resolve"
+            return null
+        }
+        if (NINE_X_ONLY.any { rendered.startsWith(it) }) {
             problems += "$function takes $rendered, a 9.x framework type with no Wow 10 counterpart"
+            return null
+        }
+        val service = type.declaration.qualifiedName?.asString() in SERVICES
+        if (!service && FRAMEWORK_PACKAGES.any { rendered.startsWith(it) }) {
+            val services = SERVICES.joinToString { it.substringAfterLast('.') }
+            problems += "$function takes $rendered, a Wow type no host binds: after its command, a function takes " +
+                "the decide scope, the services every host binds ($services) and the domain's own"
             return null
         }
         if (parameter.hasDefault) {
