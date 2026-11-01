@@ -668,15 +668,14 @@ class WowAutoConfiguration {
      * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare, and
      * over HTTP to the peer contexts `wow.peers` lists ([PeerClients]). It sends as an anonymous caller;
      * [CommandClient.of] gives it another. An application replaces it by declaring a [CommandClient] bean, not by
-     * calling this method.
+     * calling this method. It is built on its first use ([DeferredCommandClient]), so a transformer, validator,
+     * authorizer or subscription the node is assembled with may take it.
      */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowCommandClient(gateway: CommandGateway, peers: PeerClients): CommandClient {
-        val local = InProcessCommandClient(gateway)
-        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
-    }
+    fun wowCommandClient(gateway: ObjectProvider<CommandGateway>, peers: ObjectProvider<PeerClients>): CommandClient =
+        DeferredCommandClient { commandClientOf(gateway.getObject(), peers.getObject()) }
 
     @Bean
     @ConditionalOnMissingBean
@@ -1067,4 +1066,9 @@ class WowAutoConfiguration {
             }
         }
     }
+}
+
+private fun commandClientOf(gateway: CommandGateway, peers: PeerClients): CommandClient {
+    val local = InProcessCommandClient(gateway)
+    return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
 }
