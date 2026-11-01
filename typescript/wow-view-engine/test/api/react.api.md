@@ -4140,7 +4140,7 @@ class ViewEngine {
     abandonWrite(target: WriteTarget): void;
     addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
-    checkBinding(definitionId: string): boolean;
+    checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;

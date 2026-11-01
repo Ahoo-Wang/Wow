@@ -247,7 +247,8 @@ function useCheckedBindings(
 ): void {
   useEffect(() => {
     if (!engine || !bindings) return;
-    for (const binding of bindings) engine.checkBinding(binding.definitionId);
+    for (const binding of bindings)
+      engine.checkBinding(binding.definitionId, binding.actions);
   }, [engine, bindings]);
 }
 

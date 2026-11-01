@@ -138,6 +138,7 @@ export type IssuePath = (string | number)[];
 
 | 代码 | 默认措辞 |
 |---|---|
+| `binding.action.primary-extra` | {id} 的绑定把多个操作标为主操作：{first} 画成主按钮，{others} 画成普通操作。 |
 | `binding.definition.unknown` | 绑定指向 {id}，但没有哪份资源登记了它：它绑定的都不会生效。 |
 
 ### `capability.*` {#issues-capability}

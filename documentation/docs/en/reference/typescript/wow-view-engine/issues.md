@@ -138,6 +138,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 
 | Code | Default wording |
 |---|---|
+| `binding.action.primary-extra` | The binding of {id} marks several actions primary: {first} is drawn as the primary button, and {others} as ordinary actions. |
 | `binding.definition.unknown` | A binding names {id}, which no resource registers: what it binds is lost. |
 
 ### `capability.*` {#issues-capability}

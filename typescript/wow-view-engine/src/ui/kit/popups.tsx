@@ -62,8 +62,8 @@ import {
  * that root, and would render without a background or a border. So each one
  * is composed here rather than taken from the registry as it ships: the
  * markup is a faithful copy of the vendored component's, with the root class
- * and the surface's mode on the portalled elements — the pinned `theme` when
- * there is one, otherwise the mode the surface resolved from the cascade, so
+ * and the surface's mode on the portalled elements — the pinned `colorMode`
+ * when there is one, otherwise the mode the surface resolved from the cascade, so
  * a `.dark` on any ancestor reaches the popup and the class does not have to
  * sit on `<html>`. The stylesheet's `color-scheme` stays the source of
  * truth; nothing here decides the mode. `components/*.tsx` stay as the

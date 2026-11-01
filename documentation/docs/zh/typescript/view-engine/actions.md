@@ -157,7 +157,7 @@ export const orderActions = (commands: OrderCommands) =>
 | 成员 | 是什么 |
 | --- | --- |
 | `id`、`label` | 在资源的操作中唯一的 id；它的名字 |
-| `primary` | 读者最常按的操作：行上的那个按钮。至多一个 |
+| `primary` | 读者最常按的操作：行上的那个按钮。至多一个：多出的画成普通操作，并告知 `onIssue`（`binding.action.primary-extra`） |
 | `tone` | `default` 或 `danger` |
 | `on` | 在哪里提供：`row`、`bulk`、`detail`；默认每个位置都提供 |
 | `hidden(row, ctx)` | 在这条记录上不显示：这个人不能做这件事 |

@@ -232,6 +232,25 @@ describe('a record’s declared actions', () => {
     ).toBeNull();
   });
 
+  it('draws only the first primary one as the row’s button, a second one behind the menu', async () => {
+    // Two primaries are a declaration's mistake (the binding check tells of
+    // it): the first keeps the button, the second is an ordinary action.
+    await open(actions([ship(), { ...cancel(), primary: true }, priority()]));
+
+    const row = rowOf('o-1');
+    expect(within(row).getByRole('button', { name: 'Ship' })).toBeTruthy();
+    expect(
+      within(row).queryByRole('button', { name: 'Cancel order' }),
+    ).toBeNull();
+    await userEvent.click(
+      within(row).getByRole('button', { name: 'Actions for o-1' }),
+    );
+    const menu = await screen.findByRole('menu');
+    expect(
+      within(menu).getByRole('menuitem', { name: 'Cancel order' }),
+    ).toBeTruthy();
+  });
+
   it('leaves out an action a record hides, and one not offered in rows', async () => {
     await open(
       actions([
@@ -605,6 +624,17 @@ describe('a selection’s declared actions', () => {
       {},
       { signal: expect.any(AbortSignal) },
     );
+  });
+
+  it('counts only for the first primary one, a second one drawn as any other', async () => {
+    await open(actions([ship(), { ...cancel(), primary: true }]));
+
+    fireEvent.click(screen.getByLabelText('Select all rows'));
+    expect(
+      await screen.findByRole('button', { name: 'Ship 1/2' }),
+    ).toBeTruthy();
+    const second = screen.getByRole('button', { name: 'Cancel order' });
+    expect(second.getAttribute('data-action')).toBe('cancel');
   });
 
   it('asks outside the bar it was pressed in, every button of the question its own tab stop', async () => {
