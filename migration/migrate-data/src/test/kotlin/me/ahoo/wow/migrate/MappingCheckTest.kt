@@ -268,6 +268,48 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `an excluded 9x aggregate or PrepareKey should warn with its reason instead of failing`() {
+        val payment = NineXInventory(NineXAggregate("example-service", "payment"), 3, emptyMap(), emptyMap())
+        val map = NineXExample.map.copy(
+            excluded = listOf(
+                Exclusion(aggregate = "example-service.payment", reason = "Another V10 store takes it"),
+                Exclusion(prepareKey = "payment_no", reason = "The payment's, with it"),
+            ),
+        )
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest))
+            .check(example + payment, mapOf("payment_no" to 2L))
+        report.passed.assert().isTrue()
+        report.warnings.assert().contains(
+            "the 9.x aggregate example-service.payment (3 streams) is excluded: Another V10 store takes it",
+            "the 9.x PrepareKey payment_no (2 keys) is excluded: The payment's, with it",
+        )
+    }
+
+    @Test
+    fun `an entry both mapped and excluded, or excluded twice, should fail, and one the store lacks warn`() {
+        val mapping = ReservationMapping("order_no", "order.no", ownerId = "orderId")
+        val map = NineXExample.map.order { copy(reservations = listOf(mapping)) }.copy(
+            excluded = listOf(
+                Exclusion(aggregate = "example-service.order", reason = "Mapped too"),
+                Exclusion(prepareKey = "order_no", reason = "Mapped too"),
+                Exclusion(aggregate = "example-service.archive", reason = "Gone"),
+                Exclusion(aggregate = "example-service.archive", reason = "Gone, twice"),
+                Exclusion(prepareKey = "archive_no", reason = "Gone"),
+            ),
+        )
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest)).check(example, mapOf("order_no" to 3L))
+        report.problems.assert().containsExactly(
+            "the 9.x aggregate example-service.archive is excluded twice",
+            "the 9.x aggregate example-service.order is both mapped and excluded",
+            "the 9.x PrepareKey order_no is both mapped and excluded",
+        )
+        report.warnings.assert().contains(
+            "the 9.x store holds no aggregate example-service.archive, which the map excludes",
+            "the 9.x store holds no PrepareKey archive_no, which the map excludes",
+        )
+    }
+
+    @Test
     fun `a target aggregate missing from the Manifest, duplicates and shared targets fail it`() {
         val map = NineXExample.map.order {
             copy(events = events + events.first(), commands = commands + commands.first())

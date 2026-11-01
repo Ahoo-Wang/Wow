@@ -48,7 +48,8 @@ import tools.jackson.databind.json.JsonMapper
  *   "subscriptions": [
  *     { "from": "example-service.CartSaga" },
  *     { "from": "example-service.OrderSaga", "to": "OrderSaga", "functions": { "onEvent": "onOrderCreated" } }
- *   ]
+ *   ],
+ *   "excluded": [ { "aggregate": "example-service.audit", "reason": "Another V10 store takes it" } ]
  * }
  * ```
  *
@@ -61,11 +62,13 @@ import tools.jackson.databind.json.JsonMapper
  *   V10 subscriptions that park them ([SubscriptionMapping]).
  * - [exceptions] are what `draft-map` could not match ([MapDrafter]), one line each, for a person to resolve and then
  *   delete: the check warns of each it still finds, and reads nothing else from them.
+ * - [excluded] are the 9.x aggregates and `PrepareKey`s the map leaves out on purpose ([Exclusion]): the check warns of
+ *   each with its reason, and the import reads none of them. `draft-map` never writes one: a person decides it.
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (.2) as an optional property, not a new format: a map without it reads
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
- * same way, and so did [subscriptions] (.4), [EventMapping.lifecycle] and [exceptions].
+ * same way, and so did [subscriptions] (.4), [EventMapping.lifecycle], [exceptions] and [excluded].
  */
 internal data class MigrationMap(
     val format: Int,
@@ -73,6 +76,7 @@ internal data class MigrationMap(
     val headers: Map<String, String> = emptyMap(),
     val subscriptions: List<SubscriptionMapping> = emptyList(),
     val exceptions: List<String> = emptyList(),
+    val excluded: List<Exclusion> = emptyList(),
 ) {
     init {
         require(format == FORMAT) {
@@ -96,6 +100,32 @@ internal data class MigrationMap(
         /** Reads a `migration-map.json` from its [text]. */
         fun read(text: String): MigrationMap = READER.readValue(text, MigrationMap::class.java)
     }
+}
+
+/**
+ * A 9.x [aggregate] (`contextName.aggregateName`) or [prepareKey] the map leaves out on purpose, for the [reason] a
+ * person gives: it names one of them. A 9.x store whose aggregates go to several V10 stores is migrated by one map per
+ * V10 store, each excluding what another one takes.
+ */
+internal data class Exclusion(val aggregate: String? = null, val prepareKey: String? = null, val reason: String = "") {
+    init {
+        require((aggregate == null) != (prepareKey == null)) {
+            "An excluded entry names an aggregate or a prepareKey, one of them: $this"
+        }
+        require(aggregate == null || aggregate.lastIndexOf('.') in 1 until aggregate.length - 1) {
+            "A 9.x aggregate is named contextName.aggregateName: $aggregate"
+        }
+        require(prepareKey == null || prepareKey.isNotBlank()) { "An excluded PrepareKey has a name." }
+        require(reason.isNotBlank()) { "The excluded ${subject()} needs a reason." }
+    }
+
+    /** The 9.x aggregate it leaves out; null for a `PrepareKey`. */
+    fun source(): NineXAggregate? = aggregate?.lastIndexOf('.')?.let {
+        NineXAggregate(aggregate.substring(0, it), aggregate.substring(it + 1))
+    }
+
+    /** What it leaves out, as a message names it. */
+    fun subject(): String = aggregate?.let { "9.x aggregate $it" } ?: "9.x PrepareKey $prepareKey"
 }
 
 /**

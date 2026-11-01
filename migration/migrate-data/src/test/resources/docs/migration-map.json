@@ -38,5 +38,8 @@
   "subscriptions": [
     { "from": "order-service.OrderSaga", "functions": { "onEvent": "onOrderCreated" } },
     { "from": "order-service.OrderProjector", "to": "OrderReports" }
+  ],
+  "excluded": [
+    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" }
   ]
 }

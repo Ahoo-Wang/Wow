@@ -24,6 +24,9 @@ import org.junit.jupiter.api.io.TempDir
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Clock
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 class MigrationModelsTest {
     @TempDir
@@ -66,10 +69,27 @@ class MigrationModelsTest {
     }
 
     @Test
-    fun `a dependency of a class cannot be stood in for`() {
+    fun `a model taking a Clock or a ZoneId should be built with the standard ones`() {
+        lateinit var clock: Clock
+        lateinit var zone: ZoneId
+        val provider = Provider {
+            clock = it.get(Clock::class.java)
+            zone = it.get(ZoneId::class.java)
+        }
+        MigrationModels.of(listOf(provider)).of(NineXExample.orderModel.type).assert().isSameAs(NineXExample.orderModel)
+        clock.assert().isEqualTo(Clock.systemUTC())
+        zone.assert().isEqualTo(ZoneOffset.UTC)
+    }
+
+    @Test
+    fun `a dependency of another class should fail, naming it and how to provide it`() {
         assertThrows<MigrationException> {
-            MigrationModels.of(listOf(Provider { it.get(StringBuilder::class.java) }))
-        }.message!!.assert().contains("java.lang.StringBuilder")
+            MigrationModels.of(listOf(Provider { it.get(StringBuilder::class.java, "notes") }))
+        }.message!!.assert().contains(
+            "takes a java.lang.StringBuilder named \"notes\", which the tool can neither stand in for nor build: it " +
+                "stands in for an interface, which rebuilding a state never calls, and builds java.time.Clock and " +
+                "java.time.ZoneId. Take the dependency as an interface in the model, so the tool stands in for it.",
+        )
     }
 
     @Test

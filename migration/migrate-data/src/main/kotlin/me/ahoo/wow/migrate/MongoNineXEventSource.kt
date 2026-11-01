@@ -40,6 +40,8 @@ import java.util.Date
  * (`source.createCommitTimeIndex`), the only write the tool makes to a 9.x store but the rollback `export`'s streams.
  */
 internal class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
+    override val store: String get() = "the MongoDB database ${database.name}"
+
     override fun inventory(): List<NineXInventory> =
         database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(::inventoryOf)
 
@@ -65,7 +67,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                     Document(
                         "_id",
                         Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("command", "\$header.${NineXHeaders.UPSTREAM_NAME}"),
+                            .append("command", COMMAND_OF_STREAM),
                     ).append("count", Document("\$sum", 1)),
                 ),
             ),
@@ -240,6 +242,47 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             key != null && key.keys.toList() == listOf(CREATE_TIME, ID) &&
                 key.values.all { (it as? Number)?.toDouble() == 1.0 }
         private val NODES: JsonNodeFactory = WowJson.mapper.nodeFactory
+
+        /** The headers naming a stream's command, the first one written winning. */
+        private val COMMAND_HEADERS =
+            listOf(NineXHeaders.UPSTREAM_NAME, NineXHeaders.DOTTED_UPSTREAM_NAME, NineXHeaders.COMMAND_NAME)
+
+        /**
+         * A stream's command name, as [NineXStream.commandName] reads it: `upstream_name`, else an older 9.x's
+         * `upstream.name`, else its `command.name`. Field names with dots are no paths, so the header is read as its
+         * pairs; missing when it names none.
+         */
+        private val COMMAND_OF_STREAM: Document = Document(
+            "\$let",
+            Document(
+                "vars",
+                Document("pairs", Document("\$objectToArray", Document("\$ifNull", listOf("\$header", Document())))),
+            ).append(
+                "in",
+                Document(
+                    "\$arrayElemAt",
+                    listOf(
+                        Document(
+                            "\$concatArrays",
+                            COMMAND_HEADERS.map { key ->
+                                Document(
+                                    "\$map",
+                                    Document(
+                                        "input",
+                                        Document(
+                                            "\$filter",
+                                            Document("input", "\$\$pairs")
+                                                .append("cond", Document("\$eq", listOf("\$\$this.k", key))),
+                                        ),
+                                    ).append("in", "\$\$this.v"),
+                                )
+                            },
+                        ),
+                        0,
+                    ),
+                ),
+            ),
+        )
 
         /** [value], a BSON value the driver read, as JSON; a `Decimal128` stays an exact decimal. */
         fun toNode(value: Any?): JsonNode = when (value) {

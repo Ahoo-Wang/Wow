@@ -163,6 +163,19 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `draft-map and check should fail on a store without an event stream, naming the store`() {
+        // What a misnamed database reads as: a store holding nothing.
+        nineX = InMemoryNineXEventSource()
+        val path = config().toString()
+        run("draft-map", "--config", path, "--dry-run").assert().isEqualTo(MigrateData.FAILED)
+        run("check", "--config", path).assert().isEqualTo(MigrateData.FAILED)
+        printed.lines().filter { it.startsWith("FAILED") }.assert().containsOnly(
+            "FAILED the in-memory store holds no 9.x event stream: check source.database, and the variable an env: " +
+                "value names.",
+        ).hasSize(2)
+    }
+
+    @Test
     fun `import checks, imports and checkpoints, and the tail follows`(): Unit = runBlocking {
         val config = config()
         run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
@@ -175,6 +188,28 @@ class MigrateDataTest {
         passes.assert().isEqualTo(2)
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("4 skipped")
+    }
+
+    @Test
+    fun `import should read nothing of an aggregate the map excludes`(): Unit = runBlocking {
+        val cart = NineXAggregate("example-service", "cart")
+        val map = NineXExample.map.let { map ->
+            map.copy(
+                aggregates = map.aggregates.filterNot { it.source() == cart },
+                excluded = listOf(Exclusion(aggregate = cart.toString(), reason = "Another V10 store takes it")),
+            )
+        }
+        run("import", "--config", config(WowJson.mapper.writeValueAsString(map)).toString())
+            .assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("WARNING the 9.x aggregate example-service.cart (")
+            .contains("streams) is excluded: Another V10 store takes it").contains("Import done.")
+        val streams = NineXExample.streams()
+        val carts = streams.filter { it.aggregate == cart }.map { it.aggregateId }.distinct()
+        carts.assert().isNotEmpty()
+        carts.forEach { log.read(NineXExample.cartModel.type.ref(it.tenantId, it.id)).toList().assert().isEmpty() }
+        streams.first { it.aggregate != cart }.aggregateId.let {
+            log.read(NineXExample.orderModel.type.ref(it.tenantId, it.id)).toList().assert().isNotEmpty()
+        }
     }
 
     @Test

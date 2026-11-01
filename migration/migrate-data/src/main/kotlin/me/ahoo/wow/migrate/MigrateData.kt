@@ -169,7 +169,7 @@ internal class MigrateData(
             out.println("FAILED $path exists: draft-map writes a new map, so pass $FORCE to replace it, or $OUT.")
             return FAILED
         }
-        val draft = MapDrafter(manifest).draft(connections.source.inventory(), connections.reservations.prepareKeys())
+        val draft = MapDrafter(manifest).draft(inventoryOf(connections.source), connections.reservations.prepareKeys())
         draft.exceptions.forEach(out::println)
         if (dryRun) {
             out.println(draft.render())
@@ -201,9 +201,19 @@ internal class MigrateData(
     private fun valueOf(options: List<String>, name: String): String? =
         options.zipWithNext().firstOrNull { it.first == name }?.second
 
+    /**
+     * What [source] holds, for `draft-map` and `check`; a store without a single event stream fails, naming the database
+     * it reads: one whose name is wrong reads as an empty store.
+     */
+    private fun inventoryOf(source: NineXEventSource): List<NineXInventory> = source.inventory().ifEmpty {
+        throw MigrationException(
+            "${source.store} holds no 9.x event stream: check source.database, and the variable an env: value names.",
+        )
+    }
+
     private fun check(plan: MigrationPlan, connections: MigrationConnections): Int {
         val report = MappingCheck(plan).check(
-            connections.source.inventory(),
+            inventoryOf(connections.source),
             connections.reservations.prepareKeys(),
             connections.compensation?.inventory(),
         )

@@ -67,6 +67,23 @@ class MongoNineXEventSourceTest {
     }
 
     @Test
+    fun `the inventory should read the command of an older 9x's dotted header, or of command name alone`() {
+        val text = NineXExample.resource("order-stream-v1.json")
+        fun renamed(header: String, id: String) = text.replace("\"upstream_name\":", "\"$header\":")
+            .replace("0VY3GwaK4OmV00E", "$id-order").replace("0VY3Gwb94OmV00H", "$id-stream")
+        NineXMongoStore.insert(database, renamed(NineXHeaders.DOTTED_UPSTREAM_NAME, "dotted"))
+        NineXMongoStore.insert(database, renamed(NineXHeaders.COMMAND_NAME, "named"))
+        source.inventory().first { it.aggregate == order }.run {
+            commands.assert().containsEntry("create_order", 3L)
+            streamsWithoutCommand.assert().isEqualTo(0)
+        }
+        listOf("dotted", "named").forEach { id ->
+            source.streams(order, NineXAggregateId("$id-order", "(0)"), 1, 1).single().commandName.assert()
+                .isEqualTo("create_order")
+        }
+    }
+
+    @Test
     fun `instances, streams and commits read in their orders, exactly`() {
         val first = NineXExample.stream("order-stream-v1.json")
         NineXMongoStore.insert(

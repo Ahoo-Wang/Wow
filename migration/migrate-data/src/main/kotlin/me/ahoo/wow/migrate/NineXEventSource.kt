@@ -24,6 +24,9 @@ internal data class NineXPosition(val createTime: Long, val streamId: String)
  * id, and the tail scans by commit time, which the store orders by `createTime`, ties by stream id.
  */
 internal interface NineXEventSource {
+    /** The store, as a message names it: the database it reads. */
+    val store: String
+
     /** Scans the whole store: what each 9.x aggregate holds, for [MappingCheck]. */
     fun inventory(): List<NineXInventory>
 

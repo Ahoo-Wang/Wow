@@ -108,14 +108,14 @@ outline: deep
 | `map` | 必填 | 迁移映射文件。 |
 | `manifests` | 必填 | 流要去往的各服务合并后的 V10 Manifest。 |
 | `checkpoint` | `migrate-data.checkpoint.json` | 检查点文件。 |
-| `source.uri`、`source.database` | 必填 | 9.x 的 MongoDB 事件存储。 |
+| `source.uri`、`source.database` | 必填 | 9.x 的 MongoDB 事件存储。数据库中没有任何事件流时，`draft-map` 和 `check` 失败并给出该数据库的名字：名字拼错，或 `env:` 引用的变量未设置，读到的都是一个空存储。 |
 | `source.createCommitTimeIndex` | `false` | 允许 `tail` 在每个事件流集合上创建它需要的 `(createTime, _id)` 索引。否则没有索引时它拒绝启动，并打印创建命令。 |
 | `target.type` | 必填 | `postgres` 或 `mongo`。 |
 | `target.jdbcUrl`、`target.username`、`target.password` | | PostgreSQL 目标。 |
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |
 | `target.uri`、`target.database` | | MongoDB 目标，必须是副本集。 |
 | `partitions` | | 每个 V10 上下文的分区数，必须与服务自己的相同。 |
-| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态。模型需要的依赖用替身代替：工具不运行任何决定函数。 |
+| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |
 | `compensation.uri` | 与来源相同 | 该数据库所在的服务器。 |
 | `compensation.service` | | 接收未解决执行的 V10 服务，其失败台账会收到它们：填它的 `wow.service` 或 `spring.application.name`。 |
@@ -128,7 +128,7 @@ outline: deep
 | `final.lookbackMillis` | `60000` | `import --final` 在追尾的检查点之前再往回读多远。它覆盖 9.x 各节点的时钟偏差，以及 9.x 停止时仍在途的提交，这些提交的提交时间在写入可见之前就已确定。把它设为实测时钟偏差与 9.x 最慢一次提交两者中较大者的两倍。 |
 | `final.maxTailAgeMillis` | `600000` | 追尾的最后一轮必须在多久之内结束，`import --final` 才接受它。 |
 
-如果一个服务的各聚合把日志放在不同的 V10 存储里，就按存储分别运行一次，每次使用一份只含该存储所存聚合的映射文件。
+如果一个服务的各聚合把日志放在不同的 V10 存储里，就按存储分别运行一次，每次使用一份只含该存储所存聚合的映射文件，并排除其余聚合（`excluded`）。
 
 ## 映射文件 {#the-map}
 
@@ -177,6 +177,9 @@ outline: deep
   "subscriptions": [
     { "from": "order-service.OrderSaga", "functions": { "onEvent": "onOrderCreated" } },
     { "from": "order-service.OrderProjector", "to": "OrderReports" }
+  ],
+  "excluded": [
+    { "aggregate": "order-service.audit", "reason": "The audit service's V10 store takes it" }
   ]
 }
 ```
@@ -189,9 +192,10 @@ outline: deep
 | --- | --- |
 | `format` | `1`。 |
 | `aggregates` | 每个 9.x 聚合一项；见下文。 |
-| `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、`local_first`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。 |
+| `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、`local_first`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。较早的 9.x 用点号写这些请求头（`trace.id`、`upstream.id`、`upstream.name`、`command.operator`、`command.wait.*`），读作同样的请求头；它的一些流只用 `command.name` 记录命令名。 |
 | `subscriptions` | 有未解决补偿执行的 9.x 处理器，映射到 V10 订阅；见下文。 |
 | `exceptions` | `draft-map` 匹配不上的内容，每行一项，由人解决后删除。检查会把它仍然找到的每一行作为警告打印出来。 |
+| `excluded` | 映射文件有意不迁移的 9.x 聚合（`aggregate`，`contextName.aggregateName`）和 `PrepareKey`（`prepareKey`），每项都要给出 `reason`（必填）。检查把每一项连同原因作为警告打印，而不是失败；既被映射又被排除、或被排除两次的项会使检查失败，存储中没有的项是警告。`import` 不读取其中任何一项。`draft-map` 从不写入它。 |
 
 ### 聚合 {#aggregates}
 

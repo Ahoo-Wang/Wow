@@ -59,6 +59,7 @@ class MigrationMapTest {
         MigrationMap(1, emptyList(), mapOf("app_id" to "app")).headers.assert().containsEntry("app_id", "app")
         assertThrows<IllegalArgumentException> { MigrationMap(1, emptyList(), mapOf("trace_id" to "trace")) }
         assertThrows<IllegalArgumentException> { MigrationMap(1, emptyList(), mapOf("command_wait_stage" to "x")) }
+        assertThrows<IllegalArgumentException> { MigrationMap(1, emptyList(), mapOf("trace.id" to "trace")) }
         assertThrows<IllegalArgumentException> { MigrationMap(1, emptyList(), mapOf("app_id" to " ")) }
     }
 
@@ -170,6 +171,30 @@ class MigrationMapTest {
         order.subscriptionOf("onPaid").assert().isEqualTo("Payments.onPaid")
         order.subscriptionOf("onShipped").assert().isEqualTo("Orders.onShipped")
         NineXExample.map.subscriptions.assert().isEmpty()
+    }
+
+    @Test
+    fun `format 1 excludes 9x aggregates and PrepareKeys when told, each with its reason`() {
+        val map = MigrationMap.read(
+            """{"format":1,"aggregates":[],"excluded":[{"aggregate":"s.audit","reason":"Another store"},
+               {"prepareKey":"audit_no","reason":"With the audit"}]}""",
+        )
+        val (audit, key) = map.excluded
+        audit.source().assert().isEqualTo(NineXAggregate("s", "audit"))
+        audit.subject().assert().isEqualTo("9.x aggregate s.audit")
+        key.source().assert().isNull()
+        key.subject().assert().isEqualTo("9.x PrepareKey audit_no")
+        NineXExample.map.excluded.assert().isEmpty()
+    }
+
+    @Test
+    fun `an excluded entry names an aggregate or a PrepareKey, and why`() {
+        assertThrows<IllegalArgumentException> { Exclusion(reason = "Nothing named") }
+        assertThrows<IllegalArgumentException> { Exclusion("s.audit", "audit_no", "Both named") }
+        assertThrows<IllegalArgumentException> { Exclusion(aggregate = "audit", reason = "No context") }
+        assertThrows<IllegalArgumentException> { Exclusion(prepareKey = " ", reason = "No name") }
+        assertThrows<IllegalArgumentException> { Exclusion(aggregate = "s.audit") }.message.assert()
+            .isEqualTo("The excluded 9.x aggregate s.audit needs a reason.")
     }
 
     @Test
