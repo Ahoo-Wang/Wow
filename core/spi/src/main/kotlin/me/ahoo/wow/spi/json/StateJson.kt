@@ -39,7 +39,8 @@ object StateJson {
 
     /** The mapper of a state's JSON: [WowJson]'s, with the settings a mutable state's round trip needs. */
     val mapper: JsonMapper = WowJson.builder()
-        // A mutable state holds collections in read-only properties; reading a snapshot fills them in place.
+        // A state's `val` fields read back through WowJson's configuration; a collection behind a getter of the
+        // state's own, over a private field (`val items: List<Item> get() = lines`), is filled through it in place.
         .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
         // Sets and maps read back in the order they were written, as Kotlin's keep theirs. Jackson would read a
         // `Set` as a HashSet (of enums, an EnumSet) and a `Map` keyed by an enum as an EnumMap, which write back in

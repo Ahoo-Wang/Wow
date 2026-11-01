@@ -24,6 +24,7 @@ import tools.jackson.core.JsonParser
 import tools.jackson.databind.DeserializationContext
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.SerializationContext
 import tools.jackson.databind.ValueDeserializer
 import tools.jackson.databind.ValueSerializer
@@ -55,6 +56,11 @@ import tools.jackson.module.kotlin.KotlinModule
  * - A read ignores the properties it does not know, at every level, as Jackson 3 does by default; stated here so that
  *   the cluster codec's lenient reading and the event codec's reading of older payloads do not rest on
  *   a library default.
+ * - A property with no setter that the class holds in a field, a `val` of its body, is read into that field, as 9.x's
+ *   JSON read it: a collection or map it fills as it goes (`val items = sortedSetOf<String>()`, a `MutableList` or
+ *   `MutableMap` `val`) reads back filled, and a value set at construction (`val label = ""`) reads back as written.
+ *   Jackson 3 would leave either as the class built it. A computed property, a getter with no field behind it, is
+ *   written and not read.
  */
 object WowJson {
     /** A new builder with Wow's configuration, for a reader or writer that adds settings of its own. */
@@ -67,6 +73,7 @@ object WowJson {
         .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
         .addModule(TransportCodec.module)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .enable(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
 

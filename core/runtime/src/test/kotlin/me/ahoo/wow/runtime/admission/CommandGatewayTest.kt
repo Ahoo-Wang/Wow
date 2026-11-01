@@ -75,6 +75,14 @@ class CommandGatewayTest {
         var items = 0
     }
 
+    /** A command as a 9.x domain wrote one: its SKUs in a getter-only list, filled as it is built. */
+    class AddSkus {
+        val skus = mutableListOf<String>()
+    }
+
+    /** The SKUs of the [AddSkus] commands decided, in order. */
+    private val skus = CopyOnWriteArrayList<String>()
+
     /** The commands the decide functions ran, by command id. */
     private val decided = CopyOnWriteArrayList<String>()
 
@@ -103,6 +111,10 @@ class CommandGatewayTest {
         }
         decide<Checkout> { _, _ ->
             decided += command.id
+            Decision.NoOp
+        }
+        decide<AddSkus>(Creation.ALLOWED) { _, body ->
+            skus += body.skus
             Decision.NoOp
         }
         evolve<CartOpened> { }
@@ -430,6 +442,13 @@ class CommandGatewayTest {
         val tree = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":3}""")
         gateway.execute(request().copyWith(body = CommandBody.Tree(tree))).status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a command's getter-only collection should be filled from its body`(): Unit = runBlocking {
+        gateway().execute(request("AddSkus", """{"skus":["apple","pear"]}""", wait = WaitPlan.COMMITTED)).status
+            .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        skus.assert().containsExactly("apple", "pear")
     }
 
     @Test

@@ -51,6 +51,36 @@ class ReadRecordsTest {
         record.toSnapshot(type, JsonNode::class.java).assert().isEqualTo(snapshot)
     }
 
+    /** A state holding its collections in getter-only properties, filled by sourcing. */
+    class Basket(val id: String) {
+        val items = sortedSetOf<String>()
+        val counts = mutableMapOf<String, Int>()
+    }
+
+    @Test
+    fun `a typed snapshot record should fill the state's getter-only collections`() {
+        val basket = Basket("c-1").apply {
+            items += listOf("pear", "apple")
+            counts["apple"] = 2
+        }
+        val snapshot = Snapshot.of(
+            ref,
+            2,
+            Scope.NONE,
+            emptyMap(),
+            false,
+            null,
+            10,
+            20,
+            WowJson.mapper.valueToTree<JsonNode>(basket),
+            null,
+            emptyMap(),
+        )
+        val read = snapshot.toRecord().toSnapshot(type, Basket::class.java).state
+        read.items.assert().containsExactly("apple", "pear")
+        read.counts.assert().isEqualTo(mapOf("apple" to 2))
+    }
+
     @Test
     fun `a record without operators or schedules should read as none`() {
         val record = WowJson.mapper.createObjectNode()
