@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import org.junit.jupiter.api.assertThrows
 
 /** The refusals of a misconfigured node, each naming the node and what to set. */
 class NodeChecksTest {
@@ -38,28 +39,30 @@ class NodeChecksTest {
 
     @Test
     fun `a setting of a subscription the node does not have should be refused, naming the ones it has`() {
-        assertThrownBy<IllegalArgumentException> {
+        // A typo the host reports as a configuration failure, naming the key, as for any unknown name.
+        val start = assertThrows<WowConfigurationException> {
             NodeChecks.subscriptionsNamed(
                 "n-1",
                 names,
                 SubscriptionOptions(starts = mapOf(SAGE to SubscriptionStart.Beginning))
             )
-        }.hasMessage(
+        }
+        start.key.assert().isEqualTo("wow.subscriptions.[shop.sage].start")
+        start.value.assert().isEqualTo("shop.sage")
+        start.reason.assert().isEqualTo(
             "A start is configured for the subscription shop.sage, which node n-1 does not have: [shop.projection, shop.saga]."
         )
-        assertThrownBy<IllegalArgumentException> {
+        start.fix.assert().isEqualTo(NodeChecks.SUBSCRIPTION_FIX)
+        assertThrows<WowConfigurationException> {
             NodeChecks.subscriptionsNamed(
                 "n-1",
                 names,
                 SubscriptionOptions(parked = ParkedRetryOptions(specs = mapOf(SAGE to ParkedRetrySpec()))),
             )
-        }.hasMessage(
-            "A parked retry spec is configured for the subscription shop.sage, which node n-1 does not have: " +
-                "[shop.projection, shop.saga].",
-        )
-        assertThrownBy<IllegalArgumentException> {
+        }.key.assert().isEqualTo("wow.subscriptions.[shop.sage].parked")
+        assertThrows<WowConfigurationException> {
             NodeChecks.subscriptionsNamed("n-1", names, SubscriptionOptions(retries = mapOf(SAGE to HandlerRetry())))
-        }.hasMessage(
+        }.reason.assert().isEqualTo(
             "A retry budget is configured for the subscription shop.sage, which node n-1 does not have: [shop.projection, shop.saga]."
         )
         assertDoesNotThrow {

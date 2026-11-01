@@ -647,7 +647,14 @@ class NodeHealthTest {
                     )
                 },
             )
-            val paused = PausedPartition("g", "Slow.onDeposit", 1, 1_000, "StorageUnavailableException")
+            val paused = PausedPartition(
+                "g",
+                "Slow.onDeposit",
+                1,
+                1_000,
+                "a systemic failure: StorageUnavailableException: jdbc:postgresql://db-1/bank refused alice",
+                "StorageUnavailableException",
+            )
             val options = HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5)
             val health = healthOf(node, options) {
                 NodeHealth(node, it, options, pausedOf = { listOf(paused) }, clock = clockOf { 3_000 })
@@ -670,7 +677,8 @@ class NodeHealthTest {
             behind.status.assert().isEqualTo(HealthStatus.DEGRADED)
             (behind.details["lag"] as Long).assert().isGreaterThanOrEqualTo(1L)
             behind.details["paused"].assert().isEqualTo(
-                listOf(mapOf("partition" to 1, "pausedMillis" to 2_000L, "reason" to "StorageUnavailableException")),
+                // The failure's class alone, never its message, which here names a host and a user.
+                listOf(mapOf("partition" to 1, "pausedMillis" to 2_000L, "failure" to "StorageUnavailableException")),
             )
             // Subscriptions never take the node out of service.
             health.readiness().status.assert().isEqualTo(HealthStatus.UP)
@@ -737,7 +745,9 @@ class NodeHealthTest {
             @Suppress("UNCHECKED_CAST")
             val paused = (mirror.details["paused"] as List<Map<String, Any?>>).single()
             paused["partition"].assert().isEqualTo(node.context(BANK).subscriptions.paused().single().partition)
-            (paused["reason"] as String).assert().isNotBlank()
+            // The failure's class name, never its message.
+            (paused["failure"] as String).assert().matches("[\\w.$]+")
+            paused.keys.assert().doesNotContain("reason")
             // A pause waits for what it depends on: the node stays ready and live.
             health.readiness().status.assert().isEqualTo(HealthStatus.UP)
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)

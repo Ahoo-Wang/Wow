@@ -80,8 +80,9 @@ class ConfigurationKeys(
         .filterNot { key -> isKnown(key) }
 
     /**
-     * Refuses the startup when [environment] has an unknown key, naming the module of one whose module is not on the
-     * class path; a key of an earlier version is refused as any other, the message pointing at the migration guide.
+     * Refuses the startup when [environment] has an unknown key, or an environment variable named for one of Wow's
+     * groups (`WOW_<group>_…`) that no key binds, naming the module of one whose module is not on the class path; a key
+     * of an earlier version is refused as any other, the message pointing at the migration guide.
      */
     fun check(environment: ConfigurableEnvironment) {
         val unknown = unknown(environment)

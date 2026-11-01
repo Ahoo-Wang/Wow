@@ -21,7 +21,7 @@ outline: deep
 
 ID 即所有者 ID 的聚合的每种读取，包括 `?version=`、`?at=`、`?minVersion=` 和 `/state/trace`，也都可以不带 ID：它的 ID 是调用方读取所在作用域的所有者。没有所有者的调用方要指明 ID；不指明时得到 `400 wow.query.malformed`，未认证的调用方得到 `401 wow.auth.unauthenticated`（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
 
-状态返回它的聚合的 `ref` 和 `version`、它的 `scope`（所有者和空间）、它的 `deleted` 标记、它的 `tags`，以及 `state` 本身。轨迹返回 `{"ref", "commits"}`：每次提交的版本、提交时间、命令 ID 和请求 ID、命令类型、事件，以及提交之后的聚合。轨迹的下一页从最后一次提交的版本之后开始。
+状态返回快照查询为该聚合返回的记录：`tenantId`、`aggregateId` 和 `version`；`ownerId` 和 `spaceId`，没有时为 `null`；它的 `deleted` 标记和 `tags`；`firstEventTime` 和 `lastEventTime`；`operator` 和 `firstOperator`，即发送它最后一条和第一条命令的调用方；`schedules`，它按键保存的定时计划，各带其规则；以及 `state` 本身。[查询语言](../reference/query-language#field-paths)说明了每个字段。轨迹返回 `{"ref", "commits"}`：每次提交的版本、提交时间、命令 ID 和请求 ID、命令类型、事件，以及提交之后的聚合。轨迹的下一页从最后一次提交的版本之后开始。
 
 最新状态就是快照；在聚合的第一个快照之前，则是重放它的日志。已删除聚合的状态与其他状态一样可读，只是设置了 `deleted`。
 

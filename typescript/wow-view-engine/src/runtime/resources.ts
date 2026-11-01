@@ -19,6 +19,7 @@ import {
   type ViewDefinition,
 } from '../model/index.js';
 import { issue, type FieldKindRegistry } from '../filter/index.js';
+import type { RecordAction } from './actions.js';
 import type { DatasetWordingEditor } from './datasetResources.js';
 import { DefinitionRegistry, sayDefinition } from './definitions.js';
 import {
@@ -62,6 +63,8 @@ export class Resources {
   private readonly reporter: IssueReporter | undefined;
   /** The ids a binding named that no resource registers, each told once. */
   private readonly unbound = new Set<string>();
+  /** The ids whose binding marks several actions primary, each told once. */
+  private readonly primaries = new Set<string>();
 
   constructor(
     private readonly host: ResourceHost,
@@ -140,7 +143,30 @@ export class Resources {
   }
 
   /** See `ViewEngine.checkBinding`. */
-  checkBinding(definitionId: string): boolean {
+  checkBinding(
+    definitionId: string,
+    actions?: readonly RecordAction[],
+  ): boolean {
+    const primary = (actions ?? []).filter(action => action.primary === true);
+    if (primary.length > 1 && !this.primaries.has(definitionId)) {
+      this.primaries.add(definitionId);
+      this.report(
+        issue(
+          'binding.action.primary-extra',
+          [],
+          {
+            id: definitionId,
+            first: primary[0].id,
+            others: primary
+              .slice(1)
+              .map(action => action.id)
+              .join(', '),
+          },
+          'warning',
+        ),
+        definitionId,
+      );
+    }
     if (this.definitions.has(definitionId)) return true;
     if (!this.unbound.has(definitionId)) {
       this.unbound.add(definitionId);

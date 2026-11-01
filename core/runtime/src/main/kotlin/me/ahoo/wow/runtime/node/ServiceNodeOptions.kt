@@ -425,8 +425,8 @@ data class AdmissionPlugins(
 
 /**
  * The application's subscriptions of one bounded context (projections, reactors, sagas), beside the built-in
- * `snapshot` and `reservation` ones. Called once per context while the node is assembled, with the context's parts,
- * so a saga can [forward][me.ahoo.wow.runtime.wait.WaitCoordinator.forward] through its coordinator; the
+ * `wow.snapshot` and `wow.reservation` ones. Called once per context while the node is assembled, with the context's
+ * parts, so a saga can [forward][me.ahoo.wow.runtime.wait.WaitCoordinator.forward] through its coordinator; the
  * subscriptions are registered when the node starts. The annotated processors' come from
  * [me.ahoo.wow.runtime.binding.SubscriptionBindings].
  *

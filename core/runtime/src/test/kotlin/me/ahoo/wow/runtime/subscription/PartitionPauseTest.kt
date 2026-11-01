@@ -52,6 +52,8 @@ class PartitionPauseTest {
         pause.state!!.assert().satisfies({
             it.since.assert().isEqualTo(clock.millis())
             it.reason.assert().startsWith("a systemic failure: java.lang.IllegalStateException: downstream 503")
+            // What the health details show: the class, without the message.
+            it.failure.assert().isEqualTo("java.lang.IllegalStateException")
         })
         // Any failure while paused is the partition's, an unrecoverable one too.
         pause.failed(cart("y"), FailureClass.UNRECOVERABLE, failure, probing = true).assert().isTrue()

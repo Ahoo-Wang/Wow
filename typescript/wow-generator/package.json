@@ -79,6 +79,14 @@
     "@ahoo-wang/fetcher-eventstream": "catalog:peers",
     "@ahoo-wang/wow-client": "workspace:~"
   },
+  "peerDependenciesMeta": {
+    "@ahoo-wang/fetcher-decorator": {
+      "optional": true
+    },
+    "@ahoo-wang/fetcher-eventstream": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "ts-morph": "catalog:",
     "commander": "catalog:",

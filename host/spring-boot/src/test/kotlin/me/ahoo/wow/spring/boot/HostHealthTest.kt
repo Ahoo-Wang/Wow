@@ -75,6 +75,7 @@ class HostHealthTest {
                 "node",
                 "ownership",
                 "stores",
+                "secondaryStores",
                 "topics",
                 "subscriptions",
                 "executor",

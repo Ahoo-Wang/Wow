@@ -359,8 +359,10 @@ class WowPropertiesTest {
             .message.assert().contains("soon")
         // A name is unique within its context alone: a key without one names no subscription.
         val bare = bind("wow.subscriptions.[Mail].start" to "end")
-        assertThrows<IllegalArgumentException> { bare.subscription.options(bare.subscriptions) }
-            .message.assert().contains("wow.subscriptions.[Mail]", "<context>.<name>")
+        val unnamed = assertThrows<WowConfigurationException> { bare.subscription.options(bare.subscriptions) }
+        unnamed.key.assert().isEqualTo("wow.subscriptions.[Mail]")
+        unnamed.value.assert().isEqualTo("Mail")
+        unnamed.fix.assert().contains("<context>.<name>")
     }
 
     @Test

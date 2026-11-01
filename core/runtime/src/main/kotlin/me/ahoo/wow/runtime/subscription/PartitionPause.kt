@@ -62,7 +62,7 @@ internal class PartitionPause(
     /** The pause now, null when the partition runs. */
     val state: PausedPartition?
         get() = synchronized(this) {
-            pause?.let { PausedPartition(group, subscription, partition, it.since, it.reason) }
+            pause?.let { PausedPartition(group, subscription, partition, it.since, it.reason, it.failure) }
         }
 
     /**
@@ -140,7 +140,7 @@ internal class PartitionPause(
                         describe(failure)
                 }
             }.also {
-                pause = Pause(clock.millis(), it)
+                pause = Pause(clock.millis(), it, failure.javaClass.name)
                 failing.clear()
             }
         }
@@ -175,7 +175,7 @@ internal class PartitionPause(
 
     private fun describe(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
 
-    private class Pause(val since: Long, val reason: String) {
+    private class Pause(val since: Long, val reason: String, val failure: String) {
         val resumed = CompletableDeferred<Unit>()
         var probes = 0
     }

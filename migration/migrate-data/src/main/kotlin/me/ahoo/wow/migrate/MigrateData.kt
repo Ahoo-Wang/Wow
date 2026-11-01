@@ -58,7 +58,8 @@ import kotlin.system.exitProcess
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
  *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
- *   it create the index itself, the tool's only write to a 9.x store.
+ *   it create the index itself. That index and the rollback `export`, which writes streams back, are the tool's only
+ *   writes to a 9.x store.
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
  *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
  *   ones on every run, and `--restart` compares from the first again. It then checks that every confirmed 9.x

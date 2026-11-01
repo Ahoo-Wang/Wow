@@ -64,6 +64,7 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -461,7 +462,7 @@ class ServiceNodeTest {
         }
         // The application's subscriptions and the built-in ones may be configured (decision D154).
         node("node-1", options = starts("plain", "wow.snapshot"), subscriptions = plain)
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             node("node-2", options = starts("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("subscription $BANK.Plain.typo", "plain")
     }
@@ -478,7 +479,7 @@ class ServiceNodeTest {
         }
         val node = node("node-1", options = specs("plain", "wow.snapshot"), subscriptions = plain)
         node.parked.subscriptions.assert().contains(SubscriptionId(BANK, "wow.snapshot"))
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             node("node-2", options = specs("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("parked retry spec", "subscription $BANK.Plain.typo", "plain")
     }
@@ -494,7 +495,7 @@ class ServiceNodeTest {
             )
         }
         node("node-1", options = retries("plain", "wow.snapshot"), subscriptions = plain)
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             node("node-2", options = retries("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("retry budget", "subscription $BANK.Plain.typo", "plain")
     }

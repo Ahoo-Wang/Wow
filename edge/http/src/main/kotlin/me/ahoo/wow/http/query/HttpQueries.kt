@@ -33,8 +33,9 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * is when the request comes: a dataset that joins or leaves while the node runs is served or not from then on.
  * [datasetVisibility] decides which of them a caller sees, in `GET /wow/dataset` and on its routes.
  *
- * [defaultListSize] is the limit a `list` query that names none (`limit` 0) runs with over HTTP, at most the HTTP
- * budget's `maxListSize`; `0` keeps 0's meaning, every match, where the budget allows it.
+ * [defaultListSize] is the limit a `list` query that names none runs with over HTTP (a `limit` below 1 is refused
+ * as the body is read), at most the HTTP budget's `maxListSize`; `0` gives no default, so such a query reads every
+ * match where the budget allows it.
  *
  * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled: its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.

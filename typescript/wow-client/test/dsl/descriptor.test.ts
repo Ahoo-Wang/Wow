@@ -36,21 +36,28 @@ function kotlinSource(path: string): string {
   );
 }
 
-/** The constraint types the Kotlin ConstraintDescriptor names, in source order. */
+/**
+ * The constraint types the Kotlin query model names, in source order: the
+ * ConstraintDescriptor's, then the events models' (`UnpinnedEvents`).
+ */
 function kotlinConstraintTypes(): Record<string, string> {
   const source = kotlinSource('descriptor/QueryModelDescriptor.kt');
   const companion = source.slice(
     source.indexOf('data class ConstraintDescriptor'),
   );
+  // The events models' constraint is declared beside the policy that lists it.
+  const events = kotlinSource('events/UnpinnedEvents.kt');
+  const eventsCompanion = events.slice(events.indexOf('companion object'));
   return Object.fromEntries(
-    [...companion.matchAll(/const val (\w+) = "([^"]*)"/g)].map(
-      ([, name, value]) => [name, value],
-    ),
+    [
+      ...companion.matchAll(/const val (\w+) = "([^"]*)"/g),
+      ...eventsCompanion.matchAll(/const val (\w+): String = "([^"]*)"/g),
+    ].map(([, name, value]) => [name, value]),
   );
 }
 
 describe('QueryConstraintTypes', () => {
-  it('knows every constraint type the Kotlin ConstraintDescriptor names', () => {
+  it('knows every constraint type the Kotlin query model names', () => {
     expect(Object.entries(QueryConstraintTypes)).toEqual(
       Object.entries(kotlinConstraintTypes()),
     );

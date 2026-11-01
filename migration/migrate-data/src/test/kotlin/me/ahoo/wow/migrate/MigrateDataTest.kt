@@ -423,6 +423,48 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `every connection string written env NAME should be read from the environment, the JDBC URL and user too`() {
+        val environment = mapOf(
+            "SOURCE_URI" to "mongodb://source:27017",
+            "SOURCE_DB" to "example_db",
+            "PG_URL" to "jdbc:postgresql://db:5432/wow",
+            "PG_USER" to "wow",
+            "PG_PASSWORD" to "secret",
+            "LEDGER_DB" to "compensation_db",
+            "LEDGER_URI" to "mongodb://ledger:27017",
+            "ES_URI" to "http://search:9200",
+        )
+        val written = MigrationConfig(
+            map = "map.json",
+            manifests = emptyList(),
+            source = SourceConfig("env:SOURCE_URI", "env:SOURCE_DB"),
+            target = TargetConfig(
+                TargetConfig.POSTGRES,
+                jdbcUrl = "env:PG_URL",
+                username = "env:PG_USER",
+                password = "env:PG_PASSWORD",
+            ),
+            compensation = CompensationConfig("env:LEDGER_DB", "order-service", "env:LEDGER_URI"),
+            elasticsearch = ElasticsearchConfig("env:ES_URI", "wow-"),
+        )
+        val resolved = written.resolved { environment[it] }
+        resolved.source.assert().isEqualTo(SourceConfig("mongodb://source:27017", "example_db"))
+        resolved.target.jdbcUrl.assert().isEqualTo("jdbc:postgresql://db:5432/wow")
+        resolved.target.username.assert().isEqualTo("wow")
+        resolved.target.password.assert().isEqualTo("secret")
+        resolved.compensation.assert().isEqualTo(
+            CompensationConfig("compensation_db", "order-service", "mongodb://ledger:27017")
+        )
+        resolved.elasticsearch.assert().isEqualTo(ElasticsearchConfig("http://search:9200", "wow-"))
+        // A string not written so stays as written, and an unset variable is named.
+        written.copy(target = TargetConfig(TargetConfig.POSTGRES, jdbcUrl = "jdbc:postgresql://x/wow")).resolved {
+            environment[it]
+        }
+            .target.jdbcUrl.assert().isEqualTo("jdbc:postgresql://x/wow")
+        assertThrows<MigrationException> { written.resolved { null } }.message.assert().contains("SOURCE_URI")
+    }
+
+    @Test
     fun `the configuration resolves its paths and environment values`() {
         val config = MigrationConfig.read(config())
         config.map.assert().isEqualTo(directory.resolve("migration-map.json").toString())

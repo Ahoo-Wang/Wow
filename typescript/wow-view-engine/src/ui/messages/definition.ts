@@ -138,4 +138,6 @@ export const definitionMessages = {
     'No descriptor was given for the source {source}, so its capabilities go unchecked.',
   'binding.definition.unknown':
     'A binding names {id}, which no resource registers: what it binds is lost.',
+  'binding.action.primary-extra':
+    'The binding of {id} marks several actions primary: {first} is drawn as the primary button, and {others} as ordinary actions.',
 } as const satisfies Record<string, string>;
