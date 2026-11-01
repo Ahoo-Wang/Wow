@@ -86,11 +86,59 @@ class BoundedContextArgumentsTest {
         )
         val (compilation, result) = compileModelAgainst("generate", listOf(names), context, cart)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        val fragment = compilation.workingDir.walkTopDown()
-            .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
-        val shop = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java)).contexts.single()
+        val shop = context(compilation)
         shop.name.assert().isEqualTo("shop")
         shop.description.assert().isEqualTo("The shop")
+    }
+
+    @Test
+    fun `a context compiled into a library on the class path should change nothing the module generates`() {
+        // Another module's domain, compiled: its context is named by its own constants.
+        val ledger = compileLibrary(
+            SourceFile.kotlin(
+                "LedgerContext.kt",
+                """
+                package ledger
+
+                import me.ahoo.wow.api.annotation.BoundedContext
+
+                object LedgerNames {
+                    const val CONTEXT: String = "ledger"
+                    const val DESCRIPTION: String = "The ledger"
+                }
+
+                @BoundedContext(name = LedgerNames.CONTEXT, description = LedgerNames.DESCRIPTION)
+                object LedgerContext
+                """.trimIndent(),
+            ),
+        )
+        val context = SourceFile.kotlin(
+            "ShopContext.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "shop", description = "The shop")
+            object ShopContext
+            """.trimIndent(),
+        )
+        val (domain, domainResult) = compileModelAgainst("generate", listOf(ledger), context, cart)
+        domainResult.exitCode.assert().withFailMessage { domainResult.messages }
+            .isEqualTo(KotlinCompilation.ExitCode.OK)
+        context(domain).run {
+            name.assert().isEqualTo("shop")
+            aggregates.map { it.name }.assert().containsExactly("cart")
+        }
+        domain.workingDir.walkTopDown().any { it.name == "CartModel.kt" }.assert().isTrue()
+
+        // A service module, named by the option, whose domain's compiled context is on its class path.
+        val options = mapOf(ModelSymbolProcessorProvider.CONTEXT_OPTION to "shop")
+        val (service, serviceResult) = compileModelAgainst("generate", options, listOf(ledger), cart)
+        serviceResult.exitCode.assert().withFailMessage { serviceResult.messages }
+            .isEqualTo(KotlinCompilation.ExitCode.OK)
+        context(service).aggregates.map { it.name }.assert().containsExactly("cart")
+        service.workingDir.walkTopDown().any { it.name == "CartModel.kt" }.assert().isTrue()
     }
 
     @Test
@@ -135,6 +183,11 @@ class BoundedContextArgumentsTest {
         BoundedContextArguments.of(annotation("description" to "The shop")).assert().isNull()
         BoundedContextArguments.of(annotation("name" to "shop", "description" to null)).assert().isNull()
     }
+
+    /** The one context of the Manifest fragment [compilation] generated. */
+    private fun context(compilation: KotlinCompilation) = compilation.workingDir.walkTopDown()
+        .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
+        .let { ManifestTree.read(jacksonObjectMapper().readValue(it, Map::class.java)).contexts.single() }
 
     /** A `KSAnnotation` with the [given] arguments and the [default] ones, by name; nothing else of it is read. */
     private fun annotation(
