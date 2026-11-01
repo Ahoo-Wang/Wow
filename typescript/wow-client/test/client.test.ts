@@ -350,6 +350,24 @@ describe('CommandClient', () => {
     expect(requests).toHaveLength(4);
   });
 
+  it('refuses an empty id before sending anything', async () => {
+    const { requests } = stubFetch(() => jsonResponse(result()));
+    const commands = new CommandClient(client(), { manifest: TEST_MANIFEST });
+    // An empty id would send /eshop-catalog/product//create-product, a route no service has.
+    await expect(
+      commands.wait({
+        command: 'eshop-catalog.product.CreateProduct',
+        body: { name: 'n', price: 1 },
+        id: '',
+      }),
+    ).rejects.toThrow(
+      new TypeError(
+        'The path /eshop-catalog/product/{id}/create-product of eshop-catalog.product.CreateProduct needs id.',
+      ),
+    );
+    expect(requests).toHaveLength(0);
+  });
+
   it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     await new CommandClient(client(), { manifest: TEST_MANIFEST }).wait({

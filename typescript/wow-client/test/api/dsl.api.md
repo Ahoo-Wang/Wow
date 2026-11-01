@@ -1130,6 +1130,7 @@ export const QueryConstraintTypes: Readonly<{
     readonly PARALLEL_ARRAY_SORT: "parallel-array-sort";
     readonly NULL_OR_EMPTY_AS_MISSING: "null-or-empty-as-missing";
     readonly ARRAY_EQUALITY: "array-equality";
+    readonly AGGREGATE_REQUIRED: "aggregate-required";
 }>;
 
 // @public

@@ -242,6 +242,8 @@ function planOf(request: CommandRequest): WaitPlan | undefined {
 /**
  * The route of `request` among `routes`, by `id` (the request's, none for a
  * command whose body names its aggregate): its method and path, the id in it.
+ * An empty id is refused before anything is sent: it would leave the path's
+ * segment empty (`/<context>/<aggregate>//…`), a route no service has.
  */
 function routeOf(
   request: CommandRequest,
@@ -256,6 +258,11 @@ function routeOf(
       id === undefined
         ? `${request.command} has no route without an aggregate id: set the request's id.`
         : `${request.command} has no route to an aggregate by its id: send it without an id.`,
+    );
+  }
+  if (id === '') {
+    throw new TypeError(
+      `The path ${route.path} of ${request.command} needs id.`,
     );
   }
   const method = route.method;
