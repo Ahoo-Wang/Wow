@@ -10,4 +10,4 @@ PASS only if the answer does all of these:
 1. Builds the filter with filter.and([...]), filter.eq and filter.yesterday with zoneId 'Asia/Shanghai' (without it the server reads the day in UTC), not hand-written JSON
 2. Sorts with desc('state.createdAt') and paginates with pagination { index: 1, size: 20 }, calling paged on the OrderSnapshotQueryClient
 3. Writes the projection as a literal projection: { include: ['aggregateId', 'state.total'] } so the records are typed to those paths
-4. Imports the builders from @ahoo-wang/wow-client/dsl (or the root entry)
+4. Imports the builders from @ahoo-wang/wow-client/dsl

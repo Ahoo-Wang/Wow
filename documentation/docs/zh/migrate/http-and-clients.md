@@ -57,7 +57,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 
 | 9.x | V10 |
 | --- | --- |
-| 带 `commandHeaders` 和 `waitStrategy({ stage: CommandStage.SNAPSHOT })` 的 `CommandClient.send(…)` | 生成的 `<Aggregate>CommandClient.<command>(body, { id, wait: WaitPlan.SNAPSHOT })` |
+| 带 `commandHeaders` 和 `waitStrategy({ stage: CommandStage.SNAPSHOT })` 的 `CommandClient.send(…)` | 生成的 `<Aggregate>CommandClient.<command>(id, body, { wait: WaitPlan.SNAPSHOT })`，创建命令则是 `<command>(body, { id, wait })` |
 | `sendAndWaitStream` | 生成的 `…Stream` 方法 |
 | `QueryClientFactory`、`<aggregate>QueryClientFactory` | 生成的 `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
 | `pagedState`、`listState`、`singleState` | `paged`、`list`、`single`，回答完整的记录：读取 `record.state`，或者用字面的 `include` 投影 |

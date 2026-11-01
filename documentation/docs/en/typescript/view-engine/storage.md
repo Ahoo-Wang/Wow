@@ -83,10 +83,11 @@ import {
 
 export const devStore = new MemoryViewStore({
   snapshot: localStorageSnapshot('my-app:views'),
+  local: true,
 });
 ```
 
-A write the browser refuses, such as a full quota, fails as `UNAVAILABLE`. Tabs do not overwrite each other: the store reads the document again before every write, merges into what another tab stored, and refuses a write another tab has moved past. The ops console keeps its operators' views this way, because the ops service hosts no view store.
+`local: true` tells the engine that nobody else reads these views: it shares none, refuses every change of audience, saves a copy without asking who it is for, and offers no link to a saved view. A write the browser refuses, such as a full quota, fails as `UNAVAILABLE`. Tabs do not overwrite each other: the store reads the document again before every write, merges into what another tab stored, and refuses a write another tab has moved past. The ops console keeps its operators' views this way, because the ops service hosts no view store.
 
 ## On Wow's view store {#wowviewstore-views-on-a-wow-service}
 
@@ -158,8 +159,9 @@ Every reader reads shared and stored system views. Writing shared views, the sha
 | `instance(id).save`, `rename`, `delete` | Save, rename, delete a view | required |
 | `instance(id).changeAudience` | Make shared, make personal | allowed |
 | `editSystem` | Publish as a system view; edit and unpublish stored system views | **refused** |
+| `editDatasetWording` | Edit the wording of the definition's dataset: its title, record noun and field labels | **refused** |
 
-`editSystem` is the one permission whose silence refuses: a system view reaches every reader of every tenant, so only a host that says so opens it.
+`editSystem` and `editDatasetWording` are the permissions whose silence refuses: a system view reaches every reader of every tenant, and the wording every reader of the tenant, so only a host that says so opens them.
 
 ### System views
 
@@ -181,7 +183,7 @@ The engine reads a definition's saved views page by page, up to `RuntimeLimits.l
 
 - Every write sends the port's request id as `Wow-Request-Id` and the revision as `If-Match`, and waits for the snapshot. The service deduplicates request ids, creations included, so a retry is answered with the first attempt's outcome.
 - A stale revision is `CONFLICT`, carrying the view as it is now.
-- A list reads at most 1,000 views of each audience; a view past that is still read by its id.
+- The service lists at most 1,000 stored system views of a definition; shared and personal views are read page by page, up to `listedViews` in all. A view past the cut is still read by its id.
 
 ### Errors
 

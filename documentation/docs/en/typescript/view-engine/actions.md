@@ -166,7 +166,8 @@ Bind them on the resource, `bind('orders', { route, actions: orderActions(orderC
 | `confirm` | What to ask first |
 | `form` | What the command needs besides the record |
 | `moves` | The field it sets, for a kanban card dropped on another lane |
-| `run(row, input)` | Sends the command for one record |
+| `run(row, input, { signal })` | Sends the command for one record; the signal aborts it past `timeout` or on **Stop waiting** |
+| `done` | What the outcome line says instead of "done" |
 | `timeout` | How long one record's `run` is waited for |
 
 Every rule gets `{ now, input? }`: `now` is a `Date` from the engine, so a rule never reads the clock; `input` is the option picked or the form filled. A rule that throws refuses the record.
@@ -234,7 +235,7 @@ In a development build, the engine warns, `record.action.unfetched`, when a rule
 | Place | What is drawn |
 | --- | --- |
 | A row or card | The primary action as a button; the rest in its "Actions for…" menu |
-| The selection bar | The primary action with the count, then the rest; "{able}/{count}" when not all can take it |
+| The selection bar | Each action in its declared order, the primary one with the count; "{able}/{count}" when not all can take it |
 | The record's detail | The actions whose `on` includes `detail` |
 | A board's record panel | As on the workbench; after a command, the whole board is read again |
 
@@ -313,11 +314,11 @@ A `confirm`'s words may hold `{count}`, `{value}` and `{record}`. A form's field
 
 **Records with an unknown outcome are deselected**, so they do not invite a blind rerun. A reader may still press again, so make the command idempotent: send the version the row showed, with `version` in `record.rowFields`, and the client's request id makes a retry of one send count once.
 
-The original error of a failure or an unknown outcome also reaches the environment's `onError`, for monitoring.
+The error a failed or unanswered `run` threw, unless it was aborted, also reaches the environment's `onError`, for monitoring; an outcome left unknown by `timeout` or **Stop waiting** has none.
 
 ## Slots {#slots}
 
-What a declaration cannot say, such as a link out or a control of your own, goes in a slot: `slots: { row, bulk, global }` on `bind`, drawn after the declared actions. A slot that sends a command calls its context's `run`, which reports like the declared actions. Declare what can be declared.
+What a declaration cannot say, such as a link out or a control of your own, goes in a slot: `slots: { row, bulk, global }` on `bind`, drawn after the declared actions. A `row` or `bulk` slot that sends a command calls its context's `run`, which reports like the declared actions. Declare what can be declared.
 
 ## Test the actions {#harness}
 
@@ -375,4 +376,4 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, 'Buyer asked');
 
 ## A complete example
 
-The ops console's [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) declares resume, skip, mark recoverable and apply a retry spec over parked entries, with forms and confirmations, and [`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) tests them with `actionHarness`.
+The ops console's [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) declares retry, skip, mark recoverability and apply a retry spec over parked entries, with forms and confirmations, and [`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) tests them with `actionHarness`.

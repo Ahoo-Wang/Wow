@@ -62,8 +62,8 @@ class Account(private val state: AccountState) {
 
 ## Commands and decisions
 
-- `@AggregateRoot class Root(private val state: State)` (or a root that is its own state). Attributes: `lifecycle` (default all five lifecycle commands), `published`, `publishState`, `topic`, `retiredEvents`.
-- Command functions: non-private, `@OnCommand` or named `onCommand`. First parameter the body `X` or `Command<X>` (`ref`, `scope`, `headers`, `causation`); then services (factory parameters bound once from beans; `@Name` qualifies by bean name) and `DecideScope`.
+- `@AggregateRoot class Root(private val state: State)` (or a root that is its own state). Attributes: `lifecycle` (default all five lifecycle commands; `TransferOwner` left out where the owner is fixed), `published`, `publishState`, `topic`, `retiredEvents`, `ownership` (`OWNER`, or `TENANT` for one of the tenant's), `idSource` (`ASSIGNED`, or `OWNER`: its id is its owner's), `snapshot` and `stateRevision`.
+- Command functions: public or internal, `@OnCommand` or named `onCommand`; a private one annotated `@OnCommand` and a Kotlin `protected` one are compile errors, and a private one only named `onCommand` is ignored. First parameter the body `X` or `Command<X>` (`ref`, `scope`, `headers`, `causation`); then services (factory parameters bound once from beans; `@Name` qualifies by bean name) and `DecideScope`.
 - Return the event type, in this order of preference: the event (`Withdrawn`), `E?` when the command may change nothing (null is a no-op), a sealed type of the events, or a list of one event type; reject by throwing (`reject(code, message)`). Return `Decision` only when the type cannot name the events (two kinds without a common sealed type, a domain event and a lifecycle event), with `@OnCommand(produces = [...])` listing them; `produces` is forbidden when the return type names them. A comment on such a function says why it is a `Decision`.
 - Never return an interface or abstract class that is not sealed (nor a list of one, nor a sealed type with such a subtype): the compiler refuses it, since the type does not list the events. Make it sealed, return the event classes, or return `Decision` with `produces`.
 - The kernel holds each function to the events its return type or `produces` names: another event fails the command, `wow.command.undeclared-event` (500), a bug in the model.
@@ -91,7 +91,7 @@ class Account(private val state: AccountState) {
 
 ## DecideScope
 
-`DecideScope` is the decide function's view of the request: `command`, `ids` (deterministic ids), `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
+`DecideScope` is the decide function's view of the request: `command`, `now` (epoch ms on the node's clock, the commit time of its events: compute a deadline from it, never from the system clock; the test DSL's time drives it), `ids` (deterministic ids), `reject(code, message, …)`, `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
 
 - **Unique keys** (a user name, an order number): `reserve` in decide; the reservation commits with the events and is released if the append fails. `tenancy` is `TENANT` (the default: unique within the tenant) or `SYSTEM` (unique across tenants). Every unique key includes the tenant unless it is meant to be global.
 - **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = [Command::class])` declares them); at least once, never early; a rejection when due is the normal guard.
@@ -110,7 +110,7 @@ Events are permanent. Change one only so that every stored version still reads:
 - `@Revision(n)` on the event class, and `@Upgrade(event = X::class, from = n)` on a top-level or `object` function taking and returning `JsonNode`/`ObjectNode`, a complete chain 1..n-1. A stored event is read at its revision and upgraded on load.
 - `@Alias` for a renamed event or command.
 - `@AggregateRoot(retiredEvents = [...])` for an event no longer produced: stored ones are skipped on load, their streams still a version.
-- The module's `check` compares the Manifest with its baseline and fails a break (an event's schema changed without a revision, a removed event without retiring it). Update the baseline only for an intended, reviewed change.
+- The service module's `check` (`checkWowManifest`) compares the Manifest with its baseline and fails a break, and any change the baseline does not record yet (an event's schema changed without a revision, a removed event without retiring it). Update the baseline only for an intended, reviewed change.
 
 ## Java domains
 

@@ -52,7 +52,7 @@ Module READMEs, package design documents and Skill instructions are not competin
 
 ### Design records
 
-A design record explains why the code is shaped the way it is: the problem, constraints, compatibility boundary, decision and rejected alternatives. Records that span JVM modules go to `documentation/designs/` as `YYYY-MM-DD-<topic>-design.md`; the design of a single TypeScript package or application stays in its `docs/design/`. A major version redesigned as a whole keeps its records together in `documentation/designs/v<major>/`: a `README.md` index, the architecture overview and its topic records, a `roadmap.md` of milestones, and a `decisions.md` ledger of open and settled decisions. That directory is flat.
+A design record explains why the code is shaped the way it is: the problem, constraints, compatibility boundary, decision and rejected alternatives. Records that span JVM modules go to `documentation/designs/` as `YYYY-MM-DD-<topic>-design.md`; the design of a single TypeScript package or application stays in its `docs/design/`. A major version redesigned as a whole keeps its records together in `documentation/designs/`: a `README.md` index, the architecture overview and its topic records, a `roadmap.md` of milestones, and a `decisions.md` ledger of open and settled decisions. That directory is flat.
 
 - The header states the date, the source baseline and the status: proposed, accepted, implementing, implemented, or superseded.
 - When the implementation lands, update the status, and move every user-visible contract to its site page. The site may link a record for rationale; it never depends on one for the contract itself.
@@ -130,7 +130,7 @@ A cleanup follows the same procedure, one reviewable pull request per batch:
 
 `.github/scripts/docs-consistency.mjs` (`pnpm check:docs-consistency`) runs there too. Every English page has a Chinese page and the other way round, except a generated page, which may be English only; the two share their headings by level and their code blocks by language. Every `wow.*` key that a YAML or properties block sets is a key of the Spring Boot configuration metadata, compared as Spring binds it.
 
-The reference pages of the configuration keys, the error codes, the annotations, the Manifest format, the published modules and the API levels (`reference/{configuration,error-codes,annotations,manifest,modules,api-levels}.md`) are generated from their sources by `.github/scripts/docs-reference.mjs`; the same job fails when a committed page is not what the sources give. Regenerate them with `pnpm docs:reference` in the change that changes a source.
+The reference pages of the configuration keys, the platform modules' configuration keys, the error codes, the annotations, the Manifest format, the published modules and the API levels (`reference/{configuration,module-configuration,error-codes,annotations,manifest,modules,api-levels}.md`) are generated from their sources by `.github/scripts/docs-reference.mjs`; the same job fails when a committed page is not what the sources give. Regenerate them with `pnpm docs:reference` in the change that changes a source.
 
 The Documentation job of the same workflow builds the VitePress site with the locked dependency graph whenever the site or its samples change. The check is structural: whether a document is current, has one owner, or is working material in disguise remains a review question.
 

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'ELEMENT_MATCH'
+pattern: 'element-match|ELEMENT_MATCH'
 match: contains
 target: last_message
 ---

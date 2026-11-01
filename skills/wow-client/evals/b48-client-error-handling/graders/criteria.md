@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Wraps the command call in try/catch: a refused or failed command rejects with WowProblemError, it never resolves with a failure
-2. Maps error.violations (path, message) to the form fields for a validation problem, and shows the domain code from the generated error codes, or the problem's detail, in the toast for anything else
-3. Treats an error that is not a WowProblemError as a network, timeout or abort failure
+1. Wraps the command call in try/catch: a rejected command (by the domain or at admission, an invalid one included) rejects with CommandRejectedError and any other failure with WowProblemError; it never resolves with a failure
+2. Maps the violations of a `wow.command.invalid` rejection (path, message, on its result's error or its problem) to the form fields, and shows the domain code from the generated error codes, or the problem's detail, in the toast for anything else
+3. Treats an error that is neither a CommandRejectedError nor a WowProblemError as a network, timeout or abort failure
 4. Resends only when error.retry says so and with the same request id; after wow.wait.timeout reads the state first, since the command may have committed

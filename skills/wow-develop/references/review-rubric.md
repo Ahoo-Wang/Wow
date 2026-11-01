@@ -28,7 +28,7 @@ Judge behavior before style. Each finding: file and line, what goes wrong, when 
 - A cross-context saga on a node without Kafka, a target without `command-intake`, a command topic with a partition count other than `wow.log.partitions`, or a peer's api module missing from the class path.
 - A synchronous call where a command and receipt would do, or one without `@Sends(calls)`.
 - `wow.log.partitions` changed after the log holds entries; a context name with a dot or upper case.
-- The internal port reachable from outside; no cluster token outside a development profile.
+- The internal port reachable from outside the platform's network (it carries no authentication).
 - A V10 module depending on a 9.x module, or a 9.x annotation in a V10 module.
 
 ## Tests
