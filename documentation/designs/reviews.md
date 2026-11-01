@@ -347,3 +347,11 @@
 | PA-34 | — | 分阶段迁移时的跨服务事件 | V10 的 Saga 订阅不到仍在 9.x 上的服务的事件流 | 已由 D379 定：互相消费事件的 9.x 服务群一起切换，9.x 主题桥是 10.x 的候选 | 已定（D379） |
 | PA-35 | P2 | 命令的 HTTP 路由 | 无法让某个命令不开放 HTTP 路由（9.x 的 `@CommandRoute(enabled = false)`），内部命令都成了公开路由，只能靠授权挡 | 待定（试迁移后定） | 待定 |
 | PA-36 | P3 | 重复创建的错误提示 | 领域代码无法自定义重复创建的提示（9.x 用 `@OnError` 改写）；V10 在决定之前即答 `wow.aggregate.exists` | 待定（PA-23 已在迁移文档写明现状） | 待定 |
+| PA-37 | P2 | 测试 DSL 的决定纯度检查 | 版本 0 时序列化初始状态，状态里有尚未赋值的 `lateinit`（9.x 常见）时创建命令失败；生产不开此检查 | 只在版本 0 且原因是 `lateinit` 未赋值时跳过；规则放宽为「创建事件应用后每个属性都有值」 | 已修（#5308） |
+| PA-38 | P1 | 状态 schema 漏掉接口默认 getter | 以 Kotlin 默认模式（`-jvm-default=enable`/`all-compatibility`）编译的类会为接口默认 getter 生成桥接方法，schema 内省按 Method 同一性匹配 Jackson 的 getter 而对不上，计算属性被丢掉，按它查询被拒；`<State>Properties` 却有 | 按 getter 名在声明类型的层级中匹配；两种 jvm-default 模式的夹具 | 已修（#5309；项目 A 的构建上确认属性数 13→23） |
+| PA-39 | P1 | KSP 增量编译丢上下文 | 增量的一轮里 `@BoundedContext` 文件未被处理时，重新生成的模型工厂丢了上下文的默认值 | 每轮从全部文件读上下文，并把上下文文件列为每个以之命名的输出的源 | 已修（#5308） |
+| PA-40 | P2 | 宿主的 `CommandClient` | 转换器注入 `CommandClient` 时启动报循环依赖（client → gateway → transformers） | 客户端首次使用时才构建（`DeferredCommandClient`） | 已修（#5309） |
+| PA-41 | 文档 | 迁移指南 | 9.x 的 `limit(Int.MAX_VALUE)` 在 V10 被拒（进程内列表上限 1000） | 写明改用 `unbounded()` 及其适用场合 | 已修（#5309） |
+| PA-42 | P1 | `migrate-data` 的单条坏流 | 9.x 一条流的聚合 ID 为空串，`check` 不报，`import` 中途失败；映射只能排除整个聚合 | D384：`check` 逐条报无法导入的流，`excluded` 可排除单条流 | 进行中（2026-11-01 派出） |
+| PA-43 | P2 | 旧事件中的 null 元素 | Wow 10 的 Jackson 3 Kotlin 模块拒绝非空 `List<String>` 中的 null，9.x 的 Jackson 2 接受，部分旧事件解码失败 | 保持严格；迁移指南写明，用 `@Upgrade` 清理旧形状，由 PA-44 检出 | 进行中（同上） |
+| PA-44 | P2 | `migrate-data` 读不出的事件 | 快照步骤遇到第一个读不出的事件就整体中止，无法一次看到全部 | `check --decode` 逐条列出全部读不出的事件；快照步骤也报全 | 进行中（同上） |
