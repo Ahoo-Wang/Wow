@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
@@ -50,6 +51,7 @@ import me.ahoo.wow.query.policy.AbacQueryOptions
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
@@ -514,6 +516,45 @@ class HostQueryTest {
             isRunning.assert().isTrue()
             reports.getValue(ACCOUNT).assert().isEqualTo(created)
         }
+    }
+
+    @Test
+    fun `a state holding a sealed value should start, its discriminator indexed`() {
+        // Each subtype as the Manifest writes it: its own properties, then its discriminator's value.
+        fun subtype(name: String, extra: Map<String, Any?>) = mapOf(
+            "allOf" to listOf(
+                mapOf("type" to "object", "properties" to mapOf("type" to mapOf("type" to "string")) + extra),
+                mapOf("type" to "object", "properties" to mapOf("type" to mapOf("const" to name))),
+            ),
+        )
+        val holder = mapOf("oneOf" to listOf(mapOf("\$ref" to "#/\$defs/Rack"), mapOf("\$ref" to "#/\$defs/Crate")))
+        val account = AggregateManifest("account", state = StateManifest("#/\$defs/Account"))
+        val manifest = Manifest(
+            contexts = listOf(ContextManifest(BANK, aggregates = listOf(account))),
+            defs = mapOf(
+                "Account" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf("holder" to holder),
+                    "x-wow-index" to listOf(mapOf("name" to "ix_holder_type", "keys" to listOf("state.holder.type"))),
+                ),
+                "Rack" to subtype("Rack", mapOf("levels" to mapOf("type" to "integer"))),
+                "Crate" to subtype("Crate", mapOf("lidded" to mapOf("type" to "boolean"))),
+            ),
+        )
+        val catalog = QuerySchemaCatalog(
+            QueryBackendStorages(InMemoryQueryStorage()),
+            QueryModelCompiler.of(listOf(ManifestStateSchemas(manifest))),
+        )
+        val plans = mutableListOf<QueryIndexPlan>()
+        val backend = SnapshotQueryBackend(
+            InMemoryQueryStorage(),
+            indexes = { _, plan -> QueryIndexReport().also { plans += plan } },
+        )
+        QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend, catalog).apply {
+            start()
+            isRunning.assert().isTrue()
+        }
+        plans.single().indexes.single().keys.single().field.assert().isEqualTo(QueryField("state.holder.type"))
     }
 
     @Test

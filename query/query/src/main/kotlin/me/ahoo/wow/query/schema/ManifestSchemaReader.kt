@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.resolve.jsonValue
+import tools.jackson.databind.JsonNode
 import java.util.concurrent.TimeUnit
 
 /**
@@ -57,10 +58,14 @@ private const val REF = "\$ref"
  * Reads a JSON Schema 2020-12 of the Manifest's `$defs`, as `manifest-tools` writes them with Jackson's own
  * serializers, into a [QueryFieldDeclaration]: local `$ref`s (a recursive one is left opaque), `anyOf`
  * and `oneOf` as unions (a `null` branch makes the value nullable), `allOf` merged, `type` (a list with `null` is
- * nullable), `properties` and `required`, `items`, `additionalProperties`, `enum`, `title`, `description`,
+ * nullable), `properties` and `required`, `items`, `additionalProperties`, `enum` and `const`, `title`, `description`,
  * `deprecated`, the `date`/`date-time` formats as [Temporal.Date], and the `x-wow-*` keywords
  * ([ManifestQueryKeywords]). A `writeOnly` property is never in a response, so it is left out; a property whose name
  * is not a query path segment is left out too, unless it is sensitive, which fails rather than drop the protection.
+ *
+ * A `const`, or an `enum` without `type`, narrows a scalar: it names the type of its values only where no `type` beside
+ * it does, so `allOf` of `{"type": "string"}` and `{"const": "Shelf"}` is a string, as a sealed type's discriminator
+ * property reads. Values of another type than the one named conflict ([settled]).
  *
  * @param defs the Manifest's `$defs`, which `$ref`s point into.
  * @param contextName the bounded context of the model, the one an `x-wow-reference` without `contextName` names.
@@ -72,7 +77,7 @@ internal class ManifestSchemaReader(
     private val strategies: MaskStrategyResolver,
 ) {
     fun declaration(schema: Map<*, *>, field: QueryField<*>): QueryFieldDeclaration =
-        read(schema, field.path, emptySet())
+        read(schema, field.path, emptySet()).settled(field.path)
 
     private fun read(schema: Map<*, *>, field: String, resolving: Set<String>): QueryFieldDeclaration {
         val parts = buildList {
@@ -127,10 +132,15 @@ internal class ManifestSchemaReader(
         }
     }
 
-    /** The structure a schema without `type` implies by its `items` or `properties`, or `null` for none. */
+    /**
+     * The structure a schema without `type` implies by its `items` or `properties`, or a scalar its `const` or scalar
+     * `enum` values narrow, its type left to [settled]; `null` for none.
+     */
     private fun untyped(schema: Map<*, *>, field: String, resolving: Set<String>): QueryFieldDeclaration? = when {
         "items" in schema -> array(schema, field, resolving, nullable = null)
         "properties" in schema || "additionalProperties" in schema -> obj(schema, field, resolving, null)
+        schema.listedValues()?.all { it.isValueNode } == true ->
+            QueryFieldDeclaration(kind = DeclarationValue.Set(QueryValueKind.SCALAR))
         else -> null
     }
 
@@ -171,8 +181,9 @@ internal class ManifestSchemaReader(
                 }
                 return@forEach
             }
+            // Only a listed property states it: the `required` of `allOf` is that of all its parts together.
             properties[name] = read(property, "$field.$name", resolving)
-                .copy(required = DeclarationValue.Set(name in required))
+                .let { if (name in required) it.copy(required = DeclarationValue.Set(true)) else it }
         }
         val additional = when (val values = schema["additionalProperties"]) {
             is Map<*, *> -> read(values, "$field.{key}", resolving)
@@ -222,9 +233,7 @@ internal class ManifestSchemaReader(
         var result = this
         (schema["title"] as? String)?.let { result = result.copy(title = DeclarationValue.Set(it)) }
         (schema["description"] as? String)?.let { result = result.copy(description = DeclarationValue.Set(it)) }
-        (schema["enum"] as? List<*>)?.let { values ->
-            result = result.copy(enumValues = DeclarationValue.Set(values.map { it.jsonValue() }))
-        }
+        schema.listedValues()?.let { result = result.copy(enumValues = DeclarationValue.Set(it)) }
         if (schema["deprecated"] == true) result = result.copy(deprecated = DeclarationValue.Set(QueryDeprecation()))
         return result
     }
@@ -272,6 +281,12 @@ internal class ManifestSchemaReader(
 
     private fun Map<*, *>.ref(): String? = this[REF] as? String
 
+    /** The values `const` (one) or `enum` lists, `const` first; `null` when the schema has neither. */
+    private fun Map<*, *>.listedValues(): List<JsonNode>? = when {
+        "const" in this -> listOf(this["const"].jsonValue())
+        else -> (this["enum"] as? List<*>)?.map { it.jsonValue() }
+    }
+
     private fun Map<*, *>.list(key: String): List<*> = this[key] as? List<*> ?: emptyList<Any?>()
 
     private fun Any?.asSchema(field: String): Map<*, *> = this as? Map<*, *> ?: invalid(field, "schema")
@@ -289,6 +304,50 @@ internal class ManifestSchemaReader(
             nullable = DeclarationValue.Set(true),
         )
     }
+}
+
+/**
+ * This declaration with each scalar's value types settled by its `const` or `enum` values ([ManifestSchemaReader]):
+ * a scalar no `type` named takes the types of its values; one whose values are not all of the types named is a
+ * conflict, as a `string` that is a numeric `const` would be.
+ */
+private fun QueryFieldDeclaration.settled(field: String): QueryFieldDeclaration {
+    val values = enumValues.valueOr(null).orEmpty().filterNot { it.isNull }
+    val types = when {
+        kind != DeclarationValue.Set(QueryValueKind.SCALAR) || values.isEmpty() -> valueTypes
+        valueTypes is DeclarationValue.Set -> valueTypes.also { named ->
+            if (values.any { value -> named.value.none { value.fits(it) } }) {
+                throw QuerySchemaConflictException("Conflicting query schema declaration: [$field.enumValues].")
+            }
+        }
+        else -> DeclarationValue.Set(values.map { it.valueType() }.toCollection(linkedSetOf()))
+    }
+    return copy(
+        valueTypes = types,
+        properties = properties.mapSet { it.mapValues { (name, property) -> property.settled("$field.$name") } },
+        items = items.mapSet { it?.settled(field) },
+        additionalProperties = additionalProperties.mapSet { it?.settled("$field.{key}") },
+        alternatives = alternatives.mapSet { branches -> branches.map { it.settled(field) } },
+    )
+}
+
+private fun <T> DeclarationValue<T>.mapSet(transform: (T) -> T): DeclarationValue<T> = when (this) {
+    is DeclarationValue.Set -> DeclarationValue.Set(transform(value))
+    DeclarationValue.Unset -> this
+}
+
+/** The value type of a scalar JSON value: a whole number is an integer. */
+private fun JsonNode.valueType(): QueryValueType = when {
+    isString -> QueryValueType.STRING
+    isBoolean -> QueryValueType.BOOLEAN
+    isIntegralNumber || isNumber && decimalValue().stripTrailingZeros().scale() <= 0 -> QueryValueType.INTEGER
+    else -> QueryValueType.DECIMAL
+}
+
+/** Whether this scalar JSON value is one of [type]: an integer is a decimal too. */
+private fun JsonNode.fits(type: QueryValueType): Boolean = when (val own = valueType()) {
+    QueryValueType.INTEGER -> type == QueryValueType.INTEGER || type == QueryValueType.DECIMAL
+    else -> own == type
 }
 
 /** The `x-wow-*` keywords of one property schema, read with messages that name the field. */

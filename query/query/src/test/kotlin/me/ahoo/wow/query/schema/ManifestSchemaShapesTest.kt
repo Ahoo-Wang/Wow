@@ -93,6 +93,89 @@ class ManifestSchemaShapesTest {
         }
     }
 
+    /** A subtype of a sealed value as the Manifest writes it: its own properties, then its discriminator's value. */
+    private fun subtype(name: String, extra: Map<String, Any?>): Map<String, Any?> = mapOf(
+        "allOf" to listOf(
+            mapOf(
+                "type" to "object",
+                "properties" to mapOf("type" to mapOf("type" to "string")) + extra,
+                "required" to listOf("type"),
+            ),
+            mapOf("type" to "object", "properties" to mapOf("type" to mapOf("const" to name))),
+        ),
+    )
+
+    @Test
+    fun `a sealed value's discriminator, a string each subtype narrows to its const, should read as a string`() {
+        runTest {
+            val holder = mapOf("oneOf" to listOf(mapOf("\$ref" to "#/\$defs/Rack"), mapOf("\$ref" to "#/\$defs/Crate")))
+            val schema = schema(
+                mapOf("holder" to holder),
+                mapOf(
+                    "Rack" to subtype("Rack", mapOf("levels" to mapOf("type" to "integer"))),
+                    "Crate" to subtype("Crate", mapOf("lidded" to mapOf("type" to "boolean"))),
+                ),
+            )
+            val (rack, crate) = schema.value("state.holder").alternatives
+            listOf(rack to "Rack", crate to "Crate").forEach { (branch, name) ->
+                branch.properties.getValue("type").run {
+                    kind.assert().isEqualTo(QueryValueKind.SCALAR)
+                    valueTypes.assert().containsExactly(QueryValueType.STRING)
+                    enumValues!!.map { it.asString() }.assert().containsExactly(name)
+                }
+            }
+            rack.properties.getValue("levels").valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+            schema.field(QueryField("state.holder.type")).assert().isNotNull()
+        }
+    }
+
+    @Test
+    fun `an enum or a numeric const should narrow the type beside it alike, and name one only where none is`() {
+        runTest {
+            fun narrowed(type: String, values: Map<String, Any?>) =
+                mapOf("allOf" to listOf(mapOf("type" to type), values))
+            val schema = schema(
+                mapOf(
+                    "grade" to narrowed("string", mapOf("enum" to listOf("A", "B"))),
+                    "ratio" to narrowed("number", mapOf("const" to 3)),
+                    "count" to narrowed("integer", mapOf("const" to 3)),
+                    "flag" to narrowed("boolean", mapOf("const" to true)),
+                    "tag" to mapOf("const" to "fixed"),
+                    "levels" to mapOf("enum" to listOf(1, 2.5, null)),
+                    "whole" to mapOf("const" to 3.0),
+                    "shapes" to mapOf("enum" to listOf(mapOf("a" to 1))),
+                ),
+            )
+            schema.value("state.grade").valueTypes.assert().containsExactly(QueryValueType.STRING)
+            schema.value("state.ratio").valueTypes.assert().containsExactly(QueryValueType.DECIMAL)
+            schema.value("state.count").valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+            schema.value("state.flag").valueTypes.assert().containsExactly(QueryValueType.BOOLEAN)
+            schema.value("state.tag").run {
+                kind.assert().isEqualTo(QueryValueKind.SCALAR)
+                valueTypes.assert().containsExactly(QueryValueType.STRING)
+            }
+            schema.value("state.levels").valueTypes.assert()
+                .containsExactly(QueryValueType.INTEGER, QueryValueType.DECIMAL)
+            schema.value("state.whole").valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+            // An enum of objects narrows no scalar.
+            schema.value("state.shapes").kind.assert().isEqualTo(QueryValueKind.UNKNOWN)
+        }
+    }
+
+    @Test
+    fun `a value of another type than the one named should still be a conflict`() {
+        runTest {
+            listOf(
+                mapOf("allOf" to listOf(mapOf("type" to "string"), mapOf("type" to "integer"))),
+                mapOf("allOf" to listOf(mapOf("type" to "string"), mapOf("const" to 3))),
+                mapOf("type" to "integer", "const" to 2.5),
+            ).forEach { field ->
+                assertThrows<QuerySchemaConflictException> { schema(mapOf("odd" to field)) }.message.assert()
+                    .describedAs(field.toString()).startsWith("Conflicting query schema declaration: [state.odd.")
+            }
+        }
+    }
+
     @Test
     fun `type lists, unions and arrays read their edge shapes`() {
         runTest {
