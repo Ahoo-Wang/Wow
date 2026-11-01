@@ -106,7 +106,7 @@ class ProducedEventsTest {
             "fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
                 "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
         ).assert().contains(
-            "onCommand returns me.ahoo.wow.api.decide.Decision, which names no event it produces, and lists none " +
+            "onCommand returns Decision, which names no event it produces, and lists none " +
                 "in @OnCommand(produces): the Manifest lists no event of it, so the kernel does not refuse an event " +
                 "it was not meant to produce. List the events it may produce in @OnCommand(produces = [...]); a " +
                 "function that only rejects or does nothing suppresses this with @Suppress(\"UnlistedEvents\")",
@@ -132,7 +132,7 @@ class ProducedEventsTest {
         compiled(
             "@Suppress(\"SomethingElse\") fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
                 "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
-        ).assert().contains("onCommand returns me.ahoo.wow.api.decide.Decision, which names no event it produces")
+        ).assert().contains("onCommand returns Decision, which names no event it produces")
     }
 
     @Test
@@ -158,7 +158,7 @@ class ProducedEventsTest {
             ),
         )
         result.messages.assert()
-            .contains("onCommand returns me.ahoo.wow.api.decide.Decision, which names no event it produces")
+            .contains("onCommand returns Decision, which names no event it produces")
             .doesNotContain("Exception")
     }
 

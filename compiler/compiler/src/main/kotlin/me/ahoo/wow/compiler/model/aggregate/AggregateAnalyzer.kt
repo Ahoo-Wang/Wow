@@ -299,7 +299,7 @@ internal class AggregateAnalyzer(
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
         }
-        unlistedEvents(function, returnType, open, returned, producesListed)?.let { warnings += it }
+        unlistedEvents(function, open, returned, producesListed)?.let { warnings += it }
         val creation = when {
             command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
             command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
@@ -483,14 +483,14 @@ internal class AggregateAnalyzer(
         generateSequence(this) { it.findOverridee() as? KSFunctionDeclaration }.any { it.hasAnnotation(annotation) }
 
     /**
-     * The warning of a command [function] whose events neither its [returnType] ([returned]) nor its `produces`
+     * The warning of a command [function] whose events neither its return type ([returned]) nor its `produces`
      * ([produces]) names: the Manifest lists none of them, so the kernel refuses no event it was not meant to produce.
+     * It names the return type by its reference (`Decision`), which is what the author looks for in the source.
      * None for an [open] return type, refused already; nor where the function's source is not compiled here, since its
      * author is the one who lists them, and a library's `@Suppress` does not reach a subclass compiled against it.
      */
     private fun unlistedEvents(
         function: KSFunctionDeclaration,
-        returnType: KSType?,
         open: KSClassDeclaration?,
         returned: List<String>?,
         produces: List<String>,
@@ -501,7 +501,7 @@ internal class AggregateAnalyzer(
         if (function.origin !in SOURCE || function.suppresses(UNLISTED_EVENTS)) {
             return null
         }
-        return "${function.simpleName.asString()} returns ${returnType?.render() ?: "a type"}, which names no event " +
+        return "${function.simpleName.asString()} returns ${function.returnType}, which names no event " +
             "it produces, and lists none in @OnCommand(produces): the Manifest lists no event of it, so the kernel " +
             "does not refuse an event it was not meant to produce. List the events it may produce in " +
             "@OnCommand(produces = [...]); a function that only rejects or does nothing suppresses this with " +

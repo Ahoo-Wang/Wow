@@ -192,7 +192,7 @@ import me.ahoo.wow.kernel.KernelOptions
         val (compilation, result) = compileModelAgainst("generate", listOf(library), journal, scenario)
         assertBound(compilation, result)
         // The subclass's own override of onAdd is compiled here: its author can list what it produces.
-        result.messages.assert().contains("sample.Journal: onAdd returns me.ahoo.wow.api.decide.Decision")
+        result.messages.assert().contains("sample.Journal: onAdd returns Decision")
     }
 
     @Test
@@ -200,6 +200,6 @@ import me.ahoo.wow.kernel.KernelOptions
         val (compilation, result) = compileModel("generate", ledger, journal, scenario)
         assertBound(compilation, result)
         // Its source is compiled here, so its unlisted events are warned of.
-        result.messages.assert().contains("returns me.ahoo.wow.api.decide.Decision, which names no event it produces")
+        result.messages.assert().contains("returns Decision, which names no event it produces")
     }
 }
