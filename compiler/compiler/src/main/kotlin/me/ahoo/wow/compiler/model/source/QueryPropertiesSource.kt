@@ -40,10 +40,11 @@ import me.ahoo.wow.manifest.QueryFieldNames
  * A path follows what Jackson writes and the state schema of the Manifest describes: each public property, with a
  * backing field or computed (a getter alone, `val total: Int get() = ...`, which Jackson writes into the snapshot
  * too), under its `@JsonProperty` name, without the `@JsonIgnore`d ones and those a class's `@JsonIgnoreProperties`
- * names. It descends into a property of an application class, and into the element class of
- * a collection or an array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to
- * the element); a map, an enum, an interface, an abstract or sealed class, a value class and the `kotlin.` and
- * `java.` types are leaves, and so is a class already on the path. Each constant is named after its path, as
+ * names. It descends into a property of an application class or interface, an interface's properties being those its
+ * getters give, a default one included, as the schema describes them, and into the element class of a collection or an
+ * array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to the element); a map,
+ * an enum, a sealed interface, an abstract or sealed class, a value class and the `kotlin.` and `java.` types are
+ * leaves, and so is a class already on the path. Each constant is named after its path, as
  * `wow-manifest`'s [QueryFieldNames] names it, the same function the api module's generated `<Context>Contract` names
  * the state schema's paths with: the JSON property names in upper snake case, a nested one after
  * `__`: `STATE__ITEMS__PRODUCT_ID`.
@@ -178,10 +179,17 @@ internal object QueryPropertiesSource {
             return arguments.firstOrNull()?.type?.resolve()?.nestedClass()
         }
         val type = declaration as? KSClassDeclaration ?: return null
-        val leaf = type.classKind != ClassKind.CLASS ||
-            qualified.startsWith("kotlin.") || qualified.startsWith("java.") || qualified.startsWith("javax.") ||
-            type.modifiers.any { it == Modifier.ABSTRACT || it == Modifier.SEALED || it == Modifier.VALUE } ||
-            type.modifiers.contains(Modifier.INLINE)
-        return if (leaf) null else type
+        val platform = qualified.startsWith("kotlin.") || qualified.startsWith("java.") || qualified.startsWith("javax.")
+        return if (platform || type.isLeaf()) null else type
+    }
+
+    /** Whether no path continues into this class: it is no class or plain interface whose properties are its own. */
+    private fun KSClassDeclaration.isLeaf(): Boolean = when (classKind) {
+        ClassKind.CLASS -> modifiers.any {
+            it == Modifier.ABSTRACT || it == Modifier.SEALED || it == Modifier.VALUE || it == Modifier.INLINE
+        }
+        // A sealed interface is its subtypes' alternatives, each with properties of its own.
+        ClassKind.INTERFACE -> Modifier.SEALED in modifiers
+        else -> true
     }
 }
