@@ -80,6 +80,7 @@ import { TabMemory } from './tabMemory.js';
 import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
 import { SourceCapabilities } from './capabilities.js';
 import { Resources } from './resources.js';
+import type { RecordAction } from './actions.js';
 import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
@@ -284,9 +285,17 @@ export class ViewEngine {
    * to inner hosts), or for a resource a feature flag left out, and a
    * binding that matches nothing breaks nothing. `ViewHost` asks this of
    * every binding it is given.
+   *
+   * Given the binding's `actions`, it also tells, once per id, of a binding
+   * that marks several actions `primary` (`binding.action.primary-extra`, a
+   * warning): only the first is drawn as the primary button, the others as
+   * ordinary actions.
    */
-  checkBinding(definitionId: string): boolean {
-    return this.resources.checkBinding(definitionId);
+  checkBinding(
+    definitionId: string,
+    actions?: readonly RecordAction[],
+  ): boolean {
+    return this.resources.checkBinding(definitionId, actions);
   }
 
   /**

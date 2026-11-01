@@ -60,6 +60,18 @@ type Start = (
 ) => void;
 
 /**
+ * The id of the action drawn as the primary one among `views`: the first
+ * marked `primary`. A view declares at most one; any other is drawn as an
+ * ordinary action, and the binding check tells of it
+ * (`binding.action.primary-extra`).
+ */
+function leadOf(
+  views: readonly { readonly action: RecordAction }[],
+): string | undefined {
+  return views.find(view => view.action.primary === true)?.action.id;
+}
+
+/**
  * A button that stays where the keyboard is while it cannot be pressed: a
  * command running on the surface, or a record that does not take it.
  * `focusableWhenDisabled` keeps it in the Tab order, `aria-disabled` and a
@@ -220,8 +232,11 @@ export function RowActionButtons({
   const { say } = messages;
   const id = useId();
   const more = useRef<HTMLButtonElement>(null);
+  // The first primary is the row's button; a second one, a declaration's
+  // mistake the binding check tells of, is drawn as any other action.
+  const lead = leadOf(views);
   const inline = views.filter(
-    view => view.action.primary === true && view.choices === null,
+    view => view.action.id === lead && view.choices === null,
   );
   const menu = views.filter(view => !inline.includes(view));
   const reasons = [
@@ -366,6 +381,7 @@ export function BulkActionButtons({
   const messages = useViewMessages();
   const { say } = messages;
   const id = useId();
+  const lead = leadOf(views);
   return (
     <>
       {views.map(({ action, count, able, reason, choices }, index) => {
@@ -390,7 +406,7 @@ export function BulkActionButtons({
         // Counted only where something can be sent: 「重试 1 条」 over one
         // record that will not take it named a count of nothing.
         const named =
-          action.primary !== true || able === 0
+          action.id !== lead || able === 0
             ? label
             : able < count
               ? messages.label('label.action.bulk-able', {
@@ -413,7 +429,7 @@ export function BulkActionButtons({
                   <Button
                     type="button"
                     size="sm"
-                    variant={action.primary === true ? 'default' : 'outline'}
+                    variant={action.id === lead ? 'default' : 'outline'}
                     className={HELD}
                     data-action={action.id}
                     data-tone={action.tone === 'danger' ? 'danger' : undefined}

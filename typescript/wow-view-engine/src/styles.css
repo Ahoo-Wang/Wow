@@ -93,7 +93,7 @@
  * the utilities of one mode with the tokens of the other, and
  * `scripts/verify-package.mjs` checks the built stylesheet for exactly that.
  * A surface follows its host through a `.dark` class on any ancestor, or pins
- * itself with `data-theme` — which is what `ViewSurface`'s `theme` sets.
+ * itself with `data-theme` — which is what `ViewSurface`'s `colorMode` sets.
  *
  * The tokens boundary follows the same `.dark`, and that is all it reads: it
  * has no `data-theme` of its own. Its descendants are every element inside it
@@ -1343,7 +1343,7 @@
  * writes as `data-fve-density` on itself (and its popups copy); the host's
  * `data-fve-density` on `<html>` or any ancestor; the density the preset
  * recommends, `--fve-preset-density` — an optional group only a preset
- * writes (`porcelain` +1); and 0. The recommendation and the
+ * writes (no built-in preset writes one); and 0. The recommendation and the
  * choice are different variables, so a host's choice wins under any nesting
  * of presets. The rules weigh nothing but the one on the surface itself,
  * which weighs one class and so beats an ancestor's.

@@ -23,6 +23,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  actions,
   systemInstanceId,
   text,
   type Issue,
@@ -472,6 +473,48 @@ describe('a host whose definitions speak through ViewEngineOptions.text (third r
     expect(issues.filter(code => code.startsWith('definition.text.'))).toEqual(
       [],
     );
+  });
+});
+
+describe('a binding that marks several actions primary', () => {
+  it('is told through onIssue, once, naming the one drawn as the primary button', () => {
+    const issues: Issue[] = [];
+    const engine = new ViewEngine({
+      resources: [{ definition: ordersDefinition(), source: testSource() }],
+      store: new MemoryViewStore(),
+      onIssue: found => issues.push(found),
+    });
+    const run = () => Promise.resolve();
+    const bindings = [
+      bind('orders', {
+        actions: actions([
+          { id: 'ship', label: 'Ship', primary: true, run },
+          { id: 'hold', label: 'Hold', run },
+          { id: 'cancel', label: 'Cancel', primary: true, run },
+          { id: 'refund', label: 'Refund', primary: true, run },
+        ]),
+      }),
+    ];
+    const page = (
+      <ViewHost engine={engine} bindings={bindings}>
+        <p>page</p>
+      </ViewHost>
+    );
+    const { rerender } = render(page);
+    rerender(
+      <ViewHost engine={engine} bindings={[...bindings]}>
+        <p>page</p>
+      </ViewHost>,
+    );
+
+    expect(issues).toEqual([
+      {
+        code: 'binding.action.primary-extra',
+        severity: 'warning',
+        path: [],
+        params: { id: 'orders', first: 'ship', others: 'cancel, refund' },
+      },
+    ]);
   });
 });
 

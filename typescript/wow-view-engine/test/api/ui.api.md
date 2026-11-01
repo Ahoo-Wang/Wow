@@ -2140,6 +2140,7 @@ export const en: {
     readonly 'definition.source.unregistered': "No source is registered for {source}: register this definition with its source.";
     readonly 'definition.descriptor.missing': "No descriptor was given for the source {source}, so its capabilities go unchecked.";
     readonly 'binding.definition.unknown': "A binding names {id}, which no resource registers: what it binds is lost.";
+    readonly 'binding.action.primary-extra': "The binding of {id} marks several actions primary: {first} is drawn as the primary button, and {others} as ordinary actions.";
     readonly 'label.status.show': "Show {count}";
     readonly 'label.status.less': "Show less";
     readonly 'label.status.loading': "Loading";
@@ -8415,7 +8416,7 @@ class ViewEngine {
     abandonWrite(target: WriteTarget): void;
     addToDashboard(boardId: string, instanceId: string): Promise<ViewInstance>;
     changeAudience(id: string, audience: ViewAudience): Promise<ViewInstance>;
-    checkBinding(definitionId: string): boolean;
+    checkBinding(definitionId: string, actions?: readonly RecordAction[]): boolean;
     close(runtime: ViewRuntime): void;
     copyPanelView(dashboard: DashboardRuntime, panelId: string, input: SaveAsInput): Promise<ViewInstance>;
     create<C extends ViewConfig>(definitionId: string, input: CreateInput<C>): RuntimeFor<C>;

@@ -157,7 +157,7 @@ Bind them on the resource, `bind('orders', { route, actions: orderActions(orderC
 | Member | What it is |
 | --- | --- |
 | `id`, `label` | An id unique among the resource's actions; its name |
-| `primary` | The action readers press most: the button in the row. At most one |
+| `primary` | The action readers press most: the button in the row. At most one: a second is drawn as an ordinary action, and `onIssue` is told (`binding.action.primary-extra`) |
 | `tone` | `default` or `danger` |
 | `on` | Where it is offered: `row`, `bulk`, `detail`; every place by default |
 | `hidden(row, ctx)` | Not shown on this record: this person may not do it |

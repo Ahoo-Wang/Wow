@@ -56,6 +56,10 @@ const HINTS: readonly (readonly [string, string])[] = [
     'Bind the definition by the id it is registered under: `bind(definition.id, …)`.',
   ],
   [
+    'binding.action.primary-extra',
+    'Mark one action `primary`: the one readers press most.',
+  ],
+  [
     'definition.time',
     'Name a time field the definition declares, of a temporal kind (`defineView` `timeField`).',
   ],

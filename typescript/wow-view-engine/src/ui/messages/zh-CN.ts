@@ -2473,6 +2473,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '没有给数据源 {source} 的描述，它的能力没有核对。',
   'binding.definition.unknown':
     '绑定指向 {id}，但没有哪份资源登记了它：它绑定的都不会生效。',
+  'binding.action.primary-extra':
+    '{id} 的绑定把多个操作标为主操作：{first} 画成主按钮，{others} 画成普通操作。',
 
   // 数据源的能力描述与定义对照的结果（capabilities.md）。与定义准入一样经
   // `onIssue` 报给研发，说的是部署没有兑现定义里的哪一项。

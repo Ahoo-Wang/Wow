@@ -180,6 +180,13 @@ export const QueryConstraintTypes = Object.freeze({
    * `NE` with an array operand is refused with `ARRAY_EQUALITY`.
    */
   ARRAY_EQUALITY: 'array-equality',
+  /**
+   * The queries of an events model must name their aggregates: the
+   * constraint's `fields` are the one field to name them by, `aggregateId`.
+   * The service lists it where events are visible only per aggregate, and
+   * refuses a query that names none.
+   */
+  AGGREGATE_REQUIRED: 'aggregate-required',
 } as const);
 
 /** A constraint's type: one of {@link QueryConstraintTypes}, or one a server added. */
