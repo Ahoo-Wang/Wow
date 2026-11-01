@@ -82,7 +82,7 @@ The sink appends one row per table it keeps to the database's `wow_catalog`, fro
 
 A service declares datasets over its tables (`META-INF/wow/dataset/<context>.<dataset>.json`), which the node queries in ClickHouse: the ordering's sales dataset over its orders. `wow.clickhouse.query.enabled` serves them, on by default; `wow.clickhouse.query.settings.<name>` sets the ClickHouse settings every dataset query runs under, such as `max_memory_usage`. `wow.query.dataset.max-concurrent` bounds how many run at once, so analytics queries cannot take a warehouse the sink is writing to.
 
-While ClickHouse cannot be reached or is overloaded (a refused or timed-out connection, too many queries, too few live replicas), a dataset query answers `wow.storage.unavailable` with 503 and `Retry-After`, and the sink's subscription pauses its partition until ClickHouse is back, without parking an aggregate.
+While ClickHouse cannot be reached or cannot take writes (a refused or timed-out connection, too few live replicas), a dataset query answers `wow.storage.unavailable` with 503 and `Retry-After`, and the sink's subscription pauses its partition until ClickHouse is back, without parking an aggregate. While it is at capacity (too many queries at once, no free connection), queries answer the same, and the sink throttles its partition and retries with backoff, parking an aggregate only once its backpressure budget, `wow.subscription.backpressure.max-attempts`, is spent.
 
 ## Rebuild the warehouse
 

@@ -140,7 +140,7 @@ A reactor calls the outside world with the context's `invocationKey` as the outs
 
 ## Start positions
 
-Without a checkpoint, projections and handlers of another context's stream start from the beginning; reactors and sagas of the own log from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<context>.<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
+Without a checkpoint, projections start from the beginning; reactors and sagas of the own log from the end; a reactor's or a saga's handler of another context's stream where the service joins that stream, from the beginning when no other subscription of the service has read it yet, else from the end. `@OnEvent(start = …)` declares it, and the host overrides it with `wow.subscriptions.[<context>.<name>].start` (`beginning`, `end`, or an ISO-8601 instant). A new projection over existing history starts at the beginning; a new reactor that must not mail every past customer starts at the end.
 
 ## Failures: retry, then park
 

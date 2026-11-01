@@ -23,7 +23,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Bulkhead | 舱壁 | 带短队列的并发上限，防止查询用光写入需要的连接。见[读模型](../concepts/read-models#reads-must-not-slow-down-writes)。 |
 | Caller | 调用方 | 发出请求的一方，即宿主认证的结果：租户、作用域、主体标识、属性，以及它是不是服务；只存活于请求期间。见[身份](../concepts/identity#who-the-caller-is)。 |
 | Causation | 因果 | Saga 产生的命令提交时记录的根命令和直接原因。 |
-| Chain | 等待链 | 由多跳组成、可能跨上下文的等待计划，只有 Saga 那一跳后面才能接别的跳。见[等待结果](../concepts/waits#waiting-for-a-chain)。 |
+| Chain | 等待链 | 由多跳组成、可能跨上下文的等待计划：先是命令自身按顺序的各阶段；只有在 Saga 的 `HANDLED` 跳之后，才能接它派生的命令的跳。见[等待结果](../concepts/waits#waiting-for-a-chain)。 |
 | Checkpoint | 检查点 | 订阅已处理完一个分区中所有条目的那个位置。见[订阅](../concepts/subscriptions#how-subscriptions-read-the-log)。 |
 | Cluster channel | 集群通道 | 一个服务的节点之间的内部通道，把命令转发给其分区的属主。见[写](../concepts/write-path#the-cluster-channel)。 |
 | Command | 命令 | 改变一个聚合的请求，只承载业务数据；它的身份来自准入。 |
@@ -57,7 +57,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Internal port | 内部端口 | 节点上承载集群通道、等待信号和来自其他服务的调用的端口，绝不暴露到集群之外。见[身份](../concepts/identity#the-internal-port)。 |
 | Lane | 车道 | 一个聚合的命令逐条执行的队列。见[写](../concepts/write-path#execution)。 |
 | Lease | 租约 | 节点对拥有一个分区的声明，保存在存储里并不断续期。 |
-| Lifecycle command | 生命周期命令 | 每个聚合不用写代码就能处理的命令：删除、恢复、转移所有者或空间、打标签。见[决定与演化](../concepts/programming-model#lifecycle-commands)。 |
+| Lifecycle command | 生命周期命令 | 聚合不用写代码就能处理的命令，默认全部都处理（`@AggregateRoot(lifecycle)`）：删除、恢复、转移所有者或空间、打标签。见[决定与演化](../concepts/programming-model#lifecycle-commands)。 |
 | Manifest | Manifest | 编译器构建的、对服务唯一的描述，路由、OpenAPI、客户端、视图和契约都从它推出。见[一份契约](../concepts/contract)。 |
 | Operator | 操作人 | 提交以谁的名义记录：调用方的主体标识、它的租户，以及它是否在别处行事。见[身份](../concepts/identity#who-the-caller-is)。 |
 | Owner | 所有者 | 在租户之内，聚合所属的主体。 |
@@ -84,7 +84,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Sink | Sink | 把提交复制到服务之外（Kafka、ClickHouse 或 Elasticsearch）的订阅。见[订阅](../concepts/subscriptions#sinks)。 |
 | Slot | 槽位 | 聚合哈希到的 4,096 个固定桶之一；槽位映射到分区。见[日志就是总线](../concepts/event-log#partitions)。 |
 | Snapshot | 快照 | 一个聚合最新的已提交状态及其元数据；默认读模型。见[读模型](../concepts/read-models)。 |
-| `SNAPSHOT` | `SNAPSHOT` | `HANDLED(snapshot)` 的简写，默认的等待阶段。见[等待结果](../concepts/waits#the-default-is-the-snapshot)。 |
+| `SNAPSHOT` | `SNAPSHOT` | `HANDLED(wow.snapshot)` 的简写：内置的快照订阅已写入这次提交；默认的等待计划。见[等待结果](../concepts/waits#the-default-is-the-snapshot)。 |
 | Space | 空间 | 租户之下的进一步划分，例如一家店或一个团队，聚合和调用方都可以属于它。 |
 | State | 状态 | 聚合的数据，按顺序演化它的事件得到。 |
 | State event | 状态事件 | 一次提交的事件流，连同提交之后聚合的状态：处理函数收到的、发布的事件流承载的都是它。 |

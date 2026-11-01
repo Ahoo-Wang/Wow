@@ -34,7 +34,7 @@ V10 when the build or sources show: the Gradle plugins `id("me.ahoo.wow")`, `id(
 
 ## Modes
 
-**Develop or explain.** Frame the outcome, the writable scope, the compatibility boundary (events, rejection codes, Manifest, configuration) and the completion evidence. Find the owning context, aggregate, invariant, event and failure flow. Write the test first with the V10 test DSL (`references/testing.md`), see it fail, make it pass, refactor. Run the narrowest check first (`./gradlew :<domain>:test`), then the module's `check`, which runs the Manifest compatibility check.
+**Develop or explain.** Frame the outcome, the writable scope, the compatibility boundary (events, rejection codes, Manifest, configuration) and the completion evidence. Find the owning context, aggregate, invariant, event and failure flow. Write the test first with the V10 test DSL (`references/testing.md`), see it fail, make it pass, refactor. Run the narrowest check first (`./gradlew :<domain>:test`), then the service module's `check`, which runs the Manifest compatibility check (`checkWowManifest`, registered by `me.ahoo.wow.service`).
 
 **Review** (findings, merge readiness). Resolve the diff range (working tree, base, merge-base, touched modules). Read the changed files with their callers, processors, tests, configuration and generated Manifest. Check behavior against `references/review-rubric.md` before style. Run the narrowest checks when feasible; label the rest unverified. Lead with findings by severity, each with file and line, impact, trigger and the smallest correct direction; if none remain, say so. List every write, remote, approval or merge action left undone.
 
@@ -62,6 +62,6 @@ Load the one reference the job needs first, a second only when the task crosses 
 ## Shared gates
 
 - An exact annotation, property, DSL method or route: read its definition, the compiler or runtime code that consumes it, a representative test and the downstream usage. Change generated output (the Manifest, `<root>Model`, `<processor>Handlers`, a TypeScript client) only through its source.
-- A change to an event, a command, a rejection code or the state's shape is a contract change: the module's `check` compares the Manifest with its baseline and fails on a break. Do not update the baseline to silence it without the user's decision.
+- A change to an event, a command, a rejection code or the state's shape is a contract change: the service module's `check` compares the Manifest with its baseline and fails on a break, and on any change the baseline does not record yet. Do not update the baseline to silence it without the user's decision.
 - Use the assertion style of the module; Kotlin Wow tests use `me.ahoo.test.asserts.assert` and `.assert()`.
 - Guides: https://wow.ahoo.me/guide/ for the target's version; examples in the Wow repository: `examples/quickstart` (one aggregate, its spec and server test) and `examples/eshop` (five services, sagas across contexts, end-to-end tests).

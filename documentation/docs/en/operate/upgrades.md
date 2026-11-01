@@ -14,7 +14,7 @@ Within one major version, adjacent minor versions of Wow run side by side in one
 
 - **Stored formats** are versioned per structure, not per row: each log, snapshot and timer table records its format in `wow_format`. Within a major version the format does not change; a column added within it is added to existing tables when they are next checked, and readers ignore what they do not know.
 - **Wire forms** (the Kafka envelope, commands, receipts, wait signals) carry their format too. A new optional field is read by one minor version before the next one writes it.
-- **A new value of an enumeration**, such as a result's status, a hop's stage or a Manifest's `creation`, follows the same order: readers first, then writers. A reader older than its writer reads a value it does not know leniently: Wow's clients and nodes read an unknown status, stage or function kind as `UNKNOWN`, and a Manifest reader reads an unknown value with its default, or leaves out the subscription it belongs to, and logs it. A server still refuses an unknown value in a request.
+- **A new value of an enumeration**, such as a result's status, a hop's stage or a Manifest's `creation`, follows the same order: readers first, then writers. A reader older than its writer reads a value it does not know leniently: Wow's clients and nodes read an unknown status, stage or function kind as `UNKNOWN`, and a Manifest reader leaves out what an unknown value belongs to (a command of an unknown `creation`, an aggregate of an unknown `ownership`, a subscription of an unknown kind or start), reads an error's unknown `retry` as none, and logs it. A server still refuses an unknown value in a request.
 - **A Manifest that changes what a part of it means** lists a marker in `requires`. A reader that does not understand one refuses the Manifest instead of misreading it.
 - **An incompatible change** waits for the next major version, whose migration handles it.
 
@@ -61,4 +61,4 @@ A new major version may change formats and protocols. Its nodes do not run besid
 
 A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from a pre-release needs a fresh database; what an earlier pre-release wrote is not migrated or read.
 
-The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start, and the refusal names its new key or why it is gone.
+The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start; the refusal names the key and points at the migration guide's configuration page, which maps each earlier key to its new one or says why it is gone.

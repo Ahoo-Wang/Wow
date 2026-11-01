@@ -24,7 +24,7 @@
 Wow 框架仓库自身一律不激活，例外只有两处：
 
 - **视图**：仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景（`typescript/storybook/stories/view-engine/`）与 ops 控制台的定义（`platform/ops/console/src/views/` 里的 `parked.ts`、`overview.ts` 与它们的词）；这两处的宿主接线（ops 控制台的 `engine.ts`、`bindings.ts`、`parkedActions.ts`、`parkedCommands.ts`）可以激活 `wow-view-host`。修改视图引擎本身（`typescript/wow-view-engine/`）或 `@ahoo-wang/wow-view-store` 包不激活任何 Skill。
-- **平台服务的移植**：把仓库里 9.x 的平台模块（它的源码在 `main` 与 `v10-9x-baseline` 上）移植为 `platform/` 下的 V10 项目，按下游迁移使用 `wow-migrate`。
+- **平台服务的移植**：把仓库里 9.x 的平台模块（它的源码在 `v9` 与 `v10-9x-baseline` 上）移植为 `platform/` 下的 V10 项目，按下游迁移使用 `wow-migrate`。
 
 ## 安装
 

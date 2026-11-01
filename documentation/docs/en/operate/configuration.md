@@ -27,7 +27,7 @@ In YAML, quote a bracketed key so the brackets stay part of it:
 ```yaml
 wow:
   subscriptions:
-    "[ShipmentNotifier.onOrderShipped]":
+    "[eshop-ordering.ShipmentNotifier.onOrderShipped]":
       retry:
         max-attempts: 8
 ```
@@ -42,7 +42,7 @@ Such a failure, and any other value the host cannot start with, is a `WowConfigu
 
 Spring ignores a key no property binds, so a misspelled key would leave its default in place without a word. The host compares every `wow.*` key with the configuration metadata on the class path when it starts:
 
-- An unknown key stops the start, naming it, and naming the key that took its place when it is one of an earlier version, or the module that declares it when that module is not on the class path.
+- An unknown key stops the start, naming it, and the module that declares it when that module is not on the class path; the message points at the migration guide's configuration page, which maps the keys of earlier versions to today's.
 - Under a map of settings (`wow.aggregates`, `wow.stores`, `wow.subscriptions`, `wow.schedules`, `wow.callers`, `wow.peers`, `wow.http.errors`), each entry's own keys are checked to their leaves: a mistyped `commands` would otherwise leave a service allowed to call every command.
 
 An environment variable named after a Wow group (`WOW_KAFKA_…`, `WOW_CLUSTER_…`: the first word of a key) is checked as Spring maps it, with underscores as dots and dashes left out (`WOW_COSEC_TENANTLEVEL_ROLES`) or, Spring's legacy form, written as underscores too (`WOW_COSEC_TENANT_LEVEL_ROLES`), so a stale `WOW_KAFKA_TOPICS_DDL` refuses the start like `wow.kafka.topics.ddl`; give a variable of your own a name outside these groups.
@@ -65,8 +65,8 @@ A node derives these values from its environment, so most services set none of t
 | The node's id | A new one each start | `wow.node.id` |
 | The address the node advertises, and the one its internal port binds | This host's address | `wow.node.address`, `wow.internal.host` |
 | The state cache | A tenth of the maximum heap, split between the node's contexts | `wow.state-cache.capacity` |
-| How many queries a store runs at once | Its pool: on PostgreSQL a quarter of a pool the appends share (at least 2), or all of a `query-data-source` of its own; 16 otherwise | `wow.query.max-concurrent` |
-| A topic's partitions, replication and `min.insync.replicas` | The log's partitions; the broker's defaults | `wow.kafka.topics.*` |
+| How many queries a store runs at once | Its pool: a quarter of a pool the appends share (at least 2), as on MongoDB or on PostgreSQL without a `query-data-source`; all of a pool of the queries' own, such as a PostgreSQL `query-data-source`; 16 when the pool does not say its size | `wow.query.max-concurrent` |
+| A topic's partitions, replication and `min.insync.replicas` | The log's partitions; the broker's defaults | `wow.log.partitions`, `wow.kafka.topics.*` |
 | The backend | The application's `DataSource` or `MongoClient` | `wow.backend` |
 | The topic transport | Kafka once `wow.kafka.bootstrap-servers` is set; in-JVM topics in development | `wow.transport` |
 | Where snapshots are kept, and the primary one | The log's store; the first of the snapshot stores | `wow.snapshot.stores`, `wow.snapshot.primary` |

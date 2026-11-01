@@ -45,7 +45,7 @@ description: 每种存储保存什么：默认用 MongoDB，PostgreSQL 同样可
 
 ## 不是双写 {#not-a-dual-write}
 
-Elasticsearch 上的副本不是在命令路径中与主存储并列写入的。命令提交到日志，每个快照存储由它自己的一个订阅从日志写入：第一个存储是 `snapshot`，其余每个是 `snapshot:<store>`，各有自己的检查点。快照存储只保留它收到的最高版本，所以收到重复或迟到提交的存储，最终停在日志所说的位置。Elasticsearch 可能落后于主存储，但不会永久偏离它，需要时随时可以从日志重建（[重建与重放](./replay)）。
+Elasticsearch 上的副本不是在命令路径中与主存储并列写入的。命令提交到日志，每个快照存储由它自己的一个订阅从日志写入：默认快照存储（`wow.snapshot.stores` 的第一个，否则为日志的存储）是 `wow.snapshot`，其余每个是 `wow.snapshot:<store>`，各有自己的检查点。快照存储只保留它收到的最高版本，所以收到重复或迟到提交的存储，最终停在日志所说的位置。Elasticsearch 可能落后于主存储，但不会永久偏离它，需要时随时可以从日志重建（[重建与重放](./replay)）。
 
 ## Elasticsearch 从不是日志，也从不是主存储 {#elasticsearch-is-never-the-log}
 

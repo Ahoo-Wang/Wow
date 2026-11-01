@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. 从目标 Wow 版本读取 OnSourcing、StateAggregateMetadataParser 与代表性测试后回答
-2. 说明 onSourcing 命名与恰好一个 value 参数的条件
+1. 从目标 Wow 版本读取 OnSourcing、编译器的 SourcingResolver 或 AggregateAnalyzer 与代表性测试后回答
+2. 说明命名为 onSourcing 或标注 @OnSourcing、接收事件并可第二个参数接收其提交（EventStream）、不能是 private 的条件
 3. 指出 sourcing 必须确定且无外部副作用
 4. 不修改文件，并区分源码证据与推断

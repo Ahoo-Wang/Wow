@@ -18,9 +18,9 @@ Wow 仓库包含框架的 JVM 模块、TypeScript 包、平台服务、eShop 示
 | `backends/` | 每种技术一个模块：`:postgres`、`:mongo`、`:elasticsearch`、`:clickhouse`、`:kafka` |
 | `edge/` | `:http`，来自 Manifest 的路由；`:openapi`；`:client`，类型化的 HTTP 客户端；`:cosec`；`:observability` |
 | `host/` | `:spring-boot`，组合节点的自动配置 |
-| `extensions/` | `:cosid`、`:models` |
+| `extensions/` | `:cosid`、`:cocache-api`、`:cocache`、`:models` |
 | `migration/` | `:migrate-data`，导入 9.x 事件流 |
-| `test/` | `:test-dsl`（制品 `wow-test`）、`:tck` 和 `:tck-containers`、`:architecture`、基准测试、覆盖率报告 |
+| `test/` | `:test-dsl`（制品 `wow-test`）、`:test-query`、`:test-spring-boot`、`:tck` 和 `:tck-containers`、`:architecture`、基准测试、覆盖率报告 |
 | `bom/` | `:bom`（`wow-bom`）和 `:wow-dependencies` |
 | `platform/` | ops 服务与控制台、视图存储、分析目录 |
 | `examples/` | eShop 的五个上下文及其 e2e 测试、快速开始、Java 冒烟测试 |
@@ -35,13 +35,13 @@ Gradle 项目名不带 `wow-` 前缀（`core/kernel` 中的 `:kernel`）；构�
 ```mermaid
 flowchart BT
     ANN[annotations]
-    API[api] --> ANN
+    API[api] --> ANN & QAPI
     QAPI[query-api] --> ANN
-    MAN[manifest] --> ANN
+    MAN[manifest] --> ANN & API
     COMP[compiler] --> API & MAN
-    SPI[spi] --> API
-    KER[kernel] --> SPI & MAN
-    RT[runtime] --> KER
+    SPI[spi] --> API & QAPI
+    KER[kernel] --> SPI
+    RT[runtime] --> KER & MAN
     RX[reactor] --> KER
     Q[query] --> QAPI & SPI & MAN
     BE[backends] --> SPI

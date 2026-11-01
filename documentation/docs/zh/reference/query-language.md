@@ -58,7 +58,7 @@ outline: deep
 | `tags` | 由字符串数组组成的对象 | 它的标签；`tags.<key>` 指明其中一个 |
 | `firstEventTime`、`lastEventTime` | integer | 它第一个和最后一个事件的时间，纪元毫秒 |
 | `operator`、`firstOperator` | object 或 `null` | 谁发送了最后一条和第一条命令：`{id, tenantId, crossScope}`；匿名调用方为 `null`。按 `operator.id` 过滤 |
-| `schedules` | 规则组成的 object | 聚合按键保存的定时计划：每条规则的 `type`，以及以 `epochMillis`、`millis` 或带 `zone` 的 `expression` 表示的时间；`schedules.<key>` 指明其中一条 |
+| `schedules` | object | 它保有的调度，按键存放每条规则：`type`（`at`、`after` 或 `cron`），以及 `epochMillis`、`millis`，或 `expression`、`zone` 和 `misfire`；`schedules.<key>` 指明其中一条 |
 | `state.*` | 由状态 schema 决定 | 状态，按补全后的 Manifest 片段中的状态 schema 描述 |
 
 模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。
@@ -141,7 +141,7 @@ outline: deep
 }
 ```
 
-谓词匹配一个元素：两个条件在同一行上成立。它不能包含系统字段过滤，也不能包含对整个模型的 `search`。
+谓词匹配一个元素：两个条件在同一行上成立。它不能包含系统字段过滤、对整个模型的 `search`，也不能包含 `expression`（`400 wow.query.malformed`，`invalid-request`）。
 
 ### 存在性 {#presence}
 
@@ -264,7 +264,7 @@ outline: deep
 
 ### 上限与开销 {#limits-and-cost}
 
-经 HTTP 时，一个过滤至多 `wow.query.budgets.http.max-filter-nodes` 个节点（128）和 `max-filter-values` 个值（1000）（`filter-too-large`）。有些操作符无法使用索引：`nor`、`ne`、`not-in`、`contains`、`ends-with`、不区分大小写或为空的 `starts-with`、`is-empty`、`is-not-empty-string`、`is-null`、`is-not-null`、`not-exists` 和 `expression`。设置 `wow.query.budgets.http.allow-expensive-operators: false` 时，它们会被拒绝（`expensive-operator-disabled`）。
+经 HTTP 时，一个过滤至多 `wow.query.budgets.http.max-filter-nodes` 个节点（128，调用方的范围也计入），每个节点至多列出 `max-filter-values` 个值（1000），例如 `in` 的值（`filter-too-large`）。有些操作符无法使用索引：`nor`、`ne`、`not-in`、`contains`、`ends-with`、不区分大小写或为空的 `starts-with`、`is-empty`、`is-not-empty-string`、`is-null`、`is-not-null`、`not-exists` 和 `expression`。设置 `wow.query.budgets.http.allow-expensive-operators: false` 时，它们会被拒绝（`expensive-operator-disabled`）。
 
 ## 排序与投影 {#sort-and-projection}
 
@@ -300,7 +300,7 @@ outline: deep
 
 `limit` 是返回记录的最大数量，至少为 1。不写时取 `wow.query.budgets.http.default-list-size`（100），至多允许 `max-list-size`（1000）（`size-out-of-range`）。`limit` 小于 1、`pagination` 的页码或页大小小于 1，或者 `sort` 超过 32 个字段，会在读取请求体时被拒绝（`400 wow.query.malformed`，`invalid-request`）。带 `Accept: text/event-stream` 时，记录以服务端推送事件的形式流出，每条一个 `row` 事件，流总是以一个 `end` 事件结束，`{"reason": …, "resumable": …}`：
 
-- **可续读。** 存储按 keyset 分页（描述符的 `record.stream.resumable`）且排序能构成游标时，服务端按每块 `wow.query.stream.chunk-size` 条（500）分块读取匹配的记录，不受列表大小与预算的限制，每个 `row` 以它的位置作为 `id`。带 `Last-Event-ID` 的请求从那条记录之后严格地继续，在任何节点上都一样。流运行 `wow.query.stream.max-hold`（30 秒）后以 `hold-expired` 结束，存储在下一块之前没有空闲许可时以 `permit-reclaimed` 结束，节点停止时以 `node-stopping` 结束；这几种都可以续读，客户端从最后一个 `id` 再请求即可。所有匹配都发送完时以 `complete` 结束。
+- **可续读。** 存储按 keyset 分页（描述符的 `record.stream.resumable`）且排序能构成游标时，服务端按每块 `wow.query.stream.chunk-size` 条（500）分块读取匹配的记录：请求写了 `limit` 时至多读取这么多条，不写时读取全部匹配；不受预算（`default-list-size`、`max-list-size`）限制，每个 `row` 以它的位置作为 `id`。带 `Last-Event-ID` 的请求从那条记录之后严格地继续，在任何节点上都一样。流运行 `wow.query.stream.max-hold`（30 秒）后以 `hold-expired` 结束，存储在下一块之前没有空闲许可时以 `permit-reclaimed` 结束，节点停止时以 `node-stopping` 结束；这几种都可以续读，客户端从最后一个 `id` 再请求即可。所有匹配都发送完时以 `complete` 结束。
 - **不可续读。** 其他列表按普通列表的方式流出，受它的上限约束，行不带 `id`，每个 `end` 都是 `"resumable": false`。这样的列表必须写明 `limit`：不写会被拒绝，`wow.query.invalid`，代码 `stream-not-resumable`，而不是悄悄停在默认条数。
 
 在第一条记录之后发生的失败，会以一个带 problem 的 `error` 事件结束流。在 Kotlin 里，`stream(query, after)` 遵守同样的规则，每行带它的位置，对不写 `limit` 的不可续读列表同样拒绝。
@@ -357,7 +357,7 @@ outline: deep
 
 ### `aggregate` {#aggregate}
 
-聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝（`too-many-groups`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
+聚合把匹配项分组，并为每组计算指标。`limit` 是分组的最大数量（默认 100）。带 `sort` 时，返回按该顺序排在前面的 `limit` 个分组，即前 N 名。不带 `sort` 时，分组多于 `limit` 会被拒绝，400 `wow.query.too-many-groups`（violation `too-many-groups`，位于 `limit`），而不是按分组键截断：需要前 N 名就加上排序，否则调大 `limit`。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/aggregate.json -->
 
@@ -384,7 +384,7 @@ outline: deep
 
 - **`elements`**：`[{"path": "state.lines", "filter": …}]` 展开一个集合，让分组和指标在它的元素上运行（至多 5 层）；此后字段相对于最内层的元素，带 `"scope": "root"` 的分组则读取记录的绝对路径。
 - **`groupBy`**：`terms`（`field` 或 `expression`，可选的 `missingKey`）、`histogram`（`field` 或 `expression`，`interval`）、`date-histogram`（`field`，`unit`：`year`、`quarter`、`month`、`week`、`day`、`hour`、`minute`、`second`，`timeZone`，`dense`）和 `date-part`（`field`，`part`：`day-of-week`、`day-of-month`、`hour-of-day`、`month-of-year`，`timeZone`，`dense`）；每个都有一个 `alias`。`dense` 填充空的桶，并要求这个分组是唯一的分组。
-- **`metrics`**：`count`、`numeric`（`function`：`sum`、`avg`、`min`、`max`、`stddev`、`variance`，`expression`）、`distinct-count`（`expression`）、`percentile`（`expression`、`percentile`）、`any`、`first` 和 `last`（`field`，`orderBy`，默认 `lastEventTime`），以及 `derived`（基于其他指标的 `expression`：`metric-ref`、`constant`、`binary`、`total`、`running`、`previous`、`rank`）。除 `derived` 之外，每个指标都接收一个可选的 `filter`，只统计匹配的部分。
+- **`metrics`**：`count`、`numeric`（`function`：`sum`、`avg`、`min`、`max`、`stddev`、`variance`，`expression`）、`distinct-count`（`expression`）、`percentile`（`expression`、`percentile`）、`any`（`field`）、`first` 和 `last`（`field`，`orderBy`：默认为模型的事件时间，快照上为 `lastEventTime`，事件上为 `commitTime`；在 `elements` 内必须写明，否则为 `first-last-requires-order-by`），以及 `derived`（基于其他指标的 `expression`：`metric-ref`、`constant`、`binary`、`total`、`running`、`previous`、`rank`）。除 `derived` 之外，每个指标都接收一个可选的 `filter`，只统计匹配的部分。
 - **`sort`** 指明分组别名和指标别名；没有指明的分组排在它们之后，按升序。
 - **`having`** 保留指标匹配的分组：`condition`（`metric`、`operator`、`value`）、`between`（`metric`、`lower`、`upper`）、`in`（`metric`、`values`）、`is-null`（`metric`、`negated`）、`and` 和 `or`（`operands`）。
 
@@ -435,6 +435,9 @@ outline: deep
 | `wow.query.malformed` | 400 | 请求体无法读成查询：`empty-body`、`body-not-object`、`invalid-json`、`unknown-property`、`unknown-type`（未知的 `op` 或 `type`）、`unknown-value`、`invalid-value`、`invalid-request`（违反了查询类型的规则，例如 `operands` 为空） |
 | `wow.query.invalid` | 400 | 模型拒绝了它；每个 violation 指明它违反的规则，例如 `unknown-field`、`unsupported-capability`、`value-mismatch`、`element-scope-required`、`size-out-of-range`、`filter-too-large`、`expensive-operator-disabled`、`invalid-cursor`、`stream-not-resumable`、`storage-unsupported` |
 | `wow.query.failed` | 500 | 后端失败 |
+| `wow.query.too-many-groups` | 400 | 不带 `sort` 的 `aggregate` 得到的分组多于 `limit` |
+| `wow.query.busy` | 429 | 存储运行的查询已达其上限；查询未运行（`Retry-After`） |
+| `wow.storage.unavailable` | 503 | 存储无法连接或未及时应答 |
 | `wow.query.timeout` | 504 | 查询运行的时间超过了 `wow.query.budgets.http.timeout`；不会重试 |
 
 problem 的 `violations` 中每个 violation 都有一个 `path`（请求体中的 JSON 路径，例如 `filter.operands`）、一个 `code` 和一个 `message`。

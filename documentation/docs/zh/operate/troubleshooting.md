@@ -16,7 +16,7 @@ outline: deep
 | --- | --- | --- |
 | 没有持久后端 | 没有 `DataSource` 或 `MongoClient` Bean，又不在开发 profile 中，且内部端口不只绑定在回环网卡上 | 设置 `spring.datasource.url`（类路径上要有 HikariCP）或 `spring.mongodb.uri`，给应用提供它的存储 Bean，或者有意设置 `wow.backend: memory` |
 | 服务名不是节点能在内部端口上声明的名字 | `wow.service`（没有时为 `spring.application.name`）含有字母、数字、`.`、`_` 和 `-` 之外的字符，或者超过 253 个字符 | 重命名服务，每个节点以及对端的 `wow.callers` 里都一致 |
-| 未知的 Wow 配置键 | 拼错的 `wow.*` 键、更早版本的键，或不在类路径上的模块的键 | 修正这个键、改用消息给出的键，或加上那个模块（[配置服务](./configuration#keys-are-checked)） |
+| 未知的 Wow 配置键 | 拼错的 `wow.*` 键、更早版本的键，或不在类路径上的模块的键 | 修正这个键、按消息链接的迁移指南配置页改用现在的键，或加上那个模块（[配置服务](./configuration#keys-are-checked)） |
 | 节点不提供的订阅、聚合或上下文 | `wow.subscriptions`、`wow.aggregates` 或 `wow.contexts` 下有一个什么都不匹配的名字 | 修正名字，或删除这一项 |
 | 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers`，或在开发中运行，主题保存在它的 JVM 里（`wow.transport`） |
 | 缺少主题，或命令主题的分区数不对 | `wow.kafka.ddl: validate`，而运维人员没有按日志的需要创建主题 | 创建主题：命令主题的分区数恰好是 `wow.log.partitions`（[Kafka](./kafka#creating-topics)） |
@@ -28,7 +28,7 @@ outline: deep
 
 - **用同一个请求 ID** 再发一次：确实已经提交的命令会被当作重复请求回答，带着它原来的结果。
 - 等待较后的阶段（`HANDLED`、Saga 的那一跳、`SNAPSHOT`）也就是在等待订阅。链上有被停放或落后的订阅时，等待就会超时（[等待结果](../concepts/waits)）。
-- `wow.command.unknown`（503）表示转发给属主的命令没有及时得到回答：不知道它是否已提交，用同一个请求 ID 重试是安全的。
+- `wow.command.unknown`（503）表示不知道命令是否已提交：转发给属主的命令没有及时得到回答、命令主题没有确认它，或者存储没有给出追加的结果；用同一个请求 ID 重试是安全的。
 
 ## 命令被拒绝 {#commands-are-refused}
 
@@ -62,14 +62,14 @@ outline: deep
 
 ## 订阅落后 {#a-subscription-falls-behind}
 
-`wow.subscription.backlog` 持续增长，subscriptions 健康组件处于降级。处理函数比日志增长得慢：缓慢的外部调用、写入一个需要索引的存储，或者下游在施加背压（`wow.subscription.throttled`）。先加快处理函数，再增加节点来分散它的分区（[伸缩与容量](./scaling#subscriptions)）。
+`wow.subscription.backlog` 持续增长，subscriptions 健康组件处于降级。处理函数比日志增长得慢：缓慢的外部调用、写入一个需要索引的存储，或者下游在施加背压（`wow.subscription.throttled.partitions` 大于零）。先加快处理函数，再增加节点来分散它的分区（[伸缩与容量](./scaling#subscriptions)）。
 
 ## 分区没有属主 {#a-partition-has-no-owner}
 
 ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚合的命令变慢了。宕掉的节点的租约在 `wow.cluster.lease-ttl`（10 秒）后过期，然后分区会移动。如果没有移动：
 
 - 节点之间访问不到彼此的内部端口：检查网络策略和 `wow.node.address`，即每个节点公布的地址。
-- 租约存储不可用：stores 健康组件会说明这一点。
+- 租约存储不可用：ownership 健康组件的 `leaseStore` 详情会说明这一点。
 
 ## 另一个上下文的主题 {#a-topic-of-another-context}
 

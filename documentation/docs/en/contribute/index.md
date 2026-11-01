@@ -18,9 +18,9 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 | `backends/` | One module per technology: `:postgres`, `:mongo`, `:elasticsearch`, `:clickhouse`, `:kafka` |
 | `edge/` | `:http`, the routes from the Manifest; `:openapi`; `:client`, the typed HTTP clients; `:cosec`; `:observability` |
 | `host/` | `:spring-boot`, the auto-configuration that composes a node |
-| `extensions/` | `:cosid`, `:models` |
+| `extensions/` | `:cosid`, `:cocache-api`, `:cocache`, `:models` |
 | `migration/` | `:migrate-data`, which imports 9.x event streams |
-| `test/` | `:test-dsl` (artifact `wow-test`), `:tck` and `:tck-containers`, `:architecture`, the benchmarks, the coverage report |
+| `test/` | `:test-dsl` (artifact `wow-test`), `:test-query`, `:test-spring-boot`, `:tck` and `:tck-containers`, `:architecture`, the benchmarks, the coverage report |
 | `bom/` | `:bom` (`wow-bom`) and `:wow-dependencies` |
 | `platform/` | The ops service and console, the view store, the analytics catalog |
 | `examples/` | The eShop's five contexts and their e2e tests, the quickstart, the Java smoke test |
@@ -35,13 +35,13 @@ Gradle project names carry no `wow-` prefix (`:kernel` in `core/kernel`); the bu
 ```mermaid
 flowchart BT
     ANN[annotations]
-    API[api] --> ANN
+    API[api] --> ANN & QAPI
     QAPI[query-api] --> ANN
-    MAN[manifest] --> ANN
+    MAN[manifest] --> ANN & API
     COMP[compiler] --> API & MAN
-    SPI[spi] --> API
-    KER[kernel] --> SPI & MAN
-    RT[runtime] --> KER
+    SPI[spi] --> API & QAPI
+    KER[kernel] --> SPI
+    RT[runtime] --> KER & MAN
     RX[reactor] --> KER
     Q[query] --> QAPI & SPI & MAN
     BE[backends] --> SPI

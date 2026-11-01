@@ -22,7 +22,7 @@ A handler sees each commit as a **state event**: the event stream of the commit 
 ```mermaid
 flowchart LR
     LOG[(Partition p)] --> TAIL[One tail per partition<br/>on the partition's owner]
-    TAIL --> S1[snapshot]
+    TAIL --> S1[wow.snapshot]
     TAIL --> S2[OrderProjection.onEvent]
     TAIL --> S3[PaymentSaga.onOrderPlaced]
     S1 & S2 & S3 --> CP[(Checkpoints<br/>per subscription and partition)]

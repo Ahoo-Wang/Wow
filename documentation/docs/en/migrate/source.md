@@ -60,7 +60,8 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@PreparableKey` | `DecideScope.reserve(namespace, key, tenancy)` |
 | `@AggregateId` on a command property | Kept, with the same meaning: the body names the aggregate, and the command's route has no `{id}`. A field 9.x bound from the path only repeated the route: delete it ([What a command body holds](#what-a-command-body-holds)) |
 | `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed: the tenant and owner are the caller's, the expected version is `If-Match` |
-| `@StaticTenantId`, `@StaticAggregateId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
+| `@StaticTenantId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
+| `@StaticAggregateId` | Removed: no fixed aggregate id ([9.x Capabilities in V10](./capabilities)) |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |

@@ -27,7 +27,7 @@ outline: deep
 ```yaml
 wow:
   subscriptions:
-    "[ShipmentNotifier.onOrderShipped]":
+    "[eshop-ordering.ShipmentNotifier.onOrderShipped]":
       retry:
         max-attempts: 8
 ```
@@ -42,7 +42,7 @@ wow:
 
 Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地保留默认值。宿主在启动时把每个 `wow.*` 键与类路径上的配置元数据比较：
 
-- 未知的键会阻止启动，并指明它；它是更早版本的键时给出取代它的键，它所属的模块不在类路径上时给出那个模块。
+- 未知的键会阻止启动，并指明它；它所属的模块不在类路径上时给出那个模块；消息还指向迁移指南的配置页，那里列出更早版本的键对应的现在的键。
 - 在设置的映射之下（`wow.aggregates`、`wow.stores`、`wow.subscriptions`、`wow.schedules`、`wow.callers`、`wow.peers`、`wow.http.errors`），每一项自己的键会一直检查到叶子：否则拼错的 `commands` 会让一个服务可以调用每条命令。
 
 以 Wow 分组命名的环境变量（`WOW_KAFKA_…`、`WOW_CLUSTER_…`：键的第一个词）按 Spring 的映射检查：下划线视为点、忽略连字符（`WOW_COSEC_TENANTLEVEL_ROLES`），或者按 Spring 的旧形式把连字符也写成下划线（`WOW_COSEC_TENANT_LEVEL_ROLES`），所以过时的 `WOW_KAFKA_TOPICS_DDL` 和 `wow.kafka.topics.ddl` 一样会拒绝启动；你自己的变量请起在这些分组之外的名字。
@@ -65,8 +65,8 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | 节点 ID | 每次启动新生成一个 | `wow.node.id` |
 | 节点对外公布的地址，以及内部端口绑定的地址 | 本机地址 | `wow.node.address`、`wow.internal.host` |
 | 状态缓存 | 最大堆的十分之一，由节点的各上下文分摊 | `wow.state-cache.capacity` |
-| 一个存储同时运行的查询数 | 它的连接池：PostgreSQL 为与追加共用的连接池的四分之一（至少 2），或者它自己的 `query-data-source` 的全部；其他为 16 | `wow.query.max-concurrent` |
-| 主题的分区、副本数和 `min.insync.replicas` | 日志的分区数；broker 的默认值 | `wow.kafka.topics.*` |
+| 一个存储同时运行的查询数 | 它的连接池：与追加共用的连接池的四分之一（至少 2），如 MongoDB，或没有 `query-data-source` 的 PostgreSQL；查询自己的连接池（如 PostgreSQL 的 `query-data-source`）的全部；连接池不说明大小时为 16 | `wow.query.max-concurrent` |
+| 主题的分区、副本数和 `min.insync.replicas` | 日志的分区数；broker 的默认值 | `wow.log.partitions`、`wow.kafka.topics.*` |
 | 后端 | 应用的 `DataSource` 或 `MongoClient` | `wow.backend` |
 | 主题传输 | 设置了 `wow.kafka.bootstrap-servers` 时为 Kafka；开发中为 JVM 内的主题 | `wow.transport` |
 | 快照保存在哪里，以及主快照存储 | 日志所在的存储；快照存储中的第一个 | `wow.snapshot.stores`、`wow.snapshot.primary` |

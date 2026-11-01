@@ -548,11 +548,7 @@ class CommandGateway @InternalWowApi constructor(
             )
         }
         // 6. Validation.
-        val violations = if (validators.isEmpty()) {
-            emptyList()
-        } else {
-            validators.flatMap { it.validate(command.type, command.body) }
-        }
+        val violations = validators.violationsOf(command.type, command.body)
         if (violations.isNotEmpty()) {
             return facts.refuse(
                 FrameworkCodes.COMMAND_INVALID,
@@ -663,7 +659,7 @@ class CommandGateway @InternalWowApi constructor(
                 ?: return facts.refuse(FrameworkCodes.COMMAND_MALFORMED, "The body is not a ${peer.name}.")
         }
         // 6. Validation.
-        val violations = validators.flatMap { it.validate(commandType, decoded.value) }
+        val violations = validators.violationsOf(commandType, decoded.value)
         if (violations.isNotEmpty()) {
             return facts.refuse(FrameworkCodes.COMMAND_INVALID, "${peer.name} is invalid.", violations = violations)
         }

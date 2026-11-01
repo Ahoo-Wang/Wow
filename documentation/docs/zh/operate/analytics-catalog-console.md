@@ -5,7 +5,7 @@ description: 部署分析目录的控制台，让数据负责人登录，并用�
 
 # 数据目录控制台
 
-分析目录（控制台中名为「Wow 数据目录」）是分析平台的控制面：它把仓库中的表当作数据源，把数据集定义为基于它们的宽表，并把数据集的每个版本发布为一个 ClickHouse 视图，由每个服务节点提供（[平台服务](../migrate/platform#dataset-registry-→-analytics-catalog)）。它的控制台是数据负责人做这些工作的地方：审查数据源、起草与发布数据集、审批需要审批的变更，以及读取每个已提供数据集的数据行。本页说明控制台怎样协作、怎样部署、谁能做什么，以及怎样使用它。分析目录还在孵化中，尚未作为发布制品发布。
+分析目录（控制台中名为「Wow 数据目录」）是分析平台的控制面：它把仓库中的表当作数据源，把数据集定义为基于它们的宽表，并把数据集的每个版本发布为一个 ClickHouse 视图，由每个服务节点提供（[平台服务](../migrate/platform#dataset-registry-→-analytics-catalog)）。它的控制台是数据负责人做这些工作的地方：审查数据源、起草与发布数据集、审批需要审批的变更，以及读取每个已提供数据集的数据行。本页说明控制台怎样协作、怎样部署、谁能做什么，以及怎样使用它。分析目录还在孵化中：每次发布都带上它服务端的镜像，但它的模块不作为 Maven 制品发布。
 
 ## 它们怎样协作 {#how-it-fits-together}
 
@@ -19,7 +19,7 @@ description: 部署分析目录的控制台，让数据负责人登录，并用�
 [`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) 提供两个节点的 Kubernetes 清单，基于 MongoDB（或经其 `postgres` 组件使用 PostgreSQL），沿用与 eShop 服务相同的选择（[部署模型](./topology)）：
 
 1. 先构建控制台，再构建服务端的发行包（它会把控制台的构建复制进 `ui/` 文件夹），然后构建镜像。
-2. 提供 MongoDB，以及各服务的 Sink 写入的 ClickHouse 仓库。目录不在 ClickHouse 中建表；它的账户需要在数据集的库 `wow_datasets` 上拥有 `CREATE DATABASE`、`CREATE VIEW` 与 `DROP VIEW` 权限。
+2. 提供 MongoDB，以及各服务的 Sink 写入的 ClickHouse 仓库。目录不在 ClickHouse 中建表；它的账户需要在数据集的库 `wow_datasets` 上拥有 `CREATE DATABASE`、`CREATE VIEW` 与 `DROP VIEW` 权限，以及对视图读取的源表的 `SELECT` 权限。
 3. 以 `cosec` profile 运行节点，放在 CoSec 网关之后：网关验证每个数据负责人的访问令牌，并转发它验证过的身份（`CoSec-Identity`），服务读取这个身份，自己不持有任何密钥。服务信任这个请求头，所以只有网关能到达它的 HTTP 端口；清单中的网络策略就是这样设置的（[保护部署](./security#put-the-gateway-in-front)）。
 
 控制台使用 hash 路由（`/#/sources`、`/#/datasets`），所以服务端不需要为它的页面设置回退。

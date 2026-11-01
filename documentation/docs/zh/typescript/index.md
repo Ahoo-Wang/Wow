@@ -11,7 +11,7 @@ Wow 服务的路由、等待、problem 和查询语言，由 [`typescript/`](htt
 
 | 包 | 作用 | 需要 |
 | --- | --- | --- |
-| `@ahoo-wang/wow-client` | 带等待的命令、状态读取、快照、事件和数据集查询、Manifest，以及服务回答的 problem。查询 DSL 是它的 `/dsl` 入口 | `@ahoo-wang/fetcher`、`@ahoo-wang/fetcher-eventstream` |
+| `@ahoo-wang/wow-client` | 带等待的命令、状态读取、快照、事件和数据集查询、Manifest，以及服务回答的 problem。查询 DSL 是它的 `/dsl` 入口，服务路由是它的 `/routes` 入口 | `@ahoo-wang/fetcher`、`@ahoo-wang/fetcher-eventstream` |
 | `@ahoo-wang/wow-generator` | 从服务的 Manifest 生成它的类型化客户端；也能从任何 OpenAPI 3 文档生成模型和客户端。CLI 为 `wow-generator` | `wow-client` |
 | `@ahoo-wang/wow-react` | 保存查询、查询结果和加载状态的 React hooks | `wow-client`、React 19 |
 | `@ahoo-wang/wow-view-engine` | 基于 Wow 数据的可配置数据视图：记录、分析和仪表盘 | `wow-client`、React 19 |

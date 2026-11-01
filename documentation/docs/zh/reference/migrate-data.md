@@ -67,7 +67,7 @@ outline: deep
 | `RESOLVED` | 之前导入的某个停放条目被标为已解决，因为它对应的 9.x 执行已经解决。 |
 | `REFUSED` | `export` 发现一条 9.x 读不了的类型的流：没有任何 9.x 聚合映射到的聚合，或者超出映射文件修订号的事件。不导出任何东西。 |
 | `CONFLICT` | `export` 发现一条 9.x 在同一版本上持有、但命令或租户不同的流。不导出任何东西。 |
-| `VERDICT` | `export --dry-run` 对一个上下文的结论：切回、导出 N 条流，或者自某个时间起无法通过导出回滚。 |
+| `VERDICT` | `export` 对一个上下文的结论，每次运行都会打印（包括 `--dry-run`）：切回、导出 N 条流、自某个时间起无法通过导出回滚，或者因为 9.x 在切换之后被写入而无法通过导出回滚。 |
 | `EQUAL`、`DIFFERS` | 在 `export` 之后，9.x 持有的某个聚合的流是否与 V10 一样多。 |
 | `UNMATCHED`、`AMBIGUOUS`、`UNSOURCED`、`RENAMED`、`REVIEW` | `draft-map` 的例外，也写进草稿：见[起草映射文件](#draft-the-map)。 |
 | `CUTOVER` | 在向某个上下文的日志追加过的一轮之后（`import`、`import --restart`、`import --final`、`tail` 的每一轮），导入的历史现在在哪里结束：切换点，记在每个分区日志的头部。 |
@@ -189,7 +189,7 @@ outline: deep
 | --- | --- |
 | `format` | `1`。 |
 | `aggregates` | 每个 9.x 聚合一项；见下文。 |
-| `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。 |
+| `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、`local_first`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。 |
 | `subscriptions` | 有未解决补偿执行的 9.x 处理器，映射到 V10 订阅；见下文。 |
 | `exceptions` | `draft-map` 匹配不上的内容，每行一项，由人解决后删除。检查会把它仍然找到的每一行作为警告打印出来。 |
 
@@ -216,6 +216,7 @@ outline: deep
 | `fields` | 重命名载荷的顶层字段，9.x 名字对应 V10 名字。用于形状由 V10 固定的系统事件，例如 9.x 的 `OwnerTransferred.toOwnerId`；领域事件的变化应放在它的升级函数里。 |
 | `upgrade` | Skill 写的升级函数，记录下来供报告使用；工具不运行它。 |
 | `retire` | 把记录按原样以 `to` 这个名字写入，V10 聚合把这个名字列为退役，所以加载时跳过它，流也保留它的版本。`to` 在 Manifest 中没有退役时，检查失败。 |
+| `lifecycle` | `{to, fields}`：紧接着这个事件、在同一条流中写入的系统生命周期事件，用于实现了某个生命周期事件的 9.x 领域事件（`UserDeleted : AggregateDeleted`）。`to` 是 `wow.lifecycle.AggregateDeleted`、`AggregateRestored`、`OwnerTransferred`、`SpaceTransferred` 或 `TagsApplied`；`fields` 从 9.x 载荷构造它的载荷，9.x 名字对应 V10 名字，后三者要给出 `ownerId`、`spaceId` 或 `tags`。不能与 `drop` 或 `retire` 一起用。 |
 | `drop` | 把这个事件从它的流中去掉。如果一条流的事件全被丢弃，这个版本就是空的，检查会拒绝：这样的事件要用 `retire` 映射。 |
 
 ### 预留 {#reservations}

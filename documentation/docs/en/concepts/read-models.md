@@ -17,7 +17,7 @@ A snapshot is the latest committed state of one aggregate, with its metadata: ve
 | Queries | The query protocol reads snapshots directly. The fields come from the state's schema in the Manifest; you write no projection. |
 | Views and datasets | The view engine's record and analysis views are built on snapshots by default. |
 
-The built-in `snapshot` subscription writes snapshots, guarded by version. When one batch holds several versions of the same aggregate, only the latest is written, so the write load grows with the number of aggregates, not the number of commits.
+The built-in `wow.snapshot` subscription writes snapshots, guarded by version. When one batch holds several versions of the same aggregate, only the latest is written, so the write load grows with the number of aggregates, not the number of commits.
 
 Write a projection of your own only when the snapshot cannot serve a read: a view that combines several aggregates, a shape the state does not have, a store the read needs to be in.
 

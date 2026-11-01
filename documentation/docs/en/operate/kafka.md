@@ -55,7 +55,7 @@ An aggregate is published by default; it can stay unpublished, publish without i
 
 ### Partitions
 
-- **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks the count at startup (under `wow.ddl: auto` or `validate`) and refuses to start on a mismatch. A context whose commands the node does not take, only the ledger's, is checked for the topic alone: on another count the node warns and runs without the ledger's commands. Never add partitions to a command topic.
+- **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks it at startup, whatever `wow.kafka.ddl` says, and refuses to start while it is missing or has another count. A context whose commands the node does not take, only the ledger's, is checked for the topic alone: on another count the node warns and runs without the ledger's commands. Never add partitions to a command topic.
 - **A state or receipts topic** can have any number of partitions, and partitions can be added while services run. A reading node looks for new partitions every `wow.kafka.topics.partition-refresh` (30 seconds) and reads them from their beginning, without a restart.
 
 ### Creating topics
@@ -65,8 +65,8 @@ At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; 
 | `ddl` | At startup |
 | --- | --- |
 | `auto` (default) | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. |
-| `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. A service that publishes its failure ledger needs its command topic even when no other context calls it, for ops' `wow.ledger.*` actions. |
-| `none` | The node creates and checks nothing: the topics are someone else's. |
+| `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. A service that publishes its failure ledger needs its command topic even when no other context calls it, for ops' `wow.ledger.*` actions. It also needs the command topic of each peer context it sends commands to, which it never creates. |
+| `none` | The node creates nothing and validates none of its topics: they are someone else's. A node that takes a context's commands still refuses to start while that command topic is missing or its partitions are not the log's. |
 
 `auto` suits development and tests. In production, create the topics yourself and set `wow.ddl: validate` (or `wow.kafka.ddl` alone), which catches a missing one at the first start. For the eShop's ordering context:
 
@@ -118,4 +118,4 @@ A topic may also hold a record Wow cannot read:
 
 `wow.kafka.properties.*` passes settings to every producer and consumer as they are, such as `security.protocol` and SASL settings, `client.id` or `linger.ms`. A few settings belong to Wow and cannot be overridden, because the guarantees rest on them: the idempotent producer with `acks=all`, consumers without a group that commit nothing and reset no offset on their own, and no topic creation on read.
 
-`wow.kafka.*` accepts only the settings the Kafka transport declares, which [Configuration Keys](../reference/configuration) lists, and any key under `properties` and `topics.configs`; another key fails the start, naming it. `topic-prefix`, `command-intake.enabled`, `ddl` and `topics.partition-refresh` are settings every topic transport has, so a community transport takes them under its own type.
+`wow.kafka.*` accepts only the settings the Kafka transport declares, which [Configuration Keys](../reference/configuration) lists, and any key under `properties` and `topics.configs`; another key fails the start, naming it. `topics.prefix`, `command-intake.enabled`, `ddl` and `topics.partition-refresh` are settings every topic transport has, so a community transport takes them under its own type.

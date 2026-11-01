@@ -132,8 +132,8 @@ A service runs as one or more nodes over PostgreSQL or MongoDB; they split the l
 | --- | --- |
 | Java | 21 |
 | Kotlin | 2.4.21 |
-| KSP | 2.3.12 |
-| Spring Boot | 4.1.1 |
+| KSP | 2.3.13 |
+| Spring Boot | 4.1.2 |
 
 ## From 9.x
 

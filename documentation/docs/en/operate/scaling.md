@@ -30,10 +30,10 @@ A node bounds what it accepts and tells callers to come back later instead of qu
 | --- | --- | --- |
 | `wow.executor.max-in-flight`: commands in flight on the node | 4,096 | The command is refused with `wow.command.busy` (429, with `Retry-After`) |
 | `wow.executor.lane-capacity`: commands waiting for one aggregate | 1,024 | The same, for that aggregate |
-| A store's concurrent queries | Half the appends' connection pool on PostgreSQL, adaptive | The query is refused with `wow.query.busy` (429) |
-| `wow.query.dataset.max-concurrent`: dataset queries at once | A fixed bound, not adaptive | The query waits in a short queue, then is refused with `wow.query.busy` |
+| A store's concurrent queries | A quarter of a pool the appends share (at least 2), adapting up to half of it; all of a query pool of its own; 16 when the pool does not say its size | The query is refused with `wow.query.busy` (429) |
+| `wow.query.dataset.max-concurrent`: dataset queries at once | 8, a fixed bound, not adaptive | The query waits in a short queue, then is refused with `wow.query.busy` |
 
-A refusal with `Retry-After` is backpressure, not an error: clients retry later, and a saga that meets it slows its partition down instead of parking anything ([Failures and Retries](../guide/failures#how-a-failure-is-classified)).
+A refusal with `Retry-After` is backpressure, not an error: clients retry later, and a saga that meets it retries the entry and slows its partition down, parking the aggregate only after 20 refusals of one entry (`wow.subscription.backpressure.max-attempts`) ([Failures and Retries](../guide/failures#how-a-failure-is-classified)).
 
 **Queries never starve appends.** Each store's snapshot and `events` queries run under a bound of their own. Unless `wow.query.max-concurrent` fixes it, the bound adapts to the store's write pressure: it halves while appends slow down or wait for connections, and grows back when they recover. A separate pool for the queries, or a read replica, removes the contention altogether ([PostgreSQL](./postgresql#size-the-pools)).
 

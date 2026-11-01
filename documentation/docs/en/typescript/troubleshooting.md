@@ -37,12 +37,12 @@ Search this page for the message you see.
 
 ## Service answers
 
-A refusal rejects with a `WowProblemError`; its `code` is one of these, or a domain code of the generated `<Context>Contract.<Aggregate>.Errors`. [Error Codes](../reference/error-codes) lists them all.
+A command rejected by its aggregate or at admission (`wow.command.invalid` among them) rejects with a `CommandRejectedError`, with its `code`, its `result` and the `problem` the service answered; every other refusal, and a query's, rejects with a `WowProblemError`. The `code` is one of these, or a domain code of the generated `<Context>Contract.<Aggregate>.Errors`. [Error Codes](../reference/error-codes) lists them all.
 
 | `code` | Status | Cause | Fix |
 | --- | --- | --- | --- |
-| A domain code, `<context>.<aggregate>.<name>` | 422 unless the service says otherwise | The aggregate rejected the command | Show `problem.detail`; the request itself has to change |
-| `wow.command.invalid` | 400 | The command failed validation | Show each of `violations` beside its `path` |
+| A domain code, `<context>.<aggregate>.<name>` | 422 unless the service says otherwise | The aggregate rejected the command | Show `error.result.error?.message`; the request itself has to change |
+| `wow.command.invalid` | 400 | The command failed validation | Show each of `error.result.error?.violations` beside its `path` |
 | `wow.aggregate.not-found` | 404 | No aggregate with that id | Handle the absence |
 | `wow.aggregate.version-mismatch` | 409, or 412 with `expectedVersion` | Another write came first | Read the state again and decide again |
 | `wow.command.request-id-reused` | 409 | A request id was used by another command | Generate a new request id for a new command |

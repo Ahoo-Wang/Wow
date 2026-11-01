@@ -5,7 +5,7 @@ description: Deploy the analytics catalog's console, sign the data owners in, an
 
 # The Analytics Catalog Console
 
-The analytics catalog is the control plane of the analytics platform: it knows the warehouse's tables as sources, defines datasets as wide tables over them, and publishes each version of a dataset as a ClickHouse view that every service node serves ([Platform Services](../migrate/platform#dataset-registry-→-analytics-catalog)). Its console is where the data owners do that work: review the sources, draft and publish the datasets, approve what needs an approver, and read the rows of every dataset served. This page explains how the console fits together, how to deploy it, who may do what, and how to work with it. The analytics catalog is incubating, and not yet published as a release artifact.
+The analytics catalog (the console calls itself Wow Analytics Catalog) is the control plane of the analytics platform: it knows the warehouse's tables as sources, defines datasets as wide tables over them, and publishes each version of a dataset as a ClickHouse view that every service node serves ([Platform Services](../migrate/platform#dataset-registry-→-analytics-catalog)). Its console is where the data owners do that work: review the sources, draft and publish the datasets, approve what needs an approver, and read the rows of every dataset served. This page explains how the console fits together, how to deploy it, who may do what, and how to work with it. The analytics catalog is incubating: each release ships its server's image, but its modules are not published as Maven artifacts.
 
 ## How it fits together
 
@@ -19,7 +19,7 @@ The analytics catalog is the control plane of the analytics platform: it knows t
 [`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) holds Kubernetes manifests for two nodes on MongoDB (or PostgreSQL, through its `postgres` component), built on the same choices as the eShop services ([Deployment Model](./topology)):
 
 1. Build the console, then the server's distribution, which copies the console's build into its `ui/` folder, then the image.
-2. Provide MongoDB and the ClickHouse warehouse the services' Sinks write to. The catalog creates no table in ClickHouse; its account needs `CREATE DATABASE`, `CREATE VIEW` and `DROP VIEW` on the datasets' database, `wow_datasets`.
+2. Provide MongoDB and the ClickHouse warehouse the services' Sinks write to. The catalog creates no table in ClickHouse; its account needs `CREATE DATABASE`, `CREATE VIEW` and `DROP VIEW` on the datasets' database, `wow_datasets`, and `SELECT` on the source tables the views read.
 3. Run the nodes in the `cosec` profile, behind the CoSec gateway: the gateway verifies each data owner's access token and forwards the identity it verified (`CoSec-Identity`), which the service reads, holding no secret. The service believes that header, so only the gateway may reach its HTTP port; the manifests' network policy says so ([Secure a Deployment](./security#put-the-gateway-in-front)).
 
 The console uses a hash router (`/#/sources`, `/#/datasets`), so the server needs no fallback for its pages.

@@ -41,7 +41,7 @@ wow:
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait-for`, `immediate` or `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | `wow.snapshot.primary`, else the first |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | The first of its own `snapshot.stores` when it lists them; otherwise `wow.snapshot.primary`, else the first of `wow.snapshot.stores` |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
@@ -59,13 +59,13 @@ The event search sink writes each commit as one document of `[<prefix>_]wow_even
 
 An aggregate whose `query.events.store` names the Elasticsearch store has its `events` queries served from that index: an event condition is a nested query, an `expand("events")` aggregation a nested aggregation, and a query that names no aggregate searches the index instead of scanning the log. The index shows what the sink has written, a commit becoming searchable once the sink has written it and the index refreshed, one second by default.
 
-Each sink runs as a subscription named `elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. The host starts the sinks by itself, with no setting of their own: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
+Each sink runs as a subscription named `wow.elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. The host starts the sinks by itself, with no setting of their own: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
 
 ## Store combinations
 
 Each aggregate type picks its stores: its log and its primary snapshots on PostgreSQL or MongoDB (`wow.log.store`, `wow.aggregates.[<context>.<aggregate>].log.store`), a copy of its snapshots and its events search on Elasticsearch, as the sample above sets them. Two consequences:
 
-- **Commands and state reads stay on the primary.** A command loads its state from the primary snapshot store and the log after it, and the state reads (`GET …/state`) read the primary, so neither waits for Elasticsearch's refresh. Each snapshot store is written by a subscription of its own from the log, `snapshot` for the first and `snapshot:<store>` for each other, and keeps the highest version it was given, so the copy only lags and can be rebuilt. The host refuses Elasticsearch as an aggregate's primary snapshot store, or its only one, naming the key.
+- **Commands and state reads stay on the primary.** A command loads its state from the primary snapshot store and the log after it, and the state reads (`GET …/state`) read the primary, so neither waits for Elasticsearch's refresh. Each snapshot store is written by a subscription of its own from the log, `wow.snapshot` for the default snapshot store (the first of `wow.snapshot.stores`, else the log's store) and `wow.snapshot:<store>` for each other, and keeps the highest version it was given, so the copy only lags and can be rebuilt. The host refuses Elasticsearch as an aggregate's primary snapshot store, or its only one, naming the key.
 - **Events queries follow the sink.** An aggregate's `events` queries read Elasticsearch once its `query.events.store` names the store, so they see what the sink has written: a commit is searchable shortly after it commits, not at once. Its snapshots may stay on the log's store; the two settings are independent.
 
 ## Rebuild

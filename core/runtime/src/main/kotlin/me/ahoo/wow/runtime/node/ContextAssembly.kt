@@ -462,6 +462,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 registry.contexts,
                 queries,
                 peerEvents,
+                admission.validators,
             )
         }
     }

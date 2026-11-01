@@ -15,7 +15,7 @@ Sending a command and knowing what came of it are two different things. A comman
 | `committed` | The command's events are appended to the log, or the command was settled without appending: a rejection, no change, or a duplicate. |
 | `handled(subscription)` | A named subscription has handled the commit. The subscription may be in another context. |
 
-`snapshot` is short for `handled(wow.snapshot)`: the built-in subscription that writes snapshots, `wow.snapshot`, has written this commit. A subscription's kind, projection, saga or reactor, comes from the Manifest, so it needs no stage of its own.
+`snapshot` is short for `handled(wow.snapshot)`: the built-in subscription `wow.snapshot`, which writes snapshots, has written this commit; `handled(snapshot)` names an application subscription called `snapshot`. A subscription's kind, projection, saga or reactor, comes from the Manifest, so it needs no stage of its own.
 
 Stages travel in lowercase, as every value Wow puts on the wire does: in the `Wow-Wait` header, in a result's `hop.stage`, and in the TypeScript client's `WaitPlan`. Kotlin names them `Stage.ACCEPTED`, `Stage.COMMITTED` and `Stage.HANDLED`, and builds hops with `Hop.accepted()`, `Hop.committed()`, `Hop.handled(subscription)` and `Hop.snapshot()`. The header's keywords are read in any case, but a stage in JSON is read only in lowercase, and a stage a newer writer adds is read as unknown rather than refused.
 
@@ -23,7 +23,7 @@ Stages travel in lowercase, as every value Wow puts on the wire does: in the `Wo
 
 A command that names no wait waits for `snapshot`. When it returns, the snapshot already holds the commit's version, so a query the caller sends next sees its own write. This is what most callers want: a form that saves and then shows the saved record, a test that sends a command and then reads the state.
 
-The default costs a little. The answer comes after the snapshot subscription has handled the commit, not right after the append. If the snapshot subscription is parked or behind, the default wait times out; the result then says that the command reached `committed`, so the caller knows the fact is committed. An aggregate whose snapshots are turned off has no snapshot stage, and its default wait is `committed`. Only the default falls back this way: a caller that asks for `snapshot` on such an aggregate is refused at admission.
+The default costs a little. The answer comes after the snapshot subscription has handled the commit, not right after the append. If the snapshot subscription is behind, the default wait times out; the result then says that the command reached `committed`, so the caller knows the fact is committed. If it has parked the aggregate, the wait fails at once with `wow.subscription.parked`. An aggregate whose snapshots are turned off has no snapshot stage, and its default wait is `committed`. Only the default falls back this way: a caller that asks for `snapshot` on such an aggregate is refused at admission.
 
 A caller that needs less can wait for `committed` or `accepted`; one that needs more can name a later stage or a chain.
 
@@ -39,7 +39,7 @@ The rules for a chain:
 - **A saga hop completes when every command it sent reaches the next hop.** The saga's signal lists the commands it derived. If it sent none, the hop completes at once.
 - **A chain that ends early says so.** If a saga handles the commit and sends nothing, for example because a payment was declined, while the plan still has hops after it, the wait ends there. Its final result stays at the last hop actually reached, with its real status, marks `chainEnded`, and lists the hops not reached as `pending`. It is not reported as the success of the planned end.
 - **A failure anywhere ends the wait at once.** If any hop is rejected or parks, the waiter gets the failure and its reason immediately, not after the timeout.
-- **A chain is checked at admission.** The plan is checked against the Manifests the node knows; an invalid plan is rejected before the command runs, not discovered at the timeout. A plan has at most 16 hops by default.
+- **A chain is checked at admission.** The plan is checked against the Manifests the node knows: a plan they show to be invalid is rejected before the command runs, not discovered at the timeout. A hop into a context the node knows no Manifest of is let through by default (`wow.wait.unknown-contexts: allow`) and checked where the chain arrives; if it is not there, the wait times out. A plan has at most 16 hops by default.
 
 When the caller accepts `text/event-stream`, the edge sends one result for each hop as it is reached, and closes the stream after the last one. Otherwise it answers with the last hop's result or the first failure.
 
@@ -55,7 +55,7 @@ A request that is a duplicate was committed earlier, and its later stages may ha
 
 ## How a wait works
 
-A wait is an observation. It is not part of what makes the system correct: if a signal is lost, the waiter times out, and the facts are not affected. So signals are sent at most once, at low latency, and are not stored.
+A wait is an observation. It is not part of what makes the system correct: if a signal is lost, the waiter times out, and the facts are not affected. So signals are best effort: sent at low latency, sent again only after a transient failure while the wait lasts, and never stored.
 
 ```mermaid
 sequenceDiagram
