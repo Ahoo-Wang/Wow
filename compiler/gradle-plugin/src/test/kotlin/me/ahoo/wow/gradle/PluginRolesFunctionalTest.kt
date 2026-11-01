@@ -287,6 +287,65 @@ class PluginRolesFunctionalTest {
     }
 
     @Test
+    fun `an incremental KSP round should keep each model's context, the context's file among its sources`(
+        @TempDir root: File,
+    ) {
+        settings(root, "bank", "bank-domain")
+        File(root, "gradle.properties").appendText("\nksp.incremental=true\nksp.incremental.log=true\n")
+        module(root, "bank-domain", WowPlugin.ID)
+        val sources = "bank-domain/src/main/kotlin/bank"
+        write(
+            root,
+            "$sources/Bank.kt",
+            """
+            package bank
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "bank")
+            object Bank
+            """,
+        )
+        write(
+            root,
+            "$sources/Account.kt",
+            """
+            package bank
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+
+            @CreateAggregate
+            data class OpenAccount(val owner: String)
+            data class AccountOpened(val owner: String)
+
+            @AggregateRoot
+            class Account(private val state: AccountState) {
+                fun onCommand(command: OpenAccount): AccountOpened = AccountOpened(command.owner)
+            }
+
+            class AccountState(val id: String) {
+                var owner: String = ""
+                    private set
+
+                fun onSourcing(event: AccountOpened) { owner = event.owner }
+            }
+            """,
+        )
+        runner(root, ":bank-domain:kspKotlin").build()
+        // An incremental round of the aggregate's file alone: the context's file is not one KSP found changed.
+        File(root, "$sources/Account.kt").appendText("\n// changed\n")
+        runner(root, ":bank-domain:kspKotlin").build()
+        File(root, "bank-domain/build/generated/ksp/main/kotlin/bank/AccountModel.kt").readText().assert()
+            .contains("fun accountModel(context: String = \"bank\"")
+        // KSP's own record: the model is an output of the context's file too, so it is regenerated with it.
+        val outputs = File(root, "bank-domain/build/kspCaches/main/logs/kspSourceToOutputs.log").readLines()
+        val ofBank = outputs.dropWhile { !it.endsWith("src/main/kotlin/bank/Bank.kt:") }.drop(1)
+            .takeWhile { it.startsWith("    ") }
+        ofBank.any { it.endsWith("bank/AccountModel.kt") }.assert().describedAs(outputs.joinToString("\n")).isTrue()
+    }
+
+    @Test
     fun `the KSP tasks of every module should run one at a time`(@TempDir root: File) {
         settings(root, "bank", "bank-domain", "bank-server")
         module(root, "bank-domain", WowPlugin.ID)

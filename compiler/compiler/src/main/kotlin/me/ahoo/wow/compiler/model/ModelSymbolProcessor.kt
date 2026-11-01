@@ -23,12 +23,12 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.compiler.model.aggregate.AggregateAnalyzer
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
 import me.ahoo.wow.compiler.model.aggregate.AliasCheck
@@ -187,6 +187,12 @@ internal class ModelSymbolProcessor(
      * ends fails the compilation ([finish]).
      */
     private val unreadContexts = sortedSetOf<String>()
+
+    /**
+     * The files of the `@BoundedContext`s read, by declaration: every output named after the context lists them among
+     * its sources, so KSP processes them again whenever it regenerates such an output.
+     */
+    private val contextFiles = linkedMapOf<String, KSFile>()
 
     /**
      * The symbols the last round deferred: one still deferred when KSP ends never validated, and fails the compilation
@@ -436,7 +442,10 @@ internal class ModelSymbolProcessor(
 
     private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
         codeGenerator.createNewFile(
-            Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
+            Dependencies(
+                aggregating = false,
+                sources = (listOfNotNull(processor.containingFile) + contextFiles.values).distinct().toTypedArray(),
+            ),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
         ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context())) }
@@ -447,9 +456,13 @@ internal class ModelSymbolProcessor(
      * evaluated yet, deferred to the next round, if KSP runs one ([unreadContexts]).
      */
     private fun collectBoundedContexts(resolver: Resolver): List<KSClassDeclaration> {
-        val declarations = resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT).filterIsInstance<KSClassDeclaration>()
+        // Every file of the module, not the round's alone: an incremental round hands the processor only the files KSP
+        // found dirty, and the context names what each round generates, whichever file declares it.
+        val declarations = resolver.getAllFiles().flatMap { it.declarations }.flatMap { it.classes() }
+            .filter { declaration -> declaration.annotations.any(BoundedContextArguments::isBoundedContext) }
+            .filterNot { declaration -> declaration.contextKey() in contextFiles }
         val unread = declarations.filter { declaration ->
-            val name = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString()
+            val name = declaration.contextKey()
             val read = declaration.annotations.filter(BoundedContextArguments::isBoundedContext)
                 .map(BoundedContextArguments::of).toList()
             if (null in read) {
@@ -457,7 +470,10 @@ internal class ModelSymbolProcessor(
                 return@filter true
             }
             unreadContexts -= name
-            declaration.containingFile?.let { sources += it }
+            declaration.containingFile?.let {
+                sources += it
+                contextFiles[name] = it
+            }
             read.filterNotNull().forEach { context ->
                 boundedContexts[context.name] = context.description
                 if (mode == Mode.GENERATE) {
@@ -474,6 +490,13 @@ internal class ModelSymbolProcessor(
         }
         return unread
     }
+
+    private fun KSClassDeclaration.contextKey(): String = qualifiedName?.asString() ?: simpleName.asString()
+
+    /** This declaration, when it is a class, and the classes nested in it. */
+    private fun KSDeclaration.classes(): Sequence<KSClassDeclaration> =
+        (this as? KSClassDeclaration)?.let { sequenceOf(it) + it.declarations.flatMap { nested -> nested.classes() } }
+            .orEmpty()
 
     override fun finish() {
         if (unreadContexts.isNotEmpty() || waiting.isNotEmpty()) {
@@ -571,7 +594,8 @@ internal class ModelSymbolProcessor(
         codeGenerator.createNewFile(
             Dependencies(
                 aggregating = false,
-                sources = (listOfNotNull(root.containingFile) + upgradeFiles).distinct().toTypedArray(),
+                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contextFiles.values).distinct()
+                    .toTypedArray(),
             ),
             binding.packageName,
             "${binding.rootSimpleName}Model",
@@ -583,8 +607,6 @@ internal class ModelSymbolProcessor(
 
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
-
-        val BOUNDED_CONTEXT = BoundedContext::class.java.name
 
         /** The function of `wow-reactor` the code generated for a Reactor return awaits the publisher with. */
         const val REACTOR_AWAIT = "me.ahoo.wow.reactor.awaitResult"
