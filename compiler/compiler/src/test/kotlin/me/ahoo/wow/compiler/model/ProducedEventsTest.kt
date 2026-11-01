@@ -85,6 +85,132 @@ class ProducedEventsTest {
         )
     }
 
+    /** The compiler's messages for the command function [root], which compiles. */
+    private fun compiled(root: String): String {
+        val (_, result) = compileModel(
+            "generate",
+            cart(
+                "@me.ahoo.wow.api.annotation.OnCommand(produces = [Created::class]) " +
+                    "fun onCommand(command: Create): me.ahoo.wow.api.decide.Decision = " +
+                    "me.ahoo.wow.api.decide.Decision.events(Created(command.id))\n$root",
+                "fun onSourcing(event: Created) {}\nfun onSourcing(event: Bumped) {}",
+            ),
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        return result.messages
+    }
+
+    @Test
+    fun `a command function returning a Decision without produces should be warned of, naming the fix`() {
+        compiled(
+            "fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+        ).assert().contains(
+            "onCommand returns Decision, which names no event it produces, and lists none " +
+                "in @OnCommand(produces): the Manifest lists no event of it, so the kernel does not refuse an event " +
+                "it was not meant to produce. List the events it may produce in @OnCommand(produces = [...]); a " +
+                "function that only rejects or does nothing suppresses this with @Suppress(\"UnlistedEvents\")",
+        )
+    }
+
+    @Test
+    fun `a command function whose events produces lists, suppresses or its return type names should not be warned of`() {
+        listOf(
+            "@me.ahoo.wow.api.annotation.OnCommand(produces = [Bumped::class]) " +
+                "fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+            "@Suppress(\"UnlistedEvents\") fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.NoOp",
+            "fun onCommand(command: Bump): Bumped = Bumped(command.by)",
+        ).forEach { root ->
+            compiled(root).assert().doesNotContain("names no event it produces")
+        }
+    }
+
+    @Test
+    fun `a suppression naming something else should still be warned of`() {
+        compiled(
+            "@Suppress(\"SomethingElse\") fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+        ).assert().contains("onCommand returns Decision, which names no event it produces")
+    }
+
+    @Test
+    fun `a suppression should be found among other annotations and names`() {
+        // @OnCommand is no suppression, and UnlistedEvents is one of the names @Suppress holds.
+        compiled(
+            "@me.ahoo.wow.api.annotation.OnCommand @Suppress(\"SomethingElse\", \"UnlistedEvents\") " +
+                "fun onBump(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+        ).assert().doesNotContain("names no event it produces")
+    }
+
+    @Test
+    fun `a suppression whose names have no value should still be warned of`() {
+        // Not a constant: KSP evaluates no value for it, so it suppresses nothing (and the compiler refuses it).
+        val (_, result) = compileModel(
+            "generate",
+            cart(
+                "object Names { val unlisted: String = \"UnlistedEvents\" }\n" +
+                    "@Suppress(Names.unlisted) fun onCommand(command: Bump): me.ahoo.wow.api.decide.Decision = " +
+                    "me.ahoo.wow.api.decide.Decision.events(Bumped(command.by))",
+                "fun onSourcing(event: Bumped) {}",
+            ),
+        )
+        result.messages.assert()
+            .contains("onCommand returns Decision, which names no event it produces")
+            .doesNotContain("Exception")
+    }
+
+    @Test
+    fun `a command function inherited from a library should not be warned of`() {
+        // Its author, not the subclass's, lists what it produces, and its @Suppress does not reach the subclass.
+        val library = compileLibrary(
+            SourceFile.kotlin(
+                "Base.kt",
+                """
+                package base
+
+                import me.ahoo.wow.api.annotation.CreateAggregate
+                import me.ahoo.wow.api.annotation.OnCommand
+                import me.ahoo.wow.api.decide.Decision
+
+                @CreateAggregate
+                data class Open(val id: String)
+                data class Opened(val id: String)
+
+                abstract class Base<S : Any>(protected val state: S) {
+                    @OnCommand
+                    fun onOpen(command: Open): Decision = Decision.events(Opened(command.id))
+                }
+                """.trimIndent(),
+            ),
+        )
+        val (_, result) = compileModelAgainst(
+            "generate",
+            listOf(library),
+            SourceFile.kotlin(
+                "Desk.kt",
+                """
+                package sample
+
+                import base.Base
+                import base.Opened
+                import me.ahoo.wow.api.annotation.AggregateRoot
+
+                @AggregateRoot
+                class Desk(state: DeskState) : Base<DeskState>(state)
+
+                class DeskState {
+                    fun onSourcing(event: Opened) {}
+                }
+                """.trimIndent(),
+            ),
+        )
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        result.messages.assert().doesNotContain("names no event it produces")
+    }
+
     @Test
     fun `a sourcing function of an interface that is not sealed should be a compile error`() {
         failing(

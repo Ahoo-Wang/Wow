@@ -191,11 +191,15 @@ import me.ahoo.wow.kernel.KernelOptions
         val library = compileLibrary(ledger)
         val (compilation, result) = compileModelAgainst("generate", listOf(library), journal, scenario)
         assertBound(compilation, result)
+        // The subclass's own override of onAdd is compiled here: its author can list what it produces.
+        result.messages.assert().contains("sample.Journal: onAdd returns Decision")
     }
 
     @Test
     fun `handlers inherited from a generic superclass of the module should be bound with resolved types`() {
         val (compilation, result) = compileModel("generate", ledger, journal, scenario)
         assertBound(compilation, result)
+        // Its source is compiled here, so its unlisted events are warned of.
+        result.messages.assert().contains("returns Decision, which names no event it produces")
     }
 }

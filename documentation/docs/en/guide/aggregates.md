@@ -62,7 +62,7 @@ data class AddBasketItem(
 )
 ```
 
-The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`positive`, the annotation's name on the wire) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
+The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga, from a timer or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`positive`, the annotation's name on the wire) and its message. A timer's command it refuses is that timer's rejected command: logged with its violations, never decided, and not retried. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
 
 The constraints are part of the command's contract. They are the validation keywords of its schema in the Manifest and the OpenAPI document (`quantity` is `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`), so a generated client or Swagger UI sees them before it sends. Tightening one, such as raising a minimum, is a breaking change ([The Manifest and Compatibility](./manifest#the-compatibility-check)).
 
@@ -126,6 +126,8 @@ The compiler finds every non-private function annotated `@OnCommand`, or named `
 | `Unit`, `null` or an empty list | Nothing changes |
 
 A function that returns `Decision` does not tell the compiler which events it can produce, so it lists them in `@OnCommand(produces = [...])`. The Manifest publishes that list. A function whose return type already names its events, such as an event class or a sealed type of them, does not repeat them.
+
+A function that returns `Decision` (or `Any`, or a type parameter) and lists no `produces` compiles, with a warning: its events are not in the Manifest, so the kernel cannot refuse an event it was not meant to produce, and the clients and peers do not know what it commits. List them in `produces`. A function that only rejects or changes nothing has no event to list; `@Suppress("UnlistedEvents")` on it says so and silences the warning. A command function inherited from a library is not warned of in the module that subclasses it: its author lists what it produces.
 
 A return type that is an interface or abstract class, and not sealed, is a compile error. Such a function returns one of several implementations, and the type does not say which ones. List them instead: make the type a sealed interface whose subclasses are the events, return the event classes themselves, or return a `Decision` with `produces`. The same holds for an element type (`List<OrderEvent>`) and for a subclass of a sealed type.
 

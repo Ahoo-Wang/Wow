@@ -62,7 +62,7 @@ data class AddBasketItem(
 )
 ```
 
-网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`positive`，即注解在线上的名字）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
+网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga、定时器或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`positive`，即注解在线上的名字）和消息。被拒绝的定时器命令就是该定时器被拒绝的命令：连同违反项记入日志，不会被决定，也不再重试。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
 
 约束是命令契约的一部分。它们是 Manifest 和 OpenAPI 文档中命令 schema 的校验关键字（`quantity` 是 `{"type": "integer", "format": "int32", "exclusiveMinimum": 0}`），生成的客户端或 Swagger UI 在发送之前就能看到它们。收紧一个约束，例如提高最小值，是破坏性改变（[Manifest 与兼容](./manifest#the-compatibility-check)）。
 
@@ -126,6 +126,8 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 | `Unit`、`null` 或空列表 | 什么都不改变 |
 
 返回 `Decision` 的函数没有告诉编译器它能产生哪些事件，所以要在 `@OnCommand(produces = [...])` 里列出它们。Manifest 会发布这份列表。返回类型本身已经指明事件的函数，例如返回某个事件类或它们的密封类型，不必重复列出。
+
+返回 `Decision`（或 `Any`、类型参数）且没有列出 `produces` 的函数可以编译，但会得到一条警告：它的事件不在 Manifest 中，所以内核无法拒绝它本不该产生的事件，客户端和对端也不知道它会提交什么。把这些事件列在 `produces` 里。只拒绝或什么都不改变的函数没有事件可列；在它上面写 `@Suppress("UnlistedEvents")` 表明这一点并消除警告。从库中继承的命令函数，在继承它的模块里不会被警告：由它的作者列出它产生的事件。
 
 返回类型是接口或抽象类、又不是密封的，会导致编译错误。这样的函数返回的是几个实现中的一个，而这个类型说不出是哪几个。改为把它们列出来：把这个类型改成以这些事件为子类的密封接口，直接返回事件类本身，或者返回 `Decision` 并写上 `produces`。元素类型（`List<OrderEvent>`）和密封类型的子类也适用同样的规则。
 
