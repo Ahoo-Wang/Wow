@@ -105,6 +105,8 @@ Admission checks the id: a blank one is `wow.command.malformed` (400), and so is
 
 The property is declared by the command class or by an interface it implements. It is public or internal, and Wow's JSON writes it (it is not `@JsonIgnore`d), so every sender's body holds it. One property of a command names its aggregate. The compiler refuses it on an `@Unaddressed` or mounted command, whose transformer finds the aggregate, and on an aggregate whose id is its owner's. A `CommandTransformer` that takes such a command stops the service at start.
 
+Wow 10 takes a command's aggregate from its body only by `@AggregateId`, never by a property's name. So the compiler warns of a command that has a `String` property named `id` and no `@AggregateId`, where it could name its aggregate: the `id` may be stored or computed, the command's own or an interface's, such as a 9.x `Identifier.id`. If that `id` names the aggregate, mark it `@AggregateId`, as a 9.x command whose body named its aggregate needs, a creation a saga sends without an id among them. If 9.x bound it from the path, it only repeated the route: remove it and read `command.ref.id` ([What a command body holds](../migrate/source#what-a-command-body-holds)). An `id` that names something else stays, and `@Suppress("UnmarkedAggregateId")` on the command class silences the warning.
+
 ## Write the root
 
 The root is a class annotated `@AggregateRoot`, built from its state. Its command functions decide: each takes a command and returns what it decided.
