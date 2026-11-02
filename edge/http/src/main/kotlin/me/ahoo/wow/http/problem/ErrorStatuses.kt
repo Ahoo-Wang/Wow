@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.problem
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -31,7 +32,8 @@ import org.springframework.http.HttpStatus
  * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`. What a
  * retry may do, and its `Retry-After`, the problem takes from the error catalog ([Problem.retry]).
  */
-internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
+@InternalWowApi
+class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
         FrameworkErrors.BY_CODE + manifest.errors.associateBy { it.code }
     private val byContext: Map<String, Map<String, ErrorManifest>> =

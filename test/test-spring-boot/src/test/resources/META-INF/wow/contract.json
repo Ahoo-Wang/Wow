@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "shipping",
+      "errors": [{ "code": "shipping.parcel.no-address", "status": 404, "description": "The address is unknown." }],
+      "aggregates": [
+        {
+          "name": "parcel",
+          "state": { "schema": "#/$defs/me.ahoo.wow.test.server.ParcelState" },
+          "commands": [
+            {
+              "name": "ShipParcel",
+              "schema": "#/$defs/me.ahoo.wow.test.server.ShipParcel",
+              "creation": "allowed",
+              "routes": [
+                { "method": "POST", "path": "/shipping/parcel/{id}/ship-parcel" },
+                { "method": "POST", "path": "/shipping/parcel/ship-parcel" }
+              ]
+            },
+            {
+              "name": "ScheduleParcel",
+              "schema": "#/$defs/me.ahoo.wow.test.server.ScheduleParcel",
+              "creation": "none",
+              "idProperty": "parcelId",
+              "routes": [{ "method": "POST", "path": "/shipping/parcel/schedule-parcel" }]
+            },
+            {
+              "name": "ReturnParcel",
+              "schema": "#/$defs/me.ahoo.wow.test.server.ReturnParcel",
+              "creation": "none",
+              "routes": [{ "method": "POST", "path": "/shipping/parcel/{id}/return-parcel" }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

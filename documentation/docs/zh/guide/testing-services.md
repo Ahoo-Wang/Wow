@@ -128,6 +128,30 @@ fun `a problem the server answered should be typed`() {
 }
 ```
 
+## 伪造它调用的服务 {#fake-the-services-it-calls}
+
+Saga 同步调用另一个服务（向那个服务的内部端口发命令）时，测试不需要那个服务：`fakePeer(context)` 替它出场，按它的 api 模块在测试类路径上携带的契约构建；`wowServer(…, peers = listOf(peer))` 让服务器调用它（`wow.peers.<context>.url`）。假对端记录收到的每次调用：解码成命令类的命令、发出调用的服务，以及调用所代表的根命令及其租户、范围与操作者。basket 的结账这样调用 ordering：
+
+<!-- sample: fragment -->
+
+```kotlin
+fakePeer("eshop-ordering").use { ordering ->
+    wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
+        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
+        val call = ordering.called<SubmitOrder>()
+        call.service.assert().isEqualTo("eshop-basket-service")
+        call.operator!!.id.assert().isEqualTo("alice")
+        call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
+    }
+}
+```
+
+- `called<C>()` 取命令类 `C` 中尚未交出的第一个调用，最多等 20 秒；`calls` 列出全部调用。
+- 假对端按 `answer { call -> … }` 答复每次调用。默认的 `PeerAnswer.succeeded(id, version)` 把命令提交到调用的聚合，版本 1；没有指名聚合的创建则提交到一个新聚合。`PeerAnswer.rejected(code, message)` 用对端契约给这个错误码的状态答复：取它的错误表，领域拒绝没有声明时是 422。`PeerAnswer.timedOut()` 答 504 `wow.wait.timeout`，调用方可以用同一个请求 ID 再发一次。
+- 没有指名服务（`Wow-Service`）或根命令（`Wow-Call`）的请求，它以 403 `wow.auth.forbidden` 拒绝，与对端的内部端口一样。
+
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
 内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。`me.ahoo.wow.service` 为它们注册了单独的测试套件 `integrationTest`，`check` 不会运行它，这样单元测试保持快速，也不需要 Docker：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行。这个套件在 JUnit Jupiter 上运行，能用到模块的类以及 `testImplementation` 提供的一切；插件不再添加别的东西，测试需要什么，包括 Testcontainers，由构建脚本声明：
