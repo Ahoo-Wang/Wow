@@ -20,7 +20,7 @@ import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
-import me.ahoo.wow.client.Port
+import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.InternalPort
@@ -164,11 +164,9 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
      * node read, and send to its own contexts alone.
      */
     private val client: Lazy<WowClient> = lazy {
-        val public = http.base
         val contracts = bean<ContractDirectory>()
-        val served = contracts.localContexts
         WowClient.builder()
-            .endpoints { context, port -> public.takeIf { port == Port.PUBLIC && context in served } }
+            .endpoints(EndpointResolver.of(contracts.localContexts.associateWith { http.base }))
             .user(UserCredential.DEVELOPMENT)
             .contracts(contracts.fragments)
             .build()

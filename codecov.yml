@@ -26,6 +26,8 @@ codecov:
 ignore:
   # inline helper: JaCoCo cannot attribute inline bodies; the file also holds the Ddl enum; DdlTest covers both
   - core/spi/src/main/kotlin/me/ahoo/wow/spi/Ddl.kt
+  # inline eventually: JaCoCo cannot attribute inline bodies, which run at each call site; EventuallyTest covers it
+  - test/test-spring-boot/src/main/kotlin/me/ahoo/wow/test/server/Eventually.kt
 coverage:
   range: 60..100
   round: down

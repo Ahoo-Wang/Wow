@@ -137,6 +137,22 @@ class TypedClientsTest {
     }
 
     @Test
+    fun `a problem's members of another type should be left out`() {
+        val problemJson = mapOf("Content-Type" to listOf("application/problem+json"))
+        val text = """{"status":"bad","title":"Bad Request","violations":{"path":"amount"},"result":"none",""" +
+            """"version":"2"}"""
+        val problem = Answer(400, problemJson, text).problem!!
+        problem.status.assert().isEqualTo(400)
+        problem.violations.assert().isEmpty()
+        problem.result.assert().isNull()
+        problem.version.assert().isNull()
+        Answer(400, problemJson, """{"violations":[{"code":"positive"}]}""").problem!!.violations.single().assert()
+            .isEqualTo(Violation.of("", "positive", ""))
+        // Without a content type, a JSON object is no problem.
+        Answer(400, emptyMap(), """{"status":400}""").problem.assert().isNull()
+    }
+
+    @Test
     fun `a closed server should close its typed clients`() {
         val closed = wowServer<BankServer>("dev")
         val commands = closed.commands(Caller.ANONYMOUS)
