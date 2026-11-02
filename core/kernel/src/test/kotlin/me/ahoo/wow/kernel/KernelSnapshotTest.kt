@@ -21,8 +21,10 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
@@ -285,6 +287,61 @@ class KernelSnapshotTest {
         val state = codec.decodeState(model, """{"id":"l-1","tags":["a","b"],"label":"final"}""")
         state.tags.assert().containsExactly("a", "b")
         state.label.assert().isEqualTo("final")
+    }
+
+    /** A command that tags. */
+    data class Tag(val tag: String)
+
+    /** The event it produces, whose getter computes an immutable list: written, never read back. */
+    data class Tagged(val tag: String) {
+        val tags: List<String> get() = listOf(tag)
+    }
+
+    /** A state keeping its tags behind a getter of its own, over a private list Jackson does not see. */
+    class TagsState(val id: String) {
+        private val held = mutableListOf<String>()
+        val tags: List<String> get() = held
+
+        fun add(tag: String) {
+            held += tag
+        }
+    }
+
+    private val tagsModel = aggregate<TagsState>("example", "tags") {
+        initial { TagsState(it.id) }
+        decide<Tag>(Creation.ALLOWED) { _, command -> Decision.events(Tagged(command.tag)) }
+        evolve<Tagged> { add(it.tag) }
+    }
+    private val tagsRef = tagsModel.type.ref("tenant", "tags-1")
+
+    private suspend fun tag(kernel: Kernel, tag: String): CommandOutcome.Committed =
+        kernel.execute(
+            tagsModel,
+            Command("c-${++sequence}", "r-$sequence", tagsRef, Tag(tag))
+        ) as CommandOutcome.Committed
+
+    @Test
+    fun `an event whose getter computes an immutable collection should not keep its aggregate from loading`() =
+        runTest {
+            tag(replaying, "a")
+            // Each command loads the aggregate, decoding the events before it.
+            tag(replaying, "b")
+            (tag(replaying, "c").state as TagsState).tags.assert().containsExactly("a", "b", "c")
+        }
+
+    @Test
+    fun `a state whose collection is behind a getter of its own should load by replaying its log`() = runTest {
+        tag(replaying, "a")
+        val second = tag(replaying, "b")
+        snapshots.save(
+            codec.snapshotOf(tagsModel, tagsRef, second.state as TagsState, 2, second.stream.scope, 0, 0),
+        )
+        // The snapshot holds the tags, which the state does not take back: it is refused.
+        assertThrows<IllegalArgumentException> { codec.decodeState(tagsModel, snapshots.load(tagsRef)!!.state) }
+        log.streamsRead = 0
+        (tag(kernel, "c").state as TagsState).tags.assert().containsExactly("a", "b", "c")
+        // The tail from the snapshot's version, then the whole log.
+        log.streamsRead.assert().isEqualTo(1 + 2)
     }
 
     @Test

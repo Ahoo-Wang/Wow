@@ -16,7 +16,6 @@ package me.ahoo.wow.spi.json
 import me.ahoo.wow.api.annotation.InternalWowApi
 import tools.jackson.databind.BeanProperty
 import tools.jackson.databind.JavaType
-import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
@@ -37,11 +36,13 @@ import java.util.TreeSet
 object StateJson {
     private val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
 
-    /** The mapper of a state's JSON: [WowJson]'s, with the settings a mutable state's round trip needs. */
+    /**
+     * The mapper of a state's JSON: [WowJson]'s, which reads a `val` with no setter into its field as 9.x's JSON did,
+     * with the settings a state's round trip needs besides. A getter of its own (`val items: List<Item> get() =
+     * lines`) is not read: a getter that computes an immutable collection of an event or a state reads back, and a
+     * state that keeps a collection behind such a getter does not, so its snapshot is refused and its log replayed.
+     */
     val mapper: JsonMapper = WowJson.builder()
-        // A state's `val` fields read back through WowJson's configuration; a collection behind a getter of the
-        // state's own, over a private field (`val items: List<Item> get() = lines`), is filled through it in place.
-        .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
         // Sets and maps read back in the order they were written, as Kotlin's keep theirs. Jackson would read a
         // `Set` as a HashSet (of enums, an EnumSet) and a `Map` keyed by an enum as an EnumMap, which write back in
         // hash or ordinal order: a state with such a set would not hold its own text, and a state read from a snapshot
