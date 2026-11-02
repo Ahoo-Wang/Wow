@@ -54,9 +54,12 @@ import kotlin.time.toJavaDuration
  *
  * A peer's connection carries at most [InternalHttp.MAX_CONCURRENT_STREAMS] requests at a time, which the JDK client
  * does not queue past. The channel keeps at most [streams] forwards open to a peer, leaving the rest of the peer's
- * streams to the node's [HttpSignalSender]; a forward past them waits for one, in order, until its deadline. One the
- * JDK still refuses for the peer's limit, a stream just ended that it has not released yet, was not sent, and is sent
- * again once one is free.
+ * streams to the node's [HttpSignalSender]; a forward past them waits for one, in order, with no bound of its own: its
+ * caller's bound ends the wait, the router's at the forward's deadline, which reports the forward unknown. It never
+ * ends [unsent][ClusterChannelException.unsent]: a forward that waited for a stream until its deadline is not run
+ * locally instead, which near the deadline would put a second writer beside the owner. One the JDK still refuses for
+ * the peer's limit, a stream just ended that it has not released yet, is sent again once one is free, until the
+ * deadline.
  *
  * The caller bounds a forward ([me.ahoo.wow.runtime.cluster.PartitionedRouter]), and the channel stops waiting for the
  * reply at the forward's deadline too, so a forward never outlives it. Its stream does: it stays open, counted among
@@ -67,9 +70,9 @@ import kotlin.time.toJavaDuration
  *
  * Whatever keeps a reply from arriving (no connection, no reply by the deadline, a reset stream or a closed connection,
  * a status other than 200, a body that is not a reply) is a [ClusterChannelException]. Only one raised before the
- * request was sent (no connection to the peer, refused or not opened in time, or no stream to it free by the deadline)
- * is [unsent][ClusterChannelException.unsent], which the router degrades to running the command locally; after the
- * send, its outcome is unknown.
+ * request was sent for want of a connection (no connection to the peer, refused or not opened in time) is
+ * [unsent][ClusterChannelException.unsent], which the router degrades to running the command locally; one that got no
+ * stream by its deadline is not, nor anything after the send, whose outcome is unknown.
  *
  * Each forward names the node's [service] in `Wow-Service`. A peer that answers 401 or 403 did not
  * take the forward, being a node of another service: a refusal, which is [unsent][ClusterChannelException.unsent] too,
@@ -134,10 +137,7 @@ class HttpClusterChannel(
                     .apply { service?.let { header(WowHeaders.SERVICE, it) } }
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                     .build()
-            } ?: throw ClusterChannelException(
-                "Forwarding to $address failed: no stream to it was free by the forward's deadline.",
-                unsent = true,
-            )
+            }
         } catch (unconnected: HttpConnectTimeoutException) {
             // No connection was opened in time: the request was not sent.
             connections.remove(address)
@@ -175,34 +175,46 @@ class HttpClusterChannel(
 
     /**
      * [address]'s response to the request [build] makes for the time left until [deadline]: sent once one of the
-     * [streams] to it is free, and waited for until [deadline], when it fails with an [HttpTimeoutException]. The
-     * stream stays taken until the response, or the request's own timeout, ends it. Null when no stream was free by
-     * [deadline], or the JDK refused the last attempt for the peer's limit: the request was not sent.
+     * [streams] to it is free, however long that takes, and waited for until [deadline]. The stream stays taken until
+     * the response, or the request's own timeout, ends it. An [HttpTimeoutException] when no reply came by [deadline],
+     * or the stream came, or the JDK took the request, only after it: not a reason to run the command elsewhere.
      */
     private suspend fun exchange(
         address: String,
         deadline: Long,
         build: (remaining: Duration) -> HttpRequest,
-    ): HttpResponse<ByteArray>? {
+    ): HttpResponse<ByteArray> {
         val free = freeStreams.computeIfAbsent(address) { Semaphore(streams) }
         var pause = MIN_STREAM_PAUSE
-        while (deadline > clock()) {
-            withTimeoutOrNull(remaining(deadline)) { free.acquire() } ?: return null
-            val sending = client.sendAsync(build(remaining(deadline)), HttpResponse.BodyHandlers.ofByteArray())
-            sending.whenComplete { _, _ -> free.release() }
-            try {
-                // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
-                return withTimeoutOrNull(remaining(deadline)) { sending.copy().await() }
-                    ?: throw HttpTimeoutException("No reply by the forward's deadline.")
-            } catch (failure: IOException) {
-                if (!failure.isStreamLimit()) throw failure
+        while (true) {
+            // No bound of its own: the caller's cancels the wait, as the router's does at the deadline.
+            free.acquire()
+            if (deadline <= clock()) {
+                free.release()
+                throw HttpTimeoutException("No stream to $address was free by the forward's deadline.")
             }
+            send(free, build(remaining(deadline)), deadline)?.let { return it }
             // Not sent: the peer's streams were all taken, one of them only just ended. Again once one is free.
             logger.debug { "The streams to $address are all taken; the forward waits for one." }
             delay(pause)
             pause = minOf(pause * 2, MAX_STREAM_PAUSE)
         }
-        return null
+    }
+
+    /**
+     * The response to [request] on a stream taken from [free], which it holds until the response ends it, waited for
+     * until [deadline]; null when the JDK refused the request for the peer's limit, unsent.
+     */
+    private suspend fun send(free: Semaphore, request: HttpRequest, deadline: Long): HttpResponse<ByteArray>? {
+        val sending = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+        sending.whenComplete { _, _ -> free.release() }
+        return try {
+            // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
+            withTimeoutOrNull(remaining(deadline)) { sending.copy().await() }
+                ?: throw HttpTimeoutException("No reply by the forward's deadline.")
+        } catch (failure: IOException) {
+            if (failure.isStreamLimit()) null else throw failure
+        }
     }
 
     /** The time left until [deadline], at least a millisecond. */

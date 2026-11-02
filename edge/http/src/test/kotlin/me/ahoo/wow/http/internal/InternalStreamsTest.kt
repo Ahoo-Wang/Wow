@@ -18,6 +18,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
@@ -43,7 +44,8 @@ class InternalStreamsTest {
     private val senders = CopyOnWriteArrayList<HttpSignalSender>()
     private val release = CompletableDeferred<Unit>()
 
-    /** The forwards the owner is executing now, and the most it executed at once. */
+    /** The commands the owner executed, the forwards it is executing now, and the most it executed at once. */
+    private val executed = CopyOnWriteArrayList<String>()
     private val executing = AtomicInteger()
     private val mostExecuting = AtomicInteger()
 
@@ -52,6 +54,7 @@ class InternalStreamsTest {
      * deadline, as an owner answers a command it withdrew at its wait's deadline; any other after a little work.
      */
     private val owner = ClusterChannelHandler { request ->
+        executed += request.command.id
         val now = executing.incrementAndGet()
         mostExecuting.accumulateAndGet(now, ::maxOf)
         try {
@@ -119,7 +122,7 @@ class InternalStreamsTest {
         }
 
     @Test
-    fun `a forward the peer's limit keeps from being sent by its deadline fails unsent`(): Unit = runBlocking {
+    fun `a forward the peer's limit keeps from being sent by its deadline fails, not unsent`(): Unit = runBlocking {
         val server = server(streams = 1)
         val channel = HttpClusterChannel(client)
         channel.connect(server.address)
@@ -128,11 +131,38 @@ class InternalStreamsTest {
         val failure = failsWith<ClusterChannelException> {
             channel.forward(server.address, forwardCommand("c-1", deadline = System.currentTimeMillis() + 200))
         }
-        failure.unsent.assert().isTrue()
-        failure.message.assert().contains("no stream")
+        // Not sent, yet not unsent: the router does not run a command here because its forward waited (X-34).
+        failure.unsent.assert().isFalse()
+        failure.message.assert().contains("free by the forward's deadline")
         release.complete(Unit)
         held.await().result!!.commandId.assert().isEqualTo("held")
+        executed.assert().containsExactly("held")
     }
+
+    @Test
+    fun `a forward waiting for a stream until its deadline ends there with its caller, never unsent`(): Unit =
+        runBlocking {
+            val server = server()
+            val channel = HttpClusterChannel(client, streams = 1)
+            channel.connect(server.address)
+            val held = async { channel.forward(server.address, forwardCommand("held", context = "slow")) }
+            eventually { executing.get() == 1 }
+            // As the router bounds a forward: at its deadline, still waiting for a stream, it is cancelled (unknown).
+            val bounded = forwardCommand("bounded", deadline = System.currentTimeMillis() + 200)
+            withTimeoutOrNull(200.milliseconds) { channel.forward(server.address, bounded) }.assert().isNull()
+            // A caller with no bound of its own: the stream comes after the deadline, and the forward fails unsent no
+            // more than under the router.
+            val unbounded = async {
+                val request = forwardCommand("unbounded", deadline = System.currentTimeMillis() + 200)
+                failsWith<ClusterChannelException> { channel.forward(server.address, request) }
+            }
+            delay(400)
+            unbounded.isCompleted.assert().isFalse()
+            release.complete(Unit)
+            unbounded.await().unsent.assert().isFalse()
+            held.await().result!!.commandId.assert().isEqualTo("held")
+            executed.assert().containsExactly("held")
+        }
 
     @Test
     fun `a connect to a peer whose streams are all taken finds it connected`(): Unit = runBlocking {
@@ -207,9 +237,8 @@ class InternalStreamsTest {
                 channel.forward(server.address, forwardCommand("stuck", context = "slow", deadline = start + 100))
             }.unsent.assert().isFalse()
             // The owner has not answered: the stream is the stuck forward's until its grace ends.
-            failsWith<ClusterChannelException> {
-                channel.forward(server.address, forwardCommand("c-1", deadline = System.currentTimeMillis() + 100))
-            }.unsent.assert().isTrue()
+            val waiting = forwardCommand("c-1", deadline = System.currentTimeMillis() + 100)
+            withTimeoutOrNull(100.milliseconds) { channel.forward(server.address, waiting) }.assert().isNull()
             val waited = measureTimeMillis {
                 channel.forward(server.address, forwardCommand("c-2", deadline = System.currentTimeMillis() + 5_000))
                     .result!!.commandId.assert().isEqualTo("c-2")
