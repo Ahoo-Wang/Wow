@@ -43,6 +43,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.ZoneId
 
+@Suppress("LargeClass") // One fixture of the tool's connections for every command it runs.
 class MigrateDataTest {
     @TempDir
     lateinit var directory: Path

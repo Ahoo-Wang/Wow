@@ -82,4 +82,7 @@ internal interface NineXSnapshotSource {
 
     /** How many instances of [aggregate] the 9.x event store holds: the base of the share that has a snapshot. */
     fun instances(aggregate: NineXAggregate): Long
+
+    /** How many snapshots of [aggregate] mark their instance deleted. */
+    fun deleted(aggregate: NineXAggregate): Long
 }

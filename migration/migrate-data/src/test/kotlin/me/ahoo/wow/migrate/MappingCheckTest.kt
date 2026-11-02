@@ -269,6 +269,39 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `deleted 9x instances of an aggregate whose map deletes none should warn, and not when it does`() {
+        val counted = mutableListOf<NineXAggregate>()
+        val deleted = { aggregate: NineXAggregate ->
+            counted += aggregate
+            if (aggregate == order) 2L else 0L
+        }
+        val report = MappingCheck(NineXExample.plan).check(example, deleted = deleted)
+        report.passed.assert().isTrue()
+        report.warnings.filter { "mark their instance deleted" in it }.assert().containsExactly(
+            "example-service.order: 2 9.x snapshots mark their instance deleted, but no event of the map deletes in " +
+                "V10, so V10 holds them alive: map the 9.x event that deleted them with \"lifecycle\": " +
+                "{ \"to\": \"wow.lifecycle.AggregateDeleted\" }, or to wow.lifecycle.AggregateDeleted when its " +
+                "class is gone",
+        )
+        counted.assert().containsExactlyInAnyOrder(order, NineXAggregate("example-service", "cart"))
+        // A map that deletes the order does not count its deleted snapshots.
+        counted.clear()
+        listOf(
+            EventMapping("order_deleted", to = Lifecycle.AGGREGATE_DELETED),
+            EventMapping(
+                "order_removed",
+                to = "OrderRemoved",
+                lifecycle = LifecycleMapping(Lifecycle.AGGREGATE_DELETED),
+            ),
+        ).forEach { deletion ->
+            val deleting = NineXExample.map.order { copy(events = events + deletion) }
+            MappingCheck(MigrationPlan(deleting, NineXExample.manifest)).check(example, deleted = deleted).warnings
+                .filter { "mark their instance deleted" in it }.assert().isEmpty()
+        }
+        counted.assert().doesNotContain(order)
+    }
+
+    @Test
     fun `a collection the tail has no index on should warn with the command that creates it, not fail`() {
         val report = MappingCheck(NineXExample.plan).check(
             example,
