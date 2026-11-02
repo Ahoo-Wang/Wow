@@ -94,7 +94,8 @@ data class RenewalRound(
  * - **Leases** are renewed every [ClusterOptions.renewInterval], counted from the start of the previous round, all
  *   held leases of a round with one [LeaseStore.renew], so a round does not grow with the number
  *   held times the store's latency and asks the store's pool for one connection, not one per lease.
- *   Renewing starts before the first acquisition.
+ *   Renewing starts before the first acquisition, and covers a partition from the moment its lease is taken, while
+ *   its runtimes, intake and timers start: a start slower than the margin keeps its lease.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
  *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
@@ -111,7 +112,7 @@ data class RenewalRound(
  * Acquiring a partition starts its subscriptions in [subscriptions] and its other log [groups]
  * ([SubscriptionRuntime.startPartition]), then the
  * same partition of the context's command topic in [intake], then its [timers], before the node accepts commands for
- * it. A hand-off stops the timers first, once the node stops accepting, so it sends no command it would not run.
+ * it: while they start, the partition is still [pending], its lease renewed with the others. A hand-off stops the timers first, once the node stops accepting, so it sends no command it would not run.
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
@@ -405,8 +406,8 @@ class PartitionOwnership internal constructor(
     /** Whether this node holds [partition] and accepts commands for it. */
     fun accepts(partition: Int): Boolean = gates[partition]?.open == true
 
-    /** Whether this node is about to own [partition]: it is in its target, but not acquired yet. */
-    fun pending(partition: Int): Boolean = partition in target && !gates.containsKey(partition)
+    /** Whether this node is about to own [partition]: it is in its target, but not acquired, or not started, yet. */
+    fun pending(partition: Int): Boolean = partition in target && gates[partition]?.starting != false
 
     /**
      * Where a command for [partition] goes when this node does not accept it: the next owner while this node hands
@@ -415,7 +416,7 @@ class PartitionOwnership internal constructor(
      */
     fun forwardTarget(partition: Int): Member? {
         val routes = routes
-        val owner = if (gates.containsKey(partition)) {
+        val owner = if (gates[partition]?.starting == false) {
             val others = routes.members.filter { it.node != node }
             Hrw.owner(partition, others.map { it.node })?.let { next -> others.first { it.node == next } }
         } else {
@@ -548,7 +549,9 @@ class PartitionOwnership internal constructor(
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
         // Another node may have committed to the partition's aggregates since this one last cached them.
         partitionChanged(partition)
+        // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = Gate(asked)
+        gates[partition] = gate
         try {
             runtimes.forEach { it.startPartition(partition) }
             intake?.startPartition(partition)
@@ -559,10 +562,16 @@ class PartitionOwnership internal constructor(
             logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
             stopSubscriptions(partition)
             quietly("release partition $partition") { leases.release(group.name, partition, node) }
+            gates.remove(partition, gate)
             return@withContext
         }
-        gates[partition] = gate
-        logger.info { "$node acquired partition $partition of $group." }
+        gate.started()
+        if (gate.lost) {
+            // Lost while it started: the next reconcile stops it, as any partition whose lease was lost.
+            logger.warn { "$node lost the lease of partition $partition of $group while starting it." }
+        } else {
+            logger.info { "$node acquired partition $partition of $group." }
+        }
     }
 
     /** Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. */
@@ -735,12 +744,16 @@ class PartitionOwnership internal constructor(
      * A partition this node holds: whether it takes commands, and the commands in flight. [renewedAt] marks when the
      * lease was last acquired or renewed, taken before the call: once longer ago than `leaseTtl − renewInterval`, the
      * lease is [overdue] and the gate no longer [open], since the lease may expire before the next round renews it.
+     * A gate is made as its lease is taken, [starting]: while the partition's runtimes start, its lease is renewed, but
+     * it takes no command, is not overdue yet, and counts as [pending].
      */
-    private inner class Gate(
-        @Volatile var renewedAt: TimeMark,
-    ) {
+    private inner class Gate(@Volatile var renewedAt: TimeMark) {
         @Volatile
-        var accepting = true
+        var starting = true
+            private set
+
+        @Volatile
+        var accepting = false
 
         @Volatile
         var lost = false
@@ -750,6 +763,12 @@ class PartitionOwnership internal constructor(
 
         /** Whether the partition takes commands here: accepting, and its lease renewed recently enough. */
         val open: Boolean get() = accepting && !overdue
+
+        /** The partition has started: it takes commands, unless its lease was lost meanwhile. */
+        fun started() {
+            accepting = !lost
+            starting = false
+        }
     }
 
     private enum class Renewal { RENEWED, LOST, FAILED }
