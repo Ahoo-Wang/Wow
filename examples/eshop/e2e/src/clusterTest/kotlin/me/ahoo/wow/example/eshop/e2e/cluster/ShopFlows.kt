@@ -250,8 +250,8 @@ class ShopFlows(val shop: Shop) {
         const val BODY = 600
         const val TRACE_PAGE = 1000
 
-        /** The orders a page of [orders] lists, the ordering's largest list. */
-        const val ORDER_PAGE = 1000
+        /** The orders a page of [orders] lists: the largest page the HTTP API serves (above, `wow.query.invalid`). */
+        const val ORDER_PAGE = 100
 
         /** The aggregates a checkout's answer names its order by: the order, or its payment, whose id is the order's. */
         val NUMBERED = setOf("eshop-ordering" to "order", "eshop-payment" to "payment")
