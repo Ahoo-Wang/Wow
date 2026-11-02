@@ -77,6 +77,8 @@ tasks.test {
 
 插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-beta.1`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
+插件还会注册测试套件 `integrationTest`，供在容器里的真实存储上运行的测试使用：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。这个银行用不到它：它的测试都在内存中运行。
+
 `./gradlew build` 还会把服务的 Manifest（客户端看到的契约）与提交在构建文件旁边的基线 `manifest/baseline.json` 比较，没有基线时会失败。写好下面的代码后，记录一次基线，并与代码一起提交：
 
 ```bash

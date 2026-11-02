@@ -229,7 +229,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4393 (work package P.2). The "Query annotations" section of `guide/v10/query` describes each annotation of `me.ahoo.wow.api.query.annotation` and its attributes, the `@field:` target, the `wow-query-api` dependency, what PostgreSQL and MongoDB build for `@QueryIndex`, and how a Manifest index name maps to PostgreSQL's `<table>_<name>`, limited to 63 characters with a hash. With `wow-query-api`, the compiler also generates each state's `<State>Properties`.
 
-### G17. The guide sends container tests to an `integrationTest` source set it does not show how to declare
+### G17. The guide sends container tests to an `integrationTest` source set it does not show how to declare (resolved)
 
 - **Work package**: E.1
 - **Area**: build, testing, docs
@@ -238,6 +238,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The contract runs on the memory backend in `catalog-server`'s `test` (G14). The PostgreSQL case is `CatalogPostgresTest` in `:eshop-e2e`, whose `integrationTest` exists.
 - **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `integrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
 - **Blocks M7**: no.
+- **Resolved**: by #4679 (DX-2) and #5344 (decision D389 ⑤). `me.ahoo.wow.service` registers the `integrationTest` test suite, outside `check`: JUnit Jupiter, the module's classes and what `testImplementation` gives, nothing more. The quick start names it, and the testing page (*Run it on real stores*) shows the Testcontainers dependency declared in the suite and what happens to a suite or source set the build sets up itself. Inside the repository, `integrationTestProjects` sets the source set up before the plugin applies; a server outside it keeps the plugin's suite, which neither `:integrationTest` nor CI runs, so a server with container tests joins the list, as `:eshop-ordering-server` has.
 
 ### G18. `expectEventTypes` takes Java classes (resolved)
 

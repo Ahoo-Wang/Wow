@@ -210,9 +210,26 @@ class PluginRolesFunctionalTest {
     }
 
     @Test
-    fun `the integration test suite should run apart from check`(@TempDir root: File) {
+    fun `the service plugin's integration test suite should run apart from check, with what the build script gives it`(
+        @TempDir root: File,
+    ) {
         settings(root, "bank")
-        module(root, "", WowPlugin.ID)
+        module(root, "", WowPlugin.SERVICE_ID)
+        // The module's build script runs after its plugins, so it configures the suite they registered.
+        File(root, "build.gradle.kts").appendText(
+            """
+
+            testing {
+                suites {
+                    named<JvmTestSuite>("integrationTest") {
+                        dependencies {
+                            implementation("me.ahoo.test:fluent-assert-core:1.2.1")
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
         bank(root, "")
         write(
             root,
@@ -220,22 +237,76 @@ class PluginRolesFunctionalTest {
             """
             package bank
 
+            import me.ahoo.test.asserts.assert
             import org.junit.jupiter.api.Test
 
             class AccountIT {
                 @Test
                 fun opens() {
-                    check(AccountState("a").owner == "")
+                    AccountState("a").owner.assert().isEmpty()
                 }
             }
             """,
         )
-        val check = runner(root, "check").build()
+        val check = runner(root, WowPlugin.UPDATE_BASELINE_TASK, "check").build()
+        check.task(":test")?.outcome.assert().isNotNull()
         check.task(":${WowPlugin.INTEGRATION_TEST}").assert().isNull()
         val integration = runner(root, WowPlugin.INTEGRATION_TEST).build()
         integration.task(":${WowPlugin.INTEGRATION_TEST}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         File(root, "build/test-results/integrationTest/TEST-bank.AccountIT.xml").readText().assert()
             .contains("tests=\"1\"", "failures=\"0\"")
+    }
+
+    @Test
+    fun `integration tests the build sets up before the plugin applies should stay the build's`(@TempDir root: File) {
+        settings(root, "bank", "suite", "sources")
+        // A suite of its own, as a convention plugin applied first would register it.
+        write(
+            root,
+            "suite/build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("${WowPlugin.SERVICE_ID}") apply false
+            }
+
+            testing {
+                suites {
+                    register<JvmTestSuite>("integrationTest") {
+                        targets.all {
+                            testTask.configure { description = "Runs the build's own suite." }
+                        }
+                    }
+                }
+            }
+
+            apply(plugin = "${WowPlugin.SERVICE_ID}")
+            """,
+        )
+        // A source set and a test task of its own, as a root build's convention would set them up.
+        write(
+            root,
+            "sources/build.gradle.kts",
+            """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("${WowPlugin.SERVICE_ID}") apply false
+            }
+
+            val integrationTest = sourceSets.create("integrationTest")
+            tasks.register<Test>("integrationTest") {
+                description = "Runs the build's own source set."
+                testClassesDirs = integrationTest.output.classesDirs
+                classpath = integrationTest.runtimeClasspath
+            }
+
+            apply(plugin = "${WowPlugin.SERVICE_ID}")
+            """,
+        )
+        runner(root, "tasks", "--all").build().output.assert()
+            .contains("suite:integrationTest - Runs the build's own suite.")
+            .contains("sources:integrationTest - Runs the build's own source set.")
+            .doesNotContain("Runs the container-backed integration tests.")
     }
 
     /** The documented three-module layout: the bank's api, domain and server modules. */

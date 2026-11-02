@@ -74,7 +74,24 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
-内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。插件为模块注册了单独的测试套件 `integrationTest`，不属于 `check`，这样单元测试保持快速，也不需要 Docker：
+内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。`me.ahoo.wow.service` 为它们注册了单独的测试套件 `integrationTest`，`check` 不会运行它，这样单元测试保持快速，也不需要 Docker：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行。这个套件在 JUnit Jupiter 上运行，能用到模块的类以及 `testImplementation` 提供的一切；插件不再添加别的东西，测试需要什么，包括 Testcontainers，由构建脚本声明：
+
+```kotlin
+testing {
+    suites {
+        named<JvmTestSuite>("integrationTest") {
+            dependencies {
+                implementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+                implementation("org.testcontainers:testcontainers-postgresql")
+            }
+        }
+    }
+}
+```
+
+构建脚本在它的插件之后运行，所以它配置插件的套件（`named`），而不是再注册一个：同名的第二个套件会让构建失败。如果构建在插件应用之前就自己准备好了集成测试，即名为 `integrationTest` 的套件或源码集（来自先应用的约定插件，或来自根构建），插件会原样保留它们，什么也不注册。
+
+测试启动容器，让服务运行在它们上面：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
