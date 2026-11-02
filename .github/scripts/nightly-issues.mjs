@@ -23,8 +23,32 @@ import { pathToFileURL } from 'node:url';
 // tag, which is not main. `--dry-run` reads the run and the open issues and
 // prints what it would do without writing anything; without RUN_ATTEMPT it
 // reads the run's latest attempt.
+//
+// The sweep (`--sweep`, or SWEEP=true) takes, for each workflow nightly.yml
+// dispatches, its latest completed dispatch run on main in the last
+// SWEEP_HOURS (36 by default), and reports it the same way. nightly.yml
+// dispatches with the GITHUB_TOKEN, and GitHub emits no workflow_run event
+// for a run the GITHUB_TOKEN started, so nightly-issues.yml runs the sweep on
+// a schedule after the nightly window; workflow_run still reports a manual
+// dispatch as soon as it completes. A failure is reported once per run id: a
+// run the open issue already names, in its body or a comment, changes
+// nothing, so the sweep and workflow_run never report one run twice.
+//
+//   GITHUB_REPOSITORY=<owner/repo> GH_TOKEN=<token> [SWEEP_HOURS=<n>] \
+//     node .github/scripts/nightly-issues.mjs --sweep [--dry-run]
 
 export const LABEL = 'nightly-failure';
+
+/** The workflows nightly.yml dispatches, by file, in its order. */
+export const WORKFLOWS = [
+  'soak.yml',
+  'mongo-cluster.yml',
+  'ga-e2e.yml',
+  'ci.yml',
+];
+
+/** How far back the sweep looks for a workflow's latest run, by default. */
+export const SWEEP_HOURS = 36;
 const LABEL_COLOR = 'b60205';
 const LABEL_DESCRIPTION =
   'A nightly workflow on main failed (nightly-issues.yml)';
@@ -49,6 +73,15 @@ export function findIssue(issues, workflow) {
       )
       .sort((a, b) => a.number - b.number)[0] ?? null
   );
+}
+
+/** The ids of the runs an issue's texts (its body and comments) link to. */
+export function reportedRuns(texts) {
+  const ids = new Set();
+  for (const text of texts)
+    for (const [, id] of (text ?? '').matchAll(/\/actions\/runs\/(\d+)/g))
+      ids.add(Number(id));
+  return ids;
 }
 
 /** The jobs of a run that failed, in the run's order. */
@@ -81,9 +114,10 @@ export function details({ run, jobs, repository }) {
 /**
  * What a completed run does to its workflow's issue: `{ action, reason }`
  * with `action` `none`, or `open` (`title`, `body`), `comment` or `close`
- * (`number`, `body`).
+ * (`number`, `body`). `reported` holds the ids of the runs the open issue
+ * already names: a failed run among them was reported, and changes nothing.
  */
-export function plan({ run, jobs, issues, repository }) {
+export function plan({ run, jobs, issues, repository, reported = new Set() }) {
   if (run.event !== 'workflow_dispatch' || run.head_branch !== 'main')
     return {
       action: 'none',
@@ -112,6 +146,11 @@ export function plan({ run, jobs, issues, repository }) {
     return {
       action: 'none',
       reason: `${run.name} run ${run.id} is ${run.conclusion}`,
+    };
+  if (issue && reported.has(run.id))
+    return {
+      action: 'none',
+      reason: `${run.name} run ${run.id} failed; already reported on #${issue.number}`,
     };
   return issue
     ? {
@@ -172,11 +211,48 @@ export async function report({
   log = () => {},
 }) {
   const run = await client.run(runId, attempt);
-  const jobs = FAILED.has(run.conclusion)
-    ? await client.jobs(run.id, run.run_attempt)
-    : [];
+  return reportRun({ client, repository, run, dryRun, log });
+}
+
+/**
+ * Reports each workflow's latest completed dispatch run on main since
+ * `since`, one after another; a workflow without one is logged and passed
+ * over. The steps, by workflow.
+ */
+export async function sweep({
+  client,
+  repository,
+  workflows = WORKFLOWS,
+  since,
+  dryRun = false,
+  log = () => {},
+}) {
+  const steps = {};
+  for (const workflow of workflows) {
+    const run = await client.latestDispatchRun(workflow, since);
+    if (!run) {
+      log(`${workflow}: no completed dispatch run on main since ${since}`);
+      steps[workflow] = null;
+      continue;
+    }
+    steps[workflow] = await reportRun({ client, repository, run, dryRun, log });
+  }
+  return steps;
+}
+
+/** Plans a completed run's report against the open issues, and applies it unless `dryRun`. */
+async function reportRun({ client, repository, run, dryRun, log }) {
+  const failed = FAILED.has(run.conclusion);
+  const jobs = failed ? await client.jobs(run.id, run.run_attempt) : [];
   const issues = await client.issues();
-  const step = plan({ run, jobs, issues, repository });
+  const open = failed ? findIssue(issues, run.name) : null;
+  const reported = open
+    ? reportedRuns([
+        open.body,
+        ...(await client.comments(open.number)).map(comment => comment.body),
+      ])
+    : new Set();
+  const step = plan({ run, jobs, issues, repository, reported });
   log(step.reason);
   if (dryRun) {
     if (step.action === 'open' && !(await client.labelExists()))
@@ -242,6 +318,15 @@ export function githubClient({ repository, token, request = fetch }) {
         page => page.jobs,
       ),
     issues: () => pages(`/issues?labels=${LABEL}&state=open&per_page=100`),
+    comments: number => pages(`/issues/${number}/comments?per_page=100`),
+    latestDispatchRun: async (workflow, since) =>
+      (
+        await json(
+          'GET',
+          `/actions/workflows/${workflow}/runs?branch=main&event=workflow_dispatch` +
+            `&status=completed&created=${encodeURIComponent(`>=${since}`)}&per_page=1`,
+        )
+      ).workflow_runs[0] ?? null,
     labelExists: async () => {
       const response = await call('GET', `/labels/${LABEL}`);
       if (response.status === 404) return false;
@@ -272,24 +357,41 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const { GITHUB_REPOSITORY, GH_TOKEN, GITHUB_TOKEN, RUN_ID, RUN_ATTEMPT } =
-    process.env;
-  if (
-    !/^[\w.-]+\/[\w.-]+$/.test(GITHUB_REPOSITORY ?? '') ||
-    !/^\d+$/.test(RUN_ID ?? '')
-  )
-    throw new Error('GITHUB_REPOSITORY and RUN_ID are required');
-  if (RUN_ATTEMPT && !/^\d+$/.test(RUN_ATTEMPT))
-    throw new Error(`RUN_ATTEMPT is not a number: ${RUN_ATTEMPT}`);
-  await report({
-    client: githubClient({
-      repository: GITHUB_REPOSITORY,
-      token: GH_TOKEN ?? GITHUB_TOKEN,
-    }),
+  const {
+    GITHUB_REPOSITORY,
+    GH_TOKEN,
+    GITHUB_TOKEN,
+    RUN_ID,
+    RUN_ATTEMPT,
+    SWEEP,
+    SWEEP_HOURS: HOURS,
+  } = process.env;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(GITHUB_REPOSITORY ?? ''))
+    throw new Error('GITHUB_REPOSITORY is required');
+  const client = githubClient({
     repository: GITHUB_REPOSITORY,
-    runId: RUN_ID,
-    attempt: RUN_ATTEMPT,
-    dryRun: process.argv.includes('--dry-run'),
-    log: message => console.log(message),
+    token: GH_TOKEN ?? GITHUB_TOKEN,
   });
+  const dryRun = process.argv.includes('--dry-run');
+  const log = message => console.log(message);
+  if (process.argv.includes('--sweep') || SWEEP === 'true') {
+    if (HOURS && !/^\d+$/.test(HOURS))
+      throw new Error(`SWEEP_HOURS is not a number: ${HOURS}`);
+    const hours = HOURS ? Number(HOURS) : SWEEP_HOURS;
+    const since = new Date(Date.now() - hours * 3_600_000).toISOString();
+    await sweep({ client, repository: GITHUB_REPOSITORY, since, dryRun, log });
+  } else {
+    if (!/^\d+$/.test(RUN_ID ?? ''))
+      throw new Error('RUN_ID is required without --sweep');
+    if (RUN_ATTEMPT && !/^\d+$/.test(RUN_ATTEMPT))
+      throw new Error(`RUN_ATTEMPT is not a number: ${RUN_ATTEMPT}`);
+    await report({
+      client,
+      repository: GITHUB_REPOSITORY,
+      runId: RUN_ID,
+      attempt: RUN_ATTEMPT,
+      dryRun,
+      log,
+    });
+  }
 }

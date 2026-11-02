@@ -22,12 +22,27 @@
 # ci.yml's push runs on main are not dispatches. GitHub runs workflow_run from
 # the default branch, main, and the script is checked out from there, never
 # from the run it reports.
+#
+# nightly.yml dispatches with the GITHUB_TOKEN, and GitHub emits no
+# workflow_run event for a run the GITHUB_TOKEN started: workflow_run reports
+# only the dispatches a person or another token made. So the sweep runs on a
+# schedule after the nightly window, and by hand: it reports each workflow's
+# latest completed dispatch run on main in the last 36 hours. A failure is
+# reported once per run id, so the sweep and workflow_run never report a run
+# twice.
 name: Nightly issues
 on:
   workflow_run:
     workflows: [Soak, MongoDB cluster, GA end-to-end, CI]
     types: [completed]
     branches: [main]
+  schedule:
+    # nightly.yml's 18:30 schedule has started between 21:00 and 23:00 UTC,
+    # and its longest workflow, the soak, takes about 65 minutes: 01:30 sees
+    # the night's runs, 06:30 a night that started late.
+    - cron: '30 1 * * *'
+    - cron: '30 6 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,18 +50,19 @@ permissions:
 concurrency:
   # One report per workflow at a time, so two of its runs never open two
   # issues. The event is in the group so that ci.yml's push runs, whose
-  # reports skip, never replace a dispatch run's pending report.
+  # reports skip, never replace a dispatch run's pending report. A sweep has no
+  # workflow_run, so the sweeps share a group of their own.
   group: ${{ github.workflow }}-${{ github.event.workflow_run.workflow_id }}-${{ github.event.workflow_run.event }}
   cancel-in-progress: false
 
 jobs:
   report:
-    name: Report ${{ github.event.workflow_run.name }}
-    if: github.repository == 'Ahoo-Wang/Wow' && github.event.workflow_run.event == 'workflow_dispatch'
+    name: Report ${{ github.event.workflow_run.name || 'the nightly runs' }}
+    if: github.repository == 'Ahoo-Wang/Wow' && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'workflow_dispatch')
     timeout-minutes: 5
     runs-on: ubuntu-latest
     permissions:
-      # The run and its jobs.
+      # The runs and their jobs.
       actions: read
       contents: read
       # The workflow's issue and the label.
@@ -61,4 +77,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          # A schedule or a manual dispatch sweeps; workflow_run reports its run.
+          SWEEP: ${{ github.event_name != 'workflow_run' }}
         run: node .github/scripts/nightly-issues.mjs
