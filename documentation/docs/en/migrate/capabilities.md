@@ -115,7 +115,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Filter expressions, relative time, metadata filters, aggregation windows | Kept | — |
 | The `Condition` protocol | Dropped | Use filter expressions; the Skill rewrites conditions. |
 | Kotlin query DSL and generated `<State>Properties` | Kept | — |
-| Wow query types stored in events or state (`Condition`, `Sort`, `Projection`) | Dropped | The kernel's JSON has no codec for the query protocol: store a type of your own and upgrade the 9.x JSON into it. |
+| Wow query types stored in events or state (`Condition`, `Sort`, `Projection`) | Dropped | The kernel's JSON has no codec for the query protocol, and the build refuses an event or a state that holds one: store a type of your own and upgrade the 9.x JSON into it. |
 | Query schema overrides on the classpath (`META-INF/wow/query-schema`) | Dropped | The schema comes from the state classes; move each override onto the state as a field annotation. |
 | Implementing or subclassing the query types (`IPagedList`) | Dropped | The V10 query types are final classes built with their factories or the DSL. |
 | Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |

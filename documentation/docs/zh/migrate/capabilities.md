@@ -115,7 +115,7 @@ outline: deep
 | 过滤表达式、相对时间、元数据过滤、聚合窗口 | 保留 | — |
 | `Condition` 协议 | 放弃 | 使用过滤表达式；Skill 会改写条件。 |
 | Kotlin 查询 DSL 与生成的 `<State>Properties` | 保留 | — |
-| 存储在事件或状态中的 Wow 查询类型（`Condition`、`Sort`、`Projection`） | 放弃 | 内核的 JSON 没有查询协议的编解码：改存应用自己的类型，并把 9.x 的 JSON 升级过去。 |
+| 存储在事件或状态中的 Wow 查询类型（`Condition`、`Sort`、`Projection`） | 放弃 | 内核的 JSON 没有查询协议的编解码，构建也会拒绝持有它的事件或状态：改存应用自己的类型，并把 9.x 的 JSON 升级过去。 |
 | 类路径上的查询 schema 覆盖（`META-INF/wow/query-schema`） | 放弃 | schema 来自状态类；把每个覆盖改为状态上的字段注解。 |
 | 实现或继承查询类型（`IPagedList`） | 放弃 | V10 的查询类型是 final 类，用它们的工厂或 DSL 构建。 |
 | 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | — |
