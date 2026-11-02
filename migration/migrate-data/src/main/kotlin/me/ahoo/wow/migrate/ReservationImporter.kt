@@ -26,18 +26,28 @@ import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 
-/** The 9.x `PrepareKey` [mapping] whose keys instances of [aggregate] own. */
-internal class ReservationPlan(val aggregate: AggregatePlan, val mapping: ReservationMapping) {
+/**
+ * The 9.x `PrepareKey` [mapping] whose keys instances of [aggregate] own; [exclusionOf] gives the entry excluding an
+ * instance of the 9.x aggregate by its id ([MigrationPlan.exclusionOf]).
+ */
+internal class ReservationPlan(
+    val aggregate: AggregatePlan,
+    val mapping: ReservationMapping,
+    private val exclusionOf: (NineXAggregate, String) -> Exclusion?,
+) {
     /**
      * The V10 owner and scope of the confirmed 9.x [key]: the instance whose id the value holds, in
      * the tenant its 9.x streams record, which [source] finds; the key's tenant is the owner's, or the system tenant
-     * for a [ReservationTenancy.SYSTEM] mapping. Why it has none when the value holds no id, no stream has the id, or
-     * streams of several tenants do.
+     * for a [ReservationTenancy.SYSTEM] mapping. Why it has none when the value holds no id, the map excludes the
+     * instance, no stream has the id, or streams of several tenants do.
      */
     fun ownerOf(key: NineXPreparedKey, source: NineXEventSource): KeyOwner {
         val id = key.ownerId(mapping.ownerId) ?: return KeyOwner.Unresolved(
             if (mapping.ownerId == null) "its value is not an id" else "its value has no id at ${mapping.ownerId}",
         )
+        exclusionOf(aggregate.source, id)?.let { exclusion ->
+            return KeyOwner.Unresolved("its owner, the ${exclusion.subject()}, is excluded: ${exclusion.reason}")
+        }
         val tenants = source.tenantsOf(aggregate.source, id)
         val tenantId = tenants.singleOrNull() ?: return KeyOwner.Unresolved(
             if (tenants.isEmpty()) {
@@ -46,6 +56,9 @@ internal class ReservationPlan(val aggregate: AggregatePlan, val mapping: Reserv
                 "the id $id of ${aggregate.source} is in the tenants $tenants"
             },
         )
+        if (tenantId.isBlank()) {
+            return KeyOwner.Unresolved("the streams of its owner $id of ${aggregate.source} record no tenant")
+        }
         val owner = aggregate.target.ref(tenantId, id)
         val scopeTenant = if (mapping.tenancy == ReservationTenancy.SYSTEM) ReservationScope.SYSTEM_TENANT else tenantId
         return KeyOwner.Found(owner, ReservationScope.of(aggregate.target, scopeTenant, mapping.namespace))

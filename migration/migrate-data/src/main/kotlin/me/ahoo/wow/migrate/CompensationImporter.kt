@@ -39,6 +39,8 @@ internal class CompensationPlan(
     val mappings: List<SubscriptionMapping>,
     private val manifest: Manifest,
     private val aggregates: Map<NineXAggregate, AggregatePlan>,
+    /** The entry excluding an instance of a 9.x aggregate by its id ([MigrationPlan.exclusionOf]). */
+    private val exclusionOf: (NineXAggregate, String) -> Exclusion?,
 ) {
     /** The mapping of each 9.x processor; one mapped twice keeps its last mapping here (the check reports it). */
     val processors: Map<NineXProcessor, SubscriptionMapping> = mappings.associateBy { it.source() }
@@ -93,12 +95,15 @@ internal class CompensationPlan(
 
     /**
      * The V10 parked entry of the unresolved 9.x [execution], in the log partition [partitionOf] gives its
-     * aggregate, or why there is none.
+     * aggregate, or why there is none: the map excludes the instance it failed on, among others.
      */
     fun parkedOf(execution: NineXExecutionFailed, partitionOf: (AggregateRef) -> Int): ParkedTarget {
         val subscription = subscriptionOf(execution.function)
             ?: return ParkedTarget.Unresolved("the 9.x processor ${execution.function.owner} has no subscription mapping")
         problemOf(subscription, execution.aggregate)?.let { return ParkedTarget.Unresolved(it) }
+        exclusionOf(execution.aggregate, execution.aggregateId.id)?.let { exclusion ->
+            return ParkedTarget.Unresolved("its instance, the ${exclusion.subject()}, is excluded: ${exclusion.reason}")
+        }
         val target = aggregates.getValue(execution.aggregate).target
         val ref = target.ref(execution.aggregateId.tenantId, execution.aggregateId.id)
         val entry = ParkedAggregate.of(

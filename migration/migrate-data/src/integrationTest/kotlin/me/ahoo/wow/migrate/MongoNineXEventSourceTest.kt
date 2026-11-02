@@ -116,6 +116,23 @@ class MongoNineXEventSourceTest {
     }
 
     @Test
+    fun `the inventory should count the streams that record no tenant, by their id`() {
+        val text = NineXExample.resource("order-stream-v1.json")
+        fun insert(stream: String, id: String, tenant: String?) = NineXMongoStore.insert(
+            database,
+            text.replace("\"0VY3Gwb94OmV00H\"", "\"$stream\"").replace("\"0VY3GwaK4OmV00E\"", "\"$id\"")
+                .replace("\"tenantId\":\"(0)\",", tenant?.let { "\"tenantId\":${RefusedIds.quoted(it)}," }.orEmpty()),
+        )
+        insert("absent", "o-1", null)
+        insert("blank", "o-1", " ")
+        insert("other", "o-2", "")
+        source.inventory().first { it.aggregate == order }.tenantless.assert().isEqualTo(mapOf("o-1" to 2L, "o-2" to 1L))
+        // Each reads as of the blank tenant, as the in-memory store reads it.
+        source.aggregateIds(order, null, 10).filter { it.id == "o-2" }.assert().containsExactly(NineXAggregateId("o-2", ""))
+        source.tenantsOf(order, "o-1").assert().containsExactly("", " ")
+    }
+
+    @Test
     fun `instances, streams and commits read in their orders, exactly`() {
         val first = NineXExample.stream("order-stream-v1.json")
         NineXMongoStore.insert(

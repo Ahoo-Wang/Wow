@@ -104,6 +104,22 @@ class NineXCompensationTest {
     }
 
     @Test
+    fun `an execution on an instance the map excludes is not parked, naming the exclusion`() {
+        val execution = NineXCompensationExample.execution(1)
+        NineXCompensationExample.plan.compensation.parkedOf(execution) { 0 }.assert()
+            .isInstanceOf(ParkedTarget.Parked::class.java)
+        val excluded =
+            Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = execution.aggregateId.id)
+        val plan = MigrationPlan(
+            NineXCompensationExample.map.copy(excluded = listOf(excluded)),
+            NineXCompensationExample.manifest,
+        )
+        plan.compensation.parkedOf(execution) { 0 }.assert().isEqualTo(
+            ParkedTarget.Unresolved("its instance, the ${excluded.subject()}, is excluded: A 9.x defect"),
+        )
+    }
+
+    @Test
     fun `a subscription parks only the aggregates it reads from its own context's log`() {
         fun subscription(name: String, source: SubscriptionSource, rejected: Boolean = false, job: Boolean = false) =
             SubscriptionManifest(

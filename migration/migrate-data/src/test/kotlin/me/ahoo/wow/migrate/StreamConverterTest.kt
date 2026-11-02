@@ -52,6 +52,15 @@ class StreamConverterTest {
         NineXEvent("e-$name", name, revision, WowJson.mapper.readTree(body))
 
     @Test
+    fun `a stream that records no tenant should fail, naming the entry that excludes it`() {
+        val tenantless = created.copy(aggregateId = created.aggregateId.copy(tenantId = ""))
+        assertThrows<MigrationException> { converter().convert(tenantless) }.message.assert().endsWith(
+            "it records no tenant, which V10 refuses; exclude it with {\"aggregate\": \"example-service.order\", " +
+                "\"stream\": \"0VY3GwaK4OmV00E\", \"reason\": \"…\"}.",
+        )
+    }
+
+    @Test
     fun `a 9x stream converts with its identity, scope, operator and causation`() {
         val record = converter().convert(created)
         record.ref.assert().isEqualTo(AggregateType("example", "order").ref("(0)", "0VY3GwaK4OmV00E"))

@@ -32,7 +32,7 @@ outline: deep
 | 选项 | 含义 |
 | --- | --- |
 | `--config <file>` | 配置文件。每个命令都必须指定。 |
-| `--decode` | 映射检查通过后，`check` 用服务的 V10 模型（配置中的 `classpath`）读取已映射聚合的每个 9.x 事件，与服务加载聚合时的读法相同，包括升级函数。每个读不出的事件打印一行 `PROBLEM decode:`，给出它的 9.x 类型和修订版本、所在事件流和原因，然后继续，最后按类型给出计数；只要有一个读不出，检查就失败。 |
+| `--decode` | 映射检查通过后，`check` 用服务的 V10 模型（配置中的 `classpath`）读取已映射聚合的每个 9.x 事件，与服务加载聚合时的读法相同，包括升级函数。每个读不出的事件打印一行 `PROBLEM decode:`，给出它的 9.x 类型和修订版本、所在事件流和原因，然后继续，最后按类型给出计数；只要有一个读不出，检查就失败。存储中缺少导入所需字段的实例事件流也会打印出来，然后继续检查下一个实例。 |
 | `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入；`draft-map` 打印草稿，不写入。 |
 | `--out <file>` | `draft-map` 把草稿写到这里，而不是配置里指定的映射文件。 |
 | `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。 |
@@ -197,9 +197,9 @@ outline: deep
 | `headers` | 作为请求事实保留的 9.x 流请求头，9.x 键对应 V10 名字。其他请求头都被丢弃。9.x 框架请求头（`trace_id`、`upstream_id`、`upstream_name`、`command_operator`、`local_first`、等待请求头）不能列出：它们各自变成单独的字段，或被丢弃。较早的 9.x 用点号写这些请求头（`trace.id`、`upstream.id`、`upstream.name`、`command.operator`、`command.wait.*`），读作同样的请求头；它的一些流只用 `command.name` 记录命令名。 |
 | `subscriptions` | 有未解决补偿执行的 9.x 处理器，映射到 V10 订阅；见下文。 |
 | `exceptions` | `draft-map` 匹配不上的内容，每行一项，由人解决后删除。检查会把它仍然找到的每一行作为警告打印出来。 |
-| `excluded` | 映射文件有意不迁移的 9.x 聚合（`aggregate`，`contextName.aggregateName`）和 `PrepareKey`（`prepareKey`），每项都要给出 `reason`（必填）。同时写有 `aggregate` 和 `stream` 的项只排除该聚合的一个实例的事件流，以其 9.x 聚合 ID 命名，覆盖所有租户：用于 V10 无法接收的实例，例如 ID 被 V10 拒绝的实例（见下文）。检查把每一项连同原因作为警告打印，而不是失败；既被映射又被排除、或被排除两次的项会使检查失败，存储中没有的项是警告，所属聚合未被映射文件导入的实例事件流也是警告。`import`、`snapshot` 和 `compare` 都不读取其中任何一项。`draft-map` 从不写入它。 |
+| `excluded` | 映射文件有意不迁移的 9.x 聚合（`aggregate`，`contextName.aggregateName`）和 `PrepareKey`（`prepareKey`），每项都要给出 `reason`（必填）。同时写有 `aggregate` 和 `stream` 的项只排除该聚合的一个实例的事件流，以其 9.x 聚合 ID 命名，覆盖所有租户：用于 V10 无法接收的实例，例如 ID 被 V10 拒绝的实例（见下文）。检查把每一项连同原因作为警告打印，而不是失败；既被映射又被排除、或被排除两次的项会使检查失败，存储中没有的项是警告，所属聚合未被映射文件导入的实例事件流也是警告。`import`、`snapshot` 和 `compare` 都不读取其中任何一项；被排除的实例什么都不导入：既不导入它的事件流，也不导入它拥有的预留键或它上面的补偿执行，每一项都以 `UNRESOLVED` 打印，并给出该项的原因。`draft-map` 从不写入它。 |
 
-V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、空白 ID，以及 `(none)`，即 V10 给尚未由准入分配聚合 ID 的请求所用的 ID。带有这类 ID 的实例无法导入，属于 9.x 的数据缺陷。检查会按聚合各报一条 `PROBLEM`，列出每个这样的 ID、其事件流数量和租户，并写成 `excluded` 项用来命名它的 JSON 字符串：空 ID 写作 `"(empty)"`，便于复制。先确定每个实例的事件流是什么，再排除它，如示例中的 `{ "aggregate": "order-service.order", "stream": "(empty)", "reason": "…" }`。
+V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、空白 ID，以及 `(none)`，即 V10 给尚未由准入分配聚合 ID 的请求所用的 ID。带有这类 ID 的实例无法导入，属于 9.x 的数据缺陷。检查会按聚合各报一条 `PROBLEM`，列出每个这样的 ID、其事件流数量和租户，并写成 `excluded` 项用来命名它的 JSON 字符串：空 ID 写作 `"(empty)"`，便于复制。没有记录租户（或租户为空白）的事件流同样被 V10 拒绝，会以单独的 `PROBLEM` 按聚合 ID 列出。先确定每个实例的事件流是什么，再排除它，如示例中的 `{ "aggregate": "order-service.order", "stream": "(empty)", "reason": "…" }`。
 
 ### 聚合 {#aggregates}
 
