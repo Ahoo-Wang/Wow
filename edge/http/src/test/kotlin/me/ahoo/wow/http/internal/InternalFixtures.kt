@@ -34,6 +34,7 @@ import tools.jackson.databind.node.JsonNodeFactory
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -44,20 +45,25 @@ const val BIND_ATTEMPTS = 5
 
 /**
  * An internal port as the host serves it (decision D109): bare Reactor Netty taking HTTP/1.1 and h2c, serving
- * [routes] and upgrading a connection's first request of up to [upgradeBody] bytes. [versions] records the protocol
- * each request arrived over.
+ * [routes], upgrading a connection's first request of up to [upgradeBody] bytes and taking [streams] streams on a
+ * connection at a time. [versions] records the protocol each request arrived over, [connections] counts the
+ * connections it accepted.
  */
 class InternalServer(
     routes: RouterFunction<ServerResponse>,
     upgradeBody: Int = InternalHttp.MAX_UPGRADE_BODY,
     port: Int = 0,
+    streams: Int = InternalHttp.MAX_CONCURRENT_STREAMS,
 ) : AutoCloseable {
     val versions = CopyOnWriteArrayList<String>()
+    val connections = AtomicInteger()
     private val adapter = ReactorHttpHandlerAdapter(RouterFunctions.toHttpHandler(routes))
     private val server: DisposableServer = HttpServer.create()
         .host("127.0.0.1")
         .port(port)
+        .doOnChannelInit { _, _, _ -> connections.incrementAndGet() }
         .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
+        .http2Settings { it.maxConcurrentStreams(streams.toLong()) }
         .httpRequestDecoder { it.h2cMaxContentLength(upgradeBody) }
         .handle { request, response ->
             versions += request.version().text()

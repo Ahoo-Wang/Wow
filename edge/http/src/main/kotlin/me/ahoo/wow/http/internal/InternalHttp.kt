@@ -15,6 +15,7 @@ package me.ahoo.wow.http.internal
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
+import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import kotlin.time.Duration
@@ -71,9 +72,30 @@ object InternalHttp {
     val DEFAULT_CONNECT_TIMEOUT: Duration = 1.seconds
 
     /**
+     * The streams the internal port takes on one HTTP/2 connection at a time, which it advertises
+     * (`SETTINGS_MAX_CONCURRENT_STREAMS`, Netty's default made explicit). The JDK [client] neither queues a request
+     * past a peer's limit nor opens another connection for it: it fails the request, unsent, with
+     * `IOException: too many concurrent streams` (JDK 21 and 25 alike). So the node's senders on one connection keep
+     * within it between them: its [HttpSignalSender] sends at most [HttpSignalSender.DEFAULT_CONCURRENCY] requests to a
+     * node at a time, and its [HttpClusterChannel] keeps the rest ([HttpClusterChannel.DEFAULT_STREAMS]), a forward
+     * past them waiting for a stream.
+     */
+    const val MAX_CONCURRENT_STREAMS: Int = 100
+
+    /**
+     * How long a forward's stream stays open past its deadline for the owner's answer. The sender stops waiting at the
+     * deadline; the owner answers about then, as it withdraws a command still queued at its wait's deadline. A request
+     * timing out resets its stream (`RST_STREAM`), and the internal port, as any Netty server, closes a connection on
+     * which it reads more than 200 resets in 30 seconds, failing every request on it: so a stream is not reset at the
+     * very deadline the owner answers at, only when the owner has not answered [ANSWER_GRACE] after it.
+     */
+    val ANSWER_GRACE: Duration = 2.seconds
+
+    /**
      * A JDK [HttpClient] for the internal port: HTTP/2, which over cleartext it reaches by upgrading the first request
-     * of a connection from HTTP/1.1 (h2c), then multiplexes on that connection. One client keeps one connection per
-     * peer, so a node shares it between its [HttpClusterChannel] and its [HttpSignalSender].
+     * of a connection from HTTP/1.1 (h2c), then multiplexes on that connection, at most [MAX_CONCURRENT_STREAMS]
+     * requests at a time. One client keeps one connection per peer, so a node shares it between its
+     * [HttpClusterChannel] and its [HttpSignalSender].
      */
     fun client(connectTimeout: Duration = DEFAULT_CONNECT_TIMEOUT): HttpClient = HttpClient.newBuilder()
         .version(HttpClient.Version.HTTP_2)
@@ -83,3 +105,11 @@ object InternalHttp {
     /** The URI of [path] on the internal port at [address] (`host:port`). */
     fun uri(address: String, path: String): URI = URI.create("http://$address$path")
 }
+
+/**
+ * Whether this is the JDK client's refusal of a request past the peer's [InternalHttp.MAX_CONCURRENT_STREAMS] on its
+ * connection: the request was not sent, and the connection is open. The JDK tells it by its message alone.
+ */
+internal fun Throwable.isStreamLimit(): Boolean = this is IOException && message == STREAM_LIMIT
+
+private const val STREAM_LIMIT = "too many concurrent streams"

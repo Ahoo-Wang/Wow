@@ -14,7 +14,10 @@
 package me.ahoo.wow.http.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -32,6 +35,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -48,12 +52,24 @@ import kotlin.time.toJavaDuration
  * [connectTimeout]: concurrent callers share one, and a peer once connected is not asked again until a forward to it
  * fails for want of a connection. A peer that cannot be reached in time is a [ClusterChannelException].
  *
- * The caller bounds a forward ([me.ahoo.wow.runtime.cluster.PartitionedRouter]) and cancelling it
- * aborts the request; the request also times out by itself at the forward's deadline, so a forward never outlives it.
- * Whatever keeps a reply from arriving (no connection, a timeout, a reset stream, a status other than 200, a body that
- * is not a reply) is a [ClusterChannelException]. Only one raised before the request was sent (no connection to the
- * peer, refused or not opened in time) is [unsent][ClusterChannelException.unsent], which the router degrades to
- * running the command locally; after the send, its outcome is unknown.
+ * A peer's connection carries at most [InternalHttp.MAX_CONCURRENT_STREAMS] requests at a time, which the JDK client
+ * does not queue past. The channel keeps at most [streams] forwards open to a peer, leaving the rest of the peer's
+ * streams to the node's [HttpSignalSender]; a forward past them waits for one, in order, until its deadline. One the
+ * JDK still refuses for the peer's limit, a stream just ended that it has not released yet, was not sent, and is sent
+ * again once one is free.
+ *
+ * The caller bounds a forward ([me.ahoo.wow.runtime.cluster.PartitionedRouter]), and the channel stops waiting for the
+ * reply at the forward's deadline too, so a forward never outlives it. Its stream does: it stays open, counted among
+ * [streams], until the owner's answer ends it, which comes about the deadline (the owner withdraws a command still
+ * queued at its wait's deadline). Only an owner that has not answered [answerGrace] after the deadline has the stream
+ * reset: resetting each stream at the very deadline it is answered at made the peer's server close the whole
+ * connection under load, failing every forward on it ([InternalHttp.ANSWER_GRACE]).
+ *
+ * Whatever keeps a reply from arriving (no connection, no reply by the deadline, a reset stream or a closed connection,
+ * a status other than 200, a body that is not a reply) is a [ClusterChannelException]. Only one raised before the
+ * request was sent (no connection to the peer, refused or not opened in time, or no stream to it free by the deadline)
+ * is [unsent][ClusterChannelException.unsent], which the router degrades to running the command locally; after the
+ * send, its outcome is unknown.
  *
  * Each forward names the node's [service] in `Wow-Service`. A peer that answers 401 or 403 did not
  * take the forward, being a node of another service: a refusal, which is [unsent][ClusterChannelException.unsent] too,
@@ -65,9 +81,21 @@ class HttpClusterChannel(
     private val clock: () -> Long = System::currentTimeMillis,
     private val connectTimeout: Duration = DEFAULT_CONNECT_TIMEOUT,
     private val service: String? = null,
+    /** The forwards open to one peer at a time: its connection's streams, less the signal sender's. */
+    private val streams: Int = DEFAULT_STREAMS,
+    /** How long a forward's stream stays open past its deadline for the owner's answer before it is reset. */
+    private val answerGrace: Duration = InternalHttp.ANSWER_GRACE,
 ) : ClusterChannel {
     /** The connections opened or opening, by peer address: completed once the peer answered. */
     private val connections = ConcurrentHashMap<String, CompletableFuture<*>>()
+
+    /** The streams free to each peer, by address: one is taken until the forward's response ends its stream. */
+    private val freeStreams = ConcurrentHashMap<String, Semaphore>()
+
+    init {
+        require(streams >= 1) { "A forward takes a stream." }
+        require(!answerGrace.isNegative()) { "The answer grace is never negative." }
+    }
 
     override suspend fun connect(address: String) {
         val opening = connections.computeIfAbsent(address, ::open)
@@ -85,19 +113,31 @@ class HttpClusterChannel(
             .timeout(connectTimeout.toJavaDuration())
             .method("HEAD", HttpRequest.BodyPublishers.noBody())
             .build()
-        return client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+        return client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).exceptionallyCompose { failure ->
+            // A peer whose streams are all taken is connected: the forward waits for one of them.
+            val cause = (failure as? CompletionException)?.cause ?: failure
+            if (cause.isStreamLimit()) {
+                CompletableFuture.completedFuture(null)
+            } else {
+                CompletableFuture.failedFuture(cause)
+            }
+        }
     }
 
     override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
-        val remaining = (request.deadline - clock()).coerceAtLeast(1)
-        val http = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.FORWARD_PATH))
-            .timeout(remaining.milliseconds.toJavaDuration())
-            .header("Content-Type", InternalHttp.JSON)
-            .apply { service?.let { header(WowHeaders.SERVICE, it) } }
-            .POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(request)))
-            .build()
+        val body = ClusterCodec.encode(request)
         val response = try {
-            client.sendAsync(http, HttpResponse.BodyHandlers.ofByteArray()).await()
+            exchange(address, request.deadline) { remaining ->
+                HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.FORWARD_PATH))
+                    .timeout((remaining + answerGrace).toJavaDuration())
+                    .header("Content-Type", InternalHttp.JSON)
+                    .apply { service?.let { header(WowHeaders.SERVICE, it) } }
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                    .build()
+            } ?: throw ClusterChannelException(
+                "Forwarding to $address failed: no stream to it was free by the forward's deadline.",
+                unsent = true,
+            )
         } catch (unconnected: HttpConnectTimeoutException) {
             // No connection was opened in time: the request was not sent.
             connections.remove(address)
@@ -133,8 +173,52 @@ class HttpClusterChannel(
         }
     }
 
+    /**
+     * [address]'s response to the request [build] makes for the time left until [deadline]: sent once one of the
+     * [streams] to it is free, and waited for until [deadline], when it fails with an [HttpTimeoutException]. The
+     * stream stays taken until the response, or the request's own timeout, ends it. Null when no stream was free by
+     * [deadline], or the JDK refused the last attempt for the peer's limit: the request was not sent.
+     */
+    private suspend fun exchange(
+        address: String,
+        deadline: Long,
+        build: (remaining: Duration) -> HttpRequest,
+    ): HttpResponse<ByteArray>? {
+        val free = freeStreams.computeIfAbsent(address) { Semaphore(streams) }
+        var pause = MIN_STREAM_PAUSE
+        while (deadline > clock()) {
+            withTimeoutOrNull(remaining(deadline)) { free.acquire() } ?: return null
+            val sending = client.sendAsync(build(remaining(deadline)), HttpResponse.BodyHandlers.ofByteArray())
+            sending.whenComplete { _, _ -> free.release() }
+            try {
+                // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
+                return withTimeoutOrNull(remaining(deadline)) { sending.copy().await() }
+                    ?: throw HttpTimeoutException("No reply by the forward's deadline.")
+            } catch (failure: IOException) {
+                if (!failure.isStreamLimit()) throw failure
+            }
+            // Not sent: the peer's streams were all taken, one of them only just ended. Again once one is free.
+            logger.debug { "The streams to $address are all taken; the forward waits for one." }
+            delay(pause)
+            pause = minOf(pause * 2, MAX_STREAM_PAUSE)
+        }
+        return null
+    }
+
+    /** The time left until [deadline], at least a millisecond. */
+    private fun remaining(deadline: Long): Duration = (deadline - clock()).coerceAtLeast(1).milliseconds
+
     @InternalWowApi
     companion object {
+        /**
+         * The default of the forwards open to one peer at a time: the peer's [InternalHttp.MAX_CONCURRENT_STREAMS] less
+         * the [HttpSignalSender.DEFAULT_CONCURRENCY] the node's signal sender takes on the same connection.
+         */
+        const val DEFAULT_STREAMS: Int = InternalHttp.MAX_CONCURRENT_STREAMS - HttpSignalSender.DEFAULT_CONCURRENCY
+
+        private val MIN_STREAM_PAUSE = 1.milliseconds
+        private val MAX_STREAM_PAUSE = 50.milliseconds
+
         /**
          * How long [connect] waits for a peer to answer on a new connection: well over the second a forward waits,
          * as a node's first connection to a peer that has just started pays for the h2c upgrade and the peer's warm-up.
