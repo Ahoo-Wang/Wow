@@ -77,6 +77,8 @@ tasks.test {
 
 The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. A pre-release has only exact versions there: write `10.0.0-beta.1`, not a range. A real service splits into an api, a domain and a server module ([Add Wow to an Existing Service](./existing-project)); one module is enough to try it.
 
+The plugin also registers an `integrationTest` test suite for the tests that run on real stores in containers: their sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them, apart from `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)). The bank needs none: its tests run in memory.
+
 `./gradlew build` also checks the service's Manifest, the contract its clients see, against a baseline committed beside the build file, `manifest/baseline.json`, and fails while there is none. Once the code below is written, record it once and commit it with the code:
 
 ```bash

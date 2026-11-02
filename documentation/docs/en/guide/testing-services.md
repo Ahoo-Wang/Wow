@@ -74,7 +74,24 @@ fun `an order not paid within its grace period should cancel itself`() {
 
 ## Run it on real stores
 
-The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. The plugins give a module a test suite of its own for them, `integrationTest`, outside `check`, so the unit tests stay fast and need no Docker:
+The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. `me.ahoo.wow.service` registers a test suite of its own for them, `integrationTest`, which `check` does not run, so the unit tests stay fast and need no Docker: its sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them. The suite runs on JUnit Jupiter, against the module's classes and everything `testImplementation` gives; the plugin adds nothing else, so the build script declares what the tests need, Testcontainers among them:
+
+```kotlin
+testing {
+    suites {
+        named<JvmTestSuite>("integrationTest") {
+            dependencies {
+                implementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+                implementation("org.testcontainers:testcontainers-postgresql")
+            }
+        }
+    }
+}
+```
+
+The build script runs after its plugins, so it configures their suite (`named`) instead of registering one: a second suite of that name fails the build. A build that sets up its integration tests before the plugin applies, as a suite or a source set named `integrationTest` (from a convention plugin applied first, or from the root build), keeps them as they are, and the plugin registers nothing.
+
+The tests start the containers and run the service on them:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 
