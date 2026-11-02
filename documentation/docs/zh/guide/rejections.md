@@ -100,6 +100,28 @@ fun onCommand(command: Unlock): Unlocked =
 - **等待在拒绝处结束。** 等待快照或 Saga 的调用方，在拒绝提交后即得到回答。
 - **创建命令不能带事件。** 它的聚合还不存在，所以带事件被拒绝的创建命令什么都不写，也没有版本；节点对每种命令类型警告一次，它的测试会失败并指出该命令。拒绝创建命令时不要带事件。
 
+## 在转换器中拒绝 {#reject-in-a-transformer}
+
+`CommandTransformer` 以同样的方式拒绝它接收的命令，发生在任何聚合决定之前：调用 `reject(code, message)`，在 Java 中则抛出 `RejectedException(Rejection.of(code, message))`。例如一个没有指明支付的回调：
+
+<!-- sample: fragment -->
+
+```kotlin
+override suspend fun transform(input: CommandInput): CommandTarget {
+    val chargeback = input.body as ChargebackNotified
+    if (chargeback.merchantReference.isBlank()) {
+        reject(Payment.Rejections.UNKNOWN_PAYMENT, "Chargeback ${chargeback.disputeId} names no payment.")
+    }
+    return CommandTarget.of(refundPayment, chargeback.merchantReference, RefundPayment(chargeback.reason))
+}
+```
+
+- **错误码属于聚合。** 本地名以请求发往的聚合（挂载命令所挂载的聚合）限定：`eshop-payment.payment.unknown-payment`。像聚合的其他错误码一样，在该聚合根中用 `@ErrorCode` 声明它，Manifest 就会连同状态列出它；所在上下文没有列出的错误码以 422 应答。
+- **调用方收到这个拒绝。** 准入以该错误码、它的消息和扩展拒绝命令，与应答决定函数的拒绝相同；通过 HTTP 时使用该错误码的状态。
+- **什么都不写入。** 没有聚合做出决定，所以拒绝携带的事件被丢弃，每种命令类型警告一次。
+
+转换器抛出的其他任何异常都会使请求失败：一个不说明原因的 500，原因由节点记录在日志中。
+
 ## 调用方收到什么 {#what-the-caller-receives}
 
 **在 HTTP 上**，拒绝以错误码的状态回答，响应体是 `application/problem+json`，其 `type` 是 `urn:wow:error:<code>`，`code` 成员是完整的错误码。它的 `version` 成员是拒绝所回答的聚合版本：事件到达的版本，否则是决策所见的版本；创建命令的拒绝没有。完整的形状见[线上协议](../reference/protocols)。

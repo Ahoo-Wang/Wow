@@ -40,6 +40,12 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  * `wow.aggregate.not-found` when it names no aggregate and does not create one. The command's result
  * ([me.ahoo.wow.api.result.CommandResult.transformedFrom]) and its event stream's headers ([TRANSFORMED_FROM],
  * [TRANSFORMED_FROM_ID]) record the input.
+ *
+ * A transformer refuses its input as a decide function does, by throwing a [me.ahoo.wow.api.decide.RejectedException]
+ * (`reject(code, message)` in Kotlin): the command is rejected with that code, a local name qualified with the input's
+ * aggregate (`context.aggregate.code`), with its message and extensions, and so answered with the code's status
+ * (422 by default). Nothing is appended, so the events a rejection carries are dropped. Anything else it throws fails
+ * the request.
  */
 interface CommandTransformer {
     /** The command type this transformer takes. */

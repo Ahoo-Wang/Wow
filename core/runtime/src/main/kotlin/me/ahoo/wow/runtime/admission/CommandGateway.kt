@@ -34,6 +34,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RejectedException
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -48,6 +49,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CallerAdmission
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.DecideFunction
+import me.ahoo.wow.kernel.RejectionCodes
 import me.ahoo.wow.kernel.RejectionLog
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -67,6 +69,7 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
@@ -124,7 +127,9 @@ import kotlin.time.Duration
  *    the request's. When the type or the aggregate changed, [authorizer] authorizes the result again. A result that
  *    names no aggregate gets an id as a creation without one does when it creates its aggregate, and
  *    is [FrameworkCodes.AGGREGATE_NOT_FOUND] otherwise. The command's headers then name the input
- *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]).
+ *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]). A
+ *    transformer that throws a [RejectedException] refuses the command with its rejection, as the kernel answers a
+ *    decide function's: its code qualified with the input's aggregate type, with its message and extensions.
  * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.COMMAND_INVALID].
  * 7. Build the [Command], its wait plan the request's, or [WaitPlan.DEFAULT] within the coordinator's
  *    [default timeout][me.ahoo.wow.runtime.wait.WaitOptions.defaultTimeout] ([defaultWaitTimeout]) when it names none;
@@ -187,6 +192,9 @@ class CommandGateway @InternalWowApi constructor(
 
     /** The transformers, by the full type name of the command they take. */
     private val transformers: Map<String, CommandTransformer> = transformersOf(registry, transformers)
+
+    /** The input types a transformer rejected with events, warned about once each ([transformerRejected]). */
+    private val rejectedWithEvents: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     /** The models that decide each command class, with the command's type. */
     private val deciders: Map<Class<*>, List<Pair<AggregateModel<*>, CommandType>>> = registry.models.flatMap { model ->
@@ -503,7 +511,11 @@ class CommandGateway @InternalWowApi constructor(
                 request.caller,
                 tenantId,
             )
-            val result = transformer.transform(input)
+            val result = try {
+                transformer.transform(input)
+            } catch (rejected: RejectedException) {
+                return transformerRejected(facts, commandType, rejected)
+            }
             facts.transformedFrom = TransformedFrom(commandType.name, request.aggregateId)
             val (targetModel, targetDecider) = decidedBy(result.type)
                 ?: return facts.refuse(
@@ -862,6 +874,23 @@ class CommandGateway @InternalWowApi constructor(
 
     private class Decoded(val value: Any)
 
+    /**
+     * The refusal of a command whose transformer rejected it, answered as the kernel answers a decide function's
+     * rejection: the code qualified with the input's aggregate type ([RejectionCodes.qualified]), with its message and
+     * extensions. Admission appends nothing, so the events a rejection carries are dropped, warned about once per
+     * [input] type.
+     */
+    private fun transformerRejected(facts: Facts, input: CommandType, rejected: RejectedException): Admission.Refused {
+        if (rejected.events.isNotEmpty() && rejectedWithEvents.add(input.name)) {
+            logger.warn {
+                "The transformer of ${input.name} rejected it with events: admission appends nothing, so they are " +
+                    "dropped. Reject it without events."
+            }
+        }
+        val rejection = RejectionCodes.qualified(rejected.rejection, facts.type, input.name)
+        return facts.refuse(rejection.code, rejection.message, extensions = rejection.extensions)
+    }
+
     /** The command admission builds: a [body] of [type], decided by [model], with [headers]. */
     private class Resolved(
         val model: AggregateModel<*>,
@@ -900,6 +929,7 @@ class CommandGateway @InternalWowApi constructor(
             message: String,
             status: CommandResult.Status = CommandResult.Status.REJECTED,
             violations: List<Violation> = emptyList(),
+            extensions: Map<String, Any?> = emptyMap(),
         ): Admission.Refused {
             val rejected = admissionRejected(
                 commandId = commandId,
@@ -907,7 +937,7 @@ class CommandGateway @InternalWowApi constructor(
                 correlationId = commandId,
                 ref = ref,
                 function = function,
-                error = ErrorInfo(code, message, violations),
+                error = ErrorInfo(code, message, violations, extensions),
                 now = clock.millis(),
             )
             return Admission.Refused(rejected.copyWith(status = status, transformedFrom = transformedFrom))

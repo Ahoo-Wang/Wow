@@ -100,6 +100,28 @@ fun onCommand(command: Unlock): Unlocked =
 - **A wait ends at the rejection.** A caller that waits for a snapshot or a saga is answered once the rejection is committed.
 - **A creation cannot carry events.** Its aggregate does not exist, so a creation rejected with events writes nothing and has no version; the node warns once per command type, and a test of it fails, naming the command. Reject a creation without events.
 
+## Reject in a transformer
+
+A `CommandTransformer` refuses the command it takes the same way, before any aggregate decides: it calls `reject(code, message)`, or throws `RejectedException(Rejection.of(code, message))` in Java. A callback that names no payment, for one:
+
+<!-- sample: fragment -->
+
+```kotlin
+override suspend fun transform(input: CommandInput): CommandTarget {
+    val chargeback = input.body as ChargebackNotified
+    if (chargeback.merchantReference.isBlank()) {
+        reject(Payment.Rejections.UNKNOWN_PAYMENT, "Chargeback ${chargeback.disputeId} names no payment.")
+    }
+    return CommandTarget.of(refundPayment, chargeback.merchantReference, RefundPayment(chargeback.reason))
+}
+```
+
+- **The code is the aggregate's.** A local name is qualified with the aggregate the request was sent to, the one a mounted command is mounted under: `eshop-payment.payment.unknown-payment`. Declare it with `@ErrorCode` in that aggregate's root, as any of its codes, so the Manifest lists it with its status; a code its context does not list is answered 422.
+- **The caller gets the rejection.** Admission refuses the command with the code, its message and its extensions, as it answers a decide function's rejection, over HTTP with the code's status.
+- **Nothing is written.** No aggregate decided, so the events a rejection carries are dropped, warned about once per command type.
+
+Anything else a transformer throws fails the request: a 500 that says nothing of its cause, which the node logs.
+
 ## What the caller receives
 
 **Over HTTP**, a rejection is answered with the code's status and an `application/problem+json` body whose `type` is `urn:wow:error:<code>` and whose `code` member is the full code. Its `version` member is the aggregate's version the rejection answered: the one its events reached, else the one the decision saw; a creation's rejection has none. [Wire Protocols](../reference/protocols) describes the whole shape.

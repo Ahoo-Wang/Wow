@@ -14,6 +14,7 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandInput
@@ -34,10 +35,21 @@ class TransformedRoutesTest {
         CommandTarget(openCart, input.aggregateId, OpenCart((input.body as ImportCart).legacyNote), input.headers)
     }
 
-    /** Checks out the cart whose id the note names, or none when it names `missing`. */
+    /**
+     * Checks out the cart whose id the note names, or none when it names `missing`; rejects a note `empty` with a code
+     * the context lists, and `unknown` with a local name it does not.
+     */
     private val checkout = transformer(CommandType("$CONTEXT.cart.Checkout", Checkout::class.java)) { input ->
-        val note = (input.body as Checkout).note
-        CommandTarget(input.type, input.aggregateId ?: note.takeIf { it != "missing" }, input.body, input.headers)
+        when (val note = (input.body as Checkout).note) {
+            "empty" -> reject(CART_EMPTY, "The noted cart is empty.")
+            "unknown" -> reject("unknown-note", "No cart is noted so.")
+            else -> CommandTarget(
+                input.type,
+                input.aggregateId ?: note.takeIf { it != "missing" },
+                input.body,
+                input.headers,
+            )
+        }
     }
 
     private val node = HttpNode(
@@ -82,6 +94,18 @@ class TransformedRoutesTest {
         answer.status.assert().isEqualTo(404)
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         answer.body!!["result"]["transformedFrom"]["command"].asString().assert().isEqualTo("$CONTEXT.cart.Checkout")
+    }
+
+    @Test
+    fun `a transformer's rejection is a problem with its code's status, 422 for a code the context does not list`() {
+        val listed = node.post("/shop/cart/checkout", """{"note":"empty"}""")
+        listed.status.assert().isEqualTo(409)
+        listed.body!!["code"].asString().assert().isEqualTo(CART_EMPTY)
+        listed.body!!["detail"].asString().assert().isEqualTo("The noted cart is empty.")
+        val unlisted = node.post("/shop/cart/checkout", """{"note":"unknown"}""")
+        unlisted.status.assert().isEqualTo(422)
+        unlisted.body!!["code"].asString().assert().isEqualTo("$CONTEXT.cart.unknown-note")
+        node.commands.assert().isEmpty()
     }
 
     @Test
