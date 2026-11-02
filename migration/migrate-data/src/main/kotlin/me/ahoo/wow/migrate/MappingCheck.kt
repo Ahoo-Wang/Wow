@@ -99,6 +99,9 @@ internal data class MappingReport(
  *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
  *   warning: it is reported and not imported.
  *
+ * An aggregate whose 9.x snapshots mark instances deleted ([check]'s `deleted`) while no event of the map deletes in
+ * V10 ([AggregatePlan.deletes]) is a warning: a deletion mapped otherwise, retired say, leaves them alive.
+ *
  * A collection the tail reads by commit time without its index ([commitTimeIndexes], each with the command that
  * creates it) is a warning: the tail refuses to start without it, and creating it writes to the 9.x store, so it is
  * created on the 9.x side before the cut-over.
@@ -116,6 +119,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         compensation: NineXCompensationInventory? = null,
         tenantsOf: (NineXAggregate, String) -> List<String> = { _, _ -> emptyList() },
         commitTimeIndexes: Map<String, String> = emptyMap(),
+        deleted: (NineXAggregate) -> Long = { 0 },
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -138,6 +142,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 warnings += "the 9.x store holds no stream of ${aggregate.source}"
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
+                deletionWarning(aggregate, deleted)?.let { warnings += it }
             }
         }
         reservationProblems(prepareKeys, problems, warnings)
@@ -149,6 +154,20 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                 "\"source\": { \"createCommitTimeIndex\": true } to let the tail create it, a write to the 9.x store"
         }
         return MappingReport(problems, warnings, inventories, prepareKeys, compensation)
+    }
+
+    /**
+     * The warning of an [aggregate] whose 9.x snapshots mark instances [deleted] when the map deletes none
+     * ([AggregatePlan.deletes]): V10 would hold them alive. Null when the map deletes, or no snapshot marks one.
+     */
+    private fun deletionWarning(aggregate: AggregatePlan, deleted: (NineXAggregate) -> Long): String? {
+        if (aggregate.deletes) {
+            return null
+        }
+        val count = deleted(aggregate.source).takeIf { it > 0 } ?: return null
+        return "${aggregate.source}: $count 9.x snapshots mark their instance deleted, but no event of the map " +
+            "deletes in V10, so V10 holds them alive: map the 9.x event that deleted them with \"lifecycle\": " +
+            "{ \"to\": \"${Lifecycle.AGGREGATE_DELETED}\" }, or to ${Lifecycle.AGGREGATE_DELETED} when its class is gone"
     }
 
     private fun compensationProblems(

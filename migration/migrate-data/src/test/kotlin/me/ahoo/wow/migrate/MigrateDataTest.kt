@@ -41,7 +41,9 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.ZoneId
 
+@Suppress("LargeClass") // One fixture of the tool's connections for every command it runs.
 class MigrateDataTest {
     @TempDir
     lateinit var directory: Path
@@ -180,6 +182,7 @@ class MigrateDataTest {
         val config = config()
         run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("example-service.order done").contains("Import done.")
+            .doesNotContain("were already in the log")
         val checkpoints = FileCheckpointRepository(directory.resolve("migrate-data.checkpoint.json")).load()
         checkpoints.of(NineXAggregate("example-service", "cart"))!!.completed.assert().isTrue()
         run("tail", "--config", config.toString(), "--once").assert().isEqualTo(MigrateData.OK)
@@ -187,7 +190,11 @@ class MigrateDataTest {
         run("tail", "--config", config.toString(), running = { ++passes < 2 }).assert().isEqualTo(MigrateData.OK)
         passes.assert().isEqualTo(2)
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
-        printed.assert().contains("4 skipped")
+        printed.assert().contains("4 skipped").contains(
+            "8 streams of [example-service.order, example-service.cart] were already in the log, and " +
+                "were passed over as they were converted then: a change of the map since reaches them only in a " +
+                "fresh target.",
+        )
     }
 
     @Test
@@ -372,7 +379,8 @@ class MigrateDataTest {
         store.load(NineXExample.orderModel.type.ref(id.tenantId, id.id))!!.version.assert().isEqualTo(4)
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
-        printed.assert().contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
+        printed.assert().contains("Comparing in the time zone ${ZoneId.systemDefault()}: run compare in the one 9.x")
+            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
             .contains("Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key")
         run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("0 V10 snapshots written, 1 already there")

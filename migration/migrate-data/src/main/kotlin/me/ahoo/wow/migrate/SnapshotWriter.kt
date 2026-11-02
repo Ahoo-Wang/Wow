@@ -57,7 +57,8 @@ internal data class SnapshotProgress(
  *   ([SnapshotCheckpoint]) moves after each page; [ImportOptions.restart] walks every instance again. An instance the
  *   map excludes ([MigrationPlan.excludes]) has no history in the V10 log, and is passed over.
  * - **Every failure reported.** An instance whose state does not rebuild, an event its model does not read or an
- *   instance missing from the log, is [report]ed with the reason, and the walk goes on. A walk that met any ends
+ *   instance missing from the log, which 9.x wrote after the import and the tail brings in, is [report]ed with the
+ *   reason, and the walk goes on. A walk that met any ends
  *   without completing ([SnapshotProgress.failed]), and starts from the first instance at the next run, which passes
  *   over the snapshots written.
  *
@@ -143,7 +144,11 @@ internal class SnapshotWriter(
             return null
         }
         if (state == null) {
-            report("FAILED $subject has no complete history in the V10 log: run the import first.")
+            // The full import completed, so 9.x wrote the instance after it.
+            report(
+                "FAILED $subject has no complete history in the V10 log: 9.x wrote it after the import, so run the " +
+                    "tail (tail --once), then snapshot again.",
+            )
             return null
         }
         val first = streams.first()

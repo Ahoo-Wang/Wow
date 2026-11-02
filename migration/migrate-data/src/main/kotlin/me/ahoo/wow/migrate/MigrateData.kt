@@ -20,6 +20,7 @@ import me.ahoo.wow.manifest.Manifest
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.ZoneId
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
@@ -64,7 +65,8 @@ import kotlin.system.exitProcess
  *   writes to a 9.x store.
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
  *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
- *   ones on every run, and `--restart` compares from the first again. It then checks that every confirmed 9.x
+ *   ones on every run, and `--restart` compares from the first again. It first prints the time zone it runs in, the
+ *   one a state that turns a date into an instant with the system's zone rebuilds in. It then checks that every confirmed 9.x
  *   `PrepareKey` key is reserved in V10 for the same owner and every key it imported is still confirmed to that
  *   owner in 9.x ([ReservationComparison], every key on every run), and that every unresolved 9.x execution is
  *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
@@ -221,6 +223,7 @@ internal class MigrateData(
             connections.compensation?.inventory(),
             connections.source::tenantsOf,
             (connections.source as? CommitTimeIndexed)?.missingCommitTimeIndexes(plan.aggregates.keys).orEmpty(),
+            connections.snapshots::deleted,
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED
@@ -280,7 +283,7 @@ internal class MigrateData(
             FileCheckpointRepository(Path.of(config.checkpoint))
         }
         val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
-        plan.aggregates.keys.forEach { importer.importAll(it) }
+        passedOver(plan.aggregates.keys.map { importer.importAll(it) })?.let(out::println)
         if (!dryRun) {
             recordCutover(plan, connections)
         }
@@ -375,6 +378,11 @@ internal class MigrateData(
         sample: Int,
         restart: Boolean,
     ): Int {
+        // A state that turns a date into an instant with the system's zone rebuilds in this one.
+        out.println(
+            "Comparing in the time zone ${ZoneId.systemDefault()}: run compare in the one 9.x ran in (TZ, or " +
+                "-Duser.timezone), as a state that turns a date into an instant with the system's zone rebuilds in it.",
+        )
         val comparison = StateComparison(
             snapshots = connections.snapshots,
             plan = plan,
@@ -591,6 +599,17 @@ internal class MigrateData(
         )
         missing.values.forEach { appendLine("  $it") }
         append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
+    }
+
+    /**
+     * What an import's [progress] passed over: the streams the log already held, from an earlier run, kept as they
+     * were converted then, so a change of the map since does not reach them. Null when it passed over none.
+     */
+    private fun passedOver(progress: List<ImportProgress>): String? {
+        val skipped = progress.filter { it.skipped > 0 }.ifEmpty { return null }
+        return "${skipped.sumOf { it.skipped }} streams of ${skipped.map { it.aggregate }} were already in the log, " +
+            "and were passed over as they were converted then: a change of the map since reaches them only in a " +
+            "fresh target."
     }
 
     /** Records where the imported history ends in each context's log, after a pass that appended to it. */

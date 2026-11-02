@@ -33,4 +33,7 @@ internal class InMemoryNineXSnapshotSource(
 
     override fun instances(aggregate: NineXAggregate): Long =
         events.aggregateIds(aggregate, null, Int.MAX_VALUE).size.toLong()
+
+    override fun deleted(aggregate: NineXAggregate): Long =
+        snapshots.count { it.aggregate == aggregate && it.deleted }.toLong()
 }

@@ -93,6 +93,11 @@ internal class AggregatePlan(
 
     private val commands: Map<String, String> = mapping.commands.associate { it.from to fullName(it.to) }
 
+    /** Whether the map deletes an instance in V10: an event of it maps to, or is composed with, `AggregateDeleted`. */
+    val deletes: Boolean = mapping.events.any {
+        it.to == Lifecycle.AGGREGATE_DELETED || it.lifecycle?.to == Lifecycle.AGGREGATE_DELETED
+    }
+
     /** The mapping of a 9.x event by its name and revision: one of that exact revision first, then one of any. */
     fun eventOf(name: String, revision: String): EventMapping? =
         mapping.events.firstOrNull { it.from == name && it.fromRevision == revision }

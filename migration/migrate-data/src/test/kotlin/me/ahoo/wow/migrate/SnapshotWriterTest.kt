@@ -132,9 +132,11 @@ class SnapshotWriterTest {
         }
         printed.assert().contains(
             "FAILED example.order/(0)/later-1, the 9.x instance example-service.order/(0)/later-1 has no complete " +
-                "history in the V10 log: run the import first.",
+                "history in the V10 log: 9.x wrote it after the import, so run the tail (tail --once), then snapshot " +
+                "again.",
             "FAILED example.order/(0)/later-2, the 9.x instance example-service.order/(0)/later-2 has no complete " +
-                "history in the V10 log: run the import first.",
+                "history in the V10 log: 9.x wrote it after the import, so run the tail (tail --once), then snapshot " +
+                "again.",
         )
         printed.last().assert().startsWith(
             "FAILED example.cart/(0)/cart-null, the 9.x instance example-service.cart/(0)/cart-null: " +

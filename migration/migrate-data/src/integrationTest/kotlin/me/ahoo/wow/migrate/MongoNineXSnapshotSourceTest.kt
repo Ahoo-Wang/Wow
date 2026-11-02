@@ -30,15 +30,18 @@ class MongoNineXSnapshotSourceTest {
         snapshot.state.get("paidAmount").decimalValue().assert().isEqualTo("25.00".toBigDecimal())
         source.snapshots(cart, null, 10).single().aggregateId.id.assert().isEqualTo("0VY3GwKq4OmV001")
         source.instances(order).assert().isEqualTo(1)
+        source.deleted(order).assert().isEqualTo(0)
     }
 
     @Test
     fun `snapshots page in aggregate id order, within their context`() {
         val text = NineXExample.resource("order-snapshot.json")
-        NineXMongoStore.saveSnapshot(database, text.replace("0VY3GwaK4OmV00E", "z-order"))
+        // Deleted, in this context and in another.
+        val deleted = text.replace("\"deleted\":false", "\"deleted\":true")
+        NineXMongoStore.saveSnapshot(database, deleted.replace("0VY3GwaK4OmV00E", "z-order"))
         NineXMongoStore.saveSnapshot(
             database,
-            text.replace("0VY3GwaK4OmV00E", "other-context").replace("example-service", "other-service"),
+            deleted.replace("0VY3GwaK4OmV00E", "other-context").replace("example-service", "other-service"),
         )
         val first = source.snapshots(order, null, 1)
         first.single().aggregateId.id.assert().isEqualTo("0VY3GwaK4OmV00E")
@@ -46,5 +49,7 @@ class MongoNineXSnapshotSourceTest {
             .containsExactly("z-order")
         source.snapshots(order, NineXAggregateId("z-order", "(0)"), 10).assert().isEmpty()
         source.instances(NineXAggregate("other-service", "order")).assert().isEqualTo(0)
+        source.deleted(order).assert().isEqualTo(1)
+        source.deleted(NineXAggregate("other-service", "order")).assert().isEqualTo(1)
     }
 }

@@ -37,11 +37,15 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
         database.getCollection(aggregate.name + MongoNineXEventSource.SUFFIX)
             .countDocuments(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(VERSION, 1)))
 
+    override fun deleted(aggregate: NineXAggregate): Long = database.getCollection(aggregate.name + SUFFIX)
+        .countDocuments(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(DELETED, true)))
+
     companion object {
         /** The suffix of a 9.x snapshot collection. */
         const val SUFFIX: String = "_snapshot"
         private const val ID = "_id"
         private const val CONTEXT_NAME = "contextName"
         private const val VERSION = "version"
+        private const val DELETED = "deleted"
     }
 }
