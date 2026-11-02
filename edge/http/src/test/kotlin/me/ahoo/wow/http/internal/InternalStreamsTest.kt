@@ -20,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -246,6 +248,13 @@ class InternalStreamsTest {
             (System.currentTimeMillis() - start).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
             waited.assert().isLessThan(5_000)
         }
+
+    @Test
+    fun `a channel takes at least one stream to a peer, and a grace that is never negative`() {
+        assertThrownBy<IllegalArgumentException> { HttpClusterChannel(client, streams = 0) }
+        assertThrownBy<IllegalArgumentException> { HttpClusterChannel(client, answerGrace = (-1).milliseconds) }
+        HttpClusterChannel(client, streams = 1, answerGrace = Duration.ZERO)
+    }
 
     private companion object {
         const val FORWARDS = 300
