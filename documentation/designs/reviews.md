@@ -41,7 +41,7 @@
 | R2.3-9 | P2 | `:http` | `/wow/ops/parked` 的读取没有授权 | G1 | 已修 #4553 |
 | R2.4-1 | P1 | `:migrate-data` | 补偿导入只增不减（9.x 之后解决的执行仍停放） | G3 | 已修 #4554 |
 | R2.4-2 | P1 | `:migrate-data` | 预留导入不跟随 `rollback` 与 `reprepare` | G3 | 已修 #4554 |
-| R2.4-3 | P2 | Manifest 兼容门、Gradle 插件 | **重审还原**：缺少基线时 `checkManifestCompatibility` 通过，只在报告里写一行，`check` 为绿却没有门（`ManifestTools.kt:64-67`、`WowPlugin.kt:173`）；当前主版本高于基线后所有破坏性变更都放行且不告警，直到有人更新基线（`ManifestCompatibility.kt:62-70`） | P.20 之后 | 待修（无基线时仍通过、`newMajor` 放行破坏性变更；2026-10-22 复核） |
+| R2.4-3 | P2 | Manifest 兼容门、Gradle 插件 | **重审还原**：缺少基线时 `checkManifestCompatibility` 通过，只在报告里写一行，`check` 为绿却没有门（`ManifestTools.kt:64-67`、`WowPlugin.kt:173`）；当前主版本高于基线后所有破坏性变更都放行且不告警，直到有人更新基线（`ManifestCompatibility.kt:62-70`） | P.20 之后 | 已修（2026-11-02 复核：没有基线即失败，任何破坏性变更都使闸门失败，有意的破坏改记为新基线；`ManifestCompatibility`、`CheckManifestCompatibility`） |
 | R2.4-4 | P2-低 | `:migrate-data` | **重审还原**：检查点 `save(load().with(..))` 是读改写，固定的 `<file>.tmp`、无锁、原子移动前不 fsync；切换规程里增量追尾与 compare 或快照生成同时跑时互相覆盖（`ImportCheckpoints.kt:157-172`、`EventStreamImporter.kt:305`） | 迁移批 | 已修（#4556） |
 | R2.5-1 | P2 | `:runtime` | 定时命令在摄入处不等到期时间 | G2 | 已修 #4555 |
 | R2.5-2 | P2 | 横切 | 同步调用的执行上下文与超时 | G5 | 已修（#4602） |
@@ -60,7 +60,7 @@
 | X-3 | P1 | `:spring-boot`、9.x 能力复核 | 没有 springdoc 集成（Swagger UI、与应用接口合并、securitySchemes）；09 §9 误判为 A | D233，P.19 | 已修 #4574 |
 | X-4 | P2 | `:eshop-payment-server` 测试 | `PaymentServerTest.close` 卡在 Spring 的 `GracefulShutdown.abort` 约 40 分钟，栈上无 Wow 帧；重跑通过（P.14 验证时见到） | 待查 | 已修（#4680） |
 | X-5 | P1 | `:runtime` 命令摄入 | 未知的聚合或命令类型被当作技术故障：重试后停放目标聚合，其后的命令等运维（`CommandIntake.kt:71-74`、`:120-125`）；版本错位或发错命令即可触发，发送方的缺陷越过服务边界。应作为拒绝回答（如 `wow.command.unhandled`，带回执） | 独立修复（D234 对抗性验证 K1） | 已修 #4573 |
-| X-6 | P2 | `:kernel`、`:compiler` | 命令与事件的命名有三套：编译器读 `@Name`，内核 DSL 默认名（`AggregateModelDsl.kt:246`）与 `CommandTypes.SIMPLE_NAMES`（`Kernel.kt:1112`）不读；手写或 Java 模型与 Manifest 的名字可能不一致。统一为一个命名函数，DSL 的 `name=` 与 `@Name` 不一致即失败 | 独立修复（K2） | 待修（D285 拉回 GA 前，见 R5.A-5） |
+| X-6 | P2 | `:kernel`、`:compiler` | 命令与事件的命名有三套：编译器读 `@Name`，内核 DSL 默认名（`AggregateModelDsl.kt:246`）与 `CommandTypes.SIMPLE_NAMES`（`Kernel.kt:1112`）不读；手写或 Java 模型与 Manifest 的名字可能不一致。统一为一个命名函数，DSL 的 `name=` 与 `@Name` 不一致即失败 | 独立修复（K2） | 已修（随 R5.A-5，#4914；2026-11-02 复核） |
 | X-7 | P2 | `:kernel` 定时 | `wow.schedule.Set` 存下 `commandType` 而不校验（`KernelLifecycle.kt:98`），名字写错要到触发时才失败（cron 可能数月之后）。目标在决定 `SetSchedule` 时按其模型校验，错误即拒绝 | 独立修复（C6） | 已修 #4573 |
 | X-8 | P2 | `:query` 内存后端 | 对多值数组路径的根级指标只取单元素数组的值（`InMemoryValues.kt:135`），一次提交里两个 `ItemAdded` 的 `sum(events.body.qty)` 悄悄少算 | D235 ③（准入拒绝） | 已修 #4570 |
 | X-9 | P2 | `:clickhouse` | 数据集的 `count()` 不加 `FINAL` 时，ReplacingMergeTree 在合并前会因重放多计（未核实） | A.M2 第二步核实 | 已修（#4376） |
@@ -125,7 +125,7 @@
 | R3.1-1 | P1 | `:spring-boot`、`:query`、`:runtime` | 读侧与存储布局的组装（约 2.3k 行）连同安全语义（`hides = abac \|\| policies`、`events` 兜底后端、作用域策略拼装）在 Spring 宿主里，A10 对读侧不成立 | R3-A（D237） | 部分（#4595；安全底线、读侧组合与对端路由仍在宿主，见 R5.C-2） |
 | R3.1-2 | P2 | TS `wow-client`、`wow-view-store` | 10.x 的 npm 包根入口仍是 9.x 客户端（V10 在 `src/v10` 子入口），GA 后用户导入的是 9.x 协议 | D239 ①（GA 前清理 9.x） | 已修（#4659、#4669） |
 | R3.2-1 | P2 | `:postgres`、`:mongo`、`:kernel`、`:kafka` | `TailPacer`、`VirtualThreads` 等逐字复制于多个后端 | R3-A | 已修（#4591） |
-| R3.2-2 | P2 | 横切 | 主代码注释引用审查编号 439 处（流程产物，原文可能丢失） | R3 文档与规则 | 待修（主代码注释仍大量引用审查与决定编号，无规则约束；2026-10-22 复核） |
+| R3.2-2 | P2 | 横切 | 主代码注释引用审查编号 439 处（流程产物，原文可能丢失） | R3 文档与规则 | 已修（R5.C-7 去掉主代码注释里的编号，#5036～#5045；`:architecture` 的 `DesignIdRule` 守住生产源码；2026-11-02 复核） |
 | R3.2-3 | P2 | `:query` | 公开 ABI 过大（`query.api` 2285 行，`schema` 包 122 个公开类），冻结面过宽 | R3-F | 部分（#4683：`query.api` 2285→1976 行，`schema` 公开类 122→81） |
 | R3.3-1 | P1 | `:spring-boot` | 社区后端接不进宿主：`BackendKind` 封闭枚举、`HostStore` 构造 internal，`BackendFactory` 全有或全无 | R3-A | 已修（#4591，`StoreProvider`） |
 | R3.3-2 | P2 | `:query`、`:tck` | `QueryBackendSpec` 在不发布的 testFixtures，`QueryBackend` 无 `@WowSpi`，没有 Sink 合同 | R3-A | 已修（#4591） |
@@ -353,7 +353,7 @@
 | PA-30 | P1 | `migrate-data` 读 9.x 框架请求头 | 较早的 9.x 把框架请求头写成点分隔（`upstream.name`、`upstream.id`、`trace.id`、`command.operator`、`command.wait.*`），工具只认下划线；项目 A 的库中约 2% 的流因此被当作没记录命令，用 `defaultCommand` 绕开会记错命令并丢掉操作人、trace 与上游 ID；极少数流只有 `command.name` | 两种写法都认，最早的 `command.name` 形状也认；以真实形状做测试夹具 | 已修（#5305） |
 | PA-31 | P1 | `migrate-data compare` 构建模型 | 只能为接口类型的依赖造替身，领域服务依赖 `java.time.Clock` 这类具体 JDK 类型时模型建不起来 | `compare` 只重放溯源：为 `Clock`、`ZoneId` 提供 UTC 实例，其他具体类型明确报错并建议依赖接口 | 已修（#5305） |
 | PA-32 | P1 | 查询 schema 的读取与合并 | 状态里的密封多态值类型、各子类型把判别字段保留为自己的字符串属性时，Manifest 写成 `allOf[string, const]`；读取器不读 `const`，合并判为冲突，宿主启动失败；子类型在某一部分把判别字段列为必填也冲突 | `const` 与无类型的 `enum` 按收窄读取，合并后再按值定类型；`allOf` 的必填取并集；真冲突仍拒绝 | 已修（#5306） |
-| PA-33 | P2 | Saga 收到的状态事件 | 状态事件不带聚合的 tags，Saga 要用只能读快照，快照滞后时可能为空；9.x 的只读状态聚合带 tags | D385：`StateEvent` 带上提交后的有效标签 | 已定，待派 |
+| PA-33 | P2 | Saga 收到的状态事件 | 状态事件不带聚合的 tags，Saga 要用只能读快照，快照滞后时可能为空；9.x 的只读状态聚合带 tags | D385：`StateEvent` 带上提交后的有效标签 | 修复中（2026-11-02 派给子会话 pa33-stateevent-tags） |
 | PA-34 | — | 分阶段迁移时的跨服务事件 | V10 的 Saga 订阅不到仍在 9.x 上的服务的事件流 | 已由 D379 定：互相消费事件的 9.x 服务群一起切换，9.x 主题桥是 10.x 的候选 | 已定（D379） |
 | PA-35 | P2 | 命令的 HTTP 路由 | 无法让某个命令不开放 HTTP 路由（9.x 的 `@CommandRoute(enabled = false)`），内部命令都成了公开路由，只能靠授权挡 | D388：命令类上标 `@InternalCommand`，公开端口不挂路由、OpenAPI 与 TS 客户端不含它，内部端口照常受理服务调用 | 已定，待派（会碰 `:compiler` 与 `edge/http`，等 X-53、X-55 合并后派） |
 | PA-36 | P3 | 重复创建的错误提示 | 领域代码无法自定义重复创建的提示（9.x 用 `@OnError` 改写）；V10 在决定之前即答 `wow.aggregate.exists` | D386：维持框架错误码，客户端按码匹配（PA-23 已在迁移文档写明） | 已定，不改代码 |
@@ -373,4 +373,4 @@
 | PA-50 | P3 | 未标注的命令体 ID | 9.x 惯例由 `Identifier.id` 指明聚合，迁移后易漏 `@AggregateId`，Saga 不带 ID 发出的创建命令会得到生成的 ID | 编译警告 `UnmarkedAggregateId`：命令有 `id` 字符串属性而无 `@AggregateId` 时提示；路径绑定的 `id` 提示删除 | 已修（#5318） |
 | PA-51 | P2 | 内核 StateJson 的 getter 填充集合 | `USE_GETTERS_AS_SETTERS` 使 getter 返回不可变集合的事件让聚合无法加载 | 去掉该开关，与 9.x 一致；集合藏在自身 getter 后的状态改为重放 | 已修（#5315） |
 | PA-52 | P1 | 事件与状态中的 Wow 查询类型 | 写得进、读不回（`QueryField` 无反序列化器）；迁移指南本已约定不存这些线上类型 | 构建时拒绝：事件或状态的类型结构中出现 `me.ahoo.wow.api.query` 的协议类即失败并写出路径（不注册查询模块，先前的决定已撤回） | 已修（#5316） |
-| PA-53～PA-58 | P1～P3 | `migrate-data` 的工具与文档 | 快照失败的提示应指 `tail`（PA-53）；`tail` 需 9.x 侧的索引（PA-54）；`compare` 的时区（PA-55）；删除了实例却无删除映射时 `check` 不报（PA-56）；`--restart` 不重写已导入的流（PA-57）；退役改变过状态的事件会丢状态（PA-58） | PA-54 已修（#5320：`check` 报缺失的索引，文档写明是切换前提）；其余代码部分进行中，文档规则并入项目 A 的经验文档 PR | 进行中 |
+| PA-53～PA-58 | P1～P3 | `migrate-data` 的工具与文档 | 快照失败的提示应指 `tail`（PA-53）；`tail` 需 9.x 侧的索引（PA-54）；`compare` 的时区（PA-55）；删除了实例却无删除映射时 `check` 不报（PA-56）；`--restart` 不重写已导入的流（PA-57）；退役改变过状态的事件会丢状态（PA-58） | PA-54 已修（#5320：`check` 报缺失的索引，文档写明是切换前提）；PA-53、PA-55～PA-57 已修（#5323：`check` 报未映射的 9.x 删除，`snapshot`、`compare` 与 `import` 的提示更明确）；PA-58 的规则（`retire` 只用于没有改变状态的事件）写进迁移文档与技能（#5322） | 已修（2026-11-02 复核） |
