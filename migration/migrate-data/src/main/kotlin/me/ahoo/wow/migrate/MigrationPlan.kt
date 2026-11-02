@@ -37,26 +37,32 @@ internal class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
      * A name mapped twice keeps its last mapping here; the mapping check reports it.
      */
     val reservations: Map<String, ReservationPlan> = aggregates.values.flatMap { aggregate ->
-        aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it) }
+        aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it, ::exclusionOf) }
     }.toMap()
 
     /** The 9.x compensation executions the map imports as V10 parked entries (.4). */
-    val compensation: CompensationPlan = CompensationPlan(map.subscriptions, manifest, aggregates)
+    val compensation: CompensationPlan = CompensationPlan(map.subscriptions, manifest, aggregates, ::exclusionOf)
 
     /** The plan of [aggregate]; a [MigrationException] when the map does not name it. */
     fun of(aggregate: NineXAggregate): AggregatePlan =
         aggregates[aggregate] ?: throw MigrationException("migration-map.json does not map the 9.x aggregate $aggregate.")
 
     /** The instances whose streams the map excludes ([Exclusion.stream]): each 9.x aggregate with an id as named. */
-    private val excludedStreams: Set<Pair<NineXAggregate, String>> =
-        map.excluded.mapNotNull { it.excludedStream() }.toSet()
+    private val excludedStreams: Map<Pair<NineXAggregate, String>, Exclusion> =
+        map.excluded.mapNotNull { exclusion -> exclusion.excludedStream()?.let { it to exclusion } }.toMap()
 
     /**
      * Whether the map excludes the streams of [aggregate]'s instance [id], in every tenant: the import, the snapshot
      * writing and the comparison pass over it.
      */
-    fun excludes(aggregate: NineXAggregate, id: String): Boolean =
-        aggregate to RefusedIds.nameOf(id) in excludedStreams
+    fun excludes(aggregate: NineXAggregate, id: String): Boolean = exclusionOf(aggregate, id) != null
+
+    /**
+     * The entry excluding the streams of [aggregate]'s instance [id], null when none does: nothing of the instance is
+     * imported, its reserved keys and compensation executions neither.
+     */
+    fun exclusionOf(aggregate: NineXAggregate, id: String): Exclusion? =
+        excludedStreams[aggregate to RefusedIds.nameOf(id)]
 
     /** The V10 contexts the plan writes to. */
     val contexts: Set<String>

@@ -101,6 +101,26 @@ class DecodeCheckTest {
     }
 
     @Test
+    fun `an instance whose streams do not parse should be reported, and the walk go on`() = runTest {
+        val broken = NineXExample.cartRemoving("cart-broken", "[null]")
+        val source = object : NineXEventSource by InMemoryNineXEventSource(NineXExample.streams() + broken) {
+            override fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int) =
+                if (id.id == "cart-broken") {
+                    throw MigrationException("9.x stream s-broken has no commandId.")
+                } else {
+                    InMemoryNineXEventSource(NineXExample.streams()).streams(aggregate, id, fromVersion, limit)
+                }
+        }
+        val report = decoding(source).check(cart)
+        report.unconverted.assert().isEqualTo(1)
+        report.streams.assert().isEqualTo(4)
+        reported.single().render().assert().isEqualTo(
+            "PROBLEM decode: the 9.x streams of example-service.cart/(0)/cart-broken from v1 does not convert: " +
+                "9.x stream s-broken has no commandId.",
+        )
+    }
+
+    @Test
     fun `a reason should be one line, its class when the failure says nothing`() {
         reasonOf(IllegalStateException("first\nsecond")).assert().isEqualTo("first")
         reasonOf(IllegalStateException()).assert().isEqualTo(IllegalStateException::class.java.name)

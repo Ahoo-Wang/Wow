@@ -78,7 +78,8 @@ internal data class DecodeReport(
  * aggregate's model, through its upgrades, as the service decodes it when it loads the aggregate
  * ([EventCodec.decodeUnlessRetired]). It writes nothing.
  *
- * Every event that does not read is [report]ed as it is found, by its 9.x type, its stream and the model's reason,
+ * Every event that does not read is [report]ed as it is found, by its 9.x type, its stream and the model's reason, as
+ * is a stream that does not convert, or the store holds without a field the import needs,
  * and the walk goes on, so one pass lists all of them: the models' Kotlin module refuses some shapes 9.x events
  * stored, such as a null element of a list of non-null strings, and each type that fails needs an `@Upgrade` that
  * cleans its old shape.
@@ -130,7 +131,14 @@ internal class DecodeCheck(
     ) {
         var next = 1
         while (true) {
-            val batch = withContext(Dispatchers.IO) { source.streams(aggregate, id, next, options.streamBatch) }
+            val batch = try {
+                withContext(Dispatchers.IO) { source.streams(aggregate, id, next, options.streamBatch) }
+            } catch (unreadable: MigrationException) {
+                // A stream the store holds without a field the import needs: the instance's later ones are not read.
+                stats.unconverted.incrementAndGet()
+                report(DecodeFailure(null, "the 9.x streams of $aggregate/$id from v$next", null, reasonOf(unreadable)))
+                return
+            }
             if (batch.isEmpty()) {
                 return
             }

@@ -50,7 +50,7 @@ internal data class NineXSnapshot(
             fun text(field: String): String = required(field, node.text(field)?.takeIf { it.isNotBlank() })
             return NineXSnapshot(
                 aggregate = NineXAggregate(text("contextName"), text("aggregateName")),
-                aggregateId = NineXAggregateId(required("aggregateId", id), text("tenantId")),
+                aggregateId = NineXAggregateId(required("aggregateId", id), node.text("tenantId").orEmpty()),
                 version = required("version", node.get("version")?.takeIf { it.isIntegralNumber }?.asInt()),
                 ownerId = node.text("ownerId").orEmpty(),
                 spaceId = node.text("spaceId").orEmpty(),

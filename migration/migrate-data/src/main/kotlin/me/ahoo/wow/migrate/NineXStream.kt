@@ -62,6 +62,12 @@ internal object RefusedIds {
 
     /** [name], a map's `stream`, as the JSON string a person copies into the map. */
     fun quoted(name: String): String = WowJson.mapper.writeValueAsString(name)
+
+    /** [tenants] as a message lists them: a blank tenant, which V10 refuses too, as `(blank)`. */
+    fun tenantsText(tenants: Collection<String>): String =
+        tenants.map { it.ifBlank { BLANK_TENANT } }.distinct().sorted().toString()
+
+    private const val BLANK_TENANT = "(blank)"
 }
 
 /** One event of a 9.x stream: its [name] and 9.x [revision] (`0.0.1` unless `@Event` said otherwise), and [body]. */
@@ -100,8 +106,8 @@ internal data class NineXStream(
 
         /**
          * Reads a stream from its JSON [node]; its id is `id`, or `_id` in a MongoDB document. A field the stream
-         * needs and lacks fails with a [MigrationException] naming it; an aggregate id it lacks reads as the empty one,
-         * which V10 refuses ([RefusedIds]), so the import can pass over an instance the map excludes.
+         * needs and lacks fails with a [MigrationException] naming it; an aggregate id or a tenant it lacks reads as the
+         * empty one, which V10 refuses ([RefusedIds]), so the import can pass over an instance the map excludes.
          */
         fun parse(node: JsonNode): NineXStream {
             require(node is ObjectNode) { "A 9.x event stream is a JSON object." }
@@ -109,7 +115,7 @@ internal data class NineXStream(
             return NineXStream(
                 id = id,
                 aggregate = NineXAggregate(node.requiredText("contextName"), node.requiredText("aggregateName")),
-                aggregateId = NineXAggregateId(node.textOf("aggregateId").orEmpty(), node.requiredText("tenantId")),
+                aggregateId = NineXAggregateId(node.textOf("aggregateId").orEmpty(), node.textOf("tenantId").orEmpty()),
                 ownerId = node.textOf("ownerId").orEmpty(),
                 spaceId = node.textOf("spaceId").orEmpty(),
                 commandId = node.requiredText("commandId"),

@@ -124,6 +124,26 @@ class ReservationImporterTest {
         }
 
     @Test
+    fun `a key whose owner the map excludes, or records no tenant, should have no owner`() {
+        val excluded = Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = "order-b")
+        val excluding = MigrationPlan(plan.map.copy(excluded = listOf(excluded)), NineXExample.manifest)
+        excluding.reservations.getValue(
+            "order_no"
+        ).ownerOf(key("order_no", "NO-2", """{"orderId":"order-b"}"""), events)
+            .assert()
+            .isEqualTo(
+                KeyOwner.Unresolved(
+                    "its owner, the 9.x stream example-service.order \"order-b\", is excluded: A 9.x defect"
+                )
+            )
+        val tenantless = InMemoryNineXEventSource(listOf(created.copy(aggregateId = NineXAggregateId("order-c", ""))))
+        plan.reservations.getValue("order_no").ownerOf(key("order_no", "NO-7", """{"orderId":"order-c"}"""), tenantless)
+            .assert().isEqualTo(
+                KeyOwner.Unresolved("the streams of its owner order-c of example-service.order record no tenant")
+            )
+    }
+
+    @Test
     fun `a system mapping reserves across tenants, its owner still in its tenant`(): Unit = runTest {
         importer().importAll("order_code").imported.assert().isEqualTo(1)
         store.find(scope(ReservationScope.SYSTEM_TENANT, "order.code"), "C-1")!!.owner.assert().isEqualTo(owner)

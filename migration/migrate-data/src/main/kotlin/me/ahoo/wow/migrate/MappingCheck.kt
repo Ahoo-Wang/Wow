@@ -25,7 +25,8 @@ internal data class NineXEventType(val name: String, val revision: String) {
  * What the 9.x store holds of [aggregate], found by scanning it: how many [streams], the [events] of each type and the
  * [commands] of each name (the number of streams each produced), how many streams record no command name,
  * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
- * would leave empty, and [refusedIds]: the number of streams of each instance whose id V10 refuses ([RefusedIds]).
+ * would leave empty, [refusedIds]: the number of streams of each instance whose id V10 refuses ([RefusedIds]), and
+ * [tenantless]: the number of streams of each 9.x aggregate id that record no tenant, which V10 refuses too.
  */
 internal data class NineXInventory(
     val aggregate: NineXAggregate,
@@ -35,6 +36,7 @@ internal data class NineXInventory(
     val streamsWithoutCommand: Long = 0,
     val streamEventTypes: Map<Set<NineXEventType>, Long> = emptyMap(),
     val refusedIds: Map<NineXAggregateId, Long> = emptyMap(),
+    val tenantless: Map<String, Long> = emptyMap(),
 )
 
 /**
@@ -88,8 +90,8 @@ internal data class MappingReport(
  * - no stream holds only dropped events, which would leave its version empty (map them with `retire` instead);
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
- * - no instance the map imports has an id V10 refuses ([RefusedIds]): the problem lists each, by the name the map
- *   excludes it by ([Exclusion.stream]);
+ * - no instance the map imports has an id V10 refuses ([RefusedIds]), or streams that record no tenant: the problems
+ *   list each, by the name the map excludes it by ([Exclusion.stream]);
  * - every mapping target is in the Manifest, whether or not the store uses it;
  * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once;
  * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
@@ -264,7 +266,8 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         return if (tenants.isEmpty()) {
             "the 9.x store holds no ${exclusion.subject().removePrefix("9.x ")}, which the map excludes"
         } else {
-            "the ${exclusion.subject()} of the tenants ${tenants.distinct().sorted()} is excluded: ${exclusion.reason}"
+            val held = RefusedIds.tenantsText(tenants)
+            "the ${exclusion.subject()} of the tenants $held is excluded: ${exclusion.reason}"
         }
     }
 
@@ -342,6 +345,10 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         if (refused.isNotEmpty()) {
             problems += refusedProblem(subject, refused)
         }
+        val tenantless = inventory.tenantless.filterKeys { !plan.excludes(subject, it) }
+        if (tenantless.isNotEmpty()) {
+            problems += tenantlessProblem(subject, tenantless)
+        }
         if (inventory.streamsWithoutCommand > 0 && aggregate.commandTypeOf(null) == null) {
             problems += "$subject: ${inventory.streamsWithoutCommand} streams record no command and there is no " +
                 "defaultCommand"
@@ -361,10 +368,25 @@ internal class MappingCheck(private val plan: MigrationPlan) {
      */
     private fun refusedProblem(aggregate: NineXAggregate, refused: Map<NineXAggregateId, Long>): String {
         val listed = refused.entries.groupBy { it.key.id }.toSortedMap().map { (id, instances) ->
+            val tenants = RefusedIds.tenantsText(instances.map { it.key.tenantId })
             "${RefusedIds.quoted(RefusedIds.nameOf(id))} (${RefusedIds.reasonOf(id)}: " +
-                "${instances.sumOf { it.value }} streams of the tenants ${instances.map { it.key.tenantId }.sorted()})"
+                "${instances.sumOf { it.value }} streams of the tenants $tenants)"
         }
         return "$aggregate: V10 refuses these 9.x aggregate ids, so the streams of their instances cannot be " +
+            "imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
+            "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
+    }
+
+    /**
+     * The problem of the 9.x aggregate ids of [aggregate] with streams that record no tenant, the number of streams of
+     * each, which the map does not exclude: each by the name the map excludes it by.
+     */
+    private fun tenantlessProblem(aggregate: NineXAggregate, tenantless: Map<String, Long>): String {
+        val listed = tenantless.toSortedMap().map { (id, streams) ->
+            val name = RefusedIds.quoted(RefusedIds.nameOf(id))
+            "$name ($streams streams)"
+        }
+        return "$aggregate: streams of these 9.x aggregate ids record no tenant, which V10 refuses, so they cannot be " +
             "imported; exclude each with {\"aggregate\": \"$aggregate\", \"stream\": <the id as listed>, " +
             "\"reason\": \"…\"}: ${listed.joinToString(", ")}"
     }

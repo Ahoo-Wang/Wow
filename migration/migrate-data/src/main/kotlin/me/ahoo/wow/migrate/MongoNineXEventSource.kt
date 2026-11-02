@@ -75,6 +75,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
         val shapes = streamEventTypesOf(collection)
         val refused = refusedIdsOf(collection)
+        val tenantless = tenantlessOf(collection)
         return (events.map { it.first.aggregate() } + commands.map { it.first.aggregate() }).distinct().map { aggregate ->
             val ofAggregate = commands.filter { it.first.aggregate() == aggregate }
             NineXInventory(
@@ -93,6 +94,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                     .sumOf { it.second },
                 streamEventTypes = shapes[aggregate].orEmpty(),
                 refusedIds = refused[aggregate].orEmpty(),
+                tenantless = tenantless[aggregate].orEmpty(),
             )
         }
     }
@@ -167,6 +169,24 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             .mapValues { (_, shapes) -> shapes.groupBy({ it.first }) { it.second }.mapValues { it.value.sum() } }
     }
 
+    /** The number of streams of each 9.x aggregate id that record no tenant, or a blank one, per aggregate. */
+    private fun tenantlessOf(collection: MongoCollection<Document>): Map<NineXAggregate, Map<String, Long>> =
+        collection.aggregate(
+            listOf(
+                Aggregates.match(Filters.or(Filters.eq(TENANT_ID, null), Filters.regex(TENANT_ID, "^\\s*$"))),
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
+                            .append("id", Document("\$ifNull", listOf("\$aggregateId", ""))),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
+            .groupBy({ it.first.aggregate() }) { (id, count) -> id.getString("id") to count }
+            .mapValues { (_, ids) -> ids.toMap() }
+
     override fun aggregateIds(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXAggregateId> {
         val filters = mutableListOf(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(VERSION, 1))
         after?.let {
@@ -179,7 +199,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID))
             .projection(Document(AGGREGATE_ID, 1).append(TENANT_ID, 1))
             .limit(limit)
-            .map { NineXAggregateId(it.getString(AGGREGATE_ID).orEmpty(), it.getString(TENANT_ID)) }
+            .map { NineXAggregateId(it.getString(AGGREGATE_ID).orEmpty(), it.getString(TENANT_ID).orEmpty()) }
             .toList()
     }
 
@@ -231,7 +251,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             )
         )
         .projection(Document(TENANT_ID, 1))
-        .mapNotNull { it.getString(TENANT_ID) }
+        .map { it.getString(TENANT_ID).orEmpty() }
         .toList()
         .distinct()
         .sorted()

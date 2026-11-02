@@ -84,6 +84,9 @@ class NineXStreamTest {
         val stream = """{"id":"s","contextName":"c","aggregateName":"a","tenantId":"t","commandId":"c","version":1,""" +
             """"createTime":1,"body":[{"name":"e"}]}"""
         NineXStream.parse(stream).aggregateId.assert().isEqualTo(NineXAggregateId("", "t"))
+        NineXStream.parse(stream.replace(""""tenantId":"t",""", "")).aggregateId.assert()
+            .isEqualTo(NineXAggregateId("", ""))
+        RefusedIds.tenantsText(listOf("t2", " ", "t1", "t2")).assert().isEqualTo("[(blank), t1, t2]")
         NineXStream.parse(stream.replace(""""tenantId"""", """"aggregateId":" ","tenantId"""")).aggregateId.id
             .assert().isEqualTo(" ")
         listOf("", " ", AggregateRef.UNASSIGNED, "o-1").map(RefusedIds::reasonOf).assert().containsExactly(

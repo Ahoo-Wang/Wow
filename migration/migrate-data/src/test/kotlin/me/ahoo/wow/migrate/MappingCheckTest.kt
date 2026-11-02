@@ -343,6 +343,29 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `an instance whose streams record no tenant should fail it, and warn once excluded`() {
+        val inventories = example.map {
+            if (it.aggregate == order) it.copy(tenantless = mapOf("o-2" to 1L, "o-1" to 2L)) else it
+        }
+        check(inventories = inventories).problems.assert().containsExactly(
+            "example-service.order: streams of these 9.x aggregate ids record no tenant, which V10 refuses, so they " +
+                "cannot be imported; exclude each with {\"aggregate\": \"example-service.order\", \"stream\": <the id " +
+                "as listed>, \"reason\": \"…\"}: \"o-1\" (2 streams), \"o-2\" (1 streams)",
+        )
+        val map = NineXExample.map.copy(
+            excluded = listOf("o-1", "o-2").map {
+                Exclusion(aggregate = "example-service.order", reason = "A 9.x defect", stream = it)
+            },
+        )
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest))
+            .check(inventories, tenantsOf = { _, _ -> listOf("") })
+        report.passed.assert().isTrue()
+        report.warnings.assert().contains(
+            "the 9.x stream example-service.order \"o-1\" of the tenants [(blank)] is excluded: A 9.x defect",
+        )
+    }
+
+    @Test
     fun `an excluded stream should warn, whether the store holds it or not, and one excluded twice fail`() {
         val map = NineXExample.map.copy(
             excluded = listOf(

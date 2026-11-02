@@ -52,9 +52,9 @@ class NineXSnapshotTest {
         val whole = """"contextName":"c","aggregateName":"a","tenantId":"t","version":2,"state":{}"""
         assertThrows<MigrationException> { NineXSnapshot.parse("{$whole}") }.message!!.assert()
             .contains("no aggregateId")
-        assertThrows<MigrationException> {
-            NineXSnapshot.parse("""{"_id":"o-1",${whole.replace("\"tenantId\":\"t\",", "")}}""")
-        }.message!!.assert().contains("o-1 has no tenantId")
+        // One without a tenant reads as of the blank one, which an exclusion passes over.
+        NineXSnapshot.parse("""{"_id":"o-1",${whole.replace("\"tenantId\":\"t\",", "")}}""").aggregateId
+            .assert().isEqualTo(NineXAggregateId("o-1", ""))
         assertThrows<MigrationException> {
             NineXSnapshot.parse("""{"_id":"o-1",${whole.replace("\"version\":2,", "")}}""")
         }.message!!.assert().contains("no version")

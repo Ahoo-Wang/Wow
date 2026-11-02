@@ -36,6 +36,8 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
             streamEventTypes = held.groupingBy { stream -> stream.eventTypes() }.eachCount().mapValues { it.value.toLong() },
             refusedIds = held.filter { RefusedIds.reasonOf(it.aggregateId.id) != null }.groupingBy { it.aggregateId }
                 .eachCount().mapValues { it.value.toLong() },
+            tenantless = held.filter { it.aggregateId.tenantId.isBlank() }.groupingBy { it.aggregateId.id }.eachCount()
+                .mapValues { it.value.toLong() },
         )
     }
 
