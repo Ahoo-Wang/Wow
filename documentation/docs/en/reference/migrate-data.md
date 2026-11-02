@@ -110,7 +110,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `manifests` | required | The merged V10 Manifests of the services the streams go to. |
 | `checkpoint` | `migrate-data.checkpoint.json` | The checkpoint file. |
 | `source.uri`, `source.database` | required | The 9.x MongoDB event store. `draft-map` and `check` fail when the database holds no event stream, naming it: a misspelt name, or an unset `env:` variable's, reads as an empty store. |
-| `source.createCommitTimeIndex` | `false` | Lets `tail` create the `(createTime, _id)` index it needs on each event stream collection. Otherwise it refuses to start without it and prints the command. |
+| `source.createCommitTimeIndex` | `false` | Lets `tail` create the `(createTime, _id)` index it needs on each event stream collection, a write to the 9.x store. Otherwise it refuses to start without it and prints the command. `check` warns of each mapped collection without it, and creates none. |
 | `target.type` | required | `postgres` or `mongo`. |
 | `target.jdbcUrl`, `target.username`, `target.password` | | The PostgreSQL target. |
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |

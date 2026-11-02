@@ -220,6 +220,7 @@ internal class MigrateData(
             connections.reservations.prepareKeys(),
             connections.compensation?.inventory(),
             connections.source::tenantsOf,
+            (connections.source as? CommitTimeIndexed)?.missingCommitTimeIndexes(plan.aggregates.keys).orEmpty(),
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED
