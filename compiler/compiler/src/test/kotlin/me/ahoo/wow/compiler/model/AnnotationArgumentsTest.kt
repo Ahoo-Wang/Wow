@@ -74,6 +74,7 @@ class AnnotationArgumentsTest {
     )
 
     /** The domain, each slot of [constants] written as [arguments] gives it, else as the library's constant. */
+    @Suppress("LongMethod") // The domain's sources, whole.
     private fun domain(arguments: Map<String, String> = emptyMap()): SourceFile {
         val slot = { name: String -> arguments[name] ?: constants.getValue(name) }
         return SourceFile.kotlin(
@@ -211,8 +212,8 @@ class AnnotationArgumentsTest {
             .contains("dependencies.get(sample.Audit::class.javaObjectType, \"audit\", \"CartBoard\")")
     }
 
-    @TestFactory
-    fun `an argument with no value should fail the compilation, naming its declaration and annotation`() = listOf(
+    /** For each annotation, the arguments that read no constant, and what they fail the compilation with. */
+    private val unread = listOf(
         Unread(
             "@Name, on each declaration that takes one",
             mapOf(
@@ -257,7 +258,9 @@ class AnnotationArgumentsTest {
         Unread(
             "@AggregateRoot",
             mapOf("SNAPSHOT" to "Local.flag", "STATE_REVISION" to "Local.number"),
-            listOf("@AggregateRoot of sample.Cart: KSP evaluated no value for its arguments snapshot and stateRevision"),
+            listOf(
+                "@AggregateRoot of sample.Cart: KSP evaluated no value for its arguments snapshot and stateRevision"
+            ),
             missing = listOf("CartModel.kt"),
         ),
         Unread(
@@ -282,14 +285,19 @@ class AnnotationArgumentsTest {
             listOf("@OnSchedule of sample.Nightly.nightly: KSP evaluated no value for its argument zone"),
             missing = listOf("NightlySubscriptions.kt"),
         ),
-    ).map { unread ->
-        DynamicTest.dynamicTest(unread.annotation) {
-            val (compilation, result) = compileModelAgainst("generate", options, listOf(NAMES), domain(unread.arguments))
-            result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-            result.messages.assert().contains(unread.errors).doesNotContain("NullPointerException")
-            (unread.missing + "shop-domain.json").forEach { generated(compilation, it).assert().isNull() }
+    )
+
+    @TestFactory
+    fun `an argument with no value should fail the compilation, naming its declaration and annotation`() =
+        unread.map { case ->
+            DynamicTest.dynamicTest(case.annotation) {
+                val sources = domain(case.arguments)
+                val (compilation, result) = compileModelAgainst("generate", options, listOf(NAMES), sources)
+                result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+                result.messages.assert().contains(case.errors).doesNotContain("NullPointerException")
+                (case.missing + "shop-domain.json").forEach { generated(compilation, it).assert().isNull() }
+            }
         }
-    }
 
     @Test
     fun `an array holding an element without a value should be unread`() {

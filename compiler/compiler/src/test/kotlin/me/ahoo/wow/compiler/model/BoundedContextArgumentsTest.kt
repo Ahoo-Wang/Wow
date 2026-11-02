@@ -168,9 +168,10 @@ class BoundedContextArgumentsTest {
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "The shop"))
             .assert().isEqualTo(BoundedContextArguments("shop", "The shop"))
         // KSP lists a default among the arguments, and among the default arguments.
-        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "", default = listOf("description" to "")))
+        val default = listOf("description" to "")
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "", default = default))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
-        BoundedContextArguments.of(fakeAnnotation("name" to "shop", default = listOf("description" to "")))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", default = default))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
     }
 
@@ -180,7 +181,8 @@ class BoundedContextArgumentsTest {
         BoundedContextArguments.of(fakeAnnotation("description" to "The shop")).assert().isNull()
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null)).assert().isNull()
         // A given argument with no value is unread, though the annotation has a default for it.
-        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null, default = listOf("description" to "")))
+        val default = listOf("description" to "")
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null, default = default))
             .assert().isNull()
         // No value listed at all, not even a default.
         BoundedContextArguments.of(fakeAnnotation("name" to "shop")).assert().isNull()
