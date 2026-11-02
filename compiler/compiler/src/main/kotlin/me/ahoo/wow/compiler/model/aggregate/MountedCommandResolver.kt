@@ -14,7 +14,6 @@
 package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
@@ -40,14 +39,10 @@ internal object MountedCommandResolver {
      */
     fun read(declaration: KSClassDeclaration): MountedBinding {
         val name = declaration.simpleName.asString()
-        // The classes are read from the annotation's arguments: a KClass value is not one the annotation proxy gives.
-        val listed = declaration.annotations
-            .first { it.annotationType.resolve().declaration.qualifiedName?.asString() == MOUNTED_COMMAND }
-            .arguments.firstOrNull { it.name?.asString() == TRANSFORMS_TO }?.value as? List<*>
         val problems = AnnotationSet.problemsOfType(declaration, "mounted command").toMutableList()
         val mounted = declaration.argumentsOf(MountedCommand::class, problems)
         val aggregate = mounted?.string(AGGREGATE).orEmpty()
-        val transformsTo = listed.orEmpty().filterIsInstance<KSType>().flatMap { type ->
+        val transformsTo = mounted?.types(TRANSFORMS_TO).orEmpty().flatMap { type ->
             commandClassesOf(type).ifEmpty {
                 problems += "mounted command $name transforms to ${type.render()}, which is no command class: " +
                     "@MountedCommand(transformsTo) names command classes"

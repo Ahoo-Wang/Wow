@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model.symbol
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSDeclaration
+import com.google.devtools.ksp.symbol.KSPropertyAccessor
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import kotlin.reflect.KClass
@@ -27,36 +28,63 @@ import kotlin.reflect.KClass
  * module, rather than failing; the proxy answers such an argument with the annotation's default, or with a null its
  * type does not allow, so the model would take a value nobody wrote. Here an argument given with no value, or a
  * required one not given, is [unread], and the model takes nothing from the annotation ([argumentsOf]). An argument
- * not given is the annotation's default, which KSP lists among the arguments, and among its default arguments too.
+ * not given is the annotation's default: the one KSP lists among the arguments (and the default arguments), else, for
+ * an argument the annotation class has and the annotation's own version has not, the class's.
  *
  * KSP drops an element of an array argument it has not evaluated rather than leaving it null (`@Alias("a", X.B)` is
  * read as `["a"]` while `X.B` has no value), and no API of KSP tells such an element: an array is read as KSP lists it.
+ * An element that is not a constant fails the Kotlin compilation that follows anyway, and KSP evaluates a constant of
+ * another module when no other KSP run of the build overlaps its own, which the Wow Gradle plugin sees to.
  */
 internal class AnnotationArguments(private val type: KClass<out Annotation>, annotation: KSAnnotation) {
-    /** The value of each argument by name: as given, else by default; null when it has none. */
+    /** The value of each argument KSP lists, by name: as given, else by default; null when it has none. */
     private val values: Map<String?, Any?> = (annotation.arguments + annotation.defaultArguments)
         .distinctBy { it.name?.asString() }
         .associate { it.name?.asString() to it.value }
 
     /**
-     * The arguments the annotation class declares that have no value, by name; an array holding an element without one
-     * too, should KSP leave it null rather than drop it.
+     * The arguments of the annotation class without a value, by name: one KSP lists with none, or with an array
+     * holding none, and a required one it does not list.
      */
-    val unread: List<String> = type.java.declaredMethods.filterNot { it.isSynthetic }.map { it.name }
-        .filter { name -> values[name].let { it == null || it is List<*> && null in it } }.sorted()
+    val unread: List<String> = type.java.declaredMethods.filterNot { it.isSynthetic }
+        .filter { method ->
+            if (method.name in values) {
+                values[method.name].let { it == null || it is List<*> && null in it }
+            } else {
+                method.defaultValue == null
+            }
+        }.map { it.name }.sorted()
 
-    fun string(name: String): String = values.getValue(name) as String
+    fun string(name: String): String = value(name) as String
 
-    fun int(name: String): Int = values.getValue(name) as Int
+    fun int(name: String): Int = value(name) as Int
 
-    fun boolean(name: String): Boolean = values.getValue(name) as Boolean
+    fun double(name: String): Double = value(name) as Double
 
-    fun strings(name: String): List<String> = (values.getValue(name) as List<*>).map { it as String }
+    fun boolean(name: String): Boolean = value(name) as Boolean
 
-    /** The name of the enum entry the argument [name] holds: KSP gives an entry as its declaration, or its type. */
-    fun enumName(name: String): String = when (val value = values.getValue(name)) {
+    fun strings(name: String): List<String> = (value(name) as List<*>).map { it as String }
+
+    /** The class the argument [name] holds. */
+    fun type(name: String): KSType = value(name) as KSType
+
+    /** The classes the argument [name] lists. */
+    fun types(name: String): List<KSType> = (value(name) as List<*>).map { it as KSType }
+
+    /**
+     * The name of the enum entry the argument [name] holds: KSP gives an entry as its declaration, or its type; the
+     * annotation class's default is the entry itself.
+     */
+    fun enumName(name: String): String = when (val value = value(name)) {
         is KSType -> value.declaration.simpleName.asString()
+        is Enum<*> -> value.name
         else -> (value as KSDeclaration).simpleName.asString()
+    }
+
+    /** The value of the argument [name]: as KSP lists it, else the annotation class's default, an array as a list. */
+    private fun value(name: String): Any = values[name] ?: when (val default = type.java.getMethod(name).defaultValue) {
+        is Array<*> -> default.toList()
+        else -> default
     }
 
     /** What [unread] means for the model, of the annotation on [annotated]. */
@@ -67,6 +95,7 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
 
     private fun KSAnnotated.describe(): String = when (this) {
         is KSValueParameter -> "parameter ${name?.asString()} of ${(parent as? KSAnnotated)?.describe()}"
+        is KSPropertyAccessor -> "accessor of ${receiver.describe()}"
         // A constructor has no qualified name: it is its class's `<init>`.
         is KSDeclaration -> qualifiedName?.asString()
             ?: ((parentDeclaration?.describe()?.plus(".") ?: "") + simpleName.asString())

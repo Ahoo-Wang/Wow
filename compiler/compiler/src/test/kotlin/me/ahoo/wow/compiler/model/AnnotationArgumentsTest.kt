@@ -15,6 +15,8 @@ package me.ahoo.wow.compiler.model
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSPropertyGetter
 import com.google.devtools.ksp.symbol.KSType
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
@@ -22,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -71,6 +74,19 @@ class AnnotationArgumentsTest {
         "JOB_NAME" to "Names.JOB",
         "JOB_CRON" to "Names.CRON",
         "JOB_ZONE" to "Names.ZONE",
+        "ON_DELETED" to "Names.ON_DELETED",
+        // A class is never another module's constant either: only a plain val can leave an array without a value.
+        "AFTER_INCLUDE" to "[Open::class]",
+        "SENDS" to "[Close::class]",
+        "RETRY_ATTEMPTS" to "Names.ATTEMPTS",
+        "UPGRADE_FROM" to "Names.FROM",
+        "ROUTE_PATH" to "Names.ROUTE",
+        "QUERY_NAME" to "Names.QUERY",
+        "HANDLER_NAME" to "Names.HANDLER",
+        "SUPPRESS" to "Names.UNMARKED",
+        "WIRE_NAME" to "Names.WIRE",
+        "JSON_IGNORE" to "Names.IGNORED",
+        "IGNORED_PROPERTIES" to "Names.HIDDEN",
     )
 
     /** The domain, each slot of [constants] written as [arguments] gives it, else as the library's constant. */
@@ -82,6 +98,10 @@ class AnnotationArgumentsTest {
             """
             package sample
 
+            import com.fasterxml.jackson.annotation.JsonIgnore
+            import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+            import com.fasterxml.jackson.annotation.JsonProperty
+            import me.ahoo.wow.api.annotation.AfterCommand
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.Alias
             import me.ahoo.wow.api.annotation.CreateAggregate
@@ -89,11 +109,17 @@ class AnnotationArgumentsTest {
             import me.ahoo.wow.api.annotation.ErrorCode
             import me.ahoo.wow.api.annotation.MountedCommand
             import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.annotation.OnCommand
             import me.ahoo.wow.api.annotation.OnEvent
             import me.ahoo.wow.api.annotation.OnSchedule
             import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.annotation.Retry
             import me.ahoo.wow.api.annotation.Revision
+            import me.ahoo.wow.api.annotation.RouteMethod
+            import me.ahoo.wow.api.annotation.RouteQuery
             import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.annotation.Sends
+            import me.ahoo.wow.api.annotation.ServiceRoute
             import me.ahoo.wow.api.annotation.Summary
             import me.ahoo.wow.api.annotation.Upgrade
             import me.ahoo.wow.api.client.CommandRequest
@@ -101,6 +127,7 @@ class AnnotationArgumentsTest {
             import me.ahoo.wow.api.subscribe.StateEvent
             import names.Names
             import tools.jackson.databind.node.ObjectNode
+            import kotlin.reflect.KClass
 
             /** Not constants: KSP evaluates no value for an argument that reads one. */
             object Local {
@@ -108,10 +135,13 @@ class AnnotationArgumentsTest {
                 val number: Int = 2
                 val flag: Boolean = false
                 val start: OnEvent.Start = OnEvent.Start.END
+                val names: Array<String> = arrayOf("local")
+                val commands: Array<KClass<*>> = arrayOf(Open::class)
             }
 
             fun interface Audit { fun log(text: String) }
 
+            @Suppress(${slot("SUPPRESS")})
             @Name(${slot("COMMAND_NAME")})
             @CreateAggregate
             data class Open(val id: String)
@@ -126,7 +156,7 @@ class AnnotationArgumentsTest {
 
             data class Closed(val id: String)
 
-            @Upgrade(event = Opened::class, from = 1)
+            @Upgrade(event = Opened::class, from = ${slot("UPGRADE_FROM")})
             fun addNote(node: ObjectNode): ObjectNode = node.put("note", "")
 
             @Name(${slot("ROOT_NAME")})
@@ -139,7 +169,11 @@ class AnnotationArgumentsTest {
             class Cart(private val state: CartState) {
                 fun onCommand(command: Open, @Name(${slot("QUALIFIER")}) audit: Audit): Opened = Opened(command.id, "")
 
+                @OnCommand(onDeleted = ${slot("ON_DELETED")})
                 fun onCommand(command: Close): Closed = Closed(command.id)
+
+                @AfterCommand(include = ${slot("AFTER_INCLUDE")})
+                fun afterCommand(command: Any): List<Closed> = emptyList()
 
                 object Errors {
                     @ErrorCode(description = ${slot("ERROR_DESCRIPTION")}, status = ${slot("ERROR_STATUS")})
@@ -147,7 +181,16 @@ class AnnotationArgumentsTest {
                 }
             }
 
+            @JsonIgnoreProperties(${slot("IGNORED_PROPERTIES")})
             class CartState(val id: String) {
+                @JsonProperty(${slot("WIRE_NAME")})
+                var label: String = ""
+
+                @JsonIgnore(${slot("JSON_IGNORE")})
+                var note: String = ""
+
+                var hidden: String = ""
+
                 fun onSourcing(event: Opened) {}
 
                 fun onSourcing(event: Closed) {}
@@ -160,6 +203,7 @@ class AnnotationArgumentsTest {
             @Name(${slot("PROCESSOR_NAME")})
             @Projection
             class CartBoard(@Name(${slot("PROCESSOR_QUALIFIER")}) private val audit: Audit) {
+                @Name(${slot("HANDLER_NAME")})
                 @OnEvent(aggregates = [Names.QUALIFIED_CART], start = ${slot("START")})
                 fun onEvent(event: StateEvent<CartState>) = Unit
             }
@@ -167,7 +211,16 @@ class AnnotationArgumentsTest {
             @Saga
             object Nightly {
                 @OnSchedule(name = ${slot("JOB_NAME")}, cron = ${slot("JOB_CRON")}, zone = ${slot("JOB_ZONE")})
+                @Sends(derives = ${slot("SENDS")})
+                @Retry(maxAttempts = ${slot("RETRY_ATTEMPTS")})
                 fun nightly(tick: ScheduleTick): List<CommandRequest<Close>> = emptyList()
+            }
+
+            data class Count(val value: Int)
+
+            class CartRoutes {
+                @ServiceRoute(method = RouteMethod.GET, path = ${slot("ROUTE_PATH")})
+                suspend fun count(@RouteQuery(${slot("QUERY_NAME")}) state: String?): Count = Count(0)
             }
             """.trimIndent(),
         )
@@ -198,13 +251,25 @@ class AnnotationArgumentsTest {
         error.description.assert().isEqualTo("The basket is full")
         val board = shop.subscriptions.single { it.kind == SubscriptionKind.PROJECTION }
         board.function.processor.assert().isEqualTo("basket-board")
+        board.function.name.assert().isEqualTo("onBasket")
         board.start.assert().isEqualTo(SubscriptionStart.END)
         // The module's own aggregate, `shop.basket`, by its name in the context.
         board.source.aggregates.assert().containsExactly("basket")
-        val job = shop.subscriptions.mapNotNull { it.job }.single()
+        val nightly = shop.subscriptions.single { it.job != null }
+        nightly.retry?.maxAttempts.assert().isEqualTo(3)
+        val job = nightly.job!!
         job.name.assert().isEqualTo("sweep")
         job.cron.assert().isEqualTo("0 */5 * * * *")
         job.zone.assert().isEqualTo("Asia/Shanghai")
+        val route = shop.routes.single()
+        route.route.path.assert().endsWith("counts")
+        route.parameters.map { it.name }.assert().containsExactly("status")
+        // The suppression names the warning of Open alone.
+        result.messages.assert().doesNotContain("command Open has a String property id")
+            .contains("command Close has a String property id")
+        // Jackson's names: the state's query fields.
+        generated(compilation, "CartStateProperties.kt")!!.readText().assert()
+            .contains("\"state.tag\"").doesNotContain("\"state.label\"", "\"state.note\"", "\"state.hidden\"")
         // The qualifier names the dependency of the aggregate's model and of the processor's handlers.
         generated(compilation, "ShopDomainModelProvider.kt")!!.readText().assert()
             .contains("dependencies.get(sample.Audit::class.javaObjectType, \"audit\", \"the Cart model\")")
@@ -212,7 +277,11 @@ class AnnotationArgumentsTest {
             .contains("dependencies.get(sample.Audit::class.javaObjectType, \"audit\", \"CartBoard\")")
     }
 
-    /** For each annotation, the arguments that read no constant, and what they fail the compilation with. */
+    /**
+     * For each annotation, the arguments that read no constant, and what they fail the compilation with. `@Alias` and
+     * `@Suppress` have none: their one argument is an array, and KSP drops an element it evaluates no value for, even a
+     * whole array passed to a vararg, rather than leaving it null.
+     */
     private val unread = listOf(
         Unread(
             "@Name, on each declaration that takes one",
@@ -224,6 +293,7 @@ class AnnotationArgumentsTest {
                 "MOUNTED_NAME" to "Local.text",
                 "PROCESSOR_NAME" to "Local.text",
                 "PROCESSOR_QUALIFIER" to "Local.text",
+                "HANDLER_NAME" to "Local.text",
             ),
             listOf(
                 "@Name of sample.Cart: KSP evaluated no value for its argument value, so the model takes nothing " +
@@ -234,6 +304,7 @@ class AnnotationArgumentsTest {
                 "@Name of sample.ImportCart: KSP evaluated no value for its argument value",
                 "@Name of sample.CartBoard: KSP evaluated no value for its argument value",
                 "@Name of parameter audit of sample.CartBoard.<init>: KSP evaluated no value for its argument value",
+                "@Name of sample.CartBoard.onEvent: KSP evaluated no value for its argument value",
             ),
             missing = listOf("CartModel.kt", "CartBoardSubscriptions.kt"),
         ),
@@ -285,6 +356,66 @@ class AnnotationArgumentsTest {
             listOf("@OnSchedule of sample.Nightly.nightly: KSP evaluated no value for its argument zone"),
             missing = listOf("NightlySubscriptions.kt"),
         ),
+        Unread(
+            "@OnCommand",
+            mapOf("ON_DELETED" to "Local.flag"),
+            listOf("@OnCommand of sample.Cart.onCommand: KSP evaluated no value for its argument onDeleted"),
+            missing = listOf("CartModel.kt"),
+        ),
+        Unread(
+            "@AfterCommand",
+            mapOf("AFTER_INCLUDE" to "Local.commands"),
+            listOf("@AfterCommand of sample.Cart.afterCommand: KSP evaluated no value for its argument include"),
+            missing = listOf("CartModel.kt"),
+        ),
+        Unread(
+            "@Sends",
+            mapOf("SENDS" to "Local.commands"),
+            listOf("@Sends of sample.Nightly.nightly: KSP evaluated no value for its argument derives"),
+            missing = listOf("NightlySubscriptions.kt"),
+        ),
+        Unread(
+            "@Retry",
+            mapOf("RETRY_ATTEMPTS" to "Local.number"),
+            listOf("@Retry of sample.Nightly.nightly: KSP evaluated no value for its argument maxAttempts"),
+            missing = listOf("NightlySubscriptions.kt"),
+        ),
+        Unread(
+            "@Upgrade",
+            mapOf("UPGRADE_FROM" to "Local.number"),
+            listOf("@Upgrade of sample.addNote: KSP evaluated no value for its argument from"),
+            missing = listOf("CartModel.kt"),
+        ),
+        Unread(
+            "@ServiceRoute",
+            mapOf("ROUTE_PATH" to "Local.text"),
+            listOf("@ServiceRoute of sample.CartRoutes.count: KSP evaluated no value for its argument path"),
+        ),
+        Unread(
+            "@RouteQuery",
+            mapOf("QUERY_NAME" to "Local.text"),
+            listOf(
+                "@RouteQuery of parameter state of sample.CartRoutes.count: KSP evaluated no value for its argument name"
+            ),
+        ),
+        Unread(
+            "@JsonProperty",
+            mapOf("WIRE_NAME" to "Local.text"),
+            listOf("@JsonProperty of sample.CartState.label: KSP evaluated no value for its argument value"),
+            missing = listOf("CartStateProperties.kt"),
+        ),
+        Unread(
+            "@JsonIgnore",
+            mapOf("JSON_IGNORE" to "Local.flag"),
+            listOf("@JsonIgnore of sample.CartState.note: KSP evaluated no value for its argument value"),
+            missing = listOf("CartStateProperties.kt"),
+        ),
+        Unread(
+            "@JsonIgnoreProperties",
+            mapOf("IGNORED_PROPERTIES" to "Names.HIDDEN, ignoreUnknown = Local.flag"),
+            listOf("@JsonIgnoreProperties of sample.CartState: KSP evaluated no value for its argument ignoreUnknown"),
+            missing = listOf("CartStateProperties.kt"),
+        ),
     )
 
     @TestFactory
@@ -320,6 +451,16 @@ class AnnotationArgumentsTest {
     }
 
     @Test
+    fun `an argument KSP lists nowhere should be the annotation class's default, a required one unread`() {
+        AnnotationArguments(OnEvent::class, fakeAnnotation()).run {
+            unread.assert().isEmpty()
+            strings("aggregates").assert().isEmpty()
+            enumName("start").assert().isEqualTo("DEFAULT")
+        }
+        AnnotationArguments(Upgrade::class, fakeAnnotation("from" to 1)).unread.assert().containsExactly("event")
+    }
+
+    @Test
     fun `a problem should name what it is on, a declaration, a parameter, or else as KSP renders it`() {
         val arguments = AnnotationArguments(Name::class, fakeAnnotation("value" to null))
         arguments.unread.assert().containsExactly("value")
@@ -327,6 +468,10 @@ class AnnotationArgumentsTest {
         arguments.problem(file).assert().startsWith(
             "@Name of File: Cart.kt: KSP evaluated no value for its argument value, so the model takes nothing from it",
         )
+        val label = fakeName("sample.Cart.label")
+        val property = fake<KSPropertyDeclaration> { if (it == "getQualifiedName") label else error(it) }
+        val getter = fake<KSPropertyGetter> { if (it == "getReceiver") property else error(it) }
+        arguments.problem(getter).assert().startsWith("@Name of accessor of sample.Cart.label: KSP evaluated no value")
     }
 
     /**
@@ -377,6 +522,16 @@ class AnnotationArgumentsTest {
                         const val JOB: String = "sweep"
                         const val CRON: String = "0 */5 * * * *"
                         const val ZONE: String = "Asia/Shanghai"
+                        const val ON_DELETED: Boolean = false
+                        const val ATTEMPTS: Int = 3
+                        const val FROM: Int = 1
+                        const val ROUTE: String = "counts"
+                        const val QUERY: String = "status"
+                        const val HANDLER: String = "onBasket"
+                        const val UNMARKED: String = "UnmarkedAggregateId"
+                        const val WIRE: String = "tag"
+                        const val IGNORED: Boolean = true
+                        const val HIDDEN: String = "hidden"
                     }
                     """.trimIndent(),
                 ),

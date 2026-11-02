@@ -76,16 +76,25 @@ internal object QueryPropertiesSource {
     fun available(resolver: Resolver): Boolean =
         resolver.getClassDeclarationByName(resolver.getKSNameFromString(SNAPSHOT_PROPERTIES)) != null
 
-    /** Writes [state]'s `<State>Properties`, unless [generated], the states already written, holds it. */
-    fun generate(codeGenerator: CodeGenerator, state: KSClassDeclaration, generated: MutableSet<String>) {
+    /**
+     * Writes [state]'s `<State>Properties`, unless [generated], the states already written, holds it. The problems of
+     * its paths' Jackson annotations, an argument without a value, are what it returns instead, writing nothing.
+     */
+    fun generate(codeGenerator: CodeGenerator, state: KSClassDeclaration, generated: MutableSet<String>): List<String> {
         if (!generated.add(state.qualifiedName!!.asString())) {
-            return
+            return emptyList()
+        }
+        val problems = mutableListOf<String>()
+        val properties = properties(state, problems)
+        if (problems.isNotEmpty()) {
+            return problems.distinct()
         }
         codeGenerator.createNewFile(
             Dependencies(aggregating = false, sources = listOfNotNull(state.containingFile).toTypedArray()),
             state.packageName.asString(),
             className(state),
-        ).bufferedWriter().use { it.write(render(state, properties(state))) }
+        ).bufferedWriter().use { it.write(render(state, properties)) }
+        return emptyList()
     }
 
     /** The name of the object generated for [state]: its simple names joined, then `Properties`. */
@@ -93,10 +102,10 @@ internal object QueryPropertiesSource {
         state.qualifiedName!!.asString().removePrefix("${state.packageName.asString()}.").replace(".", "") +
             "Properties"
 
-    /** The paths of [state] a query names, in declaration order, each once. */
-    fun properties(state: KSClassDeclaration): List<Property> {
+    /** The paths of [state] a query names, in declaration order, each once; their annotations' in [problems]. */
+    fun properties(state: KSClassDeclaration, problems: MutableList<String>): List<Property> {
         val properties = linkedMapOf<String, Property>()
-        collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties)
+        collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties, problems)
         return properties.values.toList()
     }
 
@@ -123,10 +132,11 @@ internal object QueryPropertiesSource {
         path: String,
         visited: List<String>,
         properties: MutableMap<String, Property>,
+        problems: MutableList<String>,
     ) {
-        val ignored = owner.jsonIgnoredProperties()
-        owner.getAllProperties().filter { it.isQueryable(ignored) }.forEach { property ->
-            val wireName = property.wireName()
+        val ignored = owner.jsonIgnoredProperties(problems)
+        owner.getAllProperties().filter { it.isQueryable(ignored, problems) }.forEach { property ->
+            val wireName = property.wireName(problems)
             if (!QueryFieldNames.isSegment(wireName)) return@forEach
             val childPath = "$path.$wireName"
             val childName = QueryFieldNames.constantOf(childPath)
@@ -137,7 +147,7 @@ internal object QueryPropertiesSource {
             val nested = type.nestedClass() ?: return@forEach
             val qualified = nested.qualifiedName!!.asString()
             if (qualified !in visited) {
-                collect(nested, childPath, visited + qualified, properties)
+                collect(nested, childPath, visited + qualified, properties, problems)
             }
         }
     }
@@ -166,10 +176,10 @@ internal object QueryPropertiesSource {
         return name + arguments + if (nullability == Nullability.NOT_NULL) "" else "?"
     }
 
-    private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>): Boolean =
+    private fun KSPropertyDeclaration.isQueryable(ignored: Set<String>, problems: MutableList<String>): Boolean =
         isPublic() && extensionReceiver == null &&
-            simpleName.asString() !in ignored && wireName() !in ignored &&
-            !jsonIgnored()
+            simpleName.asString() !in ignored && wireName(problems) !in ignored &&
+            !jsonIgnored(problems)
 
     /** The class whose properties a path continues into: the type itself, or a collection's element type. */
     private fun KSType.nestedClass(): KSClassDeclaration? {

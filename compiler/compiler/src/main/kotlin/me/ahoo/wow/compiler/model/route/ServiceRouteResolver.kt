@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.RouteQuery
 import me.ahoo.wow.api.annotation.ServiceRoute
 import me.ahoo.wow.api.route.RouteCall
 import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.render
@@ -81,6 +82,10 @@ internal object ServiceRouteResolver {
     private val VARIABLE = Regex("\\{([A-Za-z][A-Za-z0-9]*)}")
     private val SEGMENT = Regex("[a-z0-9]+(-[a-z0-9]+)*|\\{[A-Za-z][A-Za-z0-9]*}")
     private val NAME = Regex("[a-z][A-Za-z0-9]*")
+    private const val METHOD = "method"
+    private const val PATH = "path"
+    private const val NAME_ARGUMENT = "name"
+    private const val ERRORS = "errors"
     private const val SET = "kotlin.collections.Set"
     private val COLLECTIONS = setOf("kotlin.collections.List", SET, "kotlin.collections.Collection")
 
@@ -115,19 +120,18 @@ internal object ServiceRouteResolver {
         "com.fasterxml.jackson.databind.JsonNode",
     ) + SCALARS.keys
 
+    /**
+     * The route [function], annotated `@ServiceRoute`; one whose `@ServiceRoute` has an argument without a value is
+     * read no further, with that problem.
+     */
     fun read(function: KSFunctionDeclaration): ServiceRouteBinding {
-        val annotation = function.annotations.first {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == SERVICE_ROUTE
-        }
-        val argument = { name: String -> annotation.arguments.firstOrNull { it.name?.asString() == name }?.value }
-        val method = when (val value = argument("method")) {
-            is KSType -> RouteMethod.valueOf(value.declaration.simpleName.asString())
-            is KSClassDeclaration -> RouteMethod.valueOf(value.simpleName.asString())
-            else -> RouteMethod.GET
-        }
-        val path = argument("path") as? String ?: ""
-        val name = (argument("name") as? String)?.ifBlank { null } ?: function.simpleName.asString()
         val owner = function.parentDeclaration as? KSClassDeclaration
+        val unread = mutableListOf<String>()
+        val route = function.argumentsOf(ServiceRoute::class, unread)
+            ?: return unreadBinding(function, owner, unread)
+        val method = RouteMethod.valueOf(route.enumName(METHOD))
+        val path = route.string(PATH)
+        val name = route.string(NAME_ARGUMENT).ifBlank { null } ?: function.simpleName.asString()
         val reading = Reading("${owner?.simpleName?.asString() ?: "?"}.${function.simpleName.asString()}", method)
         reading.checkFunction(function, owner, name)
         reading.checkPath(path)
@@ -147,7 +151,7 @@ internal object ServiceRouteResolver {
             parameterSchemas = reading.schemas,
             request = reading.request,
             response = response,
-            errors = (argument("errors") as? List<*>).orEmpty().filterIsInstance<String>(),
+            errors = route.strings(ERRORS),
             description = Descriptions.of(function, reading.problems),
             deprecated = function.annotations.any {
                 it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.Deprecated"
@@ -155,6 +159,28 @@ internal object ServiceRouteResolver {
             problems = reading.problems,
         )
     }
+
+    /** The binding of the route [function] of [owner] whose `@ServiceRoute` is unread: only its [problems]. */
+    private fun unreadBinding(
+        function: KSFunctionDeclaration,
+        owner: KSClassDeclaration?,
+        problems: List<String>,
+    ): ServiceRouteBinding = ServiceRouteBinding(
+        handler = owner?.binaryName() ?: "",
+        handlerType = owner?.qualifiedName?.asString() ?: "",
+        function = function.simpleName.asString(),
+        name = function.simpleName.asString(),
+        method = RouteMethod.GET,
+        path = "",
+        arguments = emptyList(),
+        parameterSchemas = emptyMap(),
+        request = null,
+        response = null,
+        errors = emptyList(),
+        description = null,
+        deprecated = false,
+        problems = problems,
+    )
 
     /** The reading of one route function [where], of [method]: the problems found, the schemas and the body read. */
     private class Reading(val where: String, val method: RouteMethod) {
@@ -191,7 +217,8 @@ internal object ServiceRouteResolver {
             return when {
                 type.declaration.qualifiedName?.asString() == ROUTE_CALL -> RouteArgument.Call
                 query != null -> {
-                    val name = (query.arguments.firstOrNull()?.value as? String)?.ifBlank { null } ?: parameterName
+                    val name = parameter.argumentsOf(RouteQuery::class, problems)?.string(NAME_ARGUMENT)
+                        ?.ifBlank { null } ?: parameterName
                     scalar(type, "query parameter $name")?.let { schemas["query:$name"] = it }
                     RouteArgument.Query(name, type.makeNotNullable().render(), required = !type.isMarkedNullable)
                 }

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
+import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
@@ -45,7 +46,7 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SERVICES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.STRING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
-import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -75,23 +76,23 @@ internal class AggregateAnalyzer(
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         val rootName = root.qualifiedName!!.asString()
+        // Read once: its arguments are the aggregate's, from its ownership to its retired events.
+        val rootArguments = root.argumentsOf(AggregateRoot::class, problems)
         val state = RootStateResolver.stateOf(root, problems)
         val rootIsState = state == root
         val stateArguments = stateArguments(state, problems)
 
         val dependencies = linkedMapOf<String, Dependency>()
-        val (commands, sourcing, afters) = handlersOf(root, state, dependencies, problems, warnings)
+        val (commands, sourcing, afters) = handlersOf(root, rootArguments, state, dependencies, problems, warnings)
         if (!rootIsState) {
             problems += RootStateResolver.misplacedProblems(root, state)
         }
         val aggregateName = root.toName(problems)
-        // Read once: snapshot, stateRevision and retiredEvents are its arguments.
-        val rootArguments = root.argumentsOf(AggregateRoot::class, problems)
         problems += aliasProblems(aggregateName, commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
-        val ownership = AggregateRootArguments.ownership(root)
-        val idSource = AggregateRootArguments.idSource(root, ownership, problems)
+        val ownership = AggregateRootArguments.ownership(rootArguments)
+        val idSource = AggregateRootArguments.idSource(rootArguments, ownership, problems)
         if (idSource == AggregateIdSource.OWNER.name) {
             commands.filter { it.aggregateId != null }.forEach { command ->
                 problems += "command ${AliasCheck.simpleName(command.type)} has an @AggregateId property, but " +
@@ -116,8 +117,8 @@ internal class AggregateAnalyzer(
             problems = problems,
             stateType = state.binaryName(),
             description = Descriptions.of(root, problems),
-            lifecycle = AggregateRootArguments.lifecycle(root, ownership, idSource, problems),
-            publication = AggregateRootArguments.publication(root, problems),
+            lifecycle = AggregateRootArguments.lifecycle(rootArguments, ownership, idSource, problems),
+            publication = AggregateRootArguments.publication(rootArguments, problems),
             ownership = ownership,
             idSource = idSource,
             mounted = mounted,
@@ -144,14 +145,15 @@ internal class AggregateAnalyzer(
      */
     private fun handlersOf(
         root: KSClassDeclaration,
+        rootArguments: AnnotationArguments?,
         state: KSClassDeclaration,
         dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
         warnings: MutableList<String>,
     ): Handlers {
-        val ownership = AggregateRootArguments.ownership(root)
+        val ownership = AggregateRootArguments.ownership(rootArguments)
         // Its problem is the root's, which analyze reports.
-        val idSource = AggregateRootArguments.idSource(root, ownership, mutableListOf())
+        val idSource = AggregateRootArguments.idSource(rootArguments, ownership, mutableListOf())
         val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, ON_COMMAND_ANNOTATION, problems)
         val commands = commandFunctions.mapNotNull { function ->
             commandBinding(function, dependencies, problems, warnings)
@@ -165,7 +167,7 @@ internal class AggregateAnalyzer(
         // A command could name its aggregate where it is not @Unaddressed and its aggregate's id is not its owner's.
         if (idSource != AggregateIdSource.OWNER.name) {
             commandTypes.distinct().filterNot { it.hasAnnotation(Unaddressed::class.java.name) }
-                .mapNotNullTo(warnings, AggregateIdResolver::unmarkedId)
+                .mapNotNullTo(warnings) { AggregateIdResolver.unmarkedId(it, problems) }
         }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
             .mapNotNull { function ->
@@ -300,13 +302,15 @@ internal class AggregateAnalyzer(
         val returned = if (open == null) EventYield.of(returnType) else null
         val reactor = reactorReturn(function) != null
         val blocking = blocking(function, reactor, warnings)
-        val producesListed = declaredProduces(function)
-        val schedules = declaredSchedules(function, problems)
+        // The function's @OnCommand, or the one of the function it overrides.
+        val onCommand = function.annotatedIn(ON_COMMAND_ANNOTATION)?.argumentsOf(OnCommand::class, problems)
+        val producesListed = declaredProduces(onCommand)
+        val schedules = declaredSchedules(function, onCommand, problems)
         if (producesListed.isNotEmpty() && returned != null) {
             problems += "$name's return type names the events it produces: @OnCommand(produces) is for a return " +
                 "type that does not, such as a Decision"
         }
-        unlistedEvents(function, open, returned, producesListed)?.let { warnings += it }
+        unlistedEvents(function, open, returned, producesListed, problems)?.let { warnings += it }
         val creation = when {
             command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
             command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
@@ -329,7 +333,7 @@ internal class AggregateAnalyzer(
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,
             schedules = schedules,
-            onDeleted = declaredOnDeleted(function),
+            onDeleted = declaredOnDeleted(onCommand),
             description = Descriptions.of(command, problems),
             blocking = blocking,
         )
@@ -371,34 +375,29 @@ internal class AggregateAnalyzer(
         return commandType
     }
 
-    /** The events `@OnCommand(produces)` lists on [function], by qualified name. */
-    private fun declaredProduces(function: KSFunctionDeclaration): List<String> {
-        val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
-        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == PRODUCES }?.value as? List<*>
-        return listed.orEmpty().filterIsInstance<KSType>().mapNotNull { it.declaration.qualifiedName?.asString() }
-            .distinct()
-    }
+    /** The events `@OnCommand(produces)` lists, of the function's [onCommand] read, by qualified name. */
+    private fun declaredProduces(onCommand: AnnotationArguments?): List<String> =
+        onCommand?.types(PRODUCES).orEmpty().mapNotNull { it.declaration.qualifiedName?.asString() }.distinct()
 
-    /** `@OnCommand(onDeleted)` on [function]. */
-    private fun declaredOnDeleted(function: KSFunctionDeclaration): Boolean =
-        function.annotationIn(ON_COMMAND_ANNOTATION)?.arguments
-            ?.firstOrNull { it.name?.asString() == ON_DELETED }?.value == true
+    /** `@OnCommand(onDeleted)`, of the function's [onCommand] read: false by default. */
+    private fun declaredOnDeleted(onCommand: AnnotationArguments?): Boolean = onCommand?.boolean(ON_DELETED) ?: false
 
     /**
-     * The command classes `@OnCommand(schedules)` lists on [function], by binary name; one that names no command class
-     * (`Any`, an interface or an abstract class that is not sealed) is a problem.
+     * The command classes `@OnCommand(schedules)` lists, of [function]'s [onCommand] read, by binary name; one that
+     * names no command class (`Any`, an interface or an abstract class that is not sealed) is a problem.
      */
-    private fun declaredSchedules(function: KSFunctionDeclaration, problems: MutableList<String>): List<String> {
-        val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
-        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == SCHEDULES }?.value as? List<*>
-        return listed.orEmpty().filterIsInstance<KSType>().flatMap { type ->
+    private fun declaredSchedules(
+        function: KSFunctionDeclaration,
+        onCommand: AnnotationArguments?,
+        problems: MutableList<String>,
+    ): List<String> =
+        onCommand?.types(SCHEDULES).orEmpty().flatMap { type ->
             commandClassesOf(type).ifEmpty {
                 problems += "${function.simpleName.asString()} schedules ${type.render()}, which is no command " +
                     "class: @OnCommand(schedules) names command classes, or a sealed type whose subclasses they are"
                 emptyList()
             }
         }.map { it.binaryName() }.distinct()
-    }
 
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
@@ -505,18 +504,20 @@ internal class AggregateAnalyzer(
      * ([produces]) names: the Manifest lists none of them, so the kernel refuses no event it was not meant to produce.
      * It names the return type by its reference (`Decision`), which is what the author looks for in the source.
      * None for an [open] return type, refused already; nor where the function's source is not compiled here, since its
-     * author is the one who lists them, and a library's `@Suppress` does not reach a subclass compiled against it.
+     * author is the one who lists them, and a library's `@Suppress` does not reach a subclass compiled against it. A
+     * `@Suppress` without a value is one of [problems].
      */
     private fun unlistedEvents(
         function: KSFunctionDeclaration,
         open: KSClassDeclaration?,
         returned: List<String>?,
         produces: List<String>,
+        problems: MutableList<String>,
     ): String? {
         if (open != null || returned != null || produces.isNotEmpty()) {
             return null
         }
-        if (function.origin !in SOURCE || function.suppresses(UNLISTED_EVENTS)) {
+        if (function.origin !in SOURCE || function.suppresses(UNLISTED_EVENTS, problems)) {
             return null
         }
         return "${function.simpleName.asString()} returns ${function.returnType}, which names no event " +

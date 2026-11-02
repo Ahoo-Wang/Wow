@@ -13,19 +13,18 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 
-/** The arguments of an aggregate root's `@AggregateRoot`, read and checked for the model processor. */
+/**
+ * The arguments of an aggregate root's `@AggregateRoot`, read and checked for the model processor. Each function takes
+ * the root's `@AggregateRoot` read ([me.ahoo.wow.compiler.model.symbol.argumentsOf]), null when one of its arguments has
+ * no value, a problem of the root already: it then answers the annotation's default, to go on checking the root.
+ */
 internal object AggregateRootArguments {
-    private val AGGREGATE_ROOT = AggregateRoot::class.java.name
     private const val LIFECYCLE = "lifecycle"
     private const val OWNERSHIP = "ownership"
     private const val ID_SOURCE = "idSource"
@@ -45,23 +44,17 @@ internal object AggregateRootArguments {
      * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it;
      * a topic Kafka would refuse is a problem ([Publication.topicProblem]).
      */
-    fun publication(root: KSClassDeclaration, problems: MutableList<String>): Publication {
-        val arguments = root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }?.arguments.orEmpty().associate { it.name?.asString() to it.value }
-        val topic = (arguments[TOPIC] as? String).orEmpty().ifEmpty { null }
+    fun publication(arguments: AnnotationArguments?, problems: MutableList<String>): Publication {
+        val topic = arguments?.string(TOPIC).orEmpty().ifEmpty { null }
         topic?.let(Publication::topicProblem)?.let { problems += it }
         return Publication(
-            published = arguments[PUBLISHED] as? Boolean ?: true,
-            includeState = arguments[PUBLISH_STATE] as? Boolean ?: true,
+            published = arguments?.boolean(PUBLISHED) ?: true,
+            includeState = arguments?.boolean(PUBLISH_STATE) ?: true,
             topic = topic,
         )
     }
 
-    /**
-     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default. [arguments] are the
-     * root's `@AggregateRoot` read, null when one of them has no value (a problem of the root already).
-     */
+    /** Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default. */
     fun snapshot(arguments: AnnotationArguments?): Boolean = arguments?.boolean(SNAPSHOT) ?: true
 
     /**
@@ -80,33 +73,20 @@ internal object AggregateRootArguments {
      * The aggregate's ownership as `@AggregateRoot(ownership)` declares it: the name of the
      * `Ownership` entry, `OWNER` by default.
      */
-    fun ownership(root: KSClassDeclaration): String = enumArgument(root, OWNERSHIP) ?: Ownership.OWNER.name
+    fun ownership(arguments: AnnotationArguments?): String = arguments?.enumName(OWNERSHIP) ?: Ownership.OWNER.name
 
     /**
      * Where the aggregate's id comes from as `@AggregateRoot(idSource)` declares it: the name of the
      * `AggregateIdSource` entry, `ASSIGNED` by default. An id that is its owner's needs an aggregate of its owner: one
      * of its tenant ([ownership] `TENANT`) is a problem.
      */
-    fun idSource(root: KSClassDeclaration, ownership: String, problems: MutableList<String>): String {
-        val source = enumArgument(root, ID_SOURCE) ?: AggregateIdSource.ASSIGNED.name
+    fun idSource(arguments: AnnotationArguments?, ownership: String, problems: MutableList<String>): String {
+        val source = arguments?.enumName(ID_SOURCE) ?: AggregateIdSource.ASSIGNED.name
         if (source == AggregateIdSource.OWNER.name && ownership == Ownership.TENANT.name) {
             problems += "@AggregateRoot(idSource = OWNER) needs an aggregate that belongs to its owner, but it belongs to " +
                 "its tenant (ownership = TENANT): it has no owner to take its id from"
         }
         return source
-    }
-
-    /** The name of the enum entry `@AggregateRoot`'s argument [name] holds, null when it is not given. */
-    private fun enumArgument(root: KSClassDeclaration, name: String): String? {
-        val value = root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }?.arguments?.firstOrNull { it.name?.asString() == name }?.value
-        return when (value) {
-            is KSType -> value.declaration.simpleName.asString()
-            is KSDeclaration -> value.simpleName.asString()
-            null -> null
-            else -> value.toString().substringAfterLast('.')
-        }
     }
 
     /**
@@ -116,21 +96,18 @@ internal object AggregateRootArguments {
      * TransferOwner is left out of every one, and a problem when listed with fewer.
      */
     fun lifecycle(
-        root: KSClassDeclaration,
+        arguments: AnnotationArguments?,
         ownership: String,
         idSource: String,
         problems: MutableList<String>,
     ): List<String> {
-        val annotation = root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }
         val tenant = ownership == Ownership.TENANT.name
         val owned = idSource == AggregateIdSource.OWNER.name
         val fixed = tenant || owned
-        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == LIFECYCLE }?.value as? List<*>
+        val listed = arguments?.types(LIFECYCLE)
             ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS.filterNot { fixed && it == TRANSFER_OWNER }
         val commands = LIFECYCLE_COMMANDS
-        val names = listed.filterIsInstance<KSType>().mapNotNull { type ->
+        val names = listed.mapNotNull { type ->
             val name = type.declaration.qualifiedName?.asString()
             commands[name].also {
                 if (it == null) {

@@ -18,7 +18,6 @@ import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
@@ -38,7 +37,6 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
-import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
@@ -426,12 +424,14 @@ internal object SubscriptionResolver {
         if (kind != null && returned != null) {
             returnProblem(kind, returned, reactor)?.let { problems += "$where $it" }
         }
-        val onEvent = function.annotationIn(ON_EVENT)
-        val aggregates = onEvent.strings(AGGREGATES)
+        // The handler's @OnEvent, or the one of the function it overrides.
+        val onEvent = function.annotatedIn(ON_EVENT)?.argumentsOf(OnEvent::class, problems)
+        val aggregates = onEvent?.strings(AGGREGATES).orEmpty()
         val sends = SendsResolver.resolve(function, where, kind == Kind.SAGA, kind?.label, returned, reactor, problems)
         problems += sourceProblems(where, aggregates)
         val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
-        val start = startOf(function, problems)
+        // BEGINNING or END when the handler declares it, null for DEFAULT.
+        val start = onEvent?.enumName(START)?.takeIf { it != OnEvent.Start.DEFAULT.name }
         if (problems.size > count) {
             return null
         }
@@ -592,19 +592,6 @@ internal object SubscriptionResolver {
         }
         return listOfNotNull(problem)
     }
-
-    /** The string array argument [name] of this annotation, empty without the annotation or the argument. */
-    private fun KSAnnotation?.strings(name: String): List<String> =
-        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
-            .filterIsInstance<String>()
-
-    /**
-     * `@OnEvent(start)`: `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
-     * without the annotation, or, one of [problems], when its `@OnEvent` has an argument without a value.
-     */
-    private fun startOf(function: KSFunctionDeclaration, problems: MutableList<String>): String? =
-        (function.annotatedIn(ON_EVENT) ?: function).argumentsOf(OnEvent::class, problems)?.enumName(START)
-            ?.takeIf { it != OnEvent.Start.DEFAULT.name }
 
     private fun parameterProblems(where: String, parameters: List<KSType>, kind: Kind?): List<String> = buildList {
         val first = parameters.firstOrNull()

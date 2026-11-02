@@ -164,15 +164,17 @@ class BoundedContextArgumentsTest {
     }
 
     @Test
-    fun `the arguments should be read as given, a description left out being its default`() {
+    fun `the arguments should be read as given, a description left out being empty`() {
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "The shop"))
             .assert().isEqualTo(BoundedContextArguments("shop", "The shop"))
-        // KSP lists a default among the arguments, and among the default arguments.
+        // KSP lists a default among the arguments, and among the default arguments; listed nowhere, it is the class's.
         val default = listOf("description" to "")
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "", default = default))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", default = default))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop")).assert()
+            .isEqualTo(BoundedContextArguments("shop", ""))
     }
 
     @Test
@@ -184,8 +186,6 @@ class BoundedContextArgumentsTest {
         val default = listOf("description" to "")
         BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null, default = default))
             .assert().isNull()
-        // No value listed at all, not even a default.
-        BoundedContextArguments.of(fakeAnnotation("name" to "shop")).assert().isNull()
     }
 
     /** The one context of the Manifest fragment [compilation] generated. */

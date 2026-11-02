@@ -80,8 +80,9 @@ internal object AggregateIdResolver {
         if (property.isPrivate() || property.isProtected() || property.getter?.isPrivateGetter() == true) {
             problems += "$where is not visible to the generated model: make it public or internal"
         }
-        val ignored = command.jsonIgnoredProperties()
-        if (property.jsonIgnored() || propertyName in ignored || property.wireName() in ignored) {
+        val ignored = command.jsonIgnoredProperties(problems)
+        val wireName = property.wireName(problems)
+        if (property.jsonIgnored(problems) || propertyName in ignored || wireName in ignored) {
             problems += "$where is not written by Wow's JSON (@JsonIgnore, @JsonIgnoreProperties): it writes the " +
                 "property that holds the aggregate's id, so a sender's body holds it"
         }
@@ -89,17 +90,18 @@ internal object AggregateIdResolver {
             problems += "command $name is @Unaddressed and has an @AggregateId property: a transformer finds an " +
                 "unaddressed command's aggregate, and the body names an @AggregateId command's"
         }
-        return AggregateIdBinding(propertyName, property.wireName(), nullable)
+        return AggregateIdBinding(propertyName, wireName, nullable)
     }
 
     /**
      * The warning of a [command] that has a `String` property named `id`, stored or computed, its own or a supertype's
      * (9.x's `Identifier.id`), and no `@AggregateId` property: Wow 10 does not take a command's aggregate from its body
      * by a property's name, as 9.x did. None where the command suppresses it ([UNMARKED_AGGREGATE_ID]), nor where its
-     * source is not compiled here: its author marks it, and a library's `@Suppress` does not reach this compilation.
+     * source is not compiled here: its author marks it, and a library's `@Suppress` does not reach this compilation. A
+     * `@Suppress` without a value is one of [problems].
      */
-    fun unmarkedId(command: KSClassDeclaration): String? {
-        if (command.origin !in SOURCE || command.suppresses(UNMARKED_AGGREGATE_ID)) {
+    fun unmarkedId(command: KSClassDeclaration, problems: MutableList<String>): String? {
+        if (command.origin !in SOURCE || command.suppresses(UNMARKED_AGGREGATE_ID, problems)) {
             return null
         }
         val properties = propertiesOf(command)
