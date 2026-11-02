@@ -54,7 +54,7 @@ class SourceTokenRulesTest {
     }
 
     @Test
-    fun `the compiler should read no annotation through getAnnotationsByType, an import or a call`(@TempDir root: File) {
+    fun `the compiler should neither import nor call getAnnotationsByType`(@TempDir root: File) {
         File(root, "${ArchitectureRules.COMPILER.dir}/src/main/kotlin/Names.kt").apply {
             parentFile.mkdirs()
             writeText(
