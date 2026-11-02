@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.json.WowJson
  * The commit of [events] at [version] of [ref], leaving it in [state], as a processor's handler receives it: the
  * events of its own context as their classes, those of a stream it reads from another context as the classes of
  * that context's api, or [publishedEvent]s for those it has no class of at their revision. The command's ids default to `command-<version>` and `request-<version>`, and the commit time
- * to [DEFAULT_START].
+ * to [DEFAULT_START]. [tags] are the aggregate's tags after the commit, none by default.
  */
 @Suppress("LongParameterList")
 fun <S> stateEvent(
@@ -41,6 +41,7 @@ fun <S> stateEvent(
     causation: Causation? = null,
     headers: Map<String, String> = emptyMap(),
     operator: Operator? = null,
+    tags: Map<String, List<String>> = emptyMap(),
 ): StateEvent<S> = StateEvent(
     ref = ref,
     version = version,
@@ -54,6 +55,7 @@ fun <S> stateEvent(
     causation = causation,
     headers = headers,
     operator = operator,
+    tags = tags,
 )
 
 /**

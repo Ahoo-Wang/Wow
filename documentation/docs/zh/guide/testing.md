@@ -279,7 +279,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 | 步骤 | 作用 |
 | --- | --- |
-| `givenAggregate(model, id, vararg history, tenantId, scope)` | 给出聚合，`whenEvent` 交出的是它之后的提交；它处于其历史留下的状态和版本。分叉推进的是自己的副本。 |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | 给出聚合，`whenEvent` 交出的是它之后的提交；它处于其历史留下的状态和版本。每次提交都带着提交之后聚合的标签，与内核保持的一致：事件中的 `TagsApplied.of(tags)` 像 `ApplyTags` 那样设置标签，状态派生的键（`@Tags`）再覆盖它们。分叉推进的是自己的副本。 |
 | `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | 在给出的聚合（`on`，默认是唯一的那个）上提交这些事件，并把这次提交交给读取它的处理函数。`by` 是提交这些事件的命令类，它像模型那样为提交给出命令类型；`handler = "onX"` 只调用那个处理函数。 |
 | `whenEvent(stateEvent, handler) { … }` | 交出一个手工构建的提交（[对端状态与发布的事件流](#peer-states-and-published-streams)）。 |
 | `whenRedelivered(on, handler) { … }` | 把最近一次提交再交一次，就像对每次提交至少投递一次的订阅在重试或重新分配之后所做的那样。幂等的处理函数会再做一遍同样的事，或什么都不做。 |
@@ -378,7 +378,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 
 ### 对端状态与发布的事件流 {#peer-states-and-published-streams}
 
-对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像 `OrderPaymentSagaTest` 那样。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
+对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像 `OrderPaymentSagaTest` 那样；它的 `tags` 是提交之后聚合的标签，默认没有。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
 
 ## 投影与反应器 {#projections-and-reactors}
 

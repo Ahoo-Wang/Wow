@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -34,6 +35,10 @@ import kotlin.reflect.KClass
  * A sourcing function that reads the commit of its event reads the commit as [stateEvent] gives it: committed at
  * [DEFAULT_START], of the command `command-<version>`, in the name of the operator [ProcessorSpec.whenEvent] names
  * (none in the history).
+ *
+ * A commit handed over carries the aggregate's tags after it, as the kernel keeps them: those the last `TagsApplied`
+ * applied (`TagsApplied.of(tags)` in the history, as `ApplyTags` commits it), each key the state derives (`@Tags`)
+ * overriding them.
  */
 class GivenAggregate<S : Any> private constructor(
     /** The model that evolves the aggregate's state. */
@@ -77,14 +82,23 @@ class GivenAggregate<S : Any> private constructor(
         private set
 
     /** The state it is in, replayed anew on each read, as states are mutable. */
-    val state: S get() = stateAfter(null)
+    val state: S get() = replay(null).state
 
-    /** The state its commits, then [next], evolve it to; each event with its commit, for the functions that read it. */
-    private fun stateAfter(next: Commit?): S =
-        (commits + listOfNotNull(next)).fold(model.initialState(ref)) { state, commit ->
+    /**
+     * The state its commits, then [next], evolve it to, each event with its commit for the functions that read it, and
+     * its tags after them, as the kernel keeps them: after each commit, those its last `TagsApplied` applied, else those
+     * before it, each key the state then derives (`@Tags`) overriding them.
+     */
+    private fun replay(next: Commit?): Replayed<S> =
+        (commits + listOfNotNull(next)).fold(Replayed(model.initialState(ref), emptyMap())) { replayed, commit ->
             val stream = if (model.readsCommits) streamOf(commit) else null
-            commit.events.fold(state) { current, event -> model.evolve(current, event, stream) }
+            val state = commit.events.fold(replayed.state) { current, event -> model.evolve(current, event, stream) }
+            val applied = commit.events.filterIsInstance<TagsApplied>().lastOrNull()?.tags ?: replayed.tags
+            Replayed(state, model.tagsOf(state, applied))
         }
+
+    /** A state replayed, with the aggregate's tags in it. */
+    private class Replayed<S>(val state: S, val tags: Map<String, List<String>>)
 
     /** The commit a sourcing function reads, with the facts of the [StateEvent] handed over of it. */
     private fun streamOf(commit: Commit): EventStream = EventStream.of(
@@ -114,15 +128,17 @@ class GivenAggregate<S : Any> private constructor(
     ): StateEvent<S> {
         require(events.isNotEmpty()) { "A commit has at least one event." }
         val next = Commit(version + 1, events, by?.let { commandTypeOf(it.java) } ?: "${ref.type}.Command", operator)
+        val after = replay(next)
         val commit = stateEvent(
             ref,
-            stateAfter(next),
+            after.state,
             *events.toTypedArray(),
             version = next.version,
             commandType = next.commandType,
             scope = scope,
             headers = headers,
             operator = operator,
+            tags = after.tags,
         )
         commits += next
         version = commit.version

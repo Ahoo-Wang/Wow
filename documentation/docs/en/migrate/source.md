@@ -172,7 +172,7 @@ fun onOrderSubmitted(
 ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
-A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
+A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A saga that read the tags of 9.x's read-only state aggregate reads `event.tags`, the aggregate's tags after the commit, not the snapshot's. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
 
 A periodic job a 9.x service ran in Simba or `@Scheduled` is an `@OnSchedule` handler of a saga, on a cron rule, when it derives commands from what is due; a job that waits for each command's outcome before the next stays outside, sending through the `CommandClient` ([Scheduled Commands](../guide/scheduling)). A 9.x backfill that re-dispatched stored events to one handler is a handler of a new name with `@OnEvent(start = OnEvent.Start.BEGINNING)`, which reads the stream once from its start ([Rebuild and Replay](../operate/replay)).
 
