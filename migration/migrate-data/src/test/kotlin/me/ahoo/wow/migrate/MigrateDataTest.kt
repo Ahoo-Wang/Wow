@@ -41,6 +41,7 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.ZoneId
 
 class MigrateDataTest {
     @TempDir
@@ -377,7 +378,8 @@ class MigrateDataTest {
         store.load(NineXExample.orderModel.type.ref(id.tenantId, id.id))!!.version.assert().isEqualTo(4)
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
-        printed.assert().contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
+        printed.assert().contains("Comparing in the time zone ${ZoneId.systemDefault()}: run compare in the one 9.x")
+            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
             .contains("Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key")
         run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("0 V10 snapshots written, 1 already there")
