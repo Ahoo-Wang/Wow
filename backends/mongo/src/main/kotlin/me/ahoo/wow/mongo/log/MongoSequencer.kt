@@ -126,6 +126,15 @@ internal class MongoSequencer(
                 var closing: Closing? = null
                 val usable = current?.takeIf { it.next <= it.to && collection in it.collections && it.next > after }
                 val block = usable ?: run {
+                    val held = current
+                    X60Probe.count(
+                        when {
+                            held == null -> "reserve.none"
+                            held.next > held.to -> "reserve.usedUp"
+                            collection !in held.collections -> "reserve.collection"
+                            else -> "reserve.after"
+                        },
+                    )
                     // Reserved first: a reservation that fails leaves the current block as it was.
                     val fresh = reserve(registered() + collection)
                     closing = current?.let(::retire)

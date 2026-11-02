@@ -256,7 +256,13 @@ class MongoEventLog(
     }
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
-        dispatcher.mongo { appender.appendNow(stream, transport) }.also { outcome ->
+        dispatcher.mongo {
+            val start = System.nanoTime()
+            appender.appendNow(stream, transport).also {
+                X60Probe.count("single.calls")
+                X60Probe.count("single.micros", (System.nanoTime() - start) / 1_000)
+            }
+        }.also { outcome ->
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
 
@@ -278,7 +284,10 @@ class MongoEventLog(
             "A group commit appends streams of $context."
         }
         requireChains(streams)
-        return dispatcher.mongo { appender.appendGroup(streams) }.also { outcomes ->
+        return dispatcher.mongo {
+            val start = System.nanoTime()
+            appender.appendGroup(streams).also { X60Probe.count("group.micros", (System.nanoTime() - start) / 1_000) }
+        }.also { outcomes ->
             outcomes.filterIsInstance<AppendOutcome.Committed>().map { it.position.partition }.distinct()
                 .forEach { pacer.committed(it) }
         }
@@ -441,9 +450,11 @@ class MongoEventLog(
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { readTail(partition, last) }
+            X60Probe.count("tail.read")
             batch.entries.forEach { emit(it) }
             last = batch.through
             val missing = batch.missing
+            if (missing != null) X60Probe.count("tail.missing")
             when {
                 missing == null -> stalled = 0L
                 missing != stalled -> {
@@ -530,7 +541,9 @@ class MongoEventLog(
      */
     private fun resolve(partition: Int, sequence: Long) {
         val counter = committedCounters.find(Filters.eq(ID, partition)).firstOrNull()
-        when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
+        val resolved = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))
+        X60Probe.count("resolve.${resolved.javaClass.simpleName}")
+        when (val resolution = resolved) {
             MongoSequencer.Resolution.Wait -> Unit
             is MongoSequencer.Resolution.Close -> appender.close(resolution.closing)
             is MongoSequencer.Resolution.Fill ->
@@ -583,6 +596,7 @@ class MongoEventLog(
      */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        X60Probe.count("head.read")
         return dispatcher.mongo { headOf(partition) }
     }
 
