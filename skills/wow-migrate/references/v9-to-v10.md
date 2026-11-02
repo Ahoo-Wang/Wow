@@ -430,7 +430,7 @@ In `migration-map.json`, map the 9.x event to that name with `"retire": true` (`
 A 9.x event or state that stored a Wow query type (a saved filter as a `Condition`, a default `Sort`, a `Projection`) cannot keep it:
 
 - The `Condition` protocol is gone (decision D125).
-- The kernel encodes events and states with `WowJson.mapper`, which registers no codec of the query protocol (that codec is the query engine's, the HTTP edge's and the clients'), so a `FilterExpression`, `Sort` or `Projection` field, a sealed or internally constructed type, has no JSON form there.
+- The kernel encodes events and states with `WowJson.mapper`, which registers no codec of the query protocol (that codec is the query engine's, the HTTP edge's and the clients'), so a `FilterExpression`, `Sort` or `Projection` field, a sealed or internally constructed type, has no JSON form there; the build (`generateWowManifestFragment`) refuses an event or a state that holds a type of `me.ahoo.wow.api.query` anywhere, naming its path.
 - The query protocol's enumerations are lower-kebab (`asc`, not `ASC`), so a stored 9.x `Sort` does not read either.
 
 Give the field a type of the application's own (a data class of the filter it saves, or a Jackson `ObjectNode` of filter JSON) and turn it into a `FilterExpression` where it is queried. Raise the event's `@Revision` and write an `@Upgrade` that rewrites the stored 9.x JSON (a `Condition` is `{field, operator, value, children, options}`, its `operator` upper case) into that shape, with a test that decodes a real 9.x payload. List every such field in the report.

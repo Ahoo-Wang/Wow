@@ -101,6 +101,9 @@ import kotlin.reflect.jvm.kotlinProperty
  *   ([QueryIndexes]); an invalid declaration fails the generation.
  * - The fingerprint is the shape of the state's JSON as Wow writes it ([StateJson.fingerprint]), the one a snapshot
  *   is written under.
+ * - An event or a state that holds a type of Wow's query protocol, anywhere in what Wow writes of it, fails the
+ *   generation, naming each path to one ([StoredQueryTypes]): Wow's JSON does not read them back from a store. A
+ *   command or a query holds them freely.
  */
 internal class SchemaIntrospector(
     private val classLoader: ClassLoader,
@@ -114,6 +117,10 @@ internal class SchemaIntrospector(
             .filterNot { it.startsWith(CommandRoutes.SYSTEM_SEGMENT_PREFIX) }.associateWith(::load) +
             systemBodies(fragment)
         val states = aggregates.map { load(Manifest.schemaKey(it.state.schema)) }
+        // An event or a state stores no type of the query protocol, which Wow's JSON would not read back.
+        val events = aggregates.flatMap { it.events }.mapNotNull { types[Manifest.schemaKey(it.schema)] }
+        val held = (events + states).distinct().flatMap(StoredQueryTypes::of)
+        check(held.isEmpty()) { StoredQueryTypes.problem(held) }
         val queryKeywords = QueryFieldKeywords(states.toSet())
         val builder = generator(queryKeywords).buildMultipleSchemaDefinitions()
         val references = types.mapValues { (_, type) -> builder.createSchemaReference(type) }

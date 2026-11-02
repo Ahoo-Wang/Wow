@@ -332,6 +332,7 @@ fun onSourcing(event: OrderSubmitted) {
 - A sourcing function that changes the state in place returns nothing. One that returns the state type returns the new state instead, for an immutable state.
 - Give every property a value before the first event. The kernel serializes the state as it is, for snapshots and for the published stream.
 - A property in a `val` with no setter reads back into its field from a snapshot, or from a state a query returns: a collection or map the state fills as it goes (`val items = sortedSetOf<String>()`, a `MutableList` or a `MutableMap`) and a value set at construction alike. A computed property, a getter with no field behind it, is written and not read.
+- A state and its events hold no type of Wow's query protocol (`me.ahoo.wow.api.query`: a filter, a sort, a projection, a field). Those are wire types that evolve with Wow, and the build refuses a state or an event that holds one, naming its path: hold a type of your own, such as a list of field names, and build the query from it when it runs. A command or a query holds them freely.
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
 
 ### Read the commit
