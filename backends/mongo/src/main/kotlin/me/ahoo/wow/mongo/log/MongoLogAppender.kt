@@ -143,11 +143,8 @@ internal class MongoLogAppender(
         // A member whose position was taken (its block sealed), or that its insert did not reach, has no outcome yet:
         // it is appended again, alone, in order, unless one of its aggregate's did not commit.
         failed.clear()
-        X60Probe.count("group.calls")
-        X60Probe.count("group.streams", streams.size.toLong())
         return outcomes.mapIndexed { index, outcome ->
             val (stream, transport) = streams[index]
-            if (outcome == null && failed[stream.ref] == null) X60Probe.count("group.again")
             failed[stream.ref] ?: (outcome ?: appendNow(stream, transport)).also {
                 if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it)
             }
@@ -264,7 +261,6 @@ internal class MongoLogAppender(
     private fun previousOf(collection: AggregateCollection, stream: EventStreamRecord): Long? {
         if (stream.version == 1) return 0
         lastSequences[stream.ref]?.takeIf { it.version == stream.version - 1 }?.let { return it.sequence }
-        X60Probe.count(if (lastSequences[stream.ref] == null) "previousOf.unknown" else "previousOf.stale")
         val latest = collection.committed.find(lookups.refFilter(stream.ref))
             .sort(Sorts.descending(VERSION))
             .projection(Projections.include(VERSION, SEQUENCE))
@@ -345,7 +341,6 @@ internal class MongoLogAppender(
      * there takes it first, and settles it as well. A placeholder that cannot be written now is left to the tail.
      */
     fun fill(collection: AggregateCollection, partition: Int, sequence: Long, reason: String) {
-        X60Probe.count("fill.$reason")
         try {
             collection.appends.insertOne(placeholder(partition, sequence, reason))
         } catch (failure: MongoException) {
@@ -359,7 +354,6 @@ internal class MongoLogAppender(
 
     /** Writes [closing], a block's unused remainder, as one range placeholder, and settles it. */
     fun close(closing: MongoSequencer.Closing) {
-        X60Probe.count("close")
         val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
         try {
             collections.named(closing.collection).appends.insertOne(placeholder)
