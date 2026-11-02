@@ -52,6 +52,8 @@
 
 `me.ahoo.wow.service` 插件按约定注册名为 `integrationTest` 的 JVM 测试套件（Gradle 的 JVM Test Suite），`check` 不依赖它（与仓库的约定一致：容器测试显式运行）。不替用户添加 Testcontainers 或任何依赖，只给出源码集与任务。快速开始与测试页面写明。
 
+实现时查明：这个约定早由 #4679（DX-2）实现，只是 G17 没有关闭；当时领域插件 `me.ahoo.wow` 也注册了套件。现收窄为只由 `me.ahoo.wow.service` 注册：领域模块是纯的，容器测试不属于它。套件继承用户自己声明的 `testImplementation`、`testRuntimeOnly`，那是用户的依赖，不算插件替用户添加，用户因此不必在套件里重新声明 BOM 与测试依赖。在模块自己的构建脚本里以 `testing.suites.named<JvmTestSuite>("integrationTest")` 配置它；插件之前已声明的同名套件或源码集原样保留。
+
 ### ⑥ eShop 改用以上部件
 
 ①～④ 合并后，eShop 的服务端测试与 `EshopLocal` 改用它们，作为这些 API 的第一个用户，检验其易用性。改不顺手的地方回到 ①～④ 修正，而不是在 eShop 里绕开。每个服务各测一遍 springdoc 与 Swagger UI 的用例，只留一处。
