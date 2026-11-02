@@ -180,6 +180,7 @@ class MigrateDataTest {
         val config = config()
         run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("example-service.order done").contains("Import done.")
+            .doesNotContain("were already in the log")
         val checkpoints = FileCheckpointRepository(directory.resolve("migrate-data.checkpoint.json")).load()
         checkpoints.of(NineXAggregate("example-service", "cart"))!!.completed.assert().isTrue()
         run("tail", "--config", config.toString(), "--once").assert().isEqualTo(MigrateData.OK)
@@ -187,7 +188,11 @@ class MigrateDataTest {
         run("tail", "--config", config.toString(), running = { ++passes < 2 }).assert().isEqualTo(MigrateData.OK)
         passes.assert().isEqualTo(2)
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
-        printed.assert().contains("4 skipped")
+        printed.assert().contains("4 skipped").contains(
+            "8 streams of [example-service.order, example-service.cart] were already in the log, and " +
+                "were passed over as they were converted then: a change of the map since reaches them only in a " +
+                "fresh target.",
+        )
     }
 
     @Test

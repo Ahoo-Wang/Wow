@@ -280,7 +280,7 @@ internal class MigrateData(
             FileCheckpointRepository(Path.of(config.checkpoint))
         }
         val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
-        plan.aggregates.keys.forEach { importer.importAll(it) }
+        passedOver(plan.aggregates.keys.map { importer.importAll(it) })?.let(out::println)
         if (!dryRun) {
             recordCutover(plan, connections)
         }
@@ -591,6 +591,17 @@ internal class MigrateData(
         )
         missing.values.forEach { appendLine("  $it") }
         append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
+    }
+
+    /**
+     * What an import's [progress] passed over: the streams the log already held, from an earlier run, kept as they
+     * were converted then, so a change of the map since does not reach them. Null when it passed over none.
+     */
+    private fun passedOver(progress: List<ImportProgress>): String? {
+        val skipped = progress.filter { it.skipped > 0 }.ifEmpty { return null }
+        return "${skipped.sumOf { it.skipped }} streams of ${skipped.map { it.aggregate }} were already in the log, " +
+            "and were passed over as they were converted then: a change of the map since reaches them only in a " +
+            "fresh target."
     }
 
     /** Records where the imported history ends in each context's log, after a pass that appended to it. */
