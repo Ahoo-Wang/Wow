@@ -57,6 +57,12 @@
           "resource": ["http:path:/eshop-inventory/stock/*/receive-stock", "http:path:/eshop-ordering/order/*/ship-order"]
         },
         {
+          "name": "the orders listed, which the ordering numbers",
+          "effect": "allow",
+          "action": "http:POST",
+          "resource": "http:path:/eshop-ordering/order/snapshot/query"
+        },
+        {
           "name": "the states and traces of the shop's aggregates",
           "effect": "allow",
           "action": "http:GET",
