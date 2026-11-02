@@ -17,6 +17,10 @@ import {
   nextPage,
   plan,
   report,
+  reportedRuns,
+  sweep,
+  SWEEP_HOURS,
+  WORKFLOWS,
 } from './nightly-issues.mjs';
 
 const REPOSITORY = 'Ahoo-Wang/Wow';
@@ -239,6 +243,8 @@ function fakeClient({
   theRun = run(),
   jobs = JOBS,
   issues = [],
+  comments = {},
+  latest = {},
   label = true,
   created,
 } = {}) {
@@ -248,6 +254,14 @@ function fakeClient({
     run: async (id, attempt) => {
       calls.push(['run', id, attempt]);
       return theRun;
+    },
+    comments: async number => {
+      calls.push(['comments', number]);
+      return comments[number] ?? [];
+    },
+    latestDispatchRun: async (workflow, since) => {
+      calls.push(['latest', workflow, since]);
+      return latest[workflow] ?? null;
     },
     jobs: async (id, attempt) => {
       calls.push(['jobs', id, attempt]);
@@ -266,7 +280,9 @@ function fakeClient({
 }
 
 const writes = client =>
-  client.calls.filter(([name]) => !['run', 'jobs'].includes(name));
+  client.calls.filter(
+    ([name]) => !['run', 'jobs', 'comments', 'latest'].includes(name),
+  );
 
 test('a report opens the issue with the label, creating the label once', async () => {
   const client = fakeClient({ label: false });
@@ -457,9 +473,17 @@ test('the workflow reports every workflow nightly.yml dispatches, with the write
     'CI',
   ]);
 
+  assert.deepEqual(
+    [...nightly.matchAll(/gh workflow run (\S+\.yml) --ref main/g)].map(
+      ([, file]) => file,
+    ),
+    WORKFLOWS,
+    'the sweep watches the workflows nightly.yml dispatches',
+  );
+
   const workflow = read('nightly-issues.yml');
   const on = /^on:\n {2}workflow_run:\n((?: {4}.+\n)+)/m.exec(workflow)?.[1];
-  assert.ok(on, 'triggered by workflow_run alone');
+  assert.ok(on, 'triggered by workflow_run first');
   const listed = /workflows: \[(.+)\]/
     .exec(on)[1]
     .split(',')
@@ -467,12 +491,275 @@ test('the workflow reports every workflow nightly.yml dispatches, with the write
   assert.deepEqual([...listed].sort(), [...dispatched].sort());
   assert.match(on, /types: \[completed\]/);
   assert.match(on, /branches: \[main\]/);
+  // The sweep: on a schedule after the nightly window, and by hand.
   assert.match(
     workflow,
-    /if: github\.repository == 'Ahoo-Wang\/Wow' && github\.event\.workflow_run\.event == 'workflow_dispatch'/,
+    /^ {2}schedule:\n(?: {4}#.*\n)*(?: {4}- cron: '\d+ \d+ \* \* \*'\n)+/m,
+  );
+  assert.match(workflow, /^ {2}workflow_dispatch:$/m);
+  assert.match(
+    workflow,
+    /if: github\.repository == 'Ahoo-Wang\/Wow' && \(github\.event_name != 'workflow_run' \|\| github\.event\.workflow_run\.event == 'workflow_dispatch'\)/,
+  );
+  assert.match(
+    workflow,
+    /SWEEP: \$\{\{ github\.event_name != 'workflow_run' \}\}/,
   );
   assert.match(workflow, /^permissions:\n {2}contents: read\n\n/m);
   assert.equal(workflow.match(/issues: write/g).length, 1);
   assert.equal(workflow.match(/actions: read/g).length, 1);
   assert.match(workflow, /run: node \.github\/scripts\/nightly-issues\.mjs$/m);
+});
+
+test('the runs an issue names come from the run links in its body and comments', () => {
+  assert.deepEqual(
+    [
+      ...reportedRuns([
+        '- Run: [Soak #9](https://github.com/Ahoo-Wang/Wow/actions/runs/40969321145) (attempt 1)',
+        'Failed again.\n\n- [Shard](https://github.com/Ahoo-Wang/Wow/actions/runs/41/job/5)',
+        undefined,
+      ]),
+    ],
+    [40969321145, 41],
+  );
+});
+
+test('a failed run the open issue already names, in its body or a comment, changes nothing', () => {
+  const failed = run();
+  const reported = new Set([failed.id]);
+  const step = plan({
+    run: failed,
+    jobs: JOBS,
+    issues: [issue()],
+    repository: REPOSITORY,
+    reported,
+  });
+  assert.equal(step.action, 'none');
+  assert.equal(
+    step.reason,
+    'Soak run 40969321145 failed; already reported on #5300',
+  );
+  // A green run still closes the issue that named its failure.
+  assert.equal(
+    plan({
+      run: run({ conclusion: 'success' }),
+      jobs: [],
+      issues: [issue()],
+      repository: REPOSITORY,
+      reported,
+    }).action,
+    'close',
+  );
+});
+
+const SINCE = '2026-11-01T14:00:00Z';
+const GA = run({
+  id: 41356177755,
+  name: 'GA end-to-end',
+  run_number: 56,
+  html_url: 'https://github.com/Ahoo-Wang/Wow/actions/runs/41356177755',
+});
+const green = name => run({ id: 1, name, conclusion: 'success' });
+const gaIssue = (overrides = {}) =>
+  issue({ title: 'Nightly: GA end-to-end failed', number: 5310, ...overrides });
+
+test('the sweep opens an issue for a new failure and leaves the green workflows alone', async () => {
+  const client = fakeClient({
+    label: false,
+    latest: {
+      'soak.yml': green('Soak'),
+      'mongo-cluster.yml': green('MongoDB cluster'),
+      'ga-e2e.yml': GA,
+      'ci.yml': green('CI'),
+    },
+  });
+  const lines = [];
+  const steps = await sweep({
+    client,
+    repository: REPOSITORY,
+    since: SINCE,
+    log: line => lines.push(line),
+  });
+  assert.deepEqual(
+    client.calls.filter(([name]) => name === 'latest'),
+    WORKFLOWS.map(workflow => ['latest', workflow, SINCE]),
+  );
+  assert.equal(steps['ga-e2e.yml'].action, 'open');
+  assert.equal(steps['ga-e2e.yml'].title, 'Nightly: GA end-to-end failed');
+  assert.deepEqual(
+    ['soak.yml', 'mongo-cluster.yml', 'ci.yml'].map(file => steps[file].action),
+    ['none', 'none', 'none'],
+  );
+  assert.deepEqual(
+    writes(client).map(([name]) => name),
+    ['createLabel', 'createIssue'],
+  );
+  assert.ok(
+    lines.includes('GA end-to-end run 41356177755 failed; opening an issue'),
+  );
+});
+
+test('the sweep does not report a failure twice: not one it reported, nor one workflow_run reported', async () => {
+  // The issue's body names the run: workflow_run (or an earlier sweep) opened it.
+  const opened = fakeClient({
+    latest: { 'ga-e2e.yml': GA },
+    issues: [
+      gaIssue({
+        body: `The nightly run of **GA end-to-end** on \`main\` failed.\n\n- Run: [GA end-to-end #56](${GA.html_url})`,
+      }),
+    ],
+  });
+  const steps = await sweep({
+    client: opened,
+    repository: REPOSITORY,
+    workflows: ['ga-e2e.yml'],
+    since: SINCE,
+  });
+  assert.equal(steps['ga-e2e.yml'].action, 'none');
+  assert.deepEqual(writes(opened), []);
+
+  // A comment names it: a later failure the issue already took.
+  const commented = fakeClient({
+    latest: { 'ga-e2e.yml': GA },
+    issues: [
+      gaIssue({
+        body: 'The nightly run failed.\n\n- Run: [#55](https://github.com/Ahoo-Wang/Wow/actions/runs/41245180813)',
+      }),
+    ],
+    comments: {
+      5310: [
+        { body: `Failed again.\n\n- Run: [GA end-to-end #56](${GA.html_url})` },
+      ],
+    },
+  });
+  await sweep({
+    client: commented,
+    repository: REPOSITORY,
+    workflows: ['ga-e2e.yml'],
+    since: SINCE,
+  });
+  assert.deepEqual(writes(commented), []);
+  assert.deepEqual(
+    commented.calls.find(([name]) => name === 'comments'),
+    ['comments', 5310],
+  );
+
+  // A failure the issue does not name yet is commented once.
+  const later = fakeClient({
+    latest: { 'ga-e2e.yml': GA },
+    issues: [
+      gaIssue({
+        body: '- Run: [#55](https://github.com/Ahoo-Wang/Wow/actions/runs/41245180813)',
+      }),
+    ],
+  });
+  await sweep({
+    client: later,
+    repository: REPOSITORY,
+    workflows: ['ga-e2e.yml'],
+    since: SINCE,
+  });
+  assert.deepEqual(
+    writes(later).map(([name, number]) => [name, number]),
+    [['comment', 5310]],
+  );
+});
+
+test('a manual dispatch reported by workflow_run and then seen by the sweep stays one report', async () => {
+  const issues = [];
+  const client = fakeClient({ theRun: GA, latest: { 'ga-e2e.yml': GA } });
+  client.createIssue = async body => {
+    client.calls.push(['createIssue', body]);
+    const opened = {
+      number: 5310,
+      state: 'open',
+      labels: [{ name: LABEL }],
+      ...body,
+    };
+    issues.push(opened);
+    return opened;
+  };
+  client.issues = async () => issues;
+  await report({ client, repository: REPOSITORY, runId: String(GA.id) });
+  await sweep({
+    client,
+    repository: REPOSITORY,
+    workflows: ['ga-e2e.yml'],
+    since: SINCE,
+  });
+  assert.deepEqual(
+    writes(client).map(([name]) => name),
+    ['createIssue'],
+  );
+});
+
+test('the sweep closes the open issue on a pass, and does nothing on a pass without one', async () => {
+  const closing = fakeClient({
+    latest: {
+      'ga-e2e.yml': run({ ...GA, id: 41400000000, conclusion: 'success' }),
+    },
+    issues: [gaIssue()],
+  });
+  const steps = await sweep({
+    client: closing,
+    repository: REPOSITORY,
+    workflows: ['ga-e2e.yml'],
+    since: SINCE,
+  });
+  assert.equal(steps['ga-e2e.yml'].action, 'close');
+  assert.deepEqual(
+    writes(closing).map(([name, number]) => [name, number]),
+    [
+      ['comment', 5310],
+      ['close', 5310],
+    ],
+  );
+
+  const quiet = fakeClient({ latest: { 'ci.yml': green('CI') } });
+  const quietSteps = await sweep({
+    client: quiet,
+    repository: REPOSITORY,
+    workflows: ['ci.yml'],
+    since: SINCE,
+  });
+  assert.equal(quietSteps['ci.yml'].action, 'none');
+  assert.deepEqual(writes(quiet), []);
+});
+
+test('the sweep logs a workflow without a run in the window and goes on', async () => {
+  const client = fakeClient({ latest: { 'ci.yml': green('CI') } });
+  const lines = [];
+  const steps = await sweep({
+    client,
+    repository: REPOSITORY,
+    workflows: ['soak.yml', 'ci.yml'],
+    since: SINCE,
+    log: line => lines.push(line),
+  });
+  assert.equal(steps['soak.yml'], null);
+  assert.equal(steps['ci.yml'].action, 'none');
+  assert.equal(
+    lines[0],
+    `soak.yml: no completed dispatch run on main since ${SINCE}`,
+  );
+  assert.deepEqual(writes(client), []);
+  assert.equal(SWEEP_HOURS, 36);
+});
+
+test("the client reads an issue's comments and a workflow's latest completed dispatch run on main", async () => {
+  const runs = `GET /actions/workflows/ga-e2e.yml/runs?branch=main&event=workflow_dispatch&status=completed&created=${encodeURIComponent(`>=${SINCE}`)}&per_page=1`;
+  const { request, requests } = fakeFetch({
+    'GET /issues/5310/comments?per_page=100': { body: [{ body: 'a' }] },
+    [runs]: { body: { workflow_runs: [GA] } },
+    'GET /actions/workflows/soak.yml/runs?branch=main&event=workflow_dispatch&status=completed&created=%3E%3D2026-11-01T14%3A00%3A00Z&per_page=1':
+      { body: { workflow_runs: [] } },
+  });
+  const client = githubClient({ repository: REPOSITORY, token: 't', request });
+  assert.deepEqual(
+    (await client.comments(5310)).map(comment => comment.body),
+    ['a'],
+  );
+  assert.equal((await client.latestDispatchRun('ga-e2e.yml', SINCE)).id, GA.id);
+  assert.equal(await client.latestDispatchRun('soak.yml', SINCE), null);
+  assert.equal(requests.length, 3);
 });
