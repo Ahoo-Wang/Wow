@@ -15,6 +15,10 @@ package me.ahoo.wow.example.eshop.basket.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -23,9 +27,6 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
@@ -164,7 +165,7 @@ class BasketServerTest {
         val docs = server.http.get("/v3/api-docs")
         docs.status.assert().describedAs(docs.text).isEqualTo(200)
         // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.text.assert().contains("\"/eshop-basket/", "\"${DevelopmentCallerResolver.USER}\"")
+        docs.text.assert().contains("\"/eshop-basket/", "\"${DevelopmentHeaders.USER}\"")
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
             browser.send(
                 HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),

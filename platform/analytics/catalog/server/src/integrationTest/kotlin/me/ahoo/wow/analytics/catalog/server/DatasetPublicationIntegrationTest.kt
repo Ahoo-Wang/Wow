@@ -22,8 +22,8 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouseException
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

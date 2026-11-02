@@ -18,12 +18,12 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.catalog.server.CatalogNode
 import me.ahoo.wow.example.eshop.catalog.server.assertOk
 import me.ahoo.wow.example.eshop.catalog.server.json
 import me.ahoo.wow.example.eshop.catalog.server.startCatalog
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.WowOpenApiSecurity
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -96,7 +96,7 @@ class CatalogSpringdocTest {
     fun `the document should declare the caller's header, so that Try it out sends it`() {
         val document = catalog.get(API_DOCS).assertOk().json
         document["components"]["securitySchemes"]["user"]["name"].asString().assert().isEqualTo(
-            DevelopmentCallerResolver.USER
+            DevelopmentHeaders.USER
         )
         document["security"][0].has("user").assert().isTrue()
     }
@@ -151,7 +151,7 @@ class CatalogOpenApi {
     fun catalogOpenApiSecurity(): WowOpenApiSecurity = WowOpenApiSecurity(
         mapOf(
             "user" to OpenApiSecurityScheme.header(
-                DevelopmentCallerResolver.USER,
+                DevelopmentHeaders.USER,
                 "The user: a buyer with Wow-Owner, or an employee with Wow-Roles.",
             )
         ),

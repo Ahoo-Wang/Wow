@@ -14,11 +14,11 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
@@ -27,7 +27,7 @@ import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import tools.jackson.databind.JsonNode
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP as APP_HEADER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.APP as APP_HEADER
 
 private const val OK = 200
 

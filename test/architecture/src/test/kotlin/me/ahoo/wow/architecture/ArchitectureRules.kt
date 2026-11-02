@@ -289,7 +289,8 @@ object ArchitectureRules {
         // The test DSL's specs over the query engine: the test DSL stays on the kernel, and this module bridges them.
         TEST_QUERY to setOf("test-dsl", "query"),
         // A test's application on the host: the test DSL stays on the kernel, and this kit starts what the host runs.
-        TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
+        // quickstart for the tests only: a real domain the typed clients send to ([ALLOWED_MAIN_PROJECT_DEPENDENCIES]).
+        TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl", "quickstart"),
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
         // The query backend specs test the query engine's backend SPI, and only it.
@@ -643,6 +644,8 @@ object ArchitectureRules {
         HTTP to setOf("runtime", "query", "openapi"),
         // The TestKit fixture's class paths alone: no Wow module reaches the plugin's own class path.
         GRADLE_PLUGIN to setOf("kernel", "compiler", "manifest-tools", "wow-dependencies"),
+        // The test kit's published POM names no example: the quickstart is its tests' alone.
+        TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
     )
 
     private val CONFIGURED_PROJECT_DEPENDENCY =

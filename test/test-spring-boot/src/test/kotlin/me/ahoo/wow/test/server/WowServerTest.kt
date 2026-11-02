@@ -24,6 +24,8 @@ import java.net.Socket
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
 
 /** An application with no domain module: the host alone. */
 @SpringBootConfiguration(proxyBeanMethods = false)
@@ -45,6 +47,18 @@ class WowServerTest {
         }
         accepts(server.publicPort).assert().isFalse()
         accepts(server.internalPort).assert().isFalse()
+    }
+
+    @Test
+    fun `closing a test server should leave another one serving`() {
+        val quick = NAMED + ("spring.reactor.netty.shutdown-quiet-period" to "0s")
+        wowServer<EmptyApp>("dev", properties = quick).use { first ->
+            val second = wowServer<EmptyApp>("dev", properties = quick)
+            // Its loops stop without the default quiet period, two seconds.
+            measureTime { second.close() }.assert().isLessThan(2.seconds)
+            first.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
+            first.internal.get("/").status.assert().isGreaterThanOrEqualTo(400)
+        }
     }
 
     @Test

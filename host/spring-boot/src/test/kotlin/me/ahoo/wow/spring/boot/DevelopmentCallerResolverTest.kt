@@ -17,11 +17,13 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.APP
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.DevelopmentHeaders.APP
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.client.UserCredential
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
@@ -47,7 +49,7 @@ class DevelopmentCallerResolverTest {
             Caller.of(
                 tenantId = "acme",
                 subject = "erin",
-                attributes = mapOf(DevelopmentCallerResolver.ROLES_ATTRIBUTE to listOf("employee", "auditor")),
+                attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", "auditor")),
             ),
         )
     }
@@ -71,6 +73,27 @@ class DevelopmentCallerResolverTest {
         resolve(APP to "console", OWNER to "alice").assert()
             .isEqualTo(Caller.of(attributes = mapOf(Caller.APP to listOf("console"))))
         resolve(APP to " ").assert().isSameAs(Caller.ANONYMOUS)
+    }
+
+    @Test
+    fun `a caller the client's development credential writes should be the caller the host reads`() {
+        val callers = listOf(
+            Caller.of(scope = Scope(ownerId = "alice"), subject = "alice"),
+            Caller.of(
+                tenantId = "acme",
+                subject = "erin",
+                attributes = mapOf(
+                    DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", "auditor"),
+                    Caller.APP to listOf("console"),
+                ),
+            ),
+            Caller.of(attributes = mapOf(Caller.APP to listOf("console"))),
+            Caller.ANONYMOUS,
+        )
+        for (caller in callers) {
+            val headers = runBlocking { UserCredential.DEVELOPMENT.headers(caller) }
+            resolve(*headers.toList().toTypedArray()).assert().isEqualTo(caller)
+        }
     }
 
     @Test

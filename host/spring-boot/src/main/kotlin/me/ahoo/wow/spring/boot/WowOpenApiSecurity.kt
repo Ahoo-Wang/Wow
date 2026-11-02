@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 
@@ -54,11 +55,11 @@ class WowOpenApiSecurity(val schemes: Map<String, OpenApiSecurityScheme>) {
          */
         val DEVELOPMENT: WowOpenApiSecurity = WowOpenApiSecurity(
             listOf(
-                DevelopmentCallerResolver.USER to "The caller's subject; without it, the anonymous caller.",
-                DevelopmentCallerResolver.OWNER to "The owner of the caller's scope; without it, a tenant-level caller.",
-                DevelopmentCallerResolver.ROLES to "The caller's roles, comma-separated.",
-                DevelopmentCallerResolver.TENANT to "The caller's tenant; wow.tenant.default without it.",
-                DevelopmentCallerResolver.APP to "The application the caller calls in.",
+                DevelopmentHeaders.USER to "The caller's subject; without it, the anonymous caller.",
+                DevelopmentHeaders.OWNER to "The owner of the caller's scope; without it, a tenant-level caller.",
+                DevelopmentHeaders.ROLES to "The caller's roles, comma-separated.",
+                DevelopmentHeaders.TENANT to "The caller's tenant; wow.tenant.default without it.",
+                DevelopmentHeaders.APP to "The application the caller calls in.",
             ).associate { (header, description) -> header to OpenApiSecurityScheme.header(header, description) },
         )
 

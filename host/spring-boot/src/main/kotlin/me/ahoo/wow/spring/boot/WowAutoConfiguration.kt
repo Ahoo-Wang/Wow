@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.NodeQueryApi
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerClients
@@ -748,17 +749,17 @@ class WowAutoConfiguration {
         if (development.byProfile) {
             logger.warn {
                 "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port takes " +
-                    "its callers from the ${DevelopmentCallerResolver.USER}, ${DevelopmentCallerResolver.OWNER}, " +
-                    "${DevelopmentCallerResolver.ROLES}, ${DevelopmentCallerResolver.TENANT} and " +
-                    "${DevelopmentCallerResolver.APP} headers any client sets, and serves a request without " +
-                    "${DevelopmentCallerResolver.USER} as the anonymous caller of tenant $tenant."
+                    "its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
+                    "${DevelopmentHeaders.ROLES}, ${DevelopmentHeaders.TENANT} and " +
+                    "${DevelopmentHeaders.APP} headers any client sets, and serves a request without " +
+                    "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant."
             }
             return DevelopmentCallerResolver(tenant)
         }
         logger.warn {
             "No CallerResolver bean, in development by its ${development.reason} alone: every request to the public " +
                 "port is served as the anonymous caller (tenant $tenant, no scope). A profile of wow.dev-profiles " +
-                "takes the callers from the ${DevelopmentCallerResolver.USER} headers instead."
+                "takes the callers from the ${DevelopmentHeaders.USER} headers instead."
         }
         if (tenant == Caller.DEFAULT_TENANT) {
             return CallerResolver.ANONYMOUS

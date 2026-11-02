@@ -14,16 +14,16 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
@@ -202,7 +202,7 @@ class OrderingServerTest {
         val docs = server.http.get("/v3/api-docs")
         docs.status.assert().describedAs(docs.text).isEqualTo(200)
         // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.text.assert().contains("\"/eshop-ordering/", "\"${DevelopmentCallerResolver.USER}\"")
+        docs.text.assert().contains("\"/eshop-ordering/", "\"${DevelopmentHeaders.USER}\"")
         HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
             browser.send(
                 HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),

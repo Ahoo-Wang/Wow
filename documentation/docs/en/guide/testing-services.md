@@ -72,6 +72,57 @@ fun `an order not paid within its grace period should cancel itself`() {
 }
 ```
 
+## Send and read as a caller
+
+The server's typed clients send the commands of the service's api module and read its states, as a caller, with no path and no JSON in the test: `commands(caller)` is a `CommandClient` and `queries(caller)` the caller's `Queries`, both on the server's public port. They are `wow-client`'s, the client a service calls its peers with, in user mode. The caller goes as the development identity headers (`Wow-User`, `Wow-Owner`, `Wow-Roles`, `Wow-Tenant`, `Wow-App`: `UserCredential.DEVELOPMENT`), which the host reads in a development profile when the application has no `CallerResolver` and CoSec is off ([Who the caller is](./http#who-the-caller-is)), so the test starts the server in one, `dev`. The quickstart's bank service, tested so:
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#typed-clients -->
+
+```kotlin
+@Test
+fun `the typed clients should send commands and read states as the caller`() {
+    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val commands = server.commands(alice)
+    runBlocking {
+        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
+
+        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        account.state.balance.assert().isEqualTo(100L)
+        account.operator!!.id.assert().isEqualTo("alice")
+
+        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
+        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    }
+}
+```
+
+- `wait` answers with the result the command's wait plan ends with, which may wait to the end of a saga's chain. A rejection, by the aggregate or at admission (an invalid or unknown command, a forbidden caller), is a `CommandRejectedException` with its error code; any other problem a `WowProblemException`.
+- What no wait plan sees, a scheduled command that fires or a call another service received, a test polls with `eventually("what") { condition }`, every 100 milliseconds for at most 20 seconds by default. A condition that throws, an assertion among them, has not held yet; the failure says what was not reached, with the condition's last failure as its cause.
+- `server.http` stays for the wire itself: a route's shape, a header, a problem's members. `Answer.problem` reads an `application/problem+json` answer as a typed `Problem`: its status, code and violations, the rejected command's result, the aggregate's version, and what a retry may do.
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#problem -->
+
+```kotlin
+@Test
+fun `a problem the server answered should be typed`() {
+    server.http.post("/bank/account/carol/open-account", """{"owner":"Carol"}""").status.assert().isEqualTo(200)
+    val invalid = server.http.post("/bank/account/carol/deposit", """{"amount":0}""").problem!!
+    invalid.status.assert().isEqualTo(400)
+    invalid.code.assert().isEqualTo("wow.command.invalid")
+    val violation = invalid.violations.single()
+    violation.path.assert().isEqualTo("amount")
+    violation.code.assert().isEqualTo("positive")
+
+    val rejected = server.http.post("/bank/account/carol/withdraw", """{"amount":1}""").problem!!
+    rejected.status.assert().isEqualTo(409)
+    rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+    rejected.version.assert().isEqualTo(1)
+    rejected.retry.assert().isEqualTo(Retry.NONE)
+}
+```
+
 ## Run it on real stores
 
 The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. `me.ahoo.wow.service` registers a test suite of its own for them, `integrationTest`, which `check` does not run, so the unit tests stay fast and need no Docker: its sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them. The suite runs on JUnit Jupiter, against the module's classes and everything `testImplementation` gives; the plugin adds nothing else, so the build script declares what the tests need, Testcontainers among them:
