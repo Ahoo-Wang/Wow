@@ -37,8 +37,7 @@ import java.util.Properties
  * - registers [GENERATE_CONTRACT_TASK] ([GenerateContract]), which filters the completed fragment down to the peer
  *   contract of the module's contexts, offered as the variant [CONTRACT_ELEMENTS] (empty for a module of no fragment),
  *   which an api module declares in [CONTRACT_CONFIGURATION] (`me.ahoo.wow.api`, [WowApiPlugin]); the task fails,
- *   naming the line to add, when the classes of a context are in a project that does not pair with the module;
- * - registers the test suite [INTEGRATION_TEST] unless the build declares one.
+ *   naming the line to add, when the classes of a context are in a project that does not pair with the module.
  *
  * It needs Gradle [MIN_GRADLE] or later and the Kotlin Gradle plugin [minKotlin] or later, and fails naming both
  * versions otherwise. A failure names the projects and modules involved, not their build directories. No plugin
@@ -66,7 +65,7 @@ class WowPlugin : Plugin<Project> {
         /** The id of the service module's plugin ([WowServicePlugin]). */
         const val SERVICE_ID = "me.ahoo.wow.service"
 
-        /** The test suite of the container-backed tests the domain and service plugins register. */
+        /** The test suite of the container-backed tests the service plugin registers ([WowServicePlugin]). */
         const val INTEGRATION_TEST: String = "integrationTest"
 
         const val EXTENSION = "wow"
@@ -215,7 +214,9 @@ class WowApiPlugin : Plugin<Project> {
  *   baseline does not record this build's Manifest; [WowPlugin.UPDATE_BASELINE_TASK] ([UpdateManifestBaseline])
  *   records the merged Manifest, without its version, on the line of its major, refusing a break within the line
  *   unless [WowPlugin.ALLOW_BREAKING_PROPERTY] is set. The service publishes no Manifest: its contract is the committed
- *   baseline.
+ *   baseline;
+ * - registers the test suite [WowPlugin.INTEGRATION_TEST] for the tests that run on containers, outside `check`, unless
+ *   the build set up a suite or a source set of that name before.
  *
  * A single-module project, the quickstart's, applies this plugin alone: the module is its domain and its service. It
  * has no api role: a service whose peers compile against its contract splits its commands and events into an api

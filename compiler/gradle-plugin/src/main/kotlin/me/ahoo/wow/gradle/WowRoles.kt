@@ -82,8 +82,8 @@ import org.gradle.testing.base.TestingExtension
 internal object WowRoles {
     /**
      * The domain role of [project], applied by the plugin [id]: once the Kotlin JVM plugin is applied, the Wow
-     * dependencies, KSP, the fragment, the contract and the integration test suite. Without the Kotlin JVM plugin by
-     * the end of its evaluation the project fails, naming the fix.
+     * dependencies, KSP, the fragment and the contract. Without the Kotlin JVM plugin by the end of its evaluation the
+     * project fails, naming the fix.
      */
     fun domain(project: Project, extension: WowExtension, id: String) {
         project.pluginManager.withPlugin(KOTLIN_JVM) { configureDomain(project, extension) }
@@ -104,7 +104,6 @@ internal object WowRoles {
         requireKotlin(project.path, kotlinPluginVersion(project))
         wowDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, KERNEL)
         configureKsp(project, extension)
-        configureIntegrationTest(project)
 
         val tools = toolsConfiguration(project)
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
@@ -256,9 +255,15 @@ internal object WowRoles {
     }
 
     /**
-     * The test suite [INTEGRATION_TEST], unless the build declares one, or a source set of that name: JUnit Jupiter,
-     * against the module's classes and everything `testImplementation` gives (the test DSL, Testcontainers), for the
-     * tests that run on containers. It is not part of `check`: `./gradlew integrationTest` runs it.
+     * The test suite [INTEGRATION_TEST] of a service module, for the tests that run on containers: JUnit Jupiter,
+     * against the module's classes and everything `testImplementation` and `testRuntimeOnly` give, nothing more; the
+     * build declares what else its tests need (Testcontainers) in the suite. It is not part of `check`:
+     * `./gradlew integrationTest` runs it.
+     *
+     * It is registered once the Kotlin JVM plugin is applied, unless a suite or a source set of that name exists by
+     * then: one a convention plugin applied first or the root build set up stays the build's, unchanged. The module's
+     * own build script runs after its plugins, so it configures this suite
+     * (`testing.suites.named<JvmTestSuite>("integrationTest")`) rather than registering one.
      */
     private fun configureIntegrationTest(project: Project) {
         val suites = project.extensions.getByType(TestingExtension::class.java).suites
@@ -439,7 +444,7 @@ internal object WowRoles {
 
     /**
      * The service role of [project]: the service's Manifest merged from the fragments of its runtime class path, its
-     * OpenAPI document, and the gate against its committed baseline.
+     * OpenAPI document, the gate against its committed baseline, and the integration test suite.
      */
     fun service(project: Project, extension: WowServiceExtension) {
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
@@ -447,6 +452,7 @@ internal object WowRoles {
     }
 
     private fun configureService(project: Project, extension: WowServiceExtension) {
+        configureIntegrationTest(project)
         val tools = toolsConfiguration(project)
         val main = project.extensions.getByType(
             SourceSetContainer::class.java

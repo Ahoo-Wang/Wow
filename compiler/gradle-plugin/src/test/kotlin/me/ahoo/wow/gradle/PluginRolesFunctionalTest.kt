@@ -210,36 +210,7 @@ class PluginRolesFunctionalTest {
     }
 
     @Test
-    fun `the integration test suite should run apart from check`(@TempDir root: File) {
-        settings(root, "bank")
-        module(root, "", WowPlugin.ID)
-        bank(root, "")
-        write(
-            root,
-            "src/integrationTest/kotlin/bank/AccountIT.kt",
-            """
-            package bank
-
-            import org.junit.jupiter.api.Test
-
-            class AccountIT {
-                @Test
-                fun opens() {
-                    check(AccountState("a").owner == "")
-                }
-            }
-            """,
-        )
-        val check = runner(root, "check").build()
-        check.task(":${WowPlugin.INTEGRATION_TEST}").assert().isNull()
-        val integration = runner(root, WowPlugin.INTEGRATION_TEST).build()
-        integration.task(":${WowPlugin.INTEGRATION_TEST}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
-        File(root, "build/test-results/integrationTest/TEST-bank.AccountIT.xml").readText().assert()
-            .contains("tests=\"1\"", "failures=\"0\"")
-    }
-
-    @Test
-    fun `the service plugin's integration test suite should take the dependencies the build script gives it`(
+    fun `the service plugin's integration test suite should run apart from check, with what the build script gives it`(
         @TempDir root: File,
     ) {
         settings(root, "bank")

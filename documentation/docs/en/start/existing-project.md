@@ -110,8 +110,7 @@ Once the Kotlin JVM plugin is applied, `me.ahoo.wow`:
 
 - adds `wow-kernel`, which the generated models and the binding index build on;
 - applies KSP with `wow-compiler` of the plugin's version, so the module's aggregates compile into models and its part of the contract, and runs the build's KSP tasks one at a time: KSP runs that overlap in a Gradle daemon can fail to read their class path, and then generate nothing of what they could not resolve;
-- completes that part with the JSON Schemas of the module's types (`generateWowManifestFragment`), and offers the contract its api module declares;
-- registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Test Domain Code](../guide/testing)).
+- completes that part with the JSON Schemas of the module's types (`generateWowManifestFragment`), and offers the contract its api module declares.
 
 The `wow { }` block configures it:
 
@@ -156,7 +155,8 @@ dependencies {
 `me.ahoo.wow.service` does what `me.ahoo.wow` does for the server's own sources (its routes, sagas and projections; nothing when it has none), and:
 
 - merges every part on the runtime class path into the service's Manifest, `build/wow/manifest.json` (`mergeWowManifest`), and writes its OpenAPI document (`generateWowOpenApi`);
-- checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it).
+- checks every build's Manifest against the committed baseline (`checkWowManifest`, part of `check`; `updateWowManifestBaseline` records it);
+- registers the `integrationTest` test suite for the tests that run on containers, outside `check` ([Run it on real stores](../guide/testing-services#run-it-on-real-stores)).
 
 The merged Manifest describes the service the contracts of its contexts name (`wow { service }` of their domain modules, its own included), which must agree, else the server's project path (`:catalog-server` is `catalog-server`), at the project's version. Its `wow { }` block adds:
 

@@ -508,29 +508,32 @@ class WowPluginTest {
     }
 
     @Test
-    fun `the domain and service plugins should register the integration test suite, unless the build does`() {
-        listOf(WowPlugin.ID, WowPlugin.SERVICE_ID).forEach { id ->
-            val project = project(id = id)
-            val suite = project.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
-                .getByName(WowPlugin.INTEGRATION_TEST)
-            suite.assert().isInstanceOf(org.gradle.api.plugins.jvm.JvmTestSuite::class.java)
-            project.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
-                .contains("testImplementation")
-            project.tasks.getByName("check").taskDependencies.getDependencies(null).map { it.name }.assert()
-                .doesNotContain(WowPlugin.INTEGRATION_TEST)
-        }
+    fun `the service plugin should register the integration test suite, unless the build does`() {
+        val service = project(id = WowPlugin.SERVICE_ID)
+        val suite = service.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+            .getByName(WowPlugin.INTEGRATION_TEST)
+        suite.assert().isInstanceOf(org.gradle.api.plugins.jvm.JvmTestSuite::class.java)
+        service.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
+            .contains("testImplementation")
+        service.configurations.getByName("integrationTestRuntimeOnly").extendsFrom.map { it.name }.assert()
+            .contains("testRuntimeOnly")
+        service.tasks.getByName("check").taskDependencies.getDependencies(null).map { it.name }.assert()
+            .doesNotContain(WowPlugin.INTEGRATION_TEST)
+        // A domain module is pure: container tests belong to the service that wires the stores.
+        project(id = WowPlugin.ID).extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+            .findByName(WowPlugin.INTEGRATION_TEST).assert().isNull()
         val own = ProjectBuilder.builder().withProjectDir(File(directory, "own")).withName("own").build()
         own.pluginManager.apply("org.jetbrains.kotlin.jvm")
         own.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
             .register(WowPlugin.INTEGRATION_TEST, org.gradle.api.plugins.jvm.JvmTestSuite::class.java) { it.useJUnit() }
-        own.pluginManager.apply(WowPlugin.ID)
+        own.pluginManager.apply(WowPlugin.SERVICE_ID)
         own.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
             .doesNotContain("testImplementation")
         // A source set of that name the build creates itself, without a suite.
         val sourceSet = ProjectBuilder.builder().withProjectDir(File(directory, "set")).withName("set").build()
         sourceSet.pluginManager.apply("org.jetbrains.kotlin.jvm")
         sourceSet.extensions.getByType(SourceSetContainer::class.java).create(WowPlugin.INTEGRATION_TEST)
-        sourceSet.pluginManager.apply(WowPlugin.ID)
+        sourceSet.pluginManager.apply(WowPlugin.SERVICE_ID)
         sourceSet.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
             .findByName(WowPlugin.INTEGRATION_TEST).assert().isNull()
     }

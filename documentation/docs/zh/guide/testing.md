@@ -435,4 +435,4 @@ fun `the binding index should name the context and the fragment and build the or
 - 给测试一个自己的调用方解析器，读取一个测试用的请求头，让每个请求都有租户和所有者。
 - 在内存后端上，快照查询和事件查询默认从内存提供，所以测试可以查询它写下的内容；`wow.query.memory.enabled: false` 关闭它们。它们运行的是内存引擎，不是真实存储的引擎。
 - Saga 向另一个上下文发命令的服务需要命令传输：容器里的 Kafka，或者 `wow.transport=memory`。
-- 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器里运行，放在模块的 `integrationTest` 测试套件中；Gradle 插件 `me.ahoo.wow` 和 `me.ahoo.wow.service` 会注册它（JUnit Jupiter、模块的类以及 `testImplementation` 提供的一切），`check` 不会运行它：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行。
+- 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器里运行，放在服务模块的 `integrationTest` 测试套件中；Gradle 插件 `me.ahoo.wow.service` 会注册它（JUnit Jupiter、模块的类以及 `testImplementation` 提供的一切），`check` 不会运行它：源码放在 `src/integrationTest/kotlin`，测试需要的依赖在套件里声明，用 `./gradlew integrationTest` 运行（[在真实存储上运行](./testing-services#run-it-on-real-stores)）。
