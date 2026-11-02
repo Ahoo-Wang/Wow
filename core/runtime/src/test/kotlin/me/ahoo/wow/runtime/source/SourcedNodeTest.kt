@@ -164,11 +164,15 @@ class SourcedNodeTest {
             node.context(BANK).views.readers.keys.assert().doesNotContain("Board.onOrder")
             node.start()
             subscriptions.awaitStarted()
-            topics.publish(orderRecord("o-1", 1, withState = false), topic = TOPIC)
+            // The tags are published with or without the state (decision D385).
+            val tags = mapOf("region" to listOf("eu"))
+            topics.publish(orderRecord("o-1", 1, withState = false).copyWith(tags = tags), topic = TOPIC)
             topics.publish(orderRecord("o-1", 2), topic = TOPIC)
             eventually { seen.size == 2 }
             val (stateless, stateful) = seen
             stateless.state.assert().isNull()
+            stateless.tags.assert().isEqualTo(tags)
+            stateful.tags.assert().isEmpty()
             stateless.ref.assert().isEqualTo(order("o-1"))
             stateless.commandType.assert().isEqualTo("sales.order.Place")
             // DX-1c: no class of the sales api is on this class path, so the event is a PublishedEvent.

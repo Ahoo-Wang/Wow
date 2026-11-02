@@ -424,7 +424,8 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * replaced by its derived values, or removed when it derives none. Without a tags function, [applied] as is. The
      * derived values are copied, so a mutable state evolving further does not change them.
      */
-    internal fun tagsOf(state: S, applied: Map<String, List<String>>): Map<String, List<String>> {
+    @InternalWowApi
+    fun tagsOf(state: S, applied: Map<String, List<String>>): Map<String, List<String>> {
         val derive = tags ?: return applied
         val derived = derive(state)
         if (derived.isEmpty()) {

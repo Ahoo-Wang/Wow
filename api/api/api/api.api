@@ -1752,6 +1752,7 @@ public abstract interface class me/ahoo/wow/api/subscribe/StateEvent {
 	public abstract fun getRequestId ()Ljava/lang/String;
 	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public abstract fun getState ()Ljava/lang/Object;
+	public abstract fun getTags ()Ljava/util/Map;
 	public abstract fun getVersion ()I
 }
 

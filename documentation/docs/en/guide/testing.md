@@ -279,7 +279,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 | Step | Does |
 | --- | --- |
-| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. A fork advances copies of its own. |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. Each commit carries the aggregate's tags after it, as the kernel keeps them: `TagsApplied.of(tags)` among the events applies tags as `ApplyTags` does, and the keys the state derives (`@Tags`) override them. A fork advances copies of its own. |
 | `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | Commits the events on the given aggregate (`on`, by default the only one) and hands the commit to the handlers that read it. `by` is the command class that committed them, which names the commit's command type as the model does; `handler = "onX"` calls only that handler. |
 | `whenEvent(stateEvent, handler) { … }` | Hands a commit built by hand over ([Peer states and published streams](#peer-states-and-published-streams)). |
 | `whenRedelivered(on, handler) { … }` | Hands the latest commit over again, as a subscription that delivers each commit at least once does after a retry or a rebalance. An idempotent handler does the same again, or nothing. |
@@ -378,7 +378,7 @@ A handler that throws fails the spec unless the step's checks expect it: `expect
 
 ### Peer states and published streams
 
-A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
+A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does; its `tags` are the aggregate's tags after the commit, none by default. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
 
 ## Projections and reactors
 

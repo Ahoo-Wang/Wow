@@ -265,6 +265,7 @@ class ScheduleSpec internal constructor(
             causation = stream.causation,
             headers = stream.headers,
             operator = stream.operator,
+            tags = committed.tags,
         )
     }
 
