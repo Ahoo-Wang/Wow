@@ -246,6 +246,8 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 }
 ```
 
+**The read side follows the log.** Snapshots are written after each commit, not with it, so a query in a command function, or in a saga, may not see a write made a moment before, such as an aggregate a saga changed just now. Design for it: where a missing or stale row would refuse the command, let the caller retry that refusal, or have the sender carry the fact the check needs in the command. The aggregate's own state, which the function receives, is always current.
+
 A read that fails fails the command with `wow.command.failed` (500), as any unexpected exception does. That includes a read the read side refuses, and one the code gets wrong, such as a state class no aggregate has: the fault is the code's, not the caller's. In an aggregate spec, give the model factory `memoryQueries { snapshots(...) }` as its `QueryApi` ([Testing](./testing)).
 
 ## Ask the kernel for more
