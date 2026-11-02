@@ -20,8 +20,10 @@ import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
+import me.ahoo.wow.compiler.model.symbol.suppresses
 import me.ahoo.wow.compiler.model.symbol.wireName
 
 /**
@@ -45,6 +47,9 @@ internal data class AggregateIdBinding(val property: String, val json: String, v
 internal object AggregateIdResolver {
     private const val AGGREGATE_ID = "me.ahoo.wow.api.annotation.AggregateId"
     private val STRINGS = setOf("kotlin.String", "java.lang.String")
+
+    /** The name a command suppresses the warning of an `id` it does not mark `@AggregateId` with ([unmarkedId]). */
+    const val UNMARKED_AGGREGATE_ID = "UnmarkedAggregateId"
 
     fun of(
         command: KSClassDeclaration,
@@ -87,6 +92,31 @@ internal object AggregateIdResolver {
         return AggregateIdBinding(propertyName, property.wireName(), nullable)
     }
 
+    /**
+     * The warning of a [command] that has a `String` property named `id`, stored or computed, its own or a supertype's
+     * (9.x's `Identifier.id`), and no `@AggregateId` property: Wow 10 does not take a command's aggregate from its body
+     * by a property's name, as 9.x did. None where the command suppresses it ([UNMARKED_AGGREGATE_ID]), nor where its
+     * source is not compiled here: its author marks it, and a library's `@Suppress` does not reach this compilation.
+     */
+    fun unmarkedId(command: KSClassDeclaration): String? {
+        if (command.origin !in SOURCE || command.suppresses(UNMARKED_AGGREGATE_ID)) {
+            return null
+        }
+        val properties = propertiesOf(command)
+        val id = properties.any {
+            it.simpleName.asString() == ID && it.type.resolve().declaration.qualifiedName?.asString() in STRINGS
+        }
+        if (!id || properties.any { it.annotated() }) {
+            return null
+        }
+        val name = command.simpleName.asString()
+        return "command $name has a String property $ID and no @AggregateId property: Wow 10 does not take a " +
+            "command's aggregate from its body unless a property is marked @AggregateId. If $ID names $name's " +
+            "aggregate, mark it @AggregateId, as a 9.x command whose body named its aggregate needs, a creation a " +
+            "saga sends without an aggregate id among them; otherwise suppress this with " +
+            "@Suppress(\"$UNMARKED_AGGREGATE_ID\")"
+    }
+
     /** The properties of [command] and its supertypes, the class's own first. */
     private fun propertiesOf(command: KSClassDeclaration): Sequence<KSPropertyDeclaration> =
         command.getAllProperties() + command.getAllSuperTypes()
@@ -111,4 +141,10 @@ internal object AggregateIdResolver {
 
     /** The overrides walked at most, a bound against a cycle the resolver should never give. */
     private const val MAX_OVERRIDES = 16
+
+    /** The name of the property 9.x took a command's aggregate id from when no property was marked. */
+    private const val ID = "id"
+
+    /** The origins of a declaration whose source this compilation reads. */
+    private val SOURCE: Set<Origin> = setOf(Origin.KOTLIN, Origin.JAVA)
 }

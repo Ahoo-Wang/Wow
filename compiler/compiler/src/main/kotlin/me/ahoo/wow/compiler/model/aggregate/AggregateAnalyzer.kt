@@ -49,10 +49,10 @@ import me.ahoo.wow.compiler.model.symbol.annotationIn
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
-import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
+import me.ahoo.wow.compiler.model.symbol.suppresses
 import me.ahoo.wow.compiler.model.symbol.toName
 
 /**
@@ -146,6 +146,9 @@ internal class AggregateAnalyzer(
         problems: MutableList<String>,
         warnings: MutableList<String>,
     ): Handlers {
+        val ownership = AggregateRootArguments.ownership(root)
+        // Its problem is the root's, which analyze reports.
+        val idSource = AggregateRootArguments.idSource(root, ownership, mutableListOf())
         val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, ON_COMMAND_ANNOTATION, problems)
         val commands = commandFunctions.mapNotNull { function ->
             commandBinding(function, dependencies, problems, warnings)
@@ -156,6 +159,11 @@ internal class AggregateAnalyzer(
         val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
         val sourcing = SourcingResolver.sourcingOf(sourcingFunctions, state, problems)
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
+        // A command could name its aggregate where it is not @Unaddressed and its aggregate's id is not its owner's.
+        if (idSource != AggregateIdSource.OWNER.name) {
+            commandTypes.distinct().filterNot { it.hasAnnotation(Unaddressed::class.java.name) }
+                .mapNotNullTo(warnings, AggregateIdResolver::unmarkedId)
+        }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
             .mapNotNull { function ->
                 AfterHookResolver.afterBinding(function, commandTypes, problems, warnings) { name, parameter ->
@@ -164,12 +172,7 @@ internal class AggregateAnalyzer(
             }
         problems += SourcingResolver.producesProblems(commands, sourcing)
         problems += SourcingResolver.yieldProblems(commands, afters, sourcing)
-        val ownership = AggregateRootArguments.ownership(root)
-        problems += LifecycleCompositions.problems(
-            commands,
-            ownership,
-            AggregateRootArguments.idSource(root, ownership, mutableListOf()),
-        )
+        problems += LifecycleCompositions.problems(commands, ownership, idSource)
         val eventTypes = sourcingFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         return Handlers(commands, sourcing, afters)
@@ -522,15 +525,6 @@ internal class AggregateAnalyzer(
             "@Suppress(\"$UNLISTED_EVENTS\")"
     }
 
-    /**
-     * Whether this function is annotated `@Suppress` naming [name]. The annotation is kept only in the source, which
-     * is what the processor reads.
-     */
-    private fun KSFunctionDeclaration.suppresses(name: String): Boolean = annotations.any { annotation ->
-        annotation.isOf(SUPPRESS) &&
-            annotation.arguments.any { argument -> (argument.value as? List<*>)?.contains(name) == true }
-    }
-
     /** The JVM binary name of this class: `a.b.Outer$Inner` for a nested class. */
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean = annotations.any {
         it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
@@ -542,7 +536,6 @@ internal class AggregateAnalyzer(
         const val ON_DELETED = "onDeleted"
         const val ON_COMMAND = "onCommand"
         const val AFTER_COMMAND = "afterCommand"
-        const val SUPPRESS = "kotlin.Suppress"
 
         /** The origins of a declaration whose source this compilation reads. */
         val SOURCE: Set<Origin> = setOf(Origin.KOTLIN, Origin.JAVA)
