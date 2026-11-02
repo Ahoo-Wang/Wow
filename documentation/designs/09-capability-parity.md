@@ -266,7 +266,7 @@
 | G-2 | 状态点读的响应脱敏（9.x `PointReadAdmission`） | 已补（P.14 #4551） | **GA 前补**（安全回归） | P.14 | 否 |
 | G-3 | 平台服务的生产形态（CoSec、OTel、K8s 清单、控制台登录） | 已补（P.15 #4575；K8s 清单未在真实集群验证） | **GA 前补** | P.15 | 部分（8c.1 的生产形态演练） |
 | G-4 | 9.x 主题的外部消费者（07 承诺的「9.x 格式 Sink」） | 未实现 | **放弃**：下游在切换时同步改接 V10 Sink，07 写明切换规程 | — | 规程（8c.1） |
-| G-5 | 9.x Elasticsearch 事件存储作为迁移来源 | `migrate-data` 只读 MongoDB | **放弃**（同 D213）：先在 9.x 侧迁到 MongoDB | — | 规程 |
+| G-5 | 9.x Elasticsearch 事件存储作为迁移来源 | `migrate-data` 只读 MongoDB | 10.0：先在 9.x 侧迁到 MongoDB（同 D213）；`migrate-data` 直接读 ES 转 10.x（D259 M-5，路线图 §6） | — | 规程 |
 | G-6 | `@Retry` 的可恢复性分类（`recoverable`、`unrecoverable`、`RecoverableExceptionProvider`） | 所有失败一视同仁重试 | **GA 前补**：`@Retry` 加带默认值的属性与可恢复分类端口，不可恢复的直接停放 | P.16 | 否 |
 | G-7 | `PrepareKey` 的查找、值类型与 TTL | 应用代码无按键查询；无 TTL | **10.x**：只读的预留查询；TTL 放弃（用定时命令加 `release`） | — | 否 |
 | G-8 | Java 用户体验（Java 测试 API、Java decide 调用挂起接口） | JVM 客户端已有 Java 门面（`CompletableFuture`，`edge/client/.../java/`）与 `:java-smoke` 冒烟测试；Java decide 内的 `reserve`、`SagaContext.call` 仍为 `suspend` | **GA 前**（已完成）：写明限制并加 Java 冒烟测试；**10.x**：Java 测试门面与阻塞/Future 桥 | P.17 | 否 |
