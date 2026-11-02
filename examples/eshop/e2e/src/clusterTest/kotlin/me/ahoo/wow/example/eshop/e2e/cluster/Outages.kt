@@ -64,7 +64,10 @@ class Outages(private val name: String, private val probe: () -> Boolean) {
         val PAUSE: Duration = Duration.ofMillis(250)
         val JOIN: Duration = Duration.ofSeconds(60)
 
-        /** Runs [action] while [name]'s probe measures it, after [lead] of steady probes, until [settled] holds. */
+        /**
+         * Runs [action] while [name]'s probe measures it, after [lead] of steady probes, until [settled] holds, at most
+         * [settleTimeout]: a window that never settled fails ([Window.unsettled]).
+         */
         fun measure(
             report: ClusterReport,
             fault: String,
@@ -82,13 +85,16 @@ class Outages(private val name: String, private val probe: () -> Boolean) {
             synchronized(report) { report.faults += record }
             action()
             val until = System.nanoTime() + settleTimeout.toNanos()
-            while (!runCatching(settled).getOrDefault(false) && System.nanoTime() < until) {
+            var done = runCatching(settled).getOrDefault(false)
+            while (!done && System.nanoTime() < until) {
                 Thread.sleep(SETTLE_POLL.toMillis())
+                done = runCatching(settled).getOrDefault(false)
             }
             // A few served probes after the cluster settled close the window.
             Thread.sleep(lead.toMillis())
             record.end = Instant.now()
-            return outages.stop(fault, bound).also(report::window)
+            val window = outages.stop(fault, bound).copy(unsettled = settleTimeout.takeUnless { done })
+            return window.also(report::window)
         }
 
         private val SETTLE_POLL: Duration = Duration.ofSeconds(2)

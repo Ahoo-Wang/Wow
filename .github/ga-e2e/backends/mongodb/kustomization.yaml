@@ -1,10 +1,11 @@
 # The mongo arm's replica set: deploy/mongodb as it is, its image pinned by digest, its members and cache sized so
-# they fit one GitHub runner beside the services. The step-down scenario asks the primary to step down (rs.stepDown)
-# and records how long the services' writes were refused.
+# they fit one GitHub runner beside the services, and the harness's shell beside them (shell.yaml). The step-down
+# scenario asks the primary to step down (rs.stepDown) and records how long the services' writes were refused.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../../../deploy/mongodb
+  - shell.yaml
 images:
   - name: mongo
     newTag: 7.0@sha256:c53852c00c23ca9f23fc39690350ffa9a80e3642fe8f96879726d8da0abe80a7
@@ -14,7 +15,10 @@ patches:
       name: mongodb
     # mongod's WiredTiger cache defaults to half of (memory − 1 GB), at least 256 MB, and its connections, index builds
     # and replication buffers come on top. The cache is fixed at 0.25 GB so all of it stays inside the 768Mi limit;
-    # three replicas share the runner's one kind node with every service.
+    # three replicas share the runner's one kind node with every service. The services' pools open 5 to 18 connections
+    # each to a member, about 170 in all at the run's load, about 1 MB each: a member held 271 through a ten-minute
+    # overload. What the limit has no room for is mongosh beside mongod, so the harness runs it in its shell, and only
+    # the probes' ping runs in a member.
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/args
@@ -30,3 +34,14 @@ patches:
       - op: replace
         path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
         value: 1Gi
+  - target:
+      kind: NetworkPolicy
+      name: mongodb
+    # The harness's shell reaches the members, as the services do.
+    patch: |-
+      - op: add
+        path: /spec/ingress/0/from/-
+        value:
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongo-shell

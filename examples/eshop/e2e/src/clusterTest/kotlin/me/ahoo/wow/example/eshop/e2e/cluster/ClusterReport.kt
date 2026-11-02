@@ -32,7 +32,9 @@ data class Check(
 
 /**
  * One fault's unavailability window ([Outages]): from its first refused or failed probe to the first one served after
- * the last failure, or zero when no probe failed; [bound] is the scenario's upper bound.
+ * the last failure, or zero when no probe failed; [bound] is the scenario's upper bound. [unsettled] is how long the
+ * window waited for the cluster to settle when it never did: the window then fails, whatever it measured, since its
+ * load ran the whole wait.
  */
 data class Window(
     val fault: String,
@@ -40,9 +42,10 @@ data class Window(
     val millis: Long,
     val bound: Duration,
     val failures: Int,
-    val probes: Int
+    val probes: Int,
+    val unsettled: Duration? = null,
 ) {
-    val ok: Boolean get() = millis <= bound.toMillis()
+    val ok: Boolean get() = unsettled == null && millis <= bound.toMillis()
 }
 
 /** A fault the run injected, from [start] to [end], for the logs' and probes' allow-lists. */
@@ -72,7 +75,9 @@ class ClusterReport(private val directory: File, private val backend: String) {
             "cluster",
             "window: ${window.fault}",
             window.ok,
-            "${window.millis} ms unavailable (${window.failures} of ${window.probes} probes failed; bound ${window.bound.seconds} s)",
+            window.unsettled?.let { "not settled after ${it.seconds} s; " }.orEmpty() +
+                "${window.millis} ms unavailable (${window.failures} of ${window.probes} probes failed; bound " +
+                "${window.bound.seconds} s)",
         )
     }
 

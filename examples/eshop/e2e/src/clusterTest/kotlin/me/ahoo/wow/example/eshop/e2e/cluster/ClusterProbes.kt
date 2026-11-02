@@ -14,15 +14,17 @@
 package me.ahoo.wow.example.eshop.e2e.cluster
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.e2e.json
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.runtime.cluster.Hrw
 import me.ahoo.wow.spi.log.Partitioner
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The cluster scenarios' probes and lookups: the checkouts that measure a fault's window, the ordering's leases (who
- * owns a partition, whether every node holds some) and a commit's request facts, from the arm's store ([StoreReads]),
+ * owns a partition, whether they are held as the nodes assign them) and a commit's request facts, from the arm's store ([StoreReads]),
  * and remote_ip's evidence on the service's side.
  */
 class ClusterProbes(
@@ -85,12 +87,21 @@ class ClusterProbes(
         return served
     }
 
-    /** Whether every one of the ordering's [replicas] nodes holds some of its command partitions' leases. */
+    /**
+     * Whether the ordering's command partitions are held as its [replicas] ready nodes assign them: each by the node
+     * HRW gives it among them ([Hrw]), the share every node computes. HRW spreads the partitions without balancing
+     * them, so a node may hold none: with 8 partitions over 3 nodes, about one draw of the nodes' names in eight.
+     */
+    @OptIn(InternalWowApi::class)
     fun rebalanced(replicas: Int): Boolean {
-        val owners = reads.leases("ordering")
-            .filterKeys { it.startsWith("$ORDERING_GROUP|") }
-            .values.filter { (_, expires) -> expires > System.currentTimeMillis() }.map { it.first }.toSet()
-        return owners.size == replicas
+        val nodes = kube.pods(Deployment.ORDERING).filter { it.ready && !it.deleting }.map { it.name }
+        if (nodes.size != replicas) return false
+        val now = System.currentTimeMillis()
+        val leases = reads.leases("ordering")
+        return (0 until partitions).all { partition ->
+            val lease = leases["$ORDERING_GROUP|$partition"]?.takeIf { (_, expires) -> expires > now }
+            lease?.first == Hrw.owner(partition, nodes)
+        }
     }
 
     /**

@@ -25,6 +25,11 @@ private val PLATFORM = listOf("eshop-", "ops-", "view-store-", "analytics-catalo
 
 internal fun platform(pod: String): Boolean = PLATFORM.any(pod::startsWith)
 
+/** The pods of the stores the services keep their data in: MongoDB's members and PostgreSQL, not their Jobs. */
+private val STORE = Regex("(mongodb|postgres)-[0-9]+")
+
+internal fun store(pod: String): Boolean = STORE.matches(pod)
+
 /** Whether [at] falls inside one of [faults], widened by [before] and [after] for the cluster to settle. */
 private fun inFault(
     at: Instant,

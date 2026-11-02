@@ -98,8 +98,8 @@ class PostgresReads(private val url: String) : StoreReads {
 }
 
 /**
- * The mongo arm's reads, with mongosh inside a member's pod against the replica set, its answers as relaxed
- * Extended JSON. The collections are named as PostgreSQL's tables (`wow_log__eshop_<context>__<aggregate>`, the
+ * The mongo arm's reads, with mongosh in the harness's shell ([SHELL], not a member, whose memory limit it would
+ * share with mongod) against the replica set, its answers as relaxed Extended JSON. The collections are named as PostgreSQL's tables (`wow_log__eshop_<context>__<aggregate>`, the
  * registry `wow_log_aggregate`, `wow_checkpoint`, `wow_lease`, `wow_failure_ledger`, `wow_snapshot__…`).
  *
  * The log's integrity: an aggregate's versions 1..max once each, and no sequence of a partition taken twice across
@@ -111,7 +111,7 @@ class MongoReads(private val kube: Kube) : StoreReads {
     private fun eval(context: String, script: String): JsonNode {
         val full = "const db = connect('$URI').getSiblingDB('eshop_$context'); " +
             "print(EJSON.stringify((() => { $script })(), { relaxed: true }))"
-        val result = kube.exec(POD, "mongosh", "--quiet", "--nodb", "--eval", full)
+        val result = kube.exec(SHELL, "mongosh", "--quiet", "--nodb", "--eval", full)
         check(result.ok) { "mongosh on eshop_$context failed: ${result.err.take(ERROR)}${result.out.take(ERROR)}" }
         return json.readTree(result.out.trim().lineSequence().last())
     }
@@ -209,9 +209,12 @@ class MongoReads(private val kube: Kube) : StoreReads {
         else -> 0
     }
 
-    private companion object {
-        const val POD = "mongodb-0"
+    companion object {
+        /** The pod the harness runs mongosh in (`.github/ga-e2e/backends/mongodb/shell.yaml`). */
+        const val SHELL = "mongo-shell"
+
+        /** The replica set, as mongosh connects to it from [SHELL]. */
         const val URI = "mongodb://mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:27017/?replicaSet=rs0"
-        const val ERROR = 500
+        private const val ERROR = 500
     }
 }
