@@ -246,6 +246,8 @@ suspend fun onCommand(command: LendBook, queries: NodeQueryApi, scope: DecideSco
 }
 ```
 
+**读取端跟随日志。** 快照在每次提交之后写入，而不是随提交一起写入，所以命令函数或 Saga 里的查询，可能看不到片刻之前的写入，比如某个 Saga 刚刚改过的聚合。要为此而设计：某行缺失或过期会让命令被拒绝时，让调用方重试这种拒绝，或者由发送方在命令里带上检查所需的事实。函数收到的聚合自身状态总是最新的。
+
 读取失败时，命令以 `wow.command.failed`（500）失败，与任何意外异常一样。读取端拒绝的读取，以及代码写错的读取（例如没有聚合使用的状态类），都是如此：过错在代码，不在调用方。在聚合规格里，把 `memoryQueries { snapshots(...) }` 作为 `QueryApi` 交给模型工厂（[测试](./testing)）。
 
 ## 向内核要更多东西 {#ask-the-kernel-for-more}

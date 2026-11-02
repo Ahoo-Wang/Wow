@@ -103,7 +103,23 @@ data class AdjustStock(val warehouseId: String, val code: String, val delta: Int
 
 A client that sent such a command to a route with the id sends it to the route without one ([HTTP and TypeScript Clients](./http-and-clients#routes)).
 
+A 9.x command with no `@AggregateId` whose `id`, often a 9.x `Identifier.id`, named its aggregate was routed by that id. V10 infers nothing from a property's name, so mark that `id` `@AggregateId`; the compiler's `UnmarkedAggregateId` warning lists every command that has such an `id` and no mark ([Name the aggregate in the body](../guide/aggregates#name-the-aggregate-in-the-body)). When the id is an interface's default getter that the command cannot mark there, an interface of a peer's jar, or one that commands of other aggregates implement too, override it in the command:
+
+<!-- sample: fragment -->
+
+```kotlin
+data class CreateShelf(override val warehouseId: String, override val code: String) : ShelfIdSpec {
+    @AggregateId
+    override val id: String
+        get() = super<ShelfIdSpec>.id
+}
+```
+
+Left unmarked, a creating command sent without an id, by a saga's `CommandRequest.of(body)` or by a client, gets a generated id: another aggregate than the one 9.x addressed, and a second creation with the same business key is accepted instead of answered `wow.aggregate.exists`.
+
 In decide, `CommandMessage<X>` is `Command<X>`, `command.aggregateId.id` is `command.ref.id`, `command.ownerId` is `command.scope.ownerId`, a 9.x `CommandResultAccessor` is `DecideScope.putResult`, and an id generated inside decide comes from `scope.ids.next()`.
+
+A query in decide reads the query side, whose snapshots are written after each commit, not with it, as 9.x's were. A write the same flow made a moment before, through a saga, may not be visible yet: a decide function that refuses because a row is missing can be refusing too early. Let the caller retry such a refusal, or have the saga carry the fact the check needs in its command.
 
 ## Exceptions become rejections
 
