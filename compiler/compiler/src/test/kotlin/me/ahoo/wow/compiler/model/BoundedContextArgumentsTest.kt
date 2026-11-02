@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.compiler.model
 
-import com.google.devtools.ksp.symbol.KSAnnotation
-import com.google.devtools.ksp.symbol.KSName
-import com.google.devtools.ksp.symbol.KSValueArgument
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
@@ -25,7 +22,6 @@ import me.ahoo.wow.manifest.ManifestTree
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
-import java.lang.reflect.Proxy
 
 /**
  * A `@BoundedContext` is read from its annotation's arguments, never through a proxy of the annotation class: a name
@@ -169,54 +165,29 @@ class BoundedContextArgumentsTest {
 
     @Test
     fun `the arguments should be read as given, a description left out being its default`() {
-        BoundedContextArguments.of(annotation("name" to "shop", "description" to "The shop"))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "The shop"))
             .assert().isEqualTo(BoundedContextArguments("shop", "The shop"))
         // KSP lists a default among the arguments, and among the default arguments.
-        BoundedContextArguments.of(annotation("name" to "shop", "description" to "", default = listOf("description" to "")))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to "", default = listOf("description" to "")))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
-        BoundedContextArguments.of(annotation("name" to "shop", default = listOf("description" to "")))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", default = listOf("description" to "")))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
     }
 
     @Test
     fun `an argument with no value should leave the context unread`() {
-        BoundedContextArguments.of(annotation("name" to null)).assert().isNull()
-        BoundedContextArguments.of(annotation("description" to "The shop")).assert().isNull()
-        BoundedContextArguments.of(annotation("name" to "shop", "description" to null)).assert().isNull()
+        BoundedContextArguments.of(fakeAnnotation("name" to null)).assert().isNull()
+        BoundedContextArguments.of(fakeAnnotation("description" to "The shop")).assert().isNull()
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null)).assert().isNull()
         // A given argument with no value is unread, though the annotation has a default for it.
-        BoundedContextArguments.of(annotation("name" to "shop", "description" to null, default = listOf("description" to "")))
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop", "description" to null, default = listOf("description" to "")))
             .assert().isNull()
         // No value listed at all, not even a default.
-        BoundedContextArguments.of(annotation("name" to "shop")).assert().isNull()
+        BoundedContextArguments.of(fakeAnnotation("name" to "shop")).assert().isNull()
     }
 
     /** The one context of the Manifest fragment [compilation] generated. */
     private fun context(compilation: KotlinCompilation) = compilation.workingDir.walkTopDown()
         .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
         .let { ManifestTree.read(jacksonObjectMapper().readValue(it, Map::class.java)).contexts.single() }
-
-    /** A `KSAnnotation` with the [given] arguments and the [default] ones, by name; nothing else of it is read. */
-    private fun annotation(
-        vararg given: Pair<String, Any?>,
-        default: List<Pair<String, Any?>> = emptyList(),
-    ): KSAnnotation = fake { method ->
-        when (method) {
-            "getArguments" -> given.map(::argument)
-            "getDefaultArguments" -> default.map(::argument)
-            else -> error("A KSAnnotation's $method is not read.")
-        }
-    }
-
-    private fun argument(entry: Pair<String, Any?>): KSValueArgument = fake { method ->
-        when (method) {
-            "getName" -> fake<KSName> { if (it == "asString") entry.first else error("A KSName's $it is not read.") }
-            "getValue" -> entry.second
-            else -> error("A KSValueArgument's $method is not read.")
-        }
-    }
-
-    private inline fun <reified T : Any> fake(crossinline answer: (String) -> Any?): T =
-        Proxy.newProxyInstance(T::class.java.classLoader, arrayOf(T::class.java)) { _, method, _ ->
-            answer(method.name)
-        } as T
 }

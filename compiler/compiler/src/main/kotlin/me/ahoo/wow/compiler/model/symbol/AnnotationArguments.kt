@@ -38,9 +38,12 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
         .distinctBy { it.name?.asString() }
         .associate { it.name?.asString() to it.value }
 
-    /** The arguments the annotation class declares that have no value, by name. */
+    /**
+     * The arguments the annotation class declares that have no value, by name; an array holding an element without one
+     * too, should KSP leave it null rather than drop it.
+     */
     val unread: List<String> = type.java.declaredMethods.filterNot { it.isSynthetic }.map { it.name }
-        .filter { values[it] == null }.sorted()
+        .filter { name -> values[name].let { it == null || it is List<*> && null in it } }.sorted()
 
     fun string(name: String): String = values.getValue(name) as String
 
@@ -50,11 +53,10 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
 
     fun strings(name: String): List<String> = (values.getValue(name) as List<*>).map { it as String }
 
-    /** The name of the enum entry the argument [name] holds: KSP gives an entry as its declaration or its type. */
+    /** The name of the enum entry the argument [name] holds: KSP gives an entry as its declaration, or its type. */
     fun enumName(name: String): String = when (val value = values.getValue(name)) {
-        is KSDeclaration -> value.simpleName.asString()
         is KSType -> value.declaration.simpleName.asString()
-        else -> value.toString().substringAfterLast('.')
+        else -> (value as KSDeclaration).simpleName.asString()
     }
 
     /** What [unread] means for the model, of the annotation on [annotated]. */
@@ -65,7 +67,9 @@ internal class AnnotationArguments(private val type: KClass<out Annotation>, ann
 
     private fun KSAnnotated.describe(): String = when (this) {
         is KSValueParameter -> "parameter ${name?.asString()} of ${(parent as? KSAnnotated)?.describe()}"
-        is KSDeclaration -> qualifiedName?.asString() ?: simpleName.asString()
+        // A constructor has no qualified name: it is its class's `<init>`.
+        is KSDeclaration -> qualifiedName?.asString()
+            ?: ((parentDeclaration?.describe()?.plus(".") ?: "") + simpleName.asString())
         else -> toString()
     }
 
