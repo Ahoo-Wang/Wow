@@ -119,6 +119,7 @@ backends() {
     kubectl rollout status statefulset/mongodb --timeout=300s
     kubectl wait --for=condition=complete job/mongodb-init --timeout=300s
     kubectl logs job/mongodb-init | tail -5
+    kubectl wait --for=condition=Ready pod/mongo-shell --timeout=120s
     kubectl rollout status statefulset/elasticsearch --timeout=300s
   fi
   # The gateway does not start without its Redis, and refuses traffic until its documents are there.

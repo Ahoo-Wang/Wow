@@ -458,7 +458,8 @@ class GaE2eTest {
         } finally {
             load.stop()
         }
-        "scaled up and down under load (${load.sent} checkouts sent); leases spread over the nodes each time"
+        "scaled up and down under load (${load.sent} checkouts sent); the leases held as HRW assigns them over the " +
+            "nodes each time"
     }
 
     @Test
@@ -558,8 +559,9 @@ class GaE2eTest {
     fun `a MongoDB primary step-down is absorbed`() {
         if (backend != "mongo") return
         scenario("cluster", "MongoDB primary step-down") {
-            val primary = kube.exec("mongodb-0", "mongosh", "--quiet", "--eval", "rs.isMaster().primary").out.trim()
+            val primary = mongoPrimary()
             val pod = primary.substringBefore('.')
+            val restarts = kube.pods("mongodb").single { it.name == pod }.restarts
             val load = Load(flows).start()
             try {
                 Outages.measure(
@@ -568,22 +570,31 @@ class GaE2eTest {
                     STEP_DOWN_BOUND,
                     "checkout to the ordering",
                     probes::probeToOrdering,
-                    settled = {
-                        val now = kube.exec(
-                            "mongodb-0",
-                            "mongosh",
-                            "--quiet",
-                            "--eval",
-                            "rs.isMaster().primary"
-                        ).out.trim()
-                        now.isNotEmpty() && now != primary
-                    },
-                ) { kube.exec(pod, "mongosh", "--quiet", "--eval", "rs.stepDown(30)") }
+                    settled = { mongoPrimary().let { it.isNotEmpty() && it != primary } },
+                ) {
+                    val member = "mongodb://$primary/?directConnection=true"
+                    kube.exec(MongoReads.SHELL, "mongosh", member, "--quiet", "--eval", "rs.stepDown(30)")
+                }
             } finally {
                 load.stop()
             }
+            // A primary that is OOMKilled or crashes is replaced by an election too: the window then measured that.
+            val stepped = kube.pods("mongodb").single { it.name == pod }
+            check(stepped.restarts == restarts) {
+                "the primary $pod restarted (${stepped.lastTerminated ?: "no reason recorded"}) instead of stepping " +
+                    "down: the window measured its restart"
+            }
             "the primary $pod stepped down under load (${load.sent} checkouts sent)"
         }
+    }
+
+    /**
+     * The replica set's primary (`host:port`), as mongodb-0 sees it, asked from the harness's shell; empty while there
+     * is none.
+     */
+    private fun mongoPrimary(): String {
+        val member = "mongodb://mongodb-0.mongodb:27017/?directConnection=true"
+        return kube.exec(MongoReads.SHELL, "mongosh", member, "--quiet", "--eval", "rs.isMaster().primary").out.trim()
     }
 
     @Test
@@ -603,12 +614,15 @@ class GaE2eTest {
     fun `the probes stayed green outside the faults and nothing restarted`() = scenario("observability", "probes") {
         health.stop()
         val unexpected = health.unreadyOutsideFaults()
-        val restarted = kube.allPods().filter { platform(it.name) && it.restarts > 0 }
+        // No fault restarts a store's container: one restarted ran out of memory or crashed.
+        val restarted = kube.allPods().filter { (platform(it.name) || store(it.name)) && it.restarts > 0 }
         check(unexpected.isEmpty()) { "not ready outside a fault: ${unexpected.take(LISTED)}" }
-        check(
-            restarted.isEmpty()
-        ) { "restarted (liveness or crash): ${restarted.map { "${it.name} ×${it.restarts}" }}" }
-        "${health.samples} samples, every pod ready outside the faults, no container restarted; ${health.load()}"
+        check(restarted.isEmpty()) {
+            "restarted (liveness, crash or out of memory): " +
+                restarted.map { "${it.name} ×${it.restarts} (${it.lastTerminated ?: "no reason recorded"})" }
+        }
+        "${health.samples} samples, every pod ready outside the faults, no container of the platform or its stores " +
+            "restarted; ${health.load()}"
     }
 
     @Test

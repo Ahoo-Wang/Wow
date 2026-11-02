@@ -1,0 +1,21 @@
+# The harness's MongoDB shell: the runner execs mongosh here, against the replica set, to read the stores (StoreReads)
+# and to step the primary down. Not in a member: each mongosh is a Node.js process, which in a member's container
+# counts against the member's 768Mi limit beside mongod, and the members a run exec'd into were the ones OOMKilled. It
+# runs the members' image idle; the replica set's NetworkPolicy lets it in.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mongo-shell
+  labels:
+    app.kubernetes.io/name: mongo-shell
+spec:
+  containers:
+    - name: shell
+      image: mongo:7.0
+      command: ["sleep", "infinity"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 512Mi

@@ -25,7 +25,15 @@ data class Run(val exit: Int, val out: String, val err: String) {
 }
 
 /** One pod as `kubectl get pods -o json` lists it. */
-data class Pod(val name: String, val ip: String?, val ready: Boolean, val restarts: Int, val deleting: Boolean)
+data class Pod(
+    val name: String,
+    val ip: String?,
+    val ready: Boolean,
+    val restarts: Int,
+    val deleting: Boolean,
+    /** Why a container of the pod last ended (`OOMKilled`, `Error`), when one did. */
+    val lastTerminated: String? = null,
+)
 
 /**
  * The cluster, through `kubectl` on the runner, in the current context's namespace: what the scenarios do to it
@@ -74,6 +82,9 @@ class Kube(private val log: (String) -> Unit) {
             ready = statuses.isNotEmpty() && statuses.all { it["ready"].asBoolean() },
             restarts = statuses.sumOf { it["restartCount"].asInt() },
             deleting = item["metadata"]["deletionTimestamp"] != null,
+            lastTerminated = statuses.firstNotNullOfOrNull { status ->
+                status["lastState"]?.get("terminated")?.get("reason")?.asString()
+            },
         )
     }
 
