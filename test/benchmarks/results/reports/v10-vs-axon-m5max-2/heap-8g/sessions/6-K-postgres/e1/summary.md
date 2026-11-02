@@ -1,0 +1,25 @@
+# run: E1
+
+deposit, answered once stored; backend postgres, nodes 1, heap 8g, gc G1, serverJvm openjdk version "21.0.13" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing), stores kafka postgres, primed true, primeSeconds 7, settleSeconds 3, accounts 100000, session /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/6-K-postgres/up.
+
+Open loop at 2500.0/s, uniform over 100000 accounts, 20 s warm-up, 40 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2500.0/s | 100000 | 0 | 1.5 ms | 2.6 ms | 4.4 ms | 13.5 ms | 35.3 ms | 25.3 ms |
+
+Load generator: 0.40 cores of 18 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 1.35 | 5654 MB | 4795 MB | 2 | 0.010 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 34.0% | 108.3% | 758.9MiB / 31.36GiB |
+| wow-e2e-bench-postgres | 58.4% | 89.0% | 630.2MiB / 31.36GiB |
+
+Store operations, postgres (seconds -0.057 to 40.944): {epoch=41.00131893157959, xact_commit=164976, xact_rollback=0, tup_inserted=101194, tup_updated=223516, tup_deleted=7, tup_fetched=329004, tup_returned=388536, blks_read=0, blks_hit=2621874, wal_records=1038730, wal_fpi=2, wal_bytes=124108570, wal_buffers_full=0, wal_write=77248, wal_sync=77248, wal_write_time=320.29200000000003, wal_sync_time=37594.136999999995}
+Store operations, kafkaEndOffsets (seconds -19.894 to 41.786): {wow.transfer.account.state=147830, wow.transfer.commands=0}
+
+PostgreSQL per second: commits 4024, WAL flushes 1884, WAL flush time 917 ms (max 955 ms), WAL write time 8 ms

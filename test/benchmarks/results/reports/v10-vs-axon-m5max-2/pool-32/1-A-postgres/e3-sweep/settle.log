@@ -1,0 +1,10 @@
+[settle] 1s: node-1 5.56
+[settle] 2s: node-1 4.96
+[settle] 3s: node-1 5.40
+[settle] 4s: node-1 5.69
+[settle] 5s: node-1 6.29
+[settle] 6s: node-1 6.22
+[settle] 7s: node-1 0.04
+[settle] 8s: node-1 0.10
+[settle] 9s: node-1 0.04
+[settle] quiet after 9s (below 0.25 cores for 3 s in a row)

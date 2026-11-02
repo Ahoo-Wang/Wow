@@ -1,0 +1,23 @@
+[settle] 1s: node-1 3.18, node-2 0.02, node-3 3.60
+[settle] 2s: node-1 2.59, node-2 0.00, node-3 3.29
+[settle] 3s: node-1 2.66, node-2 0.01, node-3 3.69
+[settle] 4s: node-1 2.63, node-2 0.01, node-3 3.09
+[settle] 5s: node-1 2.38, node-2 0.00, node-3 3.23
+[settle] 6s: node-1 2.57, node-2 0.01, node-3 3.05
+[settle] 7s: node-1 2.46, node-2 0.01, node-3 2.96
+[settle] 8s: node-1 2.90, node-2 0.01, node-3 3.63
+[settle] 9s: node-1 2.63, node-2 0.00, node-3 3.10
+[settle] 10s: node-1 2.65, node-2 0.01, node-3 3.09
+[settle] 11s: node-1 2.46, node-2 0.02, node-3 2.70
+[settle] 12s: node-1 0.09, node-2 0.00, node-3 3.76
+[settle] 13s: node-1 0.01, node-2 0.01, node-3 3.74
+[settle] 14s: node-1 0.01, node-2 0.00, node-3 3.52
+[settle] 15s: node-1 0.00, node-2 0.01, node-3 3.41
+[settle] 16s: node-1 0.01, node-2 0.01, node-3 3.64
+[settle] 17s: node-1 0.02, node-2 0.01, node-3 3.55
+[settle] 18s: node-1 0.02, node-2 0.01, node-3 3.52
+[settle] 19s: node-1 0.00, node-2 0.01, node-3 1.40
+[settle] 20s: node-1 0.01, node-2 0.01, node-3 0.02
+[settle] 21s: node-1 0.02, node-2 0.01, node-3 0.02
+[settle] 22s: node-1 0.05, node-2 0.01, node-3 0.01
+[settle] quiet after 22s (below 0.25 cores for 3 s in a row)

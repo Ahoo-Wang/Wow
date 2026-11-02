@@ -176,6 +176,81 @@ The fixed rates ran before the sweeps in every session (`compare.log`). In them 
 - PostgreSQL's CPU per operation is 1.3–1.6 times Wow's for Axon on E1 (0.306–0.349 ms against 0.214–0.238 ms) and 1.5–1.6 times on E3 (1.106–1.117 ms against 0.700–0.732 ms). Axon commits 1.78–1.98 transactions per E1 and 7.07–7.17 per E3, Wow 1.48–1.64 and 5.72–5.81.
 - Axon's E3 p50 is 3.39–3.41 ms, against Wow's 2.04–2.24 ms.
 
+## On the M5 Max, at 10.0.0-beta.1
+
+A complete rerun of the comparison on Apple M5 Max (`Mac17,14`, 18 cores: 6 Super + 12 Performance, 64 GB unified memory, macOS 27.2 (26B123)) at commit `fe6f38f224` (`fe6f38f224759890e510356ad3419a7eaf41791d`, `main`), 34 commits after snapshot 2 (`30d0c0348e`). The raw runs, logs, and scripts are in [`v10-vs-axon-m5max-2/`](v10-vs-axon-m5max-2/) (1 GB heap) and [`v10-vs-axon-m5max-2/heap-8g/`](v10-vs-axon-m5max-2/heap-8g/) (8 GB heap). Container engine: OrbStack 2.2.5, Docker engine 29.8.2 with 16 CPUs and 32,110 MiB, store on disk. JDK: Eclipse Adoptium Temurin 21.0.13+9.
+
+Unlike the earlier M5 Max runs where W and W32 passed an empty Kafka broker string (`--wow.kafka.bootstrap-servers=`) that selected in-memory topics that leaked memory (X-33), W and W32 in this rerun pass `--server-args="--wow.transport=none"`. This cleanly disables Kafka transport without engaging in-memory queues, allowing both W and W32 to complete every step of the closed-loop sweeps without running out of heap. Axon server code and version (Axon Framework 4.13.2, Spring Boot 3.5.16) remain identical to earlier comparisons.
+
+### Peak throughput (closed loop, 1 GB heap)
+
+Standard sessions W A A W K K, followed by A32 and W32 (`spring.datasource.hikari.maximum-pool-size=32`), with `-Xms1g -Xmx1g -XX:+UseG1GC`:
+
+| Closed-loop peak, 1 GB heap | Wow, Kafka off (W) | Axon (A) | Axon, 32 connections (A32) | Wow, Kafka off, 32 connections (W32) | Wow, Kafka on (K) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| E1 | ≥ 35,491, 36,366/s (step 4096) | 4,427, 4,403/s (step 256) | 7,180/s (step 1024) | ≥ 35,569/s (step 4096) | ≥ 32,762, 32,408/s (step 4096) |
+| E3 | 10,373, 10,707/s (step 1024) | 1,478, 1,458/s (step 64, 16) | 2,101/s (step 64) | 10,401/s (step 1024) | 9,936, 9,761/s (step 1024) |
+| E1, one client | 1,110, 1,101/s | 790, 607/s | 775/s | 1,110/s | 1,070, 1,072/s |
+| E3, one client | 508, 502/s | 297, 231/s | 256/s | 510/s | 499, 420/s |
+
+- **E1:** Wow Kafka off (W) peaked at the top step (concurrency 4,096), reaching 35,491 and 36,366/s. This is 8.0–8.2 times Axon's peak (4,427/s, at 256 clients) and 4.9–5.1 times Axon's 32-connection peak (7,180/s, at 1,024 clients), even though W ran on the default 10 connections. W32 reached ≥ 35,569/s at step 4,096. Wow Kafka on (K) reached ≥ 32,762 and 32,408/s at step 4,096 (7.3–7.4 times Axon's peak and 4.5 times A32). Because Wow's E1 peaks fall on the highest step, these throughput numbers are lower bounds (marked with `≥`).
+- **E3:** Wow Kafka off (W) peaked at concurrency 1,024, reaching 10,373 and 10,707/s. This is 7.0–7.2 times Axon's peak (1,478/s, at 64 clients) and 4.9–5.1 times Axon's 32-connection peak (2,101/s, at 64 clients). At concurrency 4,096, W fell to 7,035 and 5,825/s, refusing excess commands with 429 `wow.command.busy` and timing out waits with 504 `wow.wait.timeout`. W32 reached 10,401/s at concurrency 1,024. K reached 9,936 and 9,761/s at concurrency 1,024 (6.6–6.7 times Axon and 4.6–4.7 times A32).
+- **Single client:** On a single client, Wow Kafka off delivers 1.4–1.8 times Axon's E1 throughput and 1.7–2.2 times Axon's E3 throughput.
+- **Connection pool impact:** Raising Axon's pool from 10 to 32 connections increased its E1 peak by 62% (from 4,427 to 7,180/s) and its E3 peak by 42% (from 1,478 to 2,101/s). For Wow, 10 connections did not constrain throughput (W and W32 both reached ~35.5–36.3k on E1 and ~10.4–10.7k on E3), as reactive pipelining multiplexes transfers effectively over Hikari's default pool.
+
+### Fixed rates (1 GB heap)
+
+Measured before the sweeps, in session order:
+
+| Fixed rates, 1 GB heap | Wow, Kafka off (W) | Axon (A) | Axon, 32 connections (A32) | Wow, Kafka off, 32 connections (W32) | Wow, Kafka on (K) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| E1 at 2,500/s: p50 | 1.47, 1.50 ms | 2.21, 1.83 ms | 1.81 ms | 1.48 ms | 1.53, 1.55 ms |
+| E1: p99 | 4.4, 4.9 ms | 130.0, 19.7 ms | 17.3 ms | 4.7 ms | 5.5, 4.9 ms |
+| E1: node CPU per op | 0.447, 0.446 ms | 0.476, 0.515 ms | 0.515 ms | 0.449 ms | 0.559, 0.601 ms |
+| E1: PostgreSQL CPU per op | 0.230, 0.234 ms | 0.285, 0.330 ms | 0.327 ms | 0.235 ms | 0.241, 0.242 ms |
+| E1: commits per op | 1.66, 1.66 | 1.59, 1.89 | 1.88 | 1.65 | 1.62, 1.62 |
+| E3 at 700/s: p50 | 2.22, 2.43 ms | 3.74, 3.77 ms | 3.73 ms | 2.30 ms | 2.53, 2.46 ms |
+| E3: p99 | 7.4, 60.7 ms | 18.4, 19.7 ms | 17.5 ms | 6.8 ms | 8.6, 8.3 ms |
+| E3: node CPU per op | 1.286, 1.273 ms | 1.251, 1.242 ms | 1.251 ms | 1.300 ms | 1.598, 1.715 ms |
+| E3: PostgreSQL CPU per op | 0.694, 0.687 ms | 1.025, 1.049 ms | 1.071 ms | 0.718 ms | 0.727, 0.725 ms |
+| E3: commits per op | 5.74, 5.49 | 6.67, 6.60 | 6.74 | 5.70 | 5.66, 5.65 |
+
+- On E1 at 2,500/s, Wow Kafka off consumes 0.446–0.447 ms node CPU per operation, compared to 0.476–0.515 ms for Axon; PostgreSQL CPU per op is 0.230–0.234 ms for Wow vs 0.285–0.330 ms for Axon.
+- On E3 at 700/s, Wow Kafka off consumes 1.273–1.286 ms node CPU per operation, comparable to Axon's 1.242–1.251 ms; however, PostgreSQL CPU for Axon is 1.48–1.53 times Wow's (1.025–1.049 ms vs 0.687–0.694 ms). Axon commits 6.60–6.67 transactions per E3 op vs 5.49–5.74 for Wow.
+- Latency: Wow's E3 p50 is 2.22–2.43 ms vs 3.74–3.77 ms for Axon.
+
+### With an 8 GB heap (rerun with wow.transport=none)
+
+The same eight sessions rerun with `-Xms8g -Xmx8g -XX:+UseG1GC`, where W and W32 pass `--server-args="--wow.transport=none"`:
+
+| Closed-loop peak, 8 GB heap | Wow, Kafka off (W) | Axon (A) | Axon, 32 connections (A32) | Wow, Kafka off, 32 connections (W32) | Wow, Kafka on (K) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| E1 | ≥ 38,877, 38,583/s (step 4096) | 4,722, 4,734/s (step 64) | 7,852/s (step 64) | ≥ 37,747/s (step 4096) | ≥ 35,594, 35,182/s (step 4096) |
+| E3 | 10,501, 10,518/s (step 1024) | 1,509, 1,519/s (step 64) | 1,974/s (step 64) | 10,536/s (step 1024) | 9,944, 9,900/s (step 1024) |
+| E1, one client | 1,119, 1,119/s | 684, 683/s | 902/s | 1,018/s | 1,097, 1,085/s |
+| E3, one client | 517, 509/s | 214, 317/s | 309/s | 486/s | 490, 502/s |
+
+- **E1:** Wow Kafka off (W) reached ≥ 38,877 and 38,583/s at concurrency 4,096. This is 8.2 times Axon's peak (4,734/s, at 64 clients) and 4.9 times Axon's 32-connection peak (7,852/s, at 64 clients). W32 reached ≥ 37,747/s at step 4,096. K reached ≥ 35,594 and 35,182/s.
+- **E3:** Wow Kafka off (W) reached 10,501 and 10,518/s at concurrency 1,024. This is 6.9 times Axon's peak (1,519/s, at 64 clients) and 5.3 times Axon's 32-connection peak (1,974/s, at 64 clients). W32 reached 10,536/s at concurrency 1,024. K reached 9,944 and 9,900/s.
+- **Overload error verification (X-40 resolution):** Across all eight 8 GB sessions, **zero HTTP 500 errors and zero unhandled exceptions occurred**. At concurrency 4,096 on E3, overloaded requests were answered cleanly with 429 `wow.command.busy` and 504 `wow.wait.timeout`. The previous HTTP 500s seen with empty Kafka strings are confirmed absent when using `--wow.transport=none`.
+
+| Fixed rates, 8 GB heap | Wow, Kafka off (W) | Axon (A) | Axon, 32 connections (A32) | Wow, Kafka off, 32 connections (W32) | Wow, Kafka on (K) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| E1 at 2,500/s: p50 | 1.45, 1.46 ms | 1.69, 1.68 ms | 1.61 ms | 1.45 ms | 1.51, 1.50 ms |
+| E1: p99 | 4.6, 5.0 ms | 5.8, 7.6 ms | 4.3 ms | 5.0 ms | 4.9, 4.4 ms |
+| E1: node CPU per op | 0.433, 0.428 ms | 0.418, 0.412 ms | 0.403 ms | 0.436 ms | 0.536, 0.540 ms |
+| E1: PostgreSQL CPU per op | 0.228, 0.226 ms | 0.317, 0.307 ms | 0.307 ms | 0.232 ms | 0.238, 0.234 ms |
+| E1: commits per op | 1.67, 1.70 | 1.91, 1.93 | 1.96 | 1.67 | 1.63, 1.65 |
+| E3 at 700/s: p50 | 2.65, 2.25 ms | 3.68, 3.71 ms | 3.62 ms | 2.48 ms | 2.64, 2.38 ms |
+| E3: p99 | 172.0, 6.9 ms | 9.1, 9.1 ms | 8.4 ms | 9.0 ms | 9.5, 7.0 ms |
+| E3: node CPU per op | 1.165, 1.245 ms | 1.026, 1.015 ms | 1.014 ms | 1.335 ms | 1.626, 1.558 ms |
+| E3: PostgreSQL CPU per op | 0.639, 0.682 ms | 1.020, 1.010 ms | 1.018 ms | 0.782 ms | 0.805, 0.703 ms |
+| E3: commits per op | 4.61, 5.75 | 6.71, 6.72 | 6.84 | 5.54 | 5.45, 5.75 |
+
+- At fixed rates on an 8 GB heap, Wow Kafka off node CPU per op is 0.428–0.433 ms on E1 and 1.165–1.245 ms on E3, while Axon node CPU is 0.412–0.418 ms on E1 and 1.015–1.026 ms on E3.
+- PostgreSQL CPU per op remains 1.36–1.40 times higher for Axon on E1 (0.307–0.317 ms vs 0.226–0.228 ms) and 1.48–1.60 times higher on E3 (1.010–1.020 ms vs 0.639–0.682 ms). Axon commits 1.91–1.93 transactions per E1 and 6.71–6.72 per E3, while Wow commits 1.67–1.70 per E1 and 4.61–5.75 per E3.
+- E3 p50 latency: Wow reaches 2.25–2.65 ms vs 3.68–3.71 ms for Axon.
+
 ## Limits
 
 - Three machines, one node each, local Docker; no server disk. The rates and sweeps are E1 and E3 only: the Axon server has no state reads (E2, E4) and no large payloads.

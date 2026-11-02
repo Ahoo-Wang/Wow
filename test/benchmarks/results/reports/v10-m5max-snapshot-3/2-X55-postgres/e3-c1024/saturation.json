@@ -1,0 +1,42 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080", "http://127.0.0.1:18081", "http://127.0.0.1:18082"],
+  "saturationThroughput": 1999.7666666666667,
+  "saturationConcurrency": 1024,
+  "generatorCores": 0.41573828280326164,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1024,
+      "throughput": 1999.7666666666667,
+      "ok": 119986,
+      "errors": {
+        "http-503-wow.command.unknown": 2400,
+        "http-504-wow.wait.timeout": 2068,
+        "http-409-wow.command.contended": 26
+      },
+      "p50Ms": 68.095,
+      "p99Ms": 1826.815,
+      "generatorCores": 0.41573828280326164
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "3",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "11",
+    "settleSeconds": "23",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/e2e/20261102-020035-run-postgres-n3-saturation"
+  }
+}

@@ -1,0 +1,563 @@
+2026-11-02T05:28:19.489-08:00  WARN 83772 --- [transfer-axon] [           main] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.spring.stereotype.Aggregate with appropriate @AliasFor declarations: [type]
+2026-11-02T05:28:19.493-08:00  WARN 83772 --- [transfer-axon] [           main] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.commandhandling.CommandHandler with appropriate @AliasFor declarations: [payloadType]
+2026-11-02T05:28:19.494-08:00  WARN 83772 --- [transfer-axon] [           main] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.eventsourcing.EventSourcingHandler with appropriate @AliasFor declarations: [payloadType]
+2026-11-02T05:28:19.494-08:00  WARN 83772 --- [transfer-axon] [           main] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.eventsourcing.EventSourcingHandler with appropriate @AliasFor declarations: [payloadType]
+2026-11-02T05:28:19.499-08:00  WARN 83772 --- [transfer-axon] [           main] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.eventhandling.EventHandler with appropriate @AliasFor declarations: [payloadType]
+2026-11-02T05:28:33.054-08:00  WARN 83772 --- [transfer-axon] [ virtual-100118] o.s.c.annotation.AnnotationTypeMapping   : Support for convention-based annotation attribute overrides is deprecated and will be removed in Spring Framework 7.0. Please annotate the following attributes in @org.axonframework.modelling.command.AggregateIdentifier with appropriate @AliasFor declarations: [routingKey]
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [1d605679-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49951] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [7fa79029-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50141] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [e6236bfe-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49993] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [f0cb8773-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49947] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [bedef748-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49950] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [8a3bbd6c-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50122] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [d212690c-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50070] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [6374cd97-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50106] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [8a7ed170-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50023] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-11] reactor.netty.channel.FluxReceive        : [b0054f6c-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49971] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-4] reactor.netty.channel.FluxReceive        : [00410f13-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49959] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [6beba6f0-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50082] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.136-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-11] reactor.netty.channel.FluxReceive        : [378c6f8e-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50097] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.136-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [39873e96-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50069] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-6] reactor.netty.channel.FluxReceive        : [426cb6af-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49963] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [4b0e389b-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49994] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [6dafd198-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50012] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [6c7608ae-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50073] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-5] reactor.netty.channel.FluxReceive        : [0849bddf-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50105] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [c7d7b04a-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50002] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [e5105574-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49944] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-4] reactor.netty.channel.FluxReceive        : [bb2b5a85-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50077] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [631790dd-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50135] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-4] reactor.netty.channel.FluxReceive        : [4a143a6f-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50022] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-5] reactor.netty.channel.FluxReceive        : [be1905f2-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50081] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [d54f01fc-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49956] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-4] reactor.netty.channel.FluxReceive        : [101f2332-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50134] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-5] reactor.netty.channel.FluxReceive        : [274ccb42-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49955] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [e3c5f76d-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49945] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.135-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [74ccdcea-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50099] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [ffa0ed2f-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49969] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [2c96553e-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50164] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [2d257ef6-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49968] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [3e225d15-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50163] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [dc0409fd-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49997] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] reactor.netty.channel.FluxReceive        : [1f526068-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50104] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [a5d55ac3-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49972] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [4f549cfb-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49975] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [eb129e5f-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50071] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [f4fb44a4-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49958] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [5430b1a3-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50004] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [cdfee065-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49954] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [ea2eb61e-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49973] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [294de6a1-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50026] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [a494d612-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49996] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [5ae92f13-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50092] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [49b83da5-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50167] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [baa3e010-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49995] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [c07860c0-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49967] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [9337f485-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49941] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [185fb88c-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49998] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [4814c8c0-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50131] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [4e8fbb84-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50000] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [8d6e7e60-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50019] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-18] reactor.netty.channel.FluxReceive        : [46650297-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50171] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [a848302d-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50133] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [dd6e8d58-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50173] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-6] reactor.netty.channel.FluxReceive        : [94fea2d8-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50017] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [6a3fd7b5-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49943] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-6] reactor.netty.channel.FluxReceive        : [0a7576bc-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50107] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-2] reactor.netty.channel.FluxReceive        : [8aa658e3-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50080] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-6] reactor.netty.channel.FluxReceive        : [62fb2489-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50095] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [8dd8f520-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50162] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-11] reactor.netty.channel.FluxReceive        : [655a9826-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49953] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [f9fff2bf-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50136] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [a30dd7c9-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50016] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-11] reactor.netty.channel.FluxReceive        : [766f30f2-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50067] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [a4f214d8-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50140] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [0b2a5f8d-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50062] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-4] reactor.netty.channel.FluxReceive        : [064b2098-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50137] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [65e5576e-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49999] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-5] reactor.netty.channel.FluxReceive        : [6b61e9fa-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50015] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [f6aaba45-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50088] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-5] reactor.netty.channel.FluxReceive        : [d62f71f8-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50009] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [c419e5c9-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50089] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [4fe293dd-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50087] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [9e0cccdc-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50079] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [df6341f2-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50001] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [3c613560-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50085] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [3c77a2ec-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50008] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.137-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [e54342a5-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49970] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [35abd012-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50006] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [63169a22-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50011] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [b3298be7-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49965] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [6ff39545-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50021] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [09d2294c-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50024] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [c0281dfc-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50025] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [e4535dee-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49946] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [b1f8f8e5-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50129] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [c283a4e7-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50098] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.138-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [d221ed1d-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50075] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [4f382bd1-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50157] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.139-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [5a85f8ce-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50172] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [51f68a37-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50020] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [b6e0009b-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50093] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [e50f304e-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50139] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [09b050e6-1, L:/127.0.0.1:18080 - R:/127.0.0.1:49952] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [2ed0b52a-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50065] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-3] reactor.netty.channel.FluxReceive        : [51b76d23-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50063] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [468a65ce-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50061] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [64fc4ceb-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50013] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.141-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [70b27df4-1, L:/127.0.0.1:18080 - R:/127.0.0.1:50091] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.140-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [ccabc43a, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xccabc43a, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.143-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [ccabc43a-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.143-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [1ca3e8e6, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x1ca3e8e6, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.143-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [f0c1482d, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xf0c1482d, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-6] reactor.netty.channel.FluxReceive        : [1ca3e8e6-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43786] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [89c9b374, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x89c9b374, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-7] reactor.netty.channel.FluxReceive        : [f0c1482d-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-8] reactor.netty.channel.FluxReceive        : [89c9b374-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [11a05e31, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x11a05e31, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-9] reactor.netty.channel.FluxReceive        : [11a05e31-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.144-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [cda5c6d6, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xcda5c6d6, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [464c823a, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x464c823a, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-10] reactor.netty.channel.FluxReceive        : [cda5c6d6-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-11] reactor.netty.channel.FluxReceive        : [464c823a-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [e0f72fc7, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xe0f72fc7, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-12] reactor.netty.channel.FluxReceive        : [e0f72fc7-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [a62bda9d, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xa62bda9d, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-13] reactor.netty.channel.FluxReceive        : [a62bda9d-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [d2323178, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xd2323178, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.145-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [74d3b443, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x74d3b443, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.146-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-14] reactor.netty.channel.FluxReceive        : [d2323178-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.146-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-15] reactor.netty.channel.FluxReceive        : [74d3b443-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.146-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [43bf4a9c, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0x43bf4a9c, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.146-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-16] reactor.netty.channel.FluxReceive        : [43bf4a9c-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset
+2026-11-02T05:35:10.146-08:00  WARN 83772 --- [transfer-axon] [ctor-http-nio-1] r.netty.transport.TransportConnector     : [c7facc34, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] Failed to set channel option 'TCP_NODELAY' with value 'true' for channel '[id: 0xc7facc34, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890]'
+
+io.netty.channel.ChannelException: java.net.SocketException: Invalid argument
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:255) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setOption(DefaultSocketChannelConfig.java:108) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelConfig.setOption(NioSocketChannel.java:497) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at reactor.netty.transport.TransportConnector.setChannelOptions(TransportConnector.java:210) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at reactor.netty.transport.ServerTransport$Acceptor.channelRead(ServerTransport.java:386) ~[reactor-netty-core-1.2.18.jar:1.2.18]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:444) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:412) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelRead(DefaultChannelPipeline.java:1357) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:440) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:420) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:868) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:97) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:796) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:732) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:658) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:998) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[netty-common-4.1.135.Final.jar:4.1.135.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: java.net.SocketException: Invalid argument
+	at java.base/sun.nio.ch.Net.setIntOption0(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:457) ~[na:na]
+	at java.base/sun.nio.ch.Net.setSocketOption(Net.java:395) ~[na:na]
+	at java.base/sun.nio.ch.SocketChannelImpl.setOption(SocketChannelImpl.java:287) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setBooleanOption(SocketAdaptor.java:202) ~[na:na]
+	at java.base/sun.nio.ch.SocketAdaptor.setTcpNoDelay(SocketAdaptor.java:238) ~[na:na]
+	at io.netty.channel.socket.DefaultSocketChannelConfig.setTcpNoDelay(DefaultSocketChannelConfig.java:253) ~[netty-transport-4.1.135.Final.jar:4.1.135.Final]
+	... 20 common frames omitted
+
+2026-11-02T05:35:10.147-08:00  WARN 83772 --- [transfer-axon] [tor-http-nio-17] reactor.netty.channel.FluxReceive        : [c7facc34-1, L:/[0:0:0:0:0:0:7f00:1]:18080 - R:/1.0.0.0:43890] An exception has been observed post termination, use DEBUG level to see the full stack: java.net.SocketException: Connection reset

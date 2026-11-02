@@ -1,0 +1,57 @@
+[2026-11-02 04:10:52] Session 1 (W) up
+[2026-11-02 04:11:46] Session 1 (W) E1 fixed 2500
+[2026-11-02 04:12:52] Session 1 (W) E3 fixed 700
+[2026-11-02 04:13:59] Session 1 (W) E1 sweep (max 4096)
+[2026-11-02 04:18:44] Session 1 (W) E3 sweep (max 4096)
+[2026-11-02 04:23:32] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/1-W-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/1-W-postgres/logs/
+[2026-11-02 04:23:32] Session 1 (W) down
+[2026-11-02 04:23:42] Session 2 (A) up
+[2026-11-02 04:24:37] Session 2 (A) E1 fixed 2500
+[2026-11-02 04:25:44] Session 2 (A) E3 fixed 700
+[2026-11-02 04:26:50] Session 2 (A) E1 sweep (max 4096)
+[2026-11-02 04:31:36] Session 2 (A) E3 sweep (max 4096)
+[2026-11-02 04:36:30] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/2-A-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/2-A-postgres/logs/
+[2026-11-02 04:36:30] Session 2 (A) down
+[2026-11-02 04:36:39] Session 3 (A) up
+[2026-11-02 04:37:34] Session 3 (A) E1 fixed 2500
+[2026-11-02 04:38:41] Session 3 (A) E3 fixed 700
+[2026-11-02 04:39:48] Session 3 (A) E1 sweep (max 4096)
+[2026-11-02 04:44:33] Session 3 (A) E3 sweep (max 4096)
+[2026-11-02 04:49:30] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/3-A-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/3-A-postgres/logs/
+[2026-11-02 04:49:30] Session 3 (A) down
+[2026-11-02 04:49:39] Session 4 (W) up
+[2026-11-02 04:50:30] Session 4 (W) E1 fixed 2500
+[2026-11-02 04:51:37] Session 4 (W) E3 fixed 700
+[2026-11-02 04:52:44] Session 4 (W) E1 sweep (max 4096)
+[2026-11-02 04:57:28] Session 4 (W) E3 sweep (max 4096)
+[2026-11-02 05:02:15] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/4-W-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/4-W-postgres/logs/
+[2026-11-02 05:02:15] Session 4 (W) down
+[2026-11-02 05:02:26] Session 5 (K) up
+[2026-11-02 05:03:21] Session 5 (K) E1 fixed 2500
+[2026-11-02 05:04:28] Session 5 (K) E3 fixed 700
+[2026-11-02 05:05:35] Session 5 (K) E1 sweep (max 4096)
+[2026-11-02 05:10:19] Session 5 (K) E3 sweep (max 4096)
+[2026-11-02 05:15:07] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/5-K-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/5-K-postgres/logs/
+[2026-11-02 05:15:07] Session 5 (K) down
+[2026-11-02 05:15:21] Session 6 (K) up
+[2026-11-02 05:16:15] Session 6 (K) E1 fixed 2500
+[2026-11-02 05:17:22] Session 6 (K) E3 fixed 700
+[2026-11-02 05:18:29] Session 6 (K) E1 sweep (max 4096)
+[2026-11-02 05:23:13] Session 6 (K) E3 sweep (max 4096)
+[2026-11-02 05:28:01] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/6-K-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/6-K-postgres/logs/
+[2026-11-02 05:28:01] Session 6 (K) down
+[2026-11-02 05:28:12] Pool-32 Session 1 (A) up
+[2026-11-02 05:28:52] Pool-32 Session 1 (A) E1 fixed 2500
+[2026-11-02 05:29:59] Pool-32 Session 1 (A) E3 fixed 700
+[2026-11-02 05:31:05] Pool-32 Session 1 (A) E1 sweep (max 4096)
+[2026-11-02 05:35:50] Pool-32 Session 1 (A) E3 sweep (max 4096)
+[2026-11-02 05:40:48] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/pool-32/1-A-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/pool-32/1-A-postgres/logs/
+[2026-11-02 05:40:48] Pool-32 Session 1 (A) down
+[2026-11-02 05:40:57] Pool-32 Session 2 (W) up
+[2026-11-02 05:41:35] Pool-32 Session 2 (W) E1 fixed 2500
+[2026-11-02 05:42:42] Pool-32 Session 2 (W) E3 fixed 700
+[2026-11-02 05:43:49] Pool-32 Session 2 (W) E1 sweep (max 4096)
+[2026-11-02 05:48:34] Pool-32 Session 2 (W) E3 sweep (max 4096)
+[2026-11-02 05:53:21] Copied node logs from /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/pool-32/2-W-postgres/up to /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/pool-32/2-W-postgres/logs/
+[2026-11-02 05:53:21] Pool-32 Session 2 (W) down
+[2026-11-02 05:53:32] All 8 GB sessions completed successfully.

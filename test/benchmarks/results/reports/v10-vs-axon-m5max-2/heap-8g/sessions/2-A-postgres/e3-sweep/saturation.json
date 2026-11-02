@@ -1,0 +1,92 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1508.7666666666667,
+  "saturationConcurrency": 64,
+  "generatorCores": 0.2346111507893726,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 213.76666666666668,
+      "ok": 6413,
+      "errors": {},
+      "p50Ms": 3.695,
+      "p99Ms": 9.727,
+      "generatorCores": 0.11123804673757758
+    },
+    {
+      "concurrency": 4,
+      "throughput": 912.9333333333333,
+      "ok": 27388,
+      "errors": {},
+      "p50Ms": 4.159,
+      "p99Ms": 7.871,
+      "generatorCores": 0.13104386956217629
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1479.0333333333333,
+      "ok": 44371,
+      "errors": {},
+      "p50Ms": 9.919,
+      "p99Ms": 21.375,
+      "generatorCores": 0.23063377726096113
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1508.7666666666667,
+      "ok": 45263,
+      "errors": {},
+      "p50Ms": 31.359,
+      "p99Ms": 178.175,
+      "generatorCores": 0.2346111507893726
+    },
+    {
+      "concurrency": 256,
+      "throughput": 1477.6333333333334,
+      "ok": 44329,
+      "errors": {},
+      "p50Ms": 52.735,
+      "p99Ms": 1253.375,
+      "generatorCores": 0.23218847429163383
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 1398.5,
+      "ok": 41955,
+      "errors": {},
+      "p50Ms": 191.487,
+      "p99Ms": 6914.047,
+      "generatorCores": 0.2230878480374706
+    },
+    {
+      "concurrency": 4096,
+      "throughput": 1137.9,
+      "ok": 34137,
+      "errors": {},
+      "p50Ms": 3571.711,
+      "p99Ms": 5406.719,
+      "generatorCores": 0.1930821254391873
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "8g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "24",
+    "settleSeconds": "7",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/heap-8g/sessions/2-A-postgres/up"
+  }
+}

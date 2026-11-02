@@ -1,0 +1,19 @@
+[settle] 1s: node-1 5.56
+[settle] 2s: node-1 4.96
+[settle] 3s: node-1 5.40
+[settle] 4s: node-1 5.69
+[settle] 5s: node-1 6.29
+[settle] 6s: node-1 6.22
+[settle] 7s: node-1 0.04
+[settle] 8s: node-1 0.10
+[settle] 9s: node-1 0.04
+[settle] quiet after 9s (below 0.25 cores for 3 s in a row)
+[saturate] E3: concurrency=1 throughput=256.4/s p50=3ms errors={}
+[saturate] E3: concurrency=4 throughput=758.8/s p50=4ms errors={}
+[saturate] E3: concurrency=16 throughput=1667.3/s p50=8ms errors={}
+[saturate] E3: concurrency=64 throughput=2101.0/s p50=21ms errors={}
+[saturate] E3: concurrency=256 throughput=1594.4/s p50=17ms errors={}
+[saturate] E3: concurrency=1024 throughput=1735.9/s p50=244ms errors={}
+[saturate] E3: concurrency=4096 throughput=1510.9/s p50=2654ms errors={}
+[saturate] saturation: 2101.0/s at concurrency 64
+[bench] results in /Users/ahoowang/.gemini/antigravity/worktrees/Wow/v10_m5max_snapshot_3/test/benchmarks/results/reports/v10-vs-axon-m5max-2/pool-32/1-A-postgres/e3-sweep
