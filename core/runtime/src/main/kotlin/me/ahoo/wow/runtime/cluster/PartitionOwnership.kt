@@ -550,7 +550,7 @@ class PartitionOwnership internal constructor(
         // Another node may have committed to the partition's aggregates since this one last cached them.
         partitionChanged(partition)
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
-        val gate = Gate(asked, starting = true)
+        val gate = Gate(asked)
         gates[partition] = gate
         try {
             runtimes.forEach { it.startPartition(partition) }
@@ -744,19 +744,16 @@ class PartitionOwnership internal constructor(
      * A partition this node holds: whether it takes commands, and the commands in flight. [renewedAt] marks when the
      * lease was last acquired or renewed, taken before the call: once longer ago than `leaseTtl − renewInterval`, the
      * lease is [overdue] and the gate no longer [open], since the lease may expire before the next round renews it.
-     * While [starting], the partition's runtimes start: its lease is renewed, but it takes no command, is not overdue
-     * yet, and counts as [pending].
+     * A gate is made as its lease is taken, [starting]: while the partition's runtimes start, its lease is renewed, but
+     * it takes no command, is not overdue yet, and counts as [pending].
      */
-    private inner class Gate(
-        @Volatile var renewedAt: TimeMark,
-        starting: Boolean = false,
-    ) {
+    private inner class Gate(@Volatile var renewedAt: TimeMark) {
         @Volatile
-        var starting = starting
+        var starting = true
             private set
 
         @Volatile
-        var accepting = !starting
+        var accepting = false
 
         @Volatile
         var lost = false

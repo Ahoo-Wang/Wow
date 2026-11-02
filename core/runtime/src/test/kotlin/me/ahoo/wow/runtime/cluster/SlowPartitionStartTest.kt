@@ -97,7 +97,8 @@ class SlowPartitionStartTest {
                     return delegate.renew(group, partitions, owner, ttl)
                 }
             }
-            val ownership = ownership(store, CopyOnWriteArrayList())
+            // Slower still: a renewal finds the lease taken while the partition is starting.
+            val ownership = ownership(store, CopyOnWriteArrayList(), start = 15.seconds)
             val starting = launch { ownership.start() }
             try {
                 delay(1.seconds)
@@ -117,12 +118,34 @@ class SlowPartitionStartTest {
             }
         }
 
-    private fun TestScope.ownership(store: LeaseStore, rounds: MutableList<RenewalRound>): PartitionOwnership {
+    @Test
+    fun `a partition whose start fails should be released, then acquired again`(): Unit = runTest(timeout = 1.minutes) {
+        val store = InMemoryLeaseStore(virtualClock())
+        val ownership = ownership(store, CopyOnWriteArrayList(), start = 1.seconds, failures = 1)
+        try {
+            ownership.start()
+            // Its start failed: released, and no longer tracked, so the next reconcile acquires it anew.
+            ownership.owned.assert().isEmpty()
+            ownership.pending(0).assert().isTrue()
+            store.owners(GROUP.name).assert().isEmpty()
+            delay(1.minutes / 2)
+            ownership.owned.assert().containsExactly(0)
+        } finally {
+            ownership.stop()
+        }
+    }
+
+    private fun TestScope.ownership(
+        store: LeaseStore,
+        rounds: MutableList<RenewalRound>,
+        start: Duration = START,
+        failures: Int = 0,
+    ): PartitionOwnership {
         val runtime = SubscriptionRuntime(
             GROUP.name,
             InMemoryEventLog(PARTITIONS),
             InMemoryCheckpointStore(),
-            SlowLedger(InMemoryFailureLedger(), START),
+            SlowLedger(InMemoryFailureLedger(), start, failures),
             subscriptions = listOf(Subscription("projector", SubscriptionFilter(GROUP.context)) { }),
             context = StandardTestDispatcher(testScheduler),
         )
@@ -148,10 +171,14 @@ class SlowPartitionStartTest {
         override fun instant(): Instant = Instant.ofEpochMilli(testScheduler.currentTime)
     }
 
-    /** A ledger slow to list a partition's parked aggregates, as a subscription reads them when its partition starts. */
+    /**
+     * A ledger slow to list a partition's parked aggregates, as a subscription reads them when its partition starts,
+     * failing the first [failures] times.
+     */
     private class SlowLedger(
         private val delegate: FailureLedger,
-        private val latency: Duration
+        private val latency: Duration,
+        private var failures: Int,
     ) : FailureLedger by delegate {
         override suspend fun due(
             subscription: String,
@@ -162,6 +189,7 @@ class SlowPartitionStartTest {
         ): List<ParkedAggregate> {
             if (partitions.isNotEmpty()) {
                 delay(latency)
+                check(failures-- <= 0) { "The ledger is unreachable." }
             }
             return delegate.due(subscription, partitions, now, after, limit)
         }
