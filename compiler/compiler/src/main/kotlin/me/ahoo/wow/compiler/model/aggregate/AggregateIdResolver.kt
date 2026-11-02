@@ -113,8 +113,9 @@ internal object AggregateIdResolver {
         return "command $name has a String property $ID and no @AggregateId property: Wow 10 does not take a " +
             "command's aggregate from its body unless a property is marked @AggregateId. If $ID names $name's " +
             "aggregate, mark it @AggregateId, as a 9.x command whose body named its aggregate needs, a creation a " +
-            "saga sends without an aggregate id among them; otherwise suppress this with " +
-            "@Suppress(\"$UNMARKED_AGGREGATE_ID\")"
+            "saga sends without an aggregate id among them. If 9.x bound it from the path, it only repeated the " +
+            "route: remove it and read command.ref.id. Otherwise suppress this with " +
+            "@Suppress(\"$UNMARKED_AGGREGATE_ID\")."
     }
 
     /** The properties of [command] and its supertypes, the class's own first. */

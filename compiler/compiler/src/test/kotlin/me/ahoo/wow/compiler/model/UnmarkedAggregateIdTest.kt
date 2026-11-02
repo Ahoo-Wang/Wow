@@ -95,8 +95,9 @@ class UnmarkedAggregateIdTest {
                 "sample.Stock: command ReserveStock has a String property id and no @AggregateId property: Wow 10 " +
                     "does not take a command's aggregate from its body unless a property is marked @AggregateId. If " +
                     "id names ReserveStock's aggregate, mark it @AggregateId, as a 9.x command whose body named its " +
-                    "aggregate needs, a creation a saga sends without an aggregate id among them; otherwise suppress " +
-                    "this with @Suppress(\"UnmarkedAggregateId\")",
+                    "aggregate needs, a creation a saga sends without an aggregate id among them. If 9.x bound it " +
+                    "from the path, it only repeated the route: remove it and read command.ref.id. Otherwise " +
+                    "suppress this with @Suppress(\"UnmarkedAggregateId\").",
             )
             .contains("command Restock has a String property id and no @AggregateId property")
             .contains("command OpenStock has a String property id and no @AggregateId property")
