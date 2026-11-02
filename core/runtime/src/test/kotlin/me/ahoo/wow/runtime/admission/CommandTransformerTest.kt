@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.ReservationTenancy
+import me.ahoo.wow.api.decide.reject
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.TransformedFrom
@@ -292,6 +293,41 @@ class CommandTransformerTest {
         val result = gateway().execute(request("Note", "{}"))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
+    }
+
+    @Test
+    fun `a transformer's rejection refuses the command with its code, a local name qualified, and nothing runs`(): Unit =
+        runBlocking {
+            val unknown = transformer(import) { input ->
+                val legacyId = (input.body as Import).legacyId
+                reject("unknown-legacy", "No 9.x account $legacyId.", extensions = mapOf("legacyId" to legacyId))
+            }
+            val suspended = transformer(callback) { reject("shop.suspended", "Callbacks are suspended.") }
+            val gateway = gateway(transformers = listOf(byUsername, unknown, suspended, notes))
+            val result = gateway.execute(request("Import", """{"username":"erin","legacyId":"7"}"""))
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo("$TYPE.unknown-legacy")
+            result.error!!.message.assert().isEqualTo("No 9.x account 7.")
+            result.error!!.extensions.assert().isEqualTo(mapOf("legacyId" to "7"))
+            result.transformedFrom.assert().isNull()
+            // A full code stays as it is.
+            gateway.execute(request("ProviderCallback", """{"user":"u-1","event":"rotated"}""")).error!!.code.assert()
+                .isEqualTo("shop.suspended")
+            decided.assert().isEmpty()
+        }
+
+    @Test
+    fun `a transformer's rejection with events appends none of them`(): Unit = runBlocking {
+        val unknown = transformer(import) { reject("unknown-legacy", "No such account.", listOf(Registered("erin"))) }
+        val gateway = gateway(transformers = listOf(byUsername, unknown, callbacks, notes))
+        // Warned about once: the second is answered alike.
+        repeat(2) { index ->
+            val result = gateway.execute(request("Import", """{"username":"erin","legacyId":"$index"}"""))
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo("$TYPE.unknown-legacy")
+            result.version.assert().isNull()
+        }
+        decided.assert().isEmpty()
     }
 
     @Test
