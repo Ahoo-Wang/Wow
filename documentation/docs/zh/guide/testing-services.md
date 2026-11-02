@@ -35,22 +35,27 @@ private val server = wowServer<OrderingServer>(
 - 它缩短节点关闭时等待的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`），让测试类之间的关闭很快；`properties` 加上测试自己的属性，这里是 `wow.timers.poll-interval=200ms`，让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 
-ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试给它内存中的主题，而不是 Kafka：
+ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试服务器为此什么都不用写：它的内部端口在回环网卡上，所以节点运行于开发模式，`wow.transport=auto` 就把命令主题和发布流留在它的 JVM 里，除非应用配置了传输。测试要在节点启动前往主题里写入（例如 Saga 要从头读的别的上下文的发布流），或者几个服务器共用主题，就用 `topics` 给出：
 
-<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
 ```kotlin
-@Configuration(proxyBeanMethods = false)
-class InMemoryOrderingTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
+@Test
+fun `servers given the same topics should share them, which outlive each`() {
+    val topics = InMemoryTopics(4)
+    wowServer<BankServer>("dev", topics = topics).use { first ->
+        first.bean<InMemoryTopics>().assert().isSameAs(topics)
+        runBlocking { first.commands(Caller.ANONYMOUS).wait(OpenAccount("Bea"), "bea") }
+        wowServer<BankServer>("dev", topics = topics).use { second ->
+            second.bean<SourceTopics>().source.assert().isSameAs(topics)
+        }
+    }
+    eventually("the account's stream published") { topics.messages(ACCOUNTS).size == 1 }
 }
 ```
 
-`wow.transport=memory` 从配置做到同样的事，用于在一台机器上试用服务。
+- 节点用给它的主题代替自己的，并设 `wow.transport=memory`；关闭时不关闭这些主题，所以它们比共用它们的每个服务器都活得久。
+- `server.bean<InMemoryTopics>()` 是节点的主题，无论是给的还是它自己的，用来读它的 Saga 发出的命令、它的流发布的记录。
 
 然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 

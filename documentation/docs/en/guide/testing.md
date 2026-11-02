@@ -432,7 +432,7 @@ fun `the binding index should name the context and the fragment and build the or
 Domain tests cover the model. A service test starts the application and calls it over HTTP; keep it for what only a running service shows, such as routes, authorization and configuration:
 
 - Run it on the memory backend, with random ports for the public and internal servers and the internal port on the loopback interface.
-- Give the test a caller resolver of its own that reads a test header, so each request has a tenant and an owner.
+- Start it in a development profile (`dev`) without a caller resolver of the application's: the host then reads each request's caller from the development identity headers, which the server's typed clients send for the caller they are given ([Send and read as a caller](./testing-services#send-and-read-as-a-caller)).
 - On the memory backend, the snapshot and events queries are served from memory by default, so a test can query what it wrote; `wow.query.memory.enabled: false` turns them off. They run the in-memory engine, not a real store's.
-- A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.transport=memory`.
+- A service whose sagas send commands to another context needs a command transport. A test server has one with no configuration: its loopback internal port makes the node a development one, which keeps its topics in its JVM; a test against Kafka runs it in a container.
 - Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the service module's `integrationTest` test suite, which the Gradle plugin `me.ahoo.wow.service` registers (JUnit Jupiter, the module's classes and everything `testImplementation` gives) and `check` does not run: put the sources under `src/integrationTest/kotlin`, declare what they need in the suite, and run `./gradlew integrationTest` ([Run it on real stores](./testing-services#run-it-on-real-stores)).

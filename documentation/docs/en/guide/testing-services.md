@@ -35,22 +35,27 @@ private val server = wowServer<OrderingServer>(
 - It shortens the timeouts a node waits on at its close (`wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`), so the shutdown between test classes is quick; `properties` add the test's own, here `wow.timers.poll-interval=200ms`, which fires scheduled commands promptly.
 - The application's own settings shorten what the test waits for: here the payment grace period, two seconds instead of thirty minutes.
 
-The ordering's sagas send the inventory's commands, so the node needs a command transport. The test gives it topics in memory instead of Kafka:
+The ordering's sagas send the inventory's commands, so the node needs a command transport. A test server needs nothing for it: its internal port is on the loopback interface, so the node runs for development, and `wow.transport=auto` keeps its command topics and published streams in its JVM unless the application configures a transport. A test that writes to the topics before the node starts, such as another context's published stream a saga reads from its beginning, or servers that share topics, gives them with `topics`:
 
-<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
 ```kotlin
-@Configuration(proxyBeanMethods = false)
-class InMemoryOrderingTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
+@Test
+fun `servers given the same topics should share them, which outlive each`() {
+    val topics = InMemoryTopics(4)
+    wowServer<BankServer>("dev", topics = topics).use { first ->
+        first.bean<InMemoryTopics>().assert().isSameAs(topics)
+        runBlocking { first.commands(Caller.ANONYMOUS).wait(OpenAccount("Bea"), "bea") }
+        wowServer<BankServer>("dev", topics = topics).use { second ->
+            second.bean<SourceTopics>().source.assert().isSameAs(topics)
+        }
+    }
+    eventually("the account's stream published") { topics.messages(ACCOUNTS).size == 1 }
 }
 ```
 
-`wow.transport=memory` does the same from configuration, for trying a service out on one machine.
+- The node takes the topics it is given in place of its own, with `wow.transport=memory`, and leaves them open when it closes, so they outlive each server that shares them.
+- `server.bean<InMemoryTopics>()` is a node's topics, given or its own, to read what its sagas sent and its streams published.
 
 A test then drives the service as a client would, and waits for what happens asynchronously. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
 
