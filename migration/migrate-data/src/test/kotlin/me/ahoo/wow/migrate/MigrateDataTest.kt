@@ -157,7 +157,7 @@ class MigrateDataTest {
     @Test
     fun `check reports and writes nothing`() {
         run("check", "--config", config().toString()).assert().isEqualTo(MigrateData.OK)
-        printed.assert().contains("Mapping check passed.")
+        printed.assert().contains("Mapping check passed.").doesNotContain("(createTime, _id)")
         closed.assert().isTrue()
         Files.exists(directory.resolve("migrate-data.checkpoint.json")).assert().isFalse()
     }
@@ -286,6 +286,12 @@ class MigrateDataTest {
         val indexed = IndexedSource(source)
         nineX = indexed
         run("import", "--config", config().toString()).assert().isEqualTo(MigrateData.OK)
+        // The import's check warns of each collection without the index, and creates none.
+        printed.lines().filter { it.startsWith("WARNING the 9.x collection") }.map { it.substringBefore(" has") }
+            .assert().containsExactly(
+                "WARNING the 9.x collection order_event_stream",
+                "WARNING the 9.x collection cart_event_stream",
+            )
         run("tail", "--config", config().toString(), "--once").assert().isEqualTo(MigrateData.FAILED)
         printed.assert().contains("[order_event_stream, cart_event_stream]")
             .contains("  create order_event_stream")

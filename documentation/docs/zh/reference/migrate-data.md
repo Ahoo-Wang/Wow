@@ -110,7 +110,7 @@ outline: deep
 | `manifests` | 必填 | 流要去往的各服务合并后的 V10 Manifest。 |
 | `checkpoint` | `migrate-data.checkpoint.json` | 检查点文件。 |
 | `source.uri`、`source.database` | 必填 | 9.x 的 MongoDB 事件存储。数据库中没有任何事件流时，`draft-map` 和 `check` 失败并给出该数据库的名字：名字拼错，或 `env:` 引用的变量未设置，读到的都是一个空存储。 |
-| `source.createCommitTimeIndex` | `false` | 允许 `tail` 在每个事件流集合上创建它需要的 `(createTime, _id)` 索引。否则没有索引时它拒绝启动，并打印创建命令。 |
+| `source.createCommitTimeIndex` | `false` | 允许 `tail` 在每个事件流集合上创建它需要的 `(createTime, _id)` 索引，这会写入 9.x 存储。否则没有索引时它拒绝启动，并打印创建命令。`check` 会对每个缺少该索引的已映射集合发出警告，但不创建任何索引。 |
 | `target.type` | 必填 | `postgres` 或 `mongo`。 |
 | `target.jdbcUrl`、`target.username`、`target.password` | | PostgreSQL 目标。 |
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |

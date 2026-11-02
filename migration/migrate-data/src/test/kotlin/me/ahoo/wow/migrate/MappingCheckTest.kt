@@ -269,6 +269,21 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `a collection the tail has no index on should warn with the command that creates it, not fail`() {
+        val report = MappingCheck(NineXExample.plan).check(
+            example,
+            commitTimeIndexes = mapOf("cart_event_stream" to "db.getCollection(\"cart_event_stream\").createIndex(…)"),
+        )
+        report.passed.assert().isTrue()
+        report.warnings.filter { "(createTime, _id)" in it }.assert().containsExactly(
+            "the 9.x collection cart_event_stream has no (createTime, _id) index, which the tail reads it by and " +
+                "refuses to start without: create it on the 9.x side before the cut-over, " +
+                "db.getCollection(\"cart_event_stream\").createIndex(…), or set \"source\": { \"createCommitTimeIndex\": " +
+                "true } to let the tail create it, a write to the 9.x store",
+        )
+    }
+
+    @Test
     fun `an excluded 9x aggregate or PrepareKey should warn with its reason instead of failing`() {
         val payment = NineXInventory(NineXAggregate("example-service", "payment"), 3, emptyMap(), emptyMap())
         val map = NineXExample.map.copy(

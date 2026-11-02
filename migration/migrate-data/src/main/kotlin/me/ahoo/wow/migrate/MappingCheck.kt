@@ -99,6 +99,10 @@ internal data class MappingReport(
  *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
  *   warning: it is reported and not imported.
  *
+ * A collection the tail reads by commit time without its index ([commitTimeIndexes], each with the command that
+ * creates it) is a warning: the tail refuses to start without it, and creating it writes to the 9.x store, so it is
+ * created on the 9.x side before the cut-over.
+ *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet. An aggregate, an
  * instance's streams or a `PrepareKey` the map excludes ([MigrationMap.excluded]) is a warning with its reason instead
  * of a problem; one the map also maps, or excludes twice, is a problem, and one the store does not hold a warning, as
@@ -111,6 +115,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         prepareKeys: Map<String, Long> = emptyMap(),
         compensation: NineXCompensationInventory? = null,
         tenantsOf: (NineXAggregate, String) -> List<String> = { _, _ -> emptyList() },
+        commitTimeIndexes: Map<String, String> = emptyMap(),
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -138,6 +143,11 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         reservationProblems(prepareKeys, problems, warnings)
         compensationProblems(compensation, problems, warnings)
         plan.map.exceptions.forEach { warnings += "the draft's exception, for a person to resolve and delete: $it" }
+        commitTimeIndexes.forEach { (collection, create) ->
+            warnings += "the 9.x collection $collection has no (createTime, _id) index, which the tail reads it by and " +
+                "refuses to start without: create it on the 9.x side before the cut-over, $create, or set " +
+                "\"source\": { \"createCommitTimeIndex\": true } to let the tail create it, a write to the 9.x store"
+        }
         return MappingReport(problems, warnings, inventories, prepareKeys, compensation)
     }
 
