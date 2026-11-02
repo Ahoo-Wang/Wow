@@ -168,11 +168,12 @@ class BoundedContextArgumentsTest {
     }
 
     @Test
-    fun `the arguments should be read as given, a description left out being empty`() {
+    fun `the arguments should be read as given, a description left out being its default`() {
         BoundedContextArguments.of(annotation("name" to "shop", "description" to "The shop"))
             .assert().isEqualTo(BoundedContextArguments("shop", "The shop"))
-        BoundedContextArguments.of(annotation("name" to "shop")).assert()
-            .isEqualTo(BoundedContextArguments("shop", ""))
+        // KSP lists a default among the arguments, and among the default arguments.
+        BoundedContextArguments.of(annotation("name" to "shop", "description" to "", default = listOf("description" to "")))
+            .assert().isEqualTo(BoundedContextArguments("shop", ""))
         BoundedContextArguments.of(annotation("name" to "shop", default = listOf("description" to "")))
             .assert().isEqualTo(BoundedContextArguments("shop", ""))
     }
@@ -182,6 +183,11 @@ class BoundedContextArgumentsTest {
         BoundedContextArguments.of(annotation("name" to null)).assert().isNull()
         BoundedContextArguments.of(annotation("description" to "The shop")).assert().isNull()
         BoundedContextArguments.of(annotation("name" to "shop", "description" to null)).assert().isNull()
+        // A given argument with no value is unread, though the annotation has a default for it.
+        BoundedContextArguments.of(annotation("name" to "shop", "description" to null, default = listOf("description" to "")))
+            .assert().isNull()
+        // No value listed at all, not even a default.
+        BoundedContextArguments.of(annotation("name" to "shop")).assert().isNull()
     }
 
     /** The one context of the Manifest fragment [compilation] generated. */

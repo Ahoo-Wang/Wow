@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.KSAnnotated
@@ -25,12 +23,14 @@ import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
+import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
 import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
@@ -46,9 +46,11 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SERVICES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.STRING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
 import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
+import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
@@ -69,7 +71,6 @@ internal class AggregateAnalyzer(
     private val mountedOf: (String, List<CommandBinding>, MutableList<String>) -> List<MountedBinding>,
     private val context: () -> String?,
 ) {
-    @OptIn(KspExperimental::class)
     fun analyze(root: KSClassDeclaration): AggregateBinding {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -83,7 +84,9 @@ internal class AggregateAnalyzer(
         if (!rootIsState) {
             problems += RootStateResolver.misplacedProblems(root, state)
         }
-        val aggregateName = root.toName()
+        val aggregateName = root.toName(problems)
+        // Read once: snapshot, stateRevision and retiredEvents are its arguments.
+        val rootArguments = root.argumentsOf(AggregateRoot::class, problems)
         problems += aliasProblems(aggregateName, commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
@@ -95,7 +98,7 @@ internal class AggregateAnalyzer(
                     "${root.simpleName.asString()}'s id is its owner's (idSource = OWNER): its commands name no aggregate"
             }
         }
-        val retiredEvents = RetiredEvents.of(root)
+        val retiredEvents = RetiredEvents.of(rootArguments)
         problems += RetiredEvents.problems(retiredEvents, aggregateName, context(), commands, sourcing, mounted)
         return AggregateBinding(
             root = rootName,
@@ -112,14 +115,14 @@ internal class AggregateAnalyzer(
             upgrades = upgradeBindings,
             problems = problems,
             stateType = state.binaryName(),
-            description = Descriptions.of(root),
+            description = Descriptions.of(root, problems),
             lifecycle = AggregateRootArguments.lifecycle(root, ownership, idSource, problems),
             publication = AggregateRootArguments.publication(root, problems),
             ownership = ownership,
             idSource = idSource,
             mounted = mounted,
-            snapshot = AggregateRootArguments.snapshot(root),
-            stateRevision = AggregateRootArguments.stateRevision(root, problems),
+            snapshot = AggregateRootArguments.snapshot(rootArguments),
+            stateRevision = AggregateRootArguments.stateRevision(rootArguments, problems),
             retiredEvents = retiredEvents,
             tags = TagsResolver.of(state, problems),
             warnings = warnings,
@@ -268,7 +271,6 @@ internal class AggregateAnalyzer(
         return emptyList()
     }
 
-    @OptIn(KspExperimental::class)
     private fun commandBinding(
         function: KSFunctionDeclaration,
         dependencies: MutableMap<String, Dependency>,
@@ -313,8 +315,8 @@ internal class AggregateAnalyzer(
         val unaddressed = command.hasAnnotation(Unaddressed::class.java.name)
         return CommandBinding(
             command = commandType.render(),
-            commandName = command.getAnnotationsByType(Name::class).firstOrNull()?.value,
-            aliases = command.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
+            commandName = command.declaredName(problems),
+            aliases = command.argumentsOf(Alias::class, problems)?.strings(AnnotationArguments.VALUE).orEmpty(),
             function = name,
             admitted = admitted,
             arguments = parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
@@ -328,7 +330,7 @@ internal class AggregateAnalyzer(
             declaredProduces = producesListed,
             schedules = schedules,
             onDeleted = declaredOnDeleted(function),
-            description = Descriptions.of(command),
+            description = Descriptions.of(command, problems),
             blocking = blocking,
         )
     }
@@ -404,7 +406,6 @@ internal class AggregateAnalyzer(
      * dependency, however many functions take it. Of Wow's types, only the services every host binds are dependencies
      * ([SERVICES]): a framework type of 9.x has no Wow 10 counterpart to pass, and no host passes any other.
      */
-    @OptIn(KspExperimental::class)
     private fun argument(
         function: String,
         parameter: KSValueParameter,
@@ -413,7 +414,7 @@ internal class AggregateAnalyzer(
     ): String? {
         val type = parameter.type.resolve()
         val rendered = type.render()
-        val qualifier = parameter.getAnnotationsByType(Name::class).firstOrNull()?.value
+        val qualifier = parameter.declaredName(problems)
         val where = "$function's parameter ${parameter.name?.asString()}"
         if (rendered == DECIDE_SCOPE) {
             if (qualifier != null) {

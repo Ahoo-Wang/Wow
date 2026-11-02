@@ -54,6 +54,25 @@ class SourceTokenRulesTest {
     }
 
     @Test
+    fun `the compiler should read no annotation through getAnnotationsByType, an import or a call`(@TempDir root: File) {
+        File(root, "${ArchitectureRules.COMPILER.dir}/src/main/kotlin/Names.kt").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                import com.google.devtools.ksp.getAnnotationsByType
+                /** Not through [getAnnotationsByType]. */
+                fun a(type: KSClassDeclaration) = type.getAnnotationsByType(Name::class).firstOrNull()?.value
+                fun b(type: KSClassDeclaration) = type.argumentsOf(Name::class, problems)
+                """.trimIndent(),
+            )
+        }
+        SourceTokenRules.COMPILER_READS_NO_ANNOTATION_PROXY.violations(root).assert().containsExactly(
+            "${ArchitectureRules.COMPILER.dir}/src/main/kotlin/Names.kt:1: getAnnotationsByType",
+            "${ArchitectureRules.COMPILER.dir}/src/main/kotlin/Names.kt:3: getAnnotationsByType",
+        )
+    }
+
+    @Test
     fun `a backend should name a ddl mode only as a parameter's default`(@TempDir root: File) {
         File(root, "${ArchitectureRules.POSTGRES.dir}/src/main/kotlin/Store.kt").apply {
             parentFile.mkdirs()

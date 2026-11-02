@@ -148,7 +148,7 @@ internal object ServiceRouteResolver {
             request = reading.request,
             response = response,
             errors = (argument("errors") as? List<*>).orEmpty().filterIsInstance<String>(),
-            description = Descriptions.of(function),
+            description = Descriptions.of(function, reading.problems),
             deprecated = function.annotations.any {
                 it.annotationType.resolve().declaration.qualifiedName?.asString() == "kotlin.Deprecated"
             },

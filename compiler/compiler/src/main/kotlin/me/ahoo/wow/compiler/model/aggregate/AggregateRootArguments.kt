@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -23,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 
 /** The arguments of an aggregate root's `@AggregateRoot`, read and checked for the model processor. */
 internal object AggregateRootArguments {
@@ -33,6 +32,8 @@ internal object AggregateRootArguments {
     private const val PUBLISHED = "published"
     private const val PUBLISH_STATE = "publishState"
     private const val TOPIC = "topic"
+    private const val SNAPSHOT = "snapshot"
+    private const val STATE_REVISION = "stateRevision"
     private val TRANSFER_OWNER: String = Lifecycle.nameOf(TransferOwner::class.java)!!
 
     /** The lifecycle commands' system names, by their classes' names. */
@@ -58,19 +59,17 @@ internal object AggregateRootArguments {
     }
 
     /**
-     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default.
+     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says: true by default. [arguments] are the
+     * root's `@AggregateRoot` read, null when one of them has no value (a problem of the root already).
      */
-    @OptIn(KspExperimental::class)
-    fun snapshot(root: KSClassDeclaration): Boolean =
-        root.getAnnotationsByType(AggregateRoot::class).all { it.snapshot }
+    fun snapshot(arguments: AnnotationArguments?): Boolean = arguments?.boolean(SNAPSHOT) ?: true
 
     /**
-     * The revision of the aggregate's state structure, as `@AggregateRoot(stateRevision)` says: 1 by
+     * The revision of the aggregate's state structure, as `@AggregateRoot(stateRevision)` of [arguments] says: 1 by
      * default; one below 1 is a problem.
      */
-    @OptIn(KspExperimental::class)
-    fun stateRevision(root: KSClassDeclaration, problems: MutableList<String>): Int {
-        val revision = root.getAnnotationsByType(AggregateRoot::class).firstOrNull()?.stateRevision ?: 1
+    fun stateRevision(arguments: AnnotationArguments?, problems: MutableList<String>): Int {
+        val revision = arguments?.int(STATE_REVISION) ?: 1
         if (revision < 1) {
             problems += "@AggregateRoot(stateRevision) is $revision: a state revision starts at 1"
         }

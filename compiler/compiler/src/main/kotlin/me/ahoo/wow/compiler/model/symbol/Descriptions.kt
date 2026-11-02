@@ -13,15 +13,14 @@
 
 package me.ahoo.wow.compiler.model.symbol
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSDeclaration
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
 
 /**
  * What a type of the model says it is, for the Manifest (.1c): its `@Description`, else the summary of its
- * KDoc, else its `@Summary`; null when it says nothing or only blanks.
+ * KDoc, else its `@Summary`; null when it says nothing or only blanks. A `@Description` or `@Summary` with no value is
+ * one of the problems ([argumentsOf]).
  *
  * KDoc is source text: the compiler reads it only for a type compiled in the module it processes. A type it reads
  * from a dependency (a command of an `-api` module) is described by its annotations alone.
@@ -36,11 +35,13 @@ internal object Descriptions {
     /** `[Target]`, a KDoc link written as its target. */
     private val LINK = Regex("\\[([^\\[\\]]+)]")
 
-    @OptIn(KspExperimental::class)
-    fun of(declaration: KSDeclaration): String? =
-        declaration.getAnnotationsByType(Description::class).firstOrNull()?.value?.trim()?.ifEmpty { null }
+    fun of(declaration: KSDeclaration, problems: MutableList<String>): String? {
+        val described = declaration.argumentsOf(Description::class, problems)
+        val summarized = declaration.argumentsOf(Summary::class, problems)
+        return described?.string(AnnotationArguments.VALUE)?.trim()?.ifEmpty { null }
             ?: summary(declaration.docString)
-            ?: declaration.getAnnotationsByType(Summary::class).firstOrNull()?.value?.trim()?.ifEmpty { null }
+            ?: summarized?.string(AnnotationArguments.VALUE)?.trim()?.ifEmpty { null }
+    }
 
     /**
      * The first paragraph of the KDoc [docString], up to a blank line or its first block tag (`@param`), on one line,

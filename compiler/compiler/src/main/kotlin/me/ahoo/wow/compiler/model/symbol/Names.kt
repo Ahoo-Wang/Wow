@@ -13,9 +13,8 @@
 
 package me.ahoo.wow.compiler.model.symbol
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -24,10 +23,19 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.naming.TypeNames
 
-/** The aggregate's name: its `@Name`, else its simple name in `snake_case` ([TypeNames.aggregateName]). */
-@OptIn(KspExperimental::class)
-internal fun KSClassDeclaration.toName(): String =
-    TypeNames.aggregateName(simpleName.asString(), getAnnotationsByType(Name::class).firstOrNull()?.value)
+/**
+ * The aggregate's name: its `@Name`, else its simple name in `snake_case` ([TypeNames.aggregateName]). A `@Name` with
+ * no value is one of [problems] ([declaredName]).
+ */
+internal fun KSClassDeclaration.toName(problems: MutableList<String>): String =
+    TypeNames.aggregateName(simpleName.asString(), declaredName(problems))
+
+/**
+ * The value of this declaration's `@Name`; null without one, or, one of [problems], when KSP evaluated no value for it
+ * ([argumentsOf]).
+ */
+internal fun KSAnnotated.declaredName(problems: MutableList<String>): String? =
+    argumentsOf(Name::class, problems)?.string(AnnotationArguments.VALUE)
 
 /** The JVM binary name of the class (`sample.Commands$Clear`), which keys its schema in the Manifest fragment. */
 internal fun KSDeclaration.binaryName(): String {

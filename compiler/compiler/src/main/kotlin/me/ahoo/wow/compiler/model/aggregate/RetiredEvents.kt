@@ -13,12 +13,9 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 
 /**
  * Reads and checks `@AggregateRoot(retiredEvents)`: the stored names of the events the aggregate no
@@ -35,14 +32,16 @@ internal object RetiredEvents {
     /** Stands for an unknown context in a normalized name, so that it never equals a full name. */
     private const val UNKNOWN_CONTEXT = "\u0000"
     private const val WHERE = "@AggregateRoot(retiredEvents)"
+    private const val RETIRED_EVENTS = "retiredEvents"
 
     private val SYSTEM_NAMES: Set<String> =
         Lifecycle.COMMANDS.keys + Lifecycle.EVENTS.keys + Schedules.COMMANDS.keys + Schedules.EVENTS.keys
 
-    /** The values `@AggregateRoot(retiredEvents)` of [root] lists, as written; none by default. */
-    @OptIn(KspExperimental::class)
-    fun of(root: KSClassDeclaration): List<String> =
-        root.getAnnotationsByType(AggregateRoot::class).firstOrNull()?.retiredEvents?.toList().orEmpty()
+    /**
+     * The values `@AggregateRoot(retiredEvents)` lists, as written; none by default. [arguments] are the root's
+     * `@AggregateRoot` read, null when one of them has no value (a problem of the root already).
+     */
+    fun of(arguments: AnnotationArguments?): List<String> = arguments?.strings(RETIRED_EVENTS).orEmpty()
 
     /**
      * The problems of the [retired] names of the aggregate [aggregate], which must name none of its [commands],
