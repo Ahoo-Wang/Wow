@@ -35,7 +35,7 @@ outline: deep
 | `--decode` | 映射检查通过后，`check` 用服务的 V10 模型（配置中的 `classpath`）读取已映射聚合的每个 9.x 事件，与服务加载聚合时的读法相同，包括升级函数。每个读不出的事件打印一行 `PROBLEM decode:`，给出它的 9.x 类型和修订版本、所在事件流和原因，然后继续，最后按类型给出计数；只要有一个读不出，检查就失败。存储中缺少导入所需字段的实例事件流也会打印出来，然后继续检查下一个实例。 |
 | `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入；`draft-map` 打印草稿，不写入。 |
 | `--out <file>` | `draft-map` 把草稿写到这里，而不是配置里指定的映射文件。 |
-| `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。 |
+| `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。日志里已有的流按当时的转换结果跳过：导入之后的映射改动只会作用于全新的目标（[迁移数据](../migrate/data#_4-import)）。 |
 | `--final` | 9.x 停止写入后 `import` 更短的最后一次遍历，用于追尾一直追到 9.x 停止的情况：从追尾的检查点跑一轮追尾，并往前多读 `final.lookbackMillis`，然后从头重新遍历预留键和补偿执行。如果某个聚合的导入没有完成，或者它的追尾最后一轮结束于 `final.maxTailAgeMillis` 之前，它会拒绝执行，什么都不写；这时运行 `import --restart`。不能与 `--restart` 或 `--dry-run` 一起使用。 |
 | `--snapshots` | 在 `import` 之后运行 `snapshot`。 |
 | `--once` | `tail` 跑一轮就结束。 |
@@ -223,7 +223,7 @@ V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、�
 | `toRevision` | 9.x 载荷在 V10 中对应的修订号，默认 1：9.x 的形状就是修订号 1，V10 的升级函数把它一路读到当前修订号。不能超过 Manifest 中的修订号。 |
 | `fields` | 重命名载荷的顶层字段，9.x 名字对应 V10 名字。用于形状由 V10 固定的系统事件，例如 9.x 的 `OwnerTransferred.toOwnerId`；领域事件的变化应放在它的升级函数里。 |
 | `upgrade` | Skill 写的升级函数，记录下来供报告使用；工具不运行它。 |
-| `retire` | 把记录按原样以 `to` 这个名字写入，V10 聚合把这个名字列为退役，所以加载时跳过它，流也保留它的版本。`to` 在 Manifest 中没有退役时，检查失败。 |
+| `retire` | 把记录按原样以 `to` 这个名字写入，V10 聚合把这个名字列为退役，所以加载时跳过它，流也保留它的版本。`to` 在 Manifest 中没有退役时，检查失败。只用于没有改变状态的事件：退役一个删除或状态变化会把它丢掉（[代码已删除的历史](../migrate/data#_2-check-the-map)）。 |
 | `lifecycle` | `{to, fields}`：紧接着这个事件、在同一条流中写入的系统生命周期事件，用于实现了某个生命周期事件的 9.x 领域事件（`UserDeleted : AggregateDeleted`）。`to` 是 `wow.lifecycle.AggregateDeleted`、`AggregateRestored`、`OwnerTransferred`、`SpaceTransferred` 或 `TagsApplied`；`fields` 从 9.x 载荷构造它的载荷，9.x 名字对应 V10 名字，后三者要给出 `ownerId`、`spaceId` 或 `tags`。不能与 `drop` 或 `retire` 一起用。 |
 | `drop` | 把这个事件从它的流中去掉。如果一条流的事件全被丢弃，这个版本就是空的，检查会拒绝：这样的事件要用 `retire` 映射。 |
 

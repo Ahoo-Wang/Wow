@@ -13,6 +13,7 @@ For every store and stream, recorded in the migration matrix:
 - streams, aggregates and size per aggregate type, and the share with a 9.x snapshot;
 - every writer and reader of the 9.x data, how each is stopped, and every external consumer of the 9.x event bus with the V10 Kafka Sink it moves to;
 - the backup of each 9.x store and a restore that was tested;
+- what the 9.x side provides: the `(createTime, _id)` index the tail reads each event stream collection by (created by the store's owner; `check` warns of each one missing), the 9.x services' time zone, and the CosId segments' state to carry over;
 - the map (`migration-map.json`) and the V10 Manifests it was checked against.
 
 Do not start a write with an unknown writer, an unknown owner or an untested backup.
@@ -21,10 +22,11 @@ Do not start a write with an unknown writer, an unknown owner or an untested bac
 
 From an end-to-end rehearsal on an isolated target (`data.md`):
 
-1. `check` passing on the production-shaped map.
+1. `check` passing on the production-shaped map, and `check --decode`: every 9.x event reads with the V10 models.
 2. An interrupted `import` resumed without duplicates, and a re-run that writes nothing.
 3. `compare` with every kind of difference explained and signed off, and the share of instances compared.
 4. The V10 services started on the target: a command on a migrated aggregate appends at the next version, reads and queries return the migrated state, projections rebuilt, parked entries listed.
+   Started with a clean environment holding only the rehearsal's configuration (no shell-inherited variable, such as a `SPRING_*` one, pointing a service at shared infrastructure), their logs naming no address outside the target; in the 9.x services' time zone (`TZ`) when domain code uses the system's zone; and a first start on the migrated target with every partition acquired and kept.
 5. Timings on production-sized data: the whole `import` (with `compare`, `snapshot`, `backfill-tags`) for an offline cut-over, which sets the window and decides whether offline fits; or the final pass for an online one.
 6. Both rollback paths below rehearsed, with the list of what cannot go back.
 

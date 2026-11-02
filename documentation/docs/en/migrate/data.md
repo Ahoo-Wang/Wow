@@ -92,7 +92,17 @@ Run the tool from a checkout of the Wow release you migrate to:
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.
 
-**Events V10 does not read.** V10 reads events with Jackson 3's Kotlin module, which refuses a `null` element in a collection of a non-null type, such as a `List<String>` holding `null`: a shape some 9.x events stored. Wow keeps that strictness for new data, so a 9.x event of such a shape does not decode in V10, and the state that holds it does not rebuild, in `compare`, in `snapshot` or in the service. `check --decode` reads every 9.x event with the V10 models and lists, in one pass, each one that does not read, with its type, revision, stream and the reason. Do not loosen the class for old data: give each type it lists an `@Upgrade` that cleans the old shape, such as dropping the `null` elements, from the revision the map gives the 9.x events (`toRevision`, 1 for the 9.x shape), raising the class's `@Revision` above it if it is not already, and run it again until it passes.
+**Events V10 does not read.** V10 reads events with Jackson 3's Kotlin module, which refuses a `null` element in a collection of a non-null type, such as a `List<String>` holding `null`: a shape some 9.x events stored. Wow keeps that strictness for new data, so a 9.x event of such a shape does not decode in V10, and the state that holds it does not rebuild, in `compare`, in `snapshot` or in the service. `check --decode` reads every 9.x event with the V10 models and lists, in one pass, each one that does not read, with its type, revision, stream and the reason. Do not loosen the class for old data: give each type it lists an `@Upgrade` that cleans the old shape, such as dropping the `null` elements, defaulting a field an older shape lacked (a number, or a field a peer's newer class requires) or turning a stored Wow query type into the service's own ([Wow types in events and state](./source#events-and-state)), from the revision the map gives the 9.x events (`toRevision`, 1 for the 9.x shape), raising the class's `@Revision` above it if it is not already, and run it again until it passes.
+
+**History the code no longer has.** 9.x streams keep events, commands and aggregates that the 9.x code deleted long ago, and 9.x snapshots keep the effects of those events. Map each by what it did, not by whether its class exists; `draft-map` cannot tell these apart:
+
+- an aggregate the code no longer has, whose streams 9.x never loads: exclude it, with its reason, and its `PrepareKey`s;
+- an event that deleted its aggregate, a 9.x domain event that implemented `AggregateDeleted` or a removal event: give it `lifecycle: { "to": "wow.lifecycle.AggregateDeleted" }`, or map it to `wow.lifecycle.AggregateDeleted` when its class is gone. Never `retire` it: a retired deletion leaves the aggregate alive;
+- an event that changed no state, such as a failure or a notice: `retire`;
+- an event that changed state and whose class 9.x deleted: add a history-only event to the V10 aggregate, with its sourcing function and no command producing it, and map the 9.x name to it. Retiring it drops its effect, which the 9.x snapshots still hold;
+- a command 9.x deleted: map it to the V10 command closest to it, since a stream records its command only as metadata.
+
+A wrong choice shows in `compare` (step 5), as `$deleted` or as fields 9.x changed and V10 did not.
 
 ## 3. Stop 9.x writing
 
@@ -101,6 +111,8 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 ## 4. Import
 
 `import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in the checkpoint file, so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice.
+
+**A map change needs a fresh target.** `import`, `--restart` included, passes over a stream the log already holds, as it was converted then: a mapping change, a lifecycle added or an event no longer retired, does not reach the streams imported before it. Import the aggregates the change touches into a fresh target, or remove them from the target first, then compare again.
 
 - **Reserved keys.** A key 9.x holds forever becomes a confirmed reservation of the aggregate whose id its value holds, in the tenant that aggregate's 9.x streams record, and in the namespace and tenancy the map gives. Keys with a time to live, and expired keys, are skipped. A key whose owner cannot be found, or appears in several tenants, is printed as `UNRESOLVED` and not imported.
 - **Unresolved executions.** Each `FAILED` or `PREPARED` execution of the 9.x compensation service becomes a parked aggregate of the mapped V10 subscription, from the failed version, with its retry state and its recoverable mark. After the cut-over, the V10 service retries it, and the ops console lists it. An execution that cannot be placed is printed as `UNRESOLVED`.
@@ -125,6 +137,14 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 `compare --sample 10` compares 10% of the instances, always the same ones, for quicker iterations.
 
+**Compare in the service's time zone.** A state that turns a date into an instant with the system's zone, `LocalDate.atStartOfDay(ZoneId.systemDefault())` say, rebuilds to another instant in another zone: run `compare` in the zone 9.x ran in (`-Duser.timezone`, or `TZ`), as the V10 service must run.
+
+**Classify each difference** before explaining it:
+
+- **Shape**, a field one side has by design: a V10 field with its default, a field only an older 9.x snapshot holds, a peer's newer class, a number 9.x stored as a string, a decimal 9.x stored with less precision. List it in `state.ignore` once explained.
+- **Environment**, which a rerun under the right conditions removes: what 9.x wrote after the import and the tail did not follow, a value computed from the current time, the time zone.
+- **Real**: a mapping that dropped an event's effect or a deletion, or logic that changed after the 9.x snapshot was written. Fix the map or the code, or have the domain's owners sign the difference off.
+
 ## 6. Write the snapshots
 
 `snapshot`, or `import --snapshots`, writes the V10 snapshot of every imported aggregate at its last version, so V10's queries have data the moment traffic arrives. The V10 service's own snapshot subscription then finds them in place.
@@ -137,6 +157,8 @@ Streams the import appended carry no tags yet, and attribute-based access contro
 
 1. Start the V10 service's nodes. A saga or a reactor of the service's own context starts at the end of its log, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it. Its transport sink publishes the imported history too, each record up to the cut-over the import recorded marked imported: a peer's saga or reactor passes over it, and a peer's projection builds from it ([Published Streams](../guide/published-streams#history-imported-from-9x)).
 2. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
+
+The first start after an import is longer than the next ones: each partition catches up on the imported history before the node owns it. Measure it in the rehearsal, and give the node's start that much time.
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and retrying it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 
@@ -189,3 +211,4 @@ Only event streams go back. Reserved keys V10 made, aggregates it parked and its
 - An aggregate without a 9.x snapshot cannot be compared; the report gives the share that can.
 - Aggregate ids that collide across tenants are not reported yet.
 - Each V10 log store is migrated by its own run, with a map of the aggregates that store holds.
+- The import's speed is bound per stream more than per event: an aggregate whose instances hold one stream each imports at the store's round trip. Plan the window from the rehearsal's measurement per aggregate, not from the event count.

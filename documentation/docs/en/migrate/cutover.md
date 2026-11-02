@@ -35,6 +35,7 @@ Record, for every store and stream:
 - every writer and reader of the 9.x data and how each is stopped, and every external consumer of the 9.x event bus, with the V10 Kafka stream it moves to;
 - the 9.x topics and the V10 topics, and their brokers. A 9.x state topic is named `wow.<context>.<aggregate>.state`, as a V10 published stream is by default: on a broker 9.x used, give V10 a `wow.kafka.topics.prefix`. Without it, a V10 subscription stops at the first 9.x record it reads, logging the topic and the prefix to set, and after a rollback 9.x meets V10's records;
 - the backup of each 9.x store, and a restore that was tested;
+- what the 9.x side must provide: the `(createTime, _id)` index the tail reads each event stream collection by, created by the store's owner (`check` warns of each one missing), the 9.x services' time zone, and the state of their CosId segments;
 - the migration map, and the V10 Manifests it was checked against.
 
 Do not start a write with an unknown writer, an unknown owner or an untested backup.
@@ -43,10 +44,13 @@ Do not start a write with an unknown writer, an unknown owner or an untested bac
 
 An end-to-end rehearsal on an isolated target, on production-sized data, leaves:
 
-1. `check` passing on the production map;
+1. `check` passing on the production map, and `check --decode`: every 9.x event reads with the V10 models;
 2. an interrupted `import` resumed without duplicates, and a second run that writes nothing;
 3. `compare` with every kind of difference explained and signed off;
 4. the V10 services started on the target: a command on a migrated aggregate appends at the next version, reads and queries answer the migrated state, projections rebuilt, parked entries listed;
+   - started with a clean environment that holds only the configuration the rehearsal names, so no variable a shell inherited points a service at shared infrastructure, and their logs naming no address outside the target;
+   - in the 9.x services' time zone (`TZ`), when domain code turns dates into instants with the system's zone;
+   - a first start on the migrated target, every partition acquired and kept;
 5. the timings: the whole import with `compare`, `snapshot` and `backfill-tags` for offline, or the final pass for online;
 6. both rollbacks rehearsed, with the list of what cannot go back.
 

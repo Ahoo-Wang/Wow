@@ -103,7 +103,23 @@ data class AdjustStock(val warehouseId: String, val code: String, val delta: Int
 
 原先把这类命令发往带 ID 路由的客户端，改为发往不带 ID 的路由（[HTTP 与 TypeScript 客户端](./http-and-clients#routes)）。
 
+9.x 命令没有 `@AggregateId`，但它的 `id`（常见的是 9.x 的 `Identifier.id`）指明了聚合时，9.x 按这个 id 路由命令。V10 不按属性名推断任何东西，所以要给这个 `id` 标注 `@AggregateId`；编译器的 `UnmarkedAggregateId` 警告会列出每个有这种 `id` 却没有标注的命令（[在命令体中指明聚合](../guide/aggregates#name-the-aggregate-in-the-body)）。如果这个 id 是接口的默认 getter，而命令没法在接口上标注，比如接口来自外部服务的 jar，或者别的聚合的命令也实现了它，就在命令里覆写它：
+
+<!-- sample: fragment -->
+
+```kotlin
+data class CreateShelf(override val warehouseId: String, override val code: String) : ShelfIdSpec {
+    @AggregateId
+    override val id: String
+        get() = super<ShelfIdSpec>.id
+}
+```
+
+不标注的话，不带 id 发出的创建命令，无论是 Saga 的 `CommandRequest.of(body)` 还是客户端发的，都会得到一个生成的 id：指向的不是 9.x 那个聚合，用同一业务键第二次创建也会被接受，而不是回答 `wow.aggregate.exists`。
+
 在 decide 中，`CommandMessage<X>` 是 `Command<X>`，`command.aggregateId.id` 是 `command.ref.id`，`command.ownerId` 是 `command.scope.ownerId`，9.x 的 `CommandResultAccessor` 是 `DecideScope.putResult`，在 decide 中生成的 ID 来自 `scope.ids.next()`。
+
+decide 中的查询读的是查询侧，它的快照在每次提交之后写入，而不是随提交一起写入，9.x 也是这样。同一流程片刻之前经 Saga 做的写入可能还看不到：因为某行不存在而拒绝的 decide 函数，可能拒绝得太早。让调用方重试这种拒绝，或者由 Saga 在它的命令里带上检查所需的事实。
 
 ## 异常变成拒绝 {#exceptions-become-rejections}
 
