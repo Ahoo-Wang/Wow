@@ -1,0 +1,96 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 18301.3,
+  "saturationConcurrency": 4096,
+  "generatorCores": 3.0112729019293734,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 326.26666666666665,
+      "ok": 9788,
+      "errors": {},
+      "p50Ms": 2.895,
+      "p99Ms": 6.719,
+      "generatorCores": 0.11716612271037467
+    },
+    {
+      "concurrency": 4,
+      "throughput": 774.0666666666667,
+      "ok": 23222,
+      "errors": {},
+      "p50Ms": 4.047,
+      "p99Ms": 14.399,
+      "generatorCores": 0.10074537499288957
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1088.3666666666666,
+      "ok": 32651,
+      "errors": {},
+      "p50Ms": 11.711,
+      "p99Ms": 48.895,
+      "generatorCores": 0.13321930570597237
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1456.7333333333333,
+      "ok": 43702,
+      "errors": {},
+      "p50Ms": 45.311,
+      "p99Ms": 165.887,
+      "generatorCores": 0.156280204512485
+    },
+    {
+      "concurrency": 256,
+      "throughput": 1558.3,
+      "ok": 46749,
+      "errors": {},
+      "p50Ms": 50.175,
+      "p99Ms": 581.631,
+      "generatorCores": 0.16201312301409945
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 1634.6666666666667,
+      "ok": 49040,
+      "errors": {},
+      "p50Ms": 52.479,
+      "p99Ms": 1458.175,
+      "generatorCores": 0.17107882440857292
+    },
+    {
+      "concurrency": 4096,
+      "throughput": 18301.3,
+      "ok": 549039,
+      "errors": {
+        "http-429-wow.command.busy": 543008
+      },
+      "p50Ms": 147.455,
+      "p99Ms": 399.359,
+      "generatorCores": 3.0112729019293734
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "10",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/20261103-000147-run-mongo-n1-saturation"
+  }
+}

@@ -1,0 +1,7 @@
+1793695870 [settle] 1s: node-1 0.01, node-2 0.01, node-3 0.13
+1793695871 [settle] 2s: node-1 0.02, node-2 0.01, node-3 0.04
+1793695872 [settle] 3s: node-1 0.01, node-2 0.01, node-3 0.01
+1793695872 [settle] quiet after 3s (below 0.25 cores for 3 s in a row)
+1793695948 [saturate] E3: concurrency=1024 throughput=4892.3/s p50=165ms errors={}
+1793695948 [saturate] saturation: 4892.3/s at concurrency 1024
+1793695949 [bench] results in /Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-snapshot/3-N-mongo/e3-c1024

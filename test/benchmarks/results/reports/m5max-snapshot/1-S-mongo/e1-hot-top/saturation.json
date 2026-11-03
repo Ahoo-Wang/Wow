@@ -1,0 +1,43 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 16087.433333333332,
+  "saturationConcurrency": 4096,
+  "generatorCores": 3.1973172428351853,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 4096,
+      "throughput": 16087.433333333332,
+      "ok": 482623,
+      "errors": {
+        "http-429-wow.command.busy": 656829,
+        "http-504-wow.wait.timeout": 1890
+      },
+      "p50Ms": 164.863,
+      "p99Ms": 452.607,
+      "generatorCores": 3.1973172428351853
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "10",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/20261103-000147-run-mongo-n1-saturation"
+  }
+}

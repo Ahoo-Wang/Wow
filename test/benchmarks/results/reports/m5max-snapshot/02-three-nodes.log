@@ -1,0 +1,11 @@
+[2026-11-03 00:25:17] up 3-N-postgres (attempt 1): --backend=postgres --nodes=3 --accounts=100000 --heap=1g
+[2026-11-03 00:26:19] sweep 3-N-postgres/e1-sweep
+[2026-11-03 00:31:14] sweep 3-N-postgres/e3-sweep
+[2026-11-03 00:36:12] sweep 3-N-postgres/e1-c1024
+[2026-11-03 00:37:31] sweep 3-N-postgres/e3-c1024
+[2026-11-03 00:38:58] up 3-N-mongo (attempt 1): --backend=mongo --nodes=3 --accounts=100000 --heap=1g
+[2026-11-03 00:40:08] sweep 3-N-mongo/e1-sweep
+[2026-11-03 00:44:54] sweep 3-N-mongo/e3-sweep
+[2026-11-03 00:49:49] sweep 3-N-mongo/e1-c1024
+[2026-11-03 00:51:09] sweep 3-N-mongo/e3-c1024
+[2026-11-03 00:52:35] three nodes done

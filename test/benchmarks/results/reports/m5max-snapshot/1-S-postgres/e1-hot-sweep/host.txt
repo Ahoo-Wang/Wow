@@ -1,0 +1,30 @@
+## begin 2026-11-02T23:49:03-0800
+uptime: 23:49  up 2 days, 18:31, 1 user, load averages: 7.54 11.42 10.17
+swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+busiest other processes (% of one core):
+  5.0 614 sysmond
+  3.8 879 Stats
+  2.0 420 WindowServer
+  2.0 361 configd
+  2.0 35638 bash
+  0.8 495 symptomsd
+  0.6 1884 M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-!
+  0.5 573 AppleCentauriAlpha
+allowed JVMs (% of one core): 67826 0.0
+other JVMs:
+## end 2026-11-02T23:55:57-0800
+uptime: 23:55  up 2 days, 18:38, 1 user, load averages: 13.76 9.25 9.09
+swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
+containers: wow-e2e-bench-postgres wow-e2e-bench-kafka cosec-redis 
+busiest other processes (% of one core):
+  2.2 614 sysmond
+  2.2 420 WindowServer
+  1.6 86960 Shadowrocket
+  1.3 879 Stats
+  1.1 44932 Activity Monitor
+  0.7 573 AppleCentauriAlpha
+  0.7 24191 claude
+  0.6 361 configd
+allowed JVMs (% of one core): 67826 0.0
+other JVMs:

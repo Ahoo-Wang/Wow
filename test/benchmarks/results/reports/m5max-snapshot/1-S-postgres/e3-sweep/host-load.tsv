@@ -1,0 +1,25 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793692602	19.29	11.35	9.88	32	Stats 9, sysmond 5, WindowServer 4	cosec-redis 0.23%	69	0	0.0	
+1793692614	15.75	10.96	9.76	50	WindowServer 11, mdworker_shared 9, mds_stores 5	cosec-redis 0.14%	246	3	0.0	
+1793692627	14.01	10.74	9.70	58	WindowServer 30, Claude Helper 8, Claude Helper (Renderer) 4	cosec-redis 0.13%	296	2	0.0	
+1793692639	12.00	10.46	9.62	32	WindowServer 16, Claude Helper 4, Claude Helper (Renderer) 4	cosec-redis 0.14%	478	2	0.0	
+1793692651	10.86	10.27	9.56	32	WindowServer 16, Claude Helper 7, Stats 4	cosec-redis 0.15%	396	4	0.0	
+1793692664	9.88	10.07	9.50	35	WindowServer 20, Claude Helper 9, Claude Helper (Renderer) 2	cosec-redis 0.14%	342	4	0.0	
+1793692676	8.82	9.83	9.42	41	WindowServer 20, Claude Helper 10, WeChatAppEx Helper (Renderer) 6	cosec-redis 0.15%	329	4	0.0	
+1793692688	8.41	9.70	9.38	46	WindowServer 25, Claude Helper 11, sysmond 4	cosec-redis 0.16%	453	7	0.0	
+1793692700	7.12	9.35	9.26	63	WindowServer 29, Stats 11, Claude Helper 10	cosec-redis 0.16%	250	3	0.0	
+1793692712	6.56	9.16	9.19	49	WindowServer 27, Claude Helper 11, Claude Helper (Renderer) 3	cosec-redis 0.17%	483	6	0.0	
+1793692725	5.99	8.91	9.10	39	WindowServer 23, Claude Helper 11, Claude Helper (Renderer) 3	cosec-redis 0.14%	582	6	0.0	
+1793692737	5.46	8.70	9.02	53	WindowServer 26, Claude Helper 12, sysmond 4	cosec-redis 0.15%	615	7	0.0	
+1793692749	6.15	8.68	9.01	61	WindowServer 28, Claude Helper 11, Stats 6	cosec-redis 0.16%	664	7	0.0	
+1793692761	8.20	9.04	9.13	28	WindowServer 12, Claude Helper 5, sysmond 3	cosec-redis 0.15%	626	6	0.0	
+1793692774	7.61	8.87	9.07	17	WindowServer 5, claude 3, Claude Helper 2	cosec-redis 0.15%	657	8	0.0	
+1793692786	10.25	9.37	9.24	41	WindowServer 17, Stats 9, Claude Helper 5	cosec-redis 0.15%	713	6	0.0	
+1793692798	10.75	9.49	9.29	24	WindowServer 10, claude 3, Stats 3	cosec-redis 0.14%	529	7	0.1	
+1793692811	14.56	10.36	9.60	7	Claude Helper (Renderer) 1, WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.14%	712	10	0.0	
+1793692823	12.87	10.13	9.53	2	WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Shadowrocket 0	cosec-redis 0.16%	240	2	0.0	
+1793692835	13.81	10.51	9.67	14	Stats 6, WindowServer 2, configd 2	cosec-redis 0.15%	819	12	0.0	
+1793692848	12.22	10.28	9.60	6	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 1	cosec-redis 0.17%	1541	58	0.0	
+1793692861	15.76	11.20	9.94	11	claude 2, WindowServer 2, claude 1	cosec-redis 0.22%	300	5	0.0	
+1793692873	16.26	11.44	10.04	27	sysmond 14, Activity Monitor 4, Stats 3	cosec-redis 0.15%	1158	4	0.0	
+1793692886	15.07	11.43	10.06	19	Stats 6, sysmond 4, WindowServer 3	cosec-redis 0.17%	956	1	0.0	
