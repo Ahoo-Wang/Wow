@@ -143,6 +143,28 @@ class OtelObserverTest {
         }
 
     @Test
+    fun `stamped streams should be counted and timed by why, walked aggregates counted`() {
+        val change = ObservedEvent.AccessStamped(ORDER, ObservedEvent.AccessStamped.Cause.CHANGE, 3, 12)
+        observer.observed(change)
+        observer.observed(ObservedEvent.AccessStamped(ORDER, ObservedEvent.AccessStamped.Cause.CHANGE, 2, 8))
+        observer.observed(ObservedEvent.AccessStamped(ORDER, ObservedEvent.AccessStamped.Cause.WALK, 5, 4))
+        observer.observed(ObservedEvent.AccessWalked(ORDER, 100, completed = false))
+        observer.observed(ObservedEvent.AccessWalked(ORDER, 7, completed = true))
+        val meters = telemetry.meters
+        fun stamped(cause: String) =
+            meters.get(WowMetrics.ACCESS_STAMPED.name).tags(WowMetrics.AGGREGATE, "order", WowMetrics.REASON, cause)
+        stamped("change").counter().count().assert().isEqualTo(5.0)
+        stamped("walk").counter().count().assert().isEqualTo(5.0)
+        meters.get(WowMetrics.ACCESS_STAMP_DURATION.name)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "change").timer().count().assert().isEqualTo(2L)
+        meters.get(WowMetrics.ACCESS_WALKED.name).tags(WowMetrics.AGGREGATE, "order").counter().count()
+            .assert().isEqualTo(107.0)
+        change.toString().assert().isEqualTo("AccessStamped(type=$ORDER, cause=CHANGE, streams=3, millis=12)")
+        ObservedEvent.AccessWalked(ORDER, 7, true).assert()
+            .isEqualTo(ObservedEvent.AccessWalked(ORDER, 7, completed = true))
+    }
+
+    @Test
     fun `refusals, wait timeouts, dropped signals, failed forwards, tail reads and store fallbacks should be counted`() {
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))
         observer.observed(ObservedEvent.Refused(ORDER, "wow.command.busy"))

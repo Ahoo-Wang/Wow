@@ -27,6 +27,9 @@ import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** The built-in subscription `wow.access`: a commit that changed the attributes stamps them over the history. */
 class AccessStampingTest {
@@ -113,5 +116,22 @@ class AccessStampingTest {
         commit(log, stamping, stream(3, access("sales")))
         log.ranges.assert().containsExactly(1 until 2, 1 until 3)
         history(log).assert().containsExactly(access("sales"), access("sales"), access("sales"))
+    }
+
+    @Test
+    fun `the options refuse what cannot run, and compare by their values`() {
+        listOf(
+            { AccessStampOptions(batch = 0) },
+            { AccessStampOptions(capacity = 0) },
+            { AccessStampOptions(walkBatch = 0) },
+            { AccessStampOptions(walkRate = 0) },
+            { AccessStampOptions(interval = Duration.ZERO) },
+            { AccessStampOptions(leaseTtl = 1.seconds) },
+            { AccessStampOptions(memberTtl = 1.seconds) },
+        ).forEach { assertThrows<IllegalArgumentException> { it() } }
+        AccessStampOptions(walkRate = 7).assert().isEqualTo(AccessStampOptions(walkRate = 7))
+            .hasSameHashCodeAs(AccessStampOptions(walkRate = 7))
+            .isNotEqualTo(AccessStampOptions())
+        AccessStampOptions().toString().assert().contains("walkBatch=100", "walkRate=500", "interval=5s")
     }
 }
