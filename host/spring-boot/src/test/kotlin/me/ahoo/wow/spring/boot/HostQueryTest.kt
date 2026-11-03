@@ -282,6 +282,11 @@ class HostQueryTest {
             )
             host.get("/bank/account/$id/state", teller).status.assert().isEqualTo(200)
             host.get("/bank/account/$id/state").status.assert().isEqualTo(404)
+            // Its events alike, by a query that names no aggregate: each stream records the account's attributes.
+            val all = """{"kind":"list","filter":{"op":"match-all"}}"""
+            host.post("/bank/account/events/query", all, teller).body!!.map { it["aggregateId"].asString() }.toSet()
+                .assert().containsExactly(id)
+            host.post("/bank/account/events/query", all).body!!.size().assert().isZero()
         }
         val refused = assertThrows<Exception> {
             startHost(sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java)).close()

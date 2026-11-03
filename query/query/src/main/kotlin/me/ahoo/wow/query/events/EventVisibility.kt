@@ -84,15 +84,15 @@ fun interface EventVisibility {
          * committed between the check and the read is not shown unchecked. [observer] counts the aggregates checked
          * each way ([QueryObserver.onEventsPinned]), so a high share of point reads is visible.
          *
-         * [hides] says whether a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies to a type
-         * ([pins]): an application's to every type, an access policy to the aggregate it governs. When none does, an
-         * events query need not name its aggregate. When one does, a type [snapshots] gives no gateway for fails
-         * closed: none of its aggregates is visible, since no policy could be evaluated on it.
+         * [hides] says whether a [pinned][me.ahoo.wow.query.policy.EventsMode.PINNED] policy applies at all ([pins]). When
+         * none does, an events query need not name its aggregate. When one does, a type [snapshots] gives no gateway for
+         * fails closed: none of its aggregates is visible, since
+         * no policy could be evaluated on it.
          */
         @JvmOverloads
         fun of(
             snapshots: (AggregateType) -> QueryGateway?,
-            hides: (AggregateType) -> Boolean = { true },
+            hides: Boolean = true,
             batched: (AggregateType) -> Boolean = { true },
             observer: QueryObserver = QueryObserver.NONE,
             latest: suspend (AggregateRef) -> Snapshot<JsonNode>?,
@@ -103,7 +103,7 @@ fun interface EventVisibility {
                 ids: List<String>,
                 caller: QueryCaller,
             ): List<String> {
-                val gateway = snapshots(type) ?: return if (hides(type)) emptyList() else ids
+                val gateway = snapshots(type) ?: return if (hides) emptyList() else ids
                 val batch = if (batched(type)) gateway.admitAggregates(tenantId, ids, caller) else null
                 val unread = batch?.let { found -> ids.filterNot(found.stored::contains) } ?: ids
                 val read = unread.take(POINT_READS).filterTo(mutableSetOf()) { id ->
@@ -114,7 +114,7 @@ fun interface EventVisibility {
                 return ids.filter { id -> batch?.visible?.contains(id) == true || id in read }
             }
 
-            override fun pins(type: AggregateType): Boolean = hides(type)
+            override fun pins(type: AggregateType): Boolean = hides
 
             override fun batches(type: AggregateType): Boolean = batched(type)
         }

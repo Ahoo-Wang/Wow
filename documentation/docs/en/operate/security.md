@@ -89,7 +89,7 @@ A command that no request carries gets no objection from the CoSec authorizers: 
 A query, a state read and a trace are authorized in layers, each narrowing what the one before allowed:
 
 - **Per route.** Where CoSec decides a request, a policy on the `http:<METHOD>` action of the route's path admits or refuses it ([Action names](#action-names)). Behind a CoSec gateway, the gateway's policies do.
-- **Per scope.** Query admission adds the caller's scope to every query, and a state read checks it: the tenant always; the owner only on an aggregate of `Ownership.OWNER`; the space whenever the caller acts in one. A part the caller has no value for is not added, so a tenant-level caller reads its whole tenant. A filter in the query cannot widen this.
+- **Per scope.** Query admission adds the caller's scope to every query, and a state read checks it: the tenant always; the owner only on an aggregate of `Ownership.OWNER`; the space whenever the caller acts in one. A part the caller has no value for is not added, so a tenant-level caller reads its whole tenant. A filter in the query cannot widen this. On the events, the owner and space are the aggregate's current ones, which each stream records ([Who sees what](../guide/event-queries#who-sees-what)).
 - **Per attribute.** Attribute-based query filtering has been removed and is being replaced by access attributes and access policies; until then, no setting turns it on.
 - **Per policy.** A `QueryPolicy` bean of the service's own runs after these, on every query model, state read and trace. It returns a filter that narrows the rows, or throws to refuse the caller.
 

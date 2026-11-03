@@ -44,16 +44,17 @@ import tools.jackson.databind.node.ObjectNode
  *
  * - **Record.** One event stream, the commit of one command: `aggregateId`, `tenantId`, `version`, `commitTime`
  *   (epoch milliseconds), `commandId`, `requestId`, `commandType`, `ownerId` and `spaceId` (null when unset),
- *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller), `tags` (after the commit,
- *   null when the log did not record them) and `events`, each
+ *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller), `access` (the aggregate's current access
+ *   attributes, `owner` and `space` among them; null for a stream not stamped yet) and `events`, each
  *   `{name, revision, body}`. Its identity is `(aggregateId, version)`; `count` counts streams; an event condition is
  *   an `ELEMENT_MATCH` on `events`, and per-event analytics expand it (`AggregationQuery.elements`).
  * - **Reading.** The backend returns streams as stored ([EventStreamRecords.stored]); each record is read as
  *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading]), an
  *   event the aggregate retired left out, and each body masked by its event's schema ([masks]),
  * for every caller alike.
- * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events]).
- *   While a pinned one applies, an aggregate the snapshot queries of its type hide from the caller has no streams for
+ * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events]). The scope and the access
+ *   policies filter them on what each records, the aggregate's current owner, space and access attributes. While a
+ *   pinned one applies, an aggregate the snapshot queries of its type hide from the caller has no streams for
  *   it ([visibility]): [EventVisibilityPolicy] joins the policy step, and the descriptor lists
  *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED], as under [UnpinnedEvents.REFUSE].
  * - **Counts.** [counts] must be the events model's own cache: a cache is keyed by aggregate type, not by model.

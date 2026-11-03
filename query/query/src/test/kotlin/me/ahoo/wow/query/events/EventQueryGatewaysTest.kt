@@ -54,6 +54,7 @@ import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -77,6 +78,7 @@ class EventQueryGatewaysTest {
             commitTime = 1000L * version,
             events = listOf(EventRecord("shop.cart.ItemAdded", 1, """{"n":$version}""")),
             scope = Scope("alice", "s-1"),
+            access = AccessValues.ofStream(emptyMap(), Scope("alice", "s-1")),
         )
     } + EventStreamRecord(
         ref = type.ref(TENANT, "c-2"),
@@ -91,6 +93,7 @@ class EventQueryGatewaysTest {
             EventRecord("shop.cart.ItemAdded", 2, """{"n":2,"unit":"box"}"""),
         ),
         scope = Scope("alice", "s-1"),
+        access = AccessValues.ofStream(emptyMap(), Scope("alice", "s-1")),
     )
     private val storage = InMemoryEventQueryStorage({ streams })
     private val binding = storage.binding(type)

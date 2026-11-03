@@ -58,8 +58,9 @@ fun interface QueryPolicy {
  */
 enum class EventsMode {
     /**
-     * Its filter on the events model is the whole rule: it reads only what each stream records at its commit (the
-     * tenant, the owner and space, the tags), so an events query need not name its aggregates. The caller scope is one.
+     * Its filter on the events model is the whole rule: it reads only what each stream records (its tenant, its
+     * aggregate's current access attributes), so an events query need not name its aggregates. The caller scope and the
+     * access policies are such.
      */
     PUSHDOWN,
 

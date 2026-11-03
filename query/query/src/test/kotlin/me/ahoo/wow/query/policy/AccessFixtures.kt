@@ -29,7 +29,10 @@ import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 
@@ -126,6 +129,30 @@ internal object AccessFixtures {
         firstEventTime = 1,
         lastEventTime = 1,
         access = access,
+    )
+
+    /**
+     * A stream of [type]'s aggregate [id] committed in [committed], stamped with [access] (null: not stamped yet) and
+     * its current owner and space.
+     */
+    fun stream(
+        type: AggregateType,
+        id: String,
+        access: Map<String, Any?>?,
+        owner: String = "zed",
+        space: String? = null,
+        committed: Scope = Scope(owner, space),
+        tenantId: String = "acme",
+    ) = EventStreamRecord(
+        ref = type.ref(tenantId, id),
+        version = 1,
+        commandId = "c-$id",
+        requestId = "r-$id",
+        commandType = "docs.${type.name}.Write",
+        commitTime = 1,
+        events = listOf(EventRecord("docs.${type.name}.Written", 1, "{}")),
+        scope = committed,
+        access = access?.let { AccessValues.ofStream(it, Scope(owner, space)) },
     )
 
     fun state(record: SnapshotRecord): Snapshot<JsonNode> = Snapshot.of(

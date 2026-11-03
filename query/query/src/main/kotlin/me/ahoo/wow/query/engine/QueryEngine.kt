@@ -71,9 +71,9 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  * - when an access policy or an application's policy may hide an aggregate from a caller of its scope, a type whose
  *   snapshots are not queried still has its policies evaluated on its states ([SnapshotPolicyGateway]), so its state
  *   reads and its events fail closed;
- * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too: the events
- *   queries of an aggregate with an access policy name their aggregates until the streams record their current
- *   access attributes;
+ * - an aggregate the snapshot queries hide is hidden from the state reads too, and from the events model: an access
+ *   policy by its filter on the access attributes each stream records, the aggregate's current ones; an
+ *   application's policy, which reads the state, by pinning the events queries to the aggregates they name;
  * - every query of the snapshots and the events runs under its store's [QueryBulkhead], whichever entry
  *   asks, and an events query that names no aggregate is refused where [UnpinnedEvents.REFUSE] says so.
  */
@@ -269,16 +269,15 @@ class QueryEngine private constructor(
             val gatewayPolicies = scope + accessPolicy(access) + policies
             datasets.requireAccess(access)
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only a pinned one hides an aggregate's streams beyond its filter on them; an access policy, those of
-            // the aggregate it governs.
+            // Only a pinned one hides an aggregate's streams beyond its filter on them: an access policy's filter on
+            // them is its whole rule.
             val pinned = (scope + policies).any { it.events == EventsMode.PINNED }
-            val hides = { type: AggregateType -> pinned || access.governs(type) }
             val queried = snapshots.map { it.aggregateType }.toSet()
             val policyGateways = policyGateways(catalog, queried, gatewayPolicies, access)
             val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
             val eventVisibility = EventVisibility.of(
                 byType::get,
-                hides,
+                pinned,
                 queried::contains,
                 observer,
                 committed::committed

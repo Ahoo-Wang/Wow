@@ -35,6 +35,8 @@ import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.concurrent.ConcurrentHashMap
 
@@ -180,16 +182,18 @@ class AccessPolicies private constructor(
  * - **State reads.** The same filter, evaluated on the state's latest record
  *   ([me.ahoo.wow.query.QueryGateway.admitRecord]): its history, a version or a trace, is read by its current
  *   attributes.
- * - **Events.** None of its own until each stream records its aggregate's current attributes: the engine pins the
- *   events queries of a governed aggregate, so an aggregate's streams show when its snapshot does
- *   ([me.ahoo.wow.query.events.EventVisibility]).
+ * - **Events.** The same predicate on what each stream records of its aggregate's current attributes, `access`, the
+ *   owner and the space among them (`access.owner`, `access.space`): a stream is stamped again whenever its aggregate's
+ *   attributes change, so the events of an aggregate show while it shows, whichever commit wrote them. A stream not
+ *   yet stamped (`access` null) is never read. An events query need not name its aggregates.
  * - **Datasets.** A dataset whose scope binds a governed aggregate ([QueryDataset.scope]) reads none of its rows but
  *   for a predicate that grants every aggregate, until its rows are filtered through the aggregate's current
  *   attributes, which the dataset's storage does not keep yet. A dataset bound to no governed aggregate is left to
  *   the default rule.
  *
  * An attribute the aggregate does not have ([AccessPolicies.declares]) matches nothing, and is logged once: the policy
- * fails closed.
+ * fails closed. Between a change of an aggregate's attributes and the stamp of its earlier streams, an events query
+ * reads those streams by the attributes they were stamped with; its state reads are never behind.
  */
 @InternalWowApi
 class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
@@ -198,9 +202,9 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
     /** Right after the scope, before the application's policies. */
     override val order: Int = ScopeQueryPolicy.ORDER + 1
 
-    /** Its rule reads the state: the engine pins the events queries of the aggregates it governs. */
+    /** Its filter on the events is the whole rule: each stream records its aggregate's current attributes. */
     override val events: EventsMode
-        get() = EventsMode.PINNED
+        get() = EventsMode.PUSHDOWN
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val acting = caller.caller
@@ -216,21 +220,25 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         }
         val type = context.aggregateType
         val policy = access.of(type) ?: return MatchAllFilter
-        // The events are pinned to the snapshots; any other model of an aggregate is its snapshots'.
-        return if (context.schema.model == QueryModel.EVENTS) MatchAllFilter else snapshots(type, policy.read(acting))
+        // Any model of an aggregate other than its events is its snapshots'.
+        val fields = if (context.schema.model == QueryModel.EVENTS) STREAMS else SNAPSHOTS
+        return compile(type, policy.read(acting), fields)
     }
 
-    private fun snapshots(type: AggregateType, predicate: AccessPredicate): FilterExpression {
-        val filter = AccessFilters.compile(predicate) { attribute -> fieldOf(type, attribute) }
+    /** [predicate] of [type] on the records whose attributes are under [fields], each with its attributes recorded. */
+    private fun compile(type: AggregateType, predicate: AccessPredicate, fields: AccessFields): FilterExpression {
+        val filter = AccessFilters.compile(predicate) { attribute ->
+            fields.of(attribute).takeIf { declares(type, attribute) }
+        }
         return when (filter) {
             MatchNoneFilter -> MatchNoneFilter
-            MatchAllFilter -> RECORDED
-            else -> AndFilter(listOf(RECORDED, filter))
+            MatchAllFilter -> fields.recorded
+            else -> AndFilter(listOf(fields.recorded, filter))
         }
     }
 
-    /** The field [attribute] of [type] is stored under on its snapshots, or null when [type] does not have it. */
-    private fun fieldOf(type: AggregateType, attribute: AccessAttribute<*, *>): QueryField<*>? {
+    /** Whether [type] has [attribute], logging once a comparison of one it does not have. */
+    private fun declares(type: AggregateType, attribute: AccessAttribute<*, *>): Boolean {
         if (!access.declares(type, attribute)) {
             if (undeclared.add(type to attribute.name)) {
                 logger.warn {
@@ -238,23 +246,44 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
                         "$attribute: that comparison matches nothing."
                 }
             }
-            return null
+            return false
         }
-        return when (attribute) {
-            AccessAttribute.OWNER -> OWNER
-            AccessAttribute.SPACE -> SPACE
-            else -> QueryField("${SnapshotFields.ACCESS}.${attribute.name}")
+        return true
+    }
+
+    /**
+     * Where a model's records hold an aggregate's access attributes: each declared one under [access], the built-in
+     * ones under [owner] and [space]; [recorded] holds of a record whose attributes are recorded.
+     */
+    private class AccessFields(
+        private val access: String,
+        private val owner: QueryField<*>,
+        private val space: QueryField<*>,
+    ) {
+        val recorded = IsNotNullFilter(QueryField(access))
+
+        fun of(attribute: AccessAttribute<*, *>): QueryField<*> = when (attribute) {
+            AccessAttribute.OWNER -> owner
+            AccessAttribute.SPACE -> space
+            else -> QueryField("$access.${attribute.name}")
         }
     }
 
     private companion object {
         val logger = KotlinLogging.logger {}
 
-        /** A snapshot whose access attributes are recorded. */
-        val RECORDED = IsNotNullFilter(QueryField(SnapshotFields.ACCESS))
+        /** A snapshot's: its owner and space are the snapshot's own. */
+        val SNAPSHOTS = AccessFields(
+            SnapshotFields.ACCESS,
+            QueryField(SnapshotFields.OWNER_ID),
+            QueryField(SnapshotFields.SPACE_ID),
+        )
 
-        /** The snapshot's owner and space, the built-in attributes. */
-        val OWNER = QueryField(SnapshotFields.OWNER_ID)
-        val SPACE = QueryField(SnapshotFields.SPACE_ID)
+        /** A stream's: its owner and space among its access attributes, the aggregate's current ones. */
+        val STREAMS = AccessFields(
+            EventStreamFields.ACCESS,
+            QueryField("${EventStreamFields.ACCESS}.${AccessValues.OWNER}"),
+            QueryField("${EventStreamFields.ACCESS}.${AccessValues.SPACE}"),
+        )
     }
 }
