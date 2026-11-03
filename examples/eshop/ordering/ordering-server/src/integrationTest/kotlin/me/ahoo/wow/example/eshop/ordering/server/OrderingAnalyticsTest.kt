@@ -37,7 +37,7 @@ import java.util.UUID
 
 /**
  * The ordering service in this JVM in its `postgres` and `clickhouse` profiles, as a deployment runs it, its command
- * transport in memory ([InMemoryOrderingTopics]): the orders are committed to PostgreSQL and served by its snapshot
+ * topics in its JVM: the orders are committed to PostgreSQL and served by its snapshot
  * queries, and the ClickHouse Sink writes the order stream to `eshop_ordering_order_state_flat`, over which
  * `META-INF/wow/dataset/eshop-ordering.sales.json` declares the sales dataset (decision D145). Both are read in the
  * caller's scope: a buyer reads their own orders, an employee every order of the tenant (decision D189).
@@ -60,7 +60,6 @@ class OrderingAnalyticsTest {
             "wow.clickhouse.password" to clickhouse.password,
             "wow.log.partitions" to 4,
         ),
-        sources = listOf(InMemoryOrderingTopics::class.java),
     )
     // endregion
 

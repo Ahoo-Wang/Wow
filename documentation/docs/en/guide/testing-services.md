@@ -27,7 +27,6 @@ private val server = wowServer<OrderingServer>(
         "wow.timers.poll-interval" to "200ms",
         "eshop.ordering.payment-grace-period" to "2s",
     ),
-    sources = listOf(InMemoryOrderingTopics::class.java),
 )
 ```
 
@@ -57,7 +56,7 @@ fun `servers given the same topics should share them, which outlive each`() {
 - The node takes the topics it is given in place of its own, with `wow.transport=memory`, and leaves them open when it closes, so they outlive each server that shares them.
 - `server.bean<InMemoryTopics>()` is a node's topics, given or its own, to read what its sagas sent and its streams published.
 
-A test then drives the service as a client would, and waits for what happens asynchronously. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
+A test then drives the service with its typed clients ([Send and read as a caller](#send-and-read-as-a-caller)): it waits to the end of a saga's chain where a wait plan reaches it, and polls for what none does. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
 
@@ -65,15 +64,13 @@ A test then drives the service as a client would, and waits for what happens asy
 @Test
 fun `an order not paid within its grace period should cancel itself`() {
     submit("order-unpaid")
-    eventually("order-unpaid awaits validation") { status("order-unpaid") == "AWAITING_VALIDATION" }
-    post("/eshop-ordering/order/order-unpaid/confirm-order-stock", """{"productId":"mug"}""")
-    post("/eshop-ordering/order/order-unpaid/confirm-order-stock", """{"productId":"cap"}""")
-    status("order-unpaid").assert().isEqualTo("STOCK_CONFIRMED")
-    eventually("order-unpaid cancelled") { status("order-unpaid") == "CANCELLED" }
-    state("order-unpaid")["cancelReason"].asString().assert().contains("payment grace period")
-    val late = post("/eshop-ordering/order/order-unpaid/pay-order", """{"paymentId":"p-2","amount":29.00}""")
-    late.status.assert().isEqualTo(CONFLICT)
-    late.body!!["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
+    confirm("order-unpaid", "mug", "cap")
+    order("order-unpaid").status.assert().isEqualTo(OrderStatus.STOCK_CONFIRMED)
+    // The order cancels itself by a scheduled command of its own, which no command of the test's waits for.
+    eventually("order-unpaid cancelled") { order("order-unpaid").status == OrderStatus.CANCELLED }
+    order("order-unpaid").cancelReason.assert().contains("payment grace period")
+    rejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
+        .code.assert().isEqualTo("eshop-ordering.order.wrong-status")
 }
 ```
 
@@ -191,7 +188,6 @@ private val server = wowServer<OrderingServer>(
         "wow.clickhouse.password" to clickhouse.password,
         "wow.log.partitions" to 4,
     ),
-    sources = listOf(InMemoryOrderingTopics::class.java),
 )
 ```
 

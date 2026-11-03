@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
+import me.ahoo.wow.test.server.eventually
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationContextException
@@ -40,8 +41,9 @@ import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import java.net.InetSocketAddress
 import java.net.URLEncoder
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The checkout's synchronous call (roadmap P.12, decision D193): the basket's checkout saga submits the order through
@@ -79,7 +81,7 @@ class EshopSyncCallTest {
                 number.assert().matches(ORDER_NUMBER.toPattern())
 
                 // The state read is the snapshot's, written after the COMMITTED answer.
-                eventually("$number submitted") { ordering.ownerOf(number) != null }
+                eventually("$number submitted", DEADLINE) { ordering.ownerOf(number) != null }
                 ordering.ownerOf(number).assert().isEqualTo("alice")
                 val submitted = ordering.submitCommits(number).single()
                 submitted["operator"]["id"].asString().assert().isEqualTo("alice")
@@ -98,7 +100,7 @@ class EshopSyncCallTest {
 
             // Retried within the subscription's budget, then parked.
             val parked = "/wow/ops/parked/$CHECKOUT_KEY/eshop-basket/basket/${encode(Caller.DEFAULT_TENANT)}/bob"
-            eventually("the basket parked") { basket.get(parked).status == OK }
+            eventually("the basket parked", DEADLINE) { basket.get(parked).status == OK }
             down.calls.assert().isEqualTo(MAX_ATTEMPTS)
             basket.get(parked).body!!["reason"].asString().assert().contains("503")
             down.close()
@@ -108,10 +110,10 @@ class EshopSyncCallTest {
                 retried.status.assert().describedAs(retried.text).isEqualTo(OK)
                 // The checkout waited for the basket's commit alone, so its answer named no order: bob's order is the
                 // ordering's one order that bob owns.
-                eventually("bob's order submitted") { ordering.ordersOf("bob").isNotEmpty() }
+                eventually("bob's order submitted", DEADLINE) { ordering.ordersOf("bob").isNotEmpty() }
                 val number = ordering.ordersOf("bob").single()
                 ordering.ownerOf(number).assert().isEqualTo("bob")
-                eventually("the basket retried") { basket.get(parked).status == NOT_FOUND }
+                eventually("the basket retried", DEADLINE) { basket.get(parked).status == NOT_FOUND }
 
                 // The saga's call again (a replay of the checkout's commit, version 2) is the same request, naming no
                 // order: the ordering answers it with the same order and number, which it does not submit twice.
@@ -180,7 +182,7 @@ class EshopSyncCallTest {
             )
             trusted.status.assert().describedAs(trusted.text).isEqualTo(OK)
             // A call is answered at COMMITTED (D193); the state read is the snapshot's, written right after.
-            eventually("carol-1 submitted") { ordering.ownerOf("carol-1") != null }
+            eventually("carol-1 submitted", DEADLINE) { ordering.ownerOf("carol-1") != null }
             ordering.ownerOf("carol-1").assert().isEqualTo("carol")
         }
     }
@@ -311,7 +313,7 @@ class EshopSyncCallTest {
         /** The basket service's name, which it states on the ordering's internal port. */
         const val SERVICE: String = "eshop-basket-service"
         val BASKET = EshopBasketContract.Basket.TYPE
-        val DEADLINE: Duration = Duration.ofSeconds(30)
+        val DEADLINE: Duration = 30.seconds
 
         fun buyer(id: String): Map<String, String> = EshopStack.buyer(id)
 
@@ -352,7 +354,7 @@ class EshopSyncCallTest {
         /**
          * Starts [application] as the eShop service of [context] with its internal port [internalPort] (0: one the
          * system chooses), serving `eshop-<context>` alone on the memory backend, its commands to other contexts in
-         * memory ([InMemoryTopicsBeans]), with the further [properties] and configuration [sources]: the services share
+         * memory, with the further [properties] and configuration [sources]: the services share
          * one class path, so Spring Boot reads one `application.yaml` for both, and each gets what it needs as
          * command-line arguments. A service given the port another one released is started again,
          * at most [BIND_ATTEMPTS] times, while another process holds it.
@@ -393,21 +395,12 @@ class EshopSyncCallTest {
                     "wow.contexts.include" to "eshop-$context",
                     cosIdOf(context),
                 ),
-                listOf(InMemoryTopicsBeans::class.java, *sources),
+                sources.toList(),
             ),
         )
 
         const val BIND_ATTEMPTS = 5
 
-        fun eventually(what: String, condition: () -> Boolean) {
-            val until = System.nanoTime() + DEADLINE.toNanos()
-            while (!condition()) {
-                check(System.nanoTime() < until) { "Not reached in $DEADLINE: $what." }
-                Thread.sleep(POLL)
-            }
-        }
-
-        const val POLL = 50L
     }
 }
 

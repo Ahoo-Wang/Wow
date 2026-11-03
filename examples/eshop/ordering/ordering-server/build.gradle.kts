@@ -59,9 +59,8 @@ dependencies {
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation("me.ahoo.wow:wow-clickhouse")
     testImplementation("me.ahoo.wow:wow-test-spring-boot")
-    // The integration tests run the service in their JVM on PostgreSQL and ClickHouse in containers, with the test's
-    // command transport in memory (InMemoryOrderingTopics): the snapshot queries and the sales dataset (decision D204).
-    integrationTestImplementation(sourceSets["test"].output)
+    // The integration tests run the service in their JVM on PostgreSQL and ClickHouse in containers, its command
+    // topics in its JVM: the snapshot queries and the sales dataset (decision D204).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }
