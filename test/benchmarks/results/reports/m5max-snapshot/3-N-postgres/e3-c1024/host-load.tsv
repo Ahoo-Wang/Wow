@@ -1,0 +1,8 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793695052	27.51	24.95	18.33	24	sysmond 8, WindowServer 2, Stats 2	cosec-redis 0.26%	20	0		
+1793695064	27.52	25.00	18.43	12	sysmond 4, Activity Monitor 1, bluetoothd 1	cosec-redis 0.26%	1378	13		
+1793695076	26.46	24.88	18.50	17	Stats 5, sysmond 4, Activity Monitor 2	cosec-redis 0.17%	1419	15		
+1793695088	31.27	25.95	18.95	15	Stats 5, WindowServer 4, AppleCentauriAlpha 2	cosec-redis 0.19%	1015	9		
+1793695101	25.42	24.92	18.71	12	sysmond 4, WindowServer 2, AppleCentauriAlpha 1	cosec-redis 0.39%	1418	13		
+1793695113	28.83	25.67	19.04	21	WeChat 3, sysmond 2, mdworker_shared 2	cosec-redis 0.41%	1441	13		
+1793695125	32.72	26.77	19.56	15	Stats 4, configd 2, WindowServer 2	cosec-redis 0.19%	819	7		

@@ -1,0 +1,19 @@
+## 01-single-node.sh 2026-11-02T23:27:51-0800
+commit: b435768e4979f146e5c52142410f87a06b941861
+changed paths: 0
+machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
+macOS: 27.2 (26B123)
+engine: OrbStack 2.2.5 (2020500)
+docker: 29.8.2, 16 CPUs, 33670660096 bytes
+jdk: OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)
+allowed JVMs (pid, %cpu, rss KB, started, command): 67826
+  67826   0.0 2037680 Mon Nov  2 18:38:20 2026     /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.inv
+## 02-three-nodes.sh 2026-11-03T00:25:16-0800
+commit: b435768e4979f146e5c52142410f87a06b941861
+changed paths: 0
+machine: Mac17,14, Apple M5 Max, 18 cores (6 Super + 12 Performance), 64 GB
+macOS: 27.2 (26B123)
+engine: OrbStack 2.2.5 (2020500)
+docker: 29.8.2, 16 CPUs, 33670660096 bytes
+jdk: OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)
+allowed JVMs (pid, %cpu, rss KB, started, command): 67826
