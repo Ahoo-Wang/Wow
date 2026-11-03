@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.client.MongoClient
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ import kotlin.system.exitProcess
  * without HTTP or a load generator. It opens `--accounts` accounts, then sends `--ops` commands of `--scenario` (E1 a
  * deposit answered once committed, E3 a transfer answered once the saga's entry is committed, E1-large an annotation
  * of five ~2 KB notes) through the node's [CommandClient], `--concurrency` at a time, after `--warm-up-ops` unrecorded
- * ones. It counts what each operation costs (the store's round trips by command, the bytes allocated) and times it
+ * ones; `group` and `group-conflict` append groups straight to a MongoDB log instead ([GroupAppendRun]). It counts what each operation costs (the store's round trips by command, the bytes allocated) and times it
  * (throughput and latency of a closed loop, short and indicative: an end-to-end run gives the conclusions), and
  * writes `component.json` to `--out`. Counts do not depend on the machine's load, so they can run anywhere (the
  * tiered measurement of); a core-path change attaches at least these counts.
@@ -66,13 +67,12 @@ fun main(args: Array<String>) {
         argument.removePrefix("--").substringBefore('=') to argument.substringAfter('=')
     }
     val backend = options["backend"] ?: "mongo"
-    val bench = ComponentRun(
-        scenario = options["scenario"] ?: "E1",
-        accounts = options["accounts"]?.toInt() ?: DEFAULT_ACCOUNTS,
-        ops = options["ops"]?.toInt() ?: DEFAULT_OPS,
-        warmUpOps = options["warm-up-ops"]?.toInt() ?: DEFAULT_WARM_UP_OPS,
-        concurrency = options["concurrency"]?.toInt() ?: DEFAULT_CONCURRENCY,
-    )
+    val scenario = options["scenario"] ?: "E1"
+    val ops = options["ops"]?.toInt() ?: DEFAULT_OPS
+    val warmUpOps = options["warm-up-ops"]?.toInt() ?: DEFAULT_WARM_UP_OPS
+    val concurrency = options["concurrency"]?.toInt() ?: DEFAULT_CONCURRENCY
+    val grouped = scenario in GroupAppendRun.SCENARIOS
+    require(!grouped || backend == "mongo") { "Scenario '$scenario' runs on MongoDB only." }
     val out = File(options["out"] ?: ".").apply { mkdirs() }
     // No web server: the node's command client is called directly. Its internal port takes a free one.
     val context = SpringApplicationBuilder(TransferServer::class.java, ComponentCounters::class.java)
@@ -85,8 +85,16 @@ fun main(args: Array<String>) {
                 .map { "--${it.key}=${it.value}" }
                 .toTypedArray(),
         )
+    val counter = context.getBean(StoreCounter::class.java)
     val result = try {
-        bench.run(context.getBean(CommandClient::class.java), context.getBean(StoreCounter::class.java))
+        if (grouped) {
+            GroupAppendRun(scenario == GroupAppendRun.CONFLICT, ops, warmUpOps, concurrency)
+                .run(context.getBean(MongoClient::class.java), context.environment, counter)
+        } else {
+            val accounts = options["accounts"]?.toInt() ?: DEFAULT_ACCOUNTS
+            ComponentRun(scenario, accounts, ops, warmUpOps, concurrency)
+                .run(context.getBean(CommandClient::class.java), counter)
+        }
     } finally {
         context.close()
     }
@@ -104,7 +112,7 @@ private const val BALANCE = 1_000_000_000_000L
 private const val NOTES = 5
 private const val NOTE_BYTES = 2_048
 private const val NANOS_PER_MILLI = 1_000_000.0
-private const val NANOS_PER_SECOND = 1_000_000_000.0
+internal const val NANOS_PER_SECOND = 1_000_000_000.0
 private const val PERCENT = 100.0
 private const val P50 = 50.0
 private const val P99 = 99.0
@@ -127,61 +135,24 @@ class ComponentRun(
 
     fun run(client: CommandClient, counter: StoreCounter): Map<String, Any?> = runBlocking(Dispatchers.Default) {
         val seedStarted = System.nanoTime()
-        loop(accounts) { index ->
+        loop(accounts, concurrency) { index ->
             val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
             client.wait(
                 CommandRequest.builder(ACCOUNT_TYPE.ref(TENANT, accountId(index)), open).wait(WaitPlan.SNAPSHOT).build()
             )
         }
         val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
-        val next = AtomicInteger()
-        loop(warmUpOps) { operation(client, next.getAndIncrement()) }
-        val memory = ManagementFactory.getPlatformMXBean(com.sun.management.ThreadMXBean::class.java)
-        val collectors = ManagementFactory.getGarbageCollectorMXBeans()
-        val collectionsBefore = collectors.sumOf { it.collectionCount }
-        val collectionMillisBefore = collectors.sumOf { it.collectionTime }
-        counter.reset()
-        val allocatedBefore = memory.totalThreadAllocatedBytes
-        val latencies = LongArray(ops)
-        val failures = ConcurrentHashMap<String, LongAdder>()
-        val started = System.nanoTime()
-        loop(ops) { index ->
-            val sent = System.nanoTime()
-            val outcome = runCatching { operation(client, next.getAndIncrement()) }
-            latencies[index] = System.nanoTime() - sent
-            val failure = outcome.exceptionOrNull()?.javaClass?.simpleName
-                ?: outcome.getOrNull()?.takeIf { it.status != CommandResult.Status.SUCCEEDED }?.status?.name
-            failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
-        }
-        val seconds = (System.nanoTime() - started) / NANOS_PER_SECOND
-        val allocated = memory.totalThreadAllocatedBytes - allocatedBefore
-        val trips = counter.snapshot()
-        latencies.sort()
-        fun percentile(p: Double): Double = latencies[((latencies.size - 1) * p / PERCENT).toInt()] / NANOS_PER_MILLI
         mapOf(
-            "schema" to "wow-e2e-bench/component/1",
+            "schema" to SCHEMA,
             "scenario" to scenario,
             "accounts" to accounts,
             "ops" to ops,
             "warmUpOps" to warmUpOps,
             "concurrency" to concurrency,
             "seedSeconds" to seedSeconds,
-            "seconds" to seconds,
-            "throughput" to ops / seconds,
-            "failed" to failures.mapValues { it.value.sum() },
-            "latencyMs" to mapOf(
-                "p50" to percentile(P50),
-                "p99" to percentile(P99),
-                "max" to latencies.last() / NANOS_PER_MILLI,
-            ),
-            "storeRoundTripsPerOp" to trips.values.sum().toDouble() / ops,
-            "storeRoundTripsByCommand" to trips.mapValues { it.value.toDouble() / ops },
-            "allocatedBytesPerOp" to allocated.toDouble() / ops,
-            "gcCollections" to collectors.sumOf { it.collectionCount } - collectionsBefore,
-            "gcMillis" to collectors.sumOf { it.collectionTime } - collectionMillisBefore,
-            "note" to "Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips " +
-                "include the node's background work (tails, snapshots, leases) over the measured phase.",
-        )
+        ) + measure(counter, ops, warmUpOps, concurrency) { index ->
+            operation(client, index).takeIf { it.status != CommandResult.Status.SUCCEEDED }?.status?.name
+        } + ("note" to NOTE)
     }
 
     /** Operation [index] of the scenario: a deposit, a transfer or an annotation on the account it falls on. */
@@ -199,12 +170,6 @@ class ComponentRun(
         }
     }
 
-    /** Runs [block] for 0 until [count], [concurrency] at a time. */
-    private suspend fun loop(count: Int, block: suspend (Int) -> Unit) = coroutineScope {
-        val permits = Semaphore(concurrency)
-        repeat(count) { index -> launch { permits.withPermit { block(index) } } }
-    }
-
     private companion object {
         const val TENANT = "(0)"
         const val OWNERS = 100
@@ -213,6 +178,72 @@ class ComponentRun(
         /** The load generator's account ids, so a component run and an end-to-end run share their keys. */
         fun accountId(index: Int): String = "acc-%07d".format(index)
     }
+}
+
+/** The schema of `component.json`. */
+internal const val SCHEMA = "wow-e2e-bench/component/1"
+
+/** What `component.json` says of its counts and timings. */
+internal const val NOTE = "Closed loop in one JVM: counts are the result, timings only indicate; the store's round trips " +
+    "include the node's background work (tails, snapshots, leases) over the measured phase."
+
+/** Runs [block] for 0 until [count], [concurrency] at a time. */
+internal suspend fun loop(count: Int, concurrency: Int, block: suspend (Int) -> Unit) = coroutineScope {
+    val permits = Semaphore(concurrency)
+    repeat(count) { index -> launch { permits.withPermit { block(index) } } }
+}
+
+/**
+ * [warmUpOps] unrecorded operations, then [ops] measured ones, [concurrency] at a time: their store round trips by
+ * command (counted on [counter]), bytes allocated, throughput and latency. [operation] is given the operation's index,
+ * counted on from the warm-up's, and answers the failure it saw, if any; one that throws fails with its exception's
+ * name.
+ */
+internal suspend fun measure(
+    counter: StoreCounter,
+    ops: Int,
+    warmUpOps: Int,
+    concurrency: Int,
+    operation: suspend (Int) -> String?,
+): Map<String, Any?> {
+    val next = AtomicInteger()
+    loop(warmUpOps, concurrency) { operation(next.getAndIncrement()) }
+    val memory = ManagementFactory.getPlatformMXBean(com.sun.management.ThreadMXBean::class.java)
+    val collectors = ManagementFactory.getGarbageCollectorMXBeans()
+    val collectionsBefore = collectors.sumOf { it.collectionCount }
+    val collectionMillisBefore = collectors.sumOf { it.collectionTime }
+    counter.reset()
+    val allocatedBefore = memory.totalThreadAllocatedBytes
+    val latencies = LongArray(ops)
+    val failures = ConcurrentHashMap<String, LongAdder>()
+    val started = System.nanoTime()
+    loop(ops, concurrency) { index ->
+        val sent = System.nanoTime()
+        val outcome = runCatching { operation(next.getAndIncrement()) }
+        latencies[index] = System.nanoTime() - sent
+        val failure = outcome.exceptionOrNull()?.javaClass?.simpleName ?: outcome.getOrNull()
+        failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
+    }
+    val seconds = (System.nanoTime() - started) / NANOS_PER_SECOND
+    val allocated = memory.totalThreadAllocatedBytes - allocatedBefore
+    val trips = counter.snapshot()
+    latencies.sort()
+    fun percentile(p: Double): Double = latencies[((latencies.size - 1) * p / PERCENT).toInt()] / NANOS_PER_MILLI
+    return mapOf(
+        "seconds" to seconds,
+        "throughput" to ops / seconds,
+        "failed" to failures.mapValues { it.value.sum() },
+        "latencyMs" to mapOf(
+            "p50" to percentile(P50),
+            "p99" to percentile(P99),
+            "max" to latencies.last() / NANOS_PER_MILLI,
+        ),
+        "storeRoundTripsPerOp" to trips.values.sum().toDouble() / ops,
+        "storeRoundTripsByCommand" to trips.mapValues { it.value.toDouble() / ops },
+        "allocatedBytesPerOp" to allocated.toDouble() / ops,
+        "gcCollections" to collectors.sumOf { it.collectionCount } - collectionsBefore,
+        "gcMillis" to collectors.sumOf { it.collectionTime } - collectionMillisBefore,
+    )
 }
 
 /** [value] as JSON: maps, lists, strings, numbers, booleans and nulls. */

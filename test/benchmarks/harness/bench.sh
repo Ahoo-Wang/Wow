@@ -20,7 +20,8 @@
 #   bench.sh run      [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
 #   bench.sh saturate [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
-#                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
+#                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM;
+#                      --scenario=group|group-conflict, MongoDB only: a log's group append, with or without a conflict)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh down
 #   bench.sh compare <root>   (an ABAB's tables: sessions <root>/<round>-<arm>-<backend>/<phase>, by arm and round,
