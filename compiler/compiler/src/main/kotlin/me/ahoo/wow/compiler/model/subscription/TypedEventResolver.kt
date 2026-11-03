@@ -13,14 +13,12 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.concreteClasses
+import me.ahoo.wow.compiler.model.symbol.declaredName
 
 /** An event class of an aggregate of the module: its [type], its [binary] name and its [state]. */
 internal data class ModuleEvent(val type: KSType, val binary: String, val state: String)
@@ -153,12 +151,14 @@ internal object TypedEventResolver {
             form = if (typed) EventParameter.TYPED else EventParameter.BARE,
             source = eventName,
             state = state,
-            names = classes.map(::nameOf).distinct().sorted(),
+            names = classes.map { nameOf(it, problems) }.distinct().sorted(),
         )
     }
 
-    /** The name the model gives the event [declaration]: its `@Name`, else its simple name. */
-    @OptIn(KspExperimental::class)
-    private fun nameOf(declaration: KSClassDeclaration): String =
-        declaration.getAnnotationsByType(Name::class).firstOrNull()?.value ?: declaration.simpleName.asString()
+    /**
+     * The name the model gives the event [declaration]: its `@Name`, else its simple name. A `@Name` without a value is
+     * one of [problems].
+     */
+    private fun nameOf(declaration: KSClassDeclaration, problems: MutableList<String>): String =
+        declaration.declaredName(problems) ?: declaration.simpleName.asString()
 }

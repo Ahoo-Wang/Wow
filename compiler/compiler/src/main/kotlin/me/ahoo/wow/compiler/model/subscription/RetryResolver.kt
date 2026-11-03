@@ -21,7 +21,10 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
+import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.manifest.RetryManifest
 import kotlin.time.Duration
 
@@ -131,25 +134,25 @@ internal object RetryResolver {
         .filterIsInstance<KSClassDeclaration>()
         .firstOrNull { it.classKind == ClassKind.CLASS }
 
-    private fun KSAnnotated.carriesRetry(): Boolean =
-        annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == RETRY }
+    private fun KSAnnotated.carriesRetry(): Boolean = annotations.any { it.isOf(RETRY) }
 
-    /** The settings of the `@Retry` on [annotated], described as [where]; null without one, or when it gives none. */
+    /**
+     * The settings of the `@Retry` on [annotated], described as [where]; null without one, when it gives none, or,
+     * one of [problems], when a setting has no value ([argumentsOf]).
+     */
     fun read(annotated: KSAnnotated, where: String, problems: MutableList<String>): RetryBinding? {
-        val annotation = annotated.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == RETRY
-        } ?: return null
-        val arguments = annotation.arguments.associate { it.name?.asString() to it.value }
-        arguments.keys.filterNotNull().filterNot { it in SETTINGS }.sorted().forEach {
+        val annotation = annotated.annotations.firstOrNull { it.isOf(RETRY) } ?: return null
+        annotation.arguments.mapNotNull { it.name?.asString() }.filterNot { it in SETTINGS }.sorted().forEach {
             problems += "$where is annotated @Retry($it), a 9.x setting Wow 10 does not have: its @Retry takes " +
                 "${SETTINGS.joinToString()}; ${AnnotationSet.MIGRATION}"
         }
-        val maxAttempts = (arguments[MAX_ATTEMPTS] as? Int) ?: 0
+        val arguments = annotated.argumentsOf(Retry::class, problems) ?: return null
+        val maxAttempts = arguments.int(MAX_ATTEMPTS)
         if (maxAttempts < 0) {
             problems += "$where is annotated @Retry(maxAttempts = $maxAttempts): a call is attempted at least once, " +
                 "or 0 for not given"
         }
-        val multiplier = (arguments[MULTIPLIER] as? Double) ?: 0.0
+        val multiplier = arguments.double(MULTIPLIER)
         if (multiplier != 0.0 && multiplier < 1.0) {
             problems += "$where is annotated @Retry(multiplier = $multiplier): a backoff never shrinks, so it is at " +
                 "least 1, or 0 for not given"
@@ -159,27 +162,26 @@ internal object RetryResolver {
             initialBackoff = duration(where, INITIAL_BACKOFF, arguments, problems, positive = false),
             maxBackoff = duration(where, MAX_BACKOFF, arguments, problems, positive = false),
             timeout = duration(where, TIMEOUT, arguments, problems, positive = true),
-            recoverable = classes(arguments[RECOVERABLE]),
-            unrecoverable = classes(arguments[UNRECOVERABLE]),
+            recoverable = classes(arguments.types(RECOVERABLE)),
+            unrecoverable = classes(arguments.types(UNRECOVERABLE)),
             multiplier = multiplier.takeIf { it >= 1.0 },
-            systemic = classes(arguments[SYSTEMIC]),
+            systemic = classes(arguments.types(SYSTEMIC)),
         ).takeUnless { it.isEmpty }
     }
 
-    private fun classes(value: Any?): List<String>? =
-        (value as? List<*>).orEmpty()
-            .mapNotNull { (it as? KSType)?.declaration?.unaliased()?.qualifiedName?.asString() }
+    private fun classes(types: List<KSType>): List<String>? =
+        types.mapNotNull { it.declaration.unaliased().qualifiedName?.asString() }
             .distinct()
             .takeUnless { it.isEmpty() }
 
     private fun duration(
         where: String,
         setting: String,
-        arguments: Map<String?, Any?>,
+        arguments: AnnotationArguments,
         problems: MutableList<String>,
         positive: Boolean,
     ): Duration? {
-        val text = (arguments[setting] as? String).orEmpty()
+        val text = arguments.string(setting)
         if (text.isBlank()) {
             return null
         }

@@ -21,6 +21,7 @@ import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Upgrade
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 
 /**
  * An `@Upgrade` function as the model processor read it: the event it upgrades, by its qualified name
@@ -57,20 +58,25 @@ internal object UpgradeResolver {
     private const val JSON_NODE = "tools.jackson.databind.JsonNode"
     private const val OBJECT_NODE = "tools.jackson.databind.node.ObjectNode"
     private val NODES = setOf(JSON_NODE, OBJECT_NODE)
+    private const val EVENT = "event"
+    private const val FROM = "from"
 
+    /**
+     * The upgrade [function], annotated `@Upgrade`; one whose `@Upgrade` has an argument without a value upgrades no
+     * event, with that problem.
+     */
     fun read(function: KSFunctionDeclaration): UpgradeFunction {
         val name = function.qualifiedName?.asString() ?: function.simpleName.asString()
-        val annotation = function.annotations.first {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == UPGRADE
-        }
-        val arguments = annotation.arguments.associate { it.name?.asString() to it.value }
-        val event = (arguments["event"] as? KSType)?.declaration?.qualifiedName?.asString()
-        val from = arguments["from"] as? Int ?: 0
+        val unread = mutableListOf<String>()
+        val upgrade = function.argumentsOf(Upgrade::class, unread)
+        val event = upgrade?.type(EVENT)?.declaration?.qualifiedName?.asString()
+        val from = upgrade?.int(FROM) ?: 0
         val parameter = function.parameters.singleOrNull()?.type?.resolve()
         val returned = function.returnType?.resolve()
         val takesNode = function.extensionReceiver == null && parameter?.qualifiedName() in NODES
         val returnsNode = returned?.qualifiedName() in NODES && returned?.isMarkedNullable == false
         val problems = buildList {
+            addAll(unread)
             if (!takesNode || !returnsNode) {
                 add(
                     "upgrade $name must take one JsonNode or ObjectNode (tools.jackson.databind) and return " +

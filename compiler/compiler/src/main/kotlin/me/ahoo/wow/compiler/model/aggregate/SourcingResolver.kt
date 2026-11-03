@@ -13,23 +13,23 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Alias
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.Revision
+import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.Descriptions
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.BLOCKING
 import me.ahoo.wow.compiler.model.symbol.ModelNames.EVENT_STREAM
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
+import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.render
 
 /** The sourcing functions of an aggregate's state, and the events its handlers produce. */
@@ -84,7 +84,7 @@ internal object SourcingResolver {
         val direct = bound.filter { (_, binding) -> binding != null && !binding.sealed }.map { it.second!! }
         val expanded = bound.mapNotNull { it.second }.filter { it.sealed }.flatMap { sealed ->
             sealedEvents(sealed.declaration!!).filterNot { event -> direct.any { it.event == event.render() } }
-                .map { event -> eventBinding(event, sealed.function, sealed.returnsState, sealed.commit) }
+                .map { event -> eventBinding(event, sealed.function, sealed.returnsState, sealed.commit, problems) }
         }
         expanded.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
             problems += "the sourcing functions ${twice.joinToString { it.function }} both take $event, through " +
@@ -101,7 +101,6 @@ internal object SourcingResolver {
 
     fun KSClassDeclaration.render(): String = asStarProjectedType().render()
 
-    @OptIn(KspExperimental::class)
     fun sourcingBinding(
         function: KSFunctionDeclaration,
         state: KSClassDeclaration,
@@ -145,7 +144,7 @@ internal object SourcingResolver {
                 "whose subclasses are the events"
             return null
         }
-        return eventBinding(event, name, returnsState, commit).also {
+        return eventBinding(event, name, returnsState, commit, problems).also {
             if (it.revision < 1) {
                 problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
             }
@@ -178,23 +177,26 @@ internal object SourcingResolver {
     /** Whether [type] is the commit of an event, a sourcing function's second parameter: a non-null `EventStream`. */
     private fun isCommit(type: KSType): Boolean = type.render() == EVENT_STREAM && !type.isMarkedNullable
 
-    /** The binding of [function] evolving [event], a concrete event class, reading its [commit] or not. */
-    @OptIn(KspExperimental::class)
+    /**
+     * The binding of [function] evolving [event], a concrete event class, reading its [commit] or not. An annotation of
+     * the event with no value is one of [problems].
+     */
     fun eventBinding(
         event: KSClassDeclaration,
         function: String,
         returnsState: Boolean,
         commit: Boolean,
+        problems: MutableList<String>,
     ): SourcingBinding =
         SourcingBinding(
             event = event.render(),
-            eventName = event.getAnnotationsByType(Name::class).firstOrNull()?.value,
-            revision = event.getAnnotationsByType(Revision::class).firstOrNull()?.value ?: 1,
-            aliases = event.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
+            eventName = event.declaredName(problems),
+            revision = event.argumentsOf(Revision::class, problems)?.int(AnnotationArguments.VALUE) ?: 1,
+            aliases = event.argumentsOf(Alias::class, problems)?.strings(AnnotationArguments.VALUE).orEmpty(),
             function = function,
             returnsState = returnsState,
             type = event.binaryName(),
             commit = commit,
-            description = Descriptions.of(event),
+            description = Descriptions.of(event, problems),
         )
 }

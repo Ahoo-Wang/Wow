@@ -18,13 +18,15 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ANY_TYPES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.COMMAND
 import me.ahoo.wow.compiler.model.symbol.ModelNames.DECIDE_SCOPE
 import me.ahoo.wow.compiler.model.symbol.ModelNames.FRAMEWORK_PACKAGES
 import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_COMMANDS
-import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
@@ -38,6 +40,9 @@ import me.ahoo.wow.compiler.model.symbol.render
  * `X`. So the generated cast never fails. `include` and `exclude` name the aggregate's commands or system commands.
  */
 internal object AfterHookResolver {
+    private const val INCLUDE = "include"
+    private const val EXCLUDE = "exclude"
+
     /** The command parameter of a hook: its type as declared, whether it is the admitted command, and its body. */
     private class CommandParameter(val declared: KSType, val admitted: Boolean, val body: KSType?)
 
@@ -60,12 +65,10 @@ internal object AfterHookResolver {
                 "command, Any, or $COMMAND of it"
             return null
         }
-        val annotation = function.annotationIn(AFTER_COMMAND_ANNOTATION)
-        fun types(argument: String): List<KSType> =
-            (annotation?.arguments?.firstOrNull { it.name?.asString() == argument }?.value as? List<*>).orEmpty()
-                .filterIsInstance<KSType>()
-        val declaredInclude = types("include")
-        val declaredExclude = types("exclude")
+        // The hook's @AfterCommand, or the one of the function it overrides.
+        val afterCommand = function.annotatedIn(AFTER_COMMAND_ANNOTATION)?.argumentsOf(AfterCommand::class, problems)
+        val declaredInclude = afterCommand?.types(INCLUDE).orEmpty()
+        val declaredExclude = afterCommand?.types(EXCLUDE).orEmpty()
         problems += namingProblems(name, declaredInclude + declaredExclude, commandClasses)
         // A hook of a command type runs only for the commands it accepts.
         val accepting = body?.takeUnless { it.declaration.qualifiedName?.asString() in ANY_TYPES }

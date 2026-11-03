@@ -13,11 +13,18 @@
 
 package me.ahoo.wow.http.internal
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.util.concurrent.CompletionException
+import java.util.concurrent.atomic.AtomicInteger
 
 /** The internal port (decisions D89, D109): its own server, bound and unbound by its host. */
 class InternalPortTest {
@@ -38,4 +45,40 @@ class InternalPortTest {
         }
         port.isRunning.assert().isFalse()
     }
+
+    @Test
+    fun `a port takes MAX_CONCURRENT_STREAMS streams on a connection, which the JDK client keeps to`(): Unit =
+        runBlocking {
+            val release = CompletableDeferred<Unit>()
+            val arrived = AtomicInteger()
+            val port = InternalPort.of(
+                InternalPortSettings(port = 0, bindHost = "127.0.0.1"),
+                coRouter {
+                    GET("/ping") { ServerResponse.ok().buildAndAwait() }
+                    GET("/held") {
+                        arrived.incrementAndGet()
+                        release.await()
+                        ServerResponse.ok().buildAndAwait()
+                    }
+                },
+            )
+            port.start()
+            try {
+                val client = InternalHttp.client()
+                fun get(path: String) = client.sendAsync(
+                    HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${port.boundPort}", path)).build(),
+                    HttpResponse.BodyHandlers.discarding(),
+                )
+                // The first request upgrades the connection to h2c; the others multiplex on it.
+                get("/ping").await().statusCode().assert().isEqualTo(200)
+                val held = (1..InternalHttp.MAX_CONCURRENT_STREAMS).map { get("/held") }
+                eventually { arrived.get() == InternalHttp.MAX_CONCURRENT_STREAMS }
+                val refused = runCatching { get("/held").join() }.exceptionOrNull()
+                (refused as CompletionException).cause!!.isStreamLimit().assert().isTrue()
+                release.complete(Unit)
+                held.map { it.await().statusCode() }.assert().containsOnly(200)
+            } finally {
+                port.stop()
+            }
+        }
 }

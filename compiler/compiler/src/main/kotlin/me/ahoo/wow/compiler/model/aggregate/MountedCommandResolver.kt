@@ -13,16 +13,14 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSType
 import me.ahoo.wow.api.annotation.MountedCommand
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
+import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.render
 
 /**
@@ -32,36 +30,36 @@ import me.ahoo.wow.compiler.model.symbol.render
  */
 internal object MountedCommandResolver {
     val MOUNTED_COMMAND: String = MountedCommand::class.java.name
+    private const val AGGREGATE = "aggregate"
     private const val TRANSFORMS_TO = "transformsTo"
 
-    /** The binding of [declaration], a class annotated `@MountedCommand`, with the problems it has on its own. */
-    @OptIn(KspExperimental::class)
+    /**
+     * The binding of [declaration], a class annotated `@MountedCommand`, with the problems it has on its own. One whose
+     * `@MountedCommand` has an argument without a value names no aggregate, with that problem.
+     */
     fun read(declaration: KSClassDeclaration): MountedBinding {
-        val annotation = declaration.getAnnotationsByType(MountedCommand::class).first()
         val name = declaration.simpleName.asString()
-        // The classes are read from the annotation's arguments: a KClass value is not one the annotation proxy gives.
-        val listed = declaration.annotations
-            .first { it.annotationType.resolve().declaration.qualifiedName?.asString() == MOUNTED_COMMAND }
-            .arguments.firstOrNull { it.name?.asString() == TRANSFORMS_TO }?.value as? List<*>
         val problems = AnnotationSet.problemsOfType(declaration, "mounted command").toMutableList()
-        val transformsTo = listed.orEmpty().filterIsInstance<KSType>().flatMap { type ->
+        val mounted = declaration.argumentsOf(MountedCommand::class, problems)
+        val aggregate = mounted?.string(AGGREGATE).orEmpty()
+        val transformsTo = mounted?.types(TRANSFORMS_TO).orEmpty().flatMap { type ->
             commandClassesOf(type).ifEmpty {
                 problems += "mounted command $name transforms to ${type.render()}, which is no command class: " +
                     "@MountedCommand(transformsTo) names command classes"
                 emptyList()
             }
         }.map { it.binaryName() }.distinct()
-        if (annotation.aggregate.isBlank()) {
+        if (mounted != null && aggregate.isBlank()) {
             problems += "mounted command $name names no aggregate: @MountedCommand(aggregate) is its aggregate's name"
         }
         return MountedBinding(
             command = declaration.qualifiedName!!.asString(),
-            commandName = declaration.getAnnotationsByType(Name::class).firstOrNull()?.value,
-            aggregate = annotation.aggregate,
+            commandName = declaration.declaredName(problems),
+            aggregate = aggregate,
             type = declaration.binaryName(),
             transformsTo = transformsTo,
             problems = problems,
-            description = Descriptions.of(declaration),
+            description = Descriptions.of(declaration, problems),
         )
     }
 

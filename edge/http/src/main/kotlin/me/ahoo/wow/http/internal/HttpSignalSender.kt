@@ -65,8 +65,12 @@ import kotlin.time.toJavaDuration
  * ends the wait. A fixed limit shorter than the wait dropped such signals, and their waiters answered a committed
  * command as timed out (item 1).
  *
+ * Each origin's [concurrency] is its share of the streams of the one connection to the origin, which the node's
+ * [HttpClusterChannel] shares ([InternalHttp.MAX_CONCURRENT_STREAMS]): the channel leaves the default to the signals.
+ *
  * A request that fails for a while only, its origin's address not resolving or refusing connections yet, its connect
- * timing out, or the origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again
+ * timing out, the connection's streams all taken (`too many concurrent streams`: the request was not sent), or the
+ * origin answering 503 or 429 (a partition owner being replaced, a node starting), is sent again
  * after [retryBackoff], doubled each time up to [MAX_RETRY_BACKOFF], at most [maxAttempts] times in all, and never
  * past the latest deadline of its waits: the signal of a committed command then still ends its wait,
  * where one failure answered it as timed out. The origin deduplicates a signal it took twice, as one sent by two
@@ -328,12 +332,13 @@ class HttpSignalSender(
 
 /**
  * Whether this failure of a request is one that passes: the origin's address does not resolve yet, it refuses the
- * connection, or the connection times out, as while a node starts or is replaced. A request that timed out after it
- * was sent outlived its waits, and is not sent again.
+ * connection, or the connection times out, as while a node starts or is replaced; or the origin's connection has all
+ * its streams taken ([isStreamLimit]), the request not sent. A request that timed out after it was sent outlived its
+ * waits, and is not sent again.
  */
 internal fun Throwable.isTransient(): Boolean = generateSequence(this) { it.cause }.take(MAX_CAUSES).any {
     it is ConnectException || it is HttpConnectTimeoutException || it is UnresolvedAddressException ||
-        it is UnknownHostException
+        it is UnknownHostException || it.isStreamLimit()
 }
 
 private const val MAX_CAUSES = 8

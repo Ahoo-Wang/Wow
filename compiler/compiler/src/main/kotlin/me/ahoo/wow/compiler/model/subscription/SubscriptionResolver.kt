@@ -13,21 +13,17 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
-import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Projection
 import me.ahoo.wow.api.annotation.Reactor
@@ -41,9 +37,10 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.compiler.model.aggregate.Dependency
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
-import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
+import me.ahoo.wow.compiler.model.symbol.declaredName
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 
@@ -105,6 +102,7 @@ internal object SubscriptionResolver {
     val ON_REJECTED: String = Receipt.REJECTED.annotation
     val ON_COMMITTED: String = Receipt.COMMITTED.annotation
     private const val AGGREGATES = "aggregates"
+    private const val START = "start"
 
     /** The receipt of either outcome, which a handler of both receipts takes. */
     private val RECEIPT = CommandReceipt::class.java.name
@@ -145,15 +143,15 @@ internal object SubscriptionResolver {
     /** Every handler context: none is a handler's first parameter. */
     private val CONTEXTS = setOf(SubscriptionContext::class.java.name, SAGA_CONTEXT)
 
-    @OptIn(KspExperimental::class)
     fun resolve(
         processor: KSClassDeclaration,
         reactorTypes: Set<String>,
         events: List<ModuleEvent> = emptyList(),
     ): SubscriptionBinding {
         val className = processor.simpleName.asString()
-        val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
-        val problems = (AnnotationSet.problems(processor, "processor $className", processor = true) + nameProblems(className, name)).toMutableList()
+        val problems = AnnotationSet.problems(processor, "processor $className", processor = true).toMutableList()
+        val name = processor.declaredName(problems) ?: className
+        problems += nameProblems(className, name)
         val processorRetry = RetryResolver.inherited(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
@@ -386,14 +384,13 @@ internal object SubscriptionResolver {
      * The constructor parameters of [processor], each a domain service the host's `Dependencies` gives by its type
      * and, when the parameter has a `@Name`, by that qualifier.
      */
-    @OptIn(KspExperimental::class)
     private fun dependencies(
         processor: KSClassDeclaration,
         className: String,
         problems: MutableList<String>,
     ): List<Dependency> = constructorOf(processor)?.parameters.orEmpty().mapIndexed { index, parameter ->
         val type = parameter.type.resolve()
-        val qualifier = parameter.getAnnotationsByType(Name::class).firstOrNull()?.value
+        val qualifier = parameter.declaredName(problems)
         if (qualifier != null && qualifier.isBlank()) {
             problems += "processor $className's parameter ${parameter.name?.asString()} has a blank @Name: a " +
                 "qualifier names the dependency"
@@ -427,11 +424,14 @@ internal object SubscriptionResolver {
         if (kind != null && returned != null) {
             returnProblem(kind, returned, reactor)?.let { problems += "$where $it" }
         }
-        val onEvent = function.annotationIn(ON_EVENT)
-        val aggregates = onEvent.strings(AGGREGATES)
+        // The handler's @OnEvent, or the one of the function it overrides.
+        val onEvent = function.annotatedIn(ON_EVENT)?.argumentsOf(OnEvent::class, problems)
+        val aggregates = onEvent?.strings(AGGREGATES).orEmpty()
         val sends = SendsResolver.resolve(function, where, kind == Kind.SAGA, kind?.label, returned, reactor, problems)
         problems += sourceProblems(where, aggregates)
         val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
+        // BEGINNING or END when the handler declares it, null for DEFAULT.
+        val start = onEvent?.enumName(START)?.takeIf { it != OnEvent.Start.DEFAULT.name }
         if (problems.size > count) {
             return null
         }
@@ -446,7 +446,7 @@ internal object SubscriptionResolver {
             blocking = function.isHandler(BLOCKING),
             aggregates = aggregates,
             sends = sends,
-            start = startOf(function),
+            start = start,
             retry = retry,
         )
         if (first!!.qualifiedName() != STATE_EVENT) {
@@ -592,20 +592,6 @@ internal object SubscriptionResolver {
         }
         return listOfNotNull(problem)
     }
-
-    /** The string array argument [name] of this annotation, empty without the annotation or the argument. */
-    private fun KSAnnotation?.strings(name: String): List<String> =
-        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
-            .filterIsInstance<String>()
-
-    /**
-     * `@OnEvent(start)`: `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
-     * without the annotation.
-     */
-    @OptIn(KspExperimental::class)
-    private fun startOf(function: KSFunctionDeclaration): String? =
-        (function.annotatedIn(ON_EVENT) ?: function).getAnnotationsByType(OnEvent::class).map { it.start }
-            .firstOrNull { it != OnEvent.Start.DEFAULT }?.name
 
     private fun parameterProblems(where: String, parameters: List<KSType>, kind: Kind?): List<String> = buildList {
         val first = parameters.firstOrNull()

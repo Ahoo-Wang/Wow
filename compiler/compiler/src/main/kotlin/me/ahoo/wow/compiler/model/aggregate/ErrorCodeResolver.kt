@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.FileLocation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
@@ -24,6 +22,7 @@ import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import java.io.File
@@ -71,11 +70,19 @@ internal object ErrorCodeResolver {
     fun isFull(code: String): Boolean = '.' in code
 
     private val STATUSES = 400..599
+    private const val DESCRIPTION = "description"
+    private const val STATUS = "status"
 
-    @OptIn(KspExperimental::class)
+    /**
+     * The binding of [property], annotated `@ErrorCode`; one whose `@ErrorCode` has an argument without a value has
+     * no code, and that problem.
+     */
     fun resolve(property: KSPropertyDeclaration, stringType: KSType): ErrorCodeBinding {
         val name = property.qualifiedName?.asString() ?: property.simpleName.asString()
-        val annotation = property.getAnnotationsByType(ErrorCode::class).first()
+        val unread = mutableListOf<String>()
+        val annotation = property.argumentsOf(ErrorCode::class, unread)
+            ?: return ErrorCodeBinding(name, null, unread)
+        val status = annotation.int(STATUS)
         val java = property.origin == Origin.JAVA
         if (!isConstant(property, java) || property.type.resolve().makeNotNullable() != stringType) {
             val form = if (java) "a static final String field" else "a const val of type String"
@@ -108,13 +115,13 @@ internal object ErrorCodeResolver {
             if (code.startsWith(FrameworkErrors.PREFIX)) {
                 add("error code $code of $name takes the framework's prefix ${FrameworkErrors.PREFIX}")
             }
-            if (annotation.status !in STATUSES) {
-                add("error code $code of $name has status ${annotation.status}: a status is 400 to 599")
+            if (status !in STATUSES) {
+                add("error code $code of $name has status $status: a status is 400 to 599")
             }
         }
         return ErrorCodeBinding(
             name,
-            ErrorManifest(code, annotation.status, annotation.description.ifBlank { null }),
+            ErrorManifest(code, status, annotation.string(DESCRIPTION).ifBlank { null }),
             problems,
             aggregateRoot,
         )
