@@ -103,7 +103,7 @@ test("the ops server serves the console, which asks for a caller first", async (
 
 test("the queues list the entries by status", async ({ page }) => {
   await open(page, OPERATOR);
-  // Needs attention, the default: exhausted and unrecoverable, not the one retrying.
+  // Needs attention, the default: exhausted and unrecoverable, not the scheduled one.
   await expect(row(page, exhausted)).toBeVisible();
   await expect(row(page, unrecoverable)).toBeVisible();
   await expect(row(page, scheduled)).toHaveCount(0);
