@@ -29,9 +29,6 @@ const val FROZEN = "bank.account.frozen"
 /** A deposit of this amount is rejected as [FROZEN]. */
 const val FROZEN_AMOUNT = 13L
 
-/** An ABAC attribute a caller may carry; an account has no tags (D390), so none of it. */
-const val TIER = "tier"
-
 data class OpenAccount(val owner: String = "")
 
 data class Deposit(@field:Positive val amount: Long)

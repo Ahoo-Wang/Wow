@@ -30,7 +30,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * Which columns of a dataset hold its caller scope: the [tenant] (or, for a [platform]-level dataset, none), the
- * [owner] and the [space], and the column each ABAC tag key is bound to ([tags]). A dataset either
+ * [owner] and the [space]. A dataset either
  * names its tenant column or declares that it is platform-level, never both.
  */
 @ExperimentalWowApi
@@ -38,8 +38,6 @@ class QueryDatasetScope @InternalWowApi constructor(
     val tenant: QueryField<*>? = null,
     val owner: QueryField<*>? = null,
     val space: QueryField<*>? = null,
-    /** The column of each ABAC tag key: a string column holds one tag value per record, a string-array one several. */
-    val tags: Map<String, QueryField<*>> = emptyMap(),
     /** The dataset has no tenant column: every record belongs to [PLATFORM_TENANT]. */
     val platform: Boolean = false,
 ) {
@@ -47,7 +45,6 @@ class QueryDatasetScope @InternalWowApi constructor(
         require((tenant != null) != platform) {
             "A dataset declares either its tenant column or that it is platform-level, and not both."
         }
-        require(tags.keys.none(String::isBlank)) { "A dataset's ABAC tag key must not be blank." }
     }
 
     /** The one tenant every record of a [platform] dataset belongs to; `null` for a dataset with a tenant column. */
@@ -56,7 +53,7 @@ class QueryDatasetScope @InternalWowApi constructor(
 
     /** Every column this scope names. */
     val fields: List<QueryField<*>>
-        get() = listOfNotNull(tenant, owner, space) + tags.values
+        get() = listOfNotNull(tenant, owner, space)
 
     companion object {
         /** The tenant of a platform-level dataset: the default tenant of a principal without one. */
@@ -69,9 +66,8 @@ class QueryDatasetScope @InternalWowApi constructor(
             tenant: QueryField<*>? = null,
             owner: QueryField<*>? = null,
             space: QueryField<*>? = null,
-            tags: Map<String, QueryField<*>> = emptyMap(),
             platform: Boolean = false,
-        ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, tags, platform)
+        ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, platform)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -80,9 +76,9 @@ class QueryDatasetScope @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "QueryDatasetScope(tenant=$tenant, owner=$owner, space=$space, tags=$tags, platform=$platform)"
+        "QueryDatasetScope(tenant=$tenant, owner=$owner, space=$space, platform=$platform)"
 
-    private fun valueFields(): List<Any?> = listOf(tenant, owner, space, tags, platform)
+    private fun valueFields(): List<Any?> = listOf(tenant, owner, space, platform)
 }
 
 /**
@@ -181,7 +177,6 @@ class QueryDatasetBuilder(private val name: AggregateType) {
     private var platform: Boolean = false
     private var owner: QueryField<*>? = null
     private var space: QueryField<*>? = null
-    private val tags = linkedMapOf<String, QueryField<*>>()
     private var identity: QueryField<*>? = null
     private var eventTime: QueryField<*>? = null
     private var title: String? = null
@@ -204,11 +199,6 @@ class QueryDatasetBuilder(private val name: AggregateType) {
 
     fun space(field: String) {
         space = QueryField(field)
-    }
-
-    /** Binds the ABAC tag [key] to [field], a string or string-array column. */
-    fun tag(key: String, field: String) {
-        tags[key] = QueryField(field)
     }
 
     fun identity(field: String) {
@@ -258,7 +248,6 @@ class QueryDatasetBuilder(private val name: AggregateType) {
                 tenant = tenant,
                 owner = owner,
                 space = space,
-                tags = tags.toMap(),
                 platform = platform,
             ),
             declaration = QuerySchemaDeclaration(masked),

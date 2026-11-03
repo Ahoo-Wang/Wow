@@ -15,16 +15,13 @@ package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.cache.QueryCountCacheOptions
-import me.ahoo.wow.query.policy.AbacQueryOptions
 import org.junit.jupiter.api.Test
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */
 class QueryOptionsTest {
     @Test
     fun `an option equals another with the same fields, and prints them`() {
-        valueSemantics(AbacQueryOptions(), AbacQueryOptions(), AbacQueryOptions(enabled = true))
         valueSemantics(QueryCountCacheOptions(), QueryCountCacheOptions(), QueryCountCacheOptions(maxEntries = 1))
-        AbacQueryOptions().copyWith(enabled = true).assert().isEqualTo(AbacQueryOptions(enabled = true))
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

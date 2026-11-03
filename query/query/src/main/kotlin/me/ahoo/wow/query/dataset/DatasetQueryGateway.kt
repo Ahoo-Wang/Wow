@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The query gateway of one dataset: the [QueryGateway] operations (`single`, `list`, `paged`, `cursor`, `count`,
  * `aggregate`, `describe`), each with its explicit [QueryCaller][me.ahoo.wow.query.QueryCaller], admitted against the
- * dataset's schema with the same filters, policies (scope and ABAC), budgets and masking as an
+ * dataset's schema with the same filters, policies, budgets and masking as an
  * aggregate's snapshots. Its [aggregateType] is the dataset's name.
  */
 @ExperimentalWowApi

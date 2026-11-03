@@ -79,7 +79,7 @@ import java.nio.file.Path
  * - the [EventQueryBackend] of each aggregate type's log store, from the query provider of the store's type
  *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory unless `wow.query.memory.enabled` is false,
  *   any other log not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
- * - the [QueryEngine]: this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
+ * - the [QueryEngine]: this maps `wow.query.*` (sensitivity, the entry gates, the count caches)
  *   and the application's beans (its `QueryBindings<QueryDataset>`, [MaskStrategyResolver], [QuerySchemaSource],
  *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
@@ -88,7 +88,7 @@ import java.nio.file.Path
  * - the node's typed [NodeQueryApi], in process over the same engine, under `wow.query.budgets.in-process.*`, a
  *   caller's queries and trusted code's;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
- *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
+ *   says: the application's bean, else by scope), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as each store's `ddl` says.
  */
 @AutoConfiguration(after = [WowAutoConfiguration::class])
@@ -213,7 +213,7 @@ class QueryAutoConfiguration {
         /**
          * The node's read side: the [QueryEngine] of the Manifest over the snapshot, events and dataset
          * backends, the application's schema sources, mask strategies, policies, filters and observers, its count
-         * caches and the node's committed states, under `wow.query.*` (ABAC, sensitivity, entry policy). The engine
+         * caches and the node's committed states, under `wow.query.*` (sensitivity, entry policy). The engine
          * holds every security rule of the read side; this only maps the configuration onto it.
          */
         @Bean
@@ -246,7 +246,6 @@ class QueryAutoConfiguration {
             // The tenants commands and state reads act in.
             .tenants(node.gateway.tenants)
             .crossTenant(properties.allowCrossTenant)
-            .abac(properties.abac.options())
             .policies(beans.policies.orderedStream().toList())
             .filters(beans.filters.orderedStream().toList())
             .observers(beans.observers.orderedStream().toList())

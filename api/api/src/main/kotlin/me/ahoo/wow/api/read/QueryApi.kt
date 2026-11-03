@@ -43,7 +43,7 @@ import tools.jackson.databind.node.ObjectNode
 interface QueryApi {
     /**
      * The queries [caller] may run: restricted to its tenant (or the fixed tenant of an aggregate type that has one),
-     * its owner and space, and to the rows its attributes see (ABAC and the application's query policies), under the
+     * its owner and space, and to the rows its attributes see (the application's query policies), under the
      * in-process budget (`wow.query.budgets.in-process.*`, the HTTP defaults).
      */
     fun of(caller: Caller): Queries

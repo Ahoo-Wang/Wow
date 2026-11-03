@@ -45,10 +45,6 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     override val fixedTenantId: String?
         get() = dataset.scope.fixedTenantId
 
-    /** The column each ABAC tag key is bound to; empty when the dataset takes no part in ABAC. */
-    val tags: Map<String, QueryField<*>>
-        get() = dataset.scope.tags
-
     /** None: a dataset's fields are its declaration, supplied by [QueryDatasets.schemaSource]. */
     override val systemDeclaration: QuerySchemaDeclaration
         get() = EMPTY_DECLARATION

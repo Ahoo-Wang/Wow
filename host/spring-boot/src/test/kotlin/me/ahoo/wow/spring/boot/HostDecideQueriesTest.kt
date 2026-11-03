@@ -34,7 +34,7 @@ import java.net.URLClassLoader
  * code's fault, not the caller's, so the caller is not told its command is invalid.
  *
  * The caller a command function reads as is the one the command records, rebuilt: its tenant, owner and space and
- * its operator, not the request's roles or ABAC attributes, which live only with the request; a policy that reads them
+ * its operator, not the request's roles or attributes, which live only with the request; a policy that reads them
  * sees none ([LibrarianRole]). Trusted code reads past every policy, in every tenant.
  *
  * The host serves the bank's context and the [LibraryModels] module, which only this test's class loader lists.

@@ -33,7 +33,7 @@ class QueryTargetsTest {
         scope = Scope("alice", "s-1"),
         subject = "alice",
         crossScope = true,
-        attributes = mapOf("abac.region" to listOf("eu")),
+        attributes = mapOf("region" to listOf("eu")),
     )
     private val user = operator.copyWith(crossScope = false)
     private val fixed = TenantPolicy.fixed(mapOf(cart to "platform"))
