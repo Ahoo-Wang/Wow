@@ -233,12 +233,6 @@ export interface DraftSource {
 }
 
 
-/**
- * Drop a retired dataset's views
- * - key: `me.ahoo.wow.analytics.catalog.api.dataset.DropDatasetViews`
- */
-export type DropDatasetViews = Record<string, unknown>;
-
 /** - key: `me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity` */
 export interface FieldSensitivity {
   event?: string;
@@ -270,12 +264,6 @@ export type MarkSourceReviewed = Record<string, unknown>;
  * - key: `me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset`
  */
 export type PublishDataset = Record<string, unknown>;
-
-/**
- * Compile a published dataset again after a source changed
- * - key: `me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset`
- */
-export type RecompileDataset = Record<string, unknown>;
 
 /** - key: `me.ahoo.wow.analytics.catalog.server.ReferenceActions` */
 export interface ReferenceActions {
@@ -464,16 +452,6 @@ export interface SourceTableChanged {
  * - key: `me.ahoo.wow.analytics.catalog.api.source.SourceTableMissing`
  */
 export type SourceTableMissing = Record<string, unknown>;
-
-/**
- * Bring a source up to date with the warehouse
- * - key: `me.ahoo.wow.analytics.catalog.api.source.SyncSource`
- */
-export interface SyncSource {
-  database: string;
-  table: string;
-}
-
 
 /** - key: `me.ahoo.wow.analytics.catalog.api.source.WowEnrichment` */
 export interface WowEnrichment {

@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.ops.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
@@ -26,6 +29,7 @@ import me.ahoo.wow.ops.api.parked.EntryRetrySpec
 import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.api.parked.ParkedStatus
+import me.ahoo.wow.ops.api.parked.RecordResolved
 import me.ahoo.wow.ops.domain.parked.ParkedRejections
 import me.ahoo.wow.ops.domain.parked.ParkedState
 import me.ahoo.wow.spi.json.WowJson
@@ -33,6 +37,7 @@ import me.ahoo.wow.test.server.Answer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import java.util.UUID
 
 /**
@@ -282,10 +287,33 @@ abstract class OpsContract {
         ops.post("/ops/parked/$id/retry", "{}", Who.NOBODY).assertProblem(UNAUTHORIZED, "wow.auth.unauthenticated")
         ops.post("/ops/parked/$id/retry", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         ops.post("/ops/parked/$id/skip", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
-        val forged = """{"resolution":{"service":"$context-service","context":"$context","subscription":"$SAGA",
-            "aggregate":{"context":"$context","name":"payment","tenantId":"(0)","id":"p-1"},
-            "outcome":"resolved","resolvedAt":1}}"""
-        ops.post("/ops/parked/$id/record-resolved", forged, Who.OPERATOR).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        val resolution = ParkedResolution(
+            "$context-service",
+            context,
+            SAGA,
+            EntryAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1"),
+            FAILED_AT,
+            ParkedResolution.RESOLVED,
+            FAILED_AT + 1,
+        )
+        val forged = WowJson.mapper.writeValueAsString(RecordResolved(resolution))
+        // The records are internal commands (X-63): the public port serves none of their routes, as an unknown path.
+        listOf(
+            "/ops/parked/$id/record-resolved",
+            "/ops/parked/$id/record-parked",
+            "/ops/parked/record-parked",
+            "/ops/parked/$id/record-action-refused",
+        ).forEach { path ->
+            val answer = ops.post(path, forged, Who.OPERATOR)
+            answer.status.assert().describedAs(answer.text).isEqualTo(NOT_FOUND)
+            answer.json["detail"].asString().assert().isEqualTo("No route POST $path.")
+        }
+        // The internal port takes them from a service, whose caller the ops authorizer refuses a record as any other.
+        val refused = assertThrows<CommandRejectedException> {
+            runBlocking { ops.peerCommands(Caller.of(subject = "alice")).wait(RecordResolved(resolution), id) }
+        }
+        refused.code.assert().isEqualTo("wow.auth.forbidden")
+        refused.result.error!!.message.assert().contains("ops.parked.RecordResolved is published by the owning service")
         state(id)!!["status"].asString().assert().isEqualTo(ParkedStatus.EXHAUSTED)
         ops.ledgerCommands(context).assert().isEmpty()
     }

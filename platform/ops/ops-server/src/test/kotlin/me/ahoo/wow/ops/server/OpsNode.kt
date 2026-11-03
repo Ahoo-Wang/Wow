@@ -15,11 +15,16 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
@@ -84,16 +89,28 @@ data class Who(val headers: Map<String, String>) {
 /**
  * The ops server started in this JVM, called over HTTP on its public port, its topics in memory ([InMemoryOpsTopics]):
  * [publish] and [resolve] stand in for an owning service's ledger, and [ledgerCommands] read what the ops saga sends
- * to an owning context ([LedgerSimulator]).
+ * to an owning context ([LedgerSimulator]). [peerCommands] call its internal port as another service does.
  */
 class OpsNode(val server: WowServer) : AutoCloseable {
     val context: ConfigurableApplicationContext get() = server.context
     val topics: InMemoryTopics = server.bean<InMemoryTopics>()
     private val ledger = LedgerSimulator(server.bean<Manifest>(), topics)
+    private val peer = lazy {
+        WowClient.builder()
+            .endpoints(EndpointResolver.of(emptyMap(), mapOf(OpsContext.NAME to server.internal.base)))
+            .service(PEER_SERVICE)
+            .build()
+    }
 
     fun post(path: String, body: String, who: Who): Answer = server.http.post(path, body, who.headers)
 
     fun get(path: String, who: Who): Answer = server.http.get(path, who.headers)
+
+    /**
+     * The command client of the internal port as [caller], sent by the service [PEER_SERVICE] naming itself: the
+     * `wow-client` a peer calls with in service mode, which sends an internal command (`@InternalCommand`) too.
+     */
+    fun peerCommands(caller: Caller): CommandClient = peer.value.commands.of(caller)
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
     fun publish(entry: ParkedEntry): String = runBlocking { ledger.publish(entry) }
@@ -112,7 +129,13 @@ class OpsNode(val server: WowServer) : AutoCloseable {
     }
 
     override fun close() {
+        if (peer.isInitialized()) peer.value.close()
         server.close()
+    }
+
+    companion object {
+        /** The service [peerCommands] sends as. */
+        const val PEER_SERVICE: String = "shop-service"
     }
 }
 
