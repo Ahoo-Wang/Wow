@@ -128,6 +128,30 @@ fun `a problem the server answered should be typed`() {
 }
 ```
 
+## Fake the services it calls
+
+A saga that calls another service synchronously, a command to that service's internal port, is tested without the service: `fakePeer(context)` stands in for it, built from the contract its api module carries on the test's class path, and `wowServer(…, peers = listOf(peer))` points the server at it (`wow.peers.<context>.url`). The fake records each call it takes: the command, decoded to its class, the service that sent it, and the root command the call acts for, with its tenant, scope and operator. The basket's checkout calls the ordering so:
+
+<!-- sample: fragment -->
+
+```kotlin
+fakePeer("eshop-ordering").use { ordering ->
+    wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
+        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
+        val call = ordering.called<SubmitOrder>()
+        call.service.assert().isEqualTo("eshop-basket-service")
+        call.operator!!.id.assert().isEqualTo("alice")
+        call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
+    }
+}
+```
+
+- `called<C>()` takes the first call of the command class `C` that it has not given back yet, waiting at most 20 seconds; `calls` lists them all.
+- The fake answers each call as `answer { call -> … }` says. `PeerAnswer.succeeded(id, version)`, the default, commits the command at version 1 to the call's aggregate, or to a new one for a creation that names none. `PeerAnswer.rejected(code, message)` answers with the status the peer's contract gives the code: its error tables, else 422 for a domain rejection. `PeerAnswer.timedOut()` answers 504 `wow.wait.timeout`, which the caller may send again with the same request id.
+- It refuses a request that names no service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, as a peer's internal port does.
+
 ## Run it on real stores
 
 The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. `me.ahoo.wow.service` registers a test suite of its own for them, `integrationTest`, which `check` does not run, so the unit tests stay fast and need no Docker: its sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them. The suite runs on JUnit Jupiter, against the module's classes and everything `testImplementation` gives; the plugin adds nothing else, so the build script declares what the tests need, Testcontainers among them:

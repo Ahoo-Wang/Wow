@@ -16,6 +16,57 @@ public final class me/ahoo/wow/test/server/EventuallyKt {
 	public static final fun getEVENTUALLY_TIMEOUT ()J
 }
 
+public final class me/ahoo/wow/test/server/FakePeer : java/lang/AutoCloseable {
+	public final fun answer (Lkotlin/jvm/functions/Function1;)V
+	public final fun called-HG0u8IE (Ljava/lang/Class;J)Lme/ahoo/wow/test/server/PeerCall;
+	public static synthetic fun called-HG0u8IE$default (Lme/ahoo/wow/test/server/FakePeer;Ljava/lang/Class;JILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerCall;
+	public fun close ()V
+	public final fun getCalls ()Ljava/util/List;
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getUrl ()Ljava/net/URI;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/test/server/FakePeerKt {
+	public static final fun fakePeer (Ljava/lang/String;)Lme/ahoo/wow/test/server/FakePeer;
+}
+
+public final class me/ahoo/wow/test/server/PeerAnswer {
+	public static final field Companion Lme/ahoo/wow/test/server/PeerAnswer$Companion;
+	public static final fun rejected (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun succeeded ()Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun succeeded (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun succeeded (Ljava/lang/String;I)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static final fun timedOut ()Lme/ahoo/wow/test/server/PeerAnswer;
+}
+
+public final class me/ahoo/wow/test/server/PeerAnswer$Companion {
+	public final fun rejected (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun rejected (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static synthetic fun rejected$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun succeeded ()Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun succeeded (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun succeeded (Ljava/lang/String;I)Lme/ahoo/wow/test/server/PeerAnswer;
+	public static synthetic fun succeeded$default (Lme/ahoo/wow/test/server/PeerAnswer$Companion;Ljava/lang/String;IILjava/lang/Object;)Lme/ahoo/wow/test/server/PeerAnswer;
+	public final fun timedOut ()Lme/ahoo/wow/test/server/PeerAnswer;
+}
+
+public final class me/ahoo/wow/test/server/PeerCall {
+	public final fun getAggregateId ()Ljava/lang/String;
+	public final fun getCall ()Lme/ahoo/wow/runtime/admission/CallContext;
+	public final fun getCommand ()Ljava/lang/Object;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getService ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/test/server/WowHttp : java/lang/AutoCloseable {
 	public fun <init> (Ljava/net/URI;Ljava/time/Duration;)V
 	public synthetic fun <init> (Ljava/net/URI;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -44,7 +95,7 @@ public final class me/ahoo/wow/test/server/WowServer : java/lang/AutoCloseable {
 
 public final class me/ahoo/wow/test/server/WowServerKt {
 	public static final fun getTEST_PROPERTIES ()Ljava/util/Map;
-	public static final fun wowServer (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;Lme/ahoo/wow/kernel/memory/InMemoryTopics;)Lme/ahoo/wow/test/server/WowServer;
-	public static synthetic fun wowServer$default (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;Lme/ahoo/wow/kernel/memory/InMemoryTopics;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowServer;
+	public static final fun wowServer (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;Lme/ahoo/wow/kernel/memory/InMemoryTopics;Ljava/util/List;)Lme/ahoo/wow/test/server/WowServer;
+	public static synthetic fun wowServer$default (Ljava/lang/Class;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/time/Clock;Lme/ahoo/wow/kernel/memory/InMemoryTopics;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowServer;
 }
 

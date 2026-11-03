@@ -58,7 +58,8 @@ inline fun <reified App : Any> wowServer(
     sources: List<Class<*>> = emptyList(),
     clock: Clock? = null,
     topics: InMemoryTopics? = null,
-): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources, clock, topics)
+    peers: List<FakePeer> = emptyList(),
+): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources, clock, topics, peers)
 
 /**
  * Starts the Wow application of [application] and [sources] for a test, with [profiles] active, and gives it back
@@ -78,6 +79,9 @@ inline fun <reified App : Any> wowServer(
  * val topics = InMemoryTopics().apply { runBlocking { send("wow.eshop-ordering.order.state", listOf(message)) } }
  * wowServer<PaymentServer>("dev", topics = topics)
  * ```
+ *
+ * [peers] are fakes of the services it calls ([fakePeer]): each one's context is called at its URL
+ * (`wow.peers.<context>.url`).
  */
 fun wowServer(
     application: Class<*>,
@@ -86,9 +90,11 @@ fun wowServer(
     sources: List<Class<*>> = emptyList(),
     clock: Clock? = null,
     topics: InMemoryTopics? = null,
+    peers: List<FakePeer> = emptyList(),
 ): WowServer {
     val transport = topics?.let { mapOf(TRANSPORT to MEMORY) }.orEmpty()
-    val arguments = (TEST_PROPERTIES + transport + properties).mapNotNull { (key, value) ->
+    val called = peers.associate { "wow.peers.${it.context}.url" to it.url }
+    val arguments = (TEST_PROPERTIES + transport + called + properties).mapNotNull { (key, value) ->
         value?.let { "--$key=$it" }
     }
     val builder = SpringApplicationBuilder(application, *sources.toTypedArray()).profiles(*profiles.toTypedArray())
