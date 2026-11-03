@@ -153,8 +153,8 @@ class EventQueryBackend(
     private val store: (AggregateType) -> String? = { null },
     private val prepare: (AggregateType) -> Unit = {},
     private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
-    /** Whether the store of [AggregateType]'s events queries manages their indexes: any, when [indexes] are given. */
-    private val manages: (AggregateType) -> Boolean = { indexes != null },
+    /** Whether the store of [AggregateType]'s events queries manages their indexes, of those [indexes] serves: all. */
+    private val manages: (AggregateType) -> Boolean = { true },
     val bindings: QueryBindings<AggregateType>,
 ) {
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */

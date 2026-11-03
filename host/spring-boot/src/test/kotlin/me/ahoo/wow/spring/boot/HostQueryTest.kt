@@ -525,8 +525,13 @@ class HostQueryTest {
 
     @Test
     fun `an events backend should manage the indexes of the logs on the stores that manage them only`() {
+        val plan = QueryIndexPlan.of(runBlocking { catalogSchema() }, emptyList())
         EventQueryBackend.NONE.managesIndexes.assert().isFalse()
         EventQueryBackend.NONE.managesIndexes(ACCOUNT).assert().isFalse()
+        EventQueryBackend.NONE.manageIndexes(ACCOUNT, plan).assert().isEqualTo(QueryIndexReport.NONE)
+        // Given indexes and no say per type, every type's.
+        val every = EventQueryBackend(indexes = { _, _ -> QueryIndexReport.NONE }) { null }
+        every.managesIndexes(ACCOUNT).assert().isTrue()
         val prepared = ArrayList<AggregateType>()
         val created = QueryIndexReport(created = listOf("access_owner"))
         val backend = EventQueryBackend(
@@ -538,8 +543,7 @@ class HostQueryTest {
         backend.managesIndexes(AggregateType(BANK, "other")).assert().isFalse()
         backend.prepare(ACCOUNT)
         prepared.assert().containsExactly(ACCOUNT)
-        backend.manageIndexes(ACCOUNT, QueryIndexPlan.of(runBlocking { catalogSchema() }, emptyList()))
-            .assert().isEqualTo(created)
+        backend.manageIndexes(ACCOUNT, plan).assert().isEqualTo(created)
     }
 
     @Test
