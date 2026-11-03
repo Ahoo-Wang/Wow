@@ -108,6 +108,7 @@ In the rehearsal's kind cluster, the full import of 50,000 orders took 99 second
 - dropping events would leave a stream with no events: a version cannot be empty, so map such an event as retired instead;
 - a `PrepareKey` the store holds has no reservation mapping;
 - a 9.x processor with unresolved compensation executions has no subscription mapping;
+- an event stream collection has no `(aggregateId, version)` index, which 9.x creates, unique, on each one when it starts, and which the import walks the instances in: the problem prints the command that creates it;
 - an instance has an aggregate id V10 refuses (empty, blank or `(none)`), a 9.x data defect: the problem lists each, as the map's `excluded` names it (`{ "aggregate": …, "stream": "(empty)", "reason": … }`), so a person can decide what its streams were and exclude it ([The map](../reference/migrate-data#top-level)).
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.
@@ -130,7 +131,7 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 
 ## 4. Import
 
-`import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in its checkpoints, a file or the V10 target ([Checkpoints](../reference/migrate-data#checkpoints)), so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice.
+`import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in its checkpoints, a file or the V10 target ([Checkpoints](../reference/migrate-data#checkpoints)), so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice. It reads each aggregate in 9.x's own `(aggregateId, version)` index, a page of instances and their streams in one scan, so a page costs the same wherever it is in the store.
 
 **A map change needs a fresh target.** `import`, `--restart` included, passes over a stream the log already holds, as it was converted then: a mapping change, a lifecycle added or an event no longer retired, does not reach the streams imported before it. Import the aggregates the change touches into a fresh target, or remove them from the target first, then compare again.
 

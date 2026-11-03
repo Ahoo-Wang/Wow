@@ -104,7 +104,8 @@ internal data class MappingReport(
  *
  * A collection the tail reads by commit time without its index ([commitTimeIndexes], each with the command that
  * creates it) is a warning: the tail refuses to start without it, and creating it writes to the 9.x store, so it is
- * created on the 9.x side before the cut-over.
+ * created on the 9.x side before the cut-over. A collection without the `(aggregateId, version)` index the import
+ * walks it in ([walkIndexes]), which 9.x creates unique, is a problem: the import refuses it.
  *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet. An aggregate, an
  * instance's streams or a `PrepareKey` the map excludes ([MigrationMap.excluded]) is a warning with its reason instead
@@ -120,6 +121,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         tenantsOf: (NineXAggregate, String) -> List<String> = { _, _ -> emptyList() },
         commitTimeIndexes: Map<String, String> = emptyMap(),
         deleted: (NineXAggregate) -> Long = { 0 },
+        walkIndexes: Map<String, String> = emptyMap(),
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -152,6 +154,10 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             warnings += "the 9.x collection $collection has no (createTime, _id) index, which the tail reads it by and " +
                 "refuses to start without: create it on the 9.x side before the cut-over, $create, or set " +
                 "\"source\": { \"createCommitTimeIndex\": true } to let the tail create it, a write to the 9.x store"
+        }
+        walkIndexes.forEach { (collection, create) ->
+            problems += "the 9.x collection $collection has no (aggregateId, version) index, which 9.x creates and " +
+                "the import walks it in: create it on the 9.x side, $create"
         }
         return MappingReport(problems, warnings, inventories, prepareKeys, compensation)
     }

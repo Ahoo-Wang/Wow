@@ -16,6 +16,8 @@ package me.ahoo.wow.migrate
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReplaceOptions
 import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
@@ -63,15 +65,36 @@ internal object NineXMongoStore {
             .replaceOne(Document("_id", document["_id"]), document, ReplaceOptions().upsert(true))
     }
 
-    /** Inserts the stream whose JSON is [text] into [database], as 9.x would have. */
+    /**
+     * Inserts the stream whose JSON is [text] into [database], as 9.x would have, into a collection with the index
+     * 9.x creates and the import walks it in: `{aggregateId: 1, version: 1}`, unique, unless [collidable] made it not.
+     */
     fun insert(database: MongoDatabase, text: String) {
         @Suppress("UNCHECKED_CAST")
         val stream = WowJson.mapper.readValue(text, LinkedHashMap::class.java) as LinkedHashMap<String, Any?>
         val document = Document(stream)
         document["_id"] = document.remove("id")
         document["size"] = (stream["body"] as List<*>).size
-        database.getCollection("${stream["aggregateName"]}${MongoNineXEventSource.SUFFIX}").insertOne(document)
+        database.getCollection("${stream["aggregateName"]}${MongoNineXEventSource.SUFFIX}").apply {
+            if (listIndexes().none { it.get("key", Document::class.java)?.keys?.toList() == VERSIONS_KEY }) {
+                createIndex(Indexes.ascending(VERSIONS_KEY), IndexOptions().unique(true))
+            }
+            insertOne(document)
+        }
     }
+
+    /**
+     * Makes [aggregateName]'s collection of [database] one whose `{aggregateId: 1, version: 1}` index is not unique,
+     * as no 9.x store's is: it may then hold the ids that collide, which the tool still reads as it always has.
+     */
+    fun collidable(database: MongoDatabase, aggregateName: String) {
+        database.getCollection("$aggregateName${MongoNineXEventSource.SUFFIX}").apply {
+            dropIndex(Indexes.ascending(VERSIONS_KEY))
+            createIndex(Indexes.ascending(VERSIONS_KEY))
+        }
+    }
+
+    private val VERSIONS_KEY = listOf("aggregateId", "version")
 
     /**
      * Prepares [key] of the 9.x `PrepareKey` [name] in [database] as 9.x's `MongoPrepareKey.prepare` writes it:

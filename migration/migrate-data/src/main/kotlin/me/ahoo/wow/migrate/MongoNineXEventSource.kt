@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoCursor
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
@@ -28,20 +29,29 @@ import org.bson.types.Decimal128
 import org.bson.types.ObjectId
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory
+import java.nio.charset.StandardCharsets
+import java.util.Arrays
 import java.util.Date
+import java.util.TreeMap
+import java.util.TreeSet
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The 9.x MongoDB event store (9.x `wow-mongo`'s `MongoEventStore`) of one [database], read by its storage format:
  * one collection `<aggregateName>_event_stream` per aggregate, one document per stream, the stream's JSON with its
  * `id` as `_id`; 9.x wrote decimals as `Decimal128`, which read back exact.
  *
- * The full import walks an aggregate's version-1 documents by `(aggregateId, tenantId)`, and reads an instance's
- * streams through 9.x's unique `(aggregateId, version)` index. The tail reads by `(createTime, _id)`, which 9.x does
- * not index. The tail needs that index; [ensureCommitTimeIndex] creates it only when the operator opts in
- * (`source.createCommitTimeIndex`), the only write the tool makes to a 9.x store but the rollback `export`'s streams.
+ * The full import walks an aggregate's documents in 9.x's unique `(aggregateId, version)` index order ([instances]),
+ * a page of instances and their streams in one scan, and reads the rest of an instance it read in part through the
+ * same index ([streams]). The tail reads by `(createTime, _id)`, which 9.x does not index. The tail needs that
+ * index; [ensureCommitTimeIndex] creates it only when the operator opts in (`source.createCommitTimeIndex`), the only
+ * write the tool makes to a 9.x store but the rollback `export`'s streams.
  */
 internal class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
     override val store: String get() = "the MongoDB database ${database.name}"
+
+    /** The collections found to hold the walk's index ([missingWalkIndexOf]). */
+    private val walkable: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     override fun inventory(): List<NineXInventory> =
         database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(::inventoryOf)
@@ -187,20 +197,189 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             .groupBy({ it.first.aggregate() }) { (id, count) -> id.getString("id") to count }
             .mapValues { (_, ids) -> ids.toMap() }
 
+    /** The version-1 streams of [walk]'s scan: their ids alone, a whole id at a time, but for tenants beyond [limit]. */
     override fun aggregateIds(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXAggregateId> {
-        val filters = mutableListOf(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(VERSION, 1))
-        after?.let {
-            filters += Filters.or(
-                Filters.gt(AGGREGATE_ID, it.id),
-                Filters.and(Filters.eq(AGGREGATE_ID, it.id), Filters.gt(TENANT_ID, it.tenantId)),
+        val ids = ArrayList<NineXAggregateId>()
+        val tenants = TreeSet(BINARY)
+        var id: String? = null
+        fun flush() {
+            id?.let { current -> tenants.take(limit - ids.size).forEach { ids += NineXAggregateId(current, it) } }
+            tenants.clear()
+        }
+        walk(aggregate, after, Filters.eq(VERSION, 1), Document(AGGREGATE_ID, 1).append(TENANT_ID, 1)).use { cursor ->
+            while (cursor.hasNext()) {
+                val document = cursor.next()
+                val next = document.getString(AGGREGATE_ID)
+                if (next != id) {
+                    flush()
+                    if (ids.size >= limit) {
+                        return ids
+                    }
+                    id = next
+                }
+                val tenant = document.getString(TENANT_ID).orEmpty()
+                if (!after.precedes(next, tenant)) {
+                    tenants += tenant
+                }
+            }
+        }
+        flush()
+        return ids
+    }
+
+    /**
+     * A page of the walk in one scan ([walk]): an id's streams arrive together, version 1 first, so each id ends
+     * where the next begins. A stream whose tenant has no version-1 stream of the id is not read, nor one without a
+     * tenant, as [streams] reads neither. A stream that does not parse leaves its instance incomplete: the import
+     * reads the rest with [streams], which fails on it as it always has.
+     */
+    override fun instances(
+        aggregate: NineXAggregate,
+        after: NineXAggregateId?,
+        limit: Int,
+        maxStreams: Int,
+    ): List<NineXInstance> {
+        val page = Page(after, limit, maxStreams)
+        walk(aggregate, after, null, null).use { cursor ->
+            while (cursor.hasNext()) {
+                if (!page.read(cursor.next())) {
+                    break
+                }
+            }
+        }
+        return page.end()
+    }
+
+    /** A page of [instances] as its scan reads it, one id's [Run] at a time. */
+    private inner class Page(
+        private val after: NineXAggregateId?,
+        private val limit: Int,
+        private val maxStreams: Int,
+    ) {
+        private val instances = ArrayList<NineXInstance>()
+        private var run: Run? = null
+        private var read = 0
+
+        /** Reads [document], the scan's next; false when the page is full, and ends before it. */
+        fun read(document: Document): Boolean {
+            val id = document.getString(AGGREGATE_ID)
+            if (id != run?.id) {
+                flush()
+                if (instances.size >= limit || read >= maxStreams) {
+                    return false
+                }
+                run = Run(id)
+            }
+            val current = checkNotNull(run)
+            val tenant = document.getString(TENANT_ID)
+            val first = (document.get(VERSION) as? Number)?.toDouble() == 1.0
+            if (first && !after.precedes(id, tenant.orEmpty())) {
+                current.tenants.putIfAbsent(tenant.orEmpty(), ArrayList())
+            }
+            val held = tenant?.let { current.tenants[it] } ?: return true
+            if (!first && read >= maxStreams) {
+                current.truncated = true
+                return false
+            }
+            if (tenant !in current.stalled) {
+                try {
+                    held += NineXStream.parse(toNode(document))
+                    read++
+                } catch (_: MigrationException) {
+                    current.stalled += tenant
+                }
+            }
+            return true
+        }
+
+        /** The page's instances, those of the id it ended in among them. */
+        fun end(): List<NineXInstance> {
+            flush()
+            return instances
+        }
+
+        private fun flush() {
+            run?.let { instances += it.instances(limit - instances.size) }
+            run = null
+        }
+    }
+
+    /** The streams of one id a page of [instances] read, by tenant: the tenants of its version-1 streams. */
+    private class Run(val id: String) {
+        val tenants = TreeMap<String, MutableList<NineXStream>>(BINARY)
+        val stalled = HashSet<String>()
+        var truncated = false
+
+        fun instances(limit: Int): List<NineXInstance> = tenants.entries.take(limit).map { (tenant, streams) ->
+            NineXInstance(NineXAggregateId(id, tenant), streams, complete = !truncated && tenant !in stalled)
+        }
+    }
+
+    /**
+     * Whether [id] of [tenant] is [this] or before it, in the walk's order: a page after [this] reads from its id on,
+     * and passes over its tenants up to its own.
+     */
+    private fun NineXAggregateId?.precedes(id: String, tenant: String): Boolean =
+        this != null && id == this.id && BINARY.compare(tenant, tenantId) <= 0
+
+    /**
+     * [aggregate]'s streams in 9.x's `(aggregateId, version)` index order (it is unique in 9.x), from [after]'s id
+     * on, filtered by [filter] and projected by [projection] when given: no sort runs in the store, so a page costs
+     * its own streams, however many follow. Ids are strings to the walk, as 9.x writes them; a stream without an id
+     * is never read, as [streams] reads none. The index has no tenant: ids that collide across tenants, which only a
+     * store without 9.x's unique index holds, are ordered by tenant here, as MongoDB orders strings.
+     */
+    private fun walk(
+        aggregate: NineXAggregate,
+        after: NineXAggregateId?,
+        filter: Bson?,
+        projection: Bson?,
+    ): MongoCursor<Document> {
+        val name = aggregate.name + SUFFIX
+        missingWalkIndexOf(name)?.let { create ->
+            throw MigrationException(
+                "The 9.x collection $name has no ($AGGREGATE_ID, $VERSION) index, which 9.x creates and the import " +
+                    "walks it in: create it, $create.",
             )
         }
-        return collectionOf(aggregate).find(Filters.and(filters))
-            .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID))
-            .projection(Document(AGGREGATE_ID, 1).append(TENANT_ID, 1))
-            .limit(limit)
-            .map { NineXAggregateId(it.getString(AGGREGATE_ID).orEmpty(), it.getString(TENANT_ID).orEmpty()) }
-            .toList()
+        val filters = listOfNotNull(
+            Filters.eq(CONTEXT_NAME, aggregate.context),
+            Filters.gte(AGGREGATE_ID, after?.id ?: ""),
+            filter,
+        )
+        val find = collectionOf(aggregate).find(Filters.and(filters)).sort(WALK_KEY).hint(WALK_KEY)
+        return (projection?.let { find.projection(it) } ?: find).cursor()
+    }
+
+    override fun missingWalkIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
+        aggregates.map { it.name + SUFFIX }.distinct()
+            .mapNotNull { name -> missingWalkIndexOf(name)?.let { name to it } }
+            .toMap()
+
+    /**
+     * The command that creates the walk's index on the collection [name], when it holds streams and lacks the index;
+     * null otherwise. A collection found indexed is not asked again.
+     */
+    private fun missingWalkIndexOf(name: String): String? {
+        if (name in walkable) {
+            return null
+        }
+        val collection = database.getCollection(name)
+        if (collection.listIndexes().any {
+                isAscendingKey(
+                    it.get("key", Document::class.java),
+                    AGGREGATE_ID,
+                    VERSION
+                )
+            }
+        ) {
+            walkable += name
+            return null
+        }
+        if (collection.find().projection(Document(ID, 1)).limit(1).first() == null) {
+            return null
+        }
+        return "db.getCollection(\"$name\").createIndex({ $AGGREGATE_ID: 1, $VERSION: 1 })"
     }
 
     override fun streams(
@@ -292,9 +471,19 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
          * Whether an index [key] is `{createTime: 1, _id: 1}`, however its numbers were written (the shell writes
          * doubles, the driver integers).
          */
-        fun isCommitTimeKey(key: Document?): Boolean =
-            key != null && key.keys.toList() == listOf(CREATE_TIME, ID) &&
-                key.values.all { (it as? Number)?.toDouble() == 1.0 }
+        fun isCommitTimeKey(key: Document?): Boolean = isAscendingKey(key, CREATE_TIME, ID)
+
+        /** Whether an index [key] is ascending on [fields], in their order, however its numbers were written. */
+        private fun isAscendingKey(key: Document?, vararg fields: String): Boolean =
+            key != null && key.keys.toList() == fields.toList() && key.values.all { (it as? Number)?.toDouble() == 1.0 }
+
+        /** The walk's order and the 9.x index it reads: `{aggregateId: 1, version: 1}`. */
+        private val WALK_KEY: Bson = Indexes.ascending(AGGREGATE_ID, VERSION)
+
+        /** Strings as MongoDB orders them: by their UTF-8 bytes, unsigned. */
+        private val BINARY: Comparator<String> = Comparator { left, right ->
+            Arrays.compareUnsigned(left.toByteArray(StandardCharsets.UTF_8), right.toByteArray(StandardCharsets.UTF_8))
+        }
         private val NODES: JsonNodeFactory = WowJson.mapper.nodeFactory
 
         /** The headers naming a stream's command, the first one written winning. */

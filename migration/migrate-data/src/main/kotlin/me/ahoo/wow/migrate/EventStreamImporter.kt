@@ -29,8 +29,10 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * How [EventStreamImporter] runs.
  *
- * - [pageSize] instances are imported between two checkpoints, [concurrency] at a time; [streamBatch] streams of an
- *   instance are read from the 9.x store at once. The tail reads [pageSize] streams at once.
+ * - [pageSize] instances are imported between two checkpoints, [concurrency] at a time. A page is read with its
+ *   instances' streams in one scan ([NineXEventSource.instances]), at most [pageStreams] of them, so an estate of
+ *   large instances has shorter pages; the rest of an instance it read in part is read [streamBatch] streams at a
+ *   time. The tail reads [pageSize] streams at once.
  * - [dryRun] reads and converts every stream but appends none and saves no checkpoint: the mapping check's dry run
  *   extended to every payload.
  * - [restart] walks every instance again, ignoring where the last full import stopped: the final complete pass once
@@ -54,6 +56,14 @@ internal data class ImportOptions(
         require(concurrency >= 1) { "At least one instance at a time." }
         require(lookbackMillis >= 0) { "The look-back window is never negative." }
         require(maxUnknownRetries >= 0) { "The retries are never negative." }
+    }
+
+    /** The streams a page of the full import reads at most: [STREAMS_PER_INSTANCE] for each of its [pageSize]. */
+    val pageStreams: Int get() = pageSize * STREAMS_PER_INSTANCE
+
+    private companion object {
+        /** A page's share of streams per instance: 9.x instances hold a few streams, often fewer than ten. */
+        const val STREAMS_PER_INSTANCE = 10
     }
 }
 
@@ -160,20 +170,20 @@ internal class EventStreamImporter(
         val permits = Semaphore(options.concurrency)
         while (true) {
             val page = stats.timed(stats.read) {
-                blocking { source.aggregateIds(aggregate, checkpoint.after, options.pageSize) }
+                blocking { source.instances(aggregate, checkpoint.after, options.pageSize, options.pageStreams) }
             }
             if (page.isEmpty()) {
                 break
             }
-            val (excluded, imported) = page.partition { plan.excludes(aggregate, it.id) }
+            val (excluded, imported) = page.partition { plan.excludes(aggregate, it.id.id) }
             coroutineScope {
-                imported.map { id ->
-                    async { permits.withPermit { importInstance(aggregatePlan, id, 1, stats) } }
+                imported.map { instance ->
+                    async { permits.withPermit { importInstance(aggregatePlan, instance, stats) } }
                 }.awaitAll()
             }
             stats.instances.addAndGet(imported.size.toLong())
             stats.excluded.addAndGet(excluded.size.toLong())
-            checkpoint = checkpoint.copy(after = page.last())
+            checkpoint = checkpoint.copy(after = page.last().id)
             stats.timed(stats.checkpoint) { save(aggregate, checkpoint) }
             progress(stats.report(done = false))
         }
@@ -277,6 +287,17 @@ internal class EventStreamImporter(
         }
     }
 
+    /**
+     * Imports [instance] as its page read it: the streams read, then the rest from 9.x when the page read it in part,
+     * or when the log made the import go on from another version.
+     */
+    private suspend fun importInstance(plan: AggregatePlan, instance: NineXInstance, stats: Stats) {
+        val next = importBatch(plan, instance.id, 1, instance.streams, stats)
+        if (!instance.complete || next != instance.streams.size + 1) {
+            importInstance(plan, instance.id, next, stats)
+        }
+    }
+
     /** Imports [id]'s streams from [fromVersion] on, and returns the last version the log then holds of it. */
     private suspend fun importInstance(plan: AggregatePlan, id: NineXAggregateId, fromVersion: Int, stats: Stats): Int {
         var next = fromVersion
@@ -287,28 +308,39 @@ internal class EventStreamImporter(
             if (batch.isEmpty()) {
                 return next - 1
             }
-            var resumeAt: Int? = null
-            for (stream in batch) {
-                if (stream.version != next) {
-                    throw MigrationException(
-                        "9.x stream ${stream.id} of ${plan.source}/$id is version ${stream.version} where $next was " +
-                            "expected: the 9.x history has a gap.",
-                    )
-                }
-                val record = stats.timed(stats.convert) { converter.convert(stream) }
-                if (options.dryRun) {
-                    stats.imported(record)
-                    next++
-                    continue
-                }
-                resumeAt = stats.timed(stats.append) { append(plan, record, stream, stats) }
-                if (resumeAt != null) {
-                    break
-                }
-                next++
-            }
-            resumeAt?.let { next = it }
+            next = importBatch(plan, id, next, batch, stats)
         }
+    }
+
+    /**
+     * Imports [batch], [id]'s streams from [fromVersion] on in version order, and returns the version its import goes
+     * on from: the one after the batch, or the one the log made it resume from.
+     */
+    private suspend fun importBatch(
+        plan: AggregatePlan,
+        id: NineXAggregateId,
+        fromVersion: Int,
+        batch: List<NineXStream>,
+        stats: Stats,
+    ): Int {
+        var next = fromVersion
+        for (stream in batch) {
+            if (stream.version != next) {
+                throw MigrationException(
+                    "9.x stream ${stream.id} of ${plan.source}/$id is version ${stream.version} where $next was " +
+                        "expected: the 9.x history has a gap.",
+                )
+            }
+            val record = stats.timed(stats.convert) { converter.convert(stream) }
+            if (options.dryRun) {
+                stats.imported(record)
+                next++
+                continue
+            }
+            stats.timed(stats.append) { append(plan, record, stream, stats) }?.let { return it }
+            next++
+        }
+        return next
     }
 
     /**

@@ -14,7 +14,6 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.client.MongoDatabase
-import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -45,13 +44,7 @@ class NineXExportTest {
     lateinit var directory: Path
 
     private val output = ByteArrayOutputStream()
-    private val nineX: MongoDatabase = NineXMongoStore.example().also { database ->
-        // 9.x's schema initializer creates it when 9.x starts.
-        listOf("order", "cart").forEach {
-            database.getCollection("${it}_event_stream")
-                .createIndex(Indexes.ascending("aggregateId", "version"), IndexOptions().unique(true))
-        }
-    }
+    private val nineX: MongoDatabase = NineXMongoStore.example()
     private val database = "wow_v10_export_${nineX.name}"
     private val log = MongoEventLog(NineXMongoStore.client, database, NineXExample.CONTEXT, PARTITIONS)
     private val converter = StreamConverter(NineXExample.plan)
@@ -139,7 +132,10 @@ class NineXExportTest {
 
     @Test
     fun `the 9x target reports the streams it already holds and leaves them`() {
-        val bare = NineXMongoStore.example()
+        // A store 9.x never started on: its schema initializer creates the index.
+        val bare = NineXMongoStore.example().also {
+            it.getCollection("order_event_stream").dropIndex(Indexes.ascending("aggregateId", "version"))
+        }
         val stream = NineXExample.stream("order-stream-v2.json")
         assertThrows<MigrationException> { MongoNineXEventTarget(bare).insert(stream.aggregate, listOf(stream)) }
             .message.assert().contains("createIndex({ aggregateId: 1, version: 1 }, { unique: true })")
