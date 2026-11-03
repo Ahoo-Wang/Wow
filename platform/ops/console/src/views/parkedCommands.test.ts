@@ -20,7 +20,7 @@ import {
 } from "@ahoo-wang/wow-client";
 import { commandResultOf } from "@ahoo-wang/wow-client/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parkedCommands, problemText } from "./parkedCommands.ts";
+import { parkedCommands, problemText, refusedInput } from "./parkedCommands.ts";
 
 const ID = "payment-service:Saga.onEvent:eshop-payment.payment:(0):p-1";
 
@@ -96,7 +96,10 @@ describe("the operator's commands", () => {
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
     await commands().markRecoverable(ID, "unrecoverable");
-    await commands().applyRetrySpec(ID, { maxRetries: 5, initialBackoff: "1m" });
+    await commands().applyRetrySpec(ID, {
+      maxRetries: 5,
+      initialBackoff: "1m",
+    });
     expect(sent.map(({ url }) => url.split("/").pop())).toEqual([
       "mark-recoverable",
       "apply-retry-spec",
@@ -194,5 +197,94 @@ describe("a problem's words", () => {
     expect(problemText(new CommandRejectedError(result))).toBe(
       "Refused. (c.a.refused)",
     );
+  });
+});
+
+describe("a refusal of what the form sent", () => {
+  /** The service's answer to an argument it refuses, as it answered (UI-13). */
+  const invalid = (extensions: Record<string, unknown> = {}) =>
+    new WowProblemError({
+      type: "urn:wow:error:ops.parked.invalid",
+      title: "The action's arguments are not valid.",
+      status: 422,
+      detail: "Not a duration (PT3M, 3m): 'PT1.5M'.",
+      code: "ops.parked.invalid",
+      ...extensions,
+    });
+
+  it("is the service's check of the arguments, naming no field unless it says one", () => {
+    expect(refusedInput(invalid())).toEqual({});
+    expect(refusedInput(invalid({ field: "initialBackoff" }))).toEqual({
+      initialBackoff:
+        "Not a duration (PT3M, 3m): 'PT1.5M'. (ops.parked.invalid)",
+    });
+  });
+
+  it("is the framework's of a body it cannot read or a constraint it breaks, each violation under its member", () => {
+    const malformed = new WowProblemError({
+      type: "urn:wow:error:wow.command.malformed",
+      title: "Malformed command",
+      status: 400,
+      detail: "The body is not a ops.parked.ApplyRetrySpec.",
+      code: "wow.command.malformed",
+    });
+    expect(refusedInput(malformed)).toEqual({});
+    const constrained = new WowProblemError({
+      type: "urn:wow:error:wow.command.invalid",
+      title: "Invalid command",
+      status: 400,
+      code: "wow.command.invalid",
+      violations: [
+        { path: "maxRetries", code: "PositiveOrZero", message: "Not below 0." },
+        { path: "maxRetries", code: "Max", message: "At most 9." },
+      ],
+    });
+    expect(refusedInput(constrained)).toEqual({ maxRetries: "Not below 0." });
+  });
+
+  it("reads a rejection as the problem it came in, else as its result", () => {
+    const result = {
+      ...commandResultOf(
+        { type: { context: "ops", name: "parked" }, tenantId: "(0)", id: ID },
+        { status: CommandResultStatus.REJECTED },
+      ),
+      error: {
+        code: "ops.parked.invalid",
+        message: "maxRetries is never negative: -1.",
+        extensions: { field: "maxRetries" },
+      },
+    };
+    expect(refusedInput(new CommandRejectedError(result))).toEqual({
+      maxRetries: "maxRetries is never negative: -1. (ops.parked.invalid)",
+    });
+    const problem = invalid();
+    expect(
+      refusedInput(
+        new CommandRejectedError(result, {
+          problem: problem.problem,
+          cause: problem,
+        }),
+      ),
+    ).toEqual({});
+  });
+
+  it("is nothing else: the entry's refusals and the request's", () => {
+    for (const code of [
+      "ops.parked.resolved",
+      "ops.parked.stale",
+      "wow.auth.forbidden",
+      "wow.request.malformed",
+    ])
+      expect(
+        refusedInput(
+          new WowProblemError({
+            type: `urn:wow:error:${code}`,
+            title: "Refused",
+            status: 409,
+            code,
+          }),
+        ),
+      ).toBeNull();
+    expect(refusedInput(new Error("offline"))).toBeNull();
   });
 });

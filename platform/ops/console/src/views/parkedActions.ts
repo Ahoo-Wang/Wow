@@ -12,6 +12,7 @@
  */
 
 import {
+  ActionInputError,
   actions,
   type ActionInput,
   type RecordActions,
@@ -21,7 +22,7 @@ import type { ApplyRetrySpec } from "@/generated/index.ts";
 import { PARKED_WORDS } from "./parked.ts";
 import { isDuration } from "./kotlinDuration.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
-import { problemText } from "./parkedCommands.ts";
+import { problemText, refusedInput } from "./parkedCommands.ts";
 import { textKeys, type Words } from "./words.ts";
 
 /** The words of the actions, per language; a `-one` form where English counts one apart. */
@@ -180,12 +181,16 @@ function wholeNumberCheck(value: unknown): true | string {
 
 /**
  * The service's refusal as the engine reports it: its problem's words and
- * code rather than the client's wording of the request.
+ * code rather than the client's wording of the request. A refusal of what
+ * the form sent hands the form back with it, each field the service named
+ * marked (`ActionInputError`).
  */
 async function said<T>(command: Promise<T>): Promise<T> {
   try {
     return await command;
   } catch (error) {
+    const fields = refusedInput(error);
+    if (fields) throw new ActionInputError(problemText(error), fields);
     throw new Error(problemText(error), { cause: error });
   }
 }

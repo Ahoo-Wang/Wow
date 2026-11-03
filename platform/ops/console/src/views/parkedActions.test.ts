@@ -12,7 +12,11 @@
  */
 
 import { WowProblemError } from "@ahoo-wang/wow-client";
-import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
+import {
+  ActionInputError,
+  text,
+  type RecordRow,
+} from "@ahoo-wang/wow-view-engine";
 import { actionHarness } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";
 import { parkedActions, retrySpecOf } from "./parkedActions.ts";
@@ -199,6 +203,30 @@ describe("what the console checks before the service would refuse it", () => {
     expect(initialBackoff.check!("1h30m")).toBe(true);
     expect(initialBackoff.check!(" 2m ")).toBe(true);
     expect(claimTtl.check!("PT5M")).toBe(true);
+  });
+
+  it("hands the form back when the service refuses what it sent, the field it names marked", async () => {
+    const sent = commands();
+    sent.applyRetrySpec.mockRejectedValue(
+      new WowProblemError({
+        type: "urn:wow:error:ops.parked.invalid",
+        title: "The action's arguments are not valid.",
+        status: 422,
+        detail: "maxRetries is never negative: -1.",
+        code: "ops.parked.invalid",
+        extensions: { field: "maxRetries" },
+      }),
+    );
+    const harness = actionHarness(parkedActions(sent), ROWS);
+    const refused = await harness
+      .run("applyRetrySpec", "exhausted", { maxRetries: 1 })
+      .catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(ActionInputError);
+    const reason = "maxRetries is never negative: -1. (ops.parked.invalid)";
+    expect(refused).toMatchObject({
+      reason,
+      fields: { maxRetries: reason },
+    });
   });
 
   it("says an action was sent to the owning service, not done: the service runs it", () => {

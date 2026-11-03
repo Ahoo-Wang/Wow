@@ -18,11 +18,7 @@ import {
   WaitPlan,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
-import {
-  OpsClient,
-  opsWait,
-  type ApplyRetrySpec,
-} from "@/generated/index.ts";
+import { OpsClient, opsWait, type ApplyRetrySpec } from "@/generated/index.ts";
 
 /**
  * An operator's actions on a parked entry (D141): each is recorded on the
@@ -97,4 +93,60 @@ export function problemText(error: unknown): string {
     return error.code ? `${said} (${error.code})` : said;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The refusals of what was sent rather than of the entry: the ops
+ * service's own check of an action's arguments (`ops.parked.invalid`,
+ * 422), and the framework's of a body it cannot read or that breaks a
+ * declared constraint (400).
+ */
+const INPUT_REFUSALS: ReadonlySet<string> = new Set([
+  "ops.parked.invalid",
+  "wow.command.invalid",
+  "wow.command.malformed",
+]);
+
+/** What a refusal came with: its code, its violations, its extension members. */
+function refusalOf(error: unknown):
+  | {
+      code?: string;
+      violations: readonly { path: string; message: string }[];
+      extensions: Readonly<Record<string, unknown>>;
+    }
+  | undefined {
+  if (error instanceof CommandRejectedError) {
+    if (error.cause instanceof WowProblemError) return refusalOf(error.cause);
+    const info = error.result.error;
+    return {
+      ...(info?.code ? { code: info.code } : {}),
+      violations: info?.violations ?? [],
+      extensions: info?.extensions ?? {},
+    };
+  }
+  if (error instanceof WowProblemError)
+    return {
+      ...(error.code ? { code: error.code } : {}),
+      violations: error.violations,
+      extensions: error.problem.extensions ?? {},
+    };
+  return undefined;
+}
+
+/**
+ * Whether the service refused what the form sent, and why of each field it
+ * names — a violation's path, or the field its rejection names (`field`) —
+ * by the command's member, which is the form's field; `null` for any other
+ * failure, which is the entry's or the request's.
+ */
+export function refusedInput(error: unknown): Record<string, string> | null {
+  const refusal = refusalOf(error);
+  if (!refusal?.code || !INPUT_REFUSALS.has(refusal.code)) return null;
+  const fields: Record<string, string> = {};
+  for (const { path, message } of refusal.violations)
+    if (path && !(path in fields)) fields[path] = message;
+  const field = refusal.extensions.field;
+  if (typeof field === "string" && field && !(field in fields))
+    fields[field] = problemText(error);
+  return fields;
 }
