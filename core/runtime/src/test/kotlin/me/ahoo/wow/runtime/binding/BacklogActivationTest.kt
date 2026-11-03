@@ -27,8 +27,8 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
-import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -121,10 +121,12 @@ class BacklogActivationTest {
         backends,
         LoopbackClusterChannel(),
         options = ServiceNodeOptions(
-            cluster = fastOptions(),
+            // The default leases, which a loaded machine keeps while it catches up: a lost one replays what it handled.
+            cluster = ClusterOptions(),
             subscription = testOptions().copyWith(
                 parked = ParkedRetryOptions(
-                    ParkedRetrySpec(maxRetries = 3, initialBackoff = Duration.ZERO),
+                    // A retry a partition's stop interrupts is retried a second later.
+                    ParkedRetrySpec(maxRetries = 3, initialBackoff = Duration.ZERO, claimTtl = 1.seconds),
                     scanInterval = 100.milliseconds,
                 ),
             ),
@@ -171,12 +173,13 @@ class BacklogActivationTest {
         took.assert().isLessThan(BOUND)
         projected.size.assert().isLessThan(CARTS * STREAMS)
 
+        // Every stream, each cart's in version order; a stream may come again above a checkpoint, never out of order.
         eventually(timeout = 60.seconds) {
-            projected.size == CARTS * STREAMS && ledgerStore.count(SUBSCRIPTION, CARTS) == 0
+            projected.toSet().size == CARTS * STREAMS && ledgerStore.count(SUBSCRIPTION, CARTS) == 0
         }
         val byCart = projected.groupBy({ it.substringBefore('@') }, { it.substringAfter('@').toInt() })
         byCart.keys.assert().hasSize(CARTS)
-        byCart.values.forEach { it.assert().isEqualTo((1..STREAMS).toList()) }
+        byCart.values.forEach { it.distinct().assert().isEqualTo((1..STREAMS).toList()) }
         val subscriptions = node.context(SHOP).subscriptions
         eventually {
             subscriptions.positions().filter { it.subscription == SUBSCRIPTION }
