@@ -39,7 +39,7 @@ The compiler writes the ownership into the Manifest, `"ownership": "tenant"` (an
 
 ## What the kernel checks
 
-The first command's caller gives an `OWNER` aggregate its scope. After that, the kernel refuses a command whose caller's owner or space differs from the aggregate's, with `wow.aggregate.forbidden`. A part the caller has no value for is not checked:
+The first command's caller gives an `OWNER` aggregate its scope. After that, a command whose caller's owner or space differs from the aggregate's is out of the caller's reach, and the kernel answers it as it answers a command on an aggregate that does not exist: `404 wow.aggregate.not-found`, with the same message, as a read of it is answered. The caller learns nothing of it: not that it exists, nor whether it is deleted, nor its version. A command that may create the aggregate is answered `403 wow.aggregate.forbidden` instead, since whether a creation succeeds tells anyway whether the aggregate exists. A part the caller has no value for is not checked:
 
 - An **owner-level** caller, whose scope has an owner, reaches only its own aggregates.
 - A **tenant-level** caller, without an owner, such as a member of staff, reaches every aggregate of its tenant, within its space when it acts in one. What it may do is decided by action-level authorization, such as CoSec's.
@@ -88,11 +88,11 @@ No route generates an id: a creating command creates the aggregate of its owner.
 
 Admission takes the id from the caller:
 
-- An **owner-level** caller's aggregate is its own: the id is its owner, on the routes without an id or by its own id, and a caller acting in another scope through `Wow-Scope` reaches that scope's owner's. Naming another owner's id is refused with `403 wow.aggregate.forbidden`.
+- An **owner-level** caller's aggregate is its own: the id is its owner, on the routes without an id or by its own id, and a caller acting in another scope through `Wow-Scope` reaches that scope's owner's. Naming another owner's id reaches nothing: a creating command is refused with `403 wow.aggregate.forbidden`, any other is answered `404 wow.aggregate.not-found`, whether that owner's aggregate exists or not.
 - A caller **with no owner**, such as a tenant-level member of staff, a service or a saga, has no aggregate of its own: it names the id, on the routes by id. On a route without an id it is answered `400 wow.command.malformed` ("This caller has no owner; address the aggregate by its id."), and `400 wow.query.malformed` on the state read. An unauthenticated caller is answered `401 wow.auth.unauthenticated`.
 - A command a saga derives, or a scheduled command, that names no id takes the owner of the scope it carries: a saga that follows a buyer's order reaches that buyer's basket.
 
-The kernel records the aggregate's id as its owner, whoever creates it, and refuses a command whose owner is another, a creating one too. The command functions therefore check no caller: the basket above needs no ownership check of its own.
+The kernel records the aggregate's id as its owner, whoever creates it, and a command whose owner is another does not reach it, a creating one included. The command functions therefore check no caller: the basket above needs no ownership check of its own.
 
 ## Check the caller in a command
 

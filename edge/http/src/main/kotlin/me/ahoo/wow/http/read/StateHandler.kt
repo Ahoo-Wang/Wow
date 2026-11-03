@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.read
 
+import me.ahoo.wow.api.access.ScopeAccess
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
@@ -203,6 +204,9 @@ internal class StateHandler(
 
     /** Who reads which state: the [scope] it reads in, the [ref] it reads and the [caller] its queries are admitted as. */
     private inner class Reader(val scope: Scope, val ref: AggregateRef, val caller: QueryCaller) {
+        /** The default rule of [scope] ([ScopeAccess]), a command's too: each part it names, the state has too. */
+        private val rule = ScopeAccess.of(scope)
+
         /**
          * The state [load] reads, as [caller] sees it: [StateNotFoundException] when there is none, when it is
          * outside the caller's [scope] or when the query policies of its type hide it, each answered alike.
@@ -251,7 +255,7 @@ internal class StateHandler(
         }
 
         fun checkScope(state: Scope) {
-            if (!scope.covers(state)) {
+            if (!ScopeAccess.allows(rule, state)) {
                 throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)
             }
         }
@@ -344,10 +348,6 @@ internal class StateHandler(
         const val MAX_TRACE_LIMIT = 1000
 
         private const val NOT_MODIFIED = 304
-
-        /** Whether this scope, the reader's, admits a state of [scope]: a field it names, the state has too. */
-        private fun Scope.covers(scope: Scope): Boolean =
-            (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
 
         /**
          * This commit of a trace of [ref] as its snapshot after it, for its policies to read: its first commit's time

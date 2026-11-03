@@ -124,7 +124,7 @@ class ViewSpec {
                 expectRejected(ViewStoreRejections.NOT_FOUND)
             }
             whenCommand(command, caller = user(ALICE, app = null)) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
-            whenCommand(command, caller = user(BOB)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+            whenCommand(command, caller = user(BOB)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
         }
         whenCommand(ClaimView, caller = user(ALICE, app = OTHER_APP)) {
             expectRejected(ViewStoreRejections.NOT_FOUND)
@@ -183,7 +183,7 @@ class ViewSpec {
             expectScope(SHARED)
         }
         whenCommand(ShareView, caller = nobody(SHARED)) { expectUnchanged() }
-        whenCommand(ShareView) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        whenCommand(ShareView) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test
@@ -195,10 +195,10 @@ class ViewSpec {
         }
         asked.assert().containsExactly(Triple(TENANT, APP, ID))
         whenCommand(TransferOwner.of(BOB), caller = Caller.ANONYMOUS) { expectScope(owner(BOB)) }
-        // Claimed again by its owner: nothing changes; by anyone else as themselves, the kernel refuses.
+        // Claimed again by its owner: nothing changes; by anyone else as themselves, it is out of their reach.
         whenCommand(ClaimView, caller = user(BOB)) { expectUnchanged() }
         whenCommand(ClaimView) {
-            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
     }
 
@@ -253,7 +253,7 @@ class ViewSpec {
             expectRejected(ViewStoreRejections.SYSTEM_VIEW_READ_ONLY)
         }
         whenCommand(SaveView(recordConfig()), caller = user(ALICE)) {
-            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
         whenCommand(DeleteAggregate, caller = nobody(SYSTEM, app = null)) { expectEvents(AggregateDeleted) }
     }

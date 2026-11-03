@@ -17,7 +17,7 @@ export const orders = new OrderCommandClient({ fetcher });
 ```
 
 - Confirm `CoSecConfigurer`'s options (token storage, refresher) in the installed `@ahoo-wang/fetcher-cosec`.
-- A 401 `wow.auth.unauthenticated` is a missing or expired token; 403 `wow.auth.forbidden` the caller may not do it (a role, a tenant, a `Wow-Scope` it may not use), `wow.aggregate.forbidden` another owner's aggregate.
+- A 401 `wow.auth.unauthenticated` is a missing or expired token; 403 `wow.auth.forbidden` the caller may not do it (a role, a tenant, a `Wow-Scope` it may not use), `wow.aggregate.forbidden` a creation of another owner's aggregate (any other command on one is 404 `wow.aggregate.not-found`, as a missing aggregate is).
 
 ## Acting elsewhere: scope and space
 

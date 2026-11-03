@@ -80,10 +80,10 @@ class OrderLifecycleTest {
         lifecycle(id, TransferOwner.of(main.subject!!), second)
         read(id, main)!!.scope.ownerId.assert().isEqualTo(main.subject)
 
-        // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
-        // kernel's scope guard refuses its commands (decision D94).
+        // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and neither
+        // is the aggregate its commands name (decision D94, the kernel's scope guard).
         read(id, second).assert().isNull()
-        rejected { confirm(id, second) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        rejected { confirm(id, second) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         confirm(id, main)
     }
 
