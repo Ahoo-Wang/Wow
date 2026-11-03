@@ -85,13 +85,19 @@ fun cartModel(decided: MutableList<String> = CopyOnWriteArrayList()): AggregateM
         evolve<ItemsRemoved> { items = items - it.items.toSet() }
     }
 
-private fun aggregateManifest(name: String, commands: List<Pair<String, ManifestCreation>>, events: List<String>) =
+/** The Manifest of aggregate [name] of [context], with its [commands] and [events] and the lifecycle commands. */
+fun aggregateManifest(
+    name: String,
+    commands: List<Pair<String, ManifestCreation>>,
+    events: List<String>,
+    context: String = SHOP,
+) =
     AggregateManifest(
         name,
         state = StateManifest(Manifest.schemaRef("${name}State")),
         commands = commands.map { (command, creation) ->
             CommandManifest(command, schema = Manifest.schemaRef(command), creation = creation)
-        } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(SHOP, name, it) },
+        } + Lifecycle.COMMANDS.keys.map { SystemCommands.lifecycle(context, name, it) },
         events = events.map { EventManifest(it, schema = Manifest.schemaRef(it)) },
     )
 

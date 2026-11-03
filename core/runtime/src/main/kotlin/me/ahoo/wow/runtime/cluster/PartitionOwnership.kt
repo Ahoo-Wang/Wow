@@ -115,8 +115,9 @@ data class RenewalRound(
  * it: while they start, the partition is still [pending], its lease renewed with the others. A hand-off stops the timers first, once the node stops accepting, so it sends no command it would not run.
  * The partitions the first reconcile of a [start] acquires read nothing, their entries or their parked retries, until
  * it has started all of them, or until the job [start] is given completes: a backlog the first of them would read at
- * once (a history migrate-data imported, a long stop) would slow down the starts of the others. The partitions later
- * reconciles acquire read at once.
+ * once (a history migrate-data imported, a long stop) would slow down the starts of the others. Without a job, the
+ * hold lasts at most [ClusterOptions.reconcileTimeout], so a reconcile stuck starting one partition does not hold the
+ * others back. The partitions later reconciles acquire read at once.
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
@@ -273,7 +274,8 @@ class PartitionOwnership internal constructor(
      * what it acquired and stops the runtimes it started, so the ownership can be started again.
      *
      * The partitions the first reconcile starts read nothing until [reads] completes, or, without it, until that
-     * reconcile has started all of them: a node passes one job to every context it starts.
+     * reconcile has started all of them or has run for [ClusterOptions.reconcileTimeout]: a node passes one job to
+     * every context it starts, and bounds it itself.
      */
     suspend fun start(reads: Job? = null): Unit = lifecycle.withLock {
         check(running == null) { "$node is already part of $group." }
@@ -313,9 +315,20 @@ class PartitionOwnership internal constructor(
         membership.join(group.name, ::membersRead)
         refreshRoutes()
         val own = if (reads == null) Job() else null
+        val release = own?.let { held ->
+            run.upkeep.launch {
+                delay(options.reconcileTimeout)
+                logger.warn {
+                    "$node has run its first reconcile of $group for more than ${options.reconcileTimeout}: the " +
+                        "partitions it started read from now on, without waiting for the others."
+                }
+                held.complete()
+            }
+        }
         try {
             reconcile(reads ?: own)
         } finally {
+            release?.cancel()
             own?.complete()
         }
         run.membership.launch { every(options.heartbeatInterval, "check the reconcile") { checkStuck() } }
