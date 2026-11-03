@@ -15,16 +15,14 @@ package me.ahoo.wow.test.server
 
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.Violation
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.Problems
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.InternalPort
 import me.ahoo.wow.http.problem.Problem
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.boot.builder.SpringApplicationBuilder
@@ -36,6 +34,7 @@ import org.springframework.http.client.ReactorResourceFactory
 import tools.jackson.databind.JsonNode
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpHeaders
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
@@ -58,7 +57,8 @@ inline fun <reified App : Any> wowServer(
     properties: Map<String, Any?> = emptyMap(),
     sources: List<Class<*>> = emptyList(),
     clock: Clock? = null,
-): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources, clock)
+    topics: InMemoryTopics? = null,
+): WowServer = wowServer(App::class.java, profiles.toList(), properties, sources, clock, topics)
 
 /**
  * Starts the Wow application of [application] and [sources] for a test, with [profiles] active, and gives it back
@@ -67,6 +67,17 @@ inline fun <reified App : Any> wowServer(
  * [properties] add to them and override them, as command-line arguments, over the application's own configuration;
  * a null value leaves a key out. A [clock] is the node's: every wall time it and its stores read, so a test fixes or
  * moves time in one place.
+ *
+ * Its topics are in its JVM with no configuration: its internal port on the loopback interface makes it a node in
+ * development, so `wow.transport=auto` keeps its command topics and published streams in memory unless the
+ * application configures a transport. [topics] are those topics, given, when a test writes to them before the node
+ * starts (another context's published stream, say) or servers share them: the node takes them in place of its own,
+ * with `wow.transport=memory`, and leaves them open when it closes.
+ *
+ * ```kotlin
+ * val topics = InMemoryTopics().apply { runBlocking { send("wow.eshop-ordering.order.state", listOf(message)) } }
+ * wowServer<PaymentServer>("dev", topics = topics)
+ * ```
  */
 fun wowServer(
     application: Class<*>,
@@ -74,18 +85,23 @@ fun wowServer(
     properties: Map<String, Any?> = emptyMap(),
     sources: List<Class<*>> = emptyList(),
     clock: Clock? = null,
+    topics: InMemoryTopics? = null,
 ): WowServer {
-    val arguments = (TEST_PROPERTIES + properties).mapNotNull { (key, value) -> value?.let { "--$key=$it" } }
+    val transport = topics?.let { mapOf(TRANSPORT to MEMORY) }.orEmpty()
+    val arguments = (TEST_PROPERTIES + transport + properties).mapNotNull { (key, value) ->
+        value?.let { "--$key=$it" }
+    }
     val builder = SpringApplicationBuilder(application, *sources.toTypedArray()).profiles(*profiles.toTypedArray())
         .initializers(OWN_EVENT_LOOPS)
-    clock?.let { given ->
-        val register = ApplicationContextInitializer<ConfigurableApplicationContext> { context ->
-            context.beanFactory.registerSingleton(CLOCK, given)
-        }
-        builder.initializers(register)
-    }
+    clock?.let { given -> builder.initializers(singleton(CLOCK, given)) }
+    topics?.let { given -> builder.initializers(singleton(TOPICS, given)) }
     val context = builder.run(*arguments.toTypedArray())
     return WowServer(context)
+}
+
+/** Registers [instance] as the bean [name]: one the context neither initializes nor destroys, a test's own. */
+private fun singleton(name: String, instance: Any) = ApplicationContextInitializer<ConfigurableApplicationContext> {
+    it.beanFactory.registerSingleton(name, instance)
 }
 
 /**
@@ -109,6 +125,12 @@ private const val LOOPBACK = "127.0.0.1"
 
 /** The name of a test's clock bean, which takes the place of the node's. */
 private const val CLOCK = "wowTestClock"
+
+/** The name of a test's topics bean, which takes the place of the node's in-memory topics. */
+private const val TOPICS = "wowTestTopics"
+
+private const val TRANSPORT = "wow.transport"
+private const val MEMORY = "memory"
 
 /**
  * Gives the server's public port event loops of its own, which closing it disposes, after the quiet period Spring Boot
@@ -248,8 +270,9 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
     /**
      * The body as the problem the server answered (`application/problem+json`), its members typed: the [Problem.status],
      * the error [Problem.code], the [Problem.violations], the rejected command's [Problem.result], the aggregate's
-     * [Problem.version], what a retry may do ([Problem.retry], with `Retry-After` as [Problem.retryAfter]) and every
-     * other member as an extension. Null when the answer is not a problem.
+     * [Problem.version], what a retry may do ([Problem.retry], with `Retry-After`, seconds or an HTTP date, as
+     * [Problem.retryAfter]) and every other member as an extension, read as `wow-client` reads a peer's problem. Null
+     * when the answer is not a problem.
      *
      * ```kotlin
      * val answer = server.http.post("/bank/account/alice/withdraw", """{"amount":0}""")
@@ -258,7 +281,7 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
      */
     val problem: Problem? by lazy {
         body?.takeIf { it.isObject && header(CONTENT_TYPE)?.contains(PROBLEM_JSON, ignoreCase = true) == true }
-            ?.let(::problemOf)
+            ?.let { problemOf() }
     }
 
     /** The first value of the header [name], whatever its case; null when the answer has none. */
@@ -267,38 +290,24 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
 
     override fun toString(): String = "Answer($status, $text)"
 
-    private fun problemOf(members: JsonNode): Problem = Problem(
-        status = members.get("status")?.takeIf { it.isInt }?.asInt() ?: status,
-        title = members.text("title").orEmpty(),
-        detail = members.text("detail"),
-        code = members.text("code"),
-        violations = members.get("violations")?.takeIf { it.isArray }?.values()?.map {
-            Violation.of(it.text("path").orEmpty(), it.text("code").orEmpty(), it.text("message").orEmpty())
-        }.orEmpty(),
-        result = members.get("result")?.takeIf { it.isObject }?.let {
-            ANSWERS.treeToValue(it, CommandResult::class.java)
-        },
-        extensions = members.properties().filter { it.key !in MEMBERS }
-            .associate { (name, value) -> name to ANSWERS.treeToValue(value, Any::class.java) },
-        retryAfter = header(RETRY_AFTER)?.trim()?.toLongOrNull(),
-        version = members.get(Problem.VERSION)?.takeIf { it.isInt }?.asInt(),
-        retry = members.text(Problem.RETRY)?.let { WireNames.entryOf<Retry>(it) },
-    )
-
-    private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isString }?.asString()
+    private fun problemOf(): Problem {
+        val read = Problems.read(status, HttpHeaders.of(headers) { _, _ -> true }, text.toByteArray())
+        return Problem(
+            status = read.status,
+            title = read.title.orEmpty(),
+            detail = read.detail,
+            code = read.code,
+            violations = read.violations,
+            result = read.result,
+            extensions = read.extensions,
+            retryAfter = read.retryAfter?.inWholeSeconds,
+            version = read.version,
+            retry = read.retry,
+        )
+    }
 
     private companion object {
         const val CONTENT_TYPE = "Content-Type"
         const val PROBLEM_JSON = "application/problem+json"
-        const val RETRY_AFTER = "Retry-After"
-
-        /** The members a [Problem] has a property of; every other one is an extension. */
-        val MEMBERS = setOf(
-            "type", "title", "status", "detail", "code", "violations", "result", "instance", Problem.VERSION,
-            Problem.RETRY,
-        )
-
-        /** Reads what a server wrote, as a client does: an enum value it does not know is no failure. */
-        val ANSWERS = WowJson.readerBuilder().build()
     }
 }

@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.client
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.manifest.FrameworkErrors
 import tools.jackson.core.JacksonException
@@ -38,7 +40,8 @@ import kotlin.time.Duration.Companion.seconds
  * (`wow.query.min-version-not-reached`). A failure the client's transport met itself (no node reached, a connection
  * lost) is one too, of a catalog code, with that failure as its [cause].
  */
-internal class PeerProblem(
+@InternalWowApi
+class PeerProblem(
     val status: Int,
     val code: String?,
     val detail: String?,
@@ -47,6 +50,12 @@ internal class PeerProblem(
     val retryAfter: Duration?,
     val version: Int? = null,
     val cause: Throwable? = null,
+    /** The problem's `title`; null when it has none. */
+    val title: String? = null,
+    /** The problem's `violations`: the fields a request broke. */
+    val violations: List<Violation> = emptyList(),
+    /** The problem's other members, those RFC 9457 and Wow do not name, each by its name. */
+    val extensions: Map<String, Any?> = emptyMap(),
 ) {
     /**
      * Whether the client sends a command answered so again itself, with its request id: never a
@@ -84,6 +93,7 @@ internal class PeerProblem(
         return WowProblemException(code ?: "http.$status", status, retry, retryAfter, message, result, cause)
     }
 
+    @InternalWowApi
     companion object {
         const val TOO_MANY_REQUESTS: Int = 429
         const val UNAVAILABLE: Int = 503
@@ -106,7 +116,8 @@ internal class PeerProblem(
  * catalog's. A body that is no Wow problem (a proxy's, a gateway's) may be retried when it is a 503 or a 429, with the
  * same request id.
  */
-internal object Problems {
+@InternalWowApi
+object Problems {
     private const val MAX_DETAIL = 512
 
     /** The problem of a response of [status] with [headers] and [body], whatever its body holds. */
@@ -127,16 +138,29 @@ internal object Problems {
         return PeerProblem(
             status = status,
             code = code,
-            detail = node?.text("detail") ?: body.decodeToString().take(MAX_DETAIL).takeIf { it.isNotBlank() },
+            // A body that is no problem, such as a proxy's, is its own detail.
+            detail = if (node != null) {
+                node.text("detail")
+            } else {
+                body.decodeToString().take(MAX_DETAIL).takeIf { it.isNotBlank() }
+            },
             result = result,
             retry = retry,
             retryAfter = retryAfter.takeIf { retry != Retry.NONE },
             version = node?.get("version")?.takeIf { it.isInt }?.asInt(),
+            title = node?.text("title"),
+            violations = node?.get("violations")?.takeIf { it.isArray }?.values()?.map(::violationOf).orEmpty(),
+            extensions = node?.properties()?.filter { it.key !in MEMBERS }
+                ?.associate { (name, value) -> name to ClientJson.mapper.treeToValue(value, Any::class.java) }
+                .orEmpty(),
         )
     }
 
+    private fun violationOf(node: JsonNode): Violation =
+        Violation.of(node.text("path").orEmpty(), node.text("code").orEmpty(), node.text("message").orEmpty())
+
     /** The problem the `error` event of a streamed list holds: its members, the status among them. */
-    fun ofMembers(data: String): PeerProblem {
+    internal fun ofMembers(data: String): PeerProblem {
         val status = try {
             ClientJson.mapper.readTree(data)?.get("status")?.takeIf { it.isNumber }?.asInt()
         } catch (_: JacksonException) {
@@ -149,6 +173,11 @@ internal object Problems {
     private const val UNAVAILABLE = PeerProblem.UNAVAILABLE
     private const val TOO_MANY_REQUESTS = PeerProblem.TOO_MANY_REQUESTS
     private const val RETRY = "retry"
+
+    /** The members RFC 9457 and Wow name; every other one is an extension. */
+    private val MEMBERS = setOf(
+        "type", "title", "status", "detail", "code", RETRY, "violations", "result", "version", "instance",
+    )
     private val EMPTY_HEADERS: HttpHeaders = HttpHeaders.of(emptyMap()) { _, _ -> true }
 
     private fun resultOf(node: JsonNode): CommandResult? = try {
