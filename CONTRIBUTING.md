@@ -123,6 +123,7 @@ The project uses a small shared vocabulary so issues and release notes remain co
 | `dependencies` | Dependency update |
 | `good first issue` | A scoped task suitable for a new contributor |
 | `ignore-for-release` | Change intentionally omitted from generated release notes |
+| `allow-large-removal` | Maintainer-applied after review: PR Safety lets this pull request remove more than 10% of the repository's files; its other rules still apply |
 
 Maintainers may add more specific labels during triage.
 
