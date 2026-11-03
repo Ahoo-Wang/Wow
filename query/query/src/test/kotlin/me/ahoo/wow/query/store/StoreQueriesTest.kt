@@ -99,6 +99,17 @@ class StoreQueriesTest {
     }
 
     @Test
+    fun `events queries manage no index unless they say so`() {
+        val queries = object : EventQueries {
+            override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? = null
+        }
+        queries.managesIndexes.assert().isFalse()
+        queries.prepare(type)
+        queries.manageIndexes(type, QueryIndexPlan.of(gatewaySchema(), emptyList())).assert()
+            .isSameAs(QueryIndexReport.NONE)
+    }
+
+    @Test
     fun `an index report and the options are values`() {
         val report = QueryIndexReport(created = listOf("a"), missing = listOf("b"), invalid = listOf("c"))
         report.assert().isEqualTo(
