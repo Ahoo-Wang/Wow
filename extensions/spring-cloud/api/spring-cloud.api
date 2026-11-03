@@ -4,8 +4,6 @@ public final class me/ahoo/wow/spring/cloud/LoadBalancedEndpoints : me/ahoo/wow/
 	public static final fun of (Lorg/springframework/cloud/client/loadbalancer/reactive/ReactiveLoadBalancer$Factory;Ljava/util/Map;)Lme/ahoo/wow/spring/cloud/LoadBalancedEndpoints;
 	public fun reaches (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resolve (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun resolveAll (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun unreachable (Ljava/lang/String;Lme/ahoo/wow/client/Port;)V
 }
 
 public final class me/ahoo/wow/spring/cloud/LoadBalancedEndpoints$Companion {
@@ -16,7 +14,6 @@ public final class me/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery : me/ahoo/w
 	public static final field Companion Lme/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery$Companion;
 	public static final field TYPE Ljava/lang/String;
 	public fun <init> (Lkotlin/jvm/functions/Function0;)V
-	public fun getOptions ()Ljava/util/List;
 	public fun getType ()Ljava/lang/String;
 	public final fun isOpened ()Z
 	public fun open (Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;)Lme/ahoo/wow/spi/peer/PeerTargets;

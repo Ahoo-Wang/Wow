@@ -83,7 +83,7 @@ val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-loa
 val moduleProjects = listOf(
     "annotations", "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
-    "observability", "spring-boot", "cosid", "cocache-api", "cocache",
+    "observability", "spring-boot", "cosid", "cocache-api", "cocache", "spring-cloud",
     "models", "migrate-data", "architecture",
     "test-dsl", "test-query", "test-spring-boot", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
