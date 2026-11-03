@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.bson.BsonType
 import org.bson.Document
+import org.bson.conversions.Bson
 import java.util.concurrent.TimeUnit
 
 /** The log collection of one aggregate type. */
@@ -95,6 +96,22 @@ internal class MongoLogCollections(
 
     /** The collection of [aggregate], created and registered when this log has not yet made sure it is. */
     fun of(aggregate: String): AggregateCollection = ensured.get(aggregate) { ensure(aggregate) }
+
+    /**
+     * The collection of [type] when it exists: one this log made sure of, or one the registry lists, read again when
+     * this log does not know it; null before its first append. It creates nothing.
+     */
+    fun existing(type: AggregateType): AggregateCollection? {
+        require(type.context == context) { "$type is not in context $context." }
+        return known().firstOrNull { it.aggregate == type.name } ?: register().firstOrNull { it.aggregate == type.name }
+    }
+
+    /** The registry document of [type]'s collection, which holds its access walk: none before its first append. */
+    fun registryOf(type: AggregateType): Bson = Filters.and(
+        Filters.eq(ID, MongoNames.of(PREFIX, context, type.name)),
+        Filters.eq(CONTEXT, context),
+        Filters.eq(AGGREGATE, type.name),
+    )
 
     /**
      * Claims the format of [aggregate]'s collection, creates its indexes and records it in the registry. Each step is

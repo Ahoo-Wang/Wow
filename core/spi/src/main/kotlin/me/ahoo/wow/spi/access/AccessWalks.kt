@@ -25,12 +25,21 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * The log pages the type's aggregates ([aggregates]) and keeps each type's walk beside the type in its registry
  * ([walk]): the access schema it is of, the log's heads when it was claimed, how far it is. Claims are compare-and-set
  * by schema ([claim]), so concurrent claims leave one walk.
+ *
+ * None of these creates the store of a type's history (its collection, its table): a type the log holds none of
+ * ([holds]) has nothing to walk, and its first append creates its store as it would without walks.
  */
 @InternalWowApi
 interface AccessWalks : AccessStamps {
     /**
+     * Whether the log holds a store of [type]'s history: one its first append created, or one created up front. A
+     * type it holds none of has no walk, and claims none.
+     */
+    suspend fun holds(type: AggregateType): Boolean
+
+    /**
      * At most [limit] aggregates of [type], in the log's own key order, after the page whose [AggregatePage.next] is
-     * [after] (null: from the first).
+     * [after] (null: from the first); none of a type the log [holds] no store of.
      */
     suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage
 
@@ -39,7 +48,8 @@ interface AccessWalks : AccessStamps {
 
     /**
      * Records [walk], a new walk of [type], in place of the recorded one when that is of the schema [expected], or
-     * when none is recorded and [expected] is null; returns whether it did.
+     * when none is recorded and [expected] is null; returns whether it did. It records none of a type the log
+     * [holds] no store of: the walk is kept beside the type's store.
      */
     suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean
 
