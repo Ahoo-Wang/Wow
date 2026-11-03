@@ -78,12 +78,13 @@ class AccessNodeTest {
     fun `a running node follows a change over the history, and stamps an unstamped stream after the walk's heads`(): Unit =
         runBlocking {
             node.start()
-            // An empty log's walk is completed once claimed.
-            eventually { node.context(SHOP).accessWalking?.walks()?.get(CART)?.completed == true }
             // The owner changed at 2: the stream before it follows.
             append(1, "alice", owned("alice"))
             append(2, "bob", owned("bob"))
             eventually { history() == listOf(owned("bob"), owned("bob")) }
+            // The first run after the type's first append claims its walk, whose heads reach both.
+            eventually { node.context(SHOP).accessWalking?.walks()?.get(CART)?.completed == true }
+            history().assert().isEqualTo(listOf(owned("bob"), owned("bob")))
             // A node of an earlier version, still running, appends without them: its aggregate is stamped whole.
             append(3, "carol", null)
             eventually { history() == List(3) { owned("carol") } }

@@ -337,7 +337,7 @@ class MongoEventLog(
     override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
         require(limit > 0) { "A page holds at least one aggregate." }
         return dispatcher.mongo {
-            val log = collections.of(type).log
+            val log = collections.existing(type)?.log ?: return@mongo AggregatePage(emptyList(), null)
             var partition = after?.substringBefore(CURSOR_PARTITION)?.toInt() ?: 0
             var key = after?.substringAfter(CURSOR_PARTITION)?.let(AggregatePage::keyOf)
             val refs = ArrayList<AggregateRef>(limit)
@@ -365,18 +365,27 @@ class MongoEventLog(
         }
     }
 
-    /** The registry document of [type]'s collection, its `access_walk` ([walkOf]); majority read. */
+    /** Whether [type]'s collection exists: this log made sure of it, or the registry lists it. */
+    override suspend fun holds(type: AggregateType): Boolean = dispatcher.mongo { collections.existing(type) != null }
+
+    /**
+     * The registry document of [type]'s collection, its `access_walk` ([walkOf]); majority read. None before the
+     * collection's first append: the read creates no collection.
+     */
     override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.mongo {
-        walks.find(Filters.eq(ID, collections.of(type).name)).first()
+        walks.find(collections.registryOf(type)).first()
             ?.get(ACCESS_WALK, Document::class.java)
             ?.let(::walkOf)
     }
 
-    /** One conditional update of the registry document, majority written: concurrent claims serialize on it. */
+    /**
+     * One conditional update of the registry document, majority written: concurrent claims serialize on it. A type
+     * whose collection does not exist has no registry document, and the update matches none.
+     */
     override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.mongo {
         val recorded = if (expected == null) Filters.eq(ACCESS_WALK, null) else Filters.eq(WALK_SCHEMA, expected)
         walks.updateOne(
-            Filters.and(Filters.eq(ID, collections.of(type).name), recorded),
+            Filters.and(collections.registryOf(type), recorded),
             Updates.set(ACCESS_WALK, documentOf(walk)),
         ).matchedCount == 1L
     }
@@ -389,7 +398,7 @@ class MongoEventLog(
         completed: Boolean,
     ): Boolean = dispatcher.mongo {
         walks.updateOne(
-            Filters.and(Filters.eq(ID, collections.of(type).name), Filters.eq(WALK_SCHEMA, schema)),
+            Filters.and(collections.registryOf(type), Filters.eq(WALK_SCHEMA, schema)),
             Updates.combine(
                 Updates.set("$ACCESS_WALK.$CURSOR", cursor),
                 Updates.set("$ACCESS_WALK.$WALKED", walked),

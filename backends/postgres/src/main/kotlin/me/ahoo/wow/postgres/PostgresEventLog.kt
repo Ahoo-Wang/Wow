@@ -240,6 +240,16 @@ class PostgresEventLog(
     private fun addColumns(connection: Connection, table: AggregateLogTable) =
         PostgresFormat.addColumns(connection, table.base, AggregateLogTable.ADDED, table.additions)
 
+    /**
+     * The table of [type] when it exists: one this log made sure of, or one the registry lists, read again when this
+     * log does not know it; null before its first append. It creates nothing.
+     */
+    private fun existing(connection: Connection, type: AggregateType): AggregateLogTable? {
+        require(type.context == context) { "$type is not in context $context." }
+        return (ensured.values + registered.orEmpty()).firstOrNull { it.aggregate == type.name }
+            ?: register(connection).firstOrNull { it.aggregate == type.name }
+    }
+
     /** Reads the registry again: the aggregate tables of the context, in registry order. */
     private fun register(connection: Connection): List<AggregateLogTable> {
         val names = connection.prepareStatement(tables.registered).use { query ->
@@ -580,32 +590,41 @@ class PostgresEventLog(
         }
     }
 
-    /** A statement a page: each aggregate's first stream, by the version key, its cursor [AggregatePage.cursorOf]. */
+    /**
+     * A statement a page: each aggregate's first stream, by the version key, its cursor [AggregatePage.cursorOf]; none
+     * of a type whose table does not exist, which it does not create.
+     */
     override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
         require(limit > 0) { "A page holds at least one aggregate." }
         val key = after?.let(AggregatePage::keyOf)
         val refs = dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                withTable(connection, type) { table ->
-                    connection.prepareStatement(if (key == null) table.firstAggregates else table.aggregatesAfter).use {
-                        var index = 1
-                        key?.let { (id, tenant) ->
-                            it.setString(index++, id)
-                            it.setString(index++, tenant)
-                        }
-                        it.setInt(index, limit)
-                        it.executeQuery().use { rows -> rows.map { type.ref(it.getString(2), it.getString(1)) } }
+                val table = existing(connection, type) ?: return@autoCommitted emptyList()
+                connection.prepareStatement(if (key == null) table.firstAggregates else table.aggregatesAfter).use {
+                    var index = 1
+                    key?.let { (id, tenant) ->
+                        it.setString(index++, id)
+                        it.setString(index++, tenant)
                     }
+                    it.setInt(index, limit)
+                    it.executeQuery().use { rows -> rows.map { type.ref(it.getString(2), it.getString(1)) } }
                 }
             }
         }
         return AggregatePage.of(refs, limit)
     }
 
-    /** The registry's `access_walk` of [type] ([PostgresAccessWalks]), its table made sure of first: registered. */
+    /** Whether [type]'s table exists: this log made sure of it, or the registry lists it. */
+    override suspend fun holds(type: AggregateType): Boolean = dispatcher.jdbc {
+        dataSource.autoCommitted { existing(it, type) != null }
+    }
+
+    /**
+     * The registry's `access_walk` of [type] ([PostgresAccessWalks]); none before the type's table is created, which
+     * the read does not do: a type has a registry row from its table's creation on.
+     */
     override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.jdbc {
         dataSource.autoCommitted { connection ->
-            tableOf(connection, type)
             connection.prepareStatement(tables.walk).use { query ->
                 query.setString(1, context)
                 query.setString(2, type.name)
@@ -616,10 +635,12 @@ class PostgresEventLog(
         }
     }
 
-    /** One conditional update of the registry row: concurrent claims serialize on it. */
+    /**
+     * One conditional update of the registry row: concurrent claims serialize on it. A type whose table does not exist
+     * has no row, and the update matches none.
+     */
     override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.jdbc {
         dataSource.autoCommitted { connection ->
-            tableOf(connection, type)
             connection.prepareStatement(tables.claimWalk).use { update ->
                 update.setString(1, PostgresAccessWalks.textOf(walk))
                 update.setString(2, context)
