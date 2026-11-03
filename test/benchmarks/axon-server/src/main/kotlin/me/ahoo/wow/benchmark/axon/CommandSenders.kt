@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * in JDK 24), and Axon 4 does so at the end of every handler, whose timeout it cancels under a monitor on its janitor's
  * queue lock (`AxonTimeLimitedTask.complete`). On a runner's two CPUs two such threads held both carriers while the
  * lock's next owner, a virtual thread, waited for one, and no virtual thread ran again (axon-pg-e3-reactions). The
- * benchmark has run on JDK 25 since D393, where such a thread no longer pins its carrier; the pool stays, as a pool of
- * platform threads is how Axon 4's blocking API is deployed.
+ * benchmark now runs on JDK 25, where such a thread no longer pins its carrier; the pool stays, as a pool of platform
+ * threads is how Axon 4's blocking API is deployed.
  */
 @Component
 class CommandSenders(@Value("\${benchmark.axon.command-threads:200}") threads: Int) : Executor, DisposableBean {
