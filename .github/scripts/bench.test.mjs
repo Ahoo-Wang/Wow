@@ -81,6 +81,9 @@ import {
   sustainableStep,
   sweepNext,
   sweepOf,
+  jobId,
+  mergeParts,
+  partsOf,
   fineMore,
   fineOf,
   fineSteps,
@@ -2505,11 +2508,159 @@ test('the axon group and its build: the head alone, no baseline', () => {
     planMatrix({ suites: ['axon-pg'], headSha: 'h', baseSha: '' }),
     {
       suites: ['axon-pg'],
-      jobs: ['axon-pg.100k'],
+      // A job a sweep (partsOf).
+      jobs: ['axon-pg.100k.e1', 'axon-pg.100k.e3'],
       skipped: [],
       builds: [{ side: 'head', sha: 'h' }],
     },
   );
+});
+
+test('partsOf splits a sessions suite of several sweeps into a part a sweep, its same-rate runs with it', () => {
+  assert.deepEqual(partsOf(SUITES['axon-pg']), [
+    {
+      key: 'e1',
+      label: 'E1',
+      sweeps: [
+        { scenario: 'E1', distribution: 'uniform', label: 'E1', key: 'e1' },
+      ],
+      rates: [{ scenario: 'E1', rate: 1000 }],
+    },
+    {
+      key: 'e3',
+      label: 'E3',
+      sweeps: [
+        { scenario: 'E3', distribution: 'uniform', label: 'E3', key: 'e3' },
+      ],
+      rates: [{ scenario: 'E3', rate: 300 }],
+    },
+  ]);
+  // Two sweeps of E1: its same-rate runs, none here, would go with the first.
+  assert.deepEqual(
+    partsOf(SUITES['axon-pg-contention']).map(part => [
+      part.key,
+      part.label,
+      part.rates,
+    ]),
+    [
+      ['e1-zipf', 'E1 zipf', []],
+      ['e3-zipf', 'E3 zipf', []],
+      ['e1-hot', 'E1 hot', []],
+    ],
+  );
+  // One sweep, or another kind: no parts.
+  assert.equal(partsOf(SUITES['axon-pg-e3-pool']), undefined);
+  assert.equal(partsOf(SUITES['e1-pg-uniform']), undefined);
+  assert.equal(
+    planMatrix({ suites: ['axon-pg-contention'], headSha: 'h' }).jobs.length,
+    3,
+  );
+  assert.deepEqual(parseJob('axon-pg.100k.e1-zipf'), {
+    suite: 'axon-pg',
+    dataset: '100k',
+    part: 'e1-zipf',
+  });
+  assert.deepEqual(parseJob('e1-pg-uniform.1M'), {
+    suite: 'e1-pg-uniform',
+    dataset: '1M',
+  });
+  assert.equal(jobId('axon-pg', '100k', 'e3'), 'axon-pg.100k.e3');
+  assert.equal(jobId('axon-pg', '100k'), 'axon-pg.100k');
+});
+
+test('each part of a split suite runs its sweep in fresh sessions, ABBA; the report merges the parts into one suite', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeSessionBench(dir);
+  const results = join(dir, 'results');
+  const run = part =>
+    runSuite('axon-pg', {
+      benchPath,
+      out: join(results, `axon-pg.100k.${part}`),
+      warmUp: 30,
+      measure: 40,
+      repeats: 2,
+      fraction: 0.8,
+      cpus: { total: 4 },
+      installs: { axon: '/builds/axon-server' },
+      part,
+    });
+  const e3 = run('e3');
+  assert.equal(e3.failures, 0);
+  assert.equal(e3.part, 'e3');
+  assert.deepEqual(e3.fixedRates, [{ scenario: 'E3', rate: 300 }]);
+  assert.deepEqual(
+    e3.sessions.map(session => session.name),
+    ['1-wow', '1-axon', '2-axon', '2-wow'],
+  );
+  // E3 alone: its rate, its sweep and its own share; `up` still checks every scenario of the suite.
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  assert.ok(calls.every(call => !/--scenario=E1 /.test(call)));
+  assert.ok(
+    calls
+      .filter(call => call.startsWith('up '))
+      .every(call => call.includes(' --mix=E1,E3 ')),
+  );
+  assert.deepEqual(
+    e3.runs.map(r => r.name),
+    [
+      '1-wow-e3',
+      '1-wow-e3-own',
+      '1-axon-e3',
+      '1-axon-e3-own',
+      '2-axon-e3',
+      '2-axon-e3-own',
+      '2-wow-e3',
+      '2-wow-e3-own',
+    ],
+  );
+  assert.ok(e3.sessions.every(session => session.correctness.comparable));
+  assert.throws(() => run('e2'), /axon-pg has no part e2/);
+  run('e1');
+
+  const [merged, ...others] = readSuites(results);
+  assert.deepEqual(others, []);
+  assert.equal(merged.part, undefined);
+  assert.deepEqual(
+    merged.parts.map(part => [part.part, part.label]),
+    [
+      ['e1', 'E1'],
+      ['e3', 'E3'],
+    ],
+  );
+  assert.deepEqual(
+    merged.sweepPlan.map(plan => plan.key),
+    ['e1', 'e3'],
+  );
+  assert.equal(merged.sweeps.length, 8);
+  assert.equal(merged.sessions.length, 8);
+  assert.equal(merged.sessions[0].name, '1-wow (E1)');
+  assert.equal(merged.failures, 0);
+  const report = renderReport([merged]);
+  assert.match(
+    report,
+    /\| E1 \| ≥ 13000\/s at 16384 \(top step\); ≥ 13000\/s at 16384 \(top step\) \| 800\/s at 64; 800\/s at 64 \|/,
+  );
+  assert.match(report, /\| E3 \| ≥ 13000\/s at 16384 \(top step\);/);
+  assert.match(
+    report,
+    /\| axon-pg@100k E1 \| .* \| generator 2-3 · node 0-1 \|/,
+  );
+  assert.match(
+    report,
+    /\| axon-pg@100k E3 \| .* \| generator 2-3 · node 0-1 \|/,
+  );
+  assert.match(
+    renderSuite(merged),
+    /Each sweep in fresh sessions on a runner of its own, the full ABBA: E1 on [^;]+, (\d+|\?) cores; E3 on .+, (\d+|\?) cores\./,
+  );
+  // A part's own summary is its runner's.
+  assert.match(renderSuite(e3), /\. Runner: .+, (\d+|\?) cores\./);
+  assert.match(report, /\| 2-wow \(E3\) \| 100000 \(100000\) \|/);
+  assert.match(
+    report,
+    /- E3 at 300\/s: 38% of the lowest sustainable rate a sweep found here \(axon, 800\/s\)\./,
+  );
+  assert.doesNotMatch(report, /NaN|undefined/);
 });
 
 test("axonInstall builds the Axon server with the repository's wrapper, checked out first in a sparse checkout", () => {

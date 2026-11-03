@@ -1147,6 +1147,67 @@ export function sweepPlanOf(definition) {
   });
 }
 
+/**
+ * A sessions suite's parts, one a sweep, each in a job of its own on a runner of its own, in fresh sessions, the full
+ * ABBA: its sweep (`key`, `label`: sweepPlanOf's), the same-rate runs of its scenario (with the first sweep of that
+ * scenario) and the own-share run it sets. So each sweep's ratios and A/A spread are one runner's, and its views run
+ * in parallel with the others'. Undefined for a suite of one sweep or of another kind.
+ */
+export function partsOf(definition) {
+  if (definition?.kind !== 'sessions' || definition.sweeps.length < 2)
+    return undefined;
+  const plans = sweepPlanOf(definition);
+  return plans.map(plan => ({
+    key: plan.key,
+    label: plan.label,
+    sweeps: [plan],
+    rates: (definition.rates ?? []).filter(
+      ({ scenario }) => plans.find(p => p.scenario === scenario) === plan,
+    ),
+  }));
+}
+
+/**
+ * The parts of one sessions suite (partsOf), each a suite.json of its own job, as one suite: their sessions, runs and
+ * sweeps in the parts' order, each session named with its part's sweep, and each part's runner (`parts`).
+ */
+export function mergeParts(parts) {
+  const order = (partsOf(SUITES[parts[0].name]) ?? []).map(part => part.key);
+  const sorted = [...parts].sort(
+    (a, b) => order.indexOf(a.part) - order.indexOf(b.part),
+  );
+  const labelOfPart = suite => suite.sweepPlan?.[0]?.label ?? suite.part;
+  const times = key =>
+    sorted
+      .map(suite => suite[key])
+      .filter(Boolean)
+      .sort();
+  const { part: _, ...first } = sorted[0];
+  return {
+    ...first,
+    parts: sorted.map(suite => ({
+      part: suite.part,
+      label: labelOfPart(suite),
+      runner: suite.runner,
+      cpus: suite.cpus,
+      failures: suite.failures,
+    })),
+    fixedRates: sorted.flatMap(suite => suite.fixedRates ?? []),
+    sweepPlan: sorted.flatMap(suite => suite.sweepPlan ?? []),
+    sessions: sorted.flatMap(suite =>
+      (suite.sessions ?? []).map(session => ({
+        ...session,
+        name: `${session.name} (${labelOfPart(suite)})`,
+      })),
+    ),
+    runs: sorted.flatMap(suite => suite.runs ?? []),
+    sweeps: sorted.flatMap(suite => suite.sweeps ?? []),
+    failures: sorted.reduce((sum, suite) => sum + (suite.failures ?? 0), 0),
+    startedAt: times('startedAt')[0],
+    finishedAt: times('finishedAt').at(-1),
+  };
+}
+
 /** The views of a sessions suite's open-loop runs: one rate for both arms, or each at a share of its own. */
 export const SAME = 'same-rate';
 export const OWN = 'own-share';
@@ -1895,13 +1956,12 @@ export const labelOf = suite => `${suite.name}@${suite.dataset ?? '100k'}`;
 export const noiseLabel = suite =>
   labelOf({ ...suite, name: SUITES[suite.name]?.noiseFrom ?? suite.name });
 
-/** A job of the matrix: a suite at a data set, `e1-mongo-uniform.100k`. */
-export const jobId = (suite, dataset) => `${suite}.${dataset}`;
+/** A job of the matrix: a suite at a data set, `e1-mongo-uniform.100k`, and one part of it (partsOf), `axon-pg.100k.e1`. */
+export const jobId = (suite, dataset, part) =>
+  `${suite}.${dataset}${part ? `.${part}` : ''}`;
 export function parseJob(id) {
-  const dot = id.lastIndexOf('.');
-  return dot < 0
-    ? { suite: id, dataset: '100k' }
-    : { suite: id.slice(0, dot), dataset: id.slice(dot + 1) };
+  const [suite, dataset = '100k', part] = id.split('.');
+  return part ? { suite, dataset, part } : { suite, dataset };
 }
 
 /**
@@ -1935,8 +1995,13 @@ export function planMatrix({
       ? [{ side: 'base', sha: baseSha }]
       : []),
   ];
+  // A sessions suite of several sweeps runs a job a sweep (partsOf).
   const jobs = runnable.flatMap(name =>
-    datasets.map(dataset => jobId(name, dataset)),
+    datasets.flatMap(dataset =>
+      (partsOf(SUITES[name]) ?? [undefined]).map(part =>
+        jobId(name, dataset, part?.key),
+      ),
+    ),
   );
   return { suites: runnable, jobs, skipped, builds };
 }
@@ -2875,7 +2940,9 @@ export function renderSuite(suite) {
       (suite.extraRound
         ? ' + 1 (two runs of one arm differed by more than 5%)'
         : '') +
-      `. Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`,
+      (suite.parts
+        ? `. Each sweep in fresh sessions on a runner of its own, the full ABBA: ${suite.parts.map(part => `${part.label} on ${part.runner?.cpu ?? '?'}, ${part.runner?.cores ?? '?'} cores`).join('; ')}.`
+        : `. Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`),
     '',
     ...primingLines(suite),
   ];
@@ -3240,7 +3307,13 @@ export function runSuite(name, options) {
     processes,
     // Where an arm's JDK is found (javaHome).
     env = process.env,
+    // A sessions suite's part (partsOf), its key: that sweep alone, with its same-rate and own-share runs.
+    part: partKey,
   } = options;
+  const part = partKey
+    ? partsOf(definition)?.find(candidate => candidate.key === partKey)
+    : undefined;
+  if (partKey && !part) throw new Error(`${name} has no part ${partKey}`);
   // Before anything runs: a cluster suite's hand-overs signal the node they stop.
   const handoverProcesses =
     definition.kind === 'cluster' ? (processes ?? hostProcesses()) : undefined;
@@ -3298,10 +3371,11 @@ export function runSuite(name, options) {
     // A sessions suite's fixed rates run as compare.sh's, its sweeps as SESSIONS.sweep says.
     warmUp: sessions ? SESSIONS.warmUp : warmUp,
     measure: sessions ? SESSIONS.measure : measure,
+    ...(part ? { part: part.key } : {}),
     ...(sessions
       ? {
-          fixedRates: definition.rates,
-          sweepPlan: sweepPlanOf(definition),
+          fixedRates: part ? part.rates : definition.rates,
+          sweepPlan: part ? part.sweeps : sweepPlanOf(definition),
           own: definition.own,
           share: SESSIONS.share,
           sweep: SESSIONS.sweep,
@@ -3953,7 +4027,7 @@ export function runSuite(name, options) {
           });
         try {
           // The same-rate view: both arms at one rate.
-          for (const { scenario, rate } of definition.rates)
+          for (const { scenario, rate } of suite.fixedRates)
             fixed(`${session}-${scenario.toLowerCase()}`, scenario, rate, SAME);
           const swept = suite.sweepPlan.map(plan =>
             sweep(arm, session, plan, index),
@@ -4005,8 +4079,18 @@ export function readSuites(dir) {
     }
   };
   walk(dir, 0);
+  // The parts of a sessions suite (partsOf), one job each, as one suite.
+  const parts = new Map();
+  const whole = suites.filter(suite => {
+    if (!suite.part) return true;
+    const key = labelOf(suite);
+    parts.set(key, [...(parts.get(key) ?? []), suite]);
+    return false;
+  });
   const order = Object.keys(SUITES);
-  return suites.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  return [...whole, ...[...parts.values()].map(mergeParts)].sort(
+    (a, b) => order.indexOf(a.name) - order.indexOf(b.name),
+  );
 }
 
 /** The noise thresholds of a run's A/A suites, keyed by `suite@dataset`, merged over `previous`. */
@@ -4031,7 +4115,7 @@ export function renderReport(suites, meta = {}) {
     '',
     `Tier: ${meta.tier ?? '?'}; coverage: ${suites.map(labelOf).join(', ') || 'none'}.`,
     '',
-    "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base): median (min–max, n pairs). Lower is better except throughput.",
+    "Each suite ran on one runner of its own (a sessions suite of several sweeps, each sweep in fresh sessions on one of its own), so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base): median (min–max, n pairs). Lower is better except throughput.",
     '',
   ];
   if (meta.skipped?.length > 0) {
@@ -4175,10 +4259,15 @@ export function renderReport(suites, meta = {}) {
     '| Suite | CPU | Cores | Memory | JDK | CPU layout |',
     '| --- | --- | --- | --- | --- | --- |',
   );
+  // A suite of parts (mergeParts): a runner a sweep.
   for (const suite of suites) {
-    lines.push(
-      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${suite.runner?.jdk ?? '?'} | ${layoutOf(suite.cpus)} |`,
-    );
+    for (const { label, runner, cpus } of suite.parts ?? [
+      { runner: suite.runner, cpus: suite.cpus },
+    ]) {
+      lines.push(
+        `| ${labelOf(suite)}${label ? ` ${label}` : ''} | ${runner?.cpu ?? '?'} | ${runner?.cores ?? '?'} | ${runner?.memoryGb ?? '?'} GB | ${runner?.jdk ?? '?'} | ${layoutOf(cpus)} |`,
+      );
+    }
   }
   const sampled = suites.filter(suite => saturationSamples(suite));
   if (sampled.length > 0) {
@@ -4434,6 +4523,7 @@ if (
         out: env.OUT,
         ...inputs,
         dataset: job.dataset,
+        part: job.part,
         cpus: { total: Number(env.CPUS) || undefined },
         installs: Object.fromEntries(
           [

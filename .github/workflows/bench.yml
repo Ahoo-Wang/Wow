@@ -17,8 +17,8 @@
 # every run (partition pauses, store fallbacks of the tails, error spikes, dips, long tails) so a run surfaces defects.
 # The head is the pushed or dispatched ref; the baseline is `base_ref`, else the newest v10.* release tag that has the
 # benchmark (without either, the baseline suites are skipped). The harness and the load generator come from the head.
-# Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them into report.md
-# and the run summary.
+# Each suite runs in a job of its own, and a sessions suite of several sweeps a job a sweep (partsOf); steps:
+# .github/scripts/bench.mjs. The report job combines them into report.md and the run summary.
 #
 # A run starts when a branch `bench-run/**` is pushed (`git push origin main:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
