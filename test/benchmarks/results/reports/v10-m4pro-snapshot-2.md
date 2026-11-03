@@ -1,6 +1,6 @@
 # V10 milestone snapshot on Apple M4 Pro, second run
 
-The milestone drift guard of roadmap §6 item 19, run again after D276–D280 (the MongoDB position as `_id`, the partition-led keys of D277, 32 recent requests per cached aggregate, the stores' operation timeouts and PostgreSQL's cross-partition group commit). Run on 2026-10-25 at `081c9f533` (#4881). The machine, Docker, store settings, data and stages are the [first snapshot](v10-m4pro-snapshot.md)'s (`ed04b1728`, 2026-10-24); the runs, scripts and tables are in [`v10-m4pro-snapshot-2/`](v10-m4pro-snapshot-2/) (`SUMMARY.md`, `COMPARE.md`). A snapshot records capacity; changes are decided by an ABAB against `main`.
+The milestone drift guard of roadmap §6 item 19, run again after D276–D280 (the MongoDB position as `_id`, the partition-led keys of D277, 32 recent requests per cached aggregate, the stores' operation timeouts and PostgreSQL's cross-partition group commit). Run on 2026-10-25 at `081c9f533` (#4881). The machine, Docker, store settings, data and stages are the [first snapshot](https://github.com/Ahoo-Wang/Wow/blob/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-m4pro-snapshot.md)'s (`ed04b1728`, 2026-10-24); the runs, scripts and tables are in [`v10-m4pro-snapshot-2/`](v10-m4pro-snapshot-2/) (`SUMMARY.md`, `COMPARE.md`). A snapshot records capacity; changes are decided by an ABAB against `main`.
 
 ## Ceilings
 
@@ -13,7 +13,7 @@ Closed-loop sweeps, 30 s a step, concurrency 1 to 1,024 (`--growth=4`), one sess
 | E1, one hot account | 9,054 (256) | 10,260 | 9,779 (256) | 10,210 |
 | E3, uniform | **≥ 7,099 (top step)** | ≥ 4,390 | **≥ 5,781 (top step)** | ≥ 3,169 |
 
-- **E3 rose 62% on PostgreSQL and 82% on MongoDB**, both still at the top step, so both are lower bounds. On PostgreSQL, D280 commits a transfer's appends to different partitions together ([its report](v10-pg-cross-partition.md): +57% at the top step on the local M4); MongoDB's gain comes from D276–D279, not separated here.
+- **E3 rose 62% on PostgreSQL and 82% on MongoDB**, both still at the top step, so both are lower bounds. On PostgreSQL, D280 commits a transfer's appends to different partitions together ([its report](https://github.com/Ahoo-Wang/Wow/blob/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-pg-cross-partition.md): +57% at the top step on the local M4); MongoDB's gain comes from D276–D279, not separated here.
 - The uniform E1 peaks are at the top step in both runs, so they bound the ceiling from below and do not compare.
 - PostgreSQL's Zipf rose 28%; the hot account fell 4–12%, within what one session per backend can tell.
 - No sweep failed a command.

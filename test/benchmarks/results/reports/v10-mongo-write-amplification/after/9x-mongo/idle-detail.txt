@@ -1,3 +1,0 @@
-== checkpoint updates by subscription
-== samples
-true
