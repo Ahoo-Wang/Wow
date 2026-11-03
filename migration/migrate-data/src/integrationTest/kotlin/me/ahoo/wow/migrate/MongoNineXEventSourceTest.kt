@@ -161,6 +161,15 @@ class MongoNineXEventSourceTest {
         val next = source.committedSince(order, first.createTime, committed.last().let { NineXPosition(it.createTime, it.id) }, 10)
         next.map { it.version }.assert().containsExactly(2, 3, 4)
         source.committedSince(order, Long.MAX_VALUE, null, 10).assert().isEmpty()
+
+        // A tail pass ends at the latest stream committed when it starts, that stream included.
+        val latest = source.lastCommitted(order)!!
+        latest.assert().isEqualTo(next.last().let { NineXPosition(it.createTime, it.id) })
+        source.committedSince(order, first.createTime, null, 10, until = latest).size.assert().isEqualTo(5)
+        val third = next[1].let { NineXPosition(it.createTime, it.id) }
+        source.committedSince(order, first.createTime, null, 10, until = third).map { it.version }.assert()
+            .containsExactly(1, 1, 2, 3)
+        source.lastCommitted(NineXAggregate("example-service", "nothing")).assert().isNull()
     }
 
     @Test

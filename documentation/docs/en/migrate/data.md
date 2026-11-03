@@ -193,7 +193,7 @@ Run steps 1 and 2, then `import` (step 4) without stopping 9.x. 9.x keeps changi
 
 ### Follow 9.x
 
-`tail` follows the streams 9.x commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap.
+`tail` follows the streams 9.x commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap. Each pass ends at the latest stream committed when it starts, so under steady writes a pass still ends, saves the tail's checkpoint and goes on to the next aggregate, and a stream that becomes visible within the window of its commit time is read by a later pass.
 
 The tail reads each event stream collection by a `(createTime, _id)` index, which 9.x does not create. Without it, the tail refuses to start and prints the command that creates it. Creating it writes to the 9.x store, so it is a prerequisite of the cut-over on the 9.x side: build it before the dual run, when it suits the 9.x database, or let the tool create it (`source.createCommitTimeIndex`). A store the tool reads with read-only credentials needs its owner to build it. `check` warns of each mapped collection without it.
 

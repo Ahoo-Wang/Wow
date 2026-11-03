@@ -38,7 +38,9 @@ import java.util.concurrent.atomic.AtomicLong
  * - [restart] walks every instance again, ignoring where the last full import stopped: the final complete pass once
  *   9.x has stopped writing (step 3).
  * - [lookbackMillis] is how far before the last commit time it read the tail scans again: 9.x nodes' clocks differ and
- *   a stream becomes visible after its `createTime`, so a stream committed earlier may appear later.
+ *   a stream becomes visible after its `createTime`, so a stream committed earlier may appear later. A pass ends at the
+ *   latest stream committed when it starts ([EventStreamImporter.tailOnce]), so a stream is read by a later pass when
+ *   it becomes visible within the look-back of its commit time, the 9.x nodes' clock differences included.
  * - [maxUnknownRetries] is how often an append whose outcome is unknown is tried again.
  */
 internal data class ImportOptions(
@@ -130,7 +132,8 @@ private fun seconds(millis: Long): String = "%.1f s".format(millis / 1000.0)
  * order from version 1; a checkpoint after every page of instances, so a stopped run resumes where it stopped.
  *
  * **Tail** ([tailOnce]): the streams committed since the full import started, by commit time, again and again until
- * cut-over; each new stream's instance is brought up to date from that version on.
+ * cut-over, each pass up to the latest stream committed when it starts; each new stream's instance is brought up to
+ * date from that version on.
  *
  * Both pass over the instances the map excludes ([MigrationPlan.excludes]).
  *
@@ -193,7 +196,15 @@ internal class EventStreamImporter(
 
     /**
      * One pass of the tail of [aggregate]: imports what 9.x committed since the last pass, less the look-back window,
-     * and moves the tail's checkpoint to the latest commit time it read. Its full import must be complete.
+     * up to the latest stream committed when the pass starts, and moves the tail's checkpoint to the latest commit time
+     * it read. Its full import must be complete.
+     *
+     * The pass ends there because, read to the end, a pass would not end while 9.x writes steadily, and its cursor only
+     * goes forward: a stream that becomes visible after the cursor went past its commit time is left to the next pass,
+     * which starts a look-back before this pass's latest commit time, so a pass longer than the look-back would lose
+     * it. Bounded, each pass starts no later than a look-back before the latest stream visible when the last one
+     * started, so a stream that becomes visible within the look-back of its commit time is read by a later pass; the
+     * streams a pass reads again are skipped with one read of the log ([tailPage]).
      */
     suspend fun tailOnce(aggregate: NineXAggregate): ImportProgress {
         val aggregatePlan = plan.of(aggregate)
@@ -205,10 +216,11 @@ internal class EventStreamImporter(
         val reached = HashMap<NineXAggregateId, Int>()
         val from = (checkpoint.tailedTo ?: checkpoint.startedAt) - options.lookbackMillis
         var latest = checkpoint.tailedTo ?: checkpoint.startedAt
+        val until = stats.timed(stats.read) { blocking { source.lastCommitted(aggregate) } }
         var after: NineXPosition? = null
-        while (true) {
+        while (until != null) {
             val page = stats.timed(stats.read) {
-                blocking { source.committedSince(aggregate, from, after, options.pageSize) }
+                blocking { source.committedSince(aggregate, from, after, options.pageSize, until) }
             }
             if (page.isEmpty()) {
                 break
