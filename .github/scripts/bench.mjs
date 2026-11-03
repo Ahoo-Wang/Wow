@@ -45,6 +45,16 @@ const HEAD_PG = arm('head', 'postgres');
 const BASE_PG = arm('base', 'postgres');
 const withProps = (arm, id, props) => ({ ...arm, id, props });
 export const SIGNALS = { 'bench.signals.enabled': true };
+// The industry comparison's arms (test/benchmarks/README.md): Wow with no bus (`--wow.transport=none`, X-33), as the
+// Axon server has none, and Axon Framework 4 (`test/benchmarks/axon-server`), each on the one PostgreSQL. The `axon`
+// build is made by the suite's own job (axonInstall).
+const WOW_NO_BUS = {
+  id: 'wow',
+  backend: 'postgres',
+  install: 'head',
+  serverArgs: '--wow.transport=none',
+};
+const AXON = { id: 'axon', backend: 'postgres', install: 'axon' };
 
 // The mixed suites' operations: writes while point reads and lists run (the query bulkheads, the write priority).
 const MIX = 'E1:50,E4-state:40,E4-list:10';
@@ -74,17 +84,19 @@ export const STATE_CACHE = 104857;
 const DIAG_RATE = 20;
 
 // Suite groups: `ab` compares the V10 baseline with the head (they need a baseline ref, and are skipped without one),
-// `head` measures the head alone.
+// `head` measures the head alone, `axon` the head against Axon Framework 4.
 //
 // kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
 // arms[1] / arms[0] (head/base).
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
-// stopped and restarted mid-measurement (CLUSTER).
+// stopped and restarted mid-measurement (CLUSTER). kind `sessions`: the arms in sessions ABBA, each with fixed rates
+// and closed-loop sweeps (SESSIONS).
 // The CPUs of a suite's processes (D224 note ③): the load generator on the last CPUs of the runner, the servers and
 // their containers on the others. Both arms of a paired suite get the same layout, so its ratios compare.
 // - A paired PostgreSQL suite gives the generator two: on one core it reached 0.91–0.98 of it before the servers
-//   saturated (2026-10-27, ABAB runs 40469058083 and 40486803393), so those suites measured the generator.
+//   saturated (2026-10-27, ABAB runs 40469058083 and 40486803393), so those suites measured the generator. The Axon
+//   comparison (kind `sessions`, on PostgreSQL) takes the same layout.
 // - A paired MongoDB suite gives the generator, Kafka, the store and the node one CPU each. On a shared two (the
 //   generator on the other two, 2026-10-28, A/A runs 40721764669 and 40743082112) the node, mongod and Kafka used all
 //   of them (about 0.6 + 0.95 + 0.45 cores), so a ratio measured whichever took the CPU first; the generator, its
@@ -120,11 +132,13 @@ export function layoutOf(cpus) {
 
 /**
  * The CPU layout of a suite of `definition` on a runner of `total` CPUs: `load` and `server`, and for a paired
- * MongoDB suite `bus` (Kafka) and `store` (mongod) on CPUs of their own; none below four CPUs.
+ * MongoDB suite `bus` (Kafka) and `store` (mongod) on CPUs of their own; none below four CPUs. A `sessions` suite
+ * is laid out as a paired one.
  */
 export function cpuLayout(definition, total) {
   if (!(total >= 4)) return {};
-  if (definition.kind !== 'paired') return cpuSplit(total, 1);
+  if (!['paired', 'sessions'].includes(definition.kind))
+    return cpuSplit(total, 1);
   if (!definition.arms.every(arm => arm.backend === 'mongo'))
     return cpuSplit(total, PAIRED_LOAD_CPUS);
   const servers = total - 3;
@@ -327,6 +341,17 @@ export const SUITES = {
     HEAD_MONGO,
     'E3 on MongoDB in fixed open-loop steps, as cliff-e3-pg.',
   ),
+  'axon-pg': {
+    group: 'axon',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    // As the local compare.sh seeds and primes.
+    seedConcurrency: 128,
+    arms: [WOW_NO_BUS, AXON],
+    answers:
+      'The industry comparison: Wow with no bus (wow.transport=none) against Axon Framework 4 on one PostgreSQL, one node each, as the local compare.sh runs it: per session E1 and E3 at a fixed rate, then closed-loop sweeps of E1 and E3.',
+  },
 };
 
 /** The suites of a group. */
@@ -873,6 +898,82 @@ export const SATURATION = {
   outlier: 3,
 };
 
+// kind `sessions` (the Axon comparison), as the local compare.sh runs it: one session per arm and round, ABBA (W A A W
+// for two rounds). `bench.sh up` seeds and primes the data set; on that session each fixed rate runs in open loop, 20 s
+// warm-up and 40 s measured, then each scenario's closed-loop sweep runs every step, 10 s warm-up and 30 s measured,
+// the concurrency growing fourfold from 1 to the paired suites' cap (V10 still gained past 1,024 on GitHub's 4-core
+// runners); then `down`. The fixed rates are the runner's, which both servers keep up with on its two server CPUs.
+export const SESSIONS = {
+  rates: [
+    { scenario: 'E1', rate: 500 },
+    { scenario: 'E3', rate: 150 },
+  ],
+  warmUp: 20,
+  measure: 40,
+  sweep: {
+    warmUp: 10,
+    step: 30,
+    growth: 4,
+    maxConcurrency: SATURATION.maxConcurrency,
+  },
+};
+
+/**
+ * A sweep's steps and its peak from the load generator's saturation.json. A peak at the highest step the sweep ran
+ * (`top`: the cap, or the step past which errors stopped it) or one the load generator bound is a lower bound.
+ */
+export function sweepOf(saturation) {
+  const steps = (saturation.steps ?? []).map(step => ({
+    concurrency: step.concurrency,
+    throughput: step.throughput,
+    errors: Object.values(step.errors ?? {}).reduce((a, b) => a + b, 0),
+    p50: step.p50Ms,
+    p99: step.p99Ms,
+    generatorCores: step.generatorCores,
+  }));
+  const top = Math.max(...steps.map(step => step.concurrency));
+  const peak = {
+    throughput: saturation.saturationThroughput,
+    concurrency: saturation.saturationConcurrency,
+    top: saturation.saturationConcurrency >= top,
+    generatorCores: saturation.generatorCores,
+    generatorCpus: saturation.availableProcessors,
+  };
+  return {
+    steps,
+    peak: {
+      ...peak,
+      lowerBound:
+        peak.top || generatorBound(peak.generatorCores, peak.generatorCpus),
+    },
+  };
+}
+
+/**
+ * The ratio of a sessions suite's first arm's closed-loop peaks in `scenario` to its second's: from the lowest first
+ * over the highest second to the highest over the lowest. A ratio from a lower-bound peak of the first arm is a lower
+ * bound too (`≥`), from one of the second an upper bound (`≤`), and from both neither (`~`).
+ */
+export function peakRatio(suite, scenario) {
+  const peaksOf = id =>
+    (suite.sweeps ?? [])
+      .filter(
+        run =>
+          run.arm === id && run.scenario === scenario && run.status === 'ok',
+      )
+      .map(run => run.peak);
+  const [first, second] = suite.arms.map(arm => peaksOf(arm.id));
+  if (first.length === 0 || second.length === 0) return undefined;
+  const values = peaks => peaks.map(peak => peak.throughput);
+  const lower = first.some(peak => peak.lowerBound);
+  const upper = second.some(peak => peak.lowerBound);
+  return {
+    lo: Math.min(...values(first)) / Math.max(...values(second)),
+    hi: Math.max(...values(first)) / Math.min(...values(second)),
+    bound: lower && upper ? '~' : lower ? '≥' : upper ? '≤' : '',
+  };
+}
+
 /** The arm of two saturations (id → `{throughput}`) to probe again: the lower, when they differ past the outlier. */
 export function saturationOutlier(saturations, ids) {
   const [a, b] = ids.map(id => saturations[id]?.throughput);
@@ -992,7 +1093,7 @@ export function runSettings({ event, inputs = {}, config }) {
 
 /**
  * The settings, checked. `suites` is `all` (every suite), names separated by commas or spaces, or the group names
- * `ab` and `head` among them.
+ * `ab`, `head`, `component` and `axon` among them.
  */
 export function resolveInputs({
   tier = DEFAULTS.tier,
@@ -1008,10 +1109,11 @@ export function resolveInputs({
   properties,
 }) {
   const groups = {
-    all: ['ab', 'head', 'component'],
+    all: ['ab', 'head', 'component', 'axon'],
     ab: ['ab'],
     head: ['head'],
     component: ['component'],
+    axon: ['axon'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -1187,6 +1289,8 @@ export function metrics(result) {
     allocated.length > 0 && allocated.every(Number.isFinite) && operations > 0
       ? allocated.reduce((a, b) => a + b, 0) / operations
       : undefined;
+  // PostgreSQL's transactions committed over the measured phase, per operation.
+  const commits = resources.stores?.postgres?.delta?.xact_commit;
   return {
     rate,
     throughput,
@@ -1246,6 +1350,10 @@ export function metrics(result) {
         ? ((serverCores + containerCores) * 1000) / throughput
         : undefined,
     allocatedBytesPerOp,
+    commitsPerOp:
+      Number.isFinite(commits) && operations > 0
+        ? commits / operations
+        : undefined,
   };
 }
 
@@ -1340,8 +1448,10 @@ export function roundOrder(arms, round) {
 
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
 export function pairs(suite, mode = CALIBRATED) {
-  // A component suite has a head and a baseline too, but no rounds: its comparison is its own table.
-  if (suite.kind === 'component' || suite.arms.length < 2) return [];
+  // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
+  // round: each compares in a table of its own.
+  if (['component', 'sessions'].includes(suite.kind) || suite.arms.length < 2)
+    return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
   const rounds = [...new Set(runs.map(run => run.round))].sort((x, y) => x - y);
@@ -1646,6 +1756,106 @@ function runTable(runs) {
   return lines;
 }
 
+/** A sweep's peak, `≥` when it is a lower bound, and why it is one. */
+const peakText = peak =>
+  `${peak.lowerBound ? '≥ ' : ''}${num(peak.throughput, 0)}/s at ${peak.concurrency}` +
+  (peak.top ? ' (top step)' : '') +
+  (generatorBound(peak.generatorCores, peak.generatorCpus)
+    ? ` (generator-bound, ${num(peak.generatorCores, 2)} of ${peak.generatorCpus} cores)`
+    : '');
+
+/** Milliseconds of CPU per operation from the average cores a run used at its throughput. */
+const perOp = (cores, throughput) =>
+  throughput > 0 && Number.isFinite(cores)
+    ? (cores * 1000) / throughput
+    : undefined;
+
+// What a sessions suite compares at its fixed rates, from each run's metrics.
+const SESSION_METRICS = [
+  ['Throughput', m => `${num(m.throughput)}/s`],
+  ['Failed', m => `${m.failed}`],
+  ['p50', m => `${num(m.p50, 2)} ms`],
+  ['p99', m => ms(m.p99)],
+  ['Node CPU ms/op', m => num(perOp(m.serverCores, m.throughput), 3)],
+  [
+    'PostgreSQL CPU ms/op',
+    m => num(perOp(m.containers?.postgres / 100, m.throughput), 3),
+  ],
+  ['PostgreSQL commits/op', m => num(m.commitsPerOp, 2)],
+];
+
+/** A sessions suite's comparison: each scenario's closed-loop peaks and their ratio, then the fixed rates. */
+function sessionTables(suite) {
+  const ids = suite.arms.map(arm => arm.id);
+  const lines = [
+    `Closed-loop peaks, in session order, and ${ids[0]}/${ids[1]} from the lowest ${ids[0]} peak over the highest ${ids[1]} peak to the highest over the lowest. \`≥\` marks a lower bound: a peak at the sweep's top step or at the load generator's limit, and a ratio from such a peak.`,
+    '',
+    `| Scenario | ${ids.join(' | ')} | ${ids[0]}/${ids[1]} |`,
+    `| --- | ${ids.map(() => '---').join(' | ')} | --- |`,
+  ];
+  for (const scenario of suite.scenarios ?? []) {
+    const peaks = id =>
+      (suite.sweeps ?? [])
+        .filter(run => run.arm === id && run.scenario === scenario)
+        .map(run =>
+          run.status === 'ok' ? peakText(run.peak) : `**${run.status}**`,
+        )
+        .join('; ') || '-';
+    const r = peakRatio(suite, scenario);
+    lines.push(
+      `| ${scenario} | ${ids.map(peaks).join(' | ')} | ${r ? `${r.bound ? `${r.bound} ` : ''}${num(r.lo, 2)}–${num(r.hi, 2)}` : '-'} |`,
+    );
+  }
+  lines.push(
+    '',
+    `At fixed rates (${suite.warmUp} s warm-up, ${suite.measure} s measured), in session order:`,
+    '',
+    `| Scenario | Rate | Metric | ${ids.join(' | ')} |`,
+    `| --- | --- | --- | ${ids.map(() => '---').join(' | ')} |`,
+  );
+  for (const { scenario, rate } of suite.fixedRates ?? []) {
+    const values = (id, format) =>
+      suite.runs
+        .filter(run => run.arm === id && run.scenario === scenario)
+        .map(run =>
+          run.status === 'ok' ? format(run.metrics) : `**${run.status}**`,
+        )
+        .join(', ') || '-';
+    for (const [label, format] of SESSION_METRICS) {
+      lines.push(
+        `| ${scenario} | ${num(rate, 0)}/s | ${label} | ${ids.map(id => values(id, format)).join(' | ')} |`,
+      );
+    }
+  }
+  return lines;
+}
+
+/** A sessions suite's sweeps step by step: each step's throughput and p99, or its errors when it failed some. */
+function sweepTable(suite) {
+  const sweeps = suite.sweeps ?? [];
+  const concurrencies = [
+    ...new Set(
+      sweeps.flatMap(run => (run.steps ?? []).map(step => step.concurrency)),
+    ),
+  ].sort((a, b) => a - b);
+  if (concurrencies.length === 0) return [];
+  return [
+    `| Sweep | Arm | Peak | ${concurrencies.map(c => `${c} clients`).join(' | ')} |`,
+    `| --- | --- | --- | ${concurrencies.map(() => '---').join(' | ')} |`,
+    ...sweeps.map(run => {
+      if (run.status !== 'ok') {
+        return `| ${run.name} | ${run.arm} | **${run.status}** | ${concurrencies.map(() => '').join(' | ')} |`;
+      }
+      const cells = concurrencies.map(concurrency => {
+        const step = run.steps.find(s => s.concurrency === concurrency);
+        if (!step) return '-';
+        return `${num(step.throughput, 0)}/s, ${step.errors > 0 ? `${step.errors} errors` : `p99 ${ms(step.p99)}`}`;
+      });
+      return `| ${run.name} | ${run.arm} | ${peakText(run.peak)} | ${cells.join(' | ')} |`;
+    }),
+  ];
+}
+
 function saturationTable(suite) {
   if (!suite.saturation || Object.keys(suite.saturation).length === 0)
     return [];
@@ -1682,12 +1892,20 @@ function primingLines(suite) {
   const runs = [...(suite.runs ?? []), ...(suite.probes ?? [])];
   const seconds = range(runs.map(run => run.metrics?.primeSeconds));
   const settled = range(runs.map(run => run.metrics?.settleSeconds));
+  const primedText = seconds
+    ? ` (${num(seconds.min, 0)}–${num(seconds.max, 0)} s)`
+    : '';
+  const settledText = settled
+    ? ` (${num(settled.min, 0)}–${num(settled.max, 0)} s)`
+    : '';
   const lines = [
-    suite.primed
-      ? `Primed: every run touched each of the ${suite.accounts} accounts once before its warm-up, untimed${seconds ? ` (${num(seconds.min, 0)}–${num(seconds.max, 0)} s)` : ''}, then waited until the nodes were quiet again${settled ? ` (${num(settled.min, 0)}–${num(settled.max, 0)} s)` : ''}.`
-      : suite.cold
-        ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
-        : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
+    suite.primed && suite.kind === 'sessions'
+      ? `Primed: each session touched each of the ${suite.accounts} accounts once after seeding, untimed${primedText}; every run on it first waited until the nodes were quiet${settledText}.`
+      : suite.primed
+        ? `Primed: every run touched each of the ${suite.accounts} accounts once before its warm-up, untimed${primedText}, then waited until the nodes were quiet again${settledText}.`
+        : suite.cold
+          ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
+          : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
   ];
   if (suite.accounts > STATE_CACHE) {
     lines.push(
@@ -1705,9 +1923,12 @@ export function renderSuite(suite) {
     '',
     definition?.answers ?? '',
     '',
-    `${suite.scenario ?? 'scenarios below'}${definition?.mix ? ` (${definition.mix})` : ''}, ${suite.distribution} keys over ${suite.accounts ?? '?'} accounts; warm-up ${suite.warmUp} s, measured ${suite.measure} s` +
+    `${suite.scenario ?? suite.scenarios?.join(' and ') ?? 'scenarios below'}${definition?.mix ? ` (${definition.mix})` : ''}, ${suite.distribution} keys over ${suite.accounts ?? '?'} accounts; warm-up ${suite.warmUp} s, measured ${suite.measure} s` +
       (suite.kind === 'paired'
         ? `, ${suite.fraction * 100}% of saturation, ${suite.repeats} round(s)`
+        : '') +
+      (suite.kind === 'sessions'
+        ? ` at the fixed rates, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency}; ${suite.repeats} round(s) of one session per arm, ABBA`
         : '') +
       (suite.extraRound
         ? ' + 1 (two runs of one arm differed by more than 5%)'
@@ -1747,6 +1968,18 @@ export function renderSuite(suite) {
       `Three nodes, requests round-robin, ${CLUSTER.measure} s measured; in the hand-over runs node 2 is stopped ${CLUSTER.stopAfter} s into the measured phase and restarted ${CLUSTER.down} s later.`,
       '',
       ...clusterTable(suite),
+      '',
+    );
+  }
+  if (suite.kind === 'sessions') {
+    lines.push(
+      `Sessions, in order: ${(suite.sessions ?? []).map(s => (s.status === 'ok' ? s.name : `${s.name} (**up ${s.status}**)`)).join(', ') || 'none'}.`,
+      '',
+      ...sessionTables(suite),
+      '',
+      "The sweeps' steps (throughput, and p99 or the errors):",
+      '',
+      ...sweepTable(suite),
       '',
     );
   }
@@ -1894,6 +2127,50 @@ function bench(benchPath, args, props, handover) {
 
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
 
+/** Where `installDist` puts the Axon server, under the repository. */
+export const AXON_INSTALL =
+  'test/benchmarks/axon-server/build/install/axon-server';
+
+/**
+ * The Axon server's distribution in `repo`, built unless it is there. bench.yml's build job makes Wow's server and the
+ * load generator; the Axon server is a build of its own (Axon Framework 4 runs on Spring Boot 3), so a suite that runs
+ * it builds it in its own job, before it measures anything, with the repository's Gradle wrapper. The measure job
+ * checks out `test/benchmarks` alone, sparse and with its other files fetched when wanted, so the wrapper's directory
+ * is checked out first. No Gradle or Kotlin daemon outlives the build to take the runner's CPUs. `run` runs a
+ * command in `repo`.
+ */
+export function axonInstall(
+  repo,
+  run = command =>
+    spawnSync(command[0], command.slice(1), { cwd: repo, stdio: 'inherit' }),
+) {
+  const install = join(repo, AXON_INSTALL);
+  if (existsSync(join(install, 'bin', 'axon-server'))) return install;
+  const commands = [
+    ...(existsSync(join(repo, 'gradle', 'wrapper'))
+      ? []
+      : [['git', 'sparse-checkout', 'add', 'gradle']]),
+    [
+      './gradlew',
+      '--no-daemon',
+      '--console=plain',
+      '-Pkotlin.compiler.execution.strategy=in-process',
+      '-p',
+      'test/benchmarks/axon-server',
+      'installDist',
+    ],
+  ];
+  for (const command of commands) {
+    const result = run(command);
+    if (result.status !== 0) {
+      throw new Error(
+        `Building the Axon server failed: ${command.join(' ')} (${result.status ?? result.signal})`,
+      );
+    }
+  }
+  return install;
+}
+
 /** Drives one suite through bench.sh; writes suite.json and summary.md to `out`. */
 export function runSuite(name, options) {
   const definition = SUITES[name];
@@ -1944,25 +2221,33 @@ export function runSuite(name, options) {
             },
           ]
         : pairedArms
-      : definition.kind === 'component'
-        ? installs.base && !aa
-          ? [definition.baseArm, definition.arm]
-          : [definition.arm]
-        : ['steps', 'capacity', 'cluster'].includes(definition.kind)
-          ? [definition.arm]
-          : [
-              ...new Map(
-                definition.runs.map(run => [run.arm.id, run.arm]),
-              ).values(),
-            ];
+      : definition.kind === 'sessions'
+        ? definition.arms
+        : definition.kind === 'component'
+          ? installs.base && !aa
+            ? [definition.baseArm, definition.arm]
+            : [definition.arm]
+          : ['steps', 'capacity', 'cluster'].includes(definition.kind)
+            ? [definition.arm]
+            : [
+                ...new Map(
+                  definition.runs.map(run => [run.arm.id, run.arm]),
+                ).values(),
+              ];
+  const sessions = definition.kind === 'sessions';
   const suite = {
     schema: 'wow-e2e-bench/suite/1',
     name,
     kind: definition.kind,
     scenario: definition.scenario,
+    ...(sessions ? { scenarios: definition.scenarios } : {}),
     distribution: definition.distribution,
-    warmUp,
-    measure,
+    // A sessions suite's fixed rates run as compare.sh's, its sweeps as SESSIONS.sweep says.
+    warmUp: sessions ? SESSIONS.warmUp : warmUp,
+    measure: sessions ? SESSIONS.measure : measure,
+    ...(sessions
+      ? { fixedRates: SESSIONS.rates, sweep: SESSIONS.sweep, sessions: [] }
+      : {}),
     repeats,
     fraction,
     p99LimitMs,
@@ -1990,24 +2275,39 @@ export function runSuite(name, options) {
     );
     writeFileSync(join(out, 'summary.md'), renderSuite(suite));
   };
-  // The options every bench.sh call of an arm takes: its backend and build (`--install`, when the build is
-  // not the one in the harness's own tree), the scenario and the keys.
-  // A mixed suite names its scenarios in --mix (the --scenario only labels the run's directory).
-  const common = (arm, scenario = definition.scenario) => [
+  // An arm's servers: its backend, its build (`--install`, when the build is not the one in the harness's own tree)
+  // and its server arguments, which a run on a session names again (bench.sh refuses one that differs from `up`'s).
+  const server = arm => [
     `--backend=${arm.backend}`,
     ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
+    ...(arm.serverArgs ? [`--server-args=${arm.serverArgs}`] : []),
+  ];
+  const seedConcurrency = definition.seedConcurrency ?? data.seedConcurrency;
+  const pins = [
+    ...(cpuset.load ? [`--load-cpus=${cpuset.load}`] : []),
+    ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+    ...(cpuset.store ? [`--store-cpus=${cpuset.store}`] : []),
+    ...(cpuset.bus ? [`--bus-cpus=${cpuset.bus}`] : []),
+  ];
+  // The options every bench.sh call of an arm takes: its servers, the scenario and the keys, and the seeding unless
+  // it runs on a session (`reuse`), which seeded and primed.
+  // A mixed suite names its scenarios in --mix (the --scenario only labels the run's directory).
+  const common = (arm, scenario = definition.scenario, reuse = false) => [
+    ...server(arm),
+    ...(reuse ? ['--reuse'] : []),
     `--scenario=${scenario}`,
     ...(definition.mix && scenario === definition.scenario
       ? [`--mix=${definition.mix}`]
       : []),
     `--distribution=${definition.distribution}`,
     `--accounts=${data.accounts}`,
-    `--seed-concurrency=${data.seedConcurrency}`,
-    ...(primed ? ['--prime'] : []),
-    ...(cpuset.load ? [`--load-cpus=${cpuset.load}`] : []),
-    ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
-    ...(cpuset.store ? [`--store-cpus=${cpuset.store}`] : []),
-    ...(cpuset.bus ? [`--bus-cpus=${cpuset.bus}`] : []),
+    ...(reuse
+      ? []
+      : [
+          `--seed-concurrency=${seedConcurrency}`,
+          ...(primed ? ['--prime'] : []),
+        ]),
+    ...pins,
   ];
   const propsOf = arm => ({ ...SIGNALS, ...arm.props });
   const measureRun = (
@@ -2023,7 +2323,7 @@ export function runSuite(name, options) {
         benchPath,
         [
           'run',
-          ...common(arm, phase.scenario),
+          ...common(arm, phase.scenario, phase.reuse),
           ...(phase.extra ?? []),
           `--rate=${rate.toFixed(1)}`,
           `--warm-up=${phase.warmUp}`,
@@ -2031,7 +2331,8 @@ export function runSuite(name, options) {
           `--label=${name}-${runName}`,
           `--out=${dir}`,
         ],
-        propsOf(arm),
+        // A run on a session starts no server: the session's took their properties at `up`.
+        phase.reuse ? undefined : propsOf(arm),
         phase.handover && { ...phase.handover, dir },
       ) === 0;
     const file = join(dir, 'result.json');
@@ -2350,6 +2651,90 @@ export function runSuite(name, options) {
       unsustained = run.sustained ? 0 : unsustained + 1;
       if (unsustained >= 2) break;
     }
+  } else if (sessions) {
+    suite.sweeps = [];
+    const sweep = (arm, session, scenario, round) => {
+      const runName = `${session}-${scenario.toLowerCase()}-sweep`;
+      const dir = join(out, runName);
+      const ok =
+        bench(benchPath, [
+          'saturate',
+          ...common(arm, scenario, true),
+          `--max-concurrency=${SESSIONS.sweep.maxConcurrency}`,
+          '--sweep',
+          `--growth=${SESSIONS.sweep.growth}`,
+          `--step=${SESSIONS.sweep.step}`,
+          `--warm-up=${SESSIONS.sweep.warmUp}`,
+          `--label=${name}-${runName}`,
+          `--out=${dir}`,
+        ]) === 0;
+      const file = join(dir, 'saturation.json');
+      const saturation = ok && existsSync(file) ? readJson(file) : undefined;
+      const run = { name: runName, arm: arm.id, round, scenario, dir: runName };
+      if (saturation?.steps?.length > 0) {
+        Object.assign(run, { status: 'ok' }, sweepOf(saturation));
+      } else {
+        run.status = 'failed';
+        suite.failures++;
+      }
+      suite.sweeps.push(run);
+      save();
+    };
+    for (let index = 0; index < repeats; index++) {
+      for (const arm of roundOrder(arms, index)) {
+        const session = `${index + 1}-${arm.id}`;
+        // `up` checks the suite's scenarios alone: the Axon server serves no other.
+        const up =
+          bench(
+            benchPath,
+            [
+              'up',
+              ...server(arm),
+              `--mix=${definition.scenarios.join(',')}`,
+              `--accounts=${data.accounts}`,
+              `--seed-concurrency=${seedConcurrency}`,
+              ...(primed ? ['--prime'] : []),
+              ...pins,
+              `--out=${join(out, `${session}-up`)}`,
+            ],
+            arm.props,
+          ) === 0;
+        suite.sessions.push({
+          name: session,
+          arm: arm.id,
+          round: index,
+          dir: `${session}-up`,
+          status: up ? 'ok' : 'failed',
+        });
+        if (!up) {
+          // A failed `up` stops what it started.
+          suite.failures++;
+          save();
+          continue;
+        }
+        try {
+          for (const { scenario, rate } of SESSIONS.rates) {
+            measureRun(
+              `${session}-${scenario.toLowerCase()}`,
+              arm,
+              rate,
+              index,
+              {
+                warmUp: SESSIONS.warmUp,
+                measure: SESSIONS.measure,
+                into: suite.runs,
+                scenario,
+                reuse: true,
+              },
+            );
+          }
+          for (const scenario of definition.scenarios)
+            sweep(arm, session, scenario, index);
+        } finally {
+          bench(benchPath, ['down']);
+        }
+      }
+    }
   } else {
     definition.runs.forEach((run, index) => {
       suite.rates[`${run.arm.id}@${run.rate}`] = run.rate;
@@ -2503,6 +2888,20 @@ export function renderReport(suites, meta = {}) {
         ),
       '',
     );
+  }
+  const comparisons = suites.filter(s => s.kind === 'sessions');
+  if (comparisons.length > 0) {
+    lines.push('## The industry comparison', '');
+    for (const suite of comparisons) {
+      lines.push(
+        `### ${labelOf(suite)}`,
+        '',
+        SUITES[suite.name]?.answers ?? '',
+        '',
+        ...sessionTables(suite),
+        '',
+      );
+    }
   }
   const capacities = suites.filter(s => s.kind === 'capacity');
   if (capacities.length > 0) {
@@ -2761,6 +3160,12 @@ if (
         p99LimitMs: env.P99_LIMIT_MS,
         properties: env.PROPERTIES,
       });
+      // A suite with an Axon arm builds the Axon server from the measured head, the harness's repository.
+      const axon = SUITES[inputs.suites[0]].arms?.some(
+        arm => arm.install === 'axon',
+      )
+        ? env.INSTALL_AXON || axonInstall(join(dirname(env.BENCH), '../../..'))
+        : undefined;
       const suite = runSuite(inputs.suites[0], {
         benchPath: env.BENCH,
         out: env.OUT,
@@ -2771,6 +3176,7 @@ if (
           [
             ['head', env.INSTALL_HEAD],
             ['base', env.INSTALL_BASE],
+            ['axon', axon],
           ].filter(([, dir]) => dir),
         ),
         refs: {
