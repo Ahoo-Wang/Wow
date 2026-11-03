@@ -20,6 +20,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.StateCacheOptions
+import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -333,6 +334,8 @@ enum class Routing {
  *   whether or not [SourceTopics.intake] is set. None by default.
  * - [handoff]: the bounds of the hand-over of the node's own commits to its subscriptions' tails in memory
  * ([HandoffOptions]).
+ * - [access]: how each context's built-in subscription `wow.access` stamps the access attributes over a history
+ *   ([AccessStampOptions]).
  * - [ledger]: where the node publishes its failure ledger: the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
@@ -356,6 +359,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     /** The snapshot maintenance of each context: claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
     val handoff: HandoffOptions = HandoffOptions(),
+    val access: AccessStampOptions = AccessStampOptions(),
 ) {
     /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
@@ -374,6 +378,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
         handoff: HandoffOptions = this.handoff,
+        access: AccessStampOptions = this.access,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -389,6 +394,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         ledger,
         snapshots,
         handoff,
+        access,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -400,11 +406,11 @@ class ServiceNodeOptions @InternalWowApi constructor(
         "ServiceNodeOptions(cluster=$cluster, routing=$routing, wait=$wait, subscription=$subscription, " +
             "appendQueue=$appendQueue, executor=$executor, stateCache=$stateCache, sharedStates=$sharedStates, " +
             "timers=$timers, schedules=$schedules, topicRouted=$topicRouted, ledger=$ledger, snapshots=$snapshots, " +
-            "handoff=$handoff)"
+            "handoff=$handoff, access=$access)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, wait, subscription, appendQueue, executor, stateCache, sharedStates, timers, schedules,
-        topicRouted, ledger, snapshots, handoff,
+        topicRouted, ledger, snapshots, handoff, access,
     )
 }
 
