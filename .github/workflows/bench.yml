@@ -43,7 +43,7 @@ on:
         options: [L1, L2, L3, L4]
         default: L2
       suites:
-        description: 'Suites or groups (all, ab, head) separated by commas, instead of the tier'
+        description: 'Suites or groups (all, ab, head, axon, jdk) separated by commas, instead of the tier'
         type: string
         default: ''
       dataset:
@@ -309,9 +309,14 @@ jobs:
             echo "INSTALL_BASE=$(ls -d "$RUNNER_TEMP/install-base"/*/)" >> "$GITHUB_ENV"
           fi
           ls repo/test/benchmarks/*/build/install/*/bin "$RUNNER_TEMP"/install-*/*/bin 2>/dev/null || true
+      # The benchmark runs on JDK 25 (D393), the last listed and so JAVA_HOME: the servers and the load generator. JDK 21
+      # (JAVA_HOME_21_X64) is the server's of the runtime calibration's other arm (group `jdk`) and the Axon server's
+      # build's; the build job keeps the bytecode at 21.
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
-          java-version: '21'
+          java-version: |
+            21
+            25
           distribution: 'temurin'
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:

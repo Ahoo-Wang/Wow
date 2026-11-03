@@ -214,9 +214,12 @@ checkShards.forEach { (name, projects) ->
 checkShards.values.flatten().groupBy { it }.filterValues { it.size > 1 }.keys.let { twice ->
     require(twice.isEmpty()) { "Modules in two check shards: $twice" }
 }
+// The end-to-end benchmark's load generator is no module, but `:check` runs its unit tests and detekt with the rest:
+// no module's check covers it, and the bench workflow only builds it.
+val checkedTools = includedProjects(":benchmark-load")
 val checkShardProjects: Set<Project> = when (val shard = providers.gradleProperty("wow.check.shard").orNull) {
-    null -> moduleProjects
-    "rest" -> moduleProjects - checkShards.values.flatten().toSet()
+    null -> moduleProjects + checkedTools
+    "rest" -> moduleProjects - checkShards.values.flatten().toSet() + checkedTools
     else -> requireNotNull(checkShards[shard]) { "No check shard $shard: ${checkShards.keys + "rest"}" }
 }
 
