@@ -65,9 +65,17 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
 
     private val ServerRequest.id: String get() = pathVariable("id")
 
-    /** Sends the command [of] gives and answers once it is handled, with the aggregate's version. */
+    /**
+     * Sends the command [of] gives and answers once it is handled, with the aggregate's version; after
+     * [WAIT_TIMEOUT_SECONDS] it answers 504 `timeout` instead, as Wow answers a wait that timed out, while the
+     * command goes on.
+     */
     private fun command(id: String, of: () -> Any): Mono<ServerResponse> =
-        answer(CompletableFuture.supplyAsync({ commands.sendAndWait<Long?>(of()) }, senders).thenApply { id to it })
+        answer(
+            CompletableFuture.supplyAsync({ commands.sendAndWait<Long?>(of()) }, senders)
+                .orTimeout(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .thenApply { id to it },
+        )
 
     /** Sends the transfer's `Prepare` and answers once the target's entry is stored. */
     private fun transfer(source: String, body: PrepareBody): Mono<ServerResponse> {
