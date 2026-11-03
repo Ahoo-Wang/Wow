@@ -176,7 +176,8 @@ class HttpClusterTest {
             val cluster = cluster()
             val (one, two, id) = cluster.forwarded()
             val gate = CompletableDeferred<Unit>().also { two.hold = it }
-            val router = PartitionedRouter(listOf(one.ownership), HttpClusterChannel(InternalHttp.client()), cluster.options)
+            val channel = HttpClusterChannel(InternalHttp.client())
+            val router = PartitionedRouter(listOf(one.ownership), channel, cluster.options)
             // The aggregate's lane on the owner is taken by a decide that waits for the gate.
             val held = async { router.route(one.model, cluster.command(id), null, nowhere) }
             eventually { two.decided.size == 1 }

@@ -155,8 +155,10 @@ class HttpClusterChannel(
         private val unused = AtomicBoolean(true)
 
         override suspend fun forward(request: ForwardCommand): ForwardReply {
+            // Encoded while the stream is still the caller's to release, should the request not encode.
+            val body = ClusterCodec.encode(request)
             check(unused.compareAndSet(true, false)) { "A stream carries one forward." }
-            return post(address, free, request)
+            return post(address, free, request.deadline, body)
         }
 
         override fun release() {
@@ -166,11 +168,11 @@ class HttpClusterChannel(
         }
     }
 
-    /** Posts [request] to [address] on the stream taken from [free], and returns the reply. */
-    private suspend fun post(address: String, free: Semaphore, request: ForwardCommand): ForwardReply {
-        val body = ClusterCodec.encode(request)
+    /** Posts the forward [body] due by [deadline] to [address] on the stream taken from [free]: the peer's reply. */
+    @Suppress("ThrowsCount") // Each way a reply fails to arrive, as its own ClusterChannelException.
+    private suspend fun post(address: String, free: Semaphore, deadline: Long, body: ByteArray): ForwardReply {
         val response = try {
-            exchange(address, free, request.deadline) { remaining ->
+            exchange(address, free, deadline) { remaining ->
                 HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.FORWARD_PATH))
                     .timeout((remaining + answerGrace).toJavaDuration())
                     .header("Content-Type", InternalHttp.JSON)
@@ -239,15 +241,7 @@ class HttpClusterChannel(
                 }
                 val attempt = client.sendAsync(build(remaining(deadline)), HttpResponse.BodyHandlers.ofByteArray())
                 sending = attempt
-                val response = try {
-                    // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
-                    withTimeoutOrNull(remaining(deadline) + answerGrace) { attempt.copy().await() }
-                        ?: throw HttpTimeoutException("No reply by the forward's deadline and its grace.")
-                } catch (failure: IOException) {
-                    if (!failure.isStreamLimit()) throw failure
-                    null
-                }
-                response?.let { return it }
+                responseTo(attempt, deadline)?.let { return it }
                 // Not sent: the peer's streams were all taken, one of them only just ended. Again after a pause.
                 logger.debug { "The streams to $address are all taken; the forward waits for one." }
                 delay(pause)
@@ -258,6 +252,22 @@ class HttpClusterChannel(
             if (last == null) free.release() else last.whenComplete { _, _ -> free.release() }
         }
     }
+
+    /**
+     * The response [attempt] gets, waited for until [deadline] and the [answerGrace] after it; null when the JDK refused
+     * it for the peer's limit, unsent.
+     */
+    private suspend fun responseTo(
+        attempt: CompletableFuture<HttpResponse<ByteArray>>,
+        deadline: Long
+    ): HttpResponse<ByteArray>? =
+        try {
+            // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
+            withTimeoutOrNull(remaining(deadline) + answerGrace) { attempt.copy().await() }
+                ?: throw HttpTimeoutException("No reply by the forward's deadline and its grace.")
+        } catch (failure: IOException) {
+            if (failure.isStreamLimit()) null else throw failure
+        }
 
     /** The time left until [deadline], at least a millisecond. */
     private fun remaining(deadline: Long): Duration = (deadline - clock()).coerceAtLeast(1).milliseconds

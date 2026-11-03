@@ -513,7 +513,8 @@ class ClusterTest {
                 override suspend fun reserve(address: String): ClusterStream = awaitCancellation()
             }
             val (events, observer) = observing()
-            val router = PartitionedRouter(listOf(one.ownership), full, fastOptions(forwardTimeout = 300.milliseconds), observer)
+            val options = fastOptions(forwardTimeout = 300.milliseconds)
+            val router = PartitionedRouter(listOf(one.ownership), full, options, observer)
 
             // Its wait ends with the forward's deadline: withdrawn, as a command still queued in its lane then is.
             val withdrawn = router.routeOn(one, one.command(id), one.waitOf(300.milliseconds))
@@ -582,7 +583,8 @@ class ClusterTest {
                 override suspend fun reserve(address: String): ClusterStream =
                     channel.reserve(address).also { now.addAndGet(1_000) }
             }
-            val lateRouter = PartitionedRouter(listOf(one.ownership), late, cluster.options, clock = clockOf { now.get() })
+            val clock = clockOf { now.get() }
+            val lateRouter = PartitionedRouter(listOf(one.ownership), late, cluster.options, clock = clock)
             val withdrawn = lateRouter.routeOn(one, one.command(id), one.waitOf(500.milliseconds, now.get()))
             withdrawn.committed.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
             reserved.get().assert().isEqualTo(2)
@@ -669,7 +671,7 @@ class ClusterTest {
         val outcomes = answers.flatMap { answer ->
             val channel = object : ClusterChannel {
                 override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
-                    delay(request.deadline - System.currentTimeMillis() + 20)
+                    delay(request.deadline - System.currentTimeMillis() + 100)
                     return answer()
                 }
 
@@ -678,17 +680,15 @@ class ClusterTest {
             val router = PartitionedRouter(listOf(one.ownership), channel, options, observer)
             listOf(
                 router.routeOn(one, one.command(id), null),
+                // The wait's deadline is the forward's.
                 router.routeOn(one, one.command(id), one.waitOf(200.milliseconds)),
+                // The forward's deadline comes first, and the wait's passes before the answer.
+                router.routeOn(one, one.command(id), one.waitOf(250.milliseconds)),
+                router.routeOn(one, one.command(id), one.waitOf(5.seconds)),
             )
         }
-        outcomes.map { it.committed.error!!.code }.assert().containsExactly(
-            ResultCodes.BUSY,
-            ResultCodes.WAIT_TIMEOUT,
-            ResultCodes.BUSY,
-            ResultCodes.WAIT_TIMEOUT,
-            ResultCodes.BUSY,
-            ResultCodes.WAIT_TIMEOUT,
-        )
+        val each = listOf(ResultCodes.BUSY, ResultCodes.WAIT_TIMEOUT, ResultCodes.WAIT_TIMEOUT, ResultCodes.BUSY)
+        outcomes.map { it.committed.error!!.code }.assert().containsExactlyElementsOf(each + each + each)
         one.decided.assert().isEmpty()
         two.decided.assert().isEmpty()
         events.filterIsInstance<ObservedEvent.ForwardFailed>().assert().isEmpty()
@@ -715,5 +715,10 @@ class ClusterTest {
 
     /** A wait of this node's that ends [within] from [now]. */
     private fun TestNode.waitOf(within: Duration, now: Long = System.currentTimeMillis()): WaitContext =
-        WaitContext("w-${cluster.nextId()}", Origin(name, address, "bank"), listOf(Hop.committed(CONTEXT)), now + within.inWholeMilliseconds)
+        WaitContext(
+            "w-${cluster.nextId()}",
+            Origin(name, address, "bank"),
+            listOf(Hop.committed(CONTEXT)),
+            now + within.inWholeMilliseconds
+        )
 }
