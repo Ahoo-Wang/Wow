@@ -378,7 +378,7 @@ fun `an order the ordering context refuses should park the checkout`() = sagaSpe
 
 ### 对端状态与发布的事件流 {#peer-states-and-published-streams}
 
-对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像 `OrderPaymentSagaTest` 那样；它的 `tags` 是提交之后聚合的标签，默认没有。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
+对端的状态没有本模块的模型溯源，它是用 `stateEvent(ref, state, vararg events, version, …)` 手工构建的提交，就像 `OrderPaymentSagaTest` 那样。读取另一个上下文发布的事件流的 Saga，拿到的是那个上下文的事件；当对方上下文的类不在测试的类路径上时，用 `publishedEvent(name, body, revision)` 按名字构建一个。`rejectedReceipt` 和 `committedReceipt` 为另一个处理函数派生的命令构建回执，交给接收回执的 `whenRejected` 和 `whenCommitted`。
 
 ## 投影与反应器 {#projections-and-reactors}
 

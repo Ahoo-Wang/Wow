@@ -35,10 +35,10 @@ spring:
 
 | 表 | 保存 |
 | --- | --- |
-| `wow_log__<context>__<aggregate>` | 一个聚合类型的日志：每条已提交的流一行，它的事实放在列里（版本、命令、请求、作用域、因果、操作人，标签为 `jsonb`），以及它的事件 |
+| `wow_log__<context>__<aggregate>` | 一个聚合类型的日志：每条已提交的流一行，它的事实放在列里（版本、命令、请求、作用域、因果、操作人，访问属性为 `jsonb`，未盖章时为 `null`），以及它的事件 |
 | `wow_log__<context>__partition` | 上下文日志的每个分区一行计数器 |
 | `wow_log_aggregate` | 每个上下文的日志有哪些聚合表 |
-| `wow_snapshot__<context>__<aggregate>` | 每个聚合一行：它最新的快照，状态和标签为 `jsonb`，直接在原处查询 |
+| `wow_snapshot__<context>__<aggregate>` | 每个聚合一行：它最新的快照，状态和访问属性为 `jsonb`，直接在原处查询 |
 | `wow_snapshot_table` | 每张快照表保存的状态修订号 |
 | `wow_timer__<context>__<aggregate>` | 一种聚合类型的定时命令，每个定时器一行，位于其属主的分区 |
 | `wow_timer_aggregate` | 每个上下文有哪些定时器表；到期读取在一条语句中合并它们 |

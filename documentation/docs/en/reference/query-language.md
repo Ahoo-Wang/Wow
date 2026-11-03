@@ -55,7 +55,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 | `version` | integer | The number of its events |
 | `ownerId`, `spaceId` | string or `null` | Its owner and space |
 | `deleted` | boolean | Whether it is deleted |
-| `tags` | object of string arrays | Its tags; `tags.<key>` names one |
+| `access` | object | Its declared access attributes; `access.<name>` names one, typed as the Manifest declares it |
 | `firstEventTime`, `lastEventTime` | integer | Its first and last event time, epoch milliseconds |
 | `operator`, `firstOperator` | object or `null` | Who sent the last command and the first: `{id, tenantId, crossScope}`; `null` for an anonymous caller. Filter on `operator.id` |
 | `schedules` | object | The schedules it keeps, each rule by its key: `type` (`at`, `after` or `cron`) with `epochMillis`, `millis`, or `expression`, `zone` and `misfire`; `schedules.<key>` names one |
@@ -63,7 +63,7 @@ The snapshot model's records hold the system fields and the state under `state`:
 
 A path the model does not know is 400 `wow.query.invalid`, `unknown-field`. The fields of a collection's elements are named only inside an `element-match` of that collection, relative to an element (`element-scope-required` otherwise). The [capability descriptor](#the-capability-descriptor) lists every path with the operators, sorts and aggregations it takes.
 
-The `events` model holds one record per committed stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `tags`, `operator`, and `events`, each `{name, revision, body}`. A filter on the events is an `element-match` on `events`, and an aggregation over them expands `events` first; [Query Event Streams](../guide/event-queries) shows both. A deployment may require every events query to name its aggregates (`wow.query.events.unpinned`).
+The `events` model holds one record per committed stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `access` (the aggregate's current access attributes, `owner` and `space` among them, `access.<name>` naming one; `null` for a stream not stamped), `operator`, and `events`, each `{name, revision, body}`. A filter on the events is an `element-match` on `events`, and an aggregation over them expands `events` first; [Query Event Streams](../guide/event-queries) shows both. A deployment may require every events query to name its aggregates (`wow.query.events.unpinned`).
 
 ## Filters
 
@@ -413,8 +413,6 @@ The descriptor's `analysis` says which of these the backend runs.
   ],
   "elements": [{ "path": "state.lines", "filter": true, "aggregate": true }],
   "dynamic": [
-    { "pattern": "tags.{key}", "types": ["string"], "kind": "array", "nullable": false,
-      "filter": { "operators": ["eq", "..."] }, "sort": { "paged": false, "cursor": false }, "aggregate": { "groups": ["terms"], "...": "..." } },
     { "pattern": "state.deliveryDates.{key}", "types": ["string"], "kind": "scalar", "nullable": true, "semantic": { "type": "temporal-date" },
       "filter": { "operators": ["eq", "gt", "..."] }, "sort": { "paged": true, "cursor": false }, "aggregate": { "groups": ["terms", "date-histogram"], "...": "..." } }
   ],
@@ -423,7 +421,7 @@ The descriptor's `analysis` says which of these the backend runs.
 ```
 
 - `fields` lists each path with its value types, whether it may be `null`, its `semantic` type when it has one (a date, an epoch time, money, a duration, a reference), the operators its `filter` takes, whether it sorts in a page and in a cursor, and how it groups and aggregates. `elements` are the collections an `element-match` or `elements` entry reaches.
-- `dynamic` lists the patterns of map keys, such as `tags.{key}` or a state's `Map<String, LocalDate>`. Each entry says what a field entry says of any one key: `nullable`, `semantic`, `filter`, `sort` and `aggregate`, so a client renders and queries `state.deliveryDates.berlin` as it would a declared field. A semantic annotation on a map property describes its values: `@QueryTemporal` on a `Map<String, Long>` makes each value an epoch time. A key that is also declared on its own is listed in `fields` and named in the pattern's `excludedKeys`.
+- `dynamic` lists the patterns of map keys, such as a state's `Map<String, LocalDate>`. Each entry says what a field entry says of any one key: `nullable`, `semantic`, `filter`, `sort` and `aggregate`, so a client renders and queries `state.deliveryDates.berlin` as it would a declared field. A semantic annotation on a map property describes its values: `@QueryTemporal` on a `Map<String, Long>` makes each value an epoch time. A key that is also declared on its own is listed in `fields` and named in the pattern's `excludedKeys`.
 - A `terms` group over an array field groups a record under each distinct element, so a record with `["a", "b", "a"]` counts once in `a` and once in `b`; a record with no element, an empty or absent array, joins the `null` group. Every backend that groups an array does it this way; one that cannot says so by leaving `terms` out of the field's `aggregate.groups`, and a query that asks for it is refused with `unsupported-capability`.
 - `record.rootOperators` are the operators that name no field; the combinators `and`, `or` and `nor` apply everywhere.
 - `version` is a digest of the descriptor. The response carries it as its `ETag`; a `GET` with `If-None-Match: "<version>"` answers 304 while the descriptor stays the same, so a client caches it and asks again cheaply.

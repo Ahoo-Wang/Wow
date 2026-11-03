@@ -1,6 +1,6 @@
 ---
 title: Rebuild and Replay
-description: Rebuild read models, snapshots and tags from the log, the only fact; a new subscription from the beginning, snapshot rebuilds by revision or by request, and tag backfills.
+description: Rebuild read models and snapshots from the log, the only fact; a new subscription from the beginning, snapshot rebuilds by revision or by request, and the access attributes of streams written before them.
 outline: deep
 ---
 

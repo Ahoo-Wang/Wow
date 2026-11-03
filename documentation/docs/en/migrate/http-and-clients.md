@@ -77,7 +77,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 - **Time zones.** A relative-time filter without `zoneId` reads its days in UTC, where 9.x used the server's zone: pass `zoneId` where a local day was meant.
 - **Commands whose body names their aggregate.** Such a command has no route with `{id}`: a client that sent it to one gets 404, so send it to the route without `{id}`, the id in its body.
 - **Event names.** 9.x `bodyType` class names become `name` values; saved filters and screens keyed on them change.
-- **Snapshot fields.** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator`, `firstOperator` and `tags` remain.
+- **Snapshot fields.** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator` and `firstOperator` remain, and `tags` became `access`, the aggregate's access attributes.
 
 ## Steps
 

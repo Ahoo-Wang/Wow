@@ -21,7 +21,7 @@ const order = await orderStates.get('order-1');
 console.log(order.version, order.state.status, order.state.totalAmount);
 ```
 
-The snapshot holds the state with the aggregate's `aggregateId`, `tenantId` and `version`, its `ownerId` and `spaceId`, its `tags`, whether it is `deleted`, and its first and last event times and operators. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`; `find(id, options?)` answers `undefined` for it instead, and still rejects any other 404. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
+The snapshot holds the state with the aggregate's `aggregateId`, `tenantId` and `version`, its `ownerId` and `spaceId`, its declared `access` attributes, whether it is `deleted`, and its first and last event times and operators. An aggregate that does not exist rejects with 404 `wow.aggregate.not-found`; `find(id, options?)` answers `undefined` for it instead, and still rejects any other 404. `totalAmount` is a `BigDecimal` on the server, so it is a `string` here, with its digits exactly as written.
 
 The options pick another state:
 
@@ -54,7 +54,7 @@ A version the aggregate does not reach in time rejects with 409 `wow.query.min-v
 
 ## Query snapshots
 
-`<Aggregate>SnapshotQueryClient` queries the aggregate's snapshots, at `POST /<context>/<aggregate>/snapshot/query`. A snapshot record holds the state under `state`, beside the system fields (`aggregateId`, `version`, `ownerId`, `tags`, `lastEventTime` and the rest), so a filter names `state.status`, not `status`:
+`<Aggregate>SnapshotQueryClient` queries the aggregate's snapshots, at `POST /<context>/<aggregate>/snapshot/query`. A snapshot record holds the state under `state`, beside the system fields (`aggregateId`, `version`, `ownerId`, `access`, `lastEventTime` and the rest), so a filter names `state.status`, not `status`:
 
 <!-- typecheck-context
 import { OrderSnapshotQueryClient } from './generated/ordering/index.js';
