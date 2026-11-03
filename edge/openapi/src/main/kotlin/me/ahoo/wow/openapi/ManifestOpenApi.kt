@@ -23,7 +23,9 @@ import me.ahoo.wow.manifest.withoutClassNames
  * - Every route of every command (`CommandManifest.routes`): with the aggregate id in the
  *   path and, for a creation or a mounted command, without it; the Wow headers (`Wow-Request-Id`,
  *   `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Scope`, `Wow-Space`, `If-Match`), the command's schema as the body, the
- *   [command result][WowSchemas.COMMAND_RESULT] as JSON or as server-sent events, one per hop.
+ *   [command result][WowSchemas.COMMAND_RESULT] as JSON or as server-sent events, one per hop. An internal command
+ *   (`@InternalCommand`) is left out, with the schemas only it reaches ([PublicCommands]): the public port does not
+ *   serve it.
  * - The lifecycle commands each aggregate lists, the state reads and the trace,
  *   the query routes of each query model and their descriptors.
  * - The framework's endpoints under `/wow`: the Manifest, this document and the datasets,
@@ -61,7 +63,7 @@ object ManifestOpenApi {
      * name no JVM class ([withoutClassNames]).
      */
     fun write(served: Manifest, options: OpenApiOptions = OpenApiOptions()): Map<String, Any?> {
-        val manifest = served.withoutClassNames()
+        val manifest = PublicCommands.of(served.withoutClassNames())
         // A lifecycle command's body the Manifest holds (keyed by its name) is the Manifest's, in place of the
         // framework's; the framework's describes the other system commands' bodies, with their bounds.
         val framework = WowSchemas.all().filterKeys { it !in WowSchemas.LIFECYCLE || it !in manifest.defs }
