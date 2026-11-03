@@ -30,6 +30,7 @@ outline: deep
 | 命令校验（Jakarta Bean Validation） | 替代 | 在准入时校验：命令类上的 Jakarta 约束，对每条命令（HTTP、进程内、Saga、定时器、其他上下文）检查，回答 `wow.command.invalid`（400）。需要状态的规则是拒绝。 |
 | `@VoidCommand` | 放弃 | 发送命令，等待不超过 `accepted`。 |
 | 自定义路由（`@CommandRoute`、`@AggregateRoute`） | 放弃 | 路由从 Manifest 推出：`POST /{context}/{aggregate}/{id}/{command}`，创建命令不带 `{id}`。 |
+| 不开放 HTTP 路由的命令（`@CommandRoute(enabled = false)`） | 替代 | `@InternalCommand`：公开端口不挂它的路由，内部端口受理调用它的服务（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。 |
 | `Command-*` 请求头 | 替代 | `Wow-Wait`、`Wow-Wait-Timeout`、`Wow-Request-Id`、`If-Match`、`Wow-Scope`、`Wow-Space`。 |
 | 请求头别名 | 放弃 | 在你的网关里改写请求头。 |
 | 从请求头复制的请求事实 | 保留 | 一份配置的请求头列表，加上已认证的应用、远程地址和 User-Agent。 |

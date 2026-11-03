@@ -79,6 +79,13 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 - Targets: `PROPERTY`, `FIELD`
 - Parameters: `description: String = ""`, `status: Int = 422`
 
+## `@InternalCommand`
+
+[InternalCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/InternalCommand.kt): A command only the platform sends: the service's own sagas, schedules and in-process gateway, and the other services that call it on its internal port, as `wow.callers.<service>` permits them.
+
+- Targets: `CLASS`
+- Parameters: None.
+
 ## `@MountedCommand`
 
 [MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.

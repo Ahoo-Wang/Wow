@@ -15,7 +15,7 @@ A service's routes come from its Manifest, and so does their OpenAPI document: e
 | `GET /wow/openapi` | At run time, from the service's merged Manifest (`wow.http.openapi.enabled`, on by default) |
 | `build/wow/openapi.json` | At build time, from the Gradle plugin's `generateWowOpenApi`, for tools that need it before the service runs |
 
-The document is OpenAPI 3.1, with JSON Schema 2020-12 schemas. It declares no `jsonSchemaDialect`: OpenAPI 3.1's default dialect is JSON Schema 2020-12 with OpenAPI's own keywords added, so the schemas read the same under it, and Swagger UI takes no other dialect. It describes the public port only: the internal port's calls, cluster channel and signals are never in it.
+The document is OpenAPI 3.1, with JSON Schema 2020-12 schemas. It declares no `jsonSchemaDialect`: OpenAPI 3.1's default dialect is JSON Schema 2020-12 with OpenAPI's own keywords added, so the schemas read the same under it, and Swagger UI takes no other dialect. It describes the public port only: the internal port's calls, cluster channel and signals are never in it, and neither are the internal commands (`@InternalCommand`), which the public port does not serve, nor the schemas only they use ([Keep a command internal](./aggregates#keep-a-command-internal)).
 
 ## With springdoc
 
@@ -34,4 +34,4 @@ Springdoc's documents (`/v3/api-docs`, `/v3/api-docs/wow`) declare how a caller 
 
 ## Clients from the document
 
-TypeScript clients are generated from the Manifest rather than from the OpenAPI document, so they keep what OpenAPI cannot say, such as wait plans and query fields. The OpenAPI document serves every other language and tool.
+TypeScript clients are generated from the Manifest rather than from the OpenAPI document, so they keep what OpenAPI cannot say, such as wait plans and query fields; they leave the internal commands out as the document does. The OpenAPI document serves every other language and tool.

@@ -107,6 +107,29 @@ data class RestockProduct(
 
 Wow 10 只按 `@AggregateId` 从命令体取得命令的聚合，从不按属性名推断。因此，命令有名为 `id` 的 `String` 属性却没有 `@AggregateId`，而它本可以指明聚合时，编译器会发出警告：这个 `id` 可以是存储的或计算的，可以是命令自己的，也可以来自接口，例如 9.x 的 `Identifier.id`。如果这个 `id` 指明的是聚合，就给它标注 `@AggregateId`：命令体指明聚合的 9.x 命令都需要这样做，其中包括 Saga 发送时不带 ID 的创建命令。如果 9.x 从路径绑定它，它只是重复了路由：删掉它，改读 `command.ref.id`（[命令体承载什么](../migrate/source#what-a-command-body-holds)）。指明其他东西的 `id` 保留不动，在命令类上标注 `@Suppress("UnmarkedAggregateId")` 即可消除警告。
 
+### 只在内部受理的命令 {#keep-a-command-internal}
+
+有些命令记录的是服务自己的流程得出的结果，而不是客户端的请求：支付网关的答复、定时器的判定、只由 Saga 走的一步。在命令类上标注 `@InternalCommand`，公开端口就不受理它：
+
+<!-- sample: examples/eshop/payment/payment-api/src/main/kotlin/me/ahoo/wow/example/eshop/payment/api/payment/PaymentCommands.kt#internal -->
+
+```kotlin
+/**
+ * Records that the gateway approved the payment, under its [transactionId]. The gateway saga sends it, and only it:
+ * the command is internal, so the public port serves no route of it, and a client cannot confirm a payment the gateway
+ * never charged.
+ */
+@InternalCommand
+@Summary("Confirm a payment")
+data class ConfirmPayment(
+    val transactionId: String,
+)
+```
+
+内部命令只由平台发送：本服务的 Saga 与定时器、进程内的 `CommandClient`，以及别的服务经内部端口的调用；后者与任何命令一样，受 [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) 的许可约束（[调用其他服务](./calling-services)）。Manifest 把它记为 `"internal": true`，路由与同类命令一样照写，内部端口按相同路径受理。公开端口不挂这些路由：在公开端口请求 `POST /eshop-payment/payment/{id}/confirm-payment` 答 `404`，与任何未知路径的 problem 相同，不透露这条命令存在。公开端口的 OpenAPI 文档与 `wow-generator` 生成的客户端都不含这条命令，也不含只有它用到的类型。内部端口受理的每次调用仍由命令授权器裁决。
+
+eShop 的 `ConfirmPayment` 与 `FailPayment` 是内部命令：网关 Saga 用它们记录网关的答复；买家若能发送 `ConfirmPayment`，就能不付款而完成支付。把公开命令改为内部会删去它的公开路由，兼容检查把它报告为破坏；把内部命令改为公开则增加路由，是加法（[Manifest 与兼容性](./manifest#the-compatibility-check)）。系统命令（包括生命周期命令）从不是内部命令。
+
 ## 编写根 {#write-the-root}
 
 根是一个标注了 `@AggregateRoot`、由它的状态构造的类。它的命令函数做出决定：每个函数接收一条命令，返回它的决定。

@@ -63,7 +63,7 @@ submitted.ref.assert().isEqualTo(ref)
 | `service`，默认 | 对端的内部端口，地址是 `url` | 本服务，声明自己，代表它发送时指明的调用方 |
 | `user` | 对端的公开路由，地址是 `public-url` | 终端用户，转发当前正在处理的请求的请求头（`wow.peer.forwarded-headers`，默认是 `Authorization`） |
 
-在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.callers` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。Saga 的同步调用也发往这个 `url`，模式由 `wow.peer.mode`（或对端自己的 `mode`）决定。basket 服务就是这样访问 ordering 的内部端口的：
+在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.callers` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。Saga 的同步调用也发往这个 `url`，模式由 `wow.peer.mode`（或对端自己的 `mode`）决定。只有 service 模式能送达对端的内部命令（`@InternalCommand`，[只在内部受理的命令](./aggregates#keep-a-command-internal)）：user 模式调用的公开路由对它们答 `404`。basket 服务就是这样访问 ordering 的内部端口的：
 
 <!-- sample: examples/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 

@@ -30,6 +30,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Command validation (Jakarta Bean Validation) | Replaced | Validation at admission: Jakarta constraints on the command class, checked for every command (HTTP, in process, sagas, timers, other contexts) and answered `wow.command.invalid` (400). A rule that needs the state is a rejection. |
 | `@VoidCommand` | Dropped | Send the command and do not wait past `accepted`. |
 | Custom routes (`@CommandRoute`, `@AggregateRoute`) | Dropped | Routes are derived from the Manifest: `POST /{context}/{aggregate}/{id}/{command}`, or without `{id}` for a creation. |
+| A command without an HTTP route (`@CommandRoute(enabled = false)`) | Replaced | `@InternalCommand`: the public port serves no route of it, and the internal port takes it from the services that call it ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). |
 | `Command-*` request headers | Replaced | `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Request-Id`, `If-Match`, `Wow-Scope`, `Wow-Space`. |
 | Request header aliases | Dropped | Rewrite the headers in your gateway. |
 | Request facts copied from headers | Kept | A configured list of headers, plus the authenticated application, the remote address and the user agent. |

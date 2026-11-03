@@ -63,7 +63,7 @@ A peer listed under `wow.peers.<context>` is reached over HTTP, in one of two mo
 | `service`, the default | The peer's internal port, at `url` | This service, naming itself, acting for the caller it sends as |
 | `user` | The peer's public routes, at `public-url` | The end user, forwarding the headers of the request being served (`wow.peer.forwarded-headers`, `Authorization` by default) |
 
-In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.callers`, if any, limit what it may call and read. The sagas' synchronous calls go to the same `url`, and `wow.peer.mode` (or a peer's own `mode`) picks the mode. The basket service reaches the ordering's internal port this way:
+In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.callers`, if any, limit what it may call and read. The sagas' synchronous calls go to the same `url`, and `wow.peer.mode` (or a peer's own `mode`) picks the mode. Only service mode reaches a peer's internal commands (`@InternalCommand`, [Keep a command internal](./aggregates#keep-a-command-internal)): its public routes, which user mode calls, answer them `404`. The basket service reaches the ordering's internal port this way:
 
 <!-- sample: examples/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
