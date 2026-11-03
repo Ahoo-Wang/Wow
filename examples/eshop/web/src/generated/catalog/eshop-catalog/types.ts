@@ -2,15 +2,6 @@
 
 
 /**
- * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
- * - key: `wow.lifecycle.ApplyTags`
- */
-export interface ApplyTags {
-  tags: Record<string, string[]>;
-}
-
-
-/**
  * A brand was added to the catalog
  * - key: `me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated`
  */

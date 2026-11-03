@@ -170,13 +170,13 @@ class HostQueryTest {
             queries.snapshots(ACCOUNT).assert().isNull()
             queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
             val events = queries.events(ACCOUNT)!!
-            fun eventsOf(tier: String) = runBlocking {
-                val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
-                events.list(ListQuery(AggregateIdFilter(id), limit = 10), caller).toList()
+            fun eventsOf(caller: Caller) = runBlocking {
+                events.list(ListQuery(AggregateIdFilter(id), limit = 10), QueryCaller(caller)).toList()
             }
-            // Review R3.3-3: a caller whose tags the account's do not match reads none of its events.
-            eventsOf("gold").assert().isEmpty()
-            eventsOf("standard").map { it["version"].asInt() }.assert().containsExactly(1)
+            // Review R3.3-3: the account has no tags (D390), so a caller of a tier, a key missing on the account,
+            // reads none of its events; a caller without ABAC attributes is not restricted.
+            eventsOf(Caller(attributes = mapOf("abac.$TIER" to listOf("gold")))).assert().isEmpty()
+            eventsOf(Caller()).map { it["version"].asInt() }.assert().containsExactly(1)
         }
     }
 
@@ -293,32 +293,6 @@ class HostQueryTest {
                     QueryCaller.IN_PROCESS.copy(caller = Caller()),
                 ).toList()
             }.assert().hasSize(1)
-        }
-    }
-
-    @Test
-    fun `a tag-based query policy should follow the tags the state derives`() {
-        startHost(
-            "wow.query.abac.enabled" to true,
-            "wow.query.abac.match-missing-tag-key" to false,
-            sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
-        ).use { host ->
-            val id = host.openAccount("mona")
-            val snapshots = host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT)!!
-            fun visibleTo(tier: String): Boolean = runBlocking {
-                val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
-                snapshots.list(ListQuery(AggregateIdFilter(id), limit = 10), caller).toList().isNotEmpty()
-            }
-            eventually { visibleTo("standard") }
-            visibleTo("gold").assert().isFalse()
-
-            host.post("/bank/account/$id/deposit", """{"amount":$GOLD_BALANCE}""").status.assert().isEqualTo(200)
-
-            // The deposit flips the derived tier: the account leaves the standard callers' view for the gold ones'.
-            eventually { visibleTo("gold") }
-            visibleTo("standard").assert().isFalse()
-            host.context.getBean(InMemoryQueryStorage::class.java).records(ACCOUNT).single()["tags"][TIER]
-                .values().map { it.asString() }.assert().containsExactly("gold")
         }
     }
 

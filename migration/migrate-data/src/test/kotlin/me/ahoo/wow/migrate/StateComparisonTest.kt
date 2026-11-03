@@ -98,7 +98,7 @@ class StateComparisonTest {
     }
 
     @Test
-    fun `a differing value, deleted mark, scope or tag is a difference`() = runTest {
+    fun `a differing value, deleted mark or scope is a difference, and the 9x tags are not compared`() = runTest {
         imported()
         val tampered = changed("order-snapshot.json") { node ->
             (node.get("state") as ObjectNode).put("status", "PAID")
@@ -108,7 +108,7 @@ class StateComparisonTest {
             node.putObject("tags").putArray("region").add("east")
         }
         comparison(listOf(tampered)).compare(order).kinds.keys.assert()
-            .containsExactlyInAnyOrder("status", "\$deleted", "\$ownerId", "\$spaceId", "\$tags")
+            .containsExactlyInAnyOrder("status", "\$deleted", "\$ownerId", "\$spaceId")
     }
 
     @Test

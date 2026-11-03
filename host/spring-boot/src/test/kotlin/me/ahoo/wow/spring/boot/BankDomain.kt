@@ -29,9 +29,8 @@ const val FROZEN = "bank.account.frozen"
 /** A deposit of this amount is rejected as [FROZEN]. */
 const val FROZEN_AMOUNT = 13L
 
-/** The tag key an account derives from its balance: `gold` from [GOLD_BALANCE], else `standard`. */
+/** An ABAC attribute a caller may carry; an account has no tags (D390), so none of it. */
 const val TIER = "tier"
-const val GOLD_BALANCE = 100L
 
 data class OpenAccount(val owner: String = "")
 
@@ -87,8 +86,6 @@ class BankModels : ModelProvider {
                 }
                 evolve<AccountOpened> { owner = it.owner }
                 evolve<Deposited> { balance += it.amount }
-                // The account's tier follows its balance (decision D220): a query policy by tags follows it too.
-                tags { mapOf(TIER to listOf(if (it.balance >= GOLD_BALANCE) "gold" else "standard")) }
             },
         )
     }

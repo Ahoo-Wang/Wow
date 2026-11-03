@@ -38,7 +38,6 @@ class CallPermitsTest {
             Lifecycle.RESTORE_AGGREGATE,
             Lifecycle.TRANSFER_OWNER,
             Lifecycle.TRANSFER_SPACE,
-            Lifecycle.APPLY_TAGS,
             SnapshotRebuilds.REBUILD,
             ScheduleJobs.ENABLE,
             ScheduleJobs.DISABLE,
@@ -59,9 +58,9 @@ class CallPermitsTest {
         val all = CallPermits(mapOf("basket-service" to listOf(" wow.lifecycle.* ")))
         all.allows(basket, Lifecycle.TRANSFER_OWNER).assert().isTrue()
         all.allows(basket, SnapshotRebuilds.REBUILD).assert().isFalse()
-        val qualified = CallPermits(mapOf("basket-service" to listOf("shop.cart.wow.lifecycle.ApplyTags")))
-        qualified.allows(basket, Lifecycle.APPLY_TAGS).assert().isTrue()
-        qualified.refusal(basket, "shop", "order", Lifecycle.APPLY_TAGS).assert().isNotNull()
+        val qualified = CallPermits(mapOf("basket-service" to listOf("shop.cart.wow.lifecycle.TransferSpace")))
+        qualified.allows(basket, Lifecycle.TRANSFER_SPACE).assert().isTrue()
+        qualified.refusal(basket, "shop", "order", Lifecycle.TRANSFER_SPACE).assert().isNotNull()
         CallPermits(mapOf("basket-service" to listOf("*.wow.*"))).allows(basket, ScheduleJobs.ENABLE).assert().isTrue()
     }
 

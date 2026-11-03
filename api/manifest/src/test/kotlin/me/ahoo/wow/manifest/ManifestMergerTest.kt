@@ -38,12 +38,12 @@ class ManifestMergerTest {
                 "/billing/cart/{id}/create-cart",
                 "/billing/cart/create-cart",
                 "/billing/cart/{id}/put-item",
-                "/billing/cart/{id}/wow.lifecycle.apply-tags",
+                "/billing/cart/{id}/wow.lifecycle.transfer-space",
                 "/billing/cart/{id}",
                 "/shop/cart/{id}/create-cart",
                 "/shop/cart/create-cart",
                 "/shop/cart/{id}/put-item",
-                "/shop/cart/{id}/wow.lifecycle.apply-tags",
+                "/shop/cart/{id}/wow.lifecycle.transfer-space",
                 "/shop/cart/{id}",
             )
     }
@@ -144,8 +144,8 @@ class ManifestMergerTest {
                 "POST /shop/basket/create-basket",
                 "POST /shop/basket/{id}/put-item",
                 "POST /shop/basket/put-item",
-                "POST /shop/basket/{id}/wow.lifecycle.apply-tags",
-                "POST /shop/basket/wow.lifecycle.apply-tags",
+                "POST /shop/basket/{id}/wow.lifecycle.transfer-space",
+                "POST /shop/basket/wow.lifecycle.transfer-space",
                 "DELETE /shop/basket/{id}",
                 "DELETE /shop/basket",
             )

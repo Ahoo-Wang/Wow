@@ -85,10 +85,10 @@ class CommandRoutesTest {
 
     @Test
     fun `an owned lifecycle command should have its route by id and the caller's own`() {
-        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.ApplyTags", owned = true).routes.assert()
+        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.TransferSpace", owned = true).routes.assert()
             .containsExactly(
-                RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.apply-tags"),
-                RouteManifest("POST", "/shop/basket/wow.lifecycle.apply-tags"),
+                RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.transfer-space"),
+                RouteManifest("POST", "/shop/basket/wow.lifecycle.transfer-space"),
             )
         val delete = SystemCommands.lifecycle("shop", "basket", SystemCommands.DELETE_AGGREGATE, owned = true)
         delete.system.assert().isTrue()
@@ -100,8 +100,8 @@ class CommandRoutesTest {
         // Not owned, a lifecycle command keeps its route by id alone.
         SystemCommands.lifecycle("shop", "basket", SystemCommands.DELETE_AGGREGATE).routes.assert()
             .containsExactly(RouteManifest("DELETE", "/shop/basket/{id}"))
-        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.ApplyTags").routes.assert()
-            .containsExactly(RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.apply-tags"))
+        SystemCommands.lifecycle("shop", "basket", "wow.lifecycle.TransferSpace").routes.assert()
+            .containsExactly(RouteManifest("POST", "/shop/basket/{id}/wow.lifecycle.transfer-space"))
     }
 
     @Test

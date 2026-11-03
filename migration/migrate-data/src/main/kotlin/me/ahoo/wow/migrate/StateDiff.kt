@@ -20,7 +20,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * A field whose value differs between a 9.x snapshot and the V10 state rebuilt from the imported log: [path] names it
- * (`items[0].price`; a metadata field is `$deleted`, `$ownerId`, `$spaceId` or `$tags`), and [nineX] and [v10] are
+ * (`items[0].price`; a metadata field is `$deleted`, `$ownerId` or `$spaceId`), and [nineX] and [v10] are
  * its two values, null where that side lacks the field.
  */
 internal data class FieldDifference(val path: String, val nineX: JsonNode?, val v10: JsonNode?) {

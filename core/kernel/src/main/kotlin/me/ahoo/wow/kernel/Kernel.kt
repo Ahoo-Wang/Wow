@@ -107,11 +107,8 @@ import kotlin.coroutines.CoroutineContext
  *
  * Every stream carries the aggregate's scope after it: the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
- * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
- * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]). The keys of the tags the state
- * derives ([AggregateModel.tagsOf], `@Tags`) override the applied ones; the kernel derives them after
- * each stream it evolves, decides or commits, and on every state it loads from a snapshot or is handed, so the tags
- * of every state it gives out (a commit's, a snapshot's, a trace's, a state event's) follow the state.
+ * The kernel keeps the deleted mark beside the state too, evolved by the lifecycle events: a deleted
+ * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]).
  *
  * The aggregate's scope also guards it: an existing aggregate refuses a command whose scope names another owner
  * or space ([FrameworkCodes.AGGREGATE_FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
@@ -575,7 +572,6 @@ class Kernel(
                 evolved.state,
                 if (rejection == null) attempt.results() else emptyMap(),
                 evolved.deleted,
-                evolved.tags,
                 evolved.schedules,
                 evolved.first,
                 rejection,
@@ -663,10 +659,8 @@ class Kernel(
         }
         // The decision's own time: what it read as `now` is the time its events are committed at.
         val commitTime = scope.now
-        val applied = metadataAfter(loaded, command, events)
-        val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, applied.scope)
-        // The keys the state derives override the applied tags, derived again from the evolved state.
-        val metadata = applied.copy(tags = model.tagsOf(evolved, applied.tags))
+        val metadata = metadataAfter(loaded, command, events)
+        val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
         val stream = EventStreamRecord(
             ref = command.ref,
             version = version + 1,
@@ -679,8 +673,8 @@ class Kernel(
             causation = command.causation,
             headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
             operator = command.operator,
-            // Recorded with each stream: the events model filters by the tags after the commit.
-            tags = metadata.tags,
+            // Recorded, and empty: the aggregate has no tags any more; work package C replaces the field.
+            tags = emptyMap(),
         )
         val after = loaded.with(evolved, stream.version, metadata)
         if (stream.version == 1) {
@@ -750,7 +744,7 @@ class Kernel(
      * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope: a command that
      * creates the aggregate gives it the caller's scope; every other command carries the aggregate's scope forward,
      * and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
-     * and tags change only by their lifecycle events too.
+     * changes only by its lifecycle events too.
      */
     private fun metadataAfter(loaded: CachedState, command: Command<*>, events: List<Any>): KernelLifecycle.Metadata {
         val before = if (loaded.version == 0) loaded.metadata.copy(scope = command.scope) else loaded.metadata
@@ -879,7 +873,7 @@ class Kernel(
      * a read that needs more, counted from the snapshot when it fits, else from version 1, is refused before it
      * reads the log.
      *
-     * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, tags); null
+     * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, schedules); null
      *   when the log does not hold [version].
      * @throws ReplayLimitExceededException when the state at [version] is more than [maxReplay] streams away.
      */
@@ -960,7 +954,7 @@ class Kernel(
      * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded:
      * the read is refused as soon as it would fold one more.
      *
-     * @return the state with the metadata the kernel keeps beside it (scope, deleted mark, tags); null when no stream
+     * @return the state with the metadata the kernel keeps beside it (scope, deleted mark, schedules); null when no stream
      *   of [ref] had committed by [at].
      * @throws ReplayLimitExceededException when the state as of [at] is more than [maxReplay] streams away.
      */
@@ -1037,7 +1031,7 @@ class Kernel(
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
         val restored =
-            CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.tags, snapshot.schedules)
+            CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.schedules)
         var current: CachedState? = null
         var replayed = 0
         tail
@@ -1046,9 +1040,8 @@ class Kernel(
             .collect { stream ->
                 val base = current
                 current = if (base == null) {
-                    // Its stored tags are the effective ones it was written with: the keys the state derives are
-                    // derived anew. Its own stream is already folded.
-                    derived(model, restored)
+                    // Its own stream is already folded.
+                    restored
                 } else {
                     if (++replayed > maxReplay) {
                         throw ReplayLimitExceededException(snapshot.ref, maxReplay)
@@ -1063,8 +1056,8 @@ class Kernel(
     }
 
     /**
-     * Evolves [initial] with the events of [streams]: the state, and the deleted mark and tags by the lifecycle
-     * events; the version and the scope are the last stream's, or [initial]'s when there is none.
+     * Evolves [initial] with the events of [streams]: the state, and the deleted mark and schedules by the
+     * lifecycle and schedule events; the version and the scope are the last stream's, or [initial]'s when there is none.
      */
     internal fun <S : Any> replay(
         model: AggregateModel<S>,
@@ -1096,8 +1089,8 @@ class Kernel(
 
     /**
      * Evolves [current] with the events of [stream], adding each event, read as the model's current schema, to
-     * [events] when given: the state, and the deleted mark and tags by the lifecycle events; the version and the
-     * scope become the stream's.
+     * [events] when given: the state, and the deleted mark and schedules by the lifecycle and schedule events; the
+     * version and the scope become the stream's.
      */
     internal fun <S : Any> evolve(
         model: AggregateModel<S>,
@@ -1138,28 +1131,7 @@ class Kernel(
             state = model.evolve(state, event, commit)
             metadata = KernelLifecycle.evolve(metadata, event)
         }
-        return current.with(
-            state,
-            stream.version,
-            metadata.copy(scope = stream.scope, tags = model.tagsOf(state, metadata.tags)),
-        )
-    }
-
-    /**
-     * [cached] with the tags its state derives overriding its own: a state the kernel did not evolve
-     * itself, read from a snapshot or handed over, whose stored tags may predate the model's tags function.
-     */
-    internal fun <S : Any> derived(model: AggregateModel<S>, cached: CachedState): CachedState {
-        if (cached.version == 0) {
-            return cached
-        }
-        @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
-        val tags = model.tagsOf(cached.state as S, cached.tags)
-        return if (tags == cached.tags) {
-            cached
-        } else {
-            cached.with(cached.state, cached.version, cached.metadata.copy(tags = tags))
-        }
+        return current.with(state, stream.version, metadata.copy(scope = stream.scope))
     }
 
     /**

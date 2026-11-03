@@ -73,7 +73,6 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var idSource: AggregateIdSource = AggregateIdSource.ASSIGNED
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
-    private var tags: ((S) -> Map<String, Collection<String>>)? = null
     private val aggregateIds = LinkedHashMap<Class<*>, (Any) -> String?>()
 
     /** The state of an aggregate that has no event yet. */
@@ -332,18 +331,6 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Derives the aggregate's tags from its state (9.x `StateAggregateTagsExtractor`): the keys [derive]
-     * returns override the applied tags (`ApplyTags`) per key, and a key it returns with no value removes that key. The
-     * kernel calls it after every commit and every load, so it is pure and cheap; it should return every key it owns
-     * on every call, with an empty collection for none, since a key it stops returning keeps its last derived value.
-     * A state member marked `@Tags` calls it in a generated model.
-     */
-    fun tags(derive: (S) -> Map<String, Collection<String>>) {
-        require(tags == null) { "$type declares two tags functions." }
-        tags = derive
-    }
-
-    /**
      * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
      * a lifecycle command or event ([Lifecycle]).
      */
@@ -444,7 +431,6 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         ownership = ownership,
         stateRevision = stateRevision,
         retiredEvents = retired.toList(),
-        tags = tags,
         idSource = idSource,
         aggregateIds = aggregateIds.toMap(),
     )

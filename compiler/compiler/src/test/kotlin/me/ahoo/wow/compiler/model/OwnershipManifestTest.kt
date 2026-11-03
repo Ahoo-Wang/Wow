@@ -84,7 +84,6 @@ class OwnershipManifestTest {
         val aggregates = read(fragments(compilation).single()).contexts.single().aggregates.associateBy { it.name }
         aggregates.getValue("product").ownership.assert().isEqualTo(Ownership.TENANT)
         aggregates.getValue("product").lifecycle.assert().containsExactly(
-            "wow.lifecycle.ApplyTags",
             "wow.lifecycle.DeleteAggregate",
             "wow.lifecycle.RestoreAggregate",
             "wow.lifecycle.TransferSpace",

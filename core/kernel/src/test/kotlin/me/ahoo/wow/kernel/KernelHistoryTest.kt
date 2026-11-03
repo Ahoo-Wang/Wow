@@ -21,7 +21,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
@@ -200,23 +199,14 @@ class KernelHistoryTest {
     }
 
     @Test
-    fun `a trace carries the deleted mark, the tags and the scope after each commit`(): Unit = runBlocking {
+    fun `a trace carries the deleted mark and the scope after each commit`(): Unit = runBlocking {
         send(CreateCart("ahoo"), 1000, owned)
-        send(ApplyTags(mapOf("color" to listOf("red"))), 2000)
         send(TransferOwner("bob"), 3000)
         send(DeleteAggregate, 4000)
-        val trace = kernel.trace(cartModel, ref, 1, 4, 10)
-        trace.map { it.tags }.assert().isEqualTo(
-            listOf(
-                emptyMap(),
-                mapOf("color" to listOf("red")),
-                mapOf("color" to listOf("red")),
-                mapOf("color" to listOf("red"))
-            ),
-        )
-        trace.map { it.scope.ownerId }.assert().isEqualTo(listOf("alice", "alice", "bob", "bob"))
-        trace.map { it.deleted }.assert().isEqualTo(listOf(false, false, false, true))
-        trace[3].events.assert().isEqualTo(listOf(AggregateDeleted))
+        val trace = kernel.trace(cartModel, ref, 1, 3, 10)
+        trace.map { it.scope.ownerId }.assert().isEqualTo(listOf("alice", "bob", "bob"))
+        trace.map { it.deleted }.assert().isEqualTo(listOf(false, false, true))
+        trace[2].events.assert().isEqualTo(listOf(AggregateDeleted))
     }
 
     @Test

@@ -22,7 +22,7 @@ import tools.jackson.databind.JsonNode
  * One commit of an aggregate's history ([Kernel.trace]): its [stream], the stream's [events] (but the
  * retired ones) read as the
  * model's current schema (upgraded), and the aggregate after it: its [state] as the event codec writes it (a
- * tree, so a mutable state evolving further does not change it), its [deleted] mark and its [tags].
+ * tree, so a mutable state evolving further does not change it) and its [deleted] mark.
  */
 @InternalWowApi
 class CommitTrace(
@@ -30,7 +30,6 @@ class CommitTrace(
     val events: List<Any>,
     val state: JsonNode,
     val deleted: Boolean,
-    val tags: Map<String, List<String>>,
 ) {
     /** The aggregate's version after the commit, the stream's. */
     val version: Int get() = stream.version

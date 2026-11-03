@@ -48,7 +48,7 @@ internal data class SnapshotProgress(
  * without replaying their logs from the first stream: each instance's V10 log replayed through the aggregate's V10
  * model ([Kernel.replayed]), written as the snapshot of the log's last version into the context's snapshot store, on
  * the same backend as the log. The snapshot is the one the V10 snapshot subscription would write: the state, the
- * scope, the deleted mark, the tags and schedules, the commit times and the operators of the first and the last stream.
+ * scope, the deleted mark and schedules, the commit times and the operators of the first and the last stream.
  *
  * - **Idempotent.** [SnapshotStore.save] writes no snapshot of a version the store already holds, so a run again
  *   skips them; a snapshot written since at a higher version stays.
@@ -163,7 +163,6 @@ internal class SnapshotWriter(
                 first.commitTime,
                 last.commitTime,
                 state.deleted,
-                state.tags,
                 last.operator,
                 first.operator,
                 state.schedules,

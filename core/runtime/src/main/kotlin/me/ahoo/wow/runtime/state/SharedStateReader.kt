@@ -117,7 +117,6 @@ class SharedStateReader(
                 codec.stateText(state.state),
                 state.scope,
                 state.deleted,
-                state.tags,
                 state.schedules
             )
         views.put(ref, view)
@@ -135,7 +134,6 @@ class SharedStateReader(
             view.version,
             view.scope,
             view.deleted,
-            view.tags,
             view.schedules,
         )
     } catch (failure: IllegalArgumentException) {

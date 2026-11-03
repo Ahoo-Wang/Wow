@@ -40,7 +40,6 @@ class TagsBackfillerTest {
     private val model = aggregate<Parcel>("shipping", "parcel") {
         initial { Parcel() }
         evolve<Moved> { region = it.region }
-        tags { mapOf("region" to listOfNotNull(it.region.takeIf(String::isNotEmpty))) }
     }
     private val type: AggregateType = model.type
     private val codec = EventCodec()
@@ -72,7 +71,7 @@ class TagsBackfillerTest {
     private suspend fun tagsOf(id: String) = log.read(type.ref("tenant", id)).toList().map { it.tags }
 
     @Test
-    fun `each stream without tags gets the tags its aggregate had after it, recorded ones are kept`() = runTest {
+    fun `each stream without tags gets empty tags, the aggregate having none, recorded ones are kept`() = runTest {
         listOf(
             stream("p-1", 1, "east"),
             stream("p-1", 2, "west"),
@@ -81,8 +80,8 @@ class TagsBackfillerTest {
             stream("p-3", 1, "east", tags = mapOf("region" to listOf("east"))),
         ).forEach { log.append(it) }
         val progress = backfiller(ImportOptions(pageSize = 1)).backfill(type)
-        tagsOf("p-1").assert().containsExactly(mapOf("region" to listOf("east")), mapOf("region" to listOf("west")))
-        tagsOf("p-2").assert().containsExactly(mapOf("region" to listOf("north")), mapOf("region" to listOf("south")))
+        tagsOf("p-1").assert().containsExactly(emptyMap(), emptyMap())
+        tagsOf("p-2").assert().containsExactly(mapOf("region" to listOf("north")), emptyMap())
         tagsOf("p-3").assert().containsExactly(mapOf("region" to listOf("east")))
         progress.checkpoint.completed.assert().isTrue()
         progress.checkpoint.aggregates.assert().isEqualTo(2)
@@ -142,11 +141,7 @@ class TagsBackfillerTest {
             backfiller(ImportOptions(pageSize = 2)).resink(type, documents).assert().isEqualTo(3)
             documents.overwritten.map { it.ref.id to it.version }.assert()
                 .containsExactly("p-1" to 1, "p-1" to 2, "p-2" to 1)
-            documents.overwritten.map { it.tags }.assert().containsExactly(
-                mapOf("region" to listOf("east")),
-                mapOf("region" to listOf("west")),
-                mapOf("region" to listOf("north")),
-            )
+            documents.overwritten.map { it.tags }.assert().containsExactly(emptyMap(), emptyMap(), emptyMap())
             documents.overwritten.first().events.single().name.assert().isEqualTo("shipping.parcel.Moved")
             documents.untagged.assert().isEmpty()
             backfiller().resink(type, documents).assert().isEqualTo(0)

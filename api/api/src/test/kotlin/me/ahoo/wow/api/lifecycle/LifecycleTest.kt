@@ -25,14 +25,12 @@ class LifecycleTest {
             "wow.lifecycle.RestoreAggregate",
             "wow.lifecycle.TransferOwner",
             "wow.lifecycle.TransferSpace",
-            "wow.lifecycle.ApplyTags",
         )
         Lifecycle.EVENTS.keys.assert().containsExactly(
             "wow.lifecycle.AggregateDeleted",
             "wow.lifecycle.AggregateRestored",
             "wow.lifecycle.OwnerTransferred",
             "wow.lifecycle.SpaceTransferred",
-            "wow.lifecycle.TagsApplied",
         )
         (Lifecycle.COMMANDS + Lifecycle.EVENTS).forEach { (name, type) ->
             Lifecycle.nameOf(type).assert().isEqualTo(name)
@@ -41,15 +39,12 @@ class LifecycleTest {
     }
 
     @Test
-    fun `the lifecycle values refuse blank ids and tag names`() {
+    fun `the lifecycle values refuse blank ids`() {
         TransferOwner("bob").ownerId.assert().isEqualTo("bob")
         SpaceTransferred("space").spaceId.assert().isEqualTo("space")
-        ApplyTags(mapOf("region" to listOf("eu"))).tags.assert().containsKey("region")
         assertThrownBy<IllegalArgumentException> { TransferOwner(" ") }
         assertThrownBy<IllegalArgumentException> { TransferSpace("") }
-        assertThrownBy<IllegalArgumentException> { ApplyTags(mapOf(" " to emptyList())) }
         assertThrownBy<IllegalArgumentException> { OwnerTransferred("") }
         assertThrownBy<IllegalArgumentException> { SpaceTransferred(" ") }
-        assertThrownBy<IllegalArgumentException> { TagsApplied(mapOf("" to emptyList())) }
     }
 }

@@ -264,7 +264,8 @@ class KernelStateReads(
                 },
                 scope = commit.scope,
                 deleted = commit.deleted,
-                tags = commit.tags,
+                // No tags any more; work package C gives the access attributes instead.
+                tags = emptyMap(),
                 state = commit.state,
                 operator = stream.operator,
             )
@@ -344,7 +345,8 @@ class KernelStateReads(
                 ref = ref,
                 version = version,
                 scope = scope,
-                tags = tags,
+                // No tags any more; work package C gives the access attributes instead.
+                tags = emptyMap(),
                 deleted = deleted,
                 operator = last.operator,
                 firstEventTime = firstEventTime,

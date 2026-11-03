@@ -74,8 +74,7 @@ interface StateCache {
 /**
  * An aggregate's [state] after its event stream [version], with the metadata the kernel keeps beside it: its [scope],
  * the owner and space it has after that stream, which the next stream carries forward; whether it is
- * [deleted]; and its [tags]. Only the lifecycle commands change them, but for the tag keys the state
- * derives, which follow the state: [tags] are the effective tags. Its [schedules] are the rules
+ * [deleted]. Only the lifecycle commands change them. Its [schedules] are the rules
  * of the schedules it keeps, by key: those its streams set and did not cancel.
  */
 @InternalWowApi
@@ -84,10 +83,9 @@ class CachedState(
     val version: Int,
     val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
-    val tags: Map<String, List<String>> = emptyMap(),
     val schedules: Map<String, ScheduleRule> = emptyMap(),
 ) {
-    internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags, schedules)
+    internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, schedules)
 
     /**
      * The requests the aggregate committed most recently, derived from the log when the kernel loaded
@@ -110,7 +108,7 @@ class CachedState(
         internal set
 
     internal fun with(state: Any, version: Int, metadata: KernelLifecycle.Metadata): CachedState =
-        CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags, metadata.schedules)
+        CachedState(state, version, metadata.scope, metadata.deleted, metadata.schedules)
             .also {
                 it.requests = requests
                 it.first = first

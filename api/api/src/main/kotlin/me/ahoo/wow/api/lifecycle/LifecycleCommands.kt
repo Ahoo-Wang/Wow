@@ -72,32 +72,3 @@ class TransferSpace @InternalWowApi constructor(val spaceId: String) {
         fun of(spaceId: String): TransferSpace = TransferSpace(spaceId)
     }
 }
-
-/**
- * Sets the aggregate's tags to [tags], replacing the ones it had: each tag name with its values, the attributes
- * query authorization (ABAC) reads; see [TagsApplied]. Empty [tags] clear them.
- *
- * The keys the aggregate's state derives (`@Tags`) are not the command's to set: they override the
- * applied ones. The command is a no-op when the tags it would leave are the aggregate's already.
- */
-@Description("Sets the aggregate's tags, replacing the ones it had; empty tags clear them.")
-class ApplyTags @InternalWowApi constructor(val tags: Map<String, List<String>>) {
-    init {
-        require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
-    }
-
-    override fun equals(other: Any?): Boolean =
-        this === other || other is ApplyTags && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String = "ApplyTags(tags=$tags)"
-
-    private fun valueFields(): List<Any?> = listOf(tags)
-
-    companion object {
-        /** An ApplyTags of the given fields; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(tags: Map<String, List<String>>): ApplyTags = ApplyTags(tags)
-    }
-}

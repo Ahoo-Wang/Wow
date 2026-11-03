@@ -56,8 +56,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   committed on this node; without one (a replay, an ownership change, a command run on another node) the stored
  *   snapshot or a nearer view evolved with the log's tail up to the stream ([Kernel.stateAt]), else the log replayed.
  * - **The record**: built by [EventCodec.snapshotOf]; its scope is the stream's, its deleted mark and
- *   tags the kernel's after the stream, its last event time and operator the stream's, its first event time and
- *   first operator those of the aggregate's first stream. The kernel reloads a deleted or tagged aggregate from it as such.
+ *   schedules the kernel's after the stream, its last event time and operator the stream's, its first event time and
+ *   first operator those of the aggregate's first stream. The kernel reloads a deleted aggregate from it as such.
  * - **Idempotent**: [SnapshotStore.save] only ever replaces a lower version, so a replay or an old owner running
  *   alongside the new one never moves a snapshot back. When the store already holds the stream's
  *   version or a later one, as this subscription last wrote or loaded it, nothing is rebuilt or saved, from a view
@@ -144,7 +144,7 @@ class SnapshotSubscription(
         // The view knows the first stream when the kernel loaded the aggregate: no store read.
         val known = if (version == 1) FirstCommit.of(stream) else held?.first ?: view?.first
         if (view != null && known != null) {
-            save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
+            save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.schedules))
             return
         }
         val stored = store.load(ref)
@@ -154,11 +154,11 @@ class SnapshotSubscription(
         }
         val first = known ?: stored?.let(FirstCommit::of) ?: firstOf(ref)
         val state = entry.state(stored)
-        save(entry, snapshotOf(model, stream, state.state, first, state.deleted, state.tags, state.schedules))
+        save(entry, snapshotOf(model, stream, state.state, first, state.deleted, state.schedules))
     }
 
     /**
-     * The snapshot of [stream]: [state] with the kernel's [deleted] mark, [tags] and [schedules] after it, its scope and operator,
+     * The snapshot of [stream]: [state] with the kernel's [deleted] mark and [schedules] after it, its scope and operator,
      * and what [first] says of the aggregate's first stream.
      */
     @Suppress("LongParameterList")
@@ -168,7 +168,6 @@ class SnapshotSubscription(
         state: String,
         first: FirstCommit,
         deleted: Boolean,
-        tags: Map<String, List<String>>,
         schedules: Map<String, ScheduleRule>,
     ): SnapshotRecord = codec.snapshotOf(
         model,
@@ -179,7 +178,6 @@ class SnapshotSubscription(
         first.eventTime,
         stream.commitTime,
         deleted,
-        tags,
         stream.operator,
         first.operator,
         schedules,

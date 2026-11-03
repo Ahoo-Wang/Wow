@@ -33,10 +33,6 @@ import me.ahoo.wow.api.decide.Causation
  *   derives from it carry it on.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] is whose name the commit is recorded in; the commands a saga derives from it keep it.
- * - [tags] are the aggregate's tags after the commit, as [scope] is its owner and space: those `ApplyTags` set, each
- *   key its state derives (`@Tags`) overriding them, the same tags its snapshot and a Sink's record hold; empty when
- *   it has none. A handler reads them here rather than from the snapshot, which may lag behind the commit. A stream
- *   of another context carries the tags its upstream published with it.
  *
  * [state] is a copy read from the commit's shared state, never the live instance: changing it affects no one. It is the
  * state after the whole commit, also for a [StateTypedEvent] of one of its events. The runtime
@@ -65,7 +61,6 @@ interface StateEvent<out S> {
     val causation: Causation?
     val headers: Map<String, String>
     val operator: Operator?
-    val tags: Map<String, List<String>>
 
     /** The identity of the commit: `ref@version`. */
     val id: String get() = "$ref@$version"
@@ -88,7 +83,6 @@ interface StateEvent<out S> {
         causation: Causation? = this.causation,
         headers: Map<String, String> = this.headers,
         operator: Operator? = this.operator,
-        tags: Map<String, List<String>> = this.tags,
     ): StateEvent<S> = CommittedStateEvent(
         ref,
         version,
@@ -102,7 +96,6 @@ interface StateEvent<out S> {
         causation,
         headers,
         operator,
-        tags,
     )
 
     companion object {
@@ -122,7 +115,6 @@ interface StateEvent<out S> {
             causation: Causation? = null,
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
-            tags: Map<String, List<String>> = emptyMap(),
         ): StateEvent<S> = CommittedStateEvent(
             ref,
             version,
@@ -136,7 +128,6 @@ interface StateEvent<out S> {
             causation,
             headers,
             operator,
-            tags,
         )
 
         /**
@@ -158,7 +149,6 @@ interface StateEvent<out S> {
             causation: Causation? = null,
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
-            tags: Map<String, List<String>> = emptyMap(),
             decode: () -> S,
         ): StateEvent<S> = CommittedStateEvent(
             ref,
@@ -173,7 +163,6 @@ interface StateEvent<out S> {
             causation,
             headers,
             operator,
-            tags,
         )
     }
 }
@@ -214,7 +203,6 @@ private class CommittedStateEvent<out S>(
     override val causation: Causation?,
     override val headers: Map<String, String>,
     override val operator: Operator?,
-    override val tags: Map<String, List<String>>,
 ) : StateEvent<S> {
     init {
         require(version >= 1) { "A committed version starts at 1." }
@@ -233,11 +221,11 @@ private class CommittedStateEvent<out S>(
     override fun toString(): String =
         "StateEvent(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
-            "causation=$causation, headers=$headers, operator=$operator, tags=$tags)"
+            "causation=$causation, headers=$headers, operator=$operator)"
 
     private fun valueFields(): List<Any?> = listOf(
         ref, version, commandId, requestId, commandType, commitTime, events, state, scope, causation, headers,
-        operator, tags
+        operator
     )
 }
 

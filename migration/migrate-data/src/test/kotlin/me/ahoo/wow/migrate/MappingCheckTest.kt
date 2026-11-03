@@ -115,7 +115,7 @@ class MappingCheckTest {
                     EventMapping("order_paid", "2.0.0", "OrderPaid", toRevision = 2) +
                     EventMapping("order_deleted", to = Lifecycle.AGGREGATE_DELETED) +
                     EventMapping("order_moved", to = "wow.lifecycle.Moved") +
-                    EventMapping("order_tagged", to = Lifecycle.TAGS_APPLIED, toRevision = 2),
+                    EventMapping("order_transferred", to = Lifecycle.OWNER_TRANSFERRED, toRevision = 2),
                 defaultCommand = "Missing",
             )
         }
@@ -130,8 +130,8 @@ class MappingCheckTest {
                 "revision 1 in the Manifest, below the mapped revision 2",
             "example-service.order -> example.order: order_moved: the V10 event wow.lifecycle.Moved is not a system " +
                 "event",
-            "example-service.order -> example.order: order_tagged: the system event wow.lifecycle.TagsApplied has " +
-                "revision 1 only, not 2",
+            "example-service.order -> example.order: order_transferred: the system event " +
+                "wow.lifecycle.OwnerTransferred has revision 1 only, not 2",
         )
     }
 

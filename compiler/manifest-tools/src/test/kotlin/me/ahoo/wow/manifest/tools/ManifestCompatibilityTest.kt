@@ -54,7 +54,7 @@ class ManifestCompatibilityTest {
         private const val CONTEXT = "contexts[shop]"
         private const val CART = "$CONTEXT.aggregates[cart]"
         private const val DELETE = "wow.lifecycle.DeleteAggregate"
-        private const val APPLY_TAGS = "wow.lifecycle.ApplyTags"
+        private const val TRANSFER_SPACE = "wow.lifecycle.TransferSpace"
         private val STRING = mapOf("type" to "string")
         private val ROUTE = RouteManifest("POST", "/shop/cart/{id}/add-item")
         private val ERROR = ErrorManifest("shop.cart.full", 409)
@@ -421,10 +421,10 @@ class ManifestCompatibilityTest {
                 "lifecycle command added",
                 BASELINE.cart {
                     it.copyWith(
-                        commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS)
+                        commands = it.commands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE)
                     )
                 },
-                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added",
+                "ADDITIVE $CART.commands[$TRANSFER_SPACE]: command added",
             ),
             row(
                 "query model removed",
@@ -763,12 +763,12 @@ class ManifestCompatibilityTest {
     @Test
     fun `the report should list the breaking changes first`() {
         val current = BASELINE.cart {
-            it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+            it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE))
         }
         ManifestCompatibility.compare(BASELINE, current).render().assert().isEqualTo(
             "Manifest against its baseline: 1 breaking, 1 additive\n" +
                 "BREAKING $CART.commands[$DELETE]: command removed\n" +
-                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added\n",
+                "ADDITIVE $CART.commands[$TRANSFER_SPACE]: command added\n",
         )
     }
 
@@ -803,7 +803,7 @@ class ManifestCompatibilityTest {
             ManifestJson.write(manifest.copyWith(service = ServiceInfo("shop-service", version)), current)
         val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
         val additive = BASELINE.cart {
-            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE))
         }
 
         build(BASELINE, "10.1.0")

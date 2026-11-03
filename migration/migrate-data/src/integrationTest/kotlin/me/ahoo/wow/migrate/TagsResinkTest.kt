@@ -49,7 +49,6 @@ class TagsResinkTest {
     private val model = aggregate<Parcel>(context, "parcel") {
         initial { Parcel() }
         evolve<Moved> { region = it.region }
-        tags { mapOf("region" to listOfNotNull(it.region.takeIf(String::isNotEmpty))) }
     }
     private val type = model.type
     private val codec = EventCodec()
@@ -112,12 +111,15 @@ class TagsResinkTest {
         return WowJson.mapper.readTree(EntityUtils.toString(response.entity))
     }
 
-    /** The streams ABAC shows a caller of `region` [region]: the condition it compiles to on the events index. */
-    private fun visible(region: String): List<String> = request(
+    /**
+     * The streams whose documents record their tags, empty since the aggregate has none (D390): the condition ABAC
+     * compiles to on the events index, but for a tag's value.
+     */
+    private fun recorded(): List<String> = request(
         "POST",
         "/${sink.index}/_search?version=true",
         """{"size":100,"sort":[{"aggregateId":"asc"},{"version":"asc"}],"query":{"bool":{"filter":[""" +
-            """{"exists":{"field":"tagsRecorded"}},{"term":{"tags.region":"$region"}}]}}}""",
+            """{"exists":{"field":"tagsRecorded"}}]}}}""",
     ).path("hits").path("hits").toList().map { "${it.path("_source").path("aggregateId").asString()}@${it.path("_source").path("version").asInt()}" }
 
     private fun documentVersions(): List<Long> = request(
@@ -133,14 +135,13 @@ class TagsResinkTest {
             streams.forEach { log.append(it) }
             indexedBefore(streams)
             sink.untagged(null, 10).size.assert().isEqualTo(3)
-            visible("east").assert().isEmpty()
+            recorded().assert().isEmpty()
             // The log first: refused while it still holds streams without tags.
             assertThrows<MigrationException> { backfiller.resink(type, documents) }.message!!.assert().contains("backfill it first")
             backfiller.backfill(type).checkpoint.streams.assert().isEqualTo(3)
             backfiller.resink(type, documents).assert().isEqualTo(3)
             sink.untagged(null, 10).assert().isEmpty()
-            visible("east").assert().containsExactly("p-1@1", "p-2@1")
-            visible("west").assert().containsExactly("p-1@2")
+            recorded().assert().containsExactly("p-1@1", "p-1@2", "p-2@1")
             val versions = documentVersions()
             backfiller.resink(type, documents).assert().isEqualTo(0)
             documentVersions().assert().isEqualTo(versions)
@@ -155,7 +156,7 @@ class TagsResinkTest {
         indexedBefore(streams)
         backfiller.resink(type, documents, force = true).assert().isEqualTo(1)
         sink.untagged(null, 10).map { it.ref.id }.assert().containsExactly("p-2")
-        visible("east").assert().containsExactly("p-1@1")
+        recorded().assert().containsExactly("p-1@1")
     }
 
     @Test

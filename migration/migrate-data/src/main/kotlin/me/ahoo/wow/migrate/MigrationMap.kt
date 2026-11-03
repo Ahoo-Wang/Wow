@@ -250,9 +250,10 @@ internal data class EventMapping(
 
 /**
  * The system lifecycle event [to] a 9.x event that implemented one is composed with in V10: written right after the
- * mapped event, in the same stream, so V10 marks the aggregate deleted or restored, moves its owner or space or applies
- * its tags, as 9.x did. [to] is one of `wow.lifecycle.AggregateDeleted`, `AggregateRestored` (9.x `AggregateRecovered`),
- * `OwnerTransferred`, `SpaceTransferred` and `TagsApplied` (9.x `ResourceTagsApplied`).
+ * mapped event, in the same stream, so V10 marks the aggregate deleted or restored, or moves its owner or space, as
+ * 9.x did. [to] is one of `wow.lifecycle.AggregateDeleted`, `AggregateRestored` (9.x `AggregateRecovered`),
+ * `OwnerTransferred` and `SpaceTransferred`. 9.x `ResourceTagsApplied` has no lifecycle event any more: work
+ * package F maps 9.x tags to state fields.
  *
  * [fields] build its payload from the 9.x payload, 9.x name to V10 name (`"toOwnerId": "ownerId"`): it holds those
  * fields alone, and each must be in the 9.x payload. The fields the lifecycle event needs ([REQUIRED]) must be among
@@ -275,7 +276,6 @@ internal data class LifecycleMapping(val to: String, val fields: Map<String, Str
             Lifecycle.AGGREGATE_RESTORED to emptySet(),
             Lifecycle.OWNER_TRANSFERRED to setOf("ownerId"),
             Lifecycle.SPACE_TRANSFERRED to setOf("spaceId"),
-            Lifecycle.TAGS_APPLIED to setOf("tags"),
         )
     }
 }

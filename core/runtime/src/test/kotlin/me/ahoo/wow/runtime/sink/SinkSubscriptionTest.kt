@@ -23,7 +23,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
@@ -188,17 +187,15 @@ class SinkSubscriptionTest {
     }
 
     @Test
-    fun `a stream published without its state should still carry the deleted mark and tags`(): Unit = runBlocking {
+    fun `a stream published without its state should still carry the deleted mark`(): Unit = runBlocking {
         val sink = sink(includeState = false)
-        val tags = mapOf("tier" to listOf("gold"))
         handle(sink, commit(SetPrice(BigDecimal.ONE)))
-        handle(sink, commit(ApplyTags(tags)))
         handle(sink, commit(DeleteAggregate))
         written.map { it.state }.assert().containsOnlyNulls()
-        written.map { it.version }.assert().containsExactly(1, 2, 3)
-        written[1].tags.assert().isEqualTo(tags)
-        written[2].deleted.assert().isTrue()
-        written[2].events.single().name.assert().isEqualTo("wow.lifecycle.AggregateDeleted")
+        written.map { it.version }.assert().containsExactly(1, 2)
+        written[0].deleted.assert().isFalse()
+        written[1].deleted.assert().isTrue()
+        written[1].events.single().name.assert().isEqualTo("wow.lifecycle.AggregateDeleted")
     }
 
     @Test

@@ -557,7 +557,7 @@ class AggregateSpec<S : Any> private constructor(
     ) {
         val forker: (String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit =
             { name, model, block -> fork(name, null, model ?: this.model, block) }
-        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags, forker)
+        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, forker)
         try {
             expectations.refuseDroppedEvents()
             expectations.expect()
@@ -659,9 +659,6 @@ class AggregateSpec<S : Any> private constructor(
         @Suppress("UNCHECKED_CAST")
         return (committedAt(version)?.state ?: model.initialState(ref)) as S
     }
-
-    /** The aggregate's tags at [version]: none before the first commit. */
-    private fun currentTags(version: Int): Map<String, List<String>> = committedAt(version)?.tags.orEmpty()
 
     /** The aggregate's committed state and metadata at [version]; null before the first commit. */
     private fun committedAt(version: Int): CachedState? {

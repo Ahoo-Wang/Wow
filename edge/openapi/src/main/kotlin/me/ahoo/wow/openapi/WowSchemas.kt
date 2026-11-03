@@ -62,7 +62,6 @@ internal object WowSchemas {
         "wow.lifecycle.RestoreAggregate" to objectSchema(emptyMap(), description = "Restores a deleted aggregate."),
         "wow.lifecycle.TransferOwner" to objectSchema(mapOf("ownerId" to type("string")), listOf("ownerId")),
         "wow.lifecycle.TransferSpace" to objectSchema(mapOf("spaceId" to type("string")), listOf("spaceId")),
-        "wow.lifecycle.ApplyTags" to objectSchema(mapOf("tags" to TAGS), listOf("tags")),
     )
 
     /** The name of the job aggregate of a context: `<context>.schedule`. */

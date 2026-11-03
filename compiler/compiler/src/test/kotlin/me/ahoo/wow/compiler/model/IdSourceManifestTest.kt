@@ -94,7 +94,6 @@ class IdSourceManifestTest {
         val basket = read(fragments(compilation).single()).contexts.single().aggregates.single()
         basket.idSource.assert().isEqualTo(AggregateIdSource.OWNER)
         basket.lifecycle.assert().containsExactly(
-            "wow.lifecycle.ApplyTags",
             "wow.lifecycle.DeleteAggregate",
             "wow.lifecycle.RestoreAggregate",
             "wow.lifecycle.TransferSpace",
@@ -113,7 +112,6 @@ class IdSourceManifestTest {
             RouteManifest("DELETE", "/shop/basket"),
         )
         listOf(
-            "ApplyTags" to "apply-tags",
             "RestoreAggregate" to "restore-aggregate",
             "TransferSpace" to "transfer-space"
         )
