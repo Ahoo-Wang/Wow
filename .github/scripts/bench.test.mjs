@@ -82,7 +82,6 @@ import {
   sweepNext,
   sweepOf,
   jobId,
-  mergeParts,
   partsOf,
   fineMore,
   fineOf,

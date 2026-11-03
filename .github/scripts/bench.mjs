@@ -1182,9 +1182,9 @@ export function mergeParts(parts) {
       .map(suite => suite[key])
       .filter(Boolean)
       .sort();
-  const { part: _, ...first } = sorted[0];
   return {
-    ...first,
+    ...sorted[0],
+    part: undefined,
     parts: sorted.map(suite => ({
       part: suite.part,
       label: labelOfPart(suite),
