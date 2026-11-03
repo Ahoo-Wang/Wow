@@ -254,10 +254,21 @@ class StateComparisonTest {
                 requestId = "late",
                 createTime = System.currentTimeMillis(),
             )
+            // And an instance 9.x has taken no snapshot of yet, which has nothing to compare.
+            val fresh = NineXExample.streams().first { it.aggregate == order && it.version == 1 }.let {
+                it.copy(
+                    id = "fresh",
+                    aggregateId = it.aggregateId.copy(id = "fresh"),
+                    commandId = "fresh",
+                    requestId = "fresh",
+                    createTime = System.currentTimeMillis(),
+                )
+            }
             events.add(late)
+            events.add(fresh)
             EventStreamImporter(events, NineXExample.plan, { log }, checkpoints).tailOnce(order)
             comparison().compare(order).also {
-                it.changed.assert().isEqualTo(1)
+                it.changed.assert().isEqualTo(2)
                 it.recompared.assert().isEqualTo(1)
                 it.passed.assert().isTrue()
             }
@@ -274,7 +285,7 @@ class StateComparisonTest {
                 "example-service.order is compared in full again: the map, a Manifest, the classpath (the V10 " +
                     "models), the sample, the time zone or the tool changed since the last comparison.",
             )
-            checkpoints.update { it.with(order, it.comparisonOf(order)!!.copy(heads = null)) }
+            checkpoints.update { it.with(order, it.comparisonOf(order)!!.copy(since = null)) }
             comparison(options = CompareOptions(fingerprint = "b")).compare(order).changed.assert().isNull()
             printed.assert().contains(
                 "example-service.order is compared in full again: the last comparison ran with an earlier version, " +
@@ -307,6 +318,85 @@ class StateComparisonTest {
                     "9.x committed since (the tail creates it).",
             )
         }
+
+    @Test
+    fun `compared again, an instance outside the sample is not compared`() = runTest {
+        imported()
+        val id = NineXExample.snapshot("order-snapshot.json").aggregateId
+        val options =
+            CompareOptions(sample = (1 until CompareOptions.ALL).first { !CompareOptions(sample = it).sampled(id) })
+        val source = InMemoryNineXSnapshotSource(NineXExample.snapshots(), events)
+        fun comparison() =
+            StateComparison(source, events, NineXExample.plan, models, { log }, checkpoints, options, { printed += it })
+        comparison().compare(order).compared.assert().isEqualTo(0)
+        source.put(changed("order-snapshot.json") { node -> node.put("snapshotTime", System.currentTimeMillis()) })
+        comparison().compare(order).also {
+            it.changed.assert().isEqualTo(1)
+            it.recompared.assert().isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `a walk an earlier version left half-way resumes, then is compared in full`() = runTest {
+        imported()
+        val first = NineXExample.snapshot("order-snapshot.json")
+        val second = changed("order-snapshot.json") { node -> node.put("aggregateId", "0VY3GwaK4OmV00Z") }
+        // An earlier version compared the first snapshot, recording neither its start nor the instances that differ.
+        checkpoints.update {
+            it.with(order, CompareCheckpoint(after = first.aggregateId, snapshots = 1, compared = 1))
+        }
+        comparison(listOf(first, second)).compare(order).also {
+            it.changed.assert().isNull()
+            it.snapshots.assert().isEqualTo(2)
+            it.differing.assert().isEqualTo(1)
+        }
+        printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
+        comparison(listOf(first, second)).compare(order).changed.assert().isNull()
+        printed.assert().contains(
+            "example-service.order is compared in full again: the last comparison ran with an earlier version, " +
+                "which recorded no position to compare again from.",
+        )
+    }
+
+    @Test
+    fun `more differing instances than are recorded are compared in full the next time`() = runTest {
+        imported()
+        // Snapshots of instances the log does not hold: each differs by its version.
+        fun missing(n: Int, taken: Long? = null) = changed("order-snapshot.json") { node ->
+            node.put("aggregateId", "missing-%04d".format(n))
+            taken?.let { node.put("snapshotTime", it) }
+        }
+        val source = InMemoryNineXSnapshotSource((1..StateComparison.MAX_RECORDED).map { missing(it) }, events)
+        fun comparison() = StateComparison(
+            source,
+            events,
+            NineXExample.plan,
+            models,
+            { log },
+            checkpoints,
+            CompareOptions(pageSize = 100),
+            { printed += it },
+        )
+        comparison().compare(
+            order
+        ).kinds.assert().isEqualTo(mapOf("\$version" to StateComparison.MAX_RECORDED.toLong()))
+        checkpoints.load().comparisonOf(order)!!.differs!!.size.assert().isEqualTo(StateComparison.MAX_RECORDED)
+        // One more, taken since: compared again, the instances that differ are too many to record.
+        source.add(missing(StateComparison.MAX_RECORDED + 1, System.currentTimeMillis()))
+        comparison().compare(order).also {
+            it.changed.assert().isEqualTo(StateComparison.MAX_RECORDED + 1L)
+            it.differing.assert().isEqualTo(StateComparison.MAX_RECORDED + 1L)
+        }
+        checkpoints.load().comparisonOf(order)!!.differs.assert().isNull()
+        comparison().compare(order).also {
+            it.changed.assert().isNull()
+            it.differing.assert().isEqualTo(StateComparison.MAX_RECORDED + 1L)
+        }
+        printed.assert().contains(
+            "example-service.order is compared in full again: more than 1000 instances differed, too many to record.",
+        )
+        checkpoints.load().comparisonOf(order)!!.differs.assert().isNull()
+    }
 
     @Test
     fun `a sample compares the same share of the instances on every run`() = runTest {
@@ -343,5 +433,6 @@ class StateComparisonTest {
         assertThrows<IllegalArgumentException> { CompareOptions(concurrency = 0) }
         assertThrows<IllegalArgumentException> { CompareOptions(sample = 0) }
         assertThrows<IllegalArgumentException> { CompareOptions(sample = 101) }
+        assertThrows<IllegalArgumentException> { CompareOptions(lookbackMillis = -1) }
     }
 }

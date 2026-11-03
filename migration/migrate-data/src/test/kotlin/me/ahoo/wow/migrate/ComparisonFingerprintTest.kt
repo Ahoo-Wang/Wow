@@ -79,8 +79,12 @@ class ComparisonFingerprintTest {
     }
 
     @Test
-    fun `the tool's own code counts by default`() {
+    fun `the tool's own code counts by default, its whole distribution when it runs from a jar`() {
         files(directory)
         ComparisonFingerprint.of(config(), 100).assert().isNotEqualTo(fingerprint(tool = null))
+        val jar = directory.resolve("tool/migrate-data.jar")
+        ComparisonFingerprint.toolOf(jar).assert().isEqualTo(jar.parent)
+        val classes = directory.resolve("lib/classes")
+        ComparisonFingerprint.toolOf(classes).assert().isEqualTo(classes)
     }
 }

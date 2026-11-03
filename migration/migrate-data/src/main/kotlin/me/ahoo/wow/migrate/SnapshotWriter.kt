@@ -123,7 +123,7 @@ internal class SnapshotWriter(
                     "log to catch up from, so every instance is walked again.",
             )
         }
-        var checkpoint = saved?.takeUnless { it.completed } ?: SnapshotCheckpoint(heads = target.log.heads())
+        var checkpoint = saved?.takeUnless { it.completed } ?: target.log.heads().let { SnapshotCheckpoint(heads = it) }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = withContext(Dispatchers.IO) {

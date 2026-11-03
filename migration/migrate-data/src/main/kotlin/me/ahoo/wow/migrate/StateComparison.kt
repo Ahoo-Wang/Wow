@@ -159,16 +159,13 @@ internal class StateComparison(
         val saved = checkpoints.load().comparisonOf(aggregate)
             ?.takeUnless { options.restart || it.sample != options.sample }
         if (saved?.completed == true) {
-            val inFull = inFull(aggregate, saved) ?: return again(target, instances, saved).also { report(it.render()) }
-            report("$aggregate is compared in full again: $inFull.")
+            againFrom(aggregate, saved)?.let { (since, recorded) ->
+                return again(target, instances, saved, since, recorded).also { report(it.render()) }
+            }
         }
-        var checkpoint = saved?.takeUnless { it.completed } ?: CompareCheckpoint(
-            sample = options.sample,
-            heads = log.heads(),
-            startedAt = clock(),
-            fingerprint = options.fingerprint,
-            differs = emptyMap(),
-        )
+        var checkpoint = saved?.takeUnless { it.completed } ?: started(log).let { since ->
+            CompareCheckpoint(sample = options.sample, since = since, differs = emptyMap())
+        }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = blocking { snapshots.snapshots(aggregate, checkpoint.after, options.pageSize) }
@@ -215,38 +212,59 @@ internal class StateComparison(
     }
 
     /**
-     * Why the completed comparison [saved] of [aggregate] cannot be compared again from where it started, or null when
-     * it can.
+     * Where the completed comparison [saved] of [aggregate] compares again from, with the instances it found differing;
+     * or null when it compares in full, which is reported with the reason.
      */
-    private fun inFull(aggregate: NineXAggregate, saved: CompareCheckpoint): String? = when {
-        saved.heads == null || saved.startedAt == null || saved.fingerprint == null ->
-            "the last comparison ran with an earlier version, which recorded no position to compare again from"
+    private fun againFrom(
+        aggregate: NineXAggregate,
+        saved: CompareCheckpoint,
+    ): Pair<ComparisonStart, Map<String, List<String>>>? {
+        val since = saved.since
+        val recorded = saved.differs
+        val inFull = when {
+            since == null ->
+                "the last comparison ran with an earlier version, which recorded no position to compare again from"
 
-        saved.fingerprint != options.fingerprint ->
-            "the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed since " +
-                "the last comparison"
+            since.fingerprint != options.fingerprint ->
+                "the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed " +
+                    "since the last comparison"
 
-        saved.differs == null -> "more than $MAX_RECORDED instances differed, too many to record"
-        (events as? CommitTimeIndexed)?.missingCommitTimeIndexes(listOf(aggregate)).orEmpty().isNotEmpty() ->
-            "the 9.x store has no commit-time index to read what 9.x committed since (the tail creates it)"
+            recorded == null -> "more than $MAX_RECORDED instances differed, too many to record"
+            unindexed(aggregate) ->
+                "the 9.x store has no commit-time index to read what 9.x committed since (the tail creates it)"
 
-        else -> null
+            else -> return since to recorded
+        }
+        report("$aggregate is compared in full again: $inFull.")
+        return null
     }
 
+    /** Whether the 9.x store lacks the commit-time index [aggregate]'s comparison again reads what 9.x committed by. */
+    private fun unindexed(aggregate: NineXAggregate): Boolean =
+        (events as? CommitTimeIndexed)?.missingCommitTimeIndexes(listOf(aggregate)).orEmpty().isNotEmpty()
+
+    /** Where a comparison on [log] starts: its heads, then the tool's clock, and the options' fingerprint. */
+    private suspend fun started(log: EventLog): ComparisonStart =
+        log.heads().let { heads -> ComparisonStart(heads, clock(), options.fingerprint) }
+
     /**
-     * Compares again the instances of [saved]'s aggregate changed on either side since it started, and those it found
-     * differing, then records where this comparison started and what differs now.
+     * Compares again the instances of [saved]'s aggregate changed on either side since it started ([since]), and those
+     * it found differing ([recorded]), then records where this comparison started and what differs now.
      */
-    private suspend fun again(target: Target, instances: Long, saved: CompareCheckpoint): ComparisonReport {
+    private suspend fun again(
+        target: Target,
+        instances: Long,
+        saved: CompareCheckpoint,
+        since: ComparisonStart,
+        recorded: Map<String, List<String>>,
+    ): ComparisonReport {
         val aggregate = target.plan.source
-        val startedAt = clock()
-        val heads = target.log.heads()
-        val from = checkNotNull(saved.startedAt) - options.lookbackMillis
+        val start = started(target.log)
+        val from = since.at - options.lookbackMillis
         val taken = takenSince(aggregate, from)
         val ids = LinkedHashSet(taken.keys)
         ids += committedSince(aggregate, from)
-        target.log.changedSince(target.plan.target, checkNotNull(saved.heads), heads).forEach { ids += it.id }
-        val recorded = checkNotNull(saved.differs)
+        target.log.changedSince(target.plan.target, since.heads, start.heads).forEach { ids += it.id }
         ids += recorded.keys
         val changed = ids.filterNot { plan.excludes(aggregate, it) }
         val permits = Semaphore(options.concurrency)
@@ -270,8 +288,7 @@ internal class StateComparison(
                 saved.copy(
                     differing = differs.size.toLong(),
                     kinds = kinds,
-                    heads = heads,
-                    startedAt = startedAt,
+                    since = start,
                     differs = differs.takeIf { found -> found.size <= MAX_RECORDED },
                 ),
             )

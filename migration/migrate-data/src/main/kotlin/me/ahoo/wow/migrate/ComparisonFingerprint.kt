@@ -47,10 +47,11 @@ internal object ComparisonFingerprint {
         return HexFormat.of().formatHex(digest.digest())
     }
 
-    /** Where the tool's code is: the directory of its jar (its dependencies beside it), or its classes. */
-    private fun tool(): Path? = ComparisonFingerprint::class.java.protectionDomain?.codeSource?.location
-        ?.let { Path.of(it.toURI()) }
-        ?.let { if (it.isRegularFile()) it.parent else it }
+    /** Where the tool's code is, its classes loaded from [location]: the directory of its jar, or its classes. */
+    internal fun toolOf(location: Path): Path = if (location.isRegularFile()) location.parent else location
+
+    private fun tool(): Path =
+        toolOf(Path.of(ComparisonFingerprint::class.java.protectionDomain.codeSource.location.toURI()))
 
     private fun MessageDigest.text(value: String) {
         update(value.toByteArray(Charsets.UTF_8))
