@@ -136,8 +136,12 @@ class NodeMetricsTest {
         val runtime = node.context(SALES).logGroups.single().subscriptions
         val heads = (0 until 2).associateWith { node.context(SALES).backends.log.head(it) ?: 0L }
         eventually { runtime.positions().filter { it.subscription == BOARD }.all { it.watermark == heads[it.partition] } }
+        // The node walks every type of its context on its own, once.
+        eventually { node.context(SALES).accessWalking?.walks()?.get(ORDER)?.completed == true }
         val metrics = NodeMetrics(node, telemetry.meters, NodeSampler(node))
         metrics.sample()
+        gauge(WowMetrics.ACCESS_WALK_PENDING.name, WowMetrics.CONTEXT, SALES, WowMetrics.AGGREGATE, ORDER.name)
+            .assert().containsExactly(0.0)
         gauge(WowMetrics.PARKED_AGGREGATES.name, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(2.0)
         val board = arrayOf(WowMetrics.GROUP, runtime.group, WowMetrics.SUBSCRIPTION, BOARD)
         gauge(WowMetrics.POSITION.name, *board).sum().assert().isEqualTo(heads.values.sum().toDouble())
