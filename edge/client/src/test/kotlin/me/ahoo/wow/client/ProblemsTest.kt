@@ -15,6 +15,7 @@ package me.ahoo.wow.client
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import java.net.http.HttpHeaders
@@ -96,5 +97,19 @@ class ProblemsTest {
             it.result.assert().isNull()
         }
         Problems.read(500, none, "[1]".toByteArray()).detail.assert().isEqualTo("[1]")
+    }
+
+    @Test
+    fun `a problem should keep its title, violations and other members, and no detail it does not have`() {
+        val body = """{"type":"urn:wow:error:wow.command.invalid","title":"Invalid command","status":400,""" +
+            """"code":"wow.command.invalid","violations":[{"path":"amount","code":"positive"},{"path":1}],""" +
+            """"limit":{"max":5}}"""
+        Problems.read(400, none, body.toByteArray()).apply {
+            title.assert().isEqualTo("Invalid command")
+            detail.assert().isNull()
+            violations.assert().containsExactly(Violation.of("amount", "positive", ""), Violation.of("", "", ""))
+            extensions.assert().isEqualTo(mapOf("limit" to mapOf("max" to 5)))
+        }
+        Problems.read(400, none, """{"violations":{}}""".toByteArray()).violations.assert().isEmpty()
     }
 }

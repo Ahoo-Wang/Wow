@@ -15,12 +15,9 @@ package me.ahoo.wow.test.server
 
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.read.Queries
-import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.Violation
-import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.Problems
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.InternalPort
@@ -37,6 +34,7 @@ import org.springframework.http.client.ReactorResourceFactory
 import tools.jackson.databind.JsonNode
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpHeaders
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
@@ -272,8 +270,9 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
     /**
      * The body as the problem the server answered (`application/problem+json`), its members typed: the [Problem.status],
      * the error [Problem.code], the [Problem.violations], the rejected command's [Problem.result], the aggregate's
-     * [Problem.version], what a retry may do ([Problem.retry], with `Retry-After` as [Problem.retryAfter]) and every
-     * other member as an extension. Null when the answer is not a problem.
+     * [Problem.version], what a retry may do ([Problem.retry], with `Retry-After`, seconds or an HTTP date, as
+     * [Problem.retryAfter]) and every other member as an extension, read as `wow-client` reads a peer's problem. Null
+     * when the answer is not a problem.
      *
      * ```kotlin
      * val answer = server.http.post("/bank/account/alice/withdraw", """{"amount":0}""")
@@ -282,7 +281,7 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
      */
     val problem: Problem? by lazy {
         body?.takeIf { it.isObject && header(CONTENT_TYPE)?.contains(PROBLEM_JSON, ignoreCase = true) == true }
-            ?.let(::problemOf)
+            ?.let { problemOf() }
     }
 
     /** The first value of the header [name], whatever its case; null when the answer has none. */
@@ -291,38 +290,24 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
 
     override fun toString(): String = "Answer($status, $text)"
 
-    private fun problemOf(members: JsonNode): Problem = Problem(
-        status = members.get("status")?.takeIf { it.isInt }?.asInt() ?: status,
-        title = members.text("title").orEmpty(),
-        detail = members.text("detail"),
-        code = members.text("code"),
-        violations = members.get("violations")?.takeIf { it.isArray }?.values()?.map {
-            Violation.of(it.text("path").orEmpty(), it.text("code").orEmpty(), it.text("message").orEmpty())
-        }.orEmpty(),
-        result = members.get("result")?.takeIf { it.isObject }?.let {
-            ANSWERS.treeToValue(it, CommandResult::class.java)
-        },
-        extensions = members.properties().filter { it.key !in MEMBERS }
-            .associate { (name, value) -> name to ANSWERS.treeToValue(value, Any::class.java) },
-        retryAfter = header(RETRY_AFTER)?.trim()?.toLongOrNull(),
-        version = members.get(Problem.VERSION)?.takeIf { it.isInt }?.asInt(),
-        retry = members.text(Problem.RETRY)?.let { WireNames.entryOf<Retry>(it) },
-    )
-
-    private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isString }?.asString()
+    private fun problemOf(): Problem {
+        val read = Problems.read(status, HttpHeaders.of(headers) { _, _ -> true }, text.toByteArray())
+        return Problem(
+            status = read.status,
+            title = read.title.orEmpty(),
+            detail = read.detail,
+            code = read.code,
+            violations = read.violations,
+            result = read.result,
+            extensions = read.extensions,
+            retryAfter = read.retryAfter?.inWholeSeconds,
+            version = read.version,
+            retry = read.retry,
+        )
+    }
 
     private companion object {
         const val CONTENT_TYPE = "Content-Type"
         const val PROBLEM_JSON = "application/problem+json"
-        const val RETRY_AFTER = "Retry-After"
-
-        /** The members a [Problem] has a property of; every other one is an extension. */
-        val MEMBERS = setOf(
-            "type", "title", "status", "detail", "code", "violations", "result", "instance", Problem.VERSION,
-            Problem.RETRY,
-        )
-
-        /** Reads what a server wrote, as a client does: an enum value it does not know is no failure. */
-        val ANSWERS = WowJson.readerBuilder().build()
     }
 }

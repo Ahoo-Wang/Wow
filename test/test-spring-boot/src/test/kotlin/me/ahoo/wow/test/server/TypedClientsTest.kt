@@ -22,6 +22,7 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.client.Problems
 import me.ahoo.wow.example.quickstart.AccountState
 import me.ahoo.wow.example.quickstart.BankServer
 import me.ahoo.wow.example.quickstart.Deposit
@@ -31,6 +32,10 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import java.net.http.HttpHeaders
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 /** The typed clients of a test server, and the problems its answers carry, on the quickstart's bank service. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -150,6 +155,35 @@ class TypedClientsTest {
             .isEqualTo(Violation.of("", "positive", ""))
         // Without a content type, a JSON object is no problem.
         Answer(400, emptyMap(), """{"status":400}""").problem.assert().isNull()
+    }
+
+    @Test
+    fun `a problem should read as the client reads a peer's, Retry-After in seconds or as an HTTP date`() {
+        val text = """{"type":"urn:wow:error:wow.node.closing","title":"Service Unavailable","status":503,""" +
+            """"detail":"The node is closing.","code":"wow.node.closing","retry":"same_request","node":"n-1",""" +
+            """"violations":[{"path":"a","code":"c","message":"m"}]}"""
+        val date = ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(60).format(DateTimeFormatter.RFC_1123_DATE_TIME)
+        val read = listOf("7", date).map { retryAfter ->
+            val headers = mapOf(
+                "Content-Type" to listOf("application/problem+json"),
+                "Retry-After" to listOf(retryAfter)
+            )
+            val problem = Answer(503, headers, text).problem!!
+            val client = Problems.read(503, HttpHeaders.of(headers) { _, _ -> true }, text.toByteArray())
+            problem.status.assert().isEqualTo(client.status)
+            problem.title.assert().isEqualTo(client.title)
+            problem.detail.assert().isEqualTo(client.detail).isEqualTo("The node is closing.")
+            problem.code.assert().isEqualTo(client.code)
+            problem.violations.assert().isEqualTo(client.violations).isNotEmpty()
+            problem.extensions.assert().isEqualTo(client.extensions).isEqualTo(mapOf("node" to "n-1"))
+            problem.retry.assert().isEqualTo(client.retry)
+            problem.version.assert().isEqualTo(client.version)
+            problem.result.assert().isEqualTo(client.result)
+            problem.retryAfter.assert().isEqualTo(client.retryAfter!!.inWholeSeconds)
+            problem.retryAfter!!
+        }
+        read[0].assert().isEqualTo(7L)
+        read[1].assert().isBetween(55L, 60L)
     }
 
     @Test
