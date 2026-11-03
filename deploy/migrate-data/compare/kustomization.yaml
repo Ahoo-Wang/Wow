@@ -1,0 +1,13 @@
+# migrate-data compare, each 9.x snapshot against the state V10 rebuilds: kubectl create -k deploy/migrate-data/compare
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../job
+nameSuffix: -compare
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["compare", "--config", "/config/migrate-data.json"]

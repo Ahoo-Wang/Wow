@@ -1,0 +1,95 @@
+# migrate-data tail as one Pod, kept running until the cut-over: it follows what 9.x commits after the import
+# (deploy/migrate-data/README.md). One replica, and Recreate, so a new Pod starts once the old one stopped; the
+# checkpoint's import lease holds the rest, so a second tail, or an import beside it, waits for this one's lease and
+# fails while it lives. A Pod that restarts resumes from the checkpoint, kept in the target. Scale it to 0, or delete
+# it, before the final pass (import --final).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: migrate-data-tail
+  labels:
+    app.kubernetes.io/name: migrate-data
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: migrate-data
+      app.kubernetes.io/component: tail
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: migrate-data
+        app.kubernetes.io/component: tail
+    spec:
+      # Time for the tail to end its current pass once stopped (SIGTERM): one page of streams per aggregate.
+      terminationGracePeriodSeconds: 120
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      initContainers:
+        # The service's distribution, from the image its nodes run: its lib holds the domain modules whose models
+        # compare, snapshot, backfill-tags and check --decode rebuild states with, and their Manifest fragments.
+        # Set the image and the distribution's path to your service's; the image needs cp.
+        - name: service
+          image: order-service:local
+          imagePullPolicy: IfNotPresent
+          command: ["cp", "-R", "/opt/order-service/lib", "/service/"]
+          volumeMounts:
+            - name: service
+              mountPath: /service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      containers:
+        - name: migrate-data
+          # Built from this repository (README.md), or the released ahoowang/wow-migrate-data:<version>, the version
+          # the service runs on.
+          image: wow-migrate-data:local
+          imagePullPolicy: IfNotPresent
+          args: ["tail", "--config", "/config/migrate-data.json"]
+          envFrom:
+            - secretRef:
+                name: migrate-data
+          env:
+            # compare rebuilds states in the time zone 9.x ran in (TZ, or -Duser.timezone in JAVA_OPTS).
+            - name: TZ
+              value: UTC
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: service
+              mountPath: /service
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          # The heap is 75% of the limit (the image's JAVA_OPTS). An import holds a page of instances per worker
+          # (pageSize, concurrency); give a large one more.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: config
+          configMap:
+            name: migrate-data-config
+        - name: service
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
