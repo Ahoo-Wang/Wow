@@ -1,0 +1,13 @@
+# migrate-data check, the mapping check, which writes nothing: kubectl create -k deploy/migrate-data/check
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../job
+nameSuffix: -check
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["check", "--config", "/config/migrate-data.json"]

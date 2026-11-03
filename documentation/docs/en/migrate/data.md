@@ -78,6 +78,26 @@ Run the tool from a checkout of the Wow release you migrate to:
 ./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"
 ```
 
+Or run that release's image, `ahoowang/wow-migrate-data:<version>`, whose arguments are the command line's ([Running](../reference/migrate-data#running)):
+
+```bash
+docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
+  ahoowang/wow-migrate-data:<version> check --config /config/migrate-data.json
+```
+
+### Run it next to the stores
+
+A long import waits on its stores, stream by stream. When they are in a Kubernetes cluster, run the tool inside it, not through a port-forward or a VPN for hours. [`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) runs each command as a Job of the image, and `tail` as a Deployment of one replica:
+
+- **The service's classes.** An init container copies the service's `lib` from the image its nodes run into a volume the tool reads (`"classpath": ["/service/lib"]`). The configuration names no `manifests`: the tool reads each service's Manifest from its modules' fragments in that `lib`, as the node does at startup.
+- **The configuration and the secrets.** The configuration and the map come from a ConfigMap, the passwords from a Secret, which `env:NAME` reads.
+- **The checkpoints.** They are kept in the target (`"checkpoint": "target:<name>"`), so a Pod that restarts on another node resumes where the last one stopped. One run of each kind writes them at a time; a second one waits for the first's lease, or fails, naming it ([Checkpoints](../reference/migrate-data#checkpoints)).
+- **The network.** A NetworkPolicy admits nothing, and lets the pods reach DNS and their stores alone: the 9.x MongoDB and the V10 target.
+
+A Job ends with the tool's exit code. A failed check, a usage error and differences fail it at once, since running it again changes nothing. A Pod lost to its node or its memory limit is run again, and resumes from the checkpoints.
+
+In the rehearsal's kind cluster, the full import of 50,000 orders took 99 seconds inside the cluster, 114 seconds from the cluster's host through the stores' NodePorts, and 227 seconds through `kubectl port-forward`. Across a real network the gap grows with the round trip, which bounds the import stream by stream ([Limits](#limits)).
+
 ## 2. Check the map
 
 `check` scans the 9.x store and compares what it finds with the map and the V10 Manifests. It writes nothing. It fails when:
@@ -110,7 +130,7 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 
 ## 4. Import
 
-`import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in the checkpoint file, so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice.
+`import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in its checkpoints, a file or the V10 target ([Checkpoints](../reference/migrate-data#checkpoints)), so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice.
 
 **A map change needs a fresh target.** `import`, `--restart` included, passes over a stream the log already holds, as it was converted then: a mapping change, a lifecycle added or an event no longer retired, does not reach the streams imported before it. Import the aggregates the change touches into a fresh target, or remove them from the target first, then compare again.
 
@@ -176,7 +196,7 @@ Run steps 1 and 2, then `import` (step 4) without stopping 9.x. 9.x keeps changi
 
 The tail reads each event stream collection by a `(createTime, _id)` index, which 9.x does not create. Without it, the tail refuses to start and prints the command that creates it. Creating it writes to the 9.x store, so it is a prerequisite of the cut-over on the 9.x side: build it before the dual run, when it suits the 9.x database, or let the tool create it (`source.createCommitTimeIndex`). A store the tool reads with read-only credentials needs its owner to build it. `check` warns of each mapped collection without it.
 
-`tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again.
+`tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again. Stop the tail before the final pass, which takes the same role: on Kubernetes, delete the tail's Deployment, which ends its current pass and releases its lease.
 
 ### V10 on standby
 

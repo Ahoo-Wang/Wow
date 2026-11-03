@@ -10,11 +10,30 @@ outline: deep
 
 ## Running
 
+From a checkout of the Wow release you migrate to:
+
 ```bash
 ./gradlew :migrate-data:run --args="<command> --config <file> [options]"
 ```
 
-Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB event store and writes a V10 log on PostgreSQL or MongoDB.
+Or from that release's image, `ahoowang/wow-migrate-data:<version>` (also on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`), whose entry point is the command line:
+
+```bash
+docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
+  ahoowang/wow-migrate-data:<version> <command> --config /config/migrate-data.json [options]
+```
+
+It reads a 9.x MongoDB event store and writes a V10 log on PostgreSQL or MongoDB.
+
+The image holds the tool alone, on JDK 25. Mount into it:
+
+- the configuration and the map;
+- the services' classes (`classpath`);
+- a writable place for the checkpoint file, or keep the checkpoints in the target.
+
+It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OPTS=-XX:MaxRAMPercentage=75.0`); a `JAVA_OPTS` of your own replaces that. On Kubernetes, [`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) runs each command as a Job next to the stores ([Run it next to the stores](../migrate/data#run-it-next-to-the-stores)).
+
+`migrate-data --help` prints the usage and exits with `0`.
 
 ## Commands
 
@@ -106,8 +125,8 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | Property | Default | Meaning |
 | --- | --- | --- |
 | `map` | required | The migration map. |
-| `manifests` | required | The merged V10 Manifests of the services the streams go to. |
-| `checkpoint` | `migrate-data.checkpoint.json` | The checkpoint file. |
+| `manifests` | the classpath's | The merged V10 Manifests of the services the streams go to. Left out, the tool assembles each service's Manifest from the fragments of its modules on `classpath`, as the service's node does at startup, one per `classpath` entry. It fails, naming them, when no entry holds a context the map imports into. |
+| `checkpoint` | `migrate-data.checkpoint.json` | The checkpoint file; or `target:<name>`, which keeps the checkpoints in the V10 target under that name (letters, digits, `.`, `_` and `-`, at most 128): see [Checkpoints](#checkpoints). |
 | `source.uri`, `source.database` | required | The 9.x MongoDB event store. `draft-map` and `check` fail when the database holds no event stream, naming it: a misspelt name, or an unset `env:` variable's, reads as an empty store. |
 | `source.createCommitTimeIndex` | `false` | Lets `tail` create the `(createTime, _id)` index it needs on each event stream collection, a write to the 9.x store. Otherwise it refuses to start without it and prints the command. `check` warns of each mapped collection without it, and creates none. |
 | `target.type` | required | `postgres` or `mongo`. |
@@ -115,7 +134,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
 | `target.uri`, `target.database` | | The MongoDB target, a replica set. |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
-| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars. `compare` and `snapshot` rebuild states with their models, and `check --decode` reads the 9.x events with them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
+| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars, such as a service's distribution `lib`. `compare` and `snapshot` rebuild states with their models, `check --decode` reads the 9.x events with them, and without `manifests` the Manifests come from them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
 | `compensation.uri` | the source's | The server of that database. |
 | `compensation.service` | | The V10 service whose failure ledger receives the unresolved executions: its `wow.service`, or `spring.application.name`. |
@@ -299,11 +318,49 @@ It writes into the 9.x store of `source`, and only into a collection with 9.x's 
 
 ## Checkpoints
 
-The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, the import, the tail and when its last pass ended, the comparison and the snapshot writing; per `PrepareKey`, the reservation import; the compensation import; per V10 aggregate type, the tags backfill; per V10 context and partition, the export.
+The checkpoints, format 1, keep where each pass stands:
 
-Beside it, `<checkpoint>.reservations.jsonl` records each key the import reserved, before reserving it, so a later import can release a key 9.x gave up. Keep the two files together.
+- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing;
+- per `PrepareKey`: the reservation import;
+- the compensation import;
+- per V10 aggregate type: the tags backfill;
+- per V10 context and partition: the export.
 
-Commands may run at the same time over one checkpoint file, such as `tail` beside `compare`: each change holds a lock on `<checkpoint>.lock` and replaces the file atomically, so none loses another's progress. A stopped run repeats at most one page.
+The import also records each key it reserves, before reserving it, so a later import can release a key 9.x gave up. A stopped run repeats at most one page.
+
+**In a file**, the default. The checkpoint file sits beside `<checkpoint>.reservations.jsonl`, the reserved keys. Keep the two files together. Each change holds a lock on `<checkpoint>.lock` and replaces the file atomically.
+
+**In the target**, with `"checkpoint": "target:<name>"`. A run on another machine, or a Pod that restarted, finds them there, beside the log:
+
+- the checkpoints of each name are one row of `wow_migrate_checkpoint` (a PostgreSQL table, or a MongoDB collection of that name), holding what the file holds;
+- the reserved keys are rows of `wow_migrate_imported_key`;
+- each change is a compare-and-set on the stored version, retried on a conflict.
+
+### One run of each kind at a time
+
+A run that writes the checkpoints holds the role of its command until it ends:
+
+| Role | Commands |
+| --- | --- |
+| `import` | `import`, `import --final`, `tail`, `export` |
+| `compare` | `compare` |
+| `snapshot` | `snapshot`, `import --snapshots` |
+| `export` | `export` |
+
+`export` holds the `import` role too, since it writes into the 9.x store that the import and the tail read. Runs of different roles share the checkpoints, each writing its own entries, such as `tail` beside `compare`. `check`, `draft-map` and the dry runs hold no role.
+
+- **A checkpoint file.** Each role is an operating-system lock on `<checkpoint>.<role>.lock`, which the system frees when the process ends, however it ends. A run that finds the lock held fails at once, naming the run the lock file records.
+- **Checkpoints in the target.** Each role is a lease in the target's own lease store (`wow_lease`, group `wow.migrate.checkpoint/<name>`): 30 seconds, renewed every 10. A run that stopped without releasing its lease no longer renews it, so the lease expires. A run that finds a role held waits up to one lease for it to end, then takes it. If the holder keeps renewing it, the run fails, naming it:
+
+  ```text
+  FAILED The checkpoint target:order-service is in use: tail on migrate-data-tail-5c7d9 (pid 1, run 019a…) holds its import lease, renewed while it runs (now until 2026-11-03T10:15:30Z). One import, import --final, tail or export runs on a checkpoint at a time: stop that run, or wait for it to end.
+  ```
+
+  Every write carries the epochs of the run's leases. Suppose a run pauses longer than its lease, and another run takes the lease and writes. The first run's next write then fails, before it learns it lost the lease, and it stops without writing:
+
+  ```text
+  FAILED This run lost its import lease of the checkpoint target:order-service to another run, which has written the checkpoint since (lease epoch 2, this run's 1). It stops without writing.
+  ```
 
 The cut-over is kept in the V10 target, beside the log: one checkpoint row per partition, in the group `wow.migrate/<context>` under the name `cutover`, which each pass moves forward and never back. The service's subscriptions see the entries up to it as imported, and its transport sink publishes them marked so ([History imported from 9.x](../guide/published-streams#history-imported-from-9x)). A dry run records none.
 

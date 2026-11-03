@@ -19,8 +19,8 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
-// `documentedQueries`, `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules;
-// each has its own tests.
+// `documentedQueries`, `viewStoreContract`, `opsConsole`, `catalogConsole` and `migrateDataImage` are decided apart
+// from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
@@ -29,6 +29,7 @@ const KOTLIN_GATES = new Set([
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
+  'migrateDataImage',
 ]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
@@ -73,6 +74,7 @@ test('ci.yml runs every job it defines, and the static checks', () => {
       ci.viewStoreContract &&
       ci.opsConsole &&
       ci.catalogConsole &&
+      ci.migrateDataImage &&
       ci.package,
   );
   // Scheduled and dispatched only: nothing it defines runs on a pull request.
@@ -607,6 +609,32 @@ test('the catalog console, the catalog service and what the console builds with 
   );
 });
 
+test('the migrate-data tool, its Kubernetes recipe and the workflow run the image job', () => {
+  for (const path of [
+    'migration/migrate-data/Dockerfile',
+    'migration/migrate-data/build.gradle.kts',
+    'migration/migrate-data/src/main/kotlin/me/ahoo/wow/migrate/MigrateData.kt',
+    'migration/migrate-data/src/test/resources/image-smoke/migrate-data.json',
+    'deploy/migrate-data/job/job.yaml',
+    '.github/workflows/ci.yml',
+    // An unknown path or a CI script runs everything.
+    '.github/scripts/ci-scope.mjs',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).migrateDataImage, path);
+  for (const path of [
+    'core/kernel/src/main/kotlin/A.kt',
+    'deploy/ops/deployment.yaml',
+    'documentation/docs/en/migrate/data.md',
+    '.github/workflows/image-deploy.yml',
+    'test/migration-rehearsal/rehearsal/rehearse.sh',
+  ])
+    assert.ok(!scopes([path]).migrateDataImage, path);
+  // The tool keeps the JVM jobs, and its recipe turns on no TypeScript scope.
+  assert.ok(scopes(['migration/migrate-data/Dockerfile']).jvm);
+  assert.deepEqual(on(['deploy/migrate-data/job/job.yaml']), []);
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -674,6 +702,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
+      `migrateDataImage=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

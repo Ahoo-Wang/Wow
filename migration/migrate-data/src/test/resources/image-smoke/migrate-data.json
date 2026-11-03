@@ -1,0 +1,13 @@
+{
+  "map": "migration-map.json",
+  "manifests": ["manifest.json"],
+  "checkpoint": "target:image-smoke",
+  "source": { "uri": "mongodb://localhost:27017", "database": "ninex_smoke" },
+  "target": {
+    "type": "postgres",
+    "jdbcUrl": "jdbc:postgresql://localhost:5432/wow",
+    "username": "wow",
+    "password": "env:WOW_PG_PASSWORD"
+  },
+  "partitions": { "example": 4 }
+}

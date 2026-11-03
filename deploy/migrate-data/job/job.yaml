@@ -1,0 +1,100 @@
+# One migrate-data command as a Job, next to the stores. Not applied alone: each command's directory (check, import,
+# import-final, compare, snapshot) names this Job after its command and gives its arguments. The
+# configuration and the map come from the ConfigMap, the secrets from the Secret (both from deploy/migrate-data); the
+# service's V10 classes from its own image, which the init container copies into the shared volume.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-data
+  labels:
+    app.kubernetes.io/name: migrate-data
+spec:
+  # A pod lost to its node, or killed for its memory, is retried: the command resumes from its checkpoint, and the
+  # previous run's lease on it expires within 30 s, which the new one waits for.
+  backoffLimit: 3
+  podFailurePolicy:
+    rules:
+      # The tool's own verdicts (1 failed, 2 a usage error, 3 differences found): running it again changes none.
+      - action: FailJob
+        onExitCodes:
+          containerName: migrate-data
+          operator: In
+          values: [1, 2, 3]
+      # A drained node or a preempted pod is not counted against the retries.
+      - action: Ignore
+        onPodConditions:
+          - type: DisruptionTarget
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: migrate-data
+    spec:
+      restartPolicy: Never
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      initContainers:
+        # The service's distribution, from the image its nodes run: its lib holds the domain modules whose models
+        # compare, snapshot and check --decode rebuild states with, and their Manifest fragments.
+        # Set the image and the distribution's path to your service's; the image needs cp.
+        - name: service
+          image: order-service:local
+          imagePullPolicy: IfNotPresent
+          command: ["cp", "-R", "/opt/order-service/lib", "/service/"]
+          volumeMounts:
+            - name: service
+              mountPath: /service
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      containers:
+        - name: migrate-data
+          # Built from this repository (README.md), or the released ahoowang/wow-migrate-data:<version>, the version
+          # the service runs on.
+          image: wow-migrate-data:local
+          imagePullPolicy: IfNotPresent
+          args: ["check", "--config", "/config/migrate-data.json"]
+          envFrom:
+            - secretRef:
+                name: migrate-data
+          env:
+            # compare rebuilds states in the time zone 9.x ran in (TZ, or -Duser.timezone in JAVA_OPTS).
+            - name: TZ
+              value: UTC
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: service
+              mountPath: /service
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          # The heap is 75% of the limit (the image's JAVA_OPTS). An import holds a page of instances per worker
+          # (pageSize, concurrency); give a large one more.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: config
+          configMap:
+            name: migrate-data-config
+        - name: service
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

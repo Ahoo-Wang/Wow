@@ -1,0 +1,45 @@
+# migrate-data serves nothing and reaches only its stores: the 9.x MongoDB it reads (source.uri, and compensation.uri
+# when the compensation database is on another server), the V10 target it writes (PostgreSQL or MongoDB), and DNS.
+# Set the selectors to your
+# stores' pods, or an ipBlock for a store outside the cluster; the stores' own policies must admit these pods too
+# (deploy/mongodb admits app.kubernetes.io/name: migrate-data). Enforced where the cluster's network plugin enforces
+# NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: migrate-data
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: migrate-data
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # The 9.x MongoDB.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb-9x
+      ports:
+        - port: 27017
+          protocol: TCP
+    # The V10 target: PostgreSQL here; deploy/mongodb's members (app.kubernetes.io/name: mongodb, port 27017) for a
+    # MongoDB target.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - port: 5432
+          protocol: TCP

@@ -15,9 +15,9 @@ first, naming every breaking pull request.
   `@ahoo-wang/wow-view-store`, `@ahoo-wang/wow-react`; under the `latest` dist-tag when VERSION is the latest line,
   under `release-LINE` when it is a patch to an older line.
 - **Docker**, tags `VERSION` and `LINE`, and `latest` when VERSION is the latest line, pushed by `image-deploy.yml`:
-  `ahoowang/wow-ops-server`, `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server` (also on
-  `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`). Run them behind your gateway; the view store
-  service does no authentication.
+  `ahoowang/wow-ops-server`, `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server`, and the data
+  migration tool `ahoowang/wow-migrate-data` (also on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`).
+  Run the services behind your gateway; the view store service does no authentication.
 
 ## What is in it
 
