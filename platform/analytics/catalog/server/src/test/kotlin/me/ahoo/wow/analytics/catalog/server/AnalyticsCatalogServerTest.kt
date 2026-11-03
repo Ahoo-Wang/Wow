@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceReference
+import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogRow
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
@@ -27,13 +29,18 @@ import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 
 /**
  * The analytics catalog on the memory backend, its warehouse in memory ([MemoryWarehouse]): an analyst's table
@@ -159,6 +166,48 @@ class AnalyticsCatalogServerTest {
     }
 
     @Test
+    fun `the catalog's own commands should be internal, the watcher still syncing in process (X-63)`() {
+        // The watcher, the recompilation saga and the retirement's schedule send them, no caller.
+        node.context.getBean(Manifest::class.java).contexts.single().aggregates
+            .flatMap { aggregate -> aggregate.commands.filter { it.internal }.map { it.name } }
+            .assert().containsExactlyInAnyOrder("SyncSource", "RecompileDataset", "DropDatasetViews")
+        warehouse.put(LEDGERS)
+        val id = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, LEDGERS.name)
+        val table = """{"database":"${MemoryWarehouse.DATABASE}","table":"${LEDGERS.name}"}"""
+        node.command(id, "draft-source", table, Who.EDITOR).assertOk()
+
+        // The public port serves none of their routes, to an administrator either: answered as an unknown path.
+        val dataset = AnalyticsCatalogContext.datasetIdOf("shop", "ledgers")
+        listOf(
+            "/analytics-catalog/source/$id/sync-source" to table,
+            "/analytics-catalog/source/sync-source" to table,
+            "/analytics-catalog/dataset/$dataset/recompile-dataset" to "{}",
+            "/analytics-catalog/dataset/$dataset/drop-dataset-views" to "{}",
+        ).forEach { (path, body) ->
+            val answer = node.post(path, body, Who.ADMIN)
+            answer.status.assert().describedAs(answer.text).isEqualTo(NOT_FOUND)
+            answer.json["detail"].asString().assert().isEqualTo("No route POST $path.")
+        }
+        val paths = node.get("/wow/openapi", Who.ADMIN).assertOk().json["paths"].propertyNames().toList()
+        paths.filter { path -> INTERNAL_ACTIONS.any { path.endsWith(it) } }.assert().isEmpty()
+
+        // The internal port takes them from a service, and the catalog's roles still decide: a service has none.
+        val caller = Caller.of(tenantId = AnalyticsCatalogContext.TENANT_ID, subject = "ada")
+        val refused = assertThrows<CommandRejectedException> {
+            runBlocking { node.peerCommands(caller).wait(SyncSource(MemoryWarehouse.DATABASE, LEDGERS.name), id) }
+        }
+        refused.code.assert().isEqualTo("wow.auth.forbidden")
+        refused.result.error!!.message.assert().contains("may not analytics-catalog.source.SyncSource")
+
+        // The watcher's refresh sends SyncSource in process: the table dropped, its source is marked missing, and back.
+        looked()
+        warehouse.tables.remove("${MemoryWarehouse.DATABASE}.${LEDGERS.name}")
+        eventually("the dropped table synced") { node.state(id)["state"]["missing"].asBoolean() }
+        warehouse.put(LEDGERS)
+        eventually("the table back synced") { !node.state(id)["state"]["missing"].asBoolean() }
+    }
+
+    @Test
     @OptIn(ExperimentalWowApi::class)
     fun `an editor should draft a dataset over a reviewed source, its definition checked against the catalog`() {
         warehouse.put(INVOICES)
@@ -231,7 +280,11 @@ class AnalyticsCatalogServerTest {
         const val OK = 200
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403
+        const val NOT_FOUND = 404
         const val CONFLICT = 409
+
+        /** The last segments of the routes of the catalog's internal commands. */
+        val INTERNAL_ACTIONS = listOf("/sync-source", "/recompile-dataset", "/drop-dataset-views")
 
         val ORDERS = WarehouseTable(
             MemoryWarehouse.DATABASE,
@@ -239,6 +292,13 @@ class AnalyticsCatalogServerTest {
             "uuid-orders",
             "MergeTree",
             listOf(SourceColumn("tenant", "String"), SourceColumn("phone", "String"), SourceColumn("total", "Int64")),
+        )
+        val LEDGERS = WarehouseTable(
+            MemoryWarehouse.DATABASE,
+            "ledgers",
+            "uuid-ledgers",
+            "MergeTree",
+            listOf(SourceColumn("tenant", "String"), SourceColumn("amount", "Int64")),
         )
         val INVOICES = WarehouseTable(
             MemoryWarehouse.DATABASE,
