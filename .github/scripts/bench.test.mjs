@@ -2507,3 +2507,48 @@ test('correctnessOf counts what the runs sent against what the store holds', () 
   );
   assert.equal(unknown.comparable, true);
 });
+
+test('a diagnostic suite dumps its sweeps, its second arm set by properties when the session starts', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeSessionBench(dir);
+  const out = join(dir, 'out');
+  const suite = runSuite('axon-pg-e3-pool', {
+    benchPath,
+    out,
+    warmUp: 30,
+    measure: 40,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(suite.failures, 0);
+  assert.deepEqual(suite.runs, []);
+  assert.deepEqual(
+    suite.sweeps.map(run => run.name),
+    ['1-axon-e3-sweep', '1-axon-pool-32-e3-sweep'],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  const sweeps = calls.filter(call => call.startsWith('saturate '));
+  assert.equal(sweeps.length, 2);
+  assert.ok(sweeps.every(call => call.includes(' --dump-every=15 ')));
+  assert.ok(
+    calls
+      .find(
+        call =>
+          call.startsWith('up ') &&
+          call.includes(join(out, '1-axon-pool-32-up')),
+      )
+      .endsWith(' props={"spring.datasource.hikari.maximum-pool-size":32}'),
+  );
+  assert.ok(suite.sessions.every(session => session.correctness.comparable));
+  assert.deepEqual(
+    resolveInputs({
+      suites: 'axon-diag',
+      warmUp: 30,
+      measure: 40,
+      repeats: 2,
+      fraction: 0.8,
+    }).suites,
+    ['axon-pg-e3-pool', 'axon-pg-e3-reactions'],
+  );
+});

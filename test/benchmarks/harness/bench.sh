@@ -43,7 +43,8 @@
 #          Kafka's containers on CPUs of their own, else on the --server-cpus), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
-#          --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
+#          --dump-every=<s> (saturate, a diagnostic: every <s> seconds of the sweep, each server's threads and the store's
+#          sessions into $OUT/dumps), --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
 #          a baseline keeps the disk), --mongo-cache-gb=2 (MongoDB's WiredTiger cache),
 #          and any other --name=value of the load generator's run or saturate, passed through (`saturate --growth=4`
 #          steps the concurrency 1, 4, 16, 64, 256, 1024: six steps for a sweep to 1,024 instead of eleven).
@@ -67,7 +68,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -120,7 +121,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -419,11 +420,53 @@ run() {
   log "results in $OUT"
 }
 
+# With --dump-every=<s>, a diagnostic: every <s> seconds while the load runs, each server's platform threads with the
+# locks they hold (jcmd Thread.print -l) and every thread, the virtual ones too (Thread.dump_to_file), and on PostgreSQL
+# its sessions, what each waits on and which pids block it (pg_stat_activity, pg_blocking_pids), into $OUT/dumps.
+# The dumper stops with the load, or when this script is gone.
+DUMPER=""
+POSTGRES_SESSIONS="select now()::time(0) as at, pid, state, wait_event_type, wait_event,
+  round(extract(epoch from now() - xact_start)::numeric, 1) as xact_s,
+  round(extract(epoch from now() - query_start)::numeric, 1) as query_s,
+  pg_blocking_pids(pid) as blocked_by, left(regexp_replace(query, '\s+', ' ', 'g'), 100) as query
+  from pg_stat_activity where datname = 'transfer' and pid <> pg_backend_pid() order by xact_start nulls last"
+start_dumps() {
+  local every; every=$(opt dump-every "")
+  [ -n "$every" ] || return 0
+  mkdir -p "$OUT/dumps"
+  (
+    t=0
+    while kill -0 "$" 2>/dev/null; do
+      sleep "$every"
+      t=$((t + every))
+      for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
+        "$JAVA_HOME/bin/jcmd" "$pid" Thread.print -l >"$OUT/dumps/$t-locks-$pid.txt" 2>&1 || true
+        "$JAVA_HOME/bin/jcmd" "$pid" Thread.dump_to_file -format=text "$OUT/dumps/$t-threads-$pid.txt" >/dev/null 2>&1 || true
+      done
+      case "${CONTAINERS:-}" in
+        *postgres*) postgres_sql "$POSTGRES_SESSIONS" >"$OUT/dumps/$t-postgres.txt" 2>&1 || true ;;
+      esac
+    done
+  ) &
+  DUMPER=$!
+}
+stop_dumps() {
+  if [ -n "$DUMPER" ]; then
+    kill "$DUMPER" 2>/dev/null || true
+    wait "$DUMPER" 2>/dev/null || true
+    DUMPER=""
+  fi
+}
+
 saturate() {
   parse "$@"
   setup
+  start_dumps
+  local status=0
   load saturate --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
-    --meta="$META" ${PASS[@]+"${PASS[@]}"}
+    --meta="$META" ${PASS[@]+"${PASS[@]}"} || status=$?
+  stop_dumps
+  [ "$status" = 0 ] || exit "$status"
   log "results in $OUT"
 }
 

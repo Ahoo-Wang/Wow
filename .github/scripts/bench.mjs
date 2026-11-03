@@ -72,6 +72,18 @@ const AXON_2 = {
     'axon.eventhandling.processors.transfer.initial-segment-count': 2,
   },
 };
+// The diagnostics of Axon's E3 under closed loop (axon-diag): its 10 connections (Spring Boot's) against 32, and the
+// transfer's reactions nested in the processor's unit of work against units of work of their own.
+const AXON_POOL_32 = {
+  ...AXON,
+  id: 'axon-pool-32',
+  props: { 'spring.datasource.hikari.maximum-pool-size': 32 },
+};
+const AXON_SEPARATE = {
+  ...AXON,
+  id: 'axon-separate',
+  props: { 'benchmark.axon.reactions': 'separate' },
+};
 
 // The mixed suites' operations: writes while point reads and lists run (the query bulkheads, the write priority).
 const MIX = 'E1:50,E4-state:40,E4-list:10';
@@ -412,6 +424,35 @@ export const SUITES = {
     own: false,
     answers:
       "Axon's tracking processor on a runner: 16 segments and threads (axon-server's) against 2, the server's CPUs, by their peaks and E3 at one rate, to choose the comparison's.",
+  },
+  // A diagnostic suite (`dumpEvery`) dumps each sweep's threads and PostgreSQL sessions every so many seconds.
+  'axon-pg-e3-pool': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [AXON, AXON_POOL_32],
+    rates: [],
+    sweeps: [{ scenario: 'E3' }],
+    own: false,
+    dumpEvery: 15,
+    answers:
+      "A diagnostic of Axon's E3 in closed loop: its 10 connections (Spring Boot's) against 32, each sweep's threads and PostgreSQL sessions dumped every 15 s.",
+  },
+  'axon-pg-e3-reactions': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [AXON, AXON_SEPARATE],
+    rates: [],
+    sweeps: [{ scenario: 'E3' }],
+    own: false,
+    dumpEvery: 15,
+    answers:
+      "A diagnostic of Axon's E3 in closed loop: the transfer's reactions nested in the processor's unit of work (axon-server's) against units of work of their own, each sweep's threads and PostgreSQL sessions dumped every 15 s.",
   },
 };
 
@@ -1516,7 +1557,7 @@ export function runSettings({ event, inputs = {}, config }) {
 
 /**
  * The settings, checked. `suites` is `all` (every suite), names separated by commas or spaces, or the group names
- * `ab`, `head`, `component` and `axon` among them.
+ * `ab`, `head`, `component`, `axon` and `axon-diag` among them.
  */
 export function resolveInputs({
   tier = DEFAULTS.tier,
@@ -1532,11 +1573,12 @@ export function resolveInputs({
   properties,
 }) {
   const groups = {
-    all: ['ab', 'head', 'component', 'axon'],
+    all: ['ab', 'head', 'component', 'axon', 'axon-diag'],
     ab: ['ab'],
     head: ['head'],
     component: ['component'],
     axon: ['axon'],
+    'axon-diag': ['axon-diag'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -3351,6 +3393,9 @@ export function runSuite(name, options) {
           ...common(arm, plan.scenario, true, plan.distribution),
           ...(from ? [`--start-concurrency=${from}`] : []),
           `--max-concurrency=${from ?? SESSIONS.sweep.maxConcurrency}`,
+          ...(definition.dumpEvery
+            ? [`--dump-every=${definition.dumpEvery}`]
+            : []),
           '--sweep',
           `--growth=${SESSIONS.sweep.growth}`,
           `--step=${SESSIONS.sweep.step}`,
