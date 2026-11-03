@@ -191,7 +191,7 @@ These rates follow each arm's own sweep, so they differ between the arms, and Ax
 | E3 peak, Wow/Axon | 1.55–1.78 | 1.89–2.33 |
 | E3 at 300/s, node alloc/op | 198–199 KB against 263–264 KB | 194–200 KB against 264–266 KB |
 
-These are given without a conclusion. The runner, the JDK and the code all changed between the two: 25 commits (`git rev-list --count 331f3dbef9..3fd5349050`), among them every record now carrying the aggregate's access attributes in place of tags (#5381), and a snapshot index for each access attribute (#5382). The JDK's own share is what D393's calibration measures: on PostgreSQL, its first closed-loop samples put JDK 25 below JDK 21, which remains open (#5391). It does not bear on this comparison, which runs both arms on JDK 25.
+These are given without a conclusion. The runner, the JDK and the code all changed between the two: 25 commits (`git rev-list --count 331f3dbef9..3fd5349050`), among them every record now carrying the aggregate's access attributes in place of tags (#5381), and a snapshot index for each access attribute (#5382). The JDK's own share is what D393's calibration measures. The calibration's single closed-loop samples put JDK 25 at 0.86 and 0.90 of JDK 21 on PostgreSQL. Four samples an arm on four runners then found no difference beyond the A/A band (#5391), and the cost per command at one rate was level (#5388). None of it bears on this comparison, which runs both arms on JDK 25.
 
 ## Reproduce
 
