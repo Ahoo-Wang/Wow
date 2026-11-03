@@ -81,6 +81,9 @@ import {
   sustainableStep,
   sweepNext,
   sweepOf,
+  fineMore,
+  fineOf,
+  fineSteps,
   sweepPlanOf,
   usesBus,
 } from './bench.mjs';
@@ -1764,11 +1767,13 @@ if (command === 'inspect') {
 if (command === 'saturate') {
   const from = Number(opt('start-concurrency') ?? 1);
   const to = Number(opt('max-concurrency'));
-  const steps = [1, 4, 16, 64, 256, 1024, 4096, 16384].filter(c => c >= from && c <= to).map(concurrency => {
+  const given = opt('concurrencies')?.split(',').map(Number);
+  const steps = (given ?? [1, 4, 16, 64, 256, 1024, 4096, 16384].filter(c => c >= from && c <= to)).map(concurrency => {
     const index = Math.round(Math.log(concurrency) / Math.log(4));
     const throughput = axon ? Math.min(100 * 2 ** index, 800) : concurrency >= 16384 ? 13000 : 200 * 2 ** index;
     return {
       concurrency,
+      seconds: Number(opt('step')),
       throughput,
       ok: throughput * 30,
       errors: axon && concurrency === 4096 ? { 'http-504-timeout': 7 } : {},
@@ -1832,14 +1837,17 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
   // No Kafka: neither server uses one.
   assert.deepEqual(suite.cpus, { load: '2-3', server: '0-1' });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Per session: up, the same-rate runs, the sweeps (Wow's past the cap, a step each), the own-share runs, the
-  // store's inspection, down.
+  // Per session: up, the same-rate runs, the sweeps (each located with short steps, Wow's past the cap a step at a
+  // time, then measured at full length around its peak and sustainable rate), the own-share runs, the store's
+  // inspection, down.
   assert.deepEqual(
-    calls.slice(0, 11).map(call => call.split(' ')[0]),
+    calls.slice(0, 13).map(call => call.split(' ')[0]),
     [
       'up',
       'run',
       'run',
+      'saturate',
+      'saturate',
       'saturate',
       'saturate',
       'saturate',
@@ -1892,18 +1900,34 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
       `run --backend=postgres --install=/builds/axon-server --no-bus --reuse --scenario=E3 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --rate=300.0 --warm-up=20 --measure=40 --label=axon-pg-1-axon-e3 --out=${join(out, '1-axon-e3')} props=`,
     ),
   );
+  // Short steps locate the peak.
   assert.ok(
     calls.includes(
-      `saturate --backend=postgres --server-args=--wow.transport=none --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --max-concurrency=4096 --sweep --growth=4 --step=30 --warm-up=10 --label=axon-pg-2-wow-e1-sweep --out=${join(out, '2-wow-e1-sweep')} props=`,
+      `saturate --backend=postgres --server-args=--wow.transport=none --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --max-concurrency=4096 --sweep --growth=4 --step=8 --warm-up=3 --label=axon-pg-2-wow-e1-sweep-locate --out=${join(out, '2-wow-e1-sweep-locate')} props=`,
     ),
   );
-  // Still rising at 4096, Wow's sweep goes on alone at 16384, where it levels off.
+  // Still rising at 4096, Wow's goes on alone at 16384, where it levels off.
   assert.ok(
     calls.includes(
-      `saturate --backend=postgres --server-args=--wow.transport=none --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --start-concurrency=16384 --max-concurrency=16384 --sweep --growth=4 --step=30 --warm-up=10 --label=axon-pg-1-wow-e1-sweep-16384 --out=${join(out, '1-wow-e1-sweep-16384')} props=`,
+      `saturate --backend=postgres --server-args=--wow.transport=none --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --start-concurrency=16384 --max-concurrency=16384 --sweep --growth=4 --step=8 --warm-up=3 --label=axon-pg-1-wow-e1-sweep-locate-16384 --out=${join(out, '1-wow-e1-sweep-locate-16384')} props=`,
     ),
   );
   assert.ok(!calls.some(call => /--start-concurrency=65536/.test(call)));
+  // Full-length steps then measure the peak, 16384, beside its better neighbour, 4096, and the sustainable rate,
+  // 1024 (p99 102.4 ms), beside the step above it; a failing one ends after 10 s.
+  assert.ok(
+    calls.includes(
+      `saturate --backend=postgres --server-args=--wow.transport=none --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --concurrencies=1024,4096,16384 --step=30 --warm-up=10 --fail-after=10 --label=axon-pg-2-wow-e1-sweep --out=${join(out, '2-wow-e1-sweep')} props=`,
+    ),
+  );
+  // Axon's peak, 64, and its sustainable rate, the same step, each beside 256.
+  assert.ok(
+    calls.some(call =>
+      call.startsWith(
+        `saturate --backend=postgres --install=/builds/axon-server --no-bus --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --concurrencies=64,256 --step=30 --warm-up=10 --fail-after=10 `,
+      ),
+    ),
+  );
   // Axon's own share: half of the 800/s its sweep held at 64 clients.
   assert.ok(
     calls.includes(
@@ -1930,8 +1954,19 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
     ],
   );
   const [wow, , axon] = suite.sweeps;
-  assert.deepEqual(wow.extended, ['1-wow-e1-sweep-16384']);
+  assert.deepEqual(wow.locatedPast, ['1-wow-e1-sweep-locate-16384']);
+  assert.equal(wow.extended, undefined);
   assert.equal(wow.end, 'levelled');
+  // The full-length steps are the sweep's; the short ones that located them are kept beside them.
+  assert.deepEqual(
+    wow.steps.map(step => step.concurrency),
+    [1024, 4096, 16384],
+  );
+  assert.deepEqual(
+    wow.located.map(step => step.concurrency),
+    [1, 4, 16, 64, 256, 1024, 4096, 16384],
+  );
+  assert.equal(wow.top, 16384);
   assert.deepEqual(
     [wow.peak.throughput, wow.peak.concurrency, wow.peak.lowerBound],
     [13000, 16384, true],
@@ -2072,11 +2107,24 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
   );
   assert.match(
     summary,
-    /\| 1-axon-e1-sweep \| axon \| 800\/s at 64 \| levelled off \| 100\/s, p99 0\.1 ms \| .* \| 800\/s, 7 errors \| - \|/,
+    /\| 1-axon-e1-sweep \| axon \| 800\/s at 64 \| levelled off \| 800\/s, p99 6\.4 ms \| 800\/s, p99 25\.6 ms \| - \| - \| - \|/,
   );
   assert.match(
     summary,
-    /\| 1-wow-e1-sweep \| wow \| ≥ 13000\/s at 16384 \(top step\) \| levelled off \| .* \| 13000\/s, p99 1638\.4 ms \|/,
+    /\| 1-wow-e1-sweep \| wow \| ≥ 13000\/s at 16384 \(top step\) \| levelled off \| - \| - \| 6400\/s, p99 102\.4 ms \| 12800\/s, p99 409\.6 ms \| 13000\/s, p99 1638\.4 ms \|/,
+  );
+  // The short steps that located them, apart.
+  assert.match(
+    summary,
+    /The short steps that located them \(3 s warm-up, 8 s measured\), not part of the results:\n\n\| Sweep \| Arm \| 1 clients \|/,
+  );
+  assert.match(
+    summary,
+    /\| 1-axon-e1-sweep \| axon \| 100\/s, p99 0\.1 ms \| .* \| 800\/s, 7 errors \| - \|/,
+  );
+  assert.match(
+    summary,
+    /sweeps of 30 s steps after 10 s, .*, located first with 8 s steps after 3 s and measured at full length around the peak and the sustainable rate, a failing step ending after 10 s;/,
   );
 });
 
@@ -2114,6 +2162,185 @@ test('sweepNext goes on past the top step while it still rises, and says why it 
     end: 'limit',
   });
   assert.deepEqual(sweepNext([], 2), { end: 'failed' });
+});
+
+test('fineSteps measures at full length the located peak beside its better neighbour, and the sustainable step beside the one above', () => {
+  const steps = (throughputs, p99s, errors = {}) =>
+    [1, 4, 16, 64, 256, 1024, 4096].map((concurrency, index) => ({
+      concurrency,
+      throughput: throughputs[index],
+      p99: p99s[index],
+      errors: errors[concurrency] ?? 0,
+    }));
+  // A flat top: the peak at 64 beside 256, which held at the same rate; the sustainable rate, the same step.
+  assert.deepEqual(
+    fineSteps(
+      steps(
+        [100, 200, 400, 800, 800, 800, 800],
+        [0.1, 0.4, 1.6, 6.4, 25.6, 102.4, 409.6],
+        { 4096: 7 },
+      ),
+      200,
+    ),
+    [64, 256],
+  );
+  // Axon's E3 at 2 segments: the peak at the top step beside 1024, the sustainable rate far below it, at 16 beside 64.
+  assert.deepEqual(
+    fineSteps(
+      steps(
+        [260, 600, 618, 650, 680, 700, 709],
+        [5, 20, 53, 300, 900, 2000, 6000],
+      ),
+      200,
+    ),
+    [16, 64, 1024, 4096],
+  );
+  // Held nowhere: the lowest step for the sustainable rate.
+  assert.deepEqual(
+    fineSteps(
+      steps(
+        [100, 200, 150, 140, 130, 120, 110],
+        [300, 400, 900, 900, 900, 900, 900],
+      ),
+      200,
+    ).slice(0, 3),
+    [1, 4, 16],
+  );
+});
+
+test('fineMore takes the sustainable rate down or up the located steps, and the peak past the located top', () => {
+  const step = (concurrency, throughput, p99, errors = 0) => ({
+    concurrency,
+    throughput,
+    p99,
+    errors,
+    ok: throughput * 30,
+    generatorCores: 0.5,
+  });
+  const located = [1, 4, 16, 64, 256, 1024, 4096].map(c => step(c, 100, 10));
+  // The peak below the top and the sustainable rate measured: nothing more.
+  assert.deepEqual(
+    fineMore(located, [step(64, 800, 6.4), step(256, 800, 25.6)], 200, 2),
+    {},
+  );
+  // No full-length step held: the one below the lowest.
+  assert.deepEqual(
+    fineMore(
+      located,
+      [
+        step(16, 618, 250),
+        step(64, 650, 300),
+        step(1024, 700, 2000),
+        step(4096, 709, 6000),
+      ],
+      200,
+      2,
+    ),
+    { next: 4 },
+  );
+  // Once 4 held, the peak at the top levelled off at full length: the sweep stops there.
+  assert.deepEqual(
+    fineMore(
+      located,
+      [
+        step(4, 600, 20),
+        step(16, 618, 250),
+        step(64, 650, 300),
+        step(1024, 700, 2000),
+        step(4096, 709, 6000),
+      ],
+      200,
+      2,
+    ),
+    { end: 'levelled' },
+  );
+  // The step above the sustainable one held at full length too: the one above it, below the peak's.
+  assert.deepEqual(
+    fineMore(
+      located,
+      [
+        step(16, 618, 53),
+        step(64, 650, 150),
+        step(1024, 700, 2000),
+        step(4096, 709, 6000),
+      ],
+      200,
+      2,
+    ),
+    { next: 256 },
+  );
+  // Still rising at the located top at full length: on past it, a step at a time.
+  assert.deepEqual(
+    fineMore(
+      located,
+      [step(1024, 6400, 102.4), step(4096, 12800, 409.6)],
+      200,
+      2,
+    ),
+    { next: 16384 },
+  );
+  assert.deepEqual(
+    fineMore(
+      located,
+      [
+        step(1024, 6400, 102.4),
+        step(4096, 12800, 409.6),
+        step(16384, 13000, 1638.4),
+      ],
+      200,
+      2,
+    ),
+    { end: 'levelled' },
+  );
+});
+
+test('fineOf: a peak is at the top step only when no short or full-length step went past it', () => {
+  const step = (concurrency, throughput) => ({
+    concurrency,
+    throughput,
+    generatorCores: 0.5,
+  });
+  const located = sweepOf({
+    steps: [1, 4, 16, 64, 256, 1024, 4096].map(concurrency => ({
+      concurrency,
+      throughput: 100,
+      generatorCores: 0.5,
+    })),
+    saturationThroughput: 100,
+    saturationConcurrency: 1,
+    availableProcessors: 2,
+  });
+  const swept = full =>
+    sweepOf({
+      steps: full.map(([c, t]) => step(c, t)),
+      saturationThroughput: Math.max(...full.map(([, t]) => t)),
+      saturationConcurrency: full.reduce((a, b) => (b[1] > a[1] ? b : a))[0],
+      generatorCores: 0.5,
+      availableProcessors: 2,
+    });
+  // 256 is the highest full-length step, but the short steps went on to 4096.
+  const below = fineOf(
+    located,
+    swept([
+      [64, 800],
+      [256, 820],
+    ]),
+  );
+  assert.equal(below.top, 4096);
+  assert.deepEqual([below.peak.top, below.peak.lowerBound], [false, false]);
+  assert.deepEqual(
+    below.steps.map(s => s.concurrency),
+    [64, 256],
+  );
+  assert.equal(below.located.length, 7);
+  const top = fineOf(
+    located,
+    swept([
+      [1024, 6400],
+      [4096, 12800],
+    ]),
+  );
+  assert.deepEqual([top.peak.top, top.peak.lowerBound], [true, true]);
 });
 
 test('sustainableStep takes the most a step did within the p99 limit and with no failure', () => {
@@ -2372,10 +2599,20 @@ test("the segments suite puts Axon's 16 segments against 2, set when each sessio
     ['1-axon-16', '1-axon-2', '2-axon-2', '2-axon-16'],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Per session: up, E3 at one rate, the two sweeps, the inspection, down; no own-share runs.
+  // Per session: up, E3 at one rate, the two sweeps (each located, then measured), the inspection, down; no
+  // own-share runs.
   assert.deepEqual(
-    calls.slice(0, 6).map(call => call.split(' ')[0]),
-    ['up', 'run', 'saturate', 'saturate', 'inspect', 'down'],
+    calls.slice(0, 8).map(call => call.split(' ')[0]),
+    [
+      'up',
+      'run',
+      'saturate',
+      'saturate',
+      'saturate',
+      'saturate',
+      'inspect',
+      'down',
+    ],
   );
   const ups = calls.filter(call => call.startsWith('up '));
   assert.ok(ups[0].endsWith(' props={"benchmark.axon.segments":16}'));
@@ -2429,12 +2666,12 @@ test('the contention suite sweeps with Zipf and hot keys, and nothing in open lo
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.ok(
     calls.includes(
-      `saturate --backend=postgres --install=/builds/axon-server --no-bus --reuse --scenario=E1 --distribution=hot --accounts=100000 --max-concurrency=4096 --sweep --growth=4 --step=30 --warm-up=10 --label=axon-pg-contention-1-axon-e1-hot-sweep --out=${join(out, '1-axon-e1-hot-sweep')} props=`,
+      `saturate --backend=postgres --install=/builds/axon-server --no-bus --reuse --scenario=E1 --distribution=hot --accounts=100000 --max-concurrency=4096 --sweep --growth=4 --step=8 --warm-up=3 --label=axon-pg-contention-1-axon-e1-hot-sweep-locate --out=${join(out, '1-axon-e1-hot-sweep-locate')} props=`,
     ),
   );
   assert.match(
     calls,
-    /--start-concurrency=16384 .* --label=axon-pg-contention-1-wow-e1-zipf-sweep-16384 /,
+    /--start-concurrency=16384 .* --label=axon-pg-contention-1-wow-e1-zipf-sweep-locate-16384 /,
   );
   const report = renderReport([suite]);
   assert.match(
@@ -2737,8 +2974,9 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
     ['1-axon-e3-sweep', '1-axon-pool-32-e3-sweep'],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  // Each sweep located, then measured, both dumped.
   const sweeps = calls.filter(call => call.startsWith('saturate '));
-  assert.equal(sweeps.length, 2);
+  assert.equal(sweeps.length, 4);
   assert.ok(sweeps.every(call => call.includes(' --dump-every=15 ')));
   assert.ok(
     calls

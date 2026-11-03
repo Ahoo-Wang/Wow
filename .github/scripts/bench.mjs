@@ -1102,10 +1102,13 @@ export const SATURATION = {
 //   sustainable rate on a runner's two server CPUs, so both run loaded (the suite's `rates`): for the same work, whose
 //   latency and cost are lower. Axon's sweeps there kept p99 within 200 ms with no failure up to 1,776–1,969/s (E1) and
 //   515–655/s (E3) (EPYC 9V45, run 41568172064, whose fixed rates were 500/s and 150/s, a quarter of that).
-// - peak: each scenario's closed-loop sweep, every step 10 s warm-up and 30 s measured, the concurrency growing
-//   fourfold from 1 to the paired suites' cap (V10 still gained past 1,024 on GitHub's 4-core runners), then on a
-//   step at a time while the top step still rises (sweepNext): how much each handles at most. The sweep also gives
-//   the arm's sustainable rate, the most a step did with p99 within the limit and no failure (sustainableStep).
+// - peak: each scenario's closed-loop sweep, the concurrency growing fourfold from 1 to the paired suites' cap (V10
+//   still gained past 1,024 on GitHub's 4-core runners), then on a step at a time while the top step still rises
+//   (sweepNext): how much each handles at most. The sweep also gives the arm's sustainable rate, the most a step did
+//   with p99 within the limit and no failure (sustainableStep). Coarse then fine: short steps (`locate`, the paired
+//   suites' search's 3 s warm-up and 8 s measured) locate the peak and the sustainable rate, then full-length steps,
+//   10 s warm-up and 30 s measured, measure the steps around them (fineSteps, fineMore), which are what the views
+//   report. A failing full-length step ends once it has measured `failAfter` s (the load generator's stopsEarly).
 // - own share: each arm in open loop at `share` of its own sustainable rate from this session's sweep, as long as the
 //   same-rate runs: with the same headroom, each one's latency and cost per command.
 // then `down`.
@@ -1116,6 +1119,8 @@ export const SESSIONS = {
   sweep: {
     warmUp: 10,
     step: 30,
+    locate: { warmUp: SATURATION.warmUp, step: SATURATION.step },
+    failAfter: 10,
     growth: 4,
     maxConcurrency: SATURATION.maxConcurrency,
     // A step gaining at most this over the one before has levelled off: the closed loop's own minimum gain.
@@ -1182,20 +1187,119 @@ export function sweepNext(steps, cpus, sweep = SESSIONS.sweep) {
 
 /**
  * An arm's sustainable rate from its sweep: the step with the most throughput among those with p99 within `p99LimitMs`
- * and no failure, or undefined when none. At the sweep's top step it is a lower bound.
+ * and no failure, or undefined when none. At the sweep's top step (`top`, its steps' highest unless given) it is a
+ * lower bound.
  */
-export function sustainableStep(steps, p99LimitMs) {
-  const held = steps.filter(
-    step => step.errors === 0 && step.p99 <= p99LimitMs,
-  );
+export function sustainableStep(
+  steps,
+  p99LimitMs,
+  top = Math.max(...steps.map(step => step.concurrency)),
+) {
+  const held = steps.filter(step => holds(step, p99LimitMs));
   if (held.length === 0) return undefined;
   const best = held.reduce((a, b) => (b.throughput > a.throughput ? b : a));
-  const top = Math.max(...steps.map(step => step.concurrency));
   return {
     throughput: best.throughput,
     concurrency: best.concurrency,
     p99: best.p99,
     lowerBound: best.concurrency >= top,
+  };
+}
+
+/** Whether a sweep's step held: no failure and p99 within `p99LimitMs`. */
+const holds = (step, p99LimitMs) => step.errors === 0 && step.p99 <= p99LimitMs;
+
+/**
+ * Coarse then fine, the full-length steps a sweep measures once its short steps (`located`, sweepOf's) found its peak
+ * and sustainable rate, in order: the located peak's concurrency and its better neighbour's, so a flat top is measured
+ * on both sides of the knee; the located sustainable step's and the one above it, so the rate is the most a full-length
+ * step held. A located sweep that held nowhere measures its lowest step for the sustainable rate.
+ */
+export function fineSteps(located, p99LimitMs) {
+  const grid = [...new Set(located.map(step => step.concurrency))].sort(
+    (a, b) => a - b,
+  );
+  const at = concurrency =>
+    located.find(step => step.concurrency === concurrency);
+  const peak = located.reduce((a, b) => (b.throughput > a.throughput ? b : a));
+  const index = grid.indexOf(peak.concurrency);
+  const better = [grid[index - 1], grid[index + 1]]
+    .filter(concurrency => concurrency !== undefined)
+    .map(at)
+    .reduce(
+      (a, b) => (a === undefined || b.throughput > a.throughput ? b : a),
+      undefined,
+    );
+  const sustainable = sustainableStep(located, p99LimitMs);
+  const held = sustainable ? grid.indexOf(sustainable.concurrency) : 0;
+  return [
+    ...new Set(
+      [
+        peak.concurrency,
+        better?.concurrency,
+        grid[held],
+        sustainable ? grid[held + 1] : undefined,
+      ].filter(concurrency => concurrency !== undefined),
+    ),
+  ].sort((a, b) => a - b);
+}
+
+/**
+ * Coarse then fine, once the full-length steps (`measured`) ran: `{ next }`, one more full-length step the sweep
+ * needs, `{ end }` when it stops past its located top (sweepNext's why), or `{}` when it has all it needs. The
+ * sustainable rate goes down the located steps while no full-length step held, and up while the highest that held has
+ * one above it not measured. The peak goes on past the located top a step at a time while a full-length step there
+ * still rises (sweepNext, on `cpus` CPUs).
+ */
+export function fineMore(
+  located,
+  measured,
+  p99LimitMs,
+  cpus,
+  sweep = SESSIONS.sweep,
+) {
+  const grid = [...new Set(located.map(step => step.concurrency))].sort(
+    (a, b) => a - b,
+  );
+  const steps = [...measured].sort((a, b) => a.concurrency - b.concurrency);
+  const done = new Set(steps.map(step => step.concurrency));
+  const held = steps.filter(step => holds(step, p99LimitMs));
+  if (held.length === 0) {
+    const below = grid.filter(c => c < steps[0].concurrency).at(-1);
+    if (below !== undefined) return { next: below };
+  } else {
+    const above = grid.find(c => c > held.at(-1).concurrency);
+    if (
+      above !== undefined &&
+      !done.has(above) &&
+      above < steps.at(-1).concurrency
+    )
+      return { next: above };
+  }
+  const peak = steps.reduce((a, b) => (b.throughput > a.throughput ? b : a));
+  if (peak !== steps.at(-1) || peak.concurrency < grid.at(-1)) return {};
+  return sweepNext(steps, cpus, sweep);
+}
+
+/**
+ * A coarse-then-fine sweep from its short steps (`located`, sweepOf's) and its full-length ones (`swept`): the
+ * full-length steps and their peak, the short steps beside them, and the sweep's top step, the highest of either. A
+ * peak there, or one the load generator bound, is a lower bound.
+ */
+export function fineOf(located, swept) {
+  const top = Math.max(
+    ...[...located.steps, ...swept.steps].map(step => step.concurrency),
+  );
+  const peak = { ...swept.peak, top: swept.peak.concurrency >= top };
+  return {
+    steps: swept.steps,
+    located: located.steps,
+    top,
+    peak: {
+      ...peak,
+      lowerBound:
+        peak.top || generatorBound(peak.generatorCores, peak.generatorCpus),
+    },
   };
 }
 
@@ -1206,6 +1310,8 @@ export function sustainableStep(steps, p99LimitMs) {
 export function sweepOf(saturation) {
   const steps = (saturation.steps ?? []).map(step => ({
     concurrency: step.concurrency,
+    // Short of the step's length when a failing step ended early (the load generator's --fail-after).
+    seconds: step.seconds,
     throughput: step.throughput,
     ok: step.ok,
     errors: Object.values(step.errors ?? {}).reduce((a, b) => a + b, 0),
@@ -1361,7 +1467,10 @@ export function correctnessOf({
         .filter(run => run.scenario === scenario)
         .flatMap(run =>
           run.status === 'ok'
-            ? run.steps.map(step => [step.sentOk, step.sentFailed])
+            ? [...run.steps, ...(run.located ?? [])].map(step => [
+                step.sentOk,
+                step.sentFailed,
+              ])
             : [[undefined, undefined]],
         ),
     ];
@@ -2629,28 +2738,37 @@ function startupTable(suite) {
   ];
 }
 
-/** A sessions suite's sweeps step by step: each step's throughput and p99, or its errors when it failed some. */
-function sweepTable(suite) {
+/**
+ * A sessions suite's sweeps step by step: each step's throughput and p99, or its errors when it failed some (and how
+ * long it measured when it ended early). `located`: the short steps that located them instead (coarse then fine).
+ */
+function sweepTable(suite, located = false) {
   const sweeps = suite.sweeps ?? [];
+  const stepsOf = run => (located ? run.located : run.steps) ?? [];
   const concurrencies = [
     ...new Set(
-      sweeps.flatMap(run => (run.steps ?? []).map(step => step.concurrency)),
+      sweeps.flatMap(run => stepsOf(run).map(step => step.concurrency)),
     ),
   ].sort((a, b) => a - b);
   if (concurrencies.length === 0) return [];
+  const head = located ? '' : ' Peak | Stopped |';
   return [
-    `| Sweep | Arm | Peak | Stopped | ${concurrencies.map(c => `${c} clients`).join(' | ')} |`,
-    `| --- | --- | --- | --- | ${concurrencies.map(() => '---').join(' | ')} |`,
+    `| Sweep | Arm |${head} ${concurrencies.map(c => `${c} clients`).join(' | ')} |`,
+    `| --- | --- |${located ? '' : ' --- | --- |'} ${concurrencies.map(() => '---').join(' | ')} |`,
     ...sweeps.map(run => {
       if (run.status !== 'ok') {
-        return `| ${run.name} | ${run.arm} | **${run.status}** | | ${concurrencies.map(() => '').join(' | ')} |`;
+        return `| ${run.name} | ${run.arm} |${located ? '' : ` **${run.status}** | |`} ${concurrencies.map(() => '').join(' | ')} |`;
       }
       const cells = concurrencies.map(concurrency => {
-        const step = run.steps.find(s => s.concurrency === concurrency);
+        const step = stepsOf(run).find(s => s.concurrency === concurrency);
         if (!step) return '-';
-        return `${num(step.throughput, 0)}/s, ${step.errors > 0 ? `${step.errors} errors` : `p99 ${ms(step.p99)}`}`;
+        const early =
+          !located && step.seconds < suite.sweep?.step
+            ? ` in ${step.seconds} s`
+            : '';
+        return `${num(step.throughput, 0)}/s, ${step.errors > 0 ? `${step.errors} errors${early}` : `p99 ${ms(step.p99)}`}`;
       });
-      return `| ${run.name} | ${run.arm} | ${peakText(run.peak)} | ${SWEEP_ENDS[run.end] ?? '-'} | ${cells.join(' | ')} |`;
+      return `| ${run.name} | ${run.arm} |${located ? '' : ` ${peakText(run.peak)} | ${SWEEP_ENDS[run.end] ?? '-'} |`} ${cells.join(' | ')} |`;
     }),
   ];
 }
@@ -2748,7 +2866,11 @@ export function renderSuite(suite) {
         ? `; closed-loop searches alone, ${SUITES[suite.name]?.saturations ?? '?'} an arm in turn (ABBA), each from empty stores`
         : '') +
       (suite.kind === 'sessions'
-        ? ` in open loop, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency} and on while it rises, to ${suite.sweep.limit} at most; ${suite.repeats} round(s) of one session per arm, ABBA`
+        ? ` in open loop, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency} and on while it rises, to ${suite.sweep.limit} at most` +
+          (suite.sweep.locate
+            ? `, located first with ${suite.sweep.locate.step} s steps after ${suite.sweep.locate.warmUp} s and measured at full length around the peak and the sustainable rate, a failing step ending after ${suite.sweep.failAfter} s`
+            : '') +
+          `; ${suite.repeats} round(s) of one session per arm, ABBA`
         : '') +
       (suite.extraRound
         ? ' + 1 (two runs of one arm differed by more than 5%)'
@@ -2807,6 +2929,15 @@ export function renderSuite(suite) {
       ...sweepTable(suite),
       '',
     );
+    const located = sweepTable(suite, true);
+    if (located.length > 0) {
+      lines.push(
+        `The short steps that located them (${suite.sweep.locate.warmUp} s warm-up, ${suite.sweep.locate.step} s measured), not part of the results:`,
+        '',
+        ...located,
+        '',
+      );
+    }
   }
   if (suite.kind !== 'component' && !suite.saturations)
     lines.push(...runTable(suite.runs), '');
@@ -3621,22 +3752,35 @@ export function runSuite(name, options) {
     }
   } else if (sessions) {
     suite.sweeps = [];
-    // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`).
-    const saturateOn = (arm, plan, runName, from) => {
+    // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`), or the steps
+    // `concurrencies`, short ones when `locate` (SESSIONS.sweep.locate) and full-length ones otherwise, a failing one
+    // ending once it measured `failAfter` s.
+    const saturateOn = (
+      arm,
+      plan,
+      runName,
+      { from, concurrencies, locate },
+    ) => {
       const dir = join(out, runName);
+      const lengths = locate ? SESSIONS.sweep.locate : SESSIONS.sweep;
       const ok =
         bench(benchPath, [
           'saturate',
           ...common(arm, plan.scenario, true, plan.distribution),
-          ...(from ? [`--start-concurrency=${from}`] : []),
-          `--max-concurrency=${from ?? SESSIONS.sweep.maxConcurrency}`,
+          ...(concurrencies
+            ? [`--concurrencies=${concurrencies.join(',')}`]
+            : [
+                ...(from ? [`--start-concurrency=${from}`] : []),
+                `--max-concurrency=${from ?? SESSIONS.sweep.maxConcurrency}`,
+                '--sweep',
+                `--growth=${SESSIONS.sweep.growth}`,
+              ]),
           ...(definition.dumpEvery
             ? [`--dump-every=${definition.dumpEvery}`]
             : []),
-          '--sweep',
-          `--growth=${SESSIONS.sweep.growth}`,
-          `--step=${SESSIONS.sweep.step}`,
-          `--warm-up=${SESSIONS.sweep.warmUp}`,
+          `--step=${lengths.step}`,
+          `--warm-up=${lengths.warmUp}`,
+          ...(locate ? [] : [`--fail-after=${SESSIONS.sweep.failAfter}`]),
           `--label=${name}-${runName}`,
           `--out=${dir}`,
         ]) === 0;
@@ -3644,7 +3788,9 @@ export function runSuite(name, options) {
       const saturation = ok && existsSync(file) ? readJson(file) : undefined;
       return saturation?.steps?.length > 0 ? saturation : undefined;
     };
-    // The sweep to the cap, then (the peak view) a step at a time past it while it still rises (sweepNext).
+    // Coarse then fine. Short steps locate the peak and the sustainable rate: the sweep to the cap, then a step at a
+    // time past it while it still rises (sweepNext). Full-length steps then measure around them (fineSteps), and on
+    // as each needs (fineMore): those are the sweep's steps, its peak and its sustainable rate.
     const sweep = (arm, session, plan, round) => {
       const runName = `${session}-${plan.key}-sweep`;
       const run = {
@@ -3656,33 +3802,68 @@ export function runSuite(name, options) {
         label: plan.label,
         dir: runName,
       };
-      const parts = [saturateOn(arm, plan, runName)];
-      if (!parts[0]) {
+      const failed = () => {
         run.status = 'failed';
         suite.failures++;
+      };
+      const locating = `${runName}-locate`;
+      const parts = [saturateOn(arm, plan, locating, { locate: true })];
+      let located;
+      let end;
+      while (parts[0]) {
+        located = sweepOf(mergeSaturations(parts));
+        const decision = sweepNext(located.steps, located.peak.generatorCpus);
+        end = decision.end;
+        const next = decision.next;
+        if (!next) break;
+        const more = saturateOn(arm, plan, `${locating}-${next}`, {
+          from: next,
+          locate: true,
+        });
+        if (!more) {
+          end = 'failed';
+          suite.failures++;
+          break;
+        }
+        parts.push(more);
+        run.locatedPast = [...(run.locatedPast ?? []), `${locating}-${next}`];
+      }
+      const fine = located && [
+        saturateOn(arm, plan, runName, {
+          concurrencies: fineSteps(located.steps, p99LimitMs),
+        }),
+      ];
+      if (!fine?.[0]) {
+        failed();
       } else {
         for (;;) {
-          const swept = sweepOf(mergeSaturations(parts));
-          const { next, end } = sweepNext(
+          const swept = sweepOf(mergeSaturations(fine));
+          const more = fineMore(
+            located.steps,
             swept.steps,
+            p99LimitMs,
             swept.peak.generatorCpus,
           );
-          const more =
-            next && saturateOn(arm, plan, `${runName}-${next}`, next);
-          if (more) {
-            parts.push(more);
-            run.extended = [...(run.extended ?? []), `${runName}-${next}`];
+          const extra =
+            more.next &&
+            saturateOn(arm, plan, `${runName}-${more.next}`, {
+              from: more.next,
+            });
+          if (extra) {
+            fine.push(extra);
+            run.extended = [...(run.extended ?? []), `${runName}-${more.next}`];
             continue;
           }
-          if (next) suite.failures++;
+          if (more.next) suite.failures++;
           Object.assign(
             run,
-            { status: 'ok', end: next ? 'failed' : end },
-            swept,
             {
-              sustainable: sustainableStep(swept.steps, p99LimitMs),
+              status: 'ok',
+              end: more.next ? 'failed' : (more.end ?? end),
             },
+            fineOf(located, swept),
           );
+          run.sustainable = sustainableStep(run.steps, p99LimitMs, run.top);
           break;
         }
       }
