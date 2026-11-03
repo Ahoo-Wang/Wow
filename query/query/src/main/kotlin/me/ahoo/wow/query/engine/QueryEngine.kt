@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.engine
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
@@ -28,6 +29,9 @@ import me.ahoo.wow.query.cache.QueryCountCache
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasetChange
+import me.ahoo.wow.query.dataset.QueryDatasetListener
+import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
@@ -36,6 +40,8 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.policy.AccessPolicies
+import me.ahoo.wow.query.policy.AccessQueryPolicy
 import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryOwnership
@@ -59,11 +65,15 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  * reads a state through. A host only maps its configuration onto a [Builder]; the security rules are the builder's:
  *
  * - every gateway runs the scope policy (the tenant, the owner of the aggregates their owners hold)
- *   first, then the application's policies, and is observed by the query log and the application's observers;
- * - when an application's policy may hide an aggregate from a caller of its scope, a type whose snapshots are
- *   not queried still has its policies evaluated on its states ([SnapshotPolicyGateway]), so its state
+ *   first, then the access policies of the aggregates that have one ([AccessQueryPolicy], checked against the
+ *   Manifest as the engine is built: [AccessPolicies.of]), then the application's policies, and is observed by the
+ *   query log and the application's observers;
+ * - when an access policy or an application's policy may hide an aggregate from a caller of its scope, a type whose
+ *   snapshots are not queried still has its policies evaluated on its states ([SnapshotPolicyGateway]), so its state
  *   reads and its events fail closed;
- * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too;
+ * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too: the events
+ *   queries of an aggregate with an access policy name their aggregates until the streams record their current
+ *   access attributes;
  * - every query of the snapshots and the events runs under its store's [QueryBulkhead], whichever entry
  *   asks, and an events query that names no aggregate is refused where [UnpinnedEvents.REFUSE] says so.
  */
@@ -83,6 +93,8 @@ class QueryEngine private constructor(
     val ownerships: QueryOwnership,
     /** Whether a caller that may act across scopes may query across tenants. */
     val crossTenant: Boolean,
+    /** The access policies of the node's aggregates, each resolved to its aggregate. */
+    val access: AccessPolicies,
 ) {
     /**
      * The read side's scope rules over [tenants] and [crossTenant]: an edge builds its callers with
@@ -138,6 +150,9 @@ class QueryEngine private constructor(
         private var tenants: TenantPolicy = TenantPolicy.CALLERS
         private var crossTenant: Boolean = false
         private var policies: List<QueryPolicy> = emptyList()
+        private var accessPolicies: List<AccessPolicy<*>> = emptyList()
+        private var aggregatesOf: (Class<*>) -> List<AggregateType> = { emptyList() }
+        private var strictAccess: Boolean = true
         private var filters: List<QueryFilter> = emptyList()
         private var observers: List<QueryObserver> = emptyList()
         private var entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT
@@ -194,6 +209,23 @@ class QueryEngine private constructor(
         /** The application's query policies, after the scope one. */
         fun policies(policies: List<QueryPolicy>) = apply { this.policies = policies }
 
+        /**
+         * The access policies of the node's aggregates (the service's [AccessPolicy] beans), each of the aggregate
+         * [aggregatesOf] gives for its state type, the types whose state is of that class. [strict] when the node hosts
+         * every context of the service: a policy of no aggregate of the node is then refused, rather than left to the
+         * node hosting its aggregate. [build] checks them against the Manifest ([AccessPolicies.of]).
+         */
+        @JvmOverloads
+        fun accessPolicies(
+            policies: List<AccessPolicy<*>>,
+            aggregatesOf: (Class<*>) -> List<AggregateType>,
+            strict: Boolean = true,
+        ) = apply {
+            accessPolicies = policies
+            this.aggregatesOf = aggregatesOf
+            strictAccess = strict
+        }
+
         /** The application's query filters. */
         fun filters(filters: List<QueryFilter>) = apply { this.filters = filters }
 
@@ -232,21 +264,17 @@ class QueryEngine private constructor(
             val catalog = catalog()
             val observer = QueryObserver.of(listOf(QueryLogObserver()) + observers)
             val ownerships = QueryOwnership.of(manifest)
-            val gatewayPolicies = scopePolicies(ownerships) + policies
+            val access = AccessPolicies.of(manifest, contexts, accessPolicies, aggregatesOf, strictAccess)
+            val scope = scopePolicies(ownerships, access)
+            val gatewayPolicies = scope + accessPolicy(access) + policies
+            datasets.requireAccess(access)
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only the application's policies hide an aggregate from a caller of its scope: a state read checks them
-            // through the policy gateway of a type whose snapshots are not queried.
-            val restricts = policies.isNotEmpty()
-            // Only a pinned one hides an aggregate's streams beyond its filter on them.
-            val hides = gatewayPolicies.any { it.events == EventsMode.PINNED }
+            // Only a pinned one hides an aggregate's streams beyond its filter on them; an access policy, those of
+            // the aggregate it governs.
+            val pinned = (scope + policies).any { it.events == EventsMode.PINNED }
+            val hides = { type: AggregateType -> pinned || access.governs(type) }
             val queried = snapshots.map { it.aggregateType }.toSet()
-            val policyGateways = if (restricts) {
-                ManifestTypes.hosted(manifest, contexts).filterNot(queried::contains).map { type ->
-                    SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
-                }
-            } else {
-                emptyList()
-            }
+            val policyGateways = policyGateways(catalog, queried, gatewayPolicies, access)
             val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
             val eventVisibility = EventVisibility.of(
                 byType::get,
@@ -286,7 +314,26 @@ class QueryEngine private constructor(
                 tenants,
                 ownerships,
                 crossTenant,
+                access,
             )
+        }
+
+        /**
+         * The policy gateways of the types whose snapshots are not [queried], when an access or an application's
+         * policy may hide an aggregate from a caller of its scope: a state read checks them through one.
+         */
+        private fun policyGateways(
+            catalog: QuerySchemaCatalog,
+            queried: Set<AggregateType>,
+            gatewayPolicies: List<QueryPolicy>,
+            access: AccessPolicies,
+        ): List<QueryGateway> {
+            if (policies.isEmpty() && access.governed.isEmpty()) {
+                return emptyList()
+            }
+            return ManifestTypes.hosted(manifest, contexts).filterNot(queried::contains).map { type ->
+                SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
+            }
         }
 
         /** The gateway of each dataset over the dataset backend; none without one, with a warning if any is declared. */
@@ -361,11 +408,40 @@ class QueryEngine private constructor(
 
         /**
          * The scope policy every gateway runs first, the owner applying to the aggregates the Manifest says belong to
-         * their owners.
+         * their owners, the owner and space to those without an access policy of their own.
          */
-        private fun scopePolicies(ownerships: QueryOwnership): List<QueryPolicy> = listOf(
-            ScopeQueryPolicy(tenants, ownerships = ownerships, crossTenant = crossTenant),
+        private fun scopePolicies(ownerships: QueryOwnership, access: AccessPolicies): List<QueryPolicy> = listOf(
+            ScopeQueryPolicy(tenants, ownerships = ownerships, crossTenant = crossTenant, access = access),
         )
+
+        /** The access policies' query policy, when an aggregate has one. */
+        private fun accessPolicy(access: AccessPolicies): List<QueryPolicy> =
+            if (access.governed.isEmpty()) emptyList() else listOf(AccessQueryPolicy(access))
+
+        /**
+         * Refuses a dataset bound to an aggregate the node does not have ([QueryDatasetScope.access]), now and as one
+         * joins: no policy of it could decide its rows.
+         */
+        private fun QueryDatasets.requireAccess(access: AccessPolicies) {
+            val check = { dataset: QueryDataset ->
+                val bound = dataset.scope.access?.aggregate
+                require(bound == null || access.has(bound)) {
+                    "Dataset [${dataset.name}] is bound to the aggregate $bound, which is not an aggregate of this " +
+                        "node: its access policy cannot decide the dataset's rows."
+                }
+            }
+            all.forEach(check)
+            if (this === QueryDatasets.NONE) return
+            listen(
+                object : QueryDatasetListener {
+                    override fun validate(change: QueryDatasetChange) {
+                        if (change !is QueryDatasetChange.Removed) check(change.dataset)
+                    }
+
+                    override fun apply(change: QueryDatasetChange) = Unit
+                },
+            )
+        }
     }
 
     private companion object {

@@ -52,7 +52,10 @@ import tools.jackson.databind.node.ObjectNode
  *   "title": "Orders",
  *   "identity": "id",
  *   "eventTime": "commit_time",
- *   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
+ *   "scope": {
+ *     "tenant": "tenant_id", "owner": "owner_id", "space": "space_id",
+ *     "access": { "aggregate": "shop.order", "id": "order_id" }
+ *   },
  *   "storage": { "table": "db.shop_order_state_flat" },
  *   "fields": {
  *     "id": { "types": ["string"], "nullable": false },
@@ -61,7 +64,9 @@ import tools.jackson.databind.node.ObjectNode
  * }
  * ```
  *
- * `scope` names either the `tenant` column or `"platform": true`. A field is a query schema declaration (`kind`,
+ * `scope` names either the `tenant` column or `"platform": true`; its `access`, when the rows are an aggregate's, names
+ * the aggregate (`context.aggregate`) whose access policy decides the rows a caller reads and the column holding each
+ * row's aggregate id ([QueryDatasetAccess]). A field is a query schema declaration (`kind`,
  * `types`, `nullable`, `enum`, `semantic`, `description`, `properties`, `items`, `values`) and may also declare its
  * sensitivity (`sensitive`: `level`, `keepPrefix`, `keepSuffix`). `storage` is the backend's opaque binding.
  */
@@ -75,6 +80,9 @@ internal object QueryDatasetProperties {
     const val PLATFORM = "platform"
     const val OWNER = "owner"
     const val SPACE = "space"
+    const val ACCESS = "access"
+    const val AGGREGATE = "aggregate"
+    const val ID = "id"
     const val STORAGE = "storage"
     const val FIELDS = "fields"
     const val SENSITIVE = "sensitive"
@@ -94,7 +102,8 @@ internal object QueryDatasetProperties {
     const val VALUES = "values"
 
     internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, FIELDS)
-    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, PLATFORM)
+    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, PLATFORM, ACCESS)
+    internal val ACCESS_PROPERTIES = setOf(AGGREGATE, ID)
     internal val SENSITIVE_PROPERTIES = setOf(LEVEL, KEEP_PREFIX, KEEP_SUFFIX)
     internal val FIELD_PROPERTIES =
         setOf(KIND, TYPES, NULLABLE, ENUM, SEMANTIC, DESCRIPTION, PROPERTIES, ITEMS, VALUES)
@@ -141,6 +150,7 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
             platform = platform,
             owner = scope.fieldOf(QueryDatasetProperties.OWNER),
             space = scope.fieldOf(QueryDatasetProperties.SPACE),
+            access = scope.get(QueryDatasetProperties.ACCESS)?.let(::accessOf),
         ),
         declaration = QuerySchemaDeclaration(
             fields.properties().associate { (field, declaration) ->
@@ -156,6 +166,21 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
         },
         storage = storage,
     )
+}
+
+/** The `scope.access` of a dataset file: the aggregate whose policy decides its rows, and their aggregate id column. */
+private fun accessOf(access: JsonNode): QueryDatasetAccess {
+    val path = "${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.ACCESS}"
+    require(access is ObjectNode) { "Dataset [$path] must be an object." }
+    access.requireOnly(QueryDatasetProperties.ACCESS_PROPERTIES, "dataset access")
+    val aggregate = access.get(QueryDatasetProperties.AGGREGATE)?.takeIf(JsonNode::isString)?.stringValue()
+    require(aggregate != null) {
+        "Dataset [$path.${QueryDatasetProperties.AGGREGATE}] must name the aggregate, as context.aggregate."
+    }
+    val id = requireNotNull(access.fieldOf(QueryDatasetProperties.ID)) {
+        "Dataset [$path.${QueryDatasetProperties.ID}] must name the column of the aggregate id."
+    }
+    return QueryDatasetAccess(QueryDataset.nameOf(aggregate), id)
 }
 
 private fun ObjectNode.fieldOf(name: String): QueryField<*>? = get(name)?.let {

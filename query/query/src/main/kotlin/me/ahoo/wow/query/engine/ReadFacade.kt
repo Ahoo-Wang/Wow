@@ -128,6 +128,14 @@ class ReadFacade(
     }
 
     /**
+     * The tree of [state], of the history of an aggregate whose latest state [admitted] let the caller see, masked as
+     * the snapshot queries mask a state. No policy is evaluated on it again: an aggregate's history is read as the
+     * aggregate is now, whatever it recorded then.
+     */
+    suspend fun history(state: Snapshot<JsonNode>): JsonNode =
+        StateVisibility.masked(visibility(state.ref.type), state, masks)
+
+    /**
      * Runs [read], one state read of [type] for [caller] asking [what], observed as a query is:
      * [observer] starts it as a stage of work of [StateRead.queryType], is told how it ended, and audits it with the
      * [rows] it returned (one state, or the commits of a trace). A read answered as not found throws

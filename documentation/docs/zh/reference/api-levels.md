@@ -64,6 +64,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.dataset.DatasetQueryGateways` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryModelProfile` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetVisibility` | interface | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetAccess` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetScope` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDataset` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetBuilder` | class | `wow-query` |

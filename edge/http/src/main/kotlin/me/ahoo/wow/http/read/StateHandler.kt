@@ -92,9 +92,11 @@ import java.time.format.DateTimeParseException
  * the aggregate type's tenant is fixed: then it is that tenant, and a `Wow-Scope` that names another
  * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is:
  * a state outside the caller's scope (an owner or a space it names and the state does not have; the
- * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say), and one the
- * snapshot queries of its type hide from the caller (the application's query policies); in a
- * trace, every commit's state is checked so, as each `?version=` read would be. Only the audit learns why. Every state,
+ * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say, and neither is checked for one
+ * an access policy of its own governs, whose policy decides them), and one the
+ * snapshot queries of its type hide from the caller (its access policy, the application's query policies). A state
+ * at a version or a time, and a trace, are the aggregate's history, which is read as the aggregate is now: the
+ * caller is checked on its latest state alone, whatever the history recorded. Only the audit learns why. Every state,
  * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike:
  * both through the [ReadFacade] of `:query`, the one read path of every entry, which observes and
  * audits each read as a query of type `STATE` or `TRACE`. A deleted aggregate's state is read as
@@ -108,7 +110,7 @@ internal class StateHandler(
     private val statuses: ErrorStatuses,
     private val targets: QueryTargets = QueryTargets.DEFAULT,
     private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
-    queries: HttpQueries = HttpQueries.NONE,
+    private val queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks.NONE,
 ) {
     /** The one read path of the state reads: the query engine's, else over [queries] and [masks]. */
@@ -126,10 +128,13 @@ internal class StateHandler(
                 val asked = asked(request, type)
                 replaying(asked.parameter) {
                     if (what != StateRead.LATEST) {
-                        // The caller is checked on the latest state before the log is replayed.
+                        // The caller is checked on the latest state before the log is replayed: the state's history
+                        // is read by its current one.
                         reader.visible { reads.latest(reader.ref) }
+                        reader.history { asked.read(reads, reader.ref) }
+                    } else {
+                        asked.minVersion?.let { reader.reached(it) } ?: reader.visible { asked.read(reads, reader.ref) }
                     }
-                    asked.minVersion?.let { reader.reached(it) } ?: reader.visible { asked.read(reads, reader.ref) }
                 }
             }
         }
@@ -153,19 +158,16 @@ internal class StateHandler(
                 val to = request.number(WowPaths.TO, min = from) ?: Int.MAX_VALUE
                 val limit = request.number(WowPaths.LIMIT, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
                 val (latest, commits) = replaying(WowPaths.FROM) {
-                    // The caller is checked on the latest state before the log is replayed.
+                    // The caller is checked on the latest state before the log is replayed: the history is read by it.
                     val (latest, _) = reader.visible { reads.latest(ref) }
                     latest to reads.trace(ref, from, to, limit)
                 }
                 if (commits.isEmpty()) {
                     throw StateNotFoundException(ref, Reason.MISSING, "No commit of $ref from version $from.")
                 }
-                commits.forEach { reader.checkScope(it.scope) }
                 commits.map { commit ->
-                    val state = facade.admitted(reader.caller, commit.committed(ref, latest))
-                        ?: throw StateNotFoundException(ref, Reason.HIDDEN, "No commit of $ref from version $from.")
                     commit.copy(
-                        state = state,
+                        state = facade.history(commit.committed(ref, latest)),
                         events = commit.events.map { it.copy(body = facade.event(type, it.name, it.body)) }
                     )
                 }
@@ -182,7 +184,8 @@ internal class StateHandler(
         val target = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
         val queryCaller = answering(type) { targets.of(type, caller, target) }
         val acting = checkNotNull(queryCaller.caller)
-        val scope = ownerships(type).scopeOf(acting.scope)
+        // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
+        val scope = if (queries.access.governs(type)) Scope.NONE else ownerships(type).scopeOf(acting.scope)
         val tenant = acting.tenantId
         // By no id, the caller's own aggregate of a type whose id is its owner's.
         val id = request.pathVariables()[CommandHandler.ID] ?: acting.scope.ownerId ?: throw ProblemException(
@@ -210,6 +213,15 @@ internal class StateHandler(
                 ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
                 ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
             }
+
+        /**
+         * The state [load] reads of the history of one [visible] to [caller], masked as its latest state is:
+         * [StateNotFoundException] when there is none.
+         */
+        suspend fun history(load: suspend () -> Snapshot<JsonNode>?): Pair<Snapshot<JsonNode>, JsonNode> {
+            val state = load() ?: throw StateNotFoundException(ref, Reason.MISSING)
+            return state to facade.history(state)
+        }
 
         /**
          * The latest state at [minVersion] or later, as [caller] sees it; only a state it may see answers that it is

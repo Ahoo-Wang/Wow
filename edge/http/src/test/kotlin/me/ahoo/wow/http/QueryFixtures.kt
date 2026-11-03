@@ -187,7 +187,7 @@ class QueryNode(
                     // (reviews A3-11, R2.3-6).
                     visibility = EventVisibility.of(
                         { gateway ?: policyGateway },
-                        hides = policies.isNotEmpty()
+                        hides = { policies.isNotEmpty() },
                     ) { ref -> http.reads.committed(ref) },
                     masks = PayloadMasks(manifest),
                     crossTenant = crossTenant,

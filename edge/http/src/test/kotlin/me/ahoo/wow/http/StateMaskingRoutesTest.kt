@@ -120,8 +120,10 @@ class StateMaskingRoutesTest {
             node.query(single).status.assert().describedAs("$range").isEqualTo(200)
             node.read("/shop/cart/c-1/state", "alice").status.assert().describedAs("$range").isEqualTo(200)
             node.read("/shop/cart/c-1/state/trace?from=2", "alice").status.assert().describedAs("$range").isEqualTo(200)
-            // The cart was opened empty at version 1: that commit is hidden, so a trace that holds it is not found.
-            node.read("/shop/cart/c-1/state/trace", "alice").status.assert().describedAs("$range").isEqualTo(404)
+            // The cart was opened empty at version 1, which the policy would hide: its history is read as the cart is
+            // now, which the policy admits (D390 §4.5).
+            node.read("/shop/cart/c-1/state/trace", "alice").status.assert().describedAs("$range").isEqualTo(200)
+            node.read("/shop/cart/c-1/state?version=1", "alice").status.assert().describedAs("$range").isEqualTo(200)
         }
         // Past the latest version, every read hides the cart alike.
         val none = opened(

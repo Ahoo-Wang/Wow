@@ -162,15 +162,16 @@ class HistoryRoutesTest {
     }
 
     @Test
-    fun `a trace is read in the caller's scope, every commit`() {
+    fun `a trace is read in the caller's scope, by the aggregate's latest state`() {
         history()
         node.get("/shop/cart/c-1/state/trace", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         node.get("/shop/cart/c-1/state/trace", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
         node.now = { 4000 }
         node.post("/shop/cart/c-1/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""").status.assert().isEqualTo(200)
-        // Bob holds the cart from version 4 on: its earlier commits stay alice's.
+        // Bob holds the cart from version 4 on: its whole history is read as the cart is now, his (D390 §4.5).
         node.get("/shop/cart/c-1/state/trace?from=4", user = "bob").status.assert().isEqualTo(200)
-        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").body!!["commits"].size().assert().isEqualTo(2)
+        node.get("/shop/cart/c-1/state?version=1", user = "bob").status.assert().isEqualTo(200)
         // Alice no longer sees the cart: she is checked on its latest state before its log is replayed (review R4-Q,
         // Q-1), so even the commits she held are not found for her.
         node.get("/shop/cart/c-1/state/trace?to=3").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
