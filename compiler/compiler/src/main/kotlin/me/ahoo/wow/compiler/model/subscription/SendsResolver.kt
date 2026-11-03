@@ -14,14 +14,14 @@
 package me.ahoo.wow.compiler.model.subscription
 
 import com.google.devtools.ksp.getAllSuperTypes
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Sends
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.compiler.model.symbol.annotationIn
+import me.ahoo.wow.compiler.model.symbol.annotatedIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.classOf
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
@@ -65,16 +65,18 @@ internal object SendsResolver {
         reactor: Boolean,
         problems: MutableList<String>,
     ): SendsBinding {
-        val sends = function.annotationIn(SENDS)
+        // The handler's @Sends, or the one of the function it overrides.
+        val carrier = function.annotatedIn(SENDS)
+        val sends = carrier?.argumentsOf(Sends::class, problems)
         if (!saga) {
-            if (sends != null && label != null) {
+            if (carrier != null && label != null) {
                 problems += "$where declares @Sends, but a $label handler sends no commands: only a @Saga's do"
             }
             return SendsBinding()
         }
-        val declared = commandClasses(where, DERIVES, sends.classes(DERIVES), problems)
-        val schedules = commandClasses(where, SCHEDULES, sends.classes(SCHEDULES), problems)
-        val calls = commandClasses(where, CALLS, sends.classes(CALLS), problems)
+        val declared = commandClasses(where, DERIVES, sends?.types(DERIVES).orEmpty(), problems)
+        val schedules = commandClasses(where, SCHEDULES, sends?.types(SCHEDULES).orEmpty(), problems)
+        val calls = commandClasses(where, CALLS, sends?.types(CALLS).orEmpty(), problems)
         val derives = when (val commands = returned?.let { returnedCommands(it, reactor) }) {
             null -> declared
             Returned.Nothing -> {
@@ -169,11 +171,6 @@ internal object SendsResolver {
         declaration.qualifiedName!!.asString(),
         declaration.getAllSuperTypes().mapTo(LinkedHashSet()) { it.declaration.binaryName() },
     )
-
-    /** The class array argument [name] of this annotation, empty without the annotation or the argument. */
-    private fun KSAnnotation?.classes(name: String): List<KSType> =
-        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
-            .filterIsInstance<KSType>()
 
     private fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
 

@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.compiler.model.subscription
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
@@ -29,6 +27,7 @@ import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.wire.WireNames
 import me.ahoo.wow.compiler.model.symbol.annotatedIn
+import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.handlerName
 import me.ahoo.wow.manifest.JobManifest
@@ -55,6 +54,11 @@ internal object ScheduleJobResolver {
     private val BLOCKING = Blocking::class.java.name
     private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
+    private const val NAME = "name"
+    private const val CRON = "cron"
+    private const val ZONE = "zone"
+    private const val SCOPE = "scope"
+    private const val MISFIRE = "misfire"
     private const val SAGA = "SAGA"
     private val LABELS = mapOf("PROJECT" to "@Projection", "REACT" to "@Reactor")
 
@@ -79,7 +83,6 @@ internal object ScheduleJobResolver {
         return handlers
     }
 
-    @OptIn(KspExperimental::class)
     @Suppress("LongParameterList")
     private fun handler(
         function: KSFunctionDeclaration,
@@ -99,15 +102,17 @@ internal object ScheduleJobResolver {
             SubscriptionResolver.sagaReturnProblem(returned, reactor)?.let { problems += "$where $it" }
         }
         val sends = SendsResolver.resolve(function, where, kind == SAGA, null, returned, reactor, problems)
-        val annotation = function.annotatedIn(ON_SCHEDULE)!!.getAnnotationsByType(OnSchedule::class).first()
-        val job = JobBinding(
-            name = annotation.name,
-            cron = annotation.cron,
-            zone = annotation.zone,
-            scope = annotation.scope.name,
-            misfire = annotation.misfire.name,
-        )
-        problems += jobProblems(where, job)
+        // Null, with its problem, when an argument of the @OnSchedule has no value.
+        val job = function.annotatedIn(ON_SCHEDULE)!!.argumentsOf(OnSchedule::class, problems)?.let {
+            JobBinding(
+                name = it.string(NAME),
+                cron = it.string(CRON),
+                zone = it.string(ZONE),
+                scope = it.enumName(SCOPE),
+                misfire = it.enumName(MISFIRE),
+            )
+        }
+        job?.let { problems += jobProblems(where, it) }
         val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
         if (problems.size > count) {
             return null

@@ -107,10 +107,24 @@ object SourceTokenRules {
         ),
     )
 
+    /**
+     * The compiler reads an annotation from its arguments by name (its `AnnotationArguments`), never through
+     * `getAnnotationsByType`, a proxy of the annotation class (X-52, X-53): KSP leaves the value of an argument it has
+     * not evaluated null, such as a constant of another module, and the proxy answers it with the annotation's default,
+     * or with a null its type does not allow. Read by name, such an argument fails the compilation with an error naming
+     * the declaration and the annotation.
+     */
+    val COMPILER_READS_NO_ANNOTATION_PROXY = SourceTokenRule(
+        name = "wow-compiler reads no annotation through getAnnotationsByType",
+        modules = listOf(ArchitectureRules.COMPILER.dir),
+        forbidden = listOf("getAnnotationsByType"),
+    )
+
     val ALL = listOf(
         HTTP_DECIDES_NO_READ_SCOPE,
         CORE_NAMES_NO_HOST,
         BACKENDS_BRANCH_NO_DDL_MODE,
-        NO_WRITER_PRODUCES_UNKNOWN
+        NO_WRITER_PRODUCES_UNKNOWN,
+        COMPILER_READS_NO_ANNOTATION_PROXY,
     )
 }
