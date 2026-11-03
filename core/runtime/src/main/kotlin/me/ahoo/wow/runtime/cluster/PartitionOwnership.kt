@@ -303,9 +303,17 @@ class PartitionOwnership internal constructor(
                 delay(options.renewInterval - started.elapsedNow())
             }
         }
+        val j0 = System.nanoTime()
         membership.join(group.name, ::membersRead)
+        val j1 = System.nanoTime()
         refreshRoutes()
+        val j2 = System.nanoTime()
         reconcile()
+        val j3 = System.nanoTime()
+        logger.info {
+            "TIMING join group=$group runtimes=${runtimes.size} timers=${timers.size} membershipMs=${(j1 - j0) / 1_000_000} " +
+                "routesMs=${(j2 - j1) / 1_000_000} reconcileMs=${(j3 - j2) / 1_000_000} partitionsHeld=${gates.size}"
+        }
         run.membership.launch { every(options.heartbeatInterval, "check the reconcile") { checkStuck() } }
         run.membership.launch {
             while (true) {
@@ -546,16 +554,27 @@ class PartitionOwnership internal constructor(
     /** Not cancellable: a lease acquired is either tracked by a gate or released. */
     private suspend fun acquire(partition: Int) = withContext(NonCancellable) {
         val asked = timeSource.markNow()
+        val t0 = System.nanoTime()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
+        val t1 = System.nanoTime()
+        val runtimeMs = ArrayList<String>()
         // Another node may have committed to the partition's aggregates since this one last cached them.
         partitionChanged(partition)
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = Gate(asked)
         gates[partition] = gate
         try {
-            runtimes.forEach { it.startPartition(partition) }
+            runtimes.forEach {
+                val s = System.nanoTime()
+                it.startPartition(partition)
+                runtimeMs += "${it.group}=${(System.nanoTime() - s) / 1_000_000}"
+            }
+            val s = System.nanoTime()
             intake?.startPartition(partition)
+            runtimeMs += "intake=${(System.nanoTime() - s) / 1_000_000}"
+            val st = System.nanoTime()
             timers.forEach { it.startPartition(partition) }
+            runtimeMs += "timers(${timers.size})=${(System.nanoTime() - st) / 1_000_000}"
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
@@ -571,6 +590,10 @@ class PartitionOwnership internal constructor(
             logger.warn { "$node lost the lease of partition $partition of $group while starting it." }
         } else {
             logger.info { "$node acquired partition $partition of $group." }
+            logger.info {
+                "TIMING acquire group=$group partition=$partition leaseMs=${(t1 - t0) / 1_000_000} " +
+                    "starts=$runtimeMs totalMs=${(System.nanoTime() - t0) / 1_000_000}"
+            }
         }
     }
 

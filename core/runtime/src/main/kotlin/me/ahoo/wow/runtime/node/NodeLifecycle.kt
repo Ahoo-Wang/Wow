@@ -208,9 +208,17 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
 
     /** Joins every context's lease group and every topic's, and starts the ledger's publisher. */
     private suspend fun join() {
+        val a = System.nanoTime()
         contexts.values.forEach { it.ownership.start() }
+        val b = System.nanoTime()
         topicSubscriptions.values.forEach { it.start() }
+        val c = System.nanoTime()
         ledgerPublisher?.start()
+        val d = System.nanoTime()
+        logger.warn {
+            "TIMING activate node=$node contexts=${contexts.size} ownershipMs=${(b - a) / 1_000_000} " +
+                "topics(${topicSubscriptions.size})Ms=${(c - b) / 1_000_000} ledgerPublisherMs=${(d - c) / 1_000_000}"
+        }
     }
 
     /** Starts the jobs, the snapshot maintenance and the access walks, in the background. */

@@ -220,11 +220,28 @@ class SubscriptionRuntime internal constructor(
      * Starts reading [partition] on the running runtime, each subscription from its checkpoint: the node has just
      * acquired it. Nothing happens when it is read already.
      */
-    suspend fun startPartition(partition: Int): Unit = lifecycle.withLock {
-        requirePartition(partition)
-        val run = checkNotNull(running) { "Subscription group $group is not running." }
-        if (!run.partitions.containsKey(partition)) {
-            open(run, partition, subscriptions.values.associate { it.name to parkedIn(it, listOf(partition)) })
+    suspend fun startPartition(partition: Int) {
+        val asked = System.nanoTime()
+        lifecycle.withLock {
+            val locked = System.nanoTime()
+            requirePartition(partition)
+            val run = checkNotNull(running) { "Subscription group $group is not running." }
+            if (!run.partitions.containsKey(partition)) {
+                val parked = subscriptions.values.associate { it.name to parkedIn(it, listOf(partition)) }
+                val parkedAt = System.nanoTime()
+                val part = PartitionRun(partition, run)
+                run.partitions[partition] = part
+                val workers = subscriptions.values.map { worker(run, part, it, parked.getValue(it.name), run.joined) }
+                val workersAt = System.nanoTime()
+                part.runner.start(workers)
+                val startedAt = System.nanoTime()
+                logger.info {
+                    "TIMING startPartition group=$group partition=$partition subscriptions=${subscriptions.size} " +
+                        "lockWaitMs=${(locked - asked) / 1_000_000} parkedMs=${(parkedAt - locked) / 1_000_000} " +
+                        "parkedEntries=${parked.values.sumOf { p -> p.values.sumOf { it.size } }} " +
+                        "workersMs=${(workersAt - parkedAt) / 1_000_000} runnerMs=${(startedAt - workersAt) / 1_000_000}"
+                }
+            }
         }
     }
 
