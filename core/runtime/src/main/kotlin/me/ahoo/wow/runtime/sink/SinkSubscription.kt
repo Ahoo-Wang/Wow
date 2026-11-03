@@ -97,6 +97,7 @@ internal class SinkSubscription(
         }
         val stream = entry.stream
         val view = entry.state()
+        val (access, accessVersion) = accessOf(stream, view.state)
         return StateEventRecord(
             ref = stream.ref,
             version = stream.version,
@@ -112,22 +113,27 @@ internal class SinkSubscription(
             },
             scope = stream.scope,
             deleted = view.deleted,
-            access = accessOf(stream, view.state),
+            access = access,
             causation = stream.causation,
             headers = stream.headers,
             operator = stream.operator,
             transport = published(entry.transport, currentCoroutineContext().trace),
             imported = entry.imported,
+            accessVersion = accessVersion,
         )
     }
 
     /**
-     * The access attributes after [stream], the built-in ones among them: the stream's own when it holds the model's
-     * current ones, else those of the state [stateText] it left with the stream's scope.
+     * The access attributes after [stream], the built-in ones among them, and the version they are of: the stream's
+     * own, of the version its stamp says, when it holds the model's current ones; else those of the state [stateText]
+     * it left, with the stream's scope, of the stream's version.
      */
-    private fun accessOf(stream: EventStreamRecord, stateText: String): Map<String, Any?> {
+    private fun accessOf(stream: EventStreamRecord, stateText: String): Pair<Map<String, Any?>, Int?> {
         val current = stream.access?.takeIf { AccessValues.declared(it).keys == model.accessNames }
-        return current ?: AccessValues.ofStream(codec.accessAfter(model, stream, stateText), stream.scope)
+        if (current != null) {
+            return current to stream.accessVersion
+        }
+        return AccessValues.ofStream(codec.accessAfter(model, stream, stateText), stream.scope) to stream.version
     }
 
     /** [record] at its event type's current name and revision: as stored when it is, upgraded through the model else. */

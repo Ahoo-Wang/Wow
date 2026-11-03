@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.transport.TopicProducer
 
@@ -59,10 +60,14 @@ class PublishedSinks(
         override fun subscriptions(context: ContextNode): List<Subscription> =
             published[context.context].orEmpty().map { stream ->
                 val name = nameOf(stream)
+                val type = typeOf(context.context, stream, context.models)
+                val sink = sinkOf(context.context, stream)
+                // A sink that keeps the stamps of the history it writes is one more store the walks stamp.
+                (sink as? AccessStamps)?.let { context.accessWalking?.target(type, it) }
                 SinkSubscription(
                     name = name,
-                    type = typeOf(context.context, stream, context.models),
-                    sink = sinkOf(context.context, stream),
+                    type = type,
+                    sink = sink,
                     reader = context.stateReader(name),
                     includeState = stream.includeState,
                 ).subscription

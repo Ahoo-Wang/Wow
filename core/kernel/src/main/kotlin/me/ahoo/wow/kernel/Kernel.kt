@@ -675,6 +675,8 @@ class Kernel(
             headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
             operator = command.operator,
             access = AccessValues.ofStream(codec.accessOf(model, evolved), metadata.scope),
+            // The attributes after this commit are of its own version, until a later change stamps them.
+            accessVersion = version + 1,
         )
         val after = loaded.with(evolved, stream.version, metadata)
         if (stream.version == 1) {

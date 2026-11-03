@@ -40,6 +40,7 @@
     },
     "deleted": false,
     "access": null,
+    "accessVersion": null,
     "causation": null,
     "headers": {
       "app_id": "teller-app"

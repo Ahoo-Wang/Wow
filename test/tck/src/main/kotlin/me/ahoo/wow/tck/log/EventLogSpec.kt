@@ -270,10 +270,14 @@ abstract class EventLogSpec {
             history.forEach { (log.append(it) is AppendOutcome.Committed).assert().isTrue() }
             val ref = type.ref("tenant", "a")
             fun stamped() = runBlocking { log.read(ref).toList().map { it.access } }
+            fun versions() = runBlocking { log.read(ref).toList().map { it.accessVersion } }
 
+            // Each stream reads as of its own version, the unstamped one as of none.
+            versions().assert().containsExactly(null, 2, 3, 4)
             // The commit at 4 changed them: the streams before it take them, the unstamped one too.
             stamps.stamp(ref, west, asOf = 4, from = 1, until = 4).assert().isEqualTo(3)
             stamped().assert().containsExactly(west, west, west, west)
+            versions().assert().containsExactly(4, 4, 4, 4)
             // A replay of the earlier change writes nothing over a later stamp.
             stamps.stamp(ref, east, asOf = 2, from = 1, until = 2).assert().isEqualTo(0)
             // A stamp as of the same version writes again: a model of other attributes derives them anew.
@@ -283,8 +287,15 @@ abstract class EventLogSpec {
             stamps.stamp(ref, east, asOf = 9, from = 5, until = 9).assert().isEqualTo(0)
             stamps.stamp(type.ref("tenant", "b"), east, asOf = 2, from = 1, until = 2).assert().isEqualTo(0)
             // The entries and the request keys read what the stamp wrote.
-            log.readEntries(ref, 1, 1).toList().single().stream.access.assert().isEqualTo(north)
+            log.readEntries(ref, 1, 1).toList().single().stream.let {
+                it.access.assert().isEqualTo(north)
+                it.accessVersion.assert().isEqualTo(4)
+            }
             checkNotNull(log.findByRequestId(type, "tenant", history[0].requestId)).access.assert().isEqualTo(north)
+            // A tail read, the subscriptions', reads the stamp too.
+            withTimeout(TAIL_TIMEOUT_MS) {
+                log.tail(Partitioner.partitionOf(ref, log.partitions)).take(history.size).toList()
+            }.map { it.stream.accessVersion }.assert().containsExactly(4, 4, 4, 4)
         }
 
     @Test

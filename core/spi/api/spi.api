@@ -533,6 +533,7 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public static final field REJECTION_PREFIX Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAccess ()Ljava/util/Map;
+	public final fun getAccessVersion ()Ljava/lang/Integer;
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
 	public final fun getCommandType ()Ljava/lang/String;
@@ -551,6 +552,7 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;Ljava/lang/Integer;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -560,7 +562,8 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord$Companion {
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/log/EventStreamRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;Ljava/lang/Integer;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/log/EventStreamRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 }
 
 public final class me/ahoo/wow/spi/log/LogEntry {
@@ -1284,6 +1287,7 @@ public final class me/ahoo/wow/spi/state/StateEventRecord {
 	public static final field Companion Lme/ahoo/wow/spi/state/StateEventRecord$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAccess ()Ljava/util/Map;
+	public final fun getAccessVersion ()Ljava/lang/Integer;
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
 	public final fun getCommandType ()Ljava/lang/String;
@@ -1311,6 +1315,7 @@ public final class me/ahoo/wow/spi/state/StateEventRecord {
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;Z)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ZLjava/lang/Integer;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -1326,7 +1331,8 @@ public final class me/ahoo/wow/spi/state/StateEventRecord$Companion {
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;)Lme/ahoo/wow/spi/state/StateEventRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;Z)Lme/ahoo/wow/spi/state/StateEventRecord;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/state/StateEventRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ZILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ZLjava/lang/Integer;)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/state/StateEventRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/PublishedState;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ZLjava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventRecord;
 }
 
 public final class me/ahoo/wow/spi/store/Opened {

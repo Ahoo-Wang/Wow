@@ -78,7 +78,10 @@ internal class MongoLogDocuments(private val context: String) {
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         // The access attributes and the version they are of, its own: both absent when not stamped.
-        .apply { stream.access?.let { append(ACCESS, Document(it)).append(ACCESS_VERSION, stream.version) } }
+        .apply {
+            stream.access?.let { append(ACCESS, Document(it)) }
+            stream.accessVersion?.let { append(ACCESS_VERSION, it) }
+        }
         .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
 
     /** The transport bytes as stored: the driver reads generic binary data as a byte array, other subtypes as [Binary]. */
@@ -123,5 +126,6 @@ internal class MongoLogDocuments(private val context: String) {
         headers = strings(document.get(HEADERS, Document::class.java)),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
         access = MongoAccess.of(document.get(ACCESS, Document::class.java)),
+        accessVersion = document.getInteger(ACCESS_VERSION),
     )
 }

@@ -327,8 +327,7 @@ class PostgresEventLog(
             statement.setBoolean(index++, operator.crossScope)
         }
         statement.setNullableString(index++, stream.access?.let(AccessValues::text))
-        // Appended with its attributes, a stream is stamped as of its own version.
-        if (stream.access == null) statement.setNull(index, Types.INTEGER) else statement.setInt(index, stream.version)
+        stream.accessVersion?.let { statement.setInt(index, it) } ?: statement.setNull(index, Types.INTEGER)
     }
 
     /**
@@ -912,6 +911,7 @@ class PostgresEventLog(
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
         },
         access = AccessValues.parse(row.getString("access")),
+        accessVersion = row.getInt("access_version").takeUnless { row.wasNull() },
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

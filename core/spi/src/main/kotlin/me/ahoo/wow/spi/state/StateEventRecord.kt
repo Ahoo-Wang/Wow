@@ -64,7 +64,8 @@ class StateEventPayload @InternalWowApi constructor(val name: String, val revisi
  *   (`PublishedManifest.includeState`). [deleted] is the aggregate's after the stream, as the kernel evolved it, and
  *   [access] its access attributes, the built-in owner and space among them, in their stored form
  *   ([me.ahoo.wow.spi.access.AccessValues]): the stream's, which a stamp keeps current; null when the stream has none
- *   and the state is not at hand. Both are published either way.
+ *   and the state is not at hand. Both are published either way, [access] with [accessVersion], the version it is of
+ *   (the stream's own by default; a later one's when a stamp wrote them), null with it.
  * - [transport] is the stream's transport metadata: the wait context and the trace. It is not a fact:
  *   the envelope carries it beside the record ([me.ahoo.wow.spi.transport.Envelope.transport]), never inside it.
  * - [imported] marks a commit migrate-data imported from 9.x, at or before the context's cut-over
@@ -90,6 +91,7 @@ class StateEventRecord @InternalWowApi constructor(
     val operator: Operator? = null,
     val transport: Transport? = null,
     val imported: Boolean = false,
+    val accessVersion: Int? = if (access == null) null else version,
 ) {
     init {
         require(version >= 1) { "A committed version starts at 1." }
@@ -123,6 +125,7 @@ class StateEventRecord @InternalWowApi constructor(
         operator: Operator? = this.operator,
         transport: Transport? = this.transport,
         imported: Boolean = this.imported,
+        accessVersion: Int? = this.accessVersion,
     ): StateEventRecord =
         StateEventRecord(
             ref,
@@ -141,6 +144,7 @@ class StateEventRecord @InternalWowApi constructor(
             operator,
             transport,
             imported,
+            accessVersion,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -152,7 +156,7 @@ class StateEventRecord @InternalWowApi constructor(
         "StateEventRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
             "deleted=$deleted, access=$access, causation=$causation, headers=$headers, operator=$operator, " +
-            "transport=$transport, imported=$imported)"
+            "transport=$transport, imported=$imported, accessVersion=$accessVersion)"
 
     private fun valueFields(): List<Any?> = listOf(
         ref,
@@ -171,6 +175,7 @@ class StateEventRecord @InternalWowApi constructor(
         operator,
         transport,
         imported,
+        accessVersion,
     )
 
     companion object {
@@ -197,6 +202,7 @@ class StateEventRecord @InternalWowApi constructor(
             operator: Operator? = null,
             transport: Transport? = null,
             imported: Boolean = false,
+            accessVersion: Int? = if (access == null) null else version,
         ): StateEventRecord =
             StateEventRecord(
                 ref,
@@ -215,6 +221,7 @@ class StateEventRecord @InternalWowApi constructor(
                 operator,
                 transport,
                 imported,
+                accessVersion,
             )
     }
 }

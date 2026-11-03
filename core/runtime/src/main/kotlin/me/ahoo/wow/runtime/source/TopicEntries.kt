@@ -169,6 +169,7 @@ internal class TopicEntries(
             headers = record.headers,
             operator = record.operator,
             access = record.access,
+            accessVersion = record.accessVersion,
         )
     }
 }

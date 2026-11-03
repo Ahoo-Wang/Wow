@@ -68,7 +68,9 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  *   ([me.ahoo.wow.spi.access.AccessValues]): those **after** this commit when it is appended, and then always the
  *   aggregate's current ones, which a stamp writes over its earlier streams when they change, so the events model
  *   authorizes a timeline by what the aggregate is now. Null when not stamped: a stream appended before the log
- *   recorded them, or imported without them, until a stamp gives them.
+ *   recorded them, or imported without them, until a stamp gives them. [accessVersion] is the version they are of:
+ *   the stream's own when appended with them (the default when [access] is given), the stamp's after a stamp, null
+ *   with [access]. A writer of a copy of them keeps the one of the later version, which values cannot tell.
  * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
  *   `wow.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
  * - [rejection] is the rejection whose events this stream holds, when a decision rejected its command with events,
@@ -91,6 +93,7 @@ class EventStreamRecord @InternalWowApi constructor(
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
     val access: Map<String, Any?>? = null,
+    val accessVersion: Int? = if (access == null) null else version,
 ) {
     init {
         require(version >= 1) { "An event stream's version starts at 1." }
@@ -113,6 +116,7 @@ class EventStreamRecord @InternalWowApi constructor(
         headers: Map<String, String> = this.headers,
         operator: Operator? = this.operator,
         access: Map<String, Any?>? = this.access,
+        accessVersion: Int? = this.accessVersion,
     ): EventStreamRecord =
         EventStreamRecord(
             ref,
@@ -127,6 +131,7 @@ class EventStreamRecord @InternalWowApi constructor(
             headers,
             operator,
             access,
+            accessVersion,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -137,7 +142,7 @@ class EventStreamRecord @InternalWowApi constructor(
     override fun toString(): String =
         "EventStreamRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, scope=$scope, causation=$causation, " +
-            "headers=$headers, operator=$operator, access=$access)"
+            "headers=$headers, operator=$operator, access=$access, accessVersion=$accessVersion)"
 
     private fun valueFields(): List<Any?> = listOf(
         ref,
@@ -152,6 +157,7 @@ class EventStreamRecord @InternalWowApi constructor(
         headers,
         operator,
         access,
+        accessVersion,
     )
 
     /** The rejection whose events this stream holds; null for a commit ([REJECTION_PREFIX]). */
@@ -211,6 +217,7 @@ class EventStreamRecord @InternalWowApi constructor(
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
             access: Map<String, Any?>? = null,
+            accessVersion: Int? = if (access == null) null else version,
         ): EventStreamRecord =
             EventStreamRecord(
                 ref,
@@ -225,6 +232,7 @@ class EventStreamRecord @InternalWowApi constructor(
                 headers,
                 operator,
                 access,
+                accessVersion,
             )
     }
 }

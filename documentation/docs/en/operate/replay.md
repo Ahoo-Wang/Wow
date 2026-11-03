@@ -45,7 +45,7 @@ Adding a snapshot target to an aggregate type (`wow.snapshot.stores`, or `wow.ag
 
 ## Access attributes
 
-Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. When a commit changes them, the built-in subscription `wow.access` stamps the new ones over the aggregate's earlier streams, so its whole history is authorized by what the aggregate is now.
+Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. When a commit changes them, the built-in subscription `wow.access` stamps the new ones over the aggregate's earlier streams, so its whole history is authorized by what the aggregate is now. An Elasticsearch store's events index follows them the same way: its Sink stamps a change over the documents it wrote before, and the walks below stamp the index with the log. Every copy keeps the attributes of the later version (`accessVersion`), whatever order the stamps arrive in.
 
 Streams appended before the log recorded them, by a 10.0 beta or by an import from 9.x, carry none, and neither do the snapshots a beta wrote: under an access policy, an events query leaves those streams out, and a snapshot query those snapshots, until they are stamped. The access walk of each aggregate type stamps them:
 
