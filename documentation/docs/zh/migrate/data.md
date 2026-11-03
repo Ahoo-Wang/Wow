@@ -96,6 +96,8 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 
 Job 以工具的退出码结束。检查失败、用法错误和发现差异会让它立即失败，因为再运行一次也不会改变什么。因节点或内存上限而丢失的 Pod 会重新运行，并从检查点继续。
 
+在演练的 kind 集群里，50,000 个订单的完整导入在集群内用了 99 秒，在集群所在主机上经存储的 NodePort 用了 114 秒，经 `kubectl port-forward` 用了 227 秒。跨真实网络时，差距随往返时间增大，因为导入是逐个流地受往返时间限制（[限制](#limits)）。
+
 ## 2. 检查映射文件 {#_2-check-the-map}
 
 `check` 扫描 9.x 存储，把找到的东西与映射文件和 V10 的 Manifest 比较。它不写任何东西。以下情况它会失败：

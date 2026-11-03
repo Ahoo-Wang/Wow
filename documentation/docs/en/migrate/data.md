@@ -96,6 +96,8 @@ A long import waits on its stores, stream by stream. When they are in a Kubernet
 
 A Job ends with the tool's exit code. A failed check, a usage error and differences fail it at once, since running it again changes nothing. A Pod lost to its node or its memory limit is run again, and resumes from the checkpoints.
 
+In the rehearsal's kind cluster, the full import of 50,000 orders took 99 seconds inside the cluster, 114 seconds from the cluster's host through the stores' NodePorts, and 227 seconds through `kubectl port-forward`. Across a real network the gap grows with the round trip, which bounds the import stream by stream ([Limits](#limits)).
+
 ## 2. Check the map
 
 `check` scans the 9.x store and compares what it finds with the map and the V10 Manifests. It writes nothing. It fails when:
