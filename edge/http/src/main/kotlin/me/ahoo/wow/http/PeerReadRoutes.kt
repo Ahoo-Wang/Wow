@@ -21,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
@@ -72,9 +73,13 @@ import org.springframework.web.reactive.function.server.coRouter
  * [permits] does not let the service read
  * ([CallPermits.readRefusal]). The read then runs as the root context's caller: its tenant (the aggregate type's fixed
  * one, when it has one), its owner and space, its operator as the subject and its application (`app_id` of the root
- * request's facts) as the caller's [app][Caller.app], so the scope policy and the application's query policies
- * restrict it as they would the root request's, and it is masked alike. Its command id and causation say nothing
- * here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
+ * request's facts) as the caller's [app][Caller.app], so the scope policy, the access policies and the application's
+ * query policies restrict it as they would the root request's, and it is masked alike. A root no end user sent, one
+ * whose operator is a service (`service:<name>`) or a framework component (`system:<component>`), reads as that
+ * service: a [service][Caller.service] identity, trusted, which no access policy restricts, bounded by the models
+ * [permits] let the calling service read. The root carries its end user's identity and scope, not the claims the end
+ * user's credential holds: an access policy reads such a root's claims as missing, and denies on them. Its command id
+ * and causation say nothing here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
  * OpenAPI document: they are the services' own. The streamed answers are produced in [scope], as
  * [wowRoutes]'s are.
  */
@@ -205,11 +210,13 @@ internal class PeerRoots(
                 statuses.problemOf(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Wow-Call does not parse.")
             )
         }
+        val subject = call.operator?.id
         return Caller.of(
             tenantId = call.tenantId,
             scope = call.scope,
-            subject = call.operator?.id,
+            subject = subject,
             attributes = call.facts[RequestFacts.APP_ID]?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
+            service = subject != null && SERVICES.any(subject::startsWith),
         )
     }
 
@@ -218,5 +225,8 @@ internal class PeerRoots(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** The operators no end user is: a service's own commit, or a framework component's. */
+        val SERVICES = listOf(Caller.SERVICE_SUBJECT_PREFIX, Operator.SYSTEM_PREFIX)
     }
 }

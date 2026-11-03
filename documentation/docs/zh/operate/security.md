@@ -34,7 +34,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 - **所有者。** 主体是所有者级调用方，作用于它自己的聚合；除非它具有 `wow.cosec.tenant-level` 中的某个角色或策略，这时它是租户级调用方，作用于它租户的每个聚合，例如为每个买家发货的员工。
 - **空间**是 CoSec 作用域的空间。客户端在 `CoSec-Space-Id` 中指明它，只有当主体在那个空间中有角色时 CoSec 才接受；不带它时，请求处于 CoSec 的默认空间，这不是任何 Wow 空间。CoSec 宿主不从 `Wow-Space` 取空间：`Wow-Space` 指明的空间与 CoSec 的不同时，请求返回 403 `wow.auth.forbidden`。
 - **应用。** 调用方的应用（`Caller.app`），也就是提交记录的请求事实 `app_id`，是 CoSec 作用域的应用：宿主自己的应用（`cosec.authorization.scope.app-id`）；没有时，是请求声明且被 CoSec 接受的 `CoSec-App-Id`；再没有时，在 CoSec 网关之后，是网关转发的应用。作用域没有应用时，调用方也没有应用。
-- **角色和属性。** 调用方的 `roles` 属性列出主体在作用域空间中的角色，`policies` 列出它的策略，键以 `abac.` 开头的主体属性是它的 ABAC 属性。在 CoSec 网关之后，主体没有策略，所以那里只有 `wow.cosec.tenant-level` 和 `wow.cosec.cross-scope` 的角色能匹配，ABAC 属性来自网关转发的声明（`cosec.gateway.identity.claims`）。
+- **角色和属性。** 调用方的 `roles` 属性列出主体在作用域空间中的角色，`policies` 列出它的策略，其余每个主体属性都以自己的名字成为一项声明，供访问策略读取（`caller.claims("departments")`）。在 CoSec 网关之后，主体没有策略，所以那里只有 `wow.cosec.tenant-level` 和 `wow.cosec.cross-scope` 的角色能匹配，声明就是网关转发的那些（`cosec.gateway.identity.claims`）。
 - **在别处行事。** 只有具有 `wow.cosec.cross-scope` 中某个角色或策略的主体，才能在 `Wow-Scope` 里指明另一个租户或作用域。
 - **服务。** CoSec 主体从来不是服务身份。服务只在内部端口上声明自己（[关上内部端口](#close-the-internal-port)）。
 
@@ -118,7 +118,7 @@ class ReaderRole : QueryPolicy {
 }
 ```
 
-把它注册为 `QueryPolicy` 类型的 bean；宿主按 bean 顺序，在作用域与 ABAC 策略之后运行每一个，并把它们的过滤条件用 AND 合起来。有三点要做对：
+把它注册为 `QueryPolicy` 类型的 bean；宿主按 bean 顺序，在作用域与访问策略之后运行每一个，并把它们的过滤条件用 AND 合起来。有三点要做对：
 
 - **拒绝是 403。** 抛出带 `problem = FrameworkCodes.AUTH_FORBIDDEN` 的 `QueryRequestException`，回答 `wow.auth.forbidden`；不带它，拒绝会被读成格式错误的查询，即 400。隐藏聚合的过滤条件让它的状态读取返回 404 `wow.aggregate.not-found`，就像它不存在一样，而拒绝在那里也回答 403。
 - **说明它怎样对待事件流。** 策略的 `events` 默认为 `EventsMode.PINNED`，它假定策略的规则读取状态，于是要求每个事件查询都指明它的聚合。角色检查不读取状态：给它 `EventsMode.NONE`。

@@ -15,6 +15,7 @@ package me.ahoo.wow.query.index
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -22,6 +23,31 @@ import me.ahoo.wow.manifest.StateManifest
 import org.junit.jupiter.api.Test
 
 class QueryIndexesTest {
+    @Test
+    fun `each access attribute the Manifest declares has an index of its own path`() {
+        val access = listOf(
+            AccessAttributeManifest("department", AccessAttributeManifest.Type.STRING),
+            AccessAttributeManifest("sharedWith", AccessAttributeManifest.Type.STRING, multiple = true),
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest("order", state = StateManifest("#/\$defs/Order"), access = access),
+                        AggregateManifest("cart", state = StateManifest("#/\$defs/Order")),
+                    ),
+                ),
+            ),
+        )
+        QueryIndexDeclaration.accessOf(manifest, "shop", "order").assert().containsExactly(
+            QueryIndexDeclaration("access_department", listOf("access.department")),
+            QueryIndexDeclaration("access_sharedWith", listOf("access.sharedWith")),
+        )
+        QueryIndexDeclaration.accessOf(manifest, "shop", "cart").assert().isEmpty()
+        QueryIndexDeclaration.accessOf(manifest, "other", "order").assert().isEmpty()
+    }
+
     @Test
     fun `declarations are read from the state schema of the Manifest`() {
         fun manifest(state: Map<String, Any?>) = Manifest(

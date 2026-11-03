@@ -338,6 +338,48 @@ class ManifestToolsTest {
         PeerContracts.contractOf(listOf(fragment(context, CartState::class.java)), service)
 
     @Test
+    fun `the chart's values should name the service and the peers whose contracts are on its class path`() {
+        val manifest = File(directory, "manifest.json").also {
+            ManifestJson.write(
+                fragment("shop", CartState::class.java).copyWith(service = ServiceInfo("shop-service")),
+                it
+            )
+        }
+        val classpath = listOf(
+            // The service's own api: its contexts are no peer.
+            contractJar("shop-api", contract("shop", "shop-service")),
+            contractJar("billing-api", contract("billing", "billing-service")),
+            // A contract that names no service: the peer is reached by its url alone.
+            contractJar("mail-api", contract("mail", null)),
+            jar("cart-domain", fragment("cart", CartState::class.java)),
+            File(directory, "absent.jar"),
+        )
+        val output = File(directory, "helm/values.yaml")
+        ManifestTools.generateHelmValues(manifest, classpath, output).assert().isEqualTo(2)
+        output.readText().lines().filterNot { it.startsWith("#") }.joinToString("\n").assert().isEqualTo(
+            """
+            service:
+              name: "shop-service"
+              peers:
+                - context: "billing"
+                  service: "billing-service"
+                - context: "mail"
+              manifest:
+                route: "/wow/manifest"
+
+            """.trimIndent(),
+        )
+        ManifestTools.generateHelmValues(manifest, emptyList(), output).assert().isEqualTo(0)
+        output.readText().assert().contains("  peers: []\n")
+        // A text a YAML reader would take for something else is quoted as JSON quotes it.
+        HelmValues("a: \"b\"", emptyList()).yaml().assert().contains("""  name: "a: \"b\""""")
+        val unnamed = File(directory, "unnamed.json")
+        ManifestJson.write(fragment("shop", CartState::class.java), unnamed)
+        assertThrows<IllegalStateException> { ManifestTools.generateHelmValues(unnamed, emptyList(), output) }
+            .message.assert().contains("names no service")
+    }
+
+    @Test
     fun `an unnamed service should be the one the contract of its contexts names`() {
         derivedService("shop-api" to contract("shop", "shop-service")).assert().isEqualTo("shop-service")
     }

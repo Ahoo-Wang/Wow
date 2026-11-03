@@ -16,10 +16,11 @@ package me.ahoo.wow.query.index
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.aggregate
+import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /**
- * One `x-wow-index` entry of an aggregate's state schema: its name and its keys, logical paths. Each
- * snapshot query backend plans its own index from it.
+ * One `x-wow-index` entry of an aggregate's state schema, or the index of one of its access attributes ([accessOf]):
+ * its name and its keys, logical paths. Each snapshot query backend plans its own index from it.
  */
 class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {
     init {
@@ -30,6 +31,20 @@ class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val ke
     companion object {
         /** The keyword `manifest-tools` writes the indexes under, at the root of the state schema. */
         const val KEYWORD: String = "x-wow-index"
+
+        /** The prefix of the name of an access attribute's index ([accessOf]). */
+        const val ACCESS_PREFIX: String = "access_"
+
+        /**
+         * One index for each access attribute [aggregate] in [context] declares in [manifest], named [ACCESS_PREFIX] and
+         * the attribute, keyed by its path alone (`access.<name>`): an access policy ORs its branches, so each
+         * attribute is indexed on its own, and a backend indexes a multiple one as it indexes many values. None when it
+         * declares none.
+         */
+        fun accessOf(manifest: Manifest, context: String, aggregate: String): List<QueryIndexDeclaration> =
+            manifest.contexts.firstOrNull { it.name == context }?.aggregates?.firstOrNull { it.name == aggregate }
+                ?.access.orEmpty()
+                .map { QueryIndexDeclaration(ACCESS_PREFIX + it.name, listOf("${SnapshotFields.ACCESS}.${it.name}")) }
 
         /** The indexes the state of [aggregate] in [context] declares in [manifest]; none when it declares none. */
         fun of(manifest: Manifest, context: String, aggregate: String): List<QueryIndexDeclaration> {

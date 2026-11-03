@@ -128,6 +128,9 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
   - 安装、import、require、样式表解析、bin（`--version`、`theme-check --help`）或类型检查失败：发布已经上线而且是坏的，按下一条处理。
 - **镜像在 npm 冒烟测试和 GitHub release 完成前发出**：`image-deploy.yml` 在 `package-deploy.yml` 的发布里推服务端镜像（`wow-ops-server`、`wow-view-store-server`、`wow-analytics-catalog-server`）和数据迁移工具镜像 `wow-migrate-data`，tag 由 `.github/scripts/release-plan.mjs` 决定：预发布版只打确切的版本号 `X.Y.Z`，不打 `X.Y` 与 `latest`；稳定版打 `X.Y.Z` 和 `X.Y`，是最新版本线时再打 `latest`。预发布版的发布作废时，镜像已经在三个仓库里，但没有浮动 tag 指向它，不用回退。稳定版作废时 `X.Y`（和 `latest`）已经移到坏版本上：把它们重新指向上一个好版本（`docker buildx imagetools create -t <仓库>/<镜像>:X.Y <仓库>/<镜像>:<上一个版本>`，三个仓库各一次），或者尽快发补丁。
 - **Helm chart 与镜像同时发出**：`chart-deploy.yml` 在 `package-deploy.yml` 的发布里把 `deploy/helm/wow-service` 按发布版本打包，作为 OCI chart 推到 GHCR、Docker Hub 与阿里云（`oci://ghcr.io/ahoo-wang/wow-service` 等），预发布版与稳定版都只有版本号，没有浮动的 tag。发布作废时 chart 已经在三个仓库里，用户须显式写出版本才会装到它，不用回退；失败时在该 tag 上重新派发 `chart-deploy.yml`，同一版本会被覆盖。GHCR 上第一次推送创建的包若不是公开的，在包的设置里改为公开（只需一次）。
+- **第一次推 Helm chart 时要核对的两件事**（第一次带 `chart-deploy.yml` 的发布）：
+  - **阿里云是否接受 OCI chart**：阿里云容器镜像服务个人版拒绝 OCI 1.1 的 attestation（`image-deploy.yml` 因此关掉了 provenance），Helm chart 不是 attestation，但个人版是否接受它，要到第一次推送才知道。`chart` 作业的「Push to AliyunCR」步骤失败时，GHCR 与 Docker Hub 的推送已经完成，镜像和 GitHub release 也不受影响；改用企业版实例或去掉这一步之前，阿里云上没有 chart，在 release 说明里注明。
+  - **GHCR 包的可见性**：第一次推送创建的 `ghcr.io/ahoo-wang/wow-service` 包可能是私有的，`helm pull` 会要求登录。在包的设置里改为公开，并确认它已关联到 `Ahoo-Wang/Wow` 仓库（`Chart.yaml` 的 `sources`）。
 - **npm 发布以后发现问题**：发出去的版本不能覆盖；unpublish 只在 72 小时内、没人依赖时可行，而且这个版本号永远不能再用，还会让已有的锁文件装不上。所以**不 unpublish**，只有泄露了密钥或者发出了恶意内容才考虑，同时联系 npm 支持并发安全公告。能用的手段是移动 dist-tag、`npm deprecate`、发补丁。
 
 ### 发补丁还是回退

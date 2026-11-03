@@ -28,6 +28,7 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.CORE_JAR_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_SOURCES_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_FRAGMENT_TASK
+import me.ahoo.wow.gradle.WowPlugin.Companion.HELM_VALUES_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.INTEGRATION_TEST
 import me.ahoo.wow.gradle.WowPlugin.Companion.MERGE_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
@@ -444,7 +445,8 @@ internal object WowRoles {
 
     /**
      * The service role of [project]: the service's Manifest merged from the fragments of its runtime class path, its
-     * OpenAPI document, the gate against its committed baseline, and the integration test suite.
+     * OpenAPI document, the values of the `wow-service` Helm chart it knows, the gate against its committed baseline,
+     * and the integration test suite.
      */
     fun service(project: Project, extension: WowServiceExtension) {
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
@@ -481,6 +483,15 @@ internal object WowRoles {
             task.manifestFile.set(merge.flatMap { it.outputFile })
             task.tools.from(tools)
             task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
+        }
+        project.tasks.register(HELM_VALUES_TASK, GenerateHelmValues::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Writes the values of the wow-service Helm chart the build knows: the service's name, " +
+                "its peers and its Manifest's route."
+            task.manifestFile.set(merge.flatMap { it.outputFile })
+            task.classpath.from(runtimeClasspath)
+            task.tools.from(tools)
+            task.outputFile.set(project.layout.buildDirectory.file("wow/helm/values.yaml"))
         }
         compatibility(project, extension, merge, tools)
     }

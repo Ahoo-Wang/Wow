@@ -21,6 +21,7 @@ import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.policy.AccessPolicies
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
@@ -46,6 +47,9 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * ([ReadFacade]), the [QueryEngine]'s when it comes from one ([of]). [streams] is how a `list` streams
  * as server-sent events.
  *
+ * [access] are the access policies of the aggregates that have one, whose state reads check no owner or space of
+ * their own: the policy decides them ([AccessPolicies.governs]).
+ *
  * [crossTenant] is whether a caller that may act across scopes may query across tenants
  * (`wow.query.allow-cross-tenant`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
  * answered 403 `wow.auth.forbidden` while it is off.
@@ -64,6 +68,8 @@ class HttpQueries @InternalWowApi constructor(
     @InternalWowApi
     val streams: QueryStreams = QueryStreams(),
     val crossTenant: Boolean = false,
+    @InternalWowApi
+    val access: AccessPolicies = AccessPolicies.NONE,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -129,6 +135,7 @@ class HttpQueries @InternalWowApi constructor(
             engine.reads,
             streams,
             engine.crossTenant,
+            engine.access,
         )
     }
 }

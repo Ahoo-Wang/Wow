@@ -72,6 +72,9 @@ class WowPlugin : Plugin<Project> {
         const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
         const val MERGE_TASK = "mergeWowManifest"
         const val OPENAPI_TASK = "generateWowOpenApi"
+
+        /** The service module's task that writes the values of the `wow-service` Helm chart ([GenerateHelmValues]). */
+        const val HELM_VALUES_TASK = "generateWowHelmValues"
         const val TOOLS_CONFIGURATION = "wowTools"
         const val GENERATE_CONTRACT_TASK = "generateWowContract"
         const val CONTRACT_ELEMENTS = "wowContractElements"
@@ -207,6 +210,9 @@ class WowApiPlugin : Plugin<Project> {
  *   version is the project's;
  * - [WowPlugin.OPENAPI_TASK] ([GenerateOpenApi]) writes the OpenAPI document of that Manifest's routes into
  *   `build/wow/openapi.json`;
+ * - [WowPlugin.HELM_VALUES_TASK] ([GenerateHelmValues]) writes the values of the `wow-service` Helm chart the build
+ *   knows into `build/wow/helm/values.yaml`: the service's name, the peers whose contracts are on its runtime class
+ *   path, and the route of its Manifest; the deployment's own values go in a file passed after it;
  * - [WowPlugin.CHECK_TASK] ([CheckManifestCompatibility]), part of `check`, compares the merged Manifest with the
  *   committed baseline (`manifest/baseline.json`, [WowServiceExtension.manifestBaseline]) and fails, naming
  *   [WowPlugin.UPDATE_BASELINE_TASK], when there is none, on a breaking change within the baseline's compatibility

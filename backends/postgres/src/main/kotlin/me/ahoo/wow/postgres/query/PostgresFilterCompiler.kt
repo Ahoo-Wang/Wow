@@ -174,9 +174,7 @@ internal class PostgresFilterCompiler(
             is NotEqualFilter -> notEqual(field, filter.value.json())
             is InFilter -> member(field, filter.values.map { it.json() })
             is NotInFilter -> "(${member(field, filter.values.map { it.json() })}) IS NOT TRUE"
-            is ContainsAllFilter -> "(${asArray(
-                node(field)
-            )} @> ${json(nodes.arrayNode().addAll(filter.values.map { it.json() }))})"
+            is ContainsAllFilter -> containsAll(field, filter.values.map { it.json() })
             is GreaterThanFilter -> range(field, ">", filter.value.json())
             is GreaterThanOrEqualFilter -> range(field, ">=", filter.value.json())
             is LessThanFilter -> range(field, "<", filter.value.json())
@@ -213,14 +211,25 @@ internal class PostgresFilterCompiler(
         else -> "(${equal(field, operand)}) IS NOT TRUE"
     }
 
+    /**
+     * A membership of many values is one containment `@>` of each operand, ORed: the form a GIN index of the key serves
+     * (`@> ANY` is not), and the same answer whether the stored value is an array or a scalar.
+     */
     private fun member(field: ResolvedField, operands: List<JsonNode>): String {
         if (field.multiValued) {
-            val texts = operands.map { WowJson.mapper.writeValueAsString(it) }
-            return "(${node(field)} @> ANY(${parameters.bind(SqlParameter.Array(TEXT_ARRAY, texts))}::jsonb[]))"
+            return operands.joinToString(" OR ", "(", ")") { "${node(field)} @> ${json(it)}" }
         }
         val (value, type) = typed(field)
         return "($value = ANY(${array(type, operands)}))"
     }
+
+    /**
+     * A containment of every operand, of a collection (the resolver refuses it on any other field; a filter has at
+     * least one operand): one containment `@>` of each, ANDed, the form a GIN index of the key serves, which answers
+     * as the array form does whether the stored value is an array or a scalar.
+     */
+    private fun containsAll(field: ResolvedField, operands: List<JsonNode>): String =
+        operands.joinToString(" AND ", "(", ")") { "${node(field)} @> ${json(it)}" }
 
     private fun range(field: ResolvedField, operator: String, operand: JsonNode): String =
         anyValue(field) { value, type -> "$value $operator ${scalar(type, operand)}" }

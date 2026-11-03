@@ -50,6 +50,7 @@ public abstract interface class me/ahoo/wow/query/QueryGateway {
 	public abstract fun getAggregateType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public abstract fun getEntryPolicy ()Lme/ahoo/wow/query/policy/QueryEntryPolicy;
 	public abstract fun list (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
+	public fun maskRecord (Ltools/jackson/databind/node/ObjectNode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun paged (Lme/ahoo/wow/api/query/PagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resumes (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun single (Lme/ahoo/wow/api/query/SingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -376,6 +377,7 @@ public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/aho
 	public fun getDataset ()Lme/ahoo/wow/query/dataset/QueryDataset;
 	public fun getEntryPolicy ()Lme/ahoo/wow/query/policy/QueryEntryPolicy;
 	public fun list (Lme/ahoo/wow/api/query/ListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
+	public fun maskRecord (Ltools/jackson/databind/node/ObjectNode;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun paged (Lme/ahoo/wow/api/query/PagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun resumes (Lme/ahoo/wow/api/query/ListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun single (Lme/ahoo/wow/api/query/SingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -407,8 +409,23 @@ public final class me/ahoo/wow/query/dataset/QueryDataset$Companion {
 	public final fun parse (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDataset;
 }
 
+public final class me/ahoo/wow/query/dataset/QueryDatasetAccess {
+	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetAccess$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregate ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun getId ()Lme/ahoo/wow/api/query/QueryField;
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetAccess;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetAccess$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetAccess;
+}
+
 public final class me/ahoo/wow/query/dataset/QueryDatasetBuilder {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;)V
+	public final fun access (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun build ()Lme/ahoo/wow/query/dataset/QueryDataset;
 	public final fun eventTime (Ljava/lang/String;)V
 	public final fun field (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
@@ -525,6 +542,7 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetScope {
 	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDatasetScope$Companion;
 	public static final field PLATFORM_TENANT Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccess ()Lme/ahoo/wow/query/dataset/QueryDatasetAccess;
 	public final fun getFields ()Ljava/util/List;
 	public final fun getFixedTenantId ()Ljava/lang/String;
 	public final fun getOwner ()Lme/ahoo/wow/api/query/QueryField;
@@ -537,6 +555,7 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetScope {
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Z)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
+	public static final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZLme/ahoo/wow/query/dataset/QueryDatasetAccess;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -546,7 +565,8 @@ public final class me/ahoo/wow/query/dataset/QueryDatasetScope$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Z)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
-	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetScope$Companion;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
+	public final fun of (Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZLme/ahoo/wow/query/dataset/QueryDatasetAccess;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/QueryDatasetScope$Companion;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;ZLme/ahoo/wow/query/dataset/QueryDatasetAccess;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 }
 
 public final class me/ahoo/wow/query/dataset/QueryDatasets {
@@ -672,6 +692,7 @@ public final class me/ahoo/wow/query/filter/QueryType : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/query/index/QueryIndexDeclaration {
+	public static final field ACCESS_PREFIX Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/query/index/QueryIndexDeclaration$Companion;
 	public static final field KEYWORD Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
@@ -682,6 +703,7 @@ public final class me/ahoo/wow/query/index/QueryIndexDeclaration {
 }
 
 public final class me/ahoo/wow/query/index/QueryIndexDeclaration$Companion {
+	public final fun accessOf (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
 	public final fun of (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
 }
 
