@@ -14,8 +14,9 @@
 # The GA end-to-end verification (roadmap 9.3g, decision D317, work packages G.2 and G.3): the eShop, ops, the view
 # store and the analytics catalog deployed on a kind cluster with Calico, so the NetworkPolicies hold, behind CoSec
 # Gateway, which decides each request with its documents (published before it starts) and forwards the identity it
-# verified to the services in CoSec's gateway mode, with the deploy/ manifests (and .github/ga-e2e/services/ for the
-# services that have none yet), on PostgreSQL or a MongoDB replica set, Kafka and ClickHouse. The images are built from the commit and loaded
+# verified to the services in CoSec's gateway mode, each service a release of the wow-service Helm chart
+# (deploy/helm/wow-service, D395) with the values its build generated, its deploy/<service>/values*.yaml and the run's
+# (.github/ga-e2e/services/), on PostgreSQL or a MongoDB replica set, Kafka and ClickHouse. The images are built from the commit and loaded
 # into the cluster, never pushed. The runner (`:eshop-e2e:clusterTest`) drives the scenarios through the gateway and
 # judges them by the soak's invariants; the report (JSON) and every pod's log are uploaded. nightly.yml dispatches it
 # every night main moved; it can also be dispatched by hand.
@@ -75,18 +76,22 @@ jobs:
         with:
           cache-read-only: true
       # The servers' distributions, as image-deploy.yml builds them (without the consoles, which no scenario opens),
-      # and the runner.
-      - name: Build the distributions and the runner
+      # the chart's values each server's build generates from its contract, and the runner.
+      - name: Build the distributions, the chart's values and the runner
         run: |
-          ./gradlew --stacktrace \
-            :eshop-catalog-server:installDist :eshop-basket-server:installDist :eshop-ordering-server:installDist \
-            :eshop-inventory-server:installDist :eshop-payment-server:installDist \
-            :ops-server:installDist :view-store-server:installDist :analytics-catalog-server:installDist \
-            :eshop-e2e:clusterTestClasses
+          servers="eshop-catalog-server eshop-basket-server eshop-ordering-server eshop-inventory-server"
+          servers="$servers eshop-payment-server ops-server view-store-server analytics-catalog-server"
+          tasks=()
+          for server in $servers; do tasks+=(":$server:installDist" ":$server:generateWowHelmValues"); done
+          ./gradlew --stacktrace "${tasks[@]}" :eshop-e2e:clusterTestClasses
       - name: Build the images
         run: .github/ga-e2e/cluster.sh images
       - name: Fetch the OpenTelemetry Java agent
         run: .github/ga-e2e/cluster.sh agent
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
       # No CNI yet (kind.yaml): the control plane is not ready until Calico runs, so the action does not wait for it.
       - name: Create the kind cluster
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
@@ -114,7 +119,7 @@ jobs:
           OWNER_DELETIONS: ${{ inputs.owner-deletions || '1' }}
           GA_EXCLUDED: ${{ inputs.excluded-services }}
           GA_EXCLUDED_REASON: ${{ inputs.excluded-reason }}
-        # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
+        # ga.partitions: services/values.yaml's WOW_LOG_PARTITIONS, for the partition of an order.
         run: |
           ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 \
             -Pga.owner-deletions="$OWNER_DELETIONS" -Pga.excluded="$GA_EXCLUDED" \

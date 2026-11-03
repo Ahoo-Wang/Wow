@@ -1,0 +1,9 @@
+# The eshop-ordering service on PostgreSQL instead of MongoDB: pass it after values.yaml. The postgres profile, the
+# database's URL, and the credentials of postgres-secret.yaml instead of the MongoDB connection string. PostgreSQL's own
+# settings, its TCP keepalives among them, are the server's (Operate › PostgreSQL › Server settings).
+config:
+  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
+envFrom:
+  - secretRef:
+      name: eshop-ordering-service-postgres

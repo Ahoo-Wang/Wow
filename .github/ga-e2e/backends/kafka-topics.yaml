@@ -1,5 +1,5 @@
 # The topics the eShop and ops own, created by the operator as operate/kafka.md says for WOW_KAFKA_DDL=validate:
-# a command topic has exactly its context's log partitions (WOW_LOG_PARTITIONS: 64 in deploy/, 8 in the overlays); the
+# a command topic has exactly its context's log partitions (WOW_LOG_PARTITIONS: 64 in deploy/, 8 in services/values.yaml); the
 # state and receipts topics take any count. No doc lists the whole eShop's topics (a gap the PR reports): this list is
 # the union of operate/kafka.md's table and the topics the eShop's end-to-end tests create (EshopStack,
 # EshopLedgerOpsTest), with the command topic of every context that publishes its failure ledger, which takes the

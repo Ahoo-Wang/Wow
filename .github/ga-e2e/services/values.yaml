@@ -1,0 +1,42 @@
+# The values every service takes on the GA end-to-end cluster (cluster.sh services), after the values its build
+# generates, deploy/<service>/values.yaml and, on the postgres arm, deploy/<service>/values-postgres.yaml; a service's own
+# file (<service>.yaml) and its arm's (<arm>/<service>.yaml) come after these.
+#
+# Capacity, so every node fits one runner: the heap within the lowered memory limit, one GC thread, two cores' worth of
+# default pools; the log's partitions (64 in deploy/), fewer leases and polls per node; the startup gets five minutes on
+# the runner's shared four cores.
+javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+resources:
+  requests:
+    cpu: 50m
+    memory: 512Mi
+  limits:
+    memory: 768Mi
+probes:
+  startup:
+    failureThreshold: 60
+config:
+  WOW_LOG_PARTITIONS: "8"
+  # Diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s, on the postgres arm.
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
+  # The OpenTelemetry Java agent (F6) with no collector: Micrometer's meters, Wow's among them, on its Prometheus
+  # endpoint (:9464), which the runner reads; no traces or logs exported, no other instrumentation.
+  OTEL_METRICS_EXPORTER: prometheus
+  OTEL_EXPORTER_PROMETHEUS_PORT: "9464"
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+  OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED: "false"
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+# The agent from the node's /otel (kind.yaml), attached to the JVM.
+extraVolumes:
+  - name: otel
+    hostPath:
+      path: /otel
+      type: Directory
+extraVolumeMounts:
+  - name: otel
+    mountPath: /otel
+    readOnly: true
+env:
+  - name: JAVA_TOOL_OPTIONS
+    value: -javaagent:/otel/opentelemetry-javaagent.jar

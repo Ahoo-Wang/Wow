@@ -16,7 +16,7 @@ description: 部署分析目录的控制台，让数据负责人登录，并用�
 
 ## 部署 {#deploy-it}
 
-[`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) 提供两个节点的 Kubernetes 清单，基于 MongoDB（或经其 `postgres` 组件使用 PostgreSQL），沿用与 eShop 服务相同的选择（[部署模型](./topology)）：
+[`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) 里是它用于 Wow chart 的 values，两个节点，基于 MongoDB（或用 `values-postgres.yaml` 改用 PostgreSQL），沿用与 eShop 服务相同的选择（[Kubernetes](./kubernetes)）：
 
 1. 先构建控制台，再构建服务端的发行包（它会把控制台的构建复制进 `ui/` 文件夹），然后构建镜像。
 2. 提供 MongoDB，以及各服务的 Sink 写入的 ClickHouse 仓库。目录不在 ClickHouse 中建表；它的账户需要在数据集的库 `wow_datasets` 上拥有 `CREATE DATABASE`、`CREATE VIEW` 与 `DROP VIEW` 权限，以及对视图读取的源表的 `SELECT` 权限。

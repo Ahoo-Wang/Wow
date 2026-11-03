@@ -1,0 +1,44 @@
+# The view-store service's own values for the wow-service chart (deploy/helm/wow-service), on MongoDB:
+# what the build does not know. Pass them after the values its build generates, so they override them:
+#
+#   ./gradlew :view-store-server:generateWowHelmValues
+#   helm install view-store deploy/helm/wow-service \
+#     -f platform/view-store/view-store-server/build/wow/helm/values.yaml -f deploy/view-store/values.yaml
+#
+# values-postgres.yaml after these puts the service on PostgreSQL instead.
+image:
+  # The image the released image, tagged with the chart's version (the Wow version) unless image.tag says otherwise; or one built from this repository (README.md).
+  repository: ahoowang/wow-view-store-server
+# The ports of the image's own configuration (application.yaml), which the chart sets on the pod.
+ports:
+  http: 8080
+  internal: 9090
+# The nodes share the partitions through leases in the service's database: no ZooKeeper, no consumer group.
+replicas: 2
+# The internal port admits the pods of the platform, labelled app.kubernetes.io/part-of: wow-platform.
+partOf: wow-platform
+config:
+  # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
+  # database of its own; the cosec profile takes the
+  # callers from the CoSec gateway in front of the service.
+  SPRING_PROFILES_ACTIVE: mongo,cosec
+  # Fixed once the context's log holds entries.
+  WOW_LOG_PARTITIONS: "64"
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent, which the
+  # OpenTelemetry Operator injects (podAnnotations, with an Instrumentation resource in the namespace). Without the
+  # agent they are no-ops. It exports to the collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+# The database's connection: secret.yaml, an example to replace.
+envFrom:
+  - secretRef:
+      name: view-store-service-mongo
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-java: "true"
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    memory: 1Gi

@@ -1,0 +1,4 @@
+# The mongo arm's catalog searches its products in Elasticsearch (its search profile), which the arm deploys.
+config:
+  SPRING_PROFILES_ACTIVE: search,cosec
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
