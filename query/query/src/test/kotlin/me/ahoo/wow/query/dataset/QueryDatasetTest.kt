@@ -267,6 +267,14 @@ class QueryDatasetTest {
             """{ "scope": { "platform": "yes" }, $fields }""",
             // Tag columns are no longer bound: a scope that names them is refused.
             """{ "scope": { "tenant": "t", "tags": { "region": "t" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": [] }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": { "id": "t" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": { "aggregate": 1, "id": "t" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": { "aggregate": "order", "id": "t" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": { "aggregate": "shop.order" } }, $fields }""",
+            """{ "scope": { "tenant": "t", "access": { "aggregate": "shop.order", "id": "t", "x": 1 } }, $fields }""",
+            // The aggregate id column is one of the dataset's.
+            """{ "scope": { "tenant": "t", "access": { "aggregate": "shop.order", "id": "o" } }, $fields }""",
             """{ "scope": { "tenant": 1 }, $fields }""",
             """{ $scope, "fields": { "t": 1 } }""",
             """{ $scope, $fields, "title": 1 }""",
@@ -301,6 +309,34 @@ class QueryDatasetTest {
         invalid.forEach { json ->
             assertThrows<IllegalArgumentException>(json) { QueryDataset.parse(ORDERS, json) }
         }
+    }
+
+    @Test
+    fun `a dataset's rows may be an aggregate's, whose access policy decides them`() {
+        val dataset = QueryDataset.parse(
+            ORDERS,
+            """
+            {
+              "scope": { "tenant": "t", "access": { "aggregate": "shop.order", "id": "order_id" } },
+              "fields": { "t": {}, "order_id": { "types": ["string"], "nullable": false } }
+            }
+            """.trimIndent(),
+        )
+        val access = QueryDatasetAccess.of(AggregateType("shop", "order"), QueryField("order_id"))
+        dataset.scope.access.assert().isEqualTo(access)
+        dataset.scope.fields.assert().containsExactly(QueryField("t"), QueryField("order_id"))
+        dataset.scope.toString().assert().contains("access=QueryDatasetAccess(aggregate=shop.order, id=order_id)")
+        access.hashCode().assert().isEqualTo(QueryDatasetAccess.of(AggregateType("shop", "order"), QueryField("order_id")).hashCode())
+        access.assert().isNotEqualTo(QueryDatasetAccess.of(AggregateType("shop", "cart"), QueryField("order_id")))
+        access.assert().isNotEqualTo(QueryDatasetAccess.of(AggregateType("shop", "order"), QueryField("t")))
+        access.assert().isNotEqualTo("shop.order")
+        val built = QueryDataset.of(ORDERS) {
+            tenant("t")
+            access("shop.order", "order_id")
+            field("t") { types(QueryValueType.STRING) }
+            field("order_id") { types(QueryValueType.STRING) }
+        }
+        built.scope.assert().isEqualTo(dataset.scope)
     }
 
     @Test

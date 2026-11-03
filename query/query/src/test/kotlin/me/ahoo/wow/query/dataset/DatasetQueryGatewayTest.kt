@@ -18,7 +18,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.access.AccessPolicy
+import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -30,6 +33,7 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
@@ -57,6 +61,8 @@ import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryScopeRequiredException
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
+import me.ahoo.wow.query.policy.AccessFixtures
+import me.ahoo.wow.query.policy.AccessQueryPolicy
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
@@ -97,6 +103,44 @@ class DatasetQueryGatewayTest {
         val tenant = ((admitted.query as ListQuery).filter as AndFilter).operands.single { it is TenantIdFilter }
         admitted.systemPath(tenant).assert().isEqualTo("tenant_id")
     }
+
+    @Test
+    fun `the rows of a dataset bound to a governed aggregate are read by its policy, not by the caller's owner`() =
+        runTest {
+            fun bound(aggregate: AggregateType) = QueryDataset(
+                orders.name,
+                QueryDatasetScope.of(
+                    tenant = orders.scope.tenant,
+                    owner = orders.scope.owner,
+                    access = QueryDatasetAccess.of(aggregate, QueryField("order_id")),
+                ),
+                orders.declaration,
+                orders.identity,
+            )
+
+            suspend fun admitted(dataset: QueryDataset, vararg policies: AccessPolicy<*>): FilterExpression {
+                val backend = RecordingBackend()
+                val access = AccessFixtures.policies(*policies)
+                val caller = QueryCaller(
+                    Caller(
+                        tenantId = "t1",
+                        scope = Scope("u1"),
+                        subject = "u1",
+                        attributes = mapOf("departments" to listOf("sales")),
+                    ),
+                    QueryEntry.HTTP,
+                )
+                gateway(backend, dataset, listOf(ScopeQueryPolicy(access = access), AccessQueryPolicy(access)))
+                    .count(CountQuery(MatchAllFilter), caller)
+                return (backend.admitted.single().query as CountQuery).filter
+            }
+            // D390 C4 filters the rows through the aggregate's current attributes; until then none but a grant reads.
+            admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents).assert().isSameAs(MatchNoneFilter)
+            val open = accessPolicy<AccessFixtures.DocumentState> { readWrite { allowAll() } }
+            admitted(bound(AccessFixtures.DOCUMENT), open).assert().isInstanceOf(TenantIdFilter::class.java)
+            // An aggregate without a policy of its own: the dataset's owner column, as for any dataset.
+            (admitted(bound(AccessFixtures.NOTE), AccessFixtures.documents) as AndFilter).operands.assert().hasSize(2)
+        }
 
     @Test
     fun `an HTTP caller built directly reaches no further than the read side's rules (R5-C-1)`() = runTest {

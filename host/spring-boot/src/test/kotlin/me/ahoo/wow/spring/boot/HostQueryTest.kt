@@ -18,8 +18,11 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.access.AccessPolicy
+import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -121,6 +124,23 @@ class HideFromMallory {
     @Bean
     fun malloryPolicy(): QueryPolicy =
         QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
+}
+
+/** The access policy of the accounts: the tellers read them, and no caller changes them through it. */
+@Configuration(proxyBeanMethods = false)
+class TellersReadAccounts {
+    @Bean
+    fun accountAccess(): AccessPolicy<Account> = accessPolicy {
+        read { caller -> allowIf(caller.hasRole("teller")) }
+        write { denyAll() }
+    }
+}
+
+/** An access policy of a state no aggregate of the node has. */
+@Configuration(proxyBeanMethods = false)
+class StrayAccessPolicy {
+    @Bean
+    fun strayAccess(): AccessPolicy<DecidedCommands> = accessPolicy { readWrite { allowAll() } }
 }
 
 /** The application's own [me.ahoo.wow.runtime.node.BackendFactory]: in memory, opened by no layout of the host's. */
@@ -234,6 +254,27 @@ class HostQueryTest {
             // An aggregate with no committed state has no streams.
             eventsOf("alice", "no-such-account").assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `an access policy bean should govern its aggregate's reads, and one of no aggregate refuse the start`() {
+        startHost(sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java)).use { host ->
+            host.openAccount("mona")
+            val engine = host.context.getBean(QueryEngine::class.java)
+            engine.access.governs(ACCOUNT).assert().isTrue()
+            fun accounts(caller: Caller) = runBlocking {
+                engine.snapshots(ACCOUNT)!!.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller(caller)).toList()
+            }
+            val teller = Caller.of(subject = "tom", attributes = mapOf("roles" to listOf("teller")))
+            eventually { accounts(teller).size == 1 }
+            // Not by its owner: the policy alone decides.
+            accounts(Caller.of(subject = "mona", scope = Scope("mona"))).assert().isEmpty()
+        }
+        val refused = assertThrows<Exception> {
+            startHost(sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java)).close()
+        }
+        generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }
+            .any { "is of no aggregate of this node" in it }.assert().isTrue()
     }
 
     @Test
