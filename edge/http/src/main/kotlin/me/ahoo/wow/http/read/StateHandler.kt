@@ -93,7 +93,7 @@ import java.time.format.DateTimeParseException
  * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is:
  * a state outside the caller's scope (an owner or a space it names and the state does not have; the
  * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say), and one the
- * snapshot queries of its type hide from the caller (ABAC and the application's query policies); in a
+ * snapshot queries of its type hide from the caller (the application's query policies); in a
  * trace, every commit's state is checked so, as each `?version=` read would be. Only the audit learns why. Every state,
  * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike:
  * both through the [ReadFacade] of `:query`, the one read path of every entry, which observes and

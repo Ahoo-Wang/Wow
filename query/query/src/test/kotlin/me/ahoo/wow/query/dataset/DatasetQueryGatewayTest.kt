@@ -30,18 +30,11 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.EqualFilter
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.InFilter
-import me.ahoo.wow.api.query.IsEmptyFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
-import me.ahoo.wow.api.query.NorFilter
-import me.ahoo.wow.api.query.NotEqualFilter
-import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -63,17 +56,12 @@ import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryScopeRequiredException
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
-import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -183,60 +171,6 @@ class DatasetQueryGatewayTest {
             .aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("orders"))), QueryCaller.IN_PROCESS)
             .toList().assert().hasSize(1)
         seen.single().assert().isEqualTo(orders.name to QueryModel.DATASET)
-    }
-
-    @Test
-    fun `ABAC restricts a dataset by its tag columns, a string and a string array`() = runTest {
-        val tagged = tagged()
-        val schema = catalog(tagged).schema(tagged.name, QueryModel.DATASET)
-        suspend fun condition(tags: Map<String, List<String>>, options: AbacQueryOptions = ENABLED): FilterExpression =
-            AbacQueryPolicy(options).evaluate(caller(tags), context(schema))
-
-        val region = QueryField("region")
-        val depts = QueryField("depts")
-        condition(mapOf("region" to listOf("east"), "dept" to listOf("eng"), "role" to listOf("admin")))
-            .assert().isEqualTo(
-                AndFilter(
-                    listOf(
-                        InFilter(region, listOf("east", "")),
-                        OrFilter(listOf(IsEmptyFilter(depts), InFilter(depts, listOf("eng")))),
-                    ),
-                ),
-            )
-        condition(mapOf("region" to listOf("*"), "dept" to listOf("*"))).assert().isEqualTo(
-            AndFilter(listOf(NotEqualFilter(region, ""), NorFilter(listOf(IsEmptyFilter(depts))))),
-        )
-        val strict = ENABLED.copyWith(matchMissingTagKey = false)
-        condition(mapOf("region" to listOf("east")), strict).assert().isEqualTo(InFilter(region, listOf("east")))
-        condition(mapOf("dept" to listOf("eng"), "role" to listOf("admin")), strict).assert().isEqualTo(
-            AndFilter(listOf(InFilter(depts, listOf("eng")), MatchNoneFilter)),
-        )
-        condition(mapOf("role" to listOf("*"))).assert().isSameAs(MatchNoneFilter)
-        condition(mapOf("role" to listOf("admin"))).assert().isSameAs(MatchAllFilter)
-        condition(emptyMap()).assert().isSameAs(MatchAllFilter)
-        condition(mapOf("region" to listOf("east")), AbacQueryOptions()).assert().isSameAs(MatchAllFilter)
-        assertThrows<me.ahoo.wow.query.policy.AbacPrincipalTagsRequiredException> {
-            condition(emptyMap(), ENABLED.copyWith(requirePrincipalTags = true))
-        }
-    }
-
-    @Test
-    fun `admission accepts the ABAC condition on the tag columns`() = runTest {
-        val backend = RecordingBackend()
-        val caller = caller(mapOf("region" to listOf("east"), "dept" to listOf("*")))
-        gateway(backend, tagged(), listOf(AbacQueryPolicy(ENABLED)))
-            .list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().hasSize(1)
-        gateway(backend, tagged(), listOf(AbacQueryPolicy(ENABLED.copyWith(matchMissingTagKey = false))))
-            .count(CountQuery(MatchAllFilter), caller).assert().isEqualTo(CountResult(1, exact = true))
-        backend.admitted.size.assert().isEqualTo(2)
-    }
-
-    @Test
-    fun `ABAC leaves a dataset without tag columns unrestricted`() = runTest {
-        val schema = catalog(orders).schema(orders.name, QueryModel.DATASET)
-        val required = AbacQueryPolicy(ENABLED.copyWith(requirePrincipalTags = true))
-        required.evaluate(caller(emptyMap()), context(schema)).assert().isSameAs(MatchAllFilter)
-        required.evaluate(caller(mapOf("region" to listOf("east"))), context(schema)).assert().isSameAs(MatchAllFilter)
     }
 
     @Test
@@ -518,47 +452,6 @@ class DatasetQueryGatewayTest {
         }
     }
 
-    private fun caller(tags: Map<String, List<String>>) = QueryCaller(
-        Caller(attributes = tags.mapKeys { (key, _) -> "abac.$key" }),
-        entry = QueryEntry.HTTP,
-    )
-
-    private fun context(schema: QueryModelSchema) = QueryContext<FilterExpression>(
-        MatchAllFilter,
-        orders.name,
-        schema,
-        QueryType.LIST,
-        QueryEntry.HTTP,
-    )
-
-    /** [orders] with a single-valued `region` tag column and a multi-valued `depts` one. */
-    private fun tagged(): QueryDataset = QueryDataset.of(orders.name) {
-        tenant("tenant_id")
-        identity("order_id")
-        tag("region", "region")
-        tag("dept", "depts")
-        field("order_id") {
-            types(QueryValueType.STRING)
-            nullable(false)
-        }
-        field("tenant_id") {
-            types(QueryValueType.STRING)
-            nullable(false)
-        }
-        field("region") {
-            types(QueryValueType.STRING)
-            nullable(false)
-        }
-        field("depts") {
-            kind(QueryValueKind.ARRAY)
-            nullable(false)
-            items {
-                types(QueryValueType.STRING)
-                nullable(false)
-            }
-        }
-    }
-
     private fun catalog(dataset: QueryDataset, backend: QueryBackend = RecordingBackend()): QuerySchemaCatalog {
         val datasets = QueryDatasets(listOf(dataset))
         return QuerySchemaCatalog(
@@ -615,7 +508,6 @@ class DatasetQueryGatewayTest {
 
     private companion object {
         val OTHER = AggregateType("analytics", "other")
-        val ENABLED = AbacQueryOptions(enabled = true)
         val ADAPTER = InMemoryQueryStorageAdapter
     }
 }

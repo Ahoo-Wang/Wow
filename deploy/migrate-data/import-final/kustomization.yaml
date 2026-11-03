@@ -1,0 +1,13 @@
+# migrate-data import --final, the final pass once 9.x stopped writing and the tail followed it: kubectl create -k deploy/migrate-data/import-final
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../job
+nameSuffix: -import-final
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["import", "--final", "--config", "/config/migrate-data.json"]

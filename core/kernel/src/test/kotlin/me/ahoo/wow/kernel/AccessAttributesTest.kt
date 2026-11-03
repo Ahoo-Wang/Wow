@@ -30,11 +30,11 @@ class AccessAttributesTest {
         var published: Boolean = false
     }
 
-    private val department = AccessAttribute.single("department", String::class.java)
-    private val sharedWith = AccessAttribute.multiple("sharedWith", String::class.java)
-    private val level = AccessAttribute.single("level", Level::class.java)
-    private val pages = AccessAttribute.single("pages", Long::class.javaObjectType)
-    private val published = AccessAttribute.single("published", Boolean::class.javaObjectType)
+    private val department = AccessAttribute.single<Document, String>("department", String::class.java)
+    private val sharedWith = AccessAttribute.multiple<Document, String>("sharedWith", String::class.java)
+    private val level = AccessAttribute.single<Document, Level>("level", Level::class.java)
+    private val pages = AccessAttribute.single<Document, Long>("pages", Long::class.javaObjectType)
+    private val published = AccessAttribute.single<Document, Boolean>("published", Boolean::class.javaObjectType)
 
     private val model = aggregate<Document>("office", "document") {
         initial { Document(it.id) }
@@ -83,15 +83,15 @@ class AccessAttributesTest {
         @Suppress("UNCHECKED_CAST")
         val loose = aggregate<Document>("office", "document") {
             initial { Document(it.id) }
-            access(level as AccessAttribute.Single<Any>) { it.department ?: "none" }
-            access(sharedWith as AccessAttribute.Multiple<Any>) { listOf(it.pages) }
+            access(level as AccessAttribute.Single<Document, Any>) { it.department ?: "none" }
+            access(sharedWith as AccessAttribute.Multiple<Document, Any>) { listOf(it.pages) }
         }
         assertThrownBy<IllegalStateException> { loose.accessOf(Document("d-1")) }
             .hasMessageContaining("level").hasMessageContaining("java.lang.String")
         @Suppress("UNCHECKED_CAST")
         val notCollection = aggregate<Document>("office", "document") {
             initial { Document(it.id) }
-            access(sharedWith as AccessAttribute.Multiple<Any>) { listOf(it.pages) }
+            access(sharedWith as AccessAttribute.Multiple<Document, Any>) { listOf(it.pages) }
         }
         assertThrownBy<IllegalStateException> { notCollection.accessOf(Document("d-1")) }
             .hasMessageContaining("sharedWith")

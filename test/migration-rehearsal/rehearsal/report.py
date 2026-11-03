@@ -99,6 +99,31 @@ lines += [
     + "; ".join(log_lines("export-refused", r"REFUSED|CONFLICT")[:3]),
 ]
 
+if "timing-job-1" in by_name:
+    def run(name, where):
+        step = by_name[name]
+        container = step["data"].get("containerMillis")
+        inside = f"{container / 1000:.1f} s" if container is not None else "n/a"
+        return f"| {where} | {name} | {step['millis'] / 1000:.1f} s | {inside} |"
+
+    lines += [
+        "",
+        "## Where migrate-data runs (kind arm)",
+        "",
+        "The same full import of the 9.x store, 9.x stopped, each into a fresh database, by the same image and heap "
+        "(D392 ③: A B B A, so the two runs of one place are the noise band; single runs are reported, not judged). "
+        "The step is what an operator waits for, the Job's scheduling and the init containers' copies included; the "
+        "container time is the tool's own run.",
+        "",
+        "| Where | Step | Step time | Container time |",
+        "| --- | --- | --- | --- |",
+        run("timing-job-1", "In the cluster (Job)"),
+        run("timing-runner-1", "On the runner, through the NodePorts"),
+        run("timing-runner-2", "On the runner, through the NodePorts"),
+        run("timing-job-2", "In the cluster (Job)"),
+        run("timing-port-forward", "On the runner, through kubectl port-forward"),
+    ]
+
 views = data("seed-views")
 lines += [
     "",

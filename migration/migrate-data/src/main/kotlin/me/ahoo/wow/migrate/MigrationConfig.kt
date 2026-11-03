@@ -18,28 +18,35 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSinks
+import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
+import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
+import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
+import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.LeaseStore
 import org.apache.hc.core5.http.HttpHost
 import tools.jackson.databind.DeserializationFeature
 import java.io.Closeable
+import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
@@ -63,10 +70,14 @@ import java.util.concurrent.ConcurrentHashMap
  * }
  * ```
  *
- * - [manifests] are the V10 Manifests of the services the streams go to (each a merged `wow-manifest.json`).
+ * - [manifests] are the V10 Manifests of the services the streams go to (each a merged `wow-manifest.json`). Empty,
+ *   they are assembled from the Manifest fragments of the modules on [classpath], as each service's node assembles
+ *   its own at startup ([classpathManifests]).
  * - [classpath] holds the services' domain modules, each a jar or a directory (of classes, of jars, or both):
  *   `compare` and `snapshot` rebuild states with their V10 models ([MigrationModels]). Empty, the models are those on
  *   the tool's own class path.
+ * - [checkpoint] is the checkpoint file, or `target:<name>` to keep the checkpoints in the V10 target under that name
+ *   ([checkpointName], [TargetCheckpointRepository]), where a Pod that restarts finds them.
  * - [source] is the 9.x MongoDB event store ([SourceConfig]); [target] the V10 log ([TargetConfig]).
  * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
  *   into the V10 service's failure ledger ([CompensationConfig]).
@@ -79,7 +90,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal data class MigrationConfig(
     val map: String,
-    val manifests: List<String>,
+    val manifests: List<String> = emptyList(),
     val checkpoint: String = "migrate-data.checkpoint.json",
     val source: SourceConfig,
     val target: TargetConfig,
@@ -94,6 +105,18 @@ internal data class MigrationConfig(
     val elasticsearch: ElasticsearchConfig? = null,
     val final: FinalPassConfig = FinalPassConfig(),
 ) {
+    init {
+        checkpointName?.let { name ->
+            require(CHECKPOINT_NAME.matches(name)) {
+                "A checkpoint kept in the target is named $TARGET_PREFIX<name>, the name of letters, digits, '.', '_' " +
+                    "and '-', at most 128: not \"$checkpoint\"."
+            }
+        }
+    }
+
+    /** The name the checkpoints are kept under in the target (`target:<name>`); null when they are in a file. */
+    val checkpointName: String? get() = checkpoint.takeIf { it.startsWith(TARGET_PREFIX) }?.removePrefix(TARGET_PREFIX)
+
     /** The options of an import, a dry run when [dryRun], a final complete pass when [restart]. */
     fun options(dryRun: Boolean = false, restart: Boolean = false): ImportOptions = ImportOptions(
         pageSize = pageSize,
@@ -138,7 +161,11 @@ internal data class MigrationConfig(
             return config.copy(
                 map = directory.resolve(config.map).toString(),
                 manifests = config.manifests.map { directory.resolve(it).toString() },
-                checkpoint = directory.resolve(config.checkpoint).toString(),
+                checkpoint = if (config.checkpointName != null) {
+                    config.checkpoint
+                } else {
+                    directory.resolve(config.checkpoint).toString()
+                },
                 classpath = config.classpath.map { directory.resolve(it).toString() },
             )
         }
@@ -153,6 +180,10 @@ internal data class MigrationConfig(
         }
 
         private const val ENV_PREFIX = "env:"
+
+        /** The prefix of a checkpoint kept in the target. */
+        const val TARGET_PREFIX = "target:"
+        private val CHECKPOINT_NAME = Regex("[A-Za-z0-9._-]{1,128}")
     }
 }
 
@@ -242,6 +273,54 @@ internal fun readManifests(paths: List<String>): Manifest {
     return Manifest(contexts = contexts)
 }
 
+/**
+ * The V10 Manifests of the services whose modules the [classpath] entries hold, read as one: each entry (a service's
+ * `lib`, say) assembled by the node's own assembly ([ManifestLoader]) from the fragments of the modules whose fragment
+ * the entry holds, over a class loader of that entry alone, so two services' entries that hold the same jars do not
+ * meet. Without an entry, those of the modules on [parent], the tool's own class path. An entry without a module adds
+ * nothing; a fragment that does not read, or fragments that conflict, fail, naming the entry.
+ */
+internal fun classpathManifests(classpath: List<String>, parent: ClassLoader): Manifest {
+    val loaders = classpath.ifEmpty { listOf(null) }.map { entry ->
+        entry to (entry?.let { MigrationModels.classLoaderOf(listOf(it), parent) } ?: parent)
+    }
+    val contexts = loaders.flatMap { (entry, loader) ->
+        // An entry's modules are those whose fragment it holds itself, not one of the tool's.
+        val own = entry?.let { loader as URLClassLoader }
+        val providers = ModelProvider.load(loader).filter { own == null || own.findResource(it.fragment) != null }
+        if (providers.isEmpty()) {
+            return@flatMap emptyList()
+        }
+        val service = ServiceInfo(entry?.let { Path.of(it).fileName.toString() } ?: "migrate-data")
+        try {
+            ManifestLoader(loader).load(service, providers).contexts
+        } catch (invalid: IllegalStateException) {
+            throw MigrationException(
+                "The Manifest fragments of the modules in ${entry ?: "the tool's class path"} do not assemble: " +
+                    invalid.message,
+            )
+        }
+    }
+    return Manifest(contexts = contexts)
+}
+
+/**
+ * Fails, naming them, when [manifest], assembled from the [classpath] modules' fragments, has none of the V10 contexts
+ * [map] imports into: the service that hosts each is not on the class path.
+ */
+internal fun requireContexts(manifest: Manifest, map: MigrationMap, classpath: List<String>) {
+    val present = manifest.contexts.map { it.name }.toSet()
+    val missing = map.aggregates.map { it.to.substringBefore('.') }.distinct().filterNot { it in present }
+    if (missing.isNotEmpty()) {
+        throw MigrationException(
+            "The configuration names no manifests, and the Manifest fragments of the modules on the classpath " +
+                "${classpath.ifEmpty { listOf("(the tool's own)") }} hold no context $missing, which the map " +
+                "imports into: add the lib of the service that hosts each to \"classpath\", or name its Manifest in " +
+                "\"manifests\".",
+        )
+    }
+}
+
 /** What a run connects to: the 9.x store (its event streams and snapshots), and the V10 log and snapshots of each context. */
 internal interface MigrationConnections : Closeable {
     val source: NineXEventSource
@@ -272,6 +351,14 @@ internal interface MigrationConnections : Closeable {
 
     /** The 9.x store the rollback export writes to: the source store. */
     val nineXTarget: NineXEventTarget get() = throw MigrationException("This run has no 9.x store to export to.")
+
+    /** Where the target keeps the checkpoints named `target:<name>`, its schema created. */
+    fun checkpointTable(): CheckpointTable =
+        throw MigrationException("This run's target keeps no checkpoints: give \"checkpoint\" a file.")
+
+    /** The target's lease store, where the runs of a checkpoint kept in the target take their roles; its schema created. */
+    fun leaseStore(): LeaseStore =
+        throw MigrationException("This run's target keeps no checkpoints: give \"checkpoint\" a file.")
 }
 
 /**
@@ -348,6 +435,26 @@ internal class ConfiguredConnections(
     }
 
     override fun checkpointStore(): CheckpointStore = checkpointStore
+
+    private val checkpointTable: CheckpointTable by lazy {
+        if (targetClient != null) {
+            MongoCheckpointTable(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+        } else {
+            PostgresCheckpointTable(dataSource.value).also { it.createSchema() }
+        }
+    }
+
+    override fun checkpointTable(): CheckpointTable = checkpointTable
+
+    private val leaseStore: LeaseStore by lazy {
+        if (targetClient != null) {
+            MongoLeaseStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+        } else {
+            PostgresLeaseStore(dataSource.value).also { it.createSchema() }
+        }
+    }
+
+    override fun leaseStore(): LeaseStore = leaseStore
 
     private val compensationClient: MongoClient? = config.compensation?.uri?.let { MongoClients.create(it) }
 

@@ -69,7 +69,7 @@ fun interface CommittedStates {
  * The one read path of every entry that reads an aggregate's state (HTTP, synchronous calls, ops):
  * read the state, check that the caller may see it, mask it. [read] loads a state (its latest, at a version or a time,
  * as the entry asks, from the runtime's state reads), hands it to [admitted], which checks it against the snapshot
- * query policies of its type ([StateVisibility]: the caller scope, ABAC and the application's policies, through the
+ * query policies of its type ([StateVisibility]: the caller scope and the application's policies, through the
  * type's snapshot query gateway or, when its snapshots are not queried, its policy gateway) and masks it
  * as the snapshot queries mask a state; [event] masks an event body the same way.
  *

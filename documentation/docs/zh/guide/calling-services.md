@@ -86,7 +86,7 @@ wow:
         eshop-payment-service: payments
 ```
 
-这些键写在 YAML 文件或 `SPRING_APPLICATION_JSON` 中：环境变量会丢掉服务名里的短横线。需要命名空间而无从得知时（例如不在 Kubernetes 上且未设置），调用失败，错误里写明这些键与对端的 `url`。请求依次发往它的各个节点；不接受连接的节点，或回答自己正在关闭、处于待命的节点，会在同一次尝试中跳到下一个。记录每 30 秒重新查询一次，所有节点都不接受连接时立即重查。`wow.peer.discovery: static` 只用 `url`，社区提供的 `PeerDiscovery` 也可以用别的方式找到节点。Saga 的调用同样不必列出：契约在类路径上的上下文都按同样的方式找到。
+这些键写在 YAML 文件或 `SPRING_APPLICATION_JSON` 中：环境变量会丢掉服务名里的短横线。需要命名空间而无从得知时（例如不在 Kubernetes 上且未设置），调用失败，错误里写明这些键与对端的 `url`。请求依次发往它的各个节点；不接受连接的节点，或回答自己正在关闭、处于待命的节点，会在同一次尝试中跳到下一个。记录每 30 秒重新查询一次，所有节点都不接受连接时立即重查。`wow.peer.discovery: static` 只用 `url`；不在 Kubernetes 上时，`wow.peer.discovery: spring-cloud` 从 Spring Cloud 的注册中心找到节点（[Spring Cloud 服务发现](../operate/spring-cloud)），社区提供的 `PeerDiscovery` 也可以用别的方式找到节点。Saga 的调用同样不必列出：契约在类路径上的上下文都按同样的方式找到。
 
 `wow.peer.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.peer.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
 
@@ -96,7 +96,7 @@ wow:
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 
-不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式（`service` 带上它以哪个服务的名字调用，或者 `user` 带上终端用户的凭据），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径上的 api jar。
+不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式（`service` 带上它以哪个服务的名字调用，或者 `user` 带上终端用户的凭据），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径上的 api jar。每种调用方走哪个端口、以什么身份调用、请求带什么，见[从其他服务调用 Wow](./calling-from-other-services)。
 
 ## 在 Java 中 {#from-java}
 

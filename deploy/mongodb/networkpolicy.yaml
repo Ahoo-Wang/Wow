@@ -1,6 +1,6 @@
 # The members reach each other, and the services of the shop and of the platform reach them (their pods labelled
-# app.kubernetes.io/part-of: eshop or wow-platform), as the initiation does; nothing else does. Enforced where the
-# cluster's network plugin enforces NetworkPolicy.
+# app.kubernetes.io/part-of: eshop or wow-platform), as the initiation and a migration into them (migrate-data,
+# deploy/migrate-data) do; nothing else does. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -21,6 +21,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: mongodb-init
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: migrate-data
         - podSelector:
             matchExpressions:
               - key: app.kubernetes.io/part-of

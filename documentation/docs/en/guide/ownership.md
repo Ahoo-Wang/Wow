@@ -120,7 +120,7 @@ Tags are key-value pairs on an aggregate. Attribute-based access matches them ag
 - **Applied:** the lifecycle command `ApplyTags`, `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags` with `{"tags": {"region": ["eu"]}}`, replaces the applied tags.
 - **Derived:** a member of the state annotated `@Tags`, a property or a function without parameters returning `Map<String, Collection<String>>`, derives tags from the state. It is evaluated after every commit, and each key it returns replaces the applied value of that key. Return every key it owns on every call, with an empty list for none.
 
-Attribute-based access is off by default. `wow.query.abac.enabled: true` turns it on, and the caller's attributes named with the prefix `abac.` (`abac.region`) are matched against the tags of the same key ([Configuration Keys](../reference/configuration#wow-query-abac)).
+Attribute-based query filtering has been removed and is being replaced by access attributes and access policies; until then, no setting turns it on.
 
 ## A fixed tenant
 

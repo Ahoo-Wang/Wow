@@ -1,0 +1,47 @@
+public final class me/ahoo/wow/spring/cloud/LoadBalancedEndpoints : me/ahoo/wow/client/EndpointResolver {
+	public static final field Companion Lme/ahoo/wow/spring/cloud/LoadBalancedEndpoints$Companion;
+	public static final field SCHEME Ljava/lang/String;
+	public static final fun of (Lorg/springframework/cloud/client/loadbalancer/reactive/ReactiveLoadBalancer$Factory;Ljava/util/Map;)Lme/ahoo/wow/spring/cloud/LoadBalancedEndpoints;
+	public fun reaches (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resolve (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spring/cloud/LoadBalancedEndpoints$Companion {
+	public final fun of (Lorg/springframework/cloud/client/loadbalancer/reactive/ReactiveLoadBalancer$Factory;Ljava/util/Map;)Lme/ahoo/wow/spring/cloud/LoadBalancedEndpoints;
+}
+
+public final class me/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery : me/ahoo/wow/spi/peer/PeerDiscovery {
+	public static final field Companion Lme/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery$Companion;
+	public static final field TYPE Ljava/lang/String;
+	public fun <init> (Lkotlin/jvm/functions/Function0;)V
+	public fun getType ()Ljava/lang/String;
+	public final fun isOpened ()Z
+	public fun open (Lme/ahoo/wow/spi/peer/PeerDiscoveryConfig;)Lme/ahoo/wow/spi/peer/PeerTargets;
+}
+
+public final class me/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery$Companion {
+}
+
+public final class me/ahoo/wow/spring/cloud/WowInstanceMetadata {
+	public static final field INSTANCE Lme/ahoo/wow/spring/cloud/WowInstanceMetadata;
+	public static final field INTERNAL_HOST Ljava/lang/String;
+	public static final field INTERNAL_PORT Ljava/lang/String;
+	public static final field SERVICE Ljava/lang/String;
+	public static final fun internalUrlOf (Lorg/springframework/cloud/client/ServiceInstance;)Ljava/net/URI;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/spring/cloud/WowRegistrationMetadata : org/springframework/context/ApplicationListener {
+	public fun <init> (Lkotlin/jvm/functions/Function0;Ljava/lang/ClassLoader;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;Ljava/lang/ClassLoader;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun onApplicationEvent (Lorg/springframework/cloud/client/discovery/event/InstancePreRegisteredEvent;)V
+	public synthetic fun onApplicationEvent (Lorg/springframework/context/ApplicationEvent;)V
+}
+
+public final class me/ahoo/wow/spring/cloud/WowSpringCloudAutoConfiguration {
+	public fun <init> ()V
+	public final fun wowRegistrationMetadata (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spring/cloud/WowRegistrationMetadata;
+	public final fun wowSpringCloudDiscoveryHint (Lme/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/SmartInitializingSingleton;
+	public final fun wowSpringCloudPeerDiscovery (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spring/cloud/SpringCloudPeerDiscovery;
+}
+

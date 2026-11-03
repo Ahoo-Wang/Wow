@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "aggregates": [
+    {
+      "from": "example-service.cart",
+      "to": "example.cart",
+      "commands": [
+        {
+          "from": "add_cart_item",
+          "to": "AddCartItem"
+        },
+        {
+          "from": "change_quantity",
+          "to": "ChangeQuantity"
+        },
+        {
+          "from": "remove_cart_item",
+          "to": "RemoveCartItem"
+        }
+      ],
+      "events": [
+        {
+          "from": "cart_item_added",
+          "to": "CartItemAdded"
+        },
+        {
+          "from": "cart_quantity_changed",
+          "to": "CartQuantityChanged"
+        },
+        {
+          "from": "cart_item_removed",
+          "to": "CartItemRemoved"
+        }
+      ]
+    }
+  ]
+}

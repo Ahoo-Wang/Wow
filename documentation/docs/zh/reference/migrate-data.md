@@ -10,11 +10,30 @@ outline: deep
 
 ## 运行 {#running}
 
+在你要迁移到的那个 Wow 版本的检出目录里：
+
 ```bash
 ./gradlew :migrate-data:run --args="<command> --config <file> [options]"
 ```
 
-在你要迁移到的那个 Wow 版本的检出目录里运行它。它读取 9.x 的 MongoDB 事件存储，写入 PostgreSQL 或 MongoDB 上的 V10 日志。
+或者用该版本的镜像 `ahoowang/wow-migrate-data:<version>`（也在 `ghcr.io/ahoo-wang/` 和 `registry.cn-shanghai.aliyuncs.com/ahoo/` 上），它的入口就是命令行：
+
+```bash
+docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
+  ahoowang/wow-migrate-data:<version> <command> --config /config/migrate-data.json [options]
+```
+
+它读取 9.x 的 MongoDB 事件存储，写入 PostgreSQL 或 MongoDB 上的 V10 日志。
+
+镜像里只有工具本身，运行在 JDK 25 上。把这些挂载进去：
+
+- 配置文件和映射文件；
+- 服务的类（`classpath`）；
+- 检查点文件可写的位置，或者把检查点保存在目标里。
+
+它以用户 10001 运行。堆是容器内存上限的 75%（`JAVA_OPTS=-XX:MaxRAMPercentage=75.0`）；你自己设置的 `JAVA_OPTS` 会替换它。在 Kubernetes 上，[`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) 把每个命令作为 Job 运行在存储旁边（[在存储旁边运行](../migrate/data#run-it-next-to-the-stores)）。
+
+`migrate-data --help` 打印用法并以 `0` 退出。
 
 ## 命令 {#commands}
 
@@ -107,8 +126,8 @@ outline: deep
 | 属性 | 默认值 | 含义 |
 | --- | --- | --- |
 | `map` | 必填 | 迁移映射文件。 |
-| `manifests` | 必填 | 流要去往的各服务合并后的 V10 Manifest。 |
-| `checkpoint` | `migrate-data.checkpoint.json` | 检查点文件。 |
+| `manifests` | 来自 classpath | 流要去往的各服务合并后的 V10 Manifest。不写时，工具按每个 `classpath` 条目，从其中服务模块的片段组装该服务的 Manifest，与服务的节点启动时所做的相同。映射导入的某个上下文不在任何条目里时失败，并给出这些上下文。 |
+| `checkpoint` | `migrate-data.checkpoint.json` | 检查点文件；或者 `target:<name>`，把检查点以该名字保存在 V10 目标里（名字由字母、数字、`.`、`_` 和 `-` 组成，最多 128 个字符）：见[检查点](#checkpoints)。 |
 | `source.uri`、`source.database` | 必填 | 9.x 的 MongoDB 事件存储。数据库中没有任何事件流时，`draft-map` 和 `check` 失败并给出该数据库的名字：名字拼错，或 `env:` 引用的变量未设置，读到的都是一个空存储。 |
 | `source.createCommitTimeIndex` | `false` | 允许 `tail` 在每个事件流集合上创建它需要的 `(createTime, _id)` 索引，这会写入 9.x 存储。否则没有索引时它拒绝启动，并打印创建命令。`check` 会对每个缺少该索引的已映射集合发出警告，但不创建任何索引。 |
 | `target.type` | 必填 | `postgres` 或 `mongo`。 |
@@ -116,7 +135,7 @@ outline: deep
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |
 | `target.uri`、`target.database` | | MongoDB 目标，必须是副本集。 |
 | `partitions` | | 每个 V10 上下文的分区数，必须与服务自己的相同。 |
-| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
+| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录，例如服务发行包的 `lib`。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件，不写 `manifests` 时 Manifest 也来自它们。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |
 | `compensation.uri` | 与来源相同 | 该数据库所在的服务器。 |
 | `compensation.service` | | 接收未解决执行的 V10 服务，其失败台账会收到它们：填它的 `wow.service` 或 `spring.application.name`。 |
@@ -301,11 +320,50 @@ V10 订阅的名字是 `<processor>.<function>`。
 
 ## 检查点 {#checkpoints}
 
-检查点文件（格式 1）保存每一轮进行到哪里：按 9.x 聚合，记录导入、追尾及其最后一轮结束的时间、比对和快照写入；按 `PrepareKey`，记录预留导入；补偿导入；按 V10 聚合类型，记录标签回填；按 V10 上下文和分区，记录导出。
+检查点（格式 1）保存每一轮进行到哪里：
 
-它旁边的 `<checkpoint>.reservations.jsonl` 在预留每个键之前先记下它，这样之后的导入可以释放 9.x 已放弃的键。把这两个文件放在一起。
+- 按 9.x 聚合：导入、追尾及其最后一轮结束的时间、比对、快照写入；
+- 按 `PrepareKey`：预留导入；
+- 补偿导入；
+- 按 V10 聚合类型：标签回填；
+- 按 V10 上下文和分区：导出。
 
-多个命令可以同时使用同一个检查点文件，例如 `tail` 与 `compare` 并行：每次改动都持有 `<checkpoint>.lock` 上的锁，并原子地替换文件，所以谁也不会丢失别人的进度。停下的运行最多重复一页。
+导入还会在预留每个键之前先记下它，这样之后的导入可以释放 9.x 已放弃的键。停下的运行最多重复一页。
+
+**保存在文件里**，这是默认方式。检查点文件旁边是 `<checkpoint>.reservations.jsonl`，即预留的键。把这两个文件放在一起。每次改动都持有 `<checkpoint>.lock` 上的锁，并原子地替换文件。
+
+**保存在目标里**，即 `"checkpoint": "target:<name>"`。在另一台机器上的运行，或重启后的 Pod，都能在日志旁边找到它们：
+
+- 每个名字的检查点是 `wow_migrate_checkpoint` 里的一行（PostgreSQL 的表，或同名的 MongoDB 集合），内容与文件相同；
+- 预留的键是 `wow_migrate_imported_key` 里的行；
+- 每次改动都是对所存版本的比较并交换，冲突时重试。
+
+### 每类运行同时只有一个 {#one-run-of-each-kind-at-a-time}
+
+写检查点的运行在结束之前一直持有其命令的角色：
+
+| 角色 | 命令 |
+| --- | --- |
+| `import` | `import`、`import --final`、`tail`、`export` |
+| `compare` | `compare` |
+| `snapshot` | `snapshot`、`import --snapshots` |
+| `backfill-tags` | `backfill-tags` |
+| `export` | `export` |
+
+`export` 同时持有 `import` 角色，因为它写入导入和追尾所读的 9.x 存储。不同角色的运行共用检查点，各写各的条目，例如 `tail` 与 `compare` 并行。`check`、`draft-map` 和演练运行（dry run）不持有角色。
+
+- **检查点文件。** 每个角色是 `<checkpoint>.<role>.lock` 上的一把操作系统锁，进程无论怎样结束，系统都会释放它。发现锁被持有的运行立即失败，并给出锁文件记下的那次运行。
+- **保存在目标里的检查点。** 每个角色是目标自己的租约存储里的一份租约（`wow_lease`，组为 `wow.migrate.checkpoint/<name>`）：30 秒，每 10 秒续约一次。没有释放租约就停下的运行不再续约，它的租约就会过期。发现角色被持有的运行最多等一个租约期，等它结束后接手。持有者一直续约时，这次运行失败并给出持有者：
+
+  ```text
+  FAILED The checkpoint target:order-service is in use: tail on migrate-data-tail-5c7d9 (pid 1, run 019a…) holds its import lease, renewed while it runs (now until 2026-11-03T10:15:30Z). One import, import --final, tail or export runs on a checkpoint at a time: stop that run, or wait for it to end.
+  ```
+
+  每次写入都带着这次运行各租约的 epoch。设想一次运行暂停的时间超过了租约期，另一次运行接手租约并写入。前一次运行的下一次写入就会失败，即使它还不知道自己已经失去租约，然后它不写任何东西就停下：
+
+  ```text
+  FAILED This run lost its import lease of the checkpoint target:order-service to another run, which has written the checkpoint since (lease epoch 2, this run's 1). It stops without writing.
+  ```
 
 切换点保存在 V10 目标里、日志旁边：每个分区一行检查点，组为 `wow.migrate/<context>`，名为 `cutover`，每一轮只会把它往前移，从不后退。服务的订阅把它及之前的条目视为导入的，它的传输 Sink 也把它们标为导入的发布出去（[从 9.x 导入的历史](../guide/published-streams#history-imported-from-9x)）。演练运行（dry run）不记录切换点。
 

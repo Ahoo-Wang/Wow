@@ -19,7 +19,7 @@ import me.ahoo.wow.query.filter.QueryContext
 
 /**
  * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]); the port the
- * scope and ABAC policies implement ([ScopeQueryPolicy], [AbacQueryPolicy]).
+ * scope policy implements ([ScopeQueryPolicy]).
  *
  * Each policy reads the same query, the one every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter] rewrite
  * produced with the caller's scope and route selection appended, and the [caller] (the identity is an

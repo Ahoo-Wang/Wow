@@ -1,0 +1,55 @@
+# migrate-data's Job and tail of deploy/migrate-data, as the rehearsal's kind arm runs them (kind.sh renders them, then
+# names each Job and gives it its command): the classes of both V10 hosts, the rehearsal host's and the view store
+# service's, each copied from its own image into the shared volume; the heap of the runner arm's runs (-Xmx2g); and
+# no retry, so each step times one run.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../../deploy/migrate-data/job
+  - ../../../../../deploy/migrate-data/tail
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/backoffLimit
+        value: 0
+  - target:
+      kind: (Job|Deployment)
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers
+        value:
+          - name: rehearsal-host
+            image: wow-migration-rehearsal:local
+            imagePullPolicy: IfNotPresent
+            command: ["cp", "-R", "/opt/migration-rehearsal/lib", "/service/migration-rehearsal"]
+            volumeMounts:
+              - name: service
+                mountPath: /service
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+          - name: view-store
+            image: wow-view-store-server:local
+            imagePullPolicy: IfNotPresent
+            command: ["cp", "-R", "/opt/view-store-server/lib", "/service/view-store-server"]
+            volumeMounts:
+              - name: service
+                mountPath: /service
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: JAVA_OPTS
+          value: -Xmx2g
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "1"
+            memory: 3Gi
+          limits:
+            memory: 3Gi

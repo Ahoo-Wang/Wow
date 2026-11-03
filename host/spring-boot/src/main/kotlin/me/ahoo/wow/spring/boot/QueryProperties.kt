@@ -22,7 +22,6 @@ import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.cache.QueryCountCacheOptions
 import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.query.policy.AbacQueryOptions
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.store.DatasetQueryLimits
@@ -74,9 +73,6 @@ class QueryProperties {
      * (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants.
      */
     var allowCrossTenant: Boolean = false
-
-    /** Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`. */
-    var abac: Abac = Abac()
 
     /** What the queries may do with sensitive fields. */
     var sensitivity: Sensitivity = Sensitivity()
@@ -223,30 +219,6 @@ class QueryProperties {
     /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.budgets.in-process.*`. */
     @InternalWowApi
     class InProcess : Budget(QueryBudget.IN_PROCESS_DEFAULT)
-
-    /** Attribute-based access control of the queries. */
-    @InternalWowApi
-    class Abac {
-        /** Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted. */
-        var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled
-
-        /**
-         * Whether an HTTP query whose caller has no ABAC tags is refused, instead of matching every resource;
-         * in-process queries are never refused for this.
-         */
-        var requirePrincipalTags: Boolean = AbacQueryOptions.DEFAULT.requirePrincipalTags
-
-        /**
-         * Whether a resource that lacks one of the caller's tag keys, or has it empty, matches as a public resource.
-         */
-        var matchMissingTagKey: Boolean = AbacQueryOptions.DEFAULT.matchMissingTagKey
-
-        /** The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`. */
-        var attributePrefix: String = AbacQueryOptions.DEFAULT_ATTRIBUTE_PREFIX
-
-        fun options(): AbacQueryOptions =
-            AbacQueryOptions(enabled, requirePrincipalTags, matchMissingTagKey, attributePrefix)
-    }
 
     /** What the queries may do with sensitive fields. */
     @InternalWowApi
