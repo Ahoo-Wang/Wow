@@ -107,6 +107,13 @@ const OPS_CONSOLE_PATH =
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
   /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's axon-server job: the unit tests and the distribution of the
+// industry comparison's Axon Framework server (test/benchmarks/axon-server, a
+// Gradle build of its own, outside the repository's and so outside JVM_PATH).
+// Decided apart from RULES, by AXON_SERVER_PATH: its own paths and the workflow.
+const AXON_SERVER = 'axonServer';
+const AXON_SERVER_PATH =
+  /^(?:test\/benchmarks\/axon-server\/|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's migrate-data-image job: the wow-migrate-data image built from the
 // commit's distribution, never pushed, then run as a user runs it (its usage,
 // and check over a 9.x store of one stream). Decided apart from RULES, by
@@ -355,6 +362,7 @@ export function scopes(paths) {
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
+    AXON_SERVER,
     MIGRATE_DATA_IMAGE,
     HELM,
     DEPLOY_KEYS,
@@ -393,6 +401,8 @@ export function scopes(paths) {
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   // And the analytics catalog console's.
   result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
+  // And the Axon server's.
+  result[AXON_SERVER] = paths.some(path => AXON_SERVER_PATH.test(path));
   // And the migrate-data image's.
   result[MIGRATE_DATA_IMAGE] = paths.some(path =>
     MIGRATE_DATA_IMAGE_PATH.test(path),

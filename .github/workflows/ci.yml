@@ -15,8 +15,9 @@
 # scope job (.github/scripts/ci-scope.mjs) decides from the changed paths which
 # areas run (the JVM build, the TypeScript packages, the site, the stories, the
 # view store contract, the eShop web UI, the ops and catalog consoles, the
-# migrate-data image, the workflows), and `ci-gate` is the merge signal: it passes when every job that
-# ran passed. A manual dispatch runs everything. The Node 22 jobs (the unit
+# benchmark's Axon server, the migrate-data image, the workflows), and `ci-gate`
+# is the merge signal: it passes when every job that ran passed. A manual
+# dispatch runs everything. The Node 22 jobs (the unit
 # matrix's Node 22 legs, view-engine's Node 22 shards and Package / Node
 # 22.12.0) run on pushes to main and on dispatch, never on a pull request:
 # nightly.yml dispatches this workflow on main every night main moved.
@@ -70,6 +71,7 @@ jobs:
       view-store-contract: ${{ steps.scope.outputs.viewStoreContract }}
       ops-console: ${{ steps.scope.outputs.opsConsole }}
       catalog-console: ${{ steps.scope.outputs.catalogConsole }}
+      axon-server: ${{ steps.scope.outputs.axonServer }}
       helm: ${{ steps.scope.outputs.helm }}
       deploy-keys: ${{ steps.scope.outputs.deployKeys }}
       migrate-data-image: ${{ steps.scope.outputs.migrateDataImage }}
@@ -1218,6 +1220,33 @@ jobs:
           path: platform/analytics/catalog/console/test-results/
           retention-days: 7
 
+  # The industry comparison's Axon Framework server (test/benchmarks/axon-server):
+  # a Gradle build of its own, outside the repository's (Axon Framework 4 runs
+  # on Spring Boot 3), so no JVM job builds it. Its unit tests (the account, and
+  # the cache the comparison's fairness rests on) and its distribution, as the
+  # benchmark workflow builds it, with the repository's wrapper.
+  axon-server:
+    name: Axon server
+    needs: scope
+    if: needs.scope.outputs.axon-server == 'true'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Test and build the Axon server
+        run: ./gradlew -p test/benchmarks/axon-server test installDist --stacktrace
+
   # Judges a pull request's patch coverage from the run's own reports, then
   # hands every report to Codecov. The test jobs keep their reports as
   # artifacts. It runs when any of them ran, after a failed one too (its
@@ -1488,6 +1517,7 @@ jobs:
         ops-console-e2e,
         catalog-console,
         catalog-console-e2e,
+        axon-server,
         migrate-data-image,
         coverage,
       ]

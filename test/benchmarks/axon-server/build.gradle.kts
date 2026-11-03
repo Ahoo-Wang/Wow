@@ -31,7 +31,7 @@ kotlin {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
-    implementation(platform("org.axonframework:axon-bom:4.13.2"))
+    implementation(platform("org.axonframework:axon-bom:4.13.3"))
     implementation("org.axonframework:axon-spring-boot-starter") {
         // The JDBC event storage engine stores the events: no Axon Server.
         exclude(group = "org.axonframework", module = "axon-server-connector")

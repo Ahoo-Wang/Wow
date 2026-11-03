@@ -49,7 +49,8 @@ class ClosedLoop(
 ) {
     /**
      * One step: its concurrency, throughput and latencies, and the cores the load generator used in its measured
-     * phase, so a step the generator could not drive is told from one the servers could not keep up with.
+     * phase, so a step the generator could not drive is told from one the servers could not keep up with; and every
+     * operation it sent, its warm-up's too, that reached its completion point ([sentOk]) or failed ([sentFailed]).
      */
     data class Step(
         val concurrency: Int,
@@ -58,6 +59,8 @@ class ClosedLoop(
         val seconds: Int,
         val latency: Histogram,
         val generatorCores: Double = 0.0,
+        val sentOk: Long = 0,
+        val sentFailed: Long = 0,
     ) {
         val throughput: Double get() = ok.toDouble() / seconds
         val errorRate: Double get() = errors.values.sum().toDouble() / maxOf(1, ok + errors.values.sum())
@@ -94,6 +97,9 @@ class ClosedLoop(
         val measuring = AtomicBoolean(false)
         val running = AtomicBoolean(true)
         val picks = AtomicLong()
+        // The warm-up's too: every operation that reached its completion point, and every one that failed.
+        val sentOk = AtomicLong()
+        val sentFailed = AtomicLong()
         val workers = (0 until concurrency).map { worker ->
             val keys = keysOf(worker)
             val finished = CompletableFuture<Unit>()
@@ -107,6 +113,7 @@ class ClosedLoop(
                 val other = if (scenario.transfers) keys.nextOtherThan(account) else account
                 val sent = System.nanoTime()
                 scenario.run(client, Target(targets[worker % targets.size], account, other)).handle { error, failure ->
+                    if (error == null && failure == null) sentOk.incrementAndGet() else sentFailed.incrementAndGet()
                     if (measuring.get()) {
                         val kind = error ?: failure?.let { "exception-${OpenLoop.rootCause(it).javaClass.simpleName}" }
                         if (kind == null) {
@@ -131,7 +138,16 @@ class ClosedLoop(
         measuring.set(false)
         running.set(false)
         CompletableFuture.allOf(*workers.toTypedArray()).join()
-        return Step(concurrency, ok.get(), errors.mapValues { it.value.sum() }, stepSeconds, latency, cores)
+        return Step(
+            concurrency,
+            ok.get(),
+            errors.mapValues { it.value.sum() },
+            stepSeconds,
+            latency,
+            cores,
+            sentOk.get(),
+            sentFailed.get(),
+        )
     }
 
     companion object {
