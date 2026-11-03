@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
@@ -31,6 +32,7 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
@@ -371,4 +373,29 @@ class AccessWalkingTest {
         AccessSchema.hashOf(schema).assert().hasSize(16).isEqualTo(AccessSchema.hashOf(schema))
         AccessSchema.of(aggregate<Shelf>("office", "bare") { initial { Shelf(it.id) } }).assert().isEmpty()
     }
+
+    @Test
+    fun `a walk stamps the other stores of a type's history too, a store of another context's type not`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            unstamped(log, listOf("d-1"), "sales", "legal")
+            val stamped = ArrayList<Triple<AggregateRef, Map<String, Any?>, Int>>()
+            val index = object : AccessStamps {
+                override suspend fun stamp(
+                    ref: AggregateRef,
+                    access: Map<String, Any?>,
+                    asOf: Int,
+                    from: Int,
+                    until: Int,
+                ): Int {
+                    stamped += Triple(ref, access, asOf)
+                    return until - from
+                }
+            }
+            val walking = walking(log)
+            walking.target(type, index)
+            walking.target(AggregateType("hr", "document"), index)
+            walking.maintain()
+            stamped.assert().containsExactly(Triple(type.ref("tenant", "d-1"), access("legal"), 2))
+        }
 }

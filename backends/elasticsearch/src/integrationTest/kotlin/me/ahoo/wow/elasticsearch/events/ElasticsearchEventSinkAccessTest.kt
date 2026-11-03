@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -85,8 +86,12 @@ class ElasticsearchEventSinkAccessTest {
             // Nothing changed.
             sink.write(listOf(record(4, access("west"))))
             documents().map { it.second }.assert().containsExactly(3, 3, 3, 4)
-            // A replay of an older change writes nothing.
+            // A replay of an older change writes nothing, an empty range neither; another type's aggregate is not this Sink's.
             sink.stamp(ref, access("east"), asOf = 2, from = 1, until = 3).assert().isEqualTo(0)
+            sink.stamp(ref, access("east"), asOf = 9, from = 3, until = 3).assert().isEqualTo(0)
+            assertThrows<IllegalArgumentException> {
+                sink.stamp(AggregateType(type.context, "other").ref("tenant", "x"), access("east"), 9, 1, 2)
+            }
             documents().first().assert().isEqualTo(access("west") to 3)
             // A stamp as of the same version writes other attributes again: a new model's.
             sink.stamp(ref, access("north"), asOf = 4, from = 1, until = 4).assert().isEqualTo(3)
