@@ -162,7 +162,9 @@ class TypedClientsTest {
         val text = """{"type":"urn:wow:error:wow.node.closing","title":"Service Unavailable","status":503,""" +
             """"detail":"The node is closing.","code":"wow.node.closing","retry":"same_request","node":"n-1",""" +
             """"violations":[{"path":"a","code":"c","message":"m"}]}"""
-        val date = ZonedDateTime.now(ZoneOffset.UTC).plusSeconds(60).format(DateTimeFormatter.RFC_1123_DATE_TIME)
+        // A date already past: both readings clamp it to no wait, whenever each reads the clock. A date ahead would
+        // be read as the seconds left until it, which two readings a second boundary apart tell differently.
+        val date = ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(1).format(DateTimeFormatter.RFC_1123_DATE_TIME)
         val read = listOf("7", date).map { retryAfter ->
             val headers = mapOf(
                 "Content-Type" to listOf("application/problem+json"),
@@ -183,7 +185,7 @@ class TypedClientsTest {
             problem.retryAfter!!
         }
         read[0].assert().isEqualTo(7L)
-        read[1].assert().isBetween(55L, 60L)
+        read[1].assert().isEqualTo(0L)
     }
 
     @Test
