@@ -86,6 +86,11 @@ class WowLocalTest {
         }
         refused.message.assert().contains("teller", "wow-local.ports")
         accepts(public).assert().isFalse()
+        assertThrows<IllegalArgumentException> {
+            wowLocal(
+                LocalPorts.FIXED
+            ) { service(BankServer::class.java, "teller", listOf("bank"), publicPort = public) }
+        }.message.assert().contains("teller")
     }
 
     @Test
@@ -134,7 +139,7 @@ class WowLocalTest {
             WowLocal.DEFAULT_PARTITIONS,
             { service<BankServer>("bank", listOf("bank")) },
             exitOnEof = true,
-            input = ByteArrayInputStream(ByteArray(0)),
+            input = ByteArrayInputStream("keep running\n".toByteArray()),
             output = PrintStream(output, true),
             errors = System.err,
             exit = { exits += it },
@@ -176,6 +181,45 @@ class WowLocalTest {
             errors = System.err,
             exit = { error("no exit expected: $it") },
         )!!.use { it.servers.keys.assert().containsExactly("bank") }
+    }
+
+    @Test
+    fun `the ports should be the system property's when the run names none`() {
+        withProperty(LocalPorts.PROPERTY, "random") {
+            wowLocal { service(BankServer::class.java, "bank", listOf("bank")) }.use { local ->
+                local.servers.getValue("bank").publicPort.assert().isPositive()
+            }
+        }
+    }
+
+    /**
+     * The `main` of a local run, as [runWowLocal] runs it: its services listen once the ready line is printed, and stay
+     * running until the JVM exits, which closes them, as a `main`'s do.
+     */
+    @Test
+    fun `a main's run should print the ready line and leave its services running`() {
+        val output = ByteArrayOutputStream()
+        val out = System.out
+        withProperty(LocalPorts.PROPERTY, "random") {
+            System.setOut(PrintStream(output, true))
+            try {
+                runWowLocal { service<BankServer>("bank-main", listOf("bank")) }
+            } finally {
+                System.setOut(out)
+            }
+        }
+        val port = Regex(""""bank-main":(\d+)""").find(output.toString())!!.groupValues[1].toInt()
+        accepts(port).assert().isTrue()
+    }
+
+    private fun withProperty(name: String, value: String, run: () -> Unit) {
+        val before = System.getProperty(name)
+        System.setProperty(name, value)
+        try {
+            run()
+        } finally {
+            if (before == null) System.clearProperty(name) else System.setProperty(name, before)
+        }
     }
 
     private fun freePorts(): Pair<Int, Int> = ServerSocket(0).use { first ->
