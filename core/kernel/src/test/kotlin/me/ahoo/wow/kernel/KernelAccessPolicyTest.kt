@@ -241,6 +241,49 @@ class KernelAccessPolicyTest {
         }
 
     @Test
+    fun `a batch member refused before deciding ends the batch`(): Unit = runTest {
+        send(Write("sales"), alice).committed()
+        val outcomes = kernel.executeBatch(
+            model,
+            listOf(command(Retitle("a"), alice), command(Retitle("b"), carol)).map(::QueuedCommand),
+        )
+        ((outcomes[0] as BatchOutcome.Done).outcome as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+        outcomes[1].assert().isEqualTo(BatchOutcome.Again)
+        send(Retitle("b"), carol).rejected().rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+    }
+
+    @Test
+    fun `a refusal once decided on a stale cached state is decided again on the state the log holds`(): Unit = runTest {
+        send(Write("sales"), alice).committed()
+        send(Retitle("cached"), alice).committed()
+        // Another node moves the document to legal, which alice's cached state does not know.
+        Kernel(log, EventCodec(), policies = { policy }).execute(
+            model,
+            command(Move("legal"), caller("zoe", "sales", "legal")),
+        ).committed()
+        // Decided on the stale state, sales, the move to hr is refused once decided; decided again on legal, it is
+        // refused before deciding, alice not reaching legal: the answer the log's state gives.
+        val refused = send(Move("hr"), caller("alice", "sales", "hr")).rejected()
+        refused.rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        versions().assert().containsExactly(1, 2, 3)
+    }
+
+    @Test
+    fun `a refusal once decided answers a request already committed as a duplicate`(): Unit = runTest {
+        val other = model.type.ref("acme", "doc-2")
+        send(Write("sales"), alice).committed()
+        send(Write("sales"), alice, target = other).committed()
+        send(Retitle("x"), alice, target = other, requestId = "reused").committed()
+        // Its request id is another aggregate's of the type: looked up once refused, it is told as reused.
+        send(Move("hr"), alice, requestId = "reused").rejected().rejection.code.assert()
+            .isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
+        // Without recent requests the request id is looked up first, and not again once refused.
+        val looking = Kernel(log, EventCodec(), policies = { policy }, options = KernelOptions(recentRequests = 0))
+        looking.execute(model, command(Move("hr"), alice)).rejected().rejection.code.assert()
+            .isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
     fun `a batch member refused once decided ends the batch, and is refused again alone`(): Unit = runTest {
         send(Write("sales"), alice).committed()
         val outcomes = kernel.executeBatch(

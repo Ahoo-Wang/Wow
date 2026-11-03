@@ -373,7 +373,7 @@ class Kernel(
         if (prepared !is Prepared.Append) {
             attempt.compensate()
             // Refused once its events evolved the state, which may have changed in place: the state is dropped.
-            if (prepared is Prepared.Refused) members.tainted = true
+            if ((prepared as Prepared.Done).evolved) members.tainted = true
             return null
         }
         return BatchMember(command, commandType, requests, attempt, prepared.stream, prepared.evolved)
@@ -493,11 +493,14 @@ class Kernel(
                 attempt.compensate(failure)
                 throw failure
             }
-            if (prepared !is Prepared.Append) {
-                attempt.compensate()
-                return unappended(prepared, requests, loaded, cached) ?: continue
+            val (stream, evolved) = when (prepared) {
+                is Prepared.Done -> {
+                    attempt.compensate()
+                    return unappended(prepared, requests, loaded, cached) ?: continue
+                }
+
+                is Prepared.Append -> prepared.stream to prepared.evolved
             }
-            val (stream, evolved) = prepared.stream to prepared.evolved
             appending?.invoke(stream, evolved)
             val appended = withContext(NonCancellable) { appendCompensating(stream, attempt) }
             settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
@@ -509,17 +512,17 @@ class Kernel(
     /**
      * The answer to [prepared], a decision on [loaded] that appends nothing, as [requests] gives it
      * ([RequestCheck.standing]), [loaded] dropped rather than cached again when the refused decision evolved it
-     * ([Prepared.Refused]); null to decide again on a reloaded state.
+     * ([Prepared.Done.evolved]); null to decide again on a reloaded state.
      */
     private suspend fun unappended(
-        prepared: Prepared,
+        prepared: Prepared.Done,
         requests: RequestCheck,
         loaded: CachedState,
         cached: Boolean,
-    ): CommandOutcome? = when (prepared) {
-        is Prepared.Done -> requests.standing(loaded, cached, prepared.outcome)
-        is Prepared.Refused -> requests.dropping(loaded, cached, prepared.outcome)
-        is Prepared.Append -> error("An append of ${requests.ref} is not an outcome of its own.")
+    ): CommandOutcome? = if (prepared.evolved) {
+        requests.dropping(loaded, cached, prepared.outcome)
+    } else {
+        requests.standing(loaded, cached, prepared.outcome)
     }
 
     /**
@@ -678,8 +681,8 @@ class Kernel(
 
     /**
      * The stream [command] appends with [events] (a rejection's when [rejection] is not null) on [loaded] at
-     * [commitTime], and the state after it; [Prepared.Refused] when it leaves the aggregate out of its caller's reach
-     * ([leaves]), checked once the events evolved the state, on the attributes the stream records.
+     * [commitTime], and the state after it; refused ([Prepared.Done.evolved]) when it leaves the aggregate out of its
+     * caller's reach ([leaves]), checked once the events evolved the state, on the attributes the stream records.
      */
     @Suppress("LongParameterList") // The facts of the commit.
     private fun <S : Any> appended(
@@ -701,7 +704,9 @@ class Kernel(
         val before = if (reach.governed) loaded.declared(model) else emptyMap()
         val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
         val declared = model.accessOf(evolved)
-        leaves(command, reach, version, metadata.scope, before, declared)?.let { return Prepared.Refused(it) }
+        leaves(command, reach, version, metadata.scope, before, declared)?.let {
+            return Prepared.Done(it, evolved = true)
+        }
         val stream = EventStreamRecord(
             ref = command.ref,
             version = version + 1,
@@ -1338,10 +1343,11 @@ class Kernel(
     }
 
     private sealed interface Prepared {
-        class Done(val outcome: CommandOutcome) : Prepared
-
-        /** Refused once its events evolved the state ([leaves]), which may have changed it in place. */
-        class Refused(val outcome: CommandOutcome) : Prepared
+        /**
+         * An outcome that appends nothing; [evolved] when it is a refusal once the decision's events evolved the
+         * state ([leaves]), which may have changed it in place.
+         */
+        class Done(val outcome: CommandOutcome, val evolved: Boolean = false) : Prepared
 
         class Append(val stream: EventStreamRecord, val evolved: CachedState) : Prepared
     }

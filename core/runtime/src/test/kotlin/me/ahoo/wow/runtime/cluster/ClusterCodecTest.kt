@@ -128,6 +128,10 @@ class ClusterCodecTest {
         ClusterCodec.command(model, read.command)!!.caller.assert().isEqualTo(caller)
         // A writer of the version before sends no caller: the command arrives without one.
         ClusterCodec.command(model, wire.copyWith(caller = null))!!.caller.assert().isNull()
+        // Read and written as a value, its claims left out of what is logged.
+        read.command.caller.assert().isEqualTo(CallerWire.of(caller))
+        read.command.caller.hashCode().assert().isEqualTo(CallerWire.of(caller).hashCode())
+        read.command.caller.toString().assert().contains("alice").doesNotContain("departments")
     }
 
     @Test

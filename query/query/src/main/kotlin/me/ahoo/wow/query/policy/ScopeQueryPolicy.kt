@@ -14,7 +14,6 @@
 package me.ahoo.wow.query.policy
 
 import me.ahoo.wow.api.access.AccessAttribute
-import me.ahoo.wow.api.access.AccessOperator
 import me.ahoo.wow.api.access.ScopeAccess
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
@@ -141,15 +140,13 @@ class ScopeQueryPolicy(
      */
     private fun defaultRule(context: QueryContext<*>, scope: Scope): FilterExpression =
         AccessFilters.compileWith(ScopeAccess.of(scope)) { comparison ->
-            val value = comparison.values.singleOrNull() as? String
+            // The default rule compares the owner and the space alone, each for equality with one value.
+            val value = comparison.values.single() as String
             val events = context.schema.model == QueryModel.EVENTS
-            when {
-                comparison.operator != AccessOperator.EQUAL || value == null -> null
-                comparison.attribute == AccessAttribute.OWNER ->
-                    if (events) EqualFilter(STREAM_OWNER, value) else OwnerIdFilter(value)
-                comparison.attribute == AccessAttribute.SPACE ->
-                    if (events) EqualFilter(STREAM_SPACE, value) else SpaceIdFilter(value)
-                else -> null
+            if (comparison.attribute == AccessAttribute.OWNER) {
+                if (events) EqualFilter(STREAM_OWNER, value) else OwnerIdFilter(value)
+            } else {
+                if (events) EqualFilter(STREAM_SPACE, value) else SpaceIdFilter(value)
             }
         }
 
