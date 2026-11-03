@@ -188,3 +188,62 @@ class AccessScope<S : Any> internal constructor() {
         const val ROLES = "roles"
     }
 }
+
+/**
+ * The aggregate each of [policies] governs, as a node resolves them once, for its reads and its commands alike: the
+ * one it names, else the one of [aggregatesOf] its state type among the node's aggregates ([hosted]). It refuses,
+ * naming the policy or the aggregate:
+ *
+ * - a policy whose state is no aggregate's of the node (when [strict], a node hosting every context of the
+ *   service; otherwise such a policy is an aggregate's another node hosts, and is left out), or the state of
+ *   several without naming one, or naming an aggregate whose state it is not;
+ * - two policies of one aggregate;
+ * - an aggregate of [declaring], one of the node that declares access attributes (with their names), without a
+ *   policy: nothing is granted by omission.
+ */
+@InternalWowApi
+fun resolveAccessPolicies(
+    policies: List<AccessPolicy<*>>,
+    hosted: Set<AggregateType>,
+    aggregatesOf: (Class<*>) -> List<AggregateType>,
+    declaring: Map<AggregateType, List<String>>,
+    strict: Boolean = true,
+): Map<AggregateType, AccessPolicy<*>> {
+    val resolved = policies.mapNotNull { policy ->
+        aggregateOf(policy, aggregatesOf(policy.stateType).filter(hosted::contains), strict)?.let { it to policy }
+    }
+    resolved.groupBy({ it.first }, { it.second }).forEach { (type, given) ->
+        check(given.size == 1) { "The aggregate $type has ${given.size} access policies: $given." }
+    }
+    val byType = resolved.toMap()
+    val ungoverned = declaring.filter { (type, names) -> names.isNotEmpty() && type !in byType }
+    check(ungoverned.isEmpty()) {
+        ungoverned.entries.joinToString("; ", postfix = ".") { (type, names) ->
+            "The aggregate $type declares the access attributes $names, but no access policy is given for it: " +
+                "declare an AccessPolicy bean of its state (accessPolicy { read { … }; write { … } }), since " +
+                "nothing is granted by omission"
+        }
+    }
+    return byType
+}
+
+/** The aggregate [policy] is of among [candidates], those of the node whose state is its state type. */
+private fun aggregateOf(policy: AccessPolicy<*>, candidates: List<AggregateType>, strict: Boolean): AggregateType? {
+    val named = policy.aggregate
+    if (named != null) {
+        check(named in candidates || !strict && candidates.isEmpty()) {
+            "The access policy $policy names $named, which is not an aggregate of this node whose state is " +
+                "${policy.stateType.name}: its aggregates of that state are $candidates."
+        }
+        return named.takeIf { it in candidates }
+    }
+    check(candidates.size <= 1) {
+        "The access policy $policy is of the state of several aggregates, $candidates: name the one it " +
+            "governs with accessPolicy(aggregate = …)."
+    }
+    check(candidates.isNotEmpty() || !strict) {
+        "The access policy $policy is of no aggregate of this node: no aggregate's state is " +
+            "${policy.stateType.name}."
+    }
+    return candidates.singleOrNull()
+}

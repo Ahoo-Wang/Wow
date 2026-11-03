@@ -466,6 +466,26 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
   assert.equal(noiseLabel({ name: 'e3-pg', dataset: '1k' }), 'e3-pg@1k');
 });
 
+test('the access suites pair the head with teller callers, without and with a policy of the account', () => {
+  assert.deepEqual(suitesOf('access'), [
+    'access-e1-pg',
+    'access-e3-pg',
+    'access-e1-mongo',
+    'access-e3-mongo',
+  ]);
+  for (const name of suitesOf('access')) {
+    const arms = SUITES[name].arms;
+    assert.deepEqual(
+      arms.map(arm => arm.install),
+      ['head', 'head'],
+    );
+    assert.deepEqual(
+      arms.map(arm => arm.props),
+      [{ 'benchmark.access': 'claims' }, { 'benchmark.access': 'policy' }],
+    );
+  }
+});
+
 test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge them by their A/A spread', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);

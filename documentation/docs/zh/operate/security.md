@@ -50,7 +50,8 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 
 - **按路由。** 在 CoSec 决定请求的地方，它的管道在路由运行之前，按一个资源上的动作为请求授权。
 - **按动作。** 设置 `wow.cosec.authorizer.enabled: true` 后，CoSec 还会以调用方的身份为请求的每条命令和每次服务路由调用授权（[CoSec 在哪里决定](#where-cosec-decides)）。你自己的 `CommandAuthorizer` 也做同样的事。
-- **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，查询也只返回调用方可以看的东西（[授权读取](#authorize-reads)）。
+- **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，如同聚合不存在（`404 wow.aggregate.not-found`），查询也只返回调用方可以看的东西（[授权读取](#authorize-reads)）。
+- **按访问策略。** 有自己访问策略（其状态的 `AccessPolicy` Bean）的聚合，在策略的 `write` 允许调用方修改它时才接受命令；内核在决定之前按聚合当前的访问属性（包括所有者和空间）求值，此时不再检查作用域。被拒绝的调用方，若策略的 `read` 也对它隐藏该聚合，得到 `404 wow.aggregate.not-found`；若它能读，得到 `403 wow.aggregate.forbidden`；创建命令得到 `403`，因为创建是否成功本身就说明了聚合是否存在。创建命令，以及改变聚合所声明访问属性的决定，会在决定之后对它留下的聚合再检查一次：调用方改不了结果时被拒绝（`403`），不追加任何东西，所以没有调用方能把聚合创建到、或移动到自己够不着的地方。所有者或空间的转移只在决定之前检查，因为它本来就是有意把聚合交出去。Saga、定时器或调用派生的命令受信任，以服务自身身份发送的服务也一样：服务的代码以 `commandClient.of(Caller.ofService("<wow.service>"))` 以服务身份发送。进程内客户端的默认调用方是匿名的，不带任何声明，所以策略会拒绝它。
 
 运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
@@ -334,6 +335,8 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 ```
 
 其他主体在这个主题上都没有 `Write` ACL。启用授权器并且 `allow.everyone.if.no.acl.found=false`（代理的默认值）时，没有 ACL 的主体会被拒绝。[Kafka](kafka#topics) 列出了每个上下文拥有的主题以及谁写它们。
+
+记录还说明命令是否由提交派生（`causation`），派生的命令像 Saga 的命令一样受信任；不是派生的，记录说明是谁发送的（`caller`），目标的访问策略比较其中的声明。能写这个主题的一方写这两者和写操作者一样容易，所以边界在 ACL。在访问策略下，两者都没有的记录被拒绝。调用方的声明在主题保留期内留在主题的记录里（[主题上的命令](../reference/protocols#commands-on-a-topic)）。
 
 ## 写错的设置 {#mistyped-settings}
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
@@ -49,6 +50,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SystemCommands
@@ -499,6 +501,7 @@ class WowAutoConfiguration {
         callers: ObjectProvider<CommandCaller>,
         classifiers: ObjectProvider<FailureClassifier>,
         queries: ObjectProvider<ContextQueries>,
+        access: ObjectProvider<AccessPolicy<*>>,
         clock: Clock,
     ): ServiceNode {
         checkShutdownTimeout(environment)
@@ -547,6 +550,7 @@ class WowAutoConfiguration {
                     ),
                 ),
                 tenants = tenants(properties, models.models),
+                policies = writePolicies(properties, models, access),
             ),
             subscriptions = bindings(
                 models.providers,
@@ -1073,3 +1077,14 @@ private fun commandClientOf(gateway: CommandGateway, peers: PeerClients): Comman
     val local = InProcessCommandClient(gateway)
     return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers, gateway::aggregatesOf)
 }
+
+/**
+ * The access policies the node's commands are held to: the ones its queries read by, resolved alike. A node of some of
+ * the service's contexts leaves the policies of the others' aggregates to theirs.
+ */
+private fun writePolicies(
+    properties: WowProperties,
+    models: WowModels,
+    access: ObjectProvider<AccessPolicy<*>>,
+): WritePolicies =
+    WritePolicies.of(access.orderedStream().toList(), models.models, strict = properties.contexts.selection().isAll)

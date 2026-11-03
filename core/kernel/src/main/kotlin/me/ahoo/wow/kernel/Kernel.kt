@@ -481,18 +481,9 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            val attempt =
-                AttemptScope(
-                    command,
-                    ids,
-                    clock(),
-                    loaded,
-                    reservations,
-                    options.reservationTtl,
-                    waitBeyondCommitted,
-                    observer,
-                    encode
-                )
+            val attempt = AttemptScope(
+                command, ids, clock(), loaded, reservations, options.reservationTtl, waitBeyondCommitted, observer, encode,
+            )
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -502,25 +493,33 @@ class Kernel(
                 attempt.compensate(failure)
                 throw failure
             }
-            val (stream, evolved) = when (prepared) {
-                is Prepared.Done -> {
-                    attempt.compensate()
-                    return requests.standing(loaded, cached, prepared.outcome) ?: continue
-                }
-
-                is Prepared.Refused -> {
-                    attempt.compensate()
-                    return requests.dropping(loaded, cached, prepared.outcome) ?: continue
-                }
-
-                is Prepared.Append -> prepared.stream to prepared.evolved
+            if (prepared !is Prepared.Append) {
+                attempt.compensate()
+                return unappended(prepared, requests, loaded, cached) ?: continue
             }
+            val (stream, evolved) = prepared.stream to prepared.evolved
             appending?.invoke(stream, evolved)
             val appended = withContext(NonCancellable) { appendCompensating(stream, attempt) }
             settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
+    }
+
+    /**
+     * The answer to [prepared], a decision on [loaded] that appends nothing, as [requests] gives it
+     * ([RequestCheck.standing]), [loaded] dropped rather than cached again when the refused decision evolved it
+     * ([Prepared.Refused]); null to decide again on a reloaded state.
+     */
+    private suspend fun unappended(
+        prepared: Prepared,
+        requests: RequestCheck,
+        loaded: CachedState,
+        cached: Boolean,
+    ): CommandOutcome? = when (prepared) {
+        is Prepared.Done -> requests.standing(loaded, cached, prepared.outcome)
+        is Prepared.Refused -> requests.dropping(loaded, cached, prepared.outcome)
+        is Prepared.Append -> error("An append of ${requests.ref} is not an outcome of its own.")
     }
 
     /**
@@ -694,6 +693,7 @@ class Kernel(
         reach: CommandReach,
     ): Prepared {
         val version = loaded.version
+
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
         val metadata = metadataAfter(model, loaded, command, events)

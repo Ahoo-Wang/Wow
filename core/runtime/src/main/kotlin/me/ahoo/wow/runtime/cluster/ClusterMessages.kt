@@ -133,7 +133,14 @@ data class CallerWire(
         /** [caller] in its wire form. */
         @JvmStatic
         fun of(caller: Caller): CallerWire =
-            CallerWire(caller.tenantId, caller.scope, caller.subject, caller.crossScope, caller.attributes, caller.service)
+            CallerWire(
+                caller.tenantId,
+                caller.scope,
+                caller.subject,
+                caller.crossScope,
+                caller.attributes,
+                caller.service
+            )
     }
 }
 

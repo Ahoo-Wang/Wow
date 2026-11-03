@@ -93,6 +93,20 @@ const JDK21_PG = onJava(HEAD_PG, 21);
 const JDK25_PG = onJava(HEAD_PG, 25);
 const JDK21_MONGO = onJava(HEAD_MONGO, 21);
 const JDK25_MONGO = onJava(HEAD_MONGO, 25);
+// The write path's cost under an access policy: the head's server with every request a teller's caller
+// (`benchmark.access`), without a policy of the account and with one the teller passes, paired on one runner.
+const ACCESS_CLAIMS_PG = withProps(HEAD_PG, 'claims', {
+  'benchmark.access': 'claims',
+});
+const ACCESS_POLICY_PG = withProps(HEAD_PG, 'policy', {
+  'benchmark.access': 'policy',
+});
+const ACCESS_CLAIMS_MONGO = withProps(HEAD_MONGO, 'claims', {
+  'benchmark.access': 'claims',
+});
+const ACCESS_POLICY_MONGO = withProps(HEAD_MONGO, 'policy', {
+  'benchmark.access': 'policy',
+});
 // The `jdk-saturation` suites' closed-loop searches an arm, in turn (ABBA), each from empty stores: the arm's
 // saturation is their median, and their spread its A/A band on the runner (saturationSamples).
 const SATURATION_SAMPLES = 4;
@@ -496,6 +510,44 @@ export const SUITES = {
     distribution: 'uniform',
     arms: [JDK21_MONGO, JDK25_MONGO],
     answers: 'E1 on MongoDB, as jdk-e1-pg.',
+  },
+  'access-e1-pg': {
+    group: 'access',
+    kind: 'paired',
+    noiseFrom: 'e1-pg-uniform',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [ACCESS_CLAIMS_PG, ACCESS_POLICY_PG],
+    answers:
+      "What an access policy costs a command (D390): E1 on PostgreSQL, the head's server with every request a teller's caller, without a policy of the account and with one the teller passes.",
+  },
+  'access-e3-pg': {
+    group: 'access',
+    kind: 'paired',
+    noiseFrom: 'e3-pg',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arms: [ACCESS_CLAIMS_PG, ACCESS_POLICY_PG],
+    answers:
+      "E3 on PostgreSQL, as access-e1-pg: the root command is checked, the saga's derived ones are trusted.",
+  },
+  'access-e1-mongo': {
+    group: 'access',
+    kind: 'paired',
+    noiseFrom: 'e1-mongo-uniform',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [ACCESS_CLAIMS_MONGO, ACCESS_POLICY_MONGO],
+    answers: 'E1 on MongoDB, as access-e1-pg.',
+  },
+  'access-e3-mongo': {
+    group: 'access',
+    kind: 'paired',
+    noiseFrom: 'e3-mongo',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arms: [ACCESS_CLAIMS_MONGO, ACCESS_POLICY_MONGO],
+    answers: 'E3 on MongoDB, as access-e3-pg.',
   },
   'jdk-e1-pg-saturation': {
     group: 'jdk-saturation',
@@ -1677,6 +1729,7 @@ export function resolveInputs({
       'axon-diag',
       'jdk',
       'jdk-saturation',
+      'access',
     ],
     ab: ['ab'],
     head: ['head'],
@@ -1685,6 +1738,7 @@ export function resolveInputs({
     'axon-diag': ['axon-diag'],
     jdk: ['jdk'],
     'jdk-saturation': ['jdk-saturation'],
+    access: ['access'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(

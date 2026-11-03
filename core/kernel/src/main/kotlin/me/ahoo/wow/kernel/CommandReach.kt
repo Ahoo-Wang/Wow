@@ -17,6 +17,7 @@ import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.AccessPredicate
 import me.ahoo.wow.api.access.ScopeAccess
+import me.ahoo.wow.api.access.resolveAccessPolicies
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -40,6 +41,29 @@ fun interface WritePolicies {
         /** No policy: every aggregate is changed by the default rule. */
         @JvmField
         val NONE: WritePolicies = WritePolicies { null }
+
+        /**
+         * The service's [policies] of the aggregates of [models], the node's, resolved as its reads resolve them
+         * ([resolveAccessPolicies]), with the same refusals: a model that declares access attributes without a policy
+         * among them. [strict] when the node hosts every context of the service.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            policies: List<AccessPolicy<*>>,
+            models: Collection<AggregateModel<*>>,
+            strict: Boolean = true,
+        ): WritePolicies {
+            val byState = models.groupBy({ it.stateType }, { it.type })
+            val byType = resolveAccessPolicies(
+                policies,
+                models.mapTo(HashSet()) { it.type },
+                { byState[it].orEmpty() },
+                models.associate { it.type to it.accessNames.toList() },
+                strict,
+            )
+            return if (byType.isEmpty()) NONE else WritePolicies { byType[it] }
+        }
     }
 }
 
@@ -95,9 +119,9 @@ internal class CommandReach(
     }
 
     private fun predicate(of: (AccessPolicy<*>, Caller) -> AccessPredicate): AccessPredicate {
-        val policy = policy ?: return ScopeAccess.of(command.scope)
+        val governing = policy ?: return ScopeAccess.of(command.scope)
         val caller = command.caller ?: return AccessPredicate.Denied
-        return of(policy, caller)
+        return of(governing, caller)
     }
 
     private fun valueOf(attribute: AccessAttribute<*, *>, aggregate: CachedState): Any? =

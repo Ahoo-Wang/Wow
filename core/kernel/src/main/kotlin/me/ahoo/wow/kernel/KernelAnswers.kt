@@ -113,12 +113,18 @@ internal fun leaves(
     scope: Scope,
     before: Map<String, Any?>,
     after: Map<String, Any?>,
-): CommandOutcome? =
-    if (version > 0 && (!reach.governed || before == after) || reach.writes(scope, after)) {
+): CommandOutcome? {
+    // Neither a creation nor, under a policy, a change of the declared attributes: checked before deciding only.
+    val unchanged = version > 0 && (!reach.governed || before == after)
+    return if (unchanged || reach.writes(scope, after)) {
         null
     } else {
-        rejected(FrameworkCodes.AGGREGATE_FORBIDDEN, "${command.ref} would be out of the reach of the command's caller.")
+        rejected(
+            FrameworkCodes.AGGREGATE_FORBIDDEN,
+            "${command.ref} would be out of the reach of the command's caller."
+        )
     }
+}
 
 /** The answer to a command on an aggregate that does not exist, or that its caller may not change: the same. */
 internal fun notFound(command: Command<*>) =

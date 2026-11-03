@@ -107,7 +107,12 @@ class KernelAccessPolicyTest {
 
     private val log = InMemoryEventLog()
     private val cache = MapCache()
-    private val kernel = Kernel(log, EventCodec(), states = cache, policies = { if (it == model.type) policy else null })
+    private val kernel = Kernel(
+        log,
+        EventCodec(),
+        states = cache,
+        policies = { if (it == model.type) policy else null }
+    )
     private val ref = model.type.ref("acme", "doc-1")
     private var sequence = 0
 
@@ -170,7 +175,10 @@ class KernelAccessPolicyTest {
     fun `a caller who may read the document but not change it is forbidden`(): Unit = runTest {
         send(Write("sales"), alice).committed()
         send(Share("bob"), alice).committed()
-        send(Retitle("x"), caller("bob")).rejected().rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        send(
+            Retitle("x"),
+            caller("bob")
+        ).rejected().rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         send(Retitle("x"), caller("dora", roles = listOf("auditor"))).rejected().rejection.code.assert()
             .isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         versions().assert().containsExactly(1, 2)
@@ -189,24 +197,24 @@ class KernelAccessPolicyTest {
     @Test
     fun `a decision that moves the document out of the caller's reach is refused, and its evolved state dropped`():
         Unit = runTest {
-            send(Write("sales"), alice).committed()
-            send(Move("hr"), alice).rejected().rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-            versions().assert().containsExactly(1)
-            // The state the refused decision evolved is not cached: the next command decides on the committed one.
-            cache.states[ref].assert().isNull()
-            (send(Retitle("plan"), alice).committed().state as Doc).department.assert().isEqualTo("sales")
-            // A move within the caller's reach commits.
-            send(Move("legal"), caller("alice", "sales", "legal")).committed().stream.version.assert().isEqualTo(3)
-        }
+        send(Write("sales"), alice).committed()
+        send(Move("hr"), alice).rejected().rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        versions().assert().containsExactly(1)
+        // The state the refused decision evolved is not cached: the next command decides on the committed one.
+        cache.states[ref].assert().isNull()
+        (send(Retitle("plan"), alice).committed().state as Doc).department.assert().isEqualTo("sales")
+        // A move within the caller's reach commits.
+        send(Move("legal"), caller("alice", "sales", "legal")).committed().stream.version.assert().isEqualTo(3)
+    }
 
     @Test
     fun `a writer transfers the owner, which gives the document away on purpose and is not checked after`():
         Unit = runTest {
-            send(Write("sales"), alice).committed()
-            send(TransferOwner.of("zed"), alice).committed().stream.scope.assert().isEqualTo(Scope("zed"))
-            // The policy, not the owner, decides who changes it.
-            send(Retitle("plan"), alice).committed()
-        }
+        send(Write("sales"), alice).committed()
+        send(TransferOwner.of("zed"), alice).committed().stream.scope.assert().isEqualTo(Scope("zed"))
+        // The policy, not the owner, decides who changes it.
+        send(Retitle("plan"), alice).committed()
+    }
 
     @Test
     fun `derived commands and services are trusted, and a command without a caller reaches nothing`(): Unit = runTest {

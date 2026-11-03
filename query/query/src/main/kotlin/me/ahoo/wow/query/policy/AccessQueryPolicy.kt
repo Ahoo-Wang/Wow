@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.AccessPredicate
+import me.ahoo.wow.api.access.resolveAccessPolicies
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
@@ -111,48 +112,14 @@ class AccessPolicies private constructor(
             val aggregates = manifest.contexts.filter { it.name in contexts }.flatMap { context ->
                 context.aggregates.map { AggregateType(context.name, it.name) to it }
             }.toMap()
-            val resolved = policies.mapNotNull { policy ->
-                aggregateOf(policy, aggregatesOf(policy.stateType).filter(aggregates::containsKey), strict)
-                    ?.let { it to policy }
-            }
-            resolved.groupBy({ it.first }, { it.second }).forEach { (type, given) ->
-                check(given.size == 1) { "The aggregate $type has ${given.size} access policies: $given." }
-            }
-            val byType = resolved.toMap()
-            val ungoverned = aggregates.filter { (type, aggregate) -> aggregate.access.isNotEmpty() && type !in byType }
-            check(ungoverned.isEmpty()) {
-                ungoverned.entries.joinToString("; ", postfix = ".") { (type, aggregate) ->
-                    "The aggregate $type declares the access attributes ${aggregate.access.map { it.name }}, but " +
-                        "no access policy is given for it: declare an AccessPolicy bean of its state " +
-                        "(accessPolicy { read { … }; write { … } }), since nothing is granted by omission"
-                }
-            }
+            val byType = resolveAccessPolicies(
+                policies,
+                aggregates.keys,
+                aggregatesOf,
+                aggregates.mapValues { (_, aggregate) -> aggregate.access.map { it.name } },
+                strict,
+            )
             return AccessPolicies(byType, aggregates)
-        }
-
-        /** The aggregate [policy] is of among [candidates], those of the node whose state is its state type. */
-        private fun aggregateOf(
-            policy: AccessPolicy<*>,
-            candidates: List<AggregateType>,
-            strict: Boolean,
-        ): AggregateType? {
-            val named = policy.aggregate
-            if (named != null) {
-                check(named in candidates || !strict && candidates.isEmpty()) {
-                    "The access policy $policy names $named, which is not an aggregate of this node whose state is " +
-                        "${policy.stateType.name}: its aggregates of that state are $candidates."
-                }
-                return named.takeIf { it in candidates }
-            }
-            check(candidates.size <= 1) {
-                "The access policy $policy is of the state of several aggregates, $candidates: name the one it " +
-                    "governs with accessPolicy(aggregate = …)."
-            }
-            check(candidates.isNotEmpty() || !strict) {
-                "The access policy $policy is of no aggregate of this node: no aggregate's state is " +
-                    "${policy.stateType.name}."
-            }
-            return candidates.singleOrNull()
         }
 
         private fun AccessAttributeManifest.matches(attribute: AccessAttribute<*, *>): Boolean =

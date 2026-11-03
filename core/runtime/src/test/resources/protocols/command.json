@@ -46,7 +46,8 @@
       },
       "version": 1,
       "committed": false
-    }
+    },
+    "caller": null
   },
   "transport": {
     "wait": {

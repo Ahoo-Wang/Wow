@@ -103,8 +103,12 @@ class CachedState(
      * The values of the declared access attributes of [model], this state's: read once, before the next decision's
      * events evolve the state, which may change it in place.
      */
-    internal fun declared(model: AggregateModel<*>): Map<String, Any?> =
-        access ?: @Suppress("UNCHECKED_CAST") (model as AggregateModel<Any>).accessOf(state).also { access = it }
+    internal fun declared(model: AggregateModel<*>): Map<String, Any?> {
+        access?.let { return it }
+        @Suppress("UNCHECKED_CAST") // The state is the model's, as the kernel holds it.
+        val read = (model as AggregateModel<Any>).accessOf(state)
+        return read.also { access = it }
+    }
 
     /**
      * The estimated bytes it takes in a cache before its class's size is measured ([StateSizes]): [STATE_BYTES] for the

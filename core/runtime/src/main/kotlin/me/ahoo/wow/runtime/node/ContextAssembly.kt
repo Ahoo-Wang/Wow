@@ -379,6 +379,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 maxEarlyWait = options.timers.maxEarlyWait
             ),
             snapshotTailReaders = backends.snapshotTails::of,
+            policies = admission.policies,
         )
 
     /**
