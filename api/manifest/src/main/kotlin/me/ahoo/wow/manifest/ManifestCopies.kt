@@ -110,6 +110,7 @@ fun CommandManifest.copyWith(
     description: String? = this.description,
     system: Boolean = this.system,
     idProperty: String? = this.idProperty,
+    internal: Boolean = this.internal,
 ): CommandManifest = CommandManifest(
     name,
     aliases,
@@ -122,6 +123,7 @@ fun CommandManifest.copyWith(
     description,
     system,
     idProperty,
+    internal,
 )
 
 @InternalWowApi

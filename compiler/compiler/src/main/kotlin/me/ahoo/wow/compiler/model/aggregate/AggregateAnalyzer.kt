@@ -27,6 +27,7 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Revision
@@ -328,6 +329,7 @@ internal class AggregateAnalyzer(
             reactor = reactor,
             creation = creation,
             unaddressed = unaddressed,
+            internal = command.hasAnnotation(InternalCommand::class.java.name),
             aggregateId = AggregateIdResolver.of(command, creation, unaddressed, problems),
             type = command.binaryName(),
             yields = returned ?: producesListed.ifEmpty { null },

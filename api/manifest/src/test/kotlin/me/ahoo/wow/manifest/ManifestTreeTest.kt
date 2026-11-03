@@ -121,6 +121,35 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `an internal command should come back through its JSON text, and a public one leave internal out`() {
+        val confirm = CommandManifest(
+            name = "ConfirmPayment",
+            schema = Manifest.schemaRef("sample.ConfirmPayment"),
+            routes = CommandRoutes.of("shop", "payment", "ConfirmPayment", Creation.NONE),
+            internal = true,
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "payment",
+                            state = StateManifest(Manifest.schemaRef("sample.Payment")),
+                            commands = listOf(confirm, CommandManifest("Refund", schema = "#/\$defs/R")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val json = mapper.writeValueAsString(ManifestTree.write(manifest))
+        json.assert().contains("\"internal\":true")
+        json.indexOf("\"internal\"").assert().isEqualTo(json.lastIndexOf("\"internal\""))
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).contexts.single().aggregates.single().commands
+            .assert().containsExactly(confirm, CommandManifest("Refund", schema = "#/\$defs/R"))
+    }
+
+    @Test
     fun `the tree should name the fields as the design does and leave out absent values`() {
         val fragment = Manifests.fragment().copyWith(
             contexts = Manifests.fragment().contexts.map { it.copyWith(description = null) },

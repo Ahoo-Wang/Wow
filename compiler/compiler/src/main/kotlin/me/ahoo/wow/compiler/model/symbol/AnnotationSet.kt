@@ -39,6 +39,7 @@ internal object AnnotationSet {
         "AllowCreate",
         "MountedCommand",
         "Unaddressed",
+        "InternalCommand",
         "AggregateId",
         "AfterCommand",
         "Name",

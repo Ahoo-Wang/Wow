@@ -23,7 +23,7 @@ import me.ahoo.wow.api.problem.Retry
  *
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
- * `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default,
+ * `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default,
  * its `idSource` when it is `ASSIGNED`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
  */
 object ManifestTree {
@@ -78,6 +78,7 @@ object ManifestTree {
         "routes" to command.routes.map(::writeRoute),
         "mounted" to command.mounted.takeIf { it },
         "system" to command.system.takeIf { it },
+        "internal" to command.internal.takeIf { it },
         "transformsTo" to command.transformsTo,
         "idProperty" to command.idProperty,
         "description" to command.description,
@@ -269,6 +270,7 @@ object ManifestTree {
         description = node.stringOrNull("description"),
         system = node.booleanOrNull("system") ?: false,
         idProperty = node.stringOrNull("idProperty"),
+        internal = node.booleanOrNull("internal") ?: false,
     )
 
     private fun readRoute(node: Node): RouteManifest = RouteManifest(node.string("method"), node.string("path"))
