@@ -792,6 +792,24 @@ class MigrateDataTest {
         }
 
     @Test
+    fun `a dry-run export reads the checkpoints kept in the target, and takes no lease`(): Unit = runBlocking {
+        val config = config(checkpoint = "target:example").toString()
+        run("import", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        val before = checkpointTable.load("example")!!
+        run("export", "--config", config, "--dry-run").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("Dry run done")
+        checkpointTable.load("example").assert().isEqualTo(before)
+        // The export role was never taken: its first acquisition is at epoch 1.
+        leaseStore.acquire(
+            "${TargetCheckpointLeases.GROUP_PREFIX}example",
+            CheckpointRole.EXPORT.partition,
+            "probe",
+            TargetCheckpointLeases.TTL
+        )!!
+            .epoch.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a run that paused past its lease, which another run took and wrote, should stop at its next write`() {
         val config = config(checkpoint = "target:example").toString()
         var loads = 0
@@ -849,6 +867,9 @@ class MigrateDataTest {
         classpathManifests(listOf(lib.toString()), javaClass.classLoader).contexts.map { it.name }
             .assert().containsExactly(NineXExample.CONTEXT)
 
+        // draft-map reads them the same way, with no map to hold them to.
+        run("draft-map", "--config", config, "--dry-run").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+
         Files.createDirectories(directory.resolve("empty"))
         val bare = config(manifests = "\"classpath\": [\"empty\"],").toString()
         run("check", "--config", bare).assert().isEqualTo(MigrateData.FAILED)
@@ -856,6 +877,18 @@ class MigrateDataTest {
             "FAILED The configuration names no manifests, and the Manifest fragments of the modules on the classpath " +
                 "[${directory.resolve("empty")}] hold no context [example], which the map imports into: add the lib of " +
                 "the service that hosts each to \"classpath\", or name its Manifest in \"manifests\".",
+        )
+    }
+
+    @Test
+    fun `without manifests or a classpath, the Manifests should be the tool's own modules', each fragment read`() {
+        // The tool's own class path holds the 9.x example's module, whose fragment no resource holds here.
+        val config = config(manifests = "").toString()
+        run("check", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains(
+            "FAILED The Manifest fragments of the modules in the tool's class path do not assemble: The Manifest " +
+                "fragments could not be read:\n- fragment META-INF/wow/manifest/ninex-example.json is not on the " +
+                "class path",
         )
     }
 

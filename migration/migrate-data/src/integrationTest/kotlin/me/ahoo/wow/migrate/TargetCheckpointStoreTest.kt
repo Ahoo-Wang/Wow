@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.tck.containers.WowContainers
@@ -79,6 +80,10 @@ class TargetCheckpointStoreTest {
     fun `the checkpoints should be written by compare-and-set, and every write fenced by the writers' epochs`() {
         listOf(postgres(), mongo()).forEach { backend ->
             val table = backend.table
+            // Keys recorded before any checkpoint: no fence to hold them to yet.
+            table.addKeys("fresh", listOf(KEY)) { it.assert().describedAs(backend.name).isEmpty() }
+            table.keys("fresh", "order_no", null, 10).map { it.key }
+                .assert().describedAs(backend.name).containsExactly(KEY)
             val first = ImportCheckpoints().with(CART, AggregateCheckpoint(startedAt = 1))
             table.load("m").assert().describedAs(backend.name).isNull()
             table.write("m", 0, first, mapOf("import" to 1L)).assert().describedAs(backend.name).isTrue()
@@ -144,7 +149,50 @@ class TargetCheckpointStoreTest {
     }
 
     @Test
+    fun `an import on PostgreSQL should keep its checkpoints and its reserved keys in the target, and compare reads them`() {
+        val postgres = WowContainers.postgres
+        val database = "wow_target_checkpoints_${databases.incrementAndGet()}_${System.nanoTime()}"
+        DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use {
+            it.createStatement().use { statement -> statement.execute("CREATE DATABASE $database") }
+        }
+        val url = postgres.jdbcUrl.replace("/${postgres.databaseName}", "/$database")
+        migrate(
+            """{ "type": "postgres", "jdbcUrl": "$url", "username": "${postgres.username}", """ +
+                """"password": "${postgres.password}" }""",
+        )
+        DriverManager.getConnection(url, postgres.username, postgres.password).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT name, fences FROM ${PostgresCheckpointTable.CHECKPOINTS}").use { row ->
+                    row.next().assert().isTrue()
+                    row.getString("name").assert().isEqualTo("example")
+                    WowJson.mapper.readValue(row.getString("fences"), Map::class.java)
+                        .assert().isEqualTo(mapOf("import" to 2, "compare" to 1))
+                    row.next().assert().isFalse()
+                }
+                statement.executeQuery("SELECT count(*) FROM ${PostgresCheckpointTable.KEYS_TABLE}").use { row ->
+                    row.next()
+                    row.getLong(1).assert().isEqualTo(1)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `an import on MongoDB should keep its checkpoints and its reserved keys in the target, and compare reads them`() {
+        val target = "wow_v10_target_checkpoints"
+        migrate("""{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$target" }""")
+        val database = NineXMongoStore.client.getDatabase(target)
+        val stored = database.getCollection(MongoCheckpointTable.CHECKPOINTS).find().toList().single()
+        stored.getString("_id").assert().isEqualTo("example")
+        stored.get("fences", Document::class.java).assert().isEqualTo(Document(mapOf("import" to 2L, "compare" to 1L)))
+        database.getCollection(MongoCheckpointTable.KEYS).countDocuments().assert().isEqualTo(1)
+    }
+
+    /**
+     * Imports the 9.x example, with one confirmed key, into [target] (its JSON), the checkpoints kept there, then again
+     * from the first, then compares: each run writes them, and none leaves a file.
+     */
+    private fun migrate(target: String) {
         val nineX = NineXMongoStore.example()
         val first = NineXExample.stream("order-stream-v1.json")
         NineXMongoStore.prepare(nineX, "order_no", "NO-1", Document("orderId", first.aggregateId.id), NineXPreparedKey.TTL_FOREVER)
@@ -155,7 +203,6 @@ class TargetCheckpointStoreTest {
             "reservations": [ { "from": "order_no", "namespace": "order.no", "ownerId": "orderId" } ],
             """.trimIndent(),
         )
-        val target = "wow_v10_target_checkpoints"
         Files.writeString(directory.resolve("migration-map.json"), map)
         Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
         val config = directory.resolve("migrate-data.json")
@@ -167,7 +214,7 @@ class TargetCheckpointStoreTest {
               "manifests": ["manifest.json"],
               "checkpoint": "target:example",
               "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
-              "target": { "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$target" },
+              "target": $target,
               "partitions": { "${NineXExample.CONTEXT}": 4 },
               "pageSize": 2
             }
@@ -181,12 +228,6 @@ class TargetCheckpointStoreTest {
             .isEqualTo(MigrateData.OK)
         run("compare", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         output.toString().assert().contains("PrepareKey order_no compared: 1 confirmed keys, 0 differ")
-
-        val database = NineXMongoStore.client.getDatabase(target)
-        val stored = database.getCollection(MongoCheckpointTable.CHECKPOINTS).find().toList().single()
-        stored.getString("_id").assert().isEqualTo("example")
-        stored.get("fences", Document::class.java).assert().isEqualTo(Document(mapOf("import" to 2L, "compare" to 1L)))
-        database.getCollection(MongoCheckpointTable.KEYS).countDocuments().assert().isEqualTo(1)
         Files.list(directory).use { files -> files.map { it.fileName.toString() }.toList() }
             .filter { it.contains("checkpoint") }.assert().isEmpty()
     }

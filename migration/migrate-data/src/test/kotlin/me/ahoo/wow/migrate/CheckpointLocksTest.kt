@@ -139,6 +139,50 @@ class CheckpointLocksTest {
     }
 
     @Test
+    fun `a run should wait at most one lease for a holder that renews nothing, then fail naming it`() = runTest {
+        val store = InMemoryLeaseStore(virtualClock())
+        // A holder of a longer lease than this run's, which it does not renew while this run waits.
+        store.acquire("${TargetCheckpointLeases.GROUP_PREFIX}order-service", 0, tail.toString(), 300.seconds)
+        assertThrows<MigrationException> { leases(store, import).holding(setOf(CheckpointRole.IMPORT)) { } }
+            .message.assert().startsWith("The checkpoint target:order-service is in use: tail on migrate-tail-0")
+        testScheduler.currentTime.assert()
+            .isGreaterThanOrEqualTo((TargetCheckpointLeases.TTL + TargetCheckpointLeases.RENEWAL).inWholeMilliseconds)
+    }
+
+    @Test
+    fun `a lease store that stops answering should end the run's lease at its expiry, and its release be reported`() =
+        runTest {
+            val store = InMemoryLeaseStore(virtualClock())
+            val down = object : LeaseStore by store {
+                override suspend fun renew(
+                    group: String,
+                    partitions: Collection<Int>,
+                    owner: String,
+                    ttl: kotlin.time.Duration,
+                ): List<me.ahoo.wow.spi.subscription.Lease> = throw IllegalStateException("connection refused")
+
+                override suspend fun release(group: String, partition: Int, owner: String): Boolean =
+                    throw IllegalStateException("connection refused")
+            }
+            val reported = mutableListOf<String>()
+            val lost = assertThrows<MigrationException> {
+                leases(down, tail, reported::add).holding(setOf(CheckpointRole.IMPORT)) { lock ->
+                    delay(TargetCheckpointLeases.RENEWAL + 1.seconds)
+                    // Not renewed, but not expired yet: the run goes on.
+                    lock.ensureHeld()
+                    delay(TargetCheckpointLeases.TTL)
+                    lock.ensureHeld()
+                }
+            }
+            lost.message.assert().startsWith("This run lost its import lease of the checkpoint target:order-service")
+            reported.assert().contains(
+                "The lease store did not renew the leases of the checkpoint target:order-service: connection refused",
+                "The lease store did not release the import lease of the checkpoint target:order-service: " +
+                    "connection refused",
+            )
+        }
+
+    @Test
     fun `a run whose renewal finds its lease gone should fail before it writes`() = runTest {
         val store = InMemoryLeaseStore(virtualClock())
         val forgetful = object : LeaseStore by store {
