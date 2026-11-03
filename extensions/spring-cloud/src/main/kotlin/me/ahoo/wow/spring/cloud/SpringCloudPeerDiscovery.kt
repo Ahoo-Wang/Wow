@@ -36,7 +36,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * `wow.peer.discovery=spring-cloud` (decision D396): a peer service's nodes are the instances the application's
+ * `wow.peer.discovery=spring-cloud`: a peer service's nodes are the instances the application's
  * Spring Cloud service registry (Consul, Eureka, Nacos, Zookeeper, through their starters) has of the service, each at
  * the internal address its [WowInstanceMetadata] names. It reads them through the application's
  * [ReactiveDiscoveryClient], Spring Cloud's composite one by default; it declares no setting of its own.
@@ -78,7 +78,7 @@ class SpringCloudPeerDiscovery(
  * The instances of each peer service in the registry, read through [client] on the service's first request, again
  * once [REFRESH] is past, and again at once when every target failed to connect ([unreachable]), at most once per
  * [REFRESH]; a read that fails, takes longer than [READ_TIMEOUT] or finds no instance keeps the last targets found, as
- * the `dns` discovery keeps its records (decision D325 ②). Each instance is the base URL of its internal port
+ * the `dns` discovery keeps its records. Each instance is the base URL of its internal port
  * ([WowInstanceMetadata.internalUrlOf]); one whose metadata names no internal port, or a service other than the one
  * looked up, is passed over, with one warning per service.
  */

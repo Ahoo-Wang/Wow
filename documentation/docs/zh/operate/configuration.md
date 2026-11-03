@@ -70,7 +70,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | 后端 | 应用的 `DataSource` 或 `MongoClient` | `wow.backend` |
 | 主题传输 | 设置了 `wow.kafka.bootstrap-servers` 时为 Kafka；开发中为 JVM 内的主题 | `wow.transport` |
 | 快照保存在哪里，以及主快照存储 | 日志所在的存储；快照存储中的第一个 | `wow.snapshot.stores`、`wow.snapshot.primary` |
-| 对端的节点 | 按其契约声明的服务命名的 DNS SRV 记录（[配置对端](../guide/calling-services#configure-a-peer-over-http)） | `wow.peer.discovery`、`wow.peers.<context>.url` |
+| 对端的节点 | 按其契约声明的服务命名的 DNS SRV 记录（[配置对端](../guide/calling-services#configure-a-peer-over-http)），或 Spring Cloud 的注册中心（[Spring Cloud 服务发现](./spring-cloud)） | `wow.peer.discovery`、`wow.peers.<context>.url` |
 | 网关之后的客户端地址 | 网关写入的转发头（`server.forward-headers-strategy: framework`） | `server.forward-headers-strategy` |
 
 ## 开发与生产 {#development-and-production}

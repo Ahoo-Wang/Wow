@@ -28,7 +28,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.util.ClassUtils
 
 /**
- * Wires a Wow service to the application's Spring Cloud service registry (decision D396), when it runs a node (the
+ * Wires a Wow service to the application's Spring Cloud service registry, when it runs a node (the
  * runtime is on the class path): its registration carries the node's internal address ([WowRegistrationMetadata]),
  * and `wow.peer.discovery=spring-cloud` finds its peers there ([SpringCloudPeerDiscovery]), the host taking every
  * [me.ahoo.wow.spi.peer.PeerDiscovery] bean. A node that keeps another discovery is told once, at startup, how to

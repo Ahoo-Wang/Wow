@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The endpoints of a [me.ahoo.wow.client.WowClient] in an application that is no Wow service, each context's service
- * named `lb://<service>` and its instance chosen by Spring Cloud LoadBalancer on every attempt (decision D396), so a
+ * named `lb://<service>` and its instance chosen by Spring Cloud LoadBalancer on every attempt, so a
  * retry may reach another one: a context's public routes at the chosen instance's URI, its internal port at the
  * internal address its [WowInstanceMetadata] names, which a node of a service with wow-spring-cloud registers.
  *

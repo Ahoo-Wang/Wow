@@ -18,7 +18,7 @@ import org.springframework.cloud.client.ServiceInstance
 import java.net.URI
 
 /**
- * The metadata a Wow node's instance carries in a Spring Cloud service registry (decision D396): the [SERVICE] it is a
+ * The metadata a Wow node's instance carries in a Spring Cloud service registry: the [SERVICE] it is a
  * node of, and the [INTERNAL_HOST] and [INTERNAL_PORT] of the address it advertises to the nodes of its service, where
  * its internal port takes its peers' calls, so the registry and the node's membership name one address. The keys have
  * dashes, not dots: Consul takes no dot in a metadata key.
