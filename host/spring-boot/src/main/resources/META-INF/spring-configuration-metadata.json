@@ -186,11 +186,6 @@
     "type" : "me.ahoo.wow.spring.boot.QueryProperties",
     "description" : "The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: the query routes and gateways, the budgets they run under, who may query what, and how many queries each store runs at once."
   }, {
-    "name" : "wow.query.abac",
-    "type" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
-    "description" : "Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
-  }, {
     "name" : "wow.query.adaptive",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "description" : "How the bound of a store adapts to its write pressure, when neither `wow.query.max-concurrent` nor `wow.stores.<name>.query.max-concurrent` fixes it.",
@@ -878,7 +873,7 @@
   }, {
     "name" : "wow.peer.discovery",
     "type" : "java.lang.String",
-    "description" : "How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery.",
+    "description" : "How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; `spring-cloud`, with wow-spring-cloud on the class path, reads the instances a Spring Cloud service registry has of the service; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
     "defaultValue" : "dns"
   }, {
@@ -944,30 +939,6 @@
     "description" : "How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own statement_timeout): a reply lost on the way fails the call, and its connection, instead of blocking it forever.",
     "sourceType" : "me.ahoo.wow.postgres.PostgresStoreProvider",
     "defaultValue" : "PT30S"
-  }, {
-    "name" : "wow.query.abac.attribute-prefix",
-    "type" : "java.lang.String",
-    "description" : "The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
-    "defaultValue" : "abac."
-  }, {
-    "name" : "wow.query.abac.enabled",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.abac.match-missing-tag-key",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a resource that lacks one of the caller's tag keys, or has it empty, matches as a public resource.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
-    "defaultValue" : true
-  }, {
-    "name" : "wow.query.abac.require-principal-tags",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether an HTTP query whose caller has no ABAC tags is refused, instead of matching every resource; in-process queries are never refused for this.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Abac",
-    "defaultValue" : false
   }, {
     "name" : "wow.query.adaptive.ceiling",
     "type" : "java.lang.Integer",

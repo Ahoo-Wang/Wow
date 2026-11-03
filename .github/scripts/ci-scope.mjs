@@ -104,6 +104,14 @@ const CATALOG_CONSOLE_PATH =
 const AXON_SERVER = 'axonServer';
 const AXON_SERVER_PATH =
   /^(?:test\/benchmarks\/axon-server\/|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's migrate-data-image job: the wow-migrate-data image built from the
+// commit's distribution, never pushed, then run as a user runs it (its usage,
+// and check over a 9.x store of one stream). Decided apart from RULES, by
+// MIGRATE_DATA_IMAGE_PATH: the tool (its Dockerfile, its sources and the
+// image's fixture), its Kubernetes recipe, and the workflow itself.
+const MIGRATE_DATA_IMAGE = 'migrateDataImage';
+const MIGRATE_DATA_IMAGE_PATH =
+  /^(?:migration\/migrate-data\/|deploy\/migrate-data\/|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -345,6 +353,7 @@ export function scopes(paths) {
     OPS_CONSOLE,
     CATALOG_CONSOLE,
     AXON_SERVER,
+    MIGRATE_DATA_IMAGE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -382,6 +391,10 @@ export function scopes(paths) {
   result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
   // And the Axon server's.
   result[AXON_SERVER] = paths.some(path => AXON_SERVER_PATH.test(path));
+  // And the migrate-data image's.
+  result[MIGRATE_DATA_IMAGE] = paths.some(path =>
+    MIGRATE_DATA_IMAGE_PATH.test(path),
+  );
   return result;
 }
 

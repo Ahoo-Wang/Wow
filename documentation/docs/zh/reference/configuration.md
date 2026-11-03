@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 280 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 276 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -384,7 +384,7 @@ How the node calls its peers, the services of the other contexts it calls over H
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.peer.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
-| `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery. |
+| `wow.peer.discovery` | `String` | `dns` | How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names it; `static` takes `wow.peers.<context>.url` alone; `spring-cloud`, with wow-spring-cloud on the class path, reads the instances a Spring Cloud service registry has of the service; another value names a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url` wins over any discovery. |
 | `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
 | `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
@@ -443,17 +443,6 @@ The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: 
 | `wow.query.require-authenticated-scope` | `Boolean` | `false` | Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted. |
 | `wow.query.require-explicit-entry` | `Boolean` | `false` | Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process. |
 | `wow.query.unbounded-timeout` | `Duration` | `PT30S` | The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none. |
-
-## `wow.query.abac`
-
-Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.query.abac.attribute-prefix` | `String` | `abac.` | The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`. |
-| `wow.query.abac.enabled` | `Boolean` | `false` | Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted. |
-| `wow.query.abac.match-missing-tag-key` | `Boolean` | `true` | Whether a resource that lacks one of the caller's tag keys, or has it empty, matches as a public resource. |
-| `wow.query.abac.require-principal-tags` | `Boolean` | `false` | Whether an HTTP query whose caller has no ABAC tags is refused, instead of matching every resource; in-process queries are never refused for this. |
 
 ## `wow.query.adaptive`
 

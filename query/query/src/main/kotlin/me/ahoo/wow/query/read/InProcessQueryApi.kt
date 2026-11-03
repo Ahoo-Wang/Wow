@@ -84,7 +84,7 @@ import tools.jackson.databind.node.ObjectNode
  * port is; only the rows differ, decoded as the [models]' classes rather than written as JSON.
  *
  * - [of] a caller queries as that caller on [QueryEntry.IN_PROCESS]: the scope policy restricts it to the tenant
- *   the engine's [QueryEngine.tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, ABAC and the application's
+ *   the engine's [QueryEngine.tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, the application's
  *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.policy.QueryEntryPolicy.inProcess])
  *   bounds it.
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on

@@ -124,6 +124,8 @@ project(":cocache-api").projectDir = file("extensions/cocache-api")
 include(":cocache")
 project(":cocache").projectDir = file("extensions/cocache")
 // 9.x wow-models' capabilities and reusable Tree aggregate, ported (decision D187, P.8); artifact wow-models.
+include(":spring-cloud")
+project(":spring-cloud").projectDir = file("extensions/spring-cloud")
 include(":models")
 project(":models").projectDir = file("extensions/models")
 include(":migrate-data")

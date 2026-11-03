@@ -71,7 +71,6 @@ internal object ClickHouseQueryFixtures {
             }
         }
         field("note") { types(QueryValueType.STRING) }
-        tag("label", "tags")
         field("tags") {
             kind(QueryValueKind.ARRAY)
             nullable(false)

@@ -19,7 +19,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationElement
@@ -67,11 +66,7 @@ import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryTimeoutException
 import me.ahoo.wow.query.events.EventQueryGateways
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryModel
@@ -325,13 +320,6 @@ abstract class EventQueryBackendSpec {
         stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), tags = mapOf("dept" to listOf("eng"))),
     )
 
-    /** The condition ABAC appends to an events query of a caller of [tags]. */
-    private suspend fun Fixture.abac(options: AbacQueryOptions, vararg tags: Pair<String, List<String>>) =
-        AbacQueryPolicy(options).evaluate(
-            QueryCaller(Caller(attributes = tags.associate { (key, values) -> "abac.$key" to values })),
-            QueryContext(ListQuery(MatchAllFilter), type, schema, QueryType.LIST, QueryEntry.HTTP),
-        )
-
     @Test
     fun `a record shows the tags its stream recorded, null when it recorded none`() = blocking {
         val records = given(taggedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
@@ -342,27 +330,6 @@ abstract class EventQueryBackendSpec {
         records.getValue("o2@1").path("tags").isNull.assert().isTrue()
         Unit
     }
-
-    @Test
-    fun `ABAC restricts each stream by the tags of its commit, a stream without tags matching no restriction`() =
-        blocking {
-            val fixture = given(taggedStreams())
-            val on = AbacQueryOptions(enabled = true)
-            fixture.keys(fixture.abac(on, "region" to listOf("east"))).assert()
-                .containsExactly("o1@1", "o1@3", "o3@1")
-            fixture.keys(fixture.abac(on, "region" to listOf("north"))).assert()
-                .containsExactly("o1@2", "o1@3", "o3@1")
-            fixture.keys(fixture.abac(on.copyWith(matchMissingTagKey = false), "region" to listOf("east"))).assert()
-                .containsExactly("o1@1")
-            fixture.keys(fixture.abac(on, "region" to listOf(AbacQueryPolicy.WILDCARD))).assert()
-                .containsExactly("o1@1", "o1@2")
-            fixture.keys(fixture.abac(on, "region" to listOf("west"), "dept" to listOf("ops"))).assert()
-                .containsExactly("o1@2", "o1@3")
-            fixture.count(fixture.abac(on, "region" to listOf("east"))).assert().isEqualTo(3L)
-            // A caller without tags is not restricted: every stream, the untagged one too.
-            fixture.keys(fixture.abac(on)).assert().containsExactly("o1@1", "o1@2", "o1@3", "o2@1", "o3@1")
-            Unit
-        }
 
     // Event conditions are element predicates over the array
 

@@ -154,6 +154,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Kafka', link: 'kafka'},
                 {text: 'ClickHouse', link: 'clickhouse'},
                 {text: 'Kubernetes', link: 'kubernetes'},
+                {text: 'Spring Cloud Discovery', link: 'spring-cloud'},
                 {text: 'Health, Metrics and Tracing', link: 'observability'},
                 {text: 'Scaling and Capacity', link: 'scaling'},
                 {text: 'Elasticsearch', link: 'elasticsearch'},
@@ -224,6 +225,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Publish and Consume Streams', link: 'published-streams'},
                 {text: 'Call Other Services', link: 'calling-services'},
+                {text: 'Call Wow from Other Services', link: 'calling-from-other-services'},
             ],
         },
         {

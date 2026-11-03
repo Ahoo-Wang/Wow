@@ -120,7 +120,7 @@ Saga 派生的命令、补偿和定时命令，带着它们所跟随的那次提
 - **应用的：** 生命周期命令 `ApplyTags`，即 `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags`，请求体为 `{"tags": {"region": ["eu"]}}`，替换已应用的标签。
 - **推出的：** 状态中标注 `@Tags` 的成员（一个属性，或一个无参数、返回 `Map<String, Collection<String>>` 的函数）从状态推出标签。它在每次提交之后求值，它返回的每个键会替换该键已应用的值。每次调用都返回它负责的所有键，没有值的用空列表。
 
-基于属性的访问默认关闭。`wow.query.abac.enabled: true` 打开它，调用方以前缀 `abac.` 命名的属性（`abac.region`）与同名键的标签匹配（[配置项](../reference/configuration#wow-query-abac)）。
+基于属性的查询过滤已移除，正由访问属性与访问策略取代；在此之前没有开启它的配置项。
 
 ## 固定的租户 {#a-fixed-tenant}
 

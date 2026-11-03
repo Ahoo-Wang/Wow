@@ -48,7 +48,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | `wow.webflux.*`（`global-error`、`batch`、`query.default-list-size`、`state.*`） | 路由用 `wow.http.*`，它们的查询用 `wow.query.budgets.http.*`：`default-list-size`、`max-list-size`、`max-page-size`、`timeout` |
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`：命令保留的请求头 |
 | `wow.query.http.*`（`max-list-size`、`max-page-size`、`max-filter-nodes`、`allow-expensive-operators`……） | `wow.query.budgets.http.*`，名字相同 |
-| `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.abac.*`、`wow.query.sensitivity.*` |
+| `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.sensitivity.*`；`wow.query.abac.*` 已移除，启动时拒绝（由访问属性与访问策略取代） |
 | `wow.query.require-explicit-entry`、`require-authenticated-scope` | 同名配置项 |
 | `wow.query.schema.*`（`revalidate-interval`、`legacy-declarations`） | 已移除：查询模型来自 Manifest |
 | `wow.query.datasets`、`wow.query.clickhouse.*` | `wow.query.dataset.*` 和 `wow.clickhouse.*`（[发布数据集](../guide/datasets)） |
@@ -58,7 +58,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.cosec.*`、`wow.cosec.abac.*` | `wow.cosec.*`：`mode`、`tenant-level`、`cross-scope`、`authorizer`（[保护部署](../operate/security)）；查询 ABAC 是 `wow.query.abac.*` |
+| `wow.cosec.*`、`wow.cosec.abac.*` | `wow.cosec.*`：`mode`、`tenant-level`、`cross-scope`、`authorizer`（[保护部署](../operate/security)）；`wow.cosec.abac.*` 已移除，查询 ABAC 也已移除（`wow.query.abac.*`，启动时拒绝） |
 | `wow.compensation.*`，以及补偿服务自己的配置项 | 每个节点用 `wow.subscription.parked.*`，每个订阅用 `wow.subscriptions.[<context>.<processor.function>].parked.*`；运维路由用 `wow.http.ops.enabled`，webhook 与向运维服务发布用 `wow.ops.webhook.*` 与 `wow.ops.publish.*`（[平台服务](./platform)） |
 | `wow.bi.script.*` | 随 BI 同步一起移除：改用 ClickHouse Sink，`wow.clickhouse.sink.*`（[ClickHouse](../operate/clickhouse)） |
 | 代码中每个聚合固定的租户 | `wow.aggregates.[<context>.<aggregate>].tenant` |

@@ -50,7 +50,6 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.observe.QueryObserver
-import me.ahoo.wow.query.policy.AbacQueryOptions
 import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
@@ -101,13 +100,10 @@ class QueryEngineTest {
         state = WowJson.mapper.createObjectNode().put("items", 2),
     )
 
-    private fun tagged(region: String) =
-        QueryCaller(
-            Caller(tenantId = "acme", scope = Scope("alice", null), attributes = mapOf("abac.region" to listOf(region)))
-        )
+    private val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme", scope = Scope("alice", null)))
 
     @Test
-    fun `without ABAC or an application policy, the scope alone decides and no policy gateway is built`(): Unit =
+    fun `without an application policy, the scope alone decides and no policy gateway is built`(): Unit =
         runBlocking {
             val engine = builder().build()
             engine.snapshots.map { it.aggregateType }.assert().containsExactly(order)
@@ -115,19 +111,7 @@ class QueryEngineTest {
             engine.policies.assert().isEmpty()
             engine.visibility(cart).assert().isNull()
             engine.datasets.assert().isSameAs(DatasetQueryGateways.NONE)
-            engine.reads.admitted(tagged("west"), state(cart, "east"))!!["items"].asInt().assert().isEqualTo(2)
-        }
-
-    @Test
-    fun `with ABAC, a type whose snapshots are not queried fails closed through its policy gateway`(): Unit =
-        runBlocking {
-            val engine = builder().abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false)).build()
-            engine.policies.map { it.aggregateType }.assert().containsExactly(cart)
-            engine.visibility(cart).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
-            engine.visibility(order).assert().isSameAs(engine.snapshots.single())
-            engine.reads.admitted(tagged("west"), state(cart, "east")).assert().isNull()
-            engine.reads.admitted(tagged("east"), state(cart, "east")).assert().isNotNull()
-            engine.reads.admitted(tagged("west"), state(order, "east")).assert().isNull()
+            engine.reads.admitted(alice, state(cart, "east"))!!["items"].asInt().assert().isEqualTo(2)
         }
 
     @Test
@@ -137,7 +121,9 @@ class QueryEngineTest {
                 QueryPolicy { caller, _ -> if (caller.subject == "admin") MatchAllFilter else MatchNoneFilter }
             val engine = builder().policies(listOf(denying)).build()
             engine.policies.map { it.aggregateType }.assert().containsExactly(cart)
-            val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme", scope = Scope("alice", null)))
+            engine.visibility(cart).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
+            engine.visibility(order).assert().isSameAs(engine.snapshots.single())
+            engine.reads.admitted(alice, state(order, "east")).assert().isNull()
             val admin = QueryCaller(Caller(subject = "admin", tenantId = "acme", scope = Scope("alice", null)))
             val cartState = state(cart, "east")
             engine.reads.read(alice, { cartState }, { it }).assert().isSameAs(ReadFacade.Read.Hidden)
@@ -156,7 +142,7 @@ class QueryEngineTest {
             val engine = builder()
                 .contexts(setOf("shop"))
                 .events { type -> events.binding(type).takeIf { type == cart } }
-                .abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false))
+                .policies(listOf(QueryPolicy { _, _ -> MatchNoneFilter }))
                 .committedStates { ref -> state(ref.type, "east", ref) }
                 .datasets(QueryDatasets.NONE, null)
                 .build()

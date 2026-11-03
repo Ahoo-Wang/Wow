@@ -17,11 +17,16 @@
 # hosts, and rolled back before and after Wow 10 writes; an offline cut-over of the same data (D267 ⑳) runs first
 # (test/migration-rehearsal/rehearsal/rehearse.sh). The report is the run's summary; the steps' logs are an artifact.
 #
+# `migrate_in` chooses the arm, or both, each on a runner of its own: `runner`, the stores in containers and
+# migrate-data from its distribution; `kind`, the stores in a kind cluster and every migrate-data command a Job of the
+# wow-migrate-data image built from the commit, as deploy/migrate-data runs it (rehearsal/kind/kind.sh), with the
+# import timed by where it runs, in the cluster or on the runner.
+#
 # A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the
 # defaults below, over which `test/migration-rehearsal/rehearsal/run.json` at the pushed commit may set `orders`,
-# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `final_pass` and `nine_x_ref`. Delete the branch
-# afterwards. It can also be dispatched by hand once the file is on the default branch. Never on a pull request or a
-# schedule: the heavy run belongs here, not on a pull request's checks.
+# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `final_pass`, `nine_x_ref` and `migrate_in`. Delete the
+# branch afterwards. It can also be dispatched by hand once the file is on the default branch. Never on a pull request
+# or a schedule: the heavy run belongs here, not on a pull request's checks.
 name: Migration rehearsal
 on:
   workflow_dispatch:
@@ -55,6 +60,11 @@ on:
         description: 'Ref the 9.x example-server is built from'
         type: string
         default: 'v10-9x-baseline'
+      migrate_in:
+        description: 'Where migrate-data and the stores run: runner, kind (the image as Jobs in a kind cluster), or both'
+        type: choice
+        options: ['runner', 'kind', 'both']
+        default: 'runner'
   push:
     branches: ['ci-repro/migration-rehearsal/**']
 
@@ -69,11 +79,20 @@ env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  rehearse:
-    name: Rehearse
+  settings:
+    name: Settings
     if: github.repository == 'Ahoo-Wang/Wow'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 5
+    outputs:
+      orders: ${{ steps.settings.outputs.orders }}
+      dual_run_seconds: ${{ steps.settings.outputs.dual_run_seconds }}
+      v10_seconds: ${{ steps.settings.outputs.v10_seconds }}
+      concurrency: ${{ steps.settings.outputs.concurrency }}
+      sample: ${{ steps.settings.outputs.sample }}
+      final_pass: ${{ steps.settings.outputs.final_pass }}
+      nine_x_ref: ${{ steps.settings.outputs.nine_x_ref }}
+      arms: ${{ steps.settings.outputs.arms }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,12 +108,13 @@ jobs:
           SAMPLE: ${{ inputs.sample }}
           FINAL_PASS: ${{ inputs.final_pass }}
           NINE_X_REF: ${{ inputs.nine_x_ref }}
+          MIGRATE_IN: ${{ inputs.migrate_in }}
         run: |
           python3 - <<'EOF' >>"$GITHUB_OUTPUT"
           import json, os, re
           defaults = {"orders": "50000", "dual_run_seconds": "120", "v10_seconds": "60", "concurrency": "64",
                       "sample": "10", "final_pass": "final",
-                      "nine_x_ref": "v10-9x-baseline"}
+                      "nine_x_ref": "v10-9x-baseline", "migrate_in": "runner"}
           settings = dict(defaults)
           if os.environ["EVENT"] == "push":
               path = "test/migration-rehearsal/rehearsal/run.json"
@@ -102,15 +122,32 @@ jobs:
                   settings.update({key: str(value) for key, value in json.load(open(path)).items() if key in defaults})
           else:
               settings.update({key: os.environ[key.upper()] for key in defaults if os.environ.get(key.upper())})
+          patterns = {"nine_x_ref": r"[A-Za-z0-9._/-]+", "migrate_in": r"runner|kind|both"}
           for key, value in settings.items():
-              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|final|restart"
-              if not re.fullmatch(pattern, value):
+              if not re.fullmatch(patterns.get(key, r"[0-9]+|final|restart"), value):
                   raise SystemExit(f"{key}: {value!r} is not a valid setting")
-              print(f"{key}={value}")
+              if key != "migrate_in":
+                  print(f"{key}={value}")
+          arm = settings["migrate_in"]
+          print("arms=" + json.dumps(["runner", "kind"] if arm == "both" else [arm]))
           EOF
+
+  rehearse:
+    name: Rehearse (${{ matrix.migrate_in }})
+    needs: settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        migrate_in: ${{ fromJSON(needs.settings.outputs.arms) }}
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.settings.outputs.nine_x_ref }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.settings.outputs.nine_x_ref }}
           path: ninex
           persist-credentials: false
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -125,6 +162,25 @@ jobs:
         run: |
           ./gradlew :migration-rehearsal:installDist :view-store-server:installDist :migrate-data:installDist --stacktrace
           (cd ninex && ./gradlew :example-server:installDist -x test --stacktrace)
+      # The tool's image, and the images of both V10 hosts, whose lib deploy/migrate-data's init containers copy.
+      - name: Build the images
+        if: matrix.migrate_in == 'kind'
+        run: |
+          docker build -q -t wow-migrate-data:local migration/migrate-data
+          docker build -q -t wow-view-store-server:local platform/view-store/view-store-server
+          docker build -q -f test/migration-rehearsal/rehearsal/kind/Dockerfile -t wow-migration-rehearsal:local \
+            test/migration-rehearsal
+      - name: Create the kind cluster
+        if: matrix.migrate_in == 'kind'
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.33.0
+          cluster_name: wow-rehearsal
+          config: test/migration-rehearsal/rehearsal/kind/kind.yaml
+          wait: 120s
+      - name: Load the images
+        if: matrix.migrate_in == 'kind'
+        run: kind load docker-image --name wow-rehearsal wow-migrate-data:local wow-view-store-server:local wow-migration-rehearsal:local
       - name: Rehearse
         env:
           NINEX_HOME: ${{ github.workspace }}/ninex/example/example-server/build/install/example-server
@@ -134,26 +190,39 @@ jobs:
           MIGRATE_HOME: ${{ github.workspace }}/migration/migrate-data/build/install/migrate-data
           MANIFEST: ${{ github.workspace }}/test/migration-rehearsal/build/wow/manifest-fragment/META-INF/wow/manifest/migration-rehearsal.json
           WORK: ${{ runner.temp }}/rehearsal
-          ORDERS: ${{ steps.settings.outputs.orders }}
-          DUAL_RUN_SECONDS: ${{ steps.settings.outputs.dual_run_seconds }}
-          V10_SECONDS: ${{ steps.settings.outputs.v10_seconds }}
-          CONCURRENCY: ${{ steps.settings.outputs.concurrency }}
-          SAMPLE: ${{ steps.settings.outputs.sample }}
-          FINAL_PASS: ${{ steps.settings.outputs.final_pass }}
+          ORDERS: ${{ needs.settings.outputs.orders }}
+          DUAL_RUN_SECONDS: ${{ needs.settings.outputs.dual_run_seconds }}
+          V10_SECONDS: ${{ needs.settings.outputs.v10_seconds }}
+          CONCURRENCY: ${{ needs.settings.outputs.concurrency }}
+          SAMPLE: ${{ needs.settings.outputs.sample }}
+          FINAL_PASS: ${{ needs.settings.outputs.final_pass }}
+          MIGRATE_IN: ${{ matrix.migrate_in }}
         run: test/migration-rehearsal/rehearsal/rehearse.sh
+      - name: Collect the cluster's diagnostics
+        if: always() && matrix.migrate_in == 'kind'
+        env:
+          WORK: ${{ runner.temp }}/rehearsal
+        run: |
+          mkdir -p "$WORK/cluster"
+          kubectl get pods,jobs,deployments,networkpolicies -o wide >"$WORK/cluster/resources.txt" 2>&1 || true
+          kubectl get events --sort-by=.lastTimestamp >"$WORK/cluster/events.txt" 2>&1 || true
+          for pod in $(kubectl get pods -o name 2>/dev/null); do
+            kubectl logs "$pod" --all-containers >"$WORK/cluster/${pod#pod/}.log" 2>&1 || true
+          done
       - name: Summary
         if: always()
         env:
           WORK: ${{ runner.temp }}/rehearsal
+          ARM: ${{ matrix.migrate_in }}
         run: |
           if [ -f "$WORK/steps.jsonl" ]; then
             python3 test/migration-rehearsal/rehearsal/report.py "$WORK" >"$WORK/report.md" || true
-            cat "$WORK/report.md" >>"$GITHUB_STEP_SUMMARY"
+            { echo "Arm: $ARM"; echo; cat "$WORK/report.md"; } >>"$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: migration-rehearsal
+          name: migration-rehearsal-${{ matrix.migrate_in }}
           path: ${{ runner.temp }}/rehearsal
           retention-days: 14
           if-no-files-found: warn

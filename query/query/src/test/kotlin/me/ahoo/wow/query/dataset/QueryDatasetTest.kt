@@ -72,12 +72,6 @@ class QueryDatasetTest {
                 sensitive("missing", SensitivityLevel.DISPLAY)
             }
         }
-        assertThrows<IllegalArgumentException> {
-            QueryDatasetScope(
-                QueryField("t"),
-                tags = mapOf(" " to QueryField("t"))
-            )
-        }
     }
 
     @Test
@@ -131,7 +125,7 @@ class QueryDatasetTest {
               "title": "Orders",
               "identity": "order_id",
               "eventTime": "updated_at",
-              "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id", "tags": { "region": "region" } },
+              "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
               "storage": { "table": "bi_db.orders" },
               "fields": {
                 "order_id": { "types": ["string"], "nullable": false, "description": "The order" },
@@ -153,8 +147,6 @@ class QueryDatasetTest {
         dataset.eventTime.assert().isEqualTo(QueryField("updated_at"))
         dataset.scope.owner.assert().isEqualTo(QueryField("owner_id"))
         dataset.scope.space.assert().isEqualTo(QueryField("space_id"))
-        dataset.scope.tags.assert().isEqualTo(mapOf("region" to QueryField("region")))
-        dataset.profile.tags.assert().isEqualTo(dataset.scope.tags)
         dataset.storage.get("table").stringValue().assert().isEqualTo("bi_db.orders")
         val fields = dataset.declaration.fields
         fields.getValue(QueryField("phone")).maskRule.assert().isEqualTo(
@@ -273,10 +265,8 @@ class QueryDatasetTest {
             """{ "scope": { "tenant": "t", "platform": true }, $fields }""",
             """{ "scope": { "platform": false }, $fields }""",
             """{ "scope": { "platform": "yes" }, $fields }""",
-            """{ "scope": { "tenant": "t", "tags": [] }, $fields }""",
-            """{ "scope": { "tenant": "t", "tags": { "region": 1 } }, $fields }""",
-            """{ "scope": { "tenant": "t", "tags": { "region": "missing" } }, $fields }""",
-            """{ "scope": { "tenant": "t", "tags": { " ": "t" } }, $fields }""",
+            // Tag columns are no longer bound: a scope that names them is refused.
+            """{ "scope": { "tenant": "t", "tags": { "region": "t" } }, $fields }""",
             """{ "scope": { "tenant": 1 }, $fields }""",
             """{ $scope, "fields": { "t": 1 } }""",
             """{ $scope, $fields, "title": 1 }""",
@@ -336,7 +326,6 @@ class QueryDatasetTest {
             tenant("tenant_id")
             owner("owner_id")
             space("space_id")
-            tag("region", "region_id")
             title("Orders")
             storage(storage)
             field("tenant_id") { types(QueryValueType.STRING) }
@@ -348,9 +337,7 @@ class QueryDatasetTest {
             QueryField("tenant_id"),
             QueryField("owner_id"),
             QueryField("space_id"),
-            QueryField("region_id"),
         )
-        dataset.profile.tags.assert().isEqualTo(mapOf("region" to QueryField("region_id")))
         dataset.title.assert().isEqualTo("Orders")
         dataset.storage.assert().isEqualTo(storage)
         dataset.profile.systemField(SystemField.SPACE_ID).assert().isEqualTo(QueryField("space_id"))
