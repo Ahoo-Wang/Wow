@@ -25,6 +25,8 @@ import {
   measuredWindow,
   mergeSignals,
   planMatrix,
+  mergeSaturations,
+  OWN,
   parseJob,
   peakRatio,
   bootstrapRatio,
@@ -32,6 +34,9 @@ import {
   confidence,
   cpuSplit,
   GENERATOR_BOUND,
+  HANDOVER_SCRIPT,
+  HOST_PROCESSES,
+  hostProcesses,
   generatorBound,
   cpuLayout,
   layoutOf,
@@ -58,12 +63,22 @@ import {
   saturationOutlier,
   runSettings,
   runSuite,
+  SAME,
   SESSIONS,
   spread,
   SUITES,
   suitesOf,
+  sustainableStep,
+  sweepNext,
   sweepOf,
 } from './bench.mjs';
+
+// This file runs under Node's test runner alone (`pnpm test:ci-scripts`), whose NODE_TEST_CONTEXT makes
+// hostProcesses refuse: no test here finds or signals a process of the host (X-66).
+assert.ok(
+  process.env.NODE_TEST_CONTEXT,
+  'Run with node --test: outside the test runner the hand-over could signal a process of the host (X-66).',
+);
 
 const result = (throughput, p99, cores = 1) => ({
   results: {
@@ -345,7 +360,7 @@ if (command === 'saturate') {
 } else {
   console.log('[run] fake: measure');
   // A cluster run lingers a moment, so the hand-over helper sees the measured phase start.
-  if (opt('nodes')) require('node:child_process').execSync('sleep 2');
+  if (opt('nodes')) require('node:child_process').execSync('sleep 3');
   const rate = Number(opt('rate'));
   const slow = head && /r1-(head|b)$/.test(opt('label')) ? 1.1 : 1;
   // The head keeps up with at most 100/s in open loop, so its probe at 120/s fails and the next, at 90/s, holds.
@@ -672,9 +687,19 @@ test('a capacity suite bisects for the highest rate within the error and p99 lim
   assert.match(report, /\| E1 \| \*\*98\.4\/s\*\* \| 2\.0 ms \| 10\.0 ms \|/);
 });
 
+// The hand-over helper's process functions for a test: node 4242 serves every port, its command line is `true`,
+// and every call is recorded in `log`; nothing reaches a process of the host (X-66).
+const fakeProcesses = log => `
+node_pid() { echo "node_pid $1" >> '${log}'; echo 4242; }
+node_argv() { echo "node_argv $1" >> '${log}'; ARGV=(true); }
+node_cwd() { echo "node_cwd $1" >> '${log}'; pwd; }
+signal() { echo "signal $1 $2" >> '${log}'; [ "$1" != 0 ]; }
+`;
+
 test('a cluster suite runs three nodes steady and with a hand-over', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeBench(dir);
+  const processes = join(dir, 'processes.log');
   const suite = runSuite('e5-pg', {
     benchPath,
     out: join(dir, 'out'),
@@ -683,6 +708,7 @@ test('a cluster suite runs three nodes steady and with a hand-over', () => {
     repeats: 1,
     fraction: 0.8,
     cluster: { ...CLUSTER, stopAfter: 0, down: 0 },
+    processes: fakeProcesses(processes),
   });
   assert.deepEqual(
     suite.runs.map(run => [run.name, run.scenario, run.handover ?? false]),
@@ -699,12 +725,54 @@ test('a cluster suite runs three nodes steady and with a hand-over', () => {
     calls,
     /run --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
   );
-  // The hand-over helper ran beside bench.sh and logged what it did (here it finds no node to stop).
-  assert.match(
-    readFileSync(join(dir, 'out', 'e1-handover', 'handover.log'), 'utf8'),
-    /\[handover\] no node on port 18081/,
+  // The hand-over helper ran beside bench.sh: it stopped node 2 through the process functions, and restarted it.
+  const handover = readFileSync(
+    join(dir, 'out', 'e1-handover', 'handover.log'),
+    'utf8',
   );
+  assert.match(handover, /stopping the node on port 18081 \(pid 4242\)/);
+  assert.match(handover, /restarted \(pid \d+\)/);
+  const signalled = readFileSync(processes, 'utf8');
+  assert.ok(
+    signalled.startsWith(
+      'node_pid 18081\nnode_argv 4242\nnode_cwd 4242\nsignal TERM 4242\nsignal 0 4242\n',
+    ),
+    signalled,
+  );
+  // The restarted node is stopped through them too, once bench.sh is done.
+  const restarted = readFileSync(
+    join(dir, 'out', 'e1-handover', 'node-restarted.pid'),
+    'utf8',
+  ).trim();
+  assert.ok(signalled.includes(`\nsignal TERM ${restarted}\n`), signalled);
   assert.match(renderReport([suite]), /## E5 cluster: steady and hand-over/);
+});
+
+test("the host's processes are never a test's: hostProcesses refuses them under the test runner", () => {
+  assert.equal(hostProcesses({}), HOST_PROCESSES);
+  assert.throws(
+    () => hostProcesses({ NODE_TEST_CONTEXT: 'child-v8' }),
+    /must not find or signal the host's processes/,
+  );
+  // A cluster suite given none refuses before it runs anything.
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  assert.throws(
+    () =>
+      runSuite('e5-pg', {
+        benchPath,
+        out: join(dir, 'out'),
+        warmUp: 1,
+        measure: 5,
+        repeats: 1,
+        fraction: 0.8,
+      }),
+    /must not find or signal the host's processes/,
+  );
+  assert.throws(() => readFileSync(join(dir, 'calls.log')), /ENOENT/);
+  // The real functions are the only place that finds or signals a process; the helper calls them.
+  assert.match(HOST_PROCESSES, /pgrep -f -- "--server.port=\$1"/);
+  assert.doesNotMatch(HANDOVER_SCRIPT, /pgrep|\/proc|kill -TERM|kill -0/);
 });
 
 test('anomalies flag pauses, store fallbacks, error spikes, dips and long tails', () => {
@@ -1450,9 +1518,10 @@ test('two saturations more than 3× apart get the lower probed again, the first 
   }
 });
 
-// A stand-in for bench.sh's sessions: `up` and `down`, and the fixed rates and sweeps run on the session (`--reuse`).
-// The Axon server (the build with --install) costs more per operation, answers slower and levels off at 64 clients,
-// failing some requests at 4096; Wow's sweep still gains at its top step. FAKE_FAIL_UP names the `up` that fails.
+// A stand-in for bench.sh's sessions: `up` and `down`, and the open-loop runs and sweeps run on the session
+// (`--reuse`). The Axon server (the build with --install) costs more per operation, answers slower and levels off at
+// 64 clients, failing some requests at 4096; Wow doubles a step up to 4096 and levels off at 16384. A step's p99 is a
+// tenth of its clients in ms. FAKE_FAIL_UP names the `up` that fails.
 function fakeSessionBench(dir) {
   const path = join(dir, 'bench.sh');
   writeFileSync(
@@ -1468,14 +1537,21 @@ fs.mkdirSync(out, { recursive: true });
 if (command === 'up') process.exit(process.env.FAKE_FAIL_UP && out.endsWith(process.env.FAKE_FAIL_UP) ? 1 : 0);
 const axon = Boolean(opt('install'));
 if (command === 'saturate') {
-  const steps = [1, 4, 16, 64, 256, 1024, 4096].map((concurrency, index) => ({
-    concurrency,
-    throughput: axon ? Math.min(100 * 2 ** index, 800) : 200 * 2 ** index,
-    errors: axon && concurrency === 4096 ? { 'http-504-timeout': 7 } : {},
-    p50Ms: 1,
-    p99Ms: 10,
-    generatorCores: 0.5,
-  }));
+  const from = Number(opt('start-concurrency') ?? 1);
+  const to = Number(opt('max-concurrency'));
+  const steps = [1, 4, 16, 64, 256, 1024, 4096, 16384].filter(c => c >= from && c <= to).map(concurrency => {
+    const index = Math.round(Math.log(concurrency) / Math.log(4));
+    const throughput = axon ? Math.min(100 * 2 ** index, 800) : concurrency >= 16384 ? 13000 : 200 * 2 ** index;
+    return {
+      concurrency,
+      throughput,
+      ok: throughput * 30,
+      errors: axon && concurrency === 4096 ? { 'http-504-timeout': 7 } : {},
+      p50Ms: 1,
+      p99Ms: concurrency / 10,
+      generatorCores: 0.5,
+    };
+  });
   const best = steps.reduce((a, b) => (b.throughput > a.throughput ? b : a));
   fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: best.throughput, saturationConcurrency: best.concurrency, generatorCores: 0.5, availableProcessors: 2, steps }));
 } else {
@@ -1497,7 +1573,7 @@ if (command === 'saturate') {
   return path;
 }
 
-test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweeps, on the session', () => {
+test('the Axon comparison runs one session per arm ABBA: one rate for both, the sweeps, then each at its own share', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeSessionBench(dir);
   const out = join(dir, 'results', 'axon-pg');
@@ -1523,12 +1599,24 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   );
   // The session's own timing, as compare.sh's, whatever the run's settings.
   assert.equal(suite.warmUp, SESSIONS.warmUp);
+  assert.equal(suite.share, 0.5);
   assert.deepEqual(suite.cpus, { load: '2-3', server: '0-1' });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Per session: up, the fixed rates, the sweeps, down.
+  // Per session: up, the same-rate runs, the sweeps (Wow's past the cap, a step each), the own-share runs, down.
   assert.deepEqual(
-    calls.slice(0, 6).map(call => call.split(' ')[0]),
-    ['up', 'run', 'run', 'saturate', 'saturate', 'down'],
+    calls.slice(0, 10).map(call => call.split(' ')[0]),
+    [
+      'up',
+      'run',
+      'run',
+      'saturate',
+      'saturate',
+      'saturate',
+      'saturate',
+      'run',
+      'run',
+      'down',
+    ],
   );
   assert.equal(calls.filter(call => call === 'down props=').length, 4);
   // Wow without a bus and Axon's own build; each session seeds and primes as compare.sh does, with no properties.
@@ -1545,6 +1633,19 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   assert.ok(
     calls.includes(
       `saturate --backend=postgres --server-args=--wow.transport=none --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --max-concurrency=4096 --sweep --growth=4 --step=30 --warm-up=10 --label=axon-pg-2-wow-e1-sweep --out=${join(out, '2-wow-e1-sweep')} props=`,
+    ),
+  );
+  // Still rising at 4096, Wow's sweep goes on alone at 16384, where it levels off.
+  assert.ok(
+    calls.includes(
+      `saturate --backend=postgres --server-args=--wow.transport=none --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --start-concurrency=16384 --max-concurrency=16384 --sweep --growth=4 --step=30 --warm-up=10 --label=axon-pg-1-wow-e1-sweep-16384 --out=${join(out, '1-wow-e1-sweep-16384')} props=`,
+    ),
+  );
+  assert.ok(!calls.some(call => /--start-concurrency=65536/.test(call)));
+  // Axon's own share: half of the 800/s its sweep held at 64 clients.
+  assert.ok(
+    calls.includes(
+      `run --backend=postgres --install=/builds/axon-server --reuse --scenario=E1 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --rate=400.0 --warm-up=20 --measure=40 --label=axon-pg-1-axon-e1-own --out=${join(out, '1-axon-e1-own')} props=`,
     ),
   );
   // A run on the session seeds and primes nothing.
@@ -1566,8 +1667,44 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
       '2-wow-e3-sweep',
     ],
   );
-  // Wow's peak is at its top step, a lower bound, and so is the ratio from it.
-  assert.deepEqual(peakRatio(suite, 'E1'), { lo: 16, hi: 16, bound: '≥' });
+  const [wow, , axon] = suite.sweeps;
+  assert.deepEqual(wow.extended, ['1-wow-e1-sweep-16384']);
+  assert.equal(wow.end, 'levelled');
+  assert.deepEqual(
+    [wow.peak.throughput, wow.peak.concurrency, wow.peak.lowerBound],
+    [13000, 16384, true],
+  );
+  assert.deepEqual(wow.sustainable, {
+    throughput: 6400,
+    concurrency: 1024,
+    p99: 102.4,
+    lowerBound: false,
+  });
+  assert.equal(axon.extended, undefined);
+  assert.deepEqual(
+    [axon.peak.throughput, axon.peak.concurrency, axon.peak.lowerBound],
+    [800, 64, false],
+  );
+  // Wow's peak is at its top step, a lower bound, and so is the ratio from it; the sustainable rates are not.
+  assert.deepEqual(peakRatio(suite, 'E1'), {
+    lo: 16.25,
+    hi: 16.25,
+    bound: '≥',
+  });
+  assert.deepEqual(peakRatio(suite, 'E1', 'sustainable'), {
+    lo: 8,
+    hi: 8,
+    bound: '',
+  });
+  assert.deepEqual(
+    suite.runs.slice(0, 4).map(run => [run.name, run.view, run.rate]),
+    [
+      ['1-wow-e1', SAME, 1000],
+      ['1-wow-e3', SAME, 300],
+      ['1-wow-e1-own', OWN, 3200],
+      ['1-wow-e3-own', OWN, 3200],
+    ],
+  );
   assert.equal(suite.runs[0].metrics.commitsPerOp, 1.5);
   // The runs on a session are a session's, not pairs.
   assert.deepEqual(pairs(suite), []);
@@ -1576,19 +1713,33 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   assert.match(report, /## The industry comparison/);
   assert.match(
     report,
-    /\| E1 \| ≥ 12800\/s at 4096 \(top step\); ≥ 12800\/s at 4096 \(top step\) \| 800\/s at 64; 800\/s at 64 \| ≥ 16\.00–16\.00 \|/,
+    /\| E1 \| ≥ 13000\/s at 16384 \(top step\); ≥ 13000\/s at 16384 \(top step\) \| 800\/s at 64; 800\/s at 64 \| ≥ 16\.25–16\.25 \|/,
   );
   assert.match(
     report,
-    /\| E1 \| 1000\/s \| Node CPU ms\/op \| 0\.500, 0\.500 \| 0\.600, 0\.600 \|/,
+    /\| E1 \| 6400\/s at 1024 \(p99 102\.4 ms\); 6400\/s at 1024 \(p99 102\.4 ms\) \| 800\/s at 64 \(p99 6\.4 ms\); 800\/s at 64 \(p99 6\.4 ms\) \| 8\.00–8\.00 \|/,
+  );
+  // The same-rate runs, then the own-share runs.
+  assert.match(
+    report,
+    /\*\*Same rate\*\*[\s\S]*\| E1 \| Rate \| 1000\/s, 1000\/s \| 1000\/s, 1000\/s \|[\s\S]*\*\*Own share\*\*[\s\S]*\| E1 \| Rate \| 3200\/s, 3200\/s \| 400\/s, 400\/s \|/,
+  );
+  assert.match(report, /\| E1 \| Kept up \| yes, yes \| yes, yes \|/);
+  assert.match(
+    report,
+    /\| E1 \| Node CPU ms\/op \| 0\.500, 0\.500 \| 0\.600, 0\.600 \|/,
   );
   assert.match(
     report,
-    /\| E3 \| 300\/s \| PostgreSQL CPU ms\/op \| 0\.833, 0\.833 \| 1\.333, 1\.333 \|/,
+    /\| E1 \| Node CPU ms\/op \| 0\.156, 0\.156 \| 1\.500, 1\.500 \|/,
   );
   assert.match(
     report,
-    /\| E1 \| 1000\/s \| PostgreSQL commits\/op \| 1\.50, 1\.50 \| 2\.00, 2\.00 \|/,
+    /\| E3 \| PostgreSQL CPU ms\/op \| 0\.833, 0\.833 \| 1\.333, 1\.333 \|/,
+  );
+  assert.match(
+    report,
+    /\| E1 \| PostgreSQL commits\/op \| 1\.50, 1\.50 \| 2\.00, 2\.00 \|/,
   );
   assert.match(report, /\| axon-pg@100k \| .* \| generator 2-3 · node 0-1 \|/);
   assert.doesNotMatch(report, /Pairs at the calibrated rates|NaN/);
@@ -1599,7 +1750,100 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   );
   assert.match(
     summary,
-    /\| 1-axon-e1-sweep \| axon \| 800\/s at 64 \| 100\/s, p99 10\.0 ms \| .* \| 800\/s, 7 errors \|/,
+    /\| 1-axon-e1-sweep \| axon \| 800\/s at 64 \| levelled off \| 100\/s, p99 0\.1 ms \| .* \| 800\/s, 7 errors \| - \|/,
+  );
+  assert.match(
+    summary,
+    /\| 1-wow-e1-sweep \| wow \| ≥ 13000\/s at 16384 \(top step\) \| levelled off \| .* \| 13000\/s, p99 1638\.4 ms \|/,
+  );
+});
+
+test('sweepNext goes on past the top step while it still rises, and says why it stops', () => {
+  const step = (concurrency, throughput, extra = {}) => ({
+    concurrency,
+    throughput,
+    ok: throughput * 30,
+    errors: 0,
+    p99: 10,
+    generatorCores: 0.5,
+    ...extra,
+  });
+  assert.deepEqual(sweepNext([step(1024, 1000), step(4096, 1200)], 2), {
+    next: 16384,
+  });
+  // Within the closed loop's 5% of the step before: levelled off.
+  assert.deepEqual(sweepNext([step(1024, 1000), step(4096, 1040)], 2), {
+    end: 'levelled',
+  });
+  assert.deepEqual(sweepNext([step(1024, 1000), step(4096, 900)], 2), {
+    end: 'peaked',
+  });
+  // 400 of 36,400 failed: more than 1%.
+  assert.deepEqual(
+    sweepNext([step(1024, 1000), step(4096, 1200, { errors: 400 })], 2),
+    { end: 'errors' },
+  );
+  // The load generator used 1.9 of its 2 cores: what the step measured is the generator.
+  assert.deepEqual(
+    sweepNext([step(1024, 1000), step(4096, 1200, { generatorCores: 1.9 })], 2),
+    { end: 'generator' },
+  );
+  assert.deepEqual(sweepNext([step(4096, 1000), step(16384, 1200)], 2), {
+    end: 'limit',
+  });
+  assert.deepEqual(sweepNext([], 2), { end: 'failed' });
+});
+
+test('sustainableStep takes the most a step did within the p99 limit and with no failure', () => {
+  const step = (concurrency, throughput, p99, errors = 0) => ({
+    concurrency,
+    throughput,
+    p99,
+    errors,
+  });
+  const steps = [
+    step(16, 500, 50),
+    step(64, 900, 150),
+    step(256, 950, 400),
+    step(1024, 1000, 100, 3),
+  ];
+  assert.deepEqual(sustainableStep(steps, 200), {
+    throughput: 900,
+    concurrency: 64,
+    p99: 150,
+    lowerBound: false,
+  });
+  assert.equal(sustainableStep(steps, 10), undefined);
+  // At the sweep's top step it is a lower bound.
+  assert.equal(
+    sustainableStep([step(16, 500, 50), step(64, 900, 150)], 200).lowerBound,
+    true,
+  );
+});
+
+test('mergeSaturations joins a sweep and the steps past its cap, peak and all', () => {
+  const merged = mergeSaturations([
+    {
+      availableProcessors: 2,
+      steps: [
+        { concurrency: 1024, throughput: 4000, generatorCores: 0.9 },
+        { concurrency: 4096, throughput: 4400, generatorCores: 1 },
+      ],
+    },
+    { steps: [{ concurrency: 16384, throughput: 4300, generatorCores: 1.2 }] },
+  ]);
+  assert.deepEqual(
+    merged.steps.map(step => step.concurrency),
+    [1024, 4096, 16384],
+  );
+  assert.deepEqual(
+    [
+      merged.saturationThroughput,
+      merged.saturationConcurrency,
+      merged.generatorCores,
+      merged.availableProcessors,
+    ],
+    [4400, 4096, 1, 2],
   );
 });
 

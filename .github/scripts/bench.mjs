@@ -899,17 +899,24 @@ export const SATURATION = {
 };
 
 // kind `sessions` (the Axon comparison), as the local compare.sh runs it: one session per arm and round, ABBA (W A A W
-// for two rounds). `bench.sh up` seeds and primes the data set; on that session each fixed rate runs in open loop, 20 s
-// warm-up and 40 s measured, then each scenario's closed-loop sweep runs every step, 10 s warm-up and 30 s measured,
-// the concurrency growing fourfold from 1 to the paired suites' cap (V10 still gained past 1,024 on GitHub's 4-core
-// runners); then `down`. The fixed rates are about half of Axon's closed-loop peaks on a runner's two server CPUs, so
-// both servers run loaded: E1 1,911–2,140/s and E3 681–688/s there (EPYC 9V45, run 41568172064, which ran the fixed
-// rates at 500/s and 150/s, a quarter of them).
+// for two rounds). `bench.sh up` seeds and primes the data set, and the session answers three questions, in this order:
+// - same rate: both arms at one fixed rate in open loop (20 s warm-up, 40 s measured), about half of the slower arm's
+//   sustainable rate on a runner's two server CPUs, so both run loaded (`rates`): for the same work, whose latency and
+//   cost are lower. Axon's sweeps there kept p99 within 200 ms with no failure up to 1,776–1,969/s (E1) and
+//   515–655/s (E3) (EPYC 9V45, run 41568172064, whose fixed rates were 500/s and 150/s, a quarter of that).
+// - peak: each scenario's closed-loop sweep, every step 10 s warm-up and 30 s measured, the concurrency growing
+//   fourfold from 1 to the paired suites' cap (V10 still gained past 1,024 on GitHub's 4-core runners), then on a
+//   step at a time while the top step still rises (sweepNext): how much each handles at most. The sweep also gives
+//   the arm's sustainable rate, the most a step did with p99 within the limit and no failure (sustainableStep).
+// - own share: each arm in open loop at `share` of its own sustainable rate from this session's sweep, as long as the
+//   same-rate runs: with the same headroom, each one's latency and cost per command.
+// then `down`.
 export const SESSIONS = {
   rates: [
     { scenario: 'E1', rate: 1000 },
     { scenario: 'E3', rate: 300 },
   ],
+  share: 0.5,
   warmUp: 20,
   measure: 40,
   sweep: {
@@ -917,17 +924,79 @@ export const SESSIONS = {
     step: 30,
     growth: 4,
     maxConcurrency: SATURATION.maxConcurrency,
+    // A step gaining at most this over the one before has levelled off: the closed loop's own minimum gain.
+    gain: 0.05,
+    // Each client of a step holds a connection to the one node: 16,384 stay within Linux's ephemeral ports to one
+    // address (about 28,000).
+    limit: 16384,
   },
 };
+/** The views of a sessions suite's open-loop runs: one rate for both arms, or each at a share of its own. */
+export const SAME = 'same-rate';
+export const OWN = 'own-share';
+
+/** The load generator's searches of one sweep (saturation.json, the cap's and the steps past it) as one. */
+export function mergeSaturations(parts) {
+  const steps = parts.flatMap(part => part.steps ?? []);
+  const best = steps.reduce((a, b) => (b.throughput > a.throughput ? b : a));
+  return {
+    steps,
+    saturationThroughput: best.throughput,
+    saturationConcurrency: best.concurrency,
+    generatorCores: best.generatorCores,
+    availableProcessors: parts[0].availableProcessors,
+  };
+}
+
+/**
+ * Whether a sweep (sweepOf's steps) goes on past its top step: `{ next }`, the concurrency of the step to run, or
+ * `{ end }`, why it stops. It stops when the top step failed more than 1% (`errors`), when the load generator, on
+ * `cpus` CPUs, bound it (`generator`), when its peak was at an earlier step (`peaked`), when it gained at most
+ * `gain` over the step before (`levelled`), or at `limit` (`limit`).
+ */
+export function sweepNext(steps, cpus, sweep = SESSIONS.sweep) {
+  const last = steps.at(-1);
+  const before = steps.at(-2);
+  if (!last) return { end: 'failed' };
+  if (last.errors > (ANOMALY.errorPercent / 100) * (last.ok + last.errors))
+    return { end: 'errors' };
+  if (generatorBound(last.generatorCores, cpus)) return { end: 'generator' };
+  if (steps.some(step => step.throughput > last.throughput))
+    return { end: 'peaked' };
+  if (before && last.throughput <= before.throughput * (1 + sweep.gain))
+    return { end: 'levelled' };
+  const next = last.concurrency * sweep.growth;
+  return next <= sweep.limit ? { next } : { end: 'limit' };
+}
+
+/**
+ * An arm's sustainable rate from its sweep: the step with the most throughput among those with p99 within `p99LimitMs`
+ * and no failure, or undefined when none. At the sweep's top step it is a lower bound.
+ */
+export function sustainableStep(steps, p99LimitMs) {
+  const held = steps.filter(
+    step => step.errors === 0 && step.p99 <= p99LimitMs,
+  );
+  if (held.length === 0) return undefined;
+  const best = held.reduce((a, b) => (b.throughput > a.throughput ? b : a));
+  const top = Math.max(...steps.map(step => step.concurrency));
+  return {
+    throughput: best.throughput,
+    concurrency: best.concurrency,
+    p99: best.p99,
+    lowerBound: best.concurrency >= top,
+  };
+}
 
 /**
  * A sweep's steps and its peak from the load generator's saturation.json. A peak at the highest step the sweep ran
- * (`top`: the cap, or the step past which errors stopped it) or one the load generator bound is a lower bound.
+ * (`top`) or one the load generator bound is a lower bound.
  */
 export function sweepOf(saturation) {
   const steps = (saturation.steps ?? []).map(step => ({
     concurrency: step.concurrency,
     throughput: step.throughput,
+    ok: step.ok,
     errors: Object.values(step.errors ?? {}).reduce((a, b) => a + b, 0),
     p50: step.p50Ms,
     p99: step.p99Ms,
@@ -952,18 +1021,22 @@ export function sweepOf(saturation) {
 }
 
 /**
- * The ratio of a sessions suite's first arm's closed-loop peaks in `scenario` to its second's: from the lowest first
- * over the highest second to the highest over the lowest. A ratio from a lower-bound peak of the first arm is a lower
- * bound too (`≥`), from one of the second an upper bound (`≤`), and from both neither (`~`).
+ * The ratio of a sessions suite's first arm's closed-loop peaks in `scenario` to its second's (`key` `sustainable`:
+ * their sustainable rates): from the lowest first over the highest second to the highest over the lowest. A ratio
+ * from a lower-bound peak of the first arm is a lower bound too (`≥`), from one of the second an upper bound (`≤`),
+ * and from both neither (`~`).
  */
-export function peakRatio(suite, scenario) {
+export function peakRatio(suite, scenario, key = 'peak') {
   const peaksOf = id =>
     (suite.sweeps ?? [])
       .filter(
         run =>
-          run.arm === id && run.scenario === scenario && run.status === 'ok',
+          run.arm === id &&
+          run.scenario === scenario &&
+          run.status === 'ok' &&
+          run[key],
       )
-      .map(run => run.peak);
+      .map(run => run[key]);
   const [first, second] = suite.arms.map(arm => peaksOf(arm.id));
   if (first.length === 0 || second.length === 0) return undefined;
   const values = peaks => peaks.map(peak => peak.throughput);
@@ -1766,15 +1839,36 @@ const peakText = peak =>
     ? ` (generator-bound, ${num(peak.generatorCores, 2)} of ${peak.generatorCpus} cores)`
     : '');
 
+/** A sweep's sustainable rate: its step's throughput, clients and p99, `≥` at the sweep's top step. */
+const sustainableText = s =>
+  s
+    ? `${s.lowerBound ? '≥ ' : ''}${num(s.throughput, 0)}/s at ${s.concurrency} (p99 ${ms(s.p99)})`
+    : '**none within the limits**';
+
+const ratioText = r =>
+  r ? `${r.bound ? `${r.bound} ` : ''}${num(r.lo, 2)}–${num(r.hi, 2)}` : '-';
+
+// Why a sweep stopped where it did (sweepNext).
+const SWEEP_ENDS = {
+  peaked: 'peaked below its top step',
+  levelled: 'levelled off',
+  errors: 'more than 1% failed',
+  generator: 'the load generator bound it',
+  limit: 'the concurrency limit',
+  failed: 'a step past the cap failed',
+};
+
 /** Milliseconds of CPU per operation from the average cores a run used at its throughput. */
 const perOp = (cores, throughput) =>
   throughput > 0 && Number.isFinite(cores)
     ? (cores * 1000) / throughput
     : undefined;
 
-// What a sessions suite compares at its fixed rates, from each run's metrics.
+// What a sessions suite compares in open loop, from each run's metrics and the run.
 const SESSION_METRICS = [
+  ['Rate', (m, run) => `${num(run.rate, 0)}/s`],
   ['Throughput', m => `${num(m.throughput)}/s`],
+  ['Kept up', (m, run) => (sustainable(m, run.rate) ? 'yes' : '**no**')],
   ['Failed', m => `${m.failed}`],
   ['p50', m => `${num(m.p50, 2)} ms`],
   ['p99', m => ms(m.p99)],
@@ -1786,50 +1880,77 @@ const SESSION_METRICS = [
   ['PostgreSQL commits/op', m => num(m.commitsPerOp, 2)],
 ];
 
-/** A sessions suite's comparison: each scenario's closed-loop peaks and their ratio, then the fixed rates. */
-function sessionTables(suite) {
+/** A sessions suite's open-loop runs of one view, per scenario and metric, the arms side by side in session order. */
+function viewTable(suite, view) {
   const ids = suite.arms.map(arm => arm.id);
+  const runs = suite.runs.filter(run => run.view === view);
+  if (runs.length === 0) return ['None ran.'];
   const lines = [
-    `Closed-loop peaks, in session order, and ${ids[0]}/${ids[1]} from the lowest ${ids[0]} peak over the highest ${ids[1]} peak to the highest over the lowest. \`≥\` marks a lower bound: a peak at the sweep's top step or at the load generator's limit, and a ratio from such a peak.`,
-    '',
-    `| Scenario | ${ids.join(' | ')} | ${ids[0]}/${ids[1]} |`,
-    `| --- | ${ids.map(() => '---').join(' | ')} | --- |`,
+    `| Scenario | Metric | ${ids.join(' | ')} |`,
+    `| --- | --- | ${ids.map(() => '---').join(' | ')} |`,
   ];
   for (const scenario of suite.scenarios ?? []) {
-    const peaks = id =>
-      (suite.sweeps ?? [])
-        .filter(run => run.arm === id && run.scenario === scenario)
-        .map(run =>
-          run.status === 'ok' ? peakText(run.peak) : `**${run.status}**`,
-        )
-        .join('; ') || '-';
-    const r = peakRatio(suite, scenario);
-    lines.push(
-      `| ${scenario} | ${ids.map(peaks).join(' | ')} | ${r ? `${r.bound ? `${r.bound} ` : ''}${num(r.lo, 2)}–${num(r.hi, 2)}` : '-'} |`,
-    );
-  }
-  lines.push(
-    '',
-    `At fixed rates (${suite.warmUp} s warm-up, ${suite.measure} s measured), in session order:`,
-    '',
-    `| Scenario | Rate | Metric | ${ids.join(' | ')} |`,
-    `| --- | --- | --- | ${ids.map(() => '---').join(' | ')} |`,
-  );
-  for (const { scenario, rate } of suite.fixedRates ?? []) {
     const values = (id, format) =>
-      suite.runs
+      runs
         .filter(run => run.arm === id && run.scenario === scenario)
         .map(run =>
-          run.status === 'ok' ? format(run.metrics) : `**${run.status}**`,
+          run.status === 'ok' ? format(run.metrics, run) : `**${run.status}**`,
         )
         .join(', ') || '-';
     for (const [label, format] of SESSION_METRICS) {
       lines.push(
-        `| ${scenario} | ${num(rate, 0)}/s | ${label} | ${ids.map(id => values(id, format)).join(' | ')} |`,
+        `| ${scenario} | ${label} | ${ids.map(id => values(id, format)).join(' | ')} |`,
       );
     }
   }
   return lines;
+}
+
+/**
+ * A sessions suite's three views: the peaks and sustainable rates of its sweeps, with the first arm's over the
+ * second's, then its open-loop runs at one rate for both and at each arm's own share.
+ */
+function sessionTables(suite) {
+  const ids = suite.arms.map(arm => arm.id);
+  const ratioHeader = [
+    `| Scenario | ${ids.join(' | ')} | ${ids[0]}/${ids[1]} |`,
+    `| --- | ${ids.map(() => '---').join(' | ')} | --- |`,
+  ];
+  const bySweep = (scenario, key, text) =>
+    ids.map(
+      id =>
+        (suite.sweeps ?? [])
+          .filter(run => run.arm === id && run.scenario === scenario)
+          .map(run =>
+            run.status === 'ok' ? text(run[key]) : `**${run.status}**`,
+          )
+          .join('; ') || '-',
+    );
+  return [
+    `**Peak**: how much each handles at most. Each sweep's closed-loop peak and the clients it was at, in session order; ${ids[0]}/${ids[1]} from the lowest ${ids[0]} peak over the highest ${ids[1]} peak to the highest over the lowest. \`≥\` marks a lower bound: a peak at the sweep's top step or at the load generator's limit, and a ratio from such a peak.`,
+    '',
+    ...ratioHeader,
+    ...(suite.scenarios ?? []).map(
+      scenario =>
+        `| ${scenario} | ${bySweep(scenario, 'peak', peakText).join(' | ')} | ${ratioText(peakRatio(suite, scenario))} |`,
+    ),
+    '',
+    `Sustainable rates, apart from the peaks: the most a sweep's step did with p99 within ${suite.p99LimitMs} ms and no failure (\`≥\` at the sweep's top step).`,
+    '',
+    ...ratioHeader,
+    ...(suite.scenarios ?? []).map(
+      scenario =>
+        `| ${scenario} | ${bySweep(scenario, 'sustainable', sustainableText).join(' | ')} | ${ratioText(peakRatio(suite, scenario, 'sustainable'))} |`,
+    ),
+    '',
+    `**Same rate**: for the same work, whose latency and cost are lower. Both arms at one rate, before the sweeps (${suite.warmUp} s warm-up, ${suite.measure} s measured), in session order; kept up: at most 1% failed and at least 97% of the rate completed.`,
+    '',
+    ...viewTable(suite, SAME),
+    '',
+    `**Own share**: with the same headroom, each one's latency and cost per command. Each arm at ${num((suite.share ?? 0) * 100, 0)}% of the sustainable rate its own sweep found in the session, after the sweeps, in session order.`,
+    '',
+    ...viewTable(suite, OWN),
+  ];
 }
 
 /** A sessions suite's sweeps step by step: each step's throughput and p99, or its errors when it failed some. */
@@ -1842,18 +1963,18 @@ function sweepTable(suite) {
   ].sort((a, b) => a - b);
   if (concurrencies.length === 0) return [];
   return [
-    `| Sweep | Arm | Peak | ${concurrencies.map(c => `${c} clients`).join(' | ')} |`,
-    `| --- | --- | --- | ${concurrencies.map(() => '---').join(' | ')} |`,
+    `| Sweep | Arm | Peak | Stopped | ${concurrencies.map(c => `${c} clients`).join(' | ')} |`,
+    `| --- | --- | --- | --- | ${concurrencies.map(() => '---').join(' | ')} |`,
     ...sweeps.map(run => {
       if (run.status !== 'ok') {
-        return `| ${run.name} | ${run.arm} | **${run.status}** | ${concurrencies.map(() => '').join(' | ')} |`;
+        return `| ${run.name} | ${run.arm} | **${run.status}** | | ${concurrencies.map(() => '').join(' | ')} |`;
       }
       const cells = concurrencies.map(concurrency => {
         const step = run.steps.find(s => s.concurrency === concurrency);
         if (!step) return '-';
         return `${num(step.throughput, 0)}/s, ${step.errors > 0 ? `${step.errors} errors` : `p99 ${ms(step.p99)}`}`;
       });
-      return `| ${run.name} | ${run.arm} | ${peakText(run.peak)} | ${cells.join(' | ')} |`;
+      return `| ${run.name} | ${run.arm} | ${peakText(run.peak)} | ${SWEEP_ENDS[run.end] ?? '-'} | ${cells.join(' | ')} |`;
     }),
   ];
 }
@@ -1930,7 +2051,7 @@ export function renderSuite(suite) {
         ? `, ${suite.fraction * 100}% of saturation, ${suite.repeats} round(s)`
         : '') +
       (suite.kind === 'sessions'
-        ? ` at the fixed rates, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency}; ${suite.repeats} round(s) of one session per arm, ABBA`
+        ? ` in open loop, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency} and on while it rises, to ${suite.sweep.limit} at most; ${suite.repeats} round(s) of one session per arm, ABBA`
         : '') +
       (suite.extraRound
         ? ' + 1 (two runs of one arm differed by more than 5%)'
@@ -2051,10 +2172,37 @@ function runnerInfo() {
   };
 }
 
+// What the hand-over helper does to the host's processes, as shell functions: `node_pid <port>` prints the pid of the
+// node serving the port, `node_argv <pid>` reads its command line into ARGV, `node_cwd <pid>` prints its working
+// directory, `signal <TERM|0> <pid>` signals it (0: whether it is still there). These are the real ones (Linux,
+// /proc); a test passes its own to runSuite (`processes`), and hostProcesses refuses to give these to one.
+export const HOST_PROCESSES = `
+node_pid() { pgrep -f -- "--server.port=$1" | head -1; }
+node_argv() { mapfile -d '' ARGV < "/proc/$1/cmdline"; }
+node_cwd() { readlink "/proc/$1/cwd"; }
+signal() { kill "-$1" "$2"; }
+`;
+
+/**
+ * The host's processes for the hand-over helper (HOST_PROCESSES), refused under Node's test runner, which sets
+ * NODE_TEST_CONTEXT for every test process and its children: a test that ran the real ones on a shared machine
+ * stopped a node another measurement was running on port 18081 (X-66).
+ */
+export function hostProcesses(env = process.env) {
+  if (env.NODE_TEST_CONTEXT) {
+    throw new Error(
+      "A test must not find or signal the host's processes: give runSuite `processes` of its own (X-66).",
+    );
+  }
+  return HOST_PROCESSES;
+}
+
 // A cluster run with a hand-over: bench.sh runs with its output teed to a log, and a helper waits for the load
 // generator's measured phase, stops the node on NODE_PORT (SIGTERM: a graceful stop, its partitions hand over),
 // and after DOWN seconds starts it again with its own command line, working directory and environment. The
-// restarted node is stopped once bench.sh is done (bench.sh only knows the pids it started). Linux only (/proc).
+// restarted node is stopped once bench.sh is done (bench.sh only knows the pids it started). Every dealing with
+// the node goes through the process functions (HOST_PROCESSES) run before it; the script stops only its own helper
+// itself.
 export const HANDOVER_SCRIPT = `
 set -uo pipefail
 bench=$1; shift
@@ -2064,16 +2212,16 @@ handover() {
   for _ in $(seq 1 900); do grep -q ': measure$' "$log" && break; sleep 1; done
   grep -q ': measure$' "$log" || return 0
   sleep "$STOP_AFTER"
-  pid=$(pgrep -f -- "--server.port=$NODE_PORT" | head -1)
+  pid=$(node_pid "$NODE_PORT")
   if [ -z "$pid" ]; then echo "[handover] no node on port $NODE_PORT"; return 0; fi
-  mapfile -d '' argv < "/proc/$pid/cmdline"
-  cwd=$(readlink "/proc/$pid/cwd")
+  node_argv "$pid"
+  cwd=$(node_cwd "$pid")
   echo "[handover] $(date +%s.%N) stopping the node on port $NODE_PORT (pid $pid)"
-  kill -TERM "$pid"
-  for _ in $(seq 1 300); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  signal TERM "$pid"
+  for _ in $(seq 1 300); do signal 0 "$pid" 2>/dev/null || break; sleep 0.1; done
   echo "[handover] $(date +%s.%N) stopped; down for $DOWN s"
   sleep "$DOWN"
-  (cd "$cwd" && exec "\${argv[@]}") >> "$RUN_DIR/node-restarted.log" 2>&1 &
+  (cd "$cwd" && exec "\${ARGV[@]}") >> "$RUN_DIR/node-restarted.log" 2>&1 &
   echo $! > "$RUN_DIR/node-restarted.pid"
   echo "[handover] $(date +%s.%N) restarted (pid $!)"
 }
@@ -2084,15 +2232,16 @@ status=\${PIPESTATUS[0]}
 kill "$helper" 2>/dev/null; wait "$helper" 2>/dev/null
 if [ -f "$RUN_DIR/node-restarted.pid" ]; then
   restarted=$(cat "$RUN_DIR/node-restarted.pid")
-  kill "$restarted" 2>/dev/null
-  for _ in $(seq 1 150); do kill -0 "$restarted" 2>/dev/null || break; sleep 0.2; done
+  signal TERM "$restarted" 2>/dev/null
+  for _ in $(seq 1 150); do signal 0 "$restarted" 2>/dev/null || break; sleep 0.2; done
 fi
 exit "$status"
 `;
 
 /**
  * Runs bench.sh with `args`, the arm's properties in SPRING_APPLICATION_JSON; true when it succeeded. With `handover`
- * (`{ dir, stopAfter, down, nodePort }`) it runs through HANDOVER_SCRIPT.
+ * (`{ dir, stopAfter, down, nodePort, processes }`) it runs through HANDOVER_SCRIPT, after the process functions
+ * `processes`.
  */
 function bench(benchPath, args, props, handover) {
   const env = { ...process.env };
@@ -2105,7 +2254,13 @@ function bench(benchPath, args, props, handover) {
   const result = handover
     ? spawnSync(
         'bash',
-        ['-c', HANDOVER_SCRIPT, 'handover', benchPath, ...args],
+        [
+          '-c',
+          `${handover.processes}\n${HANDOVER_SCRIPT}`,
+          'handover',
+          benchPath,
+          ...args,
+        ],
         {
           stdio: 'inherit',
           env: {
@@ -2192,7 +2347,12 @@ export function runSuite(name, options) {
     cpus = {},
     profile = false,
     properties,
+    // The hand-over helper's process functions (HOST_PROCESSES); a test passes its own.
+    processes,
   } = options;
+  // Before anything runs: a cluster suite's hand-overs signal the node they stop.
+  const handoverProcesses =
+    definition.kind === 'cluster' ? (processes ?? hostProcesses()) : undefined;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
   // The CPUs of the generator, the servers and the containers: the suite's own layout on a runner of `cpus.total`,
   // else those given.
@@ -2248,7 +2408,12 @@ export function runSuite(name, options) {
     warmUp: sessions ? SESSIONS.warmUp : warmUp,
     measure: sessions ? SESSIONS.measure : measure,
     ...(sessions
-      ? { fixedRates: SESSIONS.rates, sweep: SESSIONS.sweep, sessions: [] }
+      ? {
+          fixedRates: SESSIONS.rates,
+          share: SESSIONS.share,
+          sweep: SESSIONS.sweep,
+          sessions: [],
+        }
       : {}),
     repeats,
     fraction,
@@ -2346,6 +2511,7 @@ export function runSuite(name, options) {
       dir: runName,
       status: 'failed',
       ...(phase.mode === EQUAL ? { mode: EQUAL } : {}),
+      ...(phase.view ? { view: phase.view } : {}),
       ...(phase.scenario ? { scenario: phase.scenario } : {}),
       ...(phase.handover ? { handover: true } : {}),
     };
@@ -2629,6 +2795,7 @@ export function runSuite(name, options) {
               stopAfter: cluster.stopAfter,
               down: cluster.down,
               nodePort: cluster.nodePort,
+              processes: handoverProcesses,
             },
           },
         );
@@ -2655,14 +2822,15 @@ export function runSuite(name, options) {
     }
   } else if (sessions) {
     suite.sweeps = [];
-    const sweep = (arm, session, scenario, round) => {
-      const runName = `${session}-${scenario.toLowerCase()}-sweep`;
+    // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`).
+    const saturateOn = (arm, scenario, runName, from) => {
       const dir = join(out, runName);
       const ok =
         bench(benchPath, [
           'saturate',
           ...common(arm, scenario, true),
-          `--max-concurrency=${SESSIONS.sweep.maxConcurrency}`,
+          ...(from ? [`--start-concurrency=${from}`] : []),
+          `--max-concurrency=${from ?? SESSIONS.sweep.maxConcurrency}`,
           '--sweep',
           `--growth=${SESSIONS.sweep.growth}`,
           `--step=${SESSIONS.sweep.step}`,
@@ -2672,15 +2840,45 @@ export function runSuite(name, options) {
         ]) === 0;
       const file = join(dir, 'saturation.json');
       const saturation = ok && existsSync(file) ? readJson(file) : undefined;
+      return saturation?.steps?.length > 0 ? saturation : undefined;
+    };
+    // The sweep to the cap, then (the peak view) a step at a time past it while it still rises (sweepNext).
+    const sweep = (arm, session, scenario, round) => {
+      const runName = `${session}-${scenario.toLowerCase()}-sweep`;
       const run = { name: runName, arm: arm.id, round, scenario, dir: runName };
-      if (saturation?.steps?.length > 0) {
-        Object.assign(run, { status: 'ok' }, sweepOf(saturation));
-      } else {
+      const parts = [saturateOn(arm, scenario, runName)];
+      if (!parts[0]) {
         run.status = 'failed';
         suite.failures++;
+      } else {
+        for (;;) {
+          const swept = sweepOf(mergeSaturations(parts));
+          const { next, end } = sweepNext(
+            swept.steps,
+            swept.peak.generatorCpus,
+          );
+          const more =
+            next && saturateOn(arm, scenario, `${runName}-${next}`, next);
+          if (more) {
+            parts.push(more);
+            run.extended = [...(run.extended ?? []), `${runName}-${next}`];
+            continue;
+          }
+          if (next) suite.failures++;
+          Object.assign(
+            run,
+            { status: 'ok', end: next ? 'failed' : end },
+            swept,
+            {
+              sustainable: sustainableStep(swept.steps, p99LimitMs),
+            },
+          );
+          break;
+        }
       }
       suite.sweeps.push(run);
       save();
+      return run;
     };
     for (let index = 0; index < repeats; index++) {
       for (const arm of roundOrder(arms, index)) {
@@ -2714,24 +2912,32 @@ export function runSuite(name, options) {
           save();
           continue;
         }
+        const fixed = (runName, scenario, rate, view) =>
+          measureRun(runName, arm, rate, index, {
+            warmUp: SESSIONS.warmUp,
+            measure: SESSIONS.measure,
+            into: suite.runs,
+            scenario,
+            reuse: true,
+            view,
+          });
         try {
-          for (const { scenario, rate } of SESSIONS.rates) {
-            measureRun(
-              `${session}-${scenario.toLowerCase()}`,
-              arm,
-              rate,
-              index,
-              {
-                warmUp: SESSIONS.warmUp,
-                measure: SESSIONS.measure,
-                into: suite.runs,
-                scenario,
-                reuse: true,
-              },
+          // The same-rate view: both arms at one rate.
+          for (const { scenario, rate } of SESSIONS.rates)
+            fixed(`${session}-${scenario.toLowerCase()}`, scenario, rate, SAME);
+          const swept = definition.scenarios.map(scenario =>
+            sweep(arm, session, scenario, index),
+          );
+          // The own-share view: each arm at a share of the sustainable rate its own sweep in this session found (a
+          // sweep with no step within the limits has none, which its table says).
+          for (const run of swept.filter(run => run.sustainable)) {
+            fixed(
+              `${session}-${run.scenario.toLowerCase()}-own`,
+              run.scenario,
+              SESSIONS.share * run.sustainable.throughput,
+              OWN,
             );
           }
-          for (const scenario of definition.scenarios)
-            sweep(arm, session, scenario, index);
         } finally {
           bench(benchPath, ['down']);
         }
