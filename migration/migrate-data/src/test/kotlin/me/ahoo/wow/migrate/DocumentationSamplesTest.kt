@@ -22,7 +22,7 @@ import java.nio.file.Path
 /**
  * The configuration and the map the documentation shows (`documentation/docs/{en,zh}/migrate/data.md` and
  * `reference/migrate-data.md`) read as this tool reads them, every property one it defines: the pages show the files
- * in `src/test/resources/docs/` as they are.
+ * in `src/test/resources/docs/` as they are; and those of the Kubernetes recipe (`deploy/migrate-data`).
  */
 class DocumentationSamplesTest {
     private val samples = Path.of("src/test/resources/docs")
@@ -35,6 +35,18 @@ class DocumentationSamplesTest {
         MigrationConfig.resolve(config.target.password) { "secret" }.assert().isEqualTo("secret")
         config.partitionsOf("example").assert().isEqualTo(64)
         config.compensation!!.service.assert().isEqualTo("order-service")
+    }
+
+    @Test
+    fun `the Kubernetes recipe's configuration reads, its checkpoint in the target and its classes where the Job puts them`() {
+        val recipe = Path.of("../../deploy/migrate-data")
+        val config = MigrationConfig.read(recipe.resolve("migrate-data.json"))
+        config.checkpointName.assert().isEqualTo("order-service")
+        config.manifests.assert().isEmpty()
+        config.classpath.assert().containsExactly("/service/lib")
+        MigrationConfig.resolve(config.source.uri) { "mongodb://9x" }.assert().isEqualTo("mongodb://9x")
+        Files.readString(recipe.resolve("migration-map.json"))
+            .assert().isEqualTo(Files.readString(samples.resolve("migration-map.json")))
     }
 
     @Test
