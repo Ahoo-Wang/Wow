@@ -143,19 +143,33 @@ internal class MemoryQueries(
 /**
  * The `events` query backend of the node: the [bindings] of each aggregate type's events backend and
  * storage facts, none for a type no backend serves (its events are then not queried), and the [store] its queries run
- * on, null for the application's own backend. It is not itself [QueryBindings], so that it is never taken for the
- * application's snapshot bindings bean.
+ * on, null for the application's own backend. For a store whose events queries manage indexes
+ * ([me.ahoo.wow.query.store.EventQueries]), how it [prepare]s a type's log and [manages][manageIndexes] the indexes of
+ * its access attributes at startup. It is not itself [QueryBindings], so that it is never taken for the application's
+ * snapshot bindings bean.
  */
 @InternalWowApi
 class EventQueryBackend(
     private val store: (AggregateType) -> String? = { null },
+    private val prepare: (AggregateType) -> Unit = {},
+    private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
     val bindings: QueryBindings<AggregateType>,
 ) {
+    /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
+    val managesIndexes: Boolean get() = indexes != null
+
     /** The binding of [type]'s events backend, or null when none serves them. */
     fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = bindings.binding(type)
 
     /** The store [type]'s events queries run on, or null when the host does not know it. */
     fun storeOf(type: AggregateType): String? = store.invoke(type)
+
+    /** Makes sure [type]'s log exists, so an index has a table or a collection to be on. */
+    fun prepare(type: AggregateType) = prepare.invoke(type)
+
+    /** Manages [plan], the indexes of [type]'s access attributes on its `events` model, as its store's `ddl` says. */
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport =
+        indexes?.invoke(type, plan) ?: QueryIndexReport.NONE
 
     @InternalWowApi
     companion object {
@@ -260,6 +274,7 @@ internal object HostQueryBulkheads {
  * an index that `validate` finds missing or invalid: a query it would serve scans the whole collection.
  */
 @InternalWowApi
+@Suppress("LongParameterList")
 class QueryIndexesLifecycle(
     private val manifest: Manifest,
     private val types: List<AggregateType>,
@@ -267,6 +282,9 @@ class QueryIndexesLifecycle(
     private val catalog: QuerySchemaCatalog,
     /** The key of the `ddl` that applies to a store, by the store's name: `wow.ddl` unless the store sets its own. */
     private val ddlKeyOf: (store: String?) -> String = { DDL },
+    /** The `events` query backend, whose logs' access attributes are indexed for the types in [eventTypes]. */
+    private val events: EventQueryBackend = EventQueryBackend.NONE,
+    private val eventTypes: List<AggregateType> = emptyList(),
 ) : SmartLifecycle {
     @Volatile
     private var running = false
@@ -274,6 +292,11 @@ class QueryIndexesLifecycle(
     /** What the last start did, by aggregate type. */
     @Volatile
     var reports: Map<AggregateType, QueryIndexReport> = emptyMap()
+        private set
+
+    /** What the last start did on the logs, by aggregate type: the indexes of the access attributes. */
+    @Volatile
+    var eventReports: Map<AggregateType, QueryIndexReport> = emptyMap()
         private set
 
     override fun start() {
@@ -290,12 +313,32 @@ class QueryIndexesLifecycle(
                 }
             }
         }
-        refuseUnmanaged()
+        if (events.managesIndexes) {
+            eventReports = eventTypes.filter { events.binding(it) != null }.associateWith(::manageEventIndexes)
+        }
+        refuseUnmanaged(reports, backend::storeOf)
+        refuseUnmanaged(eventReports, events::storeOf)
         running = true
     }
 
+    /**
+     * Manages the indexes of [type]'s access attributes on its log: each one it declares and the built-in owner and
+     * space, planned on its `events` model.
+     */
+    private fun manageEventIndexes(type: AggregateType): QueryIndexReport {
+        events.prepare(type)
+        val schema = runBlocking { catalog.schema(type, QueryModel.EVENTS) }
+        val declarations = QueryIndexDeclaration.accessOf(manifest, type.context, type.name) +
+            QueryIndexDeclaration.BUILT_IN_ACCESS
+        return events.manageIndexes(type, QueryIndexPlan.of(schema, declarations)).also { report ->
+            if (report.created.isNotEmpty()) {
+                logger.info { "Created the access indexes ${report.created} of the log of $type." }
+            }
+        }
+    }
+
     /** Refuses the start when an index is still missing or invalid: what `validate` reports and does not create. */
-    private fun refuseUnmanaged() {
+    private fun refuseUnmanaged(reports: Map<AggregateType, QueryIndexReport>, storeOf: (AggregateType) -> String?) {
         val unmanaged = reports.mapNotNull { (type, report) ->
             val left = (report.missing + report.invalid).distinct() - report.created.toSet()
             left.takeIf { it.isNotEmpty() }?.let { type to it }
@@ -303,7 +346,7 @@ class QueryIndexesLifecycle(
         if (unmanaged.isEmpty()) {
             return
         }
-        val key = ddlKeyOf(backend.storeOf(unmanaged.first().first))
+        val key = ddlKeyOf(storeOf(unmanaged.first().first))
         throw WowConfigurationException(
             key,
             Ddl.VALIDATE.name.lowercase(),

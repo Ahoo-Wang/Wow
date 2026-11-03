@@ -16,6 +16,8 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.IndexOptions
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.schema.QueryCardinality
@@ -24,20 +26,25 @@ import org.bson.Document
 import org.slf4j.LoggerFactory
 
 /**
- * A planned query index of the snapshot collection of [aggregate] in [context]: its [name], unique within its
- * [collection], and its [keys] in order, each ascending, over the snapshots that are not deleted.
+ * A planned query index of [aggregate] in [context]: its [name], unique within its [collection], and its [keys] in
+ * order, each ascending, over the documents its [partial] filter keeps: on the snapshot collection, the snapshots that
+ * are not deleted; on the log collection ([MongoQueryIndexes.planLog]), the streams.
  */
 @InternalWowApi
-data class MongoQueryIndex(val context: String, val aggregate: String, val name: String, val keys: List<String>) {
-    /** The snapshot collection the index is on. */
-    val collection: String
-        get() = MongoSnapshotStore.collectionName(context, aggregate)
-
+data class MongoQueryIndex(
+    val context: String,
+    val aggregate: String,
+    val name: String,
+    val keys: List<String>,
+    /** The collection the index is on: the aggregate's snapshot collection by default. */
+    val collection: String = MongoSnapshotStore.collectionName(context, aggregate),
+    private val partial: Document = MongoSnapshotStore.notDeleted(),
+) {
     /** The key document of the index: `{tenant_id: 1, <key>: 1, ...}`. */
     fun keyDocument(): Document = Document().also { document -> keys.forEach { document[it] = 1 } }
 
-    /** The partial filter of the index: `{deleted: false}`. */
-    fun partialFilter(): Document = MongoSnapshotStore.notDeleted()
+    /** The partial filter of the index: `{deleted: false}` on the snapshots, `{version: {$exists: true}}` on a log. */
+    fun partialFilter(): Document = Document(partial)
 
     /** The `createIndexes` specification of the index, as `listIndexes` reports it. */
     override fun toString(): String =
@@ -99,6 +106,25 @@ object MongoQueryIndexes {
             MongoQueryIndex(context, aggregate, index.name, paths.distinct())
         }
         return scope + declared
+    }
+
+    /**
+     * The indexes of [plan], the access attributes of [aggregate] in [context], on its log collection: led by the
+     * tenant, each attribute's document path (multikey for a multiple one), partial on the streams
+     * (`{version: {$exists: true}}`), which every `events` query asks for, so it can use them; the log's placeholders
+     * hold no version.
+     */
+    fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<MongoQueryIndex> {
+        val collection = MongoNames.of(MongoEventLog.PREFIX, context, aggregate)
+        val streams = Document(MongoEventLog.VERSION, Document("\$exists", true))
+        return plan.indexes.map { index ->
+            require(index.keys.count { it.cardinality != QueryCardinality.SINGLE } <= 1) {
+                "Index [${index.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
+            }
+            val paths = listOf(MongoEventLog.TENANT_ID) +
+                index.keys.map { MongoSnapshotDocuments.checked(it.physicalField.path) }
+            MongoQueryIndex(context, aggregate, index.name, paths.distinct(), collection, streams)
+        }
     }
 
     /**

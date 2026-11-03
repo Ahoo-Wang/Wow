@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresEventLogTables
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
@@ -56,6 +57,9 @@ data class PostgresQueryIndexReport(
  * `USING gin ((<node>) jsonb_path_ops) WHERE NOT deleted`: it serves the containment `@>` the SQL compiler writes for
  * an equality, a membership and a containment of such a key, each value one `@>`. A GIN index takes no tenant;
  * the planner ANDs it with the scope's.
+ *
+ * The access attributes are indexed on the log tables too ([planLog]), for the `events` model's queries under an
+ * access policy: the same keys, partial on the key holding a value.
  */
 @InternalWowApi
 object PostgresQueryIndexes {
@@ -67,31 +71,52 @@ object PostgresQueryIndexes {
      */
     fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val tables = PostgresSnapshotTables(context, aggregate)
-        return plan.indexes.map { index ->
-            val name = PostgresIdentifiers.limited(tables.base + "_" + index.name)
-            val many = index.keys.singleOrNull()?.takeIf { it.cardinality == QueryCardinality.MANY }
-            val columns = if (many != null) {
-                "USING gin (${PostgresSnapshotQueryExpressions.node(many.physicalField)} jsonb_path_ops)"
-            } else {
-                "(tenant_id, ${index.keys.joinToString(", ") { key(index, it) }})"
-            }
-            PostgresQueryIndex(
-                name,
-                tables.snapshot,
-                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"$name\" ON ${tables.snapshot} $columns WHERE NOT deleted",
-            )
-        }
+        return plan(tables.base, tables.snapshot, plan, PostgresSnapshotQueryExpressions) { "NOT deleted" }
     }
 
-    private fun key(index: QueryIndexPlan.Index, key: QueryIndexPlan.Key): String {
+    /**
+     * The indexes of [plan], the access attributes of [aggregate] in [context], on its log table, keyed as the
+     * `events` model's SQL compiler reads them ([PostgresEventQueryExpressions]) and each partial on its key holding a
+     * value (`WHERE <key> IS NOT NULL`) rather than on the snapshots not deleted: a stream not stamped, or of an
+     * aggregate without an owner or a space, adds nothing to an index, and every comparison an access policy makes
+     * implies the key holds one.
+     */
+    fun planLog(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
+        val table = PostgresEventLogTables(context).aggregate(aggregate)
+        return plan(table.base, table.log, plan, PostgresEventQueryExpressions) { key -> "$key IS NOT NULL" }
+    }
+
+    private fun plan(
+        base: String,
+        table: String,
+        plan: QueryIndexPlan,
+        expressions: PostgresQueryExpressions,
+        predicate: (key: String) -> String,
+    ): List<PostgresQueryIndex> = plan.indexes.map { index ->
+        val name = PostgresIdentifiers.limited(base + "_" + index.name)
+        val many = index.keys.singleOrNull()?.takeIf { it.cardinality == QueryCardinality.MANY }
+        val (columns, first) = if (many != null) {
+            val node = expressions.node(many.physicalField)
+            "USING gin ($node jsonb_path_ops)" to node
+        } else {
+            val keys = index.keys.map { key(index, it, expressions) }
+            "(tenant_id, ${keys.joinToString(", ") { "$it NULLS FIRST" }})" to keys.first()
+        }
+        PostgresQueryIndex(
+            name,
+            table,
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"$name\" ON $table $columns WHERE ${predicate(first)}",
+        )
+    }
+
+    private fun key(index: QueryIndexPlan.Index, key: QueryIndexPlan.Key, expressions: PostgresQueryExpressions): String {
         require(key.cardinality == QueryCardinality.SINGLE) {
             "Index [${index.name}] has the key [${key.field.path}], which holds many values: a B-tree indexes one, " +
                 "and a GIN index holds that key alone."
         }
         val type = PostgresQueryType.require(key.storageTypes, key.field)
-        val expression = PostgresSnapshotQueryExpressions.value(key.physicalField, type)
-        val column = if (expression in PostgresSnapshotQueryExpressions.COLUMNS.values) expression else "($expression)"
-        return "$column NULLS FIRST"
+        val expression = expressions.value(key.physicalField, type)
+        return if (expression in expressions.COLUMNS.values) expression else "($expression)"
     }
 
     /** Manages [indexes] as [mode] says, table by table; see [Ddl]. */

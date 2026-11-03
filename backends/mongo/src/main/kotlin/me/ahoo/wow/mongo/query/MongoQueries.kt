@@ -16,10 +16,11 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.ReadPreference
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoStore
+import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexPlan
+import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -35,15 +36,38 @@ import java.util.concurrent.ConcurrentHashMap
 internal class MongoQueries(private val store: MongoStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = MongoSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
-        val preference = store.queryReadPreference?.let(ReadPreference::valueOf)
-        val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
-        return QueryBindings { type ->
-            storages.computeIfAbsent(type.context) {
-                MongoEventQueryStorage(store.client, store.database, it, readPreference = preference)
-            }.binding(type)
-        }
+    override fun events(options: StoreQueryOptions): EventQueries = MongoEventQueries(store, options)
+}
+
+/**
+ * The `events` queries of a MongoDB store: each context's log collections in place, read from the store's query
+ * replica, and the indexes of their access attributes ([MongoQueryIndexes.planLog]).
+ */
+private class MongoEventQueries(private val store: MongoStore, options: StoreQueryOptions) : EventQueries {
+    private val indexDdl = options.indexDdl
+    private val preference = store.queryReadPreference?.let(ReadPreference::valueOf)
+    private val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
+
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? =
+        storages.computeIfAbsent(key.context) {
+            MongoEventQueryStorage(store.client, store.database, it, readPreference = preference)
+        }.binding(key)
+
+    override val managesIndexes: Boolean get() = true
+
+    // The collection is made sure of on an aggregate type's first append; an index needs it now.
+    override fun prepare(type: AggregateType) {
+        logOf(type)?.createCollection(type.name)
     }
+
+    override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+        val database = store.client.getDatabase(store.database)
+        val indexes = MongoQueryIndexes.planLog(type.context, type.name, plan)
+        val report = MongoQueryIndexes.manage(database, indexDdl, indexes) { logOf(type)?.createCollection(type.name) }
+        return QueryIndexReport(report.created, report.missing, report.invalid)
+    }
+
+    private fun logOf(type: AggregateType): MongoEventLog? = store.openedLog(type.context) as? MongoEventLog
 }
 
 private class MongoSnapshotQueries(private val store: MongoStore, options: StoreQueryOptions) : SnapshotQueries {
