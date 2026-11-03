@@ -40,12 +40,15 @@ import {
   HANDOVER_SCRIPT,
   HOST_PROCESSES,
   hostProcesses,
+  javaHome,
+  javaRelease,
   generatorBound,
   cpuLayout,
   layoutOf,
   saturationRatioBound,
   halves,
   noiseFile,
+  noiseLabel,
   noiseOf,
   propertiesOf,
   verdict,
@@ -54,6 +57,7 @@ import {
   ratios,
   readSuites,
   renderReport,
+  renderSuite,
   resolveInputs,
   roundOrder,
   lastSignals,
@@ -381,6 +385,85 @@ if (command === 'saturate') {
   chmodSync(path, 0o755);
   return path;
 }
+
+// A JDK's home with the release file of `version` (`21.0.9+10-LTS`), under `dir`.
+function fakeJdk(dir, version) {
+  const home = join(dir, `jdk-${version}`);
+  mkdirSync(home, { recursive: true });
+  writeFileSync(
+    join(home, 'release'),
+    `IMPLEMENTOR="Eclipse Adoptium"\nJAVA_VERSION="${version.split('+')[0]}"\nJAVA_RUNTIME_VERSION="${version}"\n`,
+  );
+  return home;
+}
+
+test("javaHome finds a JDK by its major version, setup-java's variables first", () => {
+  assert.equal(
+    javaHome(21, { JAVA_HOME_21_X64: '/x64', JAVA_HOME_21: '/plain' }),
+    '/x64',
+  );
+  assert.equal(javaHome(25, { JAVA_HOME_25_ARM64: '/arm' }), '/arm');
+  assert.equal(javaHome(25, { JAVA_HOME_25: '/local' }), '/local');
+  // JAVA_HOME alone names no version.
+  assert.throws(
+    () => javaHome(21, { JAVA_HOME: '/jdk' }),
+    /No JDK 21: set JAVA_HOME_21/,
+  );
+});
+
+test('javaRelease names a JDK by its release file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  assert.equal(
+    javaRelease(fakeJdk(dir, '25.0.1+8-LTS')),
+    'Eclipse Adoptium 25.0.1+8-LTS',
+  );
+  const bare = join(dir, 'bare');
+  mkdirSync(bare);
+  writeFileSync(join(bare, 'release'), 'JAVA_VERSION="21.0.9"\n');
+  assert.equal(javaRelease(bare), '21.0.9');
+  assert.equal(javaRelease(join(dir, 'none')), undefined);
+  assert.equal(javaRelease(undefined), undefined);
+});
+
+test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  const env = {
+    JAVA_HOME_21_X64: fakeJdk(dir, '21.0.9+10-LTS'),
+    JAVA_HOME_25_X64: fakeJdk(dir, '25.0.1+8-LTS'),
+  };
+  assert.deepEqual(suitesOf('jdk'), ['jdk-e1-pg', 'jdk-e3-pg', 'jdk-e1-mongo']);
+  const suite = runSuite('jdk-e1-pg', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    env,
+    out: join(dir, 'results', 'jdk-e1-pg'),
+  });
+  assert.deepEqual(
+    suite.arms.map(arm => [arm.id, arm.install, arm.jdk]),
+    [
+      ['jdk21', 'head', 'Eclipse Adoptium 21.0.9+10-LTS'],
+      ['jdk25', 'head', 'Eclipse Adoptium 25.0.1+8-LTS'],
+    ],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  // Both arms run the head's build, each call naming its server's JDK.
+  for (const java of [env.JAVA_HOME_21_X64, env.JAVA_HOME_25_X64]) {
+    assert.ok(calls.some(line => line.includes(`--server-java=${java} `)));
+  }
+  assert.ok(calls.every(line => line.includes('--server-java=')));
+  assert.ok(calls.every(line => !line.includes('--install=')));
+  assert.match(
+    renderSuite(suite),
+    /- `jdk21`: the server on JDK Eclipse Adoptium 21\.0\.9\+10-LTS\n- `jdk25`: the server on JDK Eclipse Adoptium 25\.0\.1\+8-LTS/,
+  );
+  // Its A/A thresholds are its ab twin's.
+  assert.equal(noiseLabel(suite), 'e1-pg-uniform@100k');
+  assert.equal(noiseLabel({ name: 'e3-pg', dataset: '1k' }), 'e3-pg@1k');
+});
 
 test('runSuite pairs the arms, adds a round on drift, and the report combines the suites', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));

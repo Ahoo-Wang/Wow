@@ -85,6 +85,14 @@ const AXON_SEPARATE = {
   id: 'axon-separate',
   props: { 'benchmark.axon.reactions': 'separate' },
 };
+// The runtime calibration (D393): the head's server on JDK 21 against JDK 25 on one runner, the load generator on 25
+// in both, so a ratio is the runtime's alone. `java`: the server's JDK, by its major version (javaHome, bench.sh
+// --server-java).
+const onJava = (arm, java) => ({ ...arm, id: `jdk${java}`, java });
+const JDK21_PG = onJava(HEAD_PG, 21);
+const JDK25_PG = onJava(HEAD_PG, 25);
+const JDK21_MONGO = onJava(HEAD_MONGO, 21);
+const JDK25_MONGO = onJava(HEAD_MONGO, 25);
 
 // The mixed suites' operations: writes while point reads and lists run (the query bulkheads, the write priority).
 const MIX = 'E1:50,E4-state:40,E4-list:10';
@@ -114,7 +122,9 @@ export const STATE_CACHE = 104857;
 const DIAG_RATE = 20;
 
 // Suite groups: `ab` compares the V10 baseline with the head (they need a baseline ref, and are skipped without one),
-// `head` measures the head alone, `axon` the head against Axon Framework 4.
+// `head` measures the head alone, `axon` the head against Axon Framework 4, `jdk` the head's server on JDK 21 against
+// JDK 25 (the runtime's calibration, D393). `noiseFrom`: the suite whose A/A thresholds (noise.json) a suite takes, a
+// `jdk` suite its `ab` twin's (the same scenario, backend and layout, paired on the same kind of runner).
 //
 // kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
 // arms[1] / arms[0] (head/base).
@@ -454,6 +464,34 @@ export const SUITES = {
     dumpEvery: 15,
     answers:
       "A diagnostic of Axon's E3 in closed loop: the transfer's reactions nested in the processor's unit of work (axon-server's) against units of work of their own, each sweep's threads and PostgreSQL sessions dumped every 15 s.",
+  },
+  'jdk-e1-pg': {
+    group: 'jdk',
+    kind: 'paired',
+    noiseFrom: 'e1-pg-uniform',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [JDK21_PG, JDK25_PG],
+    answers:
+      "The runtime's share of a change (D393): E1 on PostgreSQL, the head's server on JDK 21 against JDK 25.",
+  },
+  'jdk-e3-pg': {
+    group: 'jdk',
+    kind: 'paired',
+    noiseFrom: 'e3-pg',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arms: [JDK21_PG, JDK25_PG],
+    answers: 'E3 on PostgreSQL, as jdk-e1-pg.',
+  },
+  'jdk-e1-mongo': {
+    group: 'jdk',
+    kind: 'paired',
+    noiseFrom: 'e1-mongo-uniform',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [JDK21_MONGO, JDK25_MONGO],
+    answers: 'E1 on MongoDB, as jdk-e1-pg.',
   },
 };
 
@@ -897,7 +935,7 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
 
 /** The anomalies of a suite: every run's and probe's, with where they were found; `noise` from noise.json. */
 export function anomalies(suite, noise = {}) {
-  const thresholds = noise[labelOf(suite)];
+  const thresholds = noise[noiseLabel(suite)];
   const rows = [];
   if (suite.kind === 'component') {
     // More store round trips or allocations per operation than the baseline: a regression of the core path's cost.
@@ -1574,12 +1612,13 @@ export function resolveInputs({
   properties,
 }) {
   const groups = {
-    all: ['ab', 'head', 'component', 'axon', 'axon-diag'],
+    all: ['ab', 'head', 'component', 'axon', 'axon-diag', 'jdk'],
     ab: ['ab'],
     head: ['head'],
     component: ['component'],
     axon: ['axon'],
     'axon-diag': ['axon-diag'],
+    jdk: ['jdk'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -1657,6 +1696,9 @@ function datasetsOf(dataset, tier) {
 
 /** A suite's name with its data set, as the report shows it: `e1-mongo-uniform@100k`. */
 export const labelOf = suite => `${suite.name}@${suite.dataset ?? '100k'}`;
+/** The key of a suite's A/A thresholds in noise.json: its own label, or its `noiseFrom` suite's. */
+export const noiseLabel = suite =>
+  labelOf({ ...suite, name: SUITES[suite.name]?.noiseFrom ?? suite.name });
 
 /** A job of the matrix: a suite at a data set, `e1-mongo-uniform.100k`. */
 export const jobId = (suite, dataset) => `${suite}.${dataset}`;
@@ -2606,10 +2648,13 @@ export function renderSuite(suite) {
     '',
     ...primingLines(suite),
   ];
-  const arms = suite.arms.filter(arm => arm.props);
+  const arms = suite.arms.filter(arm => arm.props || arm.jdk);
   if (arms.length > 0) {
     lines.push(
-      ...arms.map(arm => `- \`${arm.id}\`: ${propsText(arm.props)}`),
+      ...arms.map(
+        arm =>
+          `- \`${arm.id}\`: ${[arm.jdk ? `the server on JDK ${arm.jdk}` : '', arm.props ? propsText(arm.props) : ''].filter(Boolean).join('; ')}`,
+      ),
       '',
     );
   }
@@ -2703,6 +2748,41 @@ export function renderSuite(suite) {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * The JDK at `home` as its release file names it, its vendor and full runtime version (`Eclipse Adoptium
+ * 25.0.1+8-LTS`); undefined without one.
+ */
+export function javaRelease(home) {
+  const path = home ? join(home, 'release') : undefined;
+  if (!path || !existsSync(path)) return undefined;
+  const release = readFileSync(path, 'utf8');
+  const value = key => release.match(new RegExp(`^${key}="(.*)"$`, 'm'))?.[1];
+  const version = value('JAVA_RUNTIME_VERSION') ?? value('JAVA_VERSION');
+  return version
+    ? [value('IMPLEMENTOR'), version].filter(Boolean).join(' ')
+    : undefined;
+}
+
+/**
+ * The home of the JDK of major version `major` (21, 25): setup-java's `JAVA_HOME_<major>_X64` (or `_ARM64`) on a
+ * runner, else `JAVA_HOME_<major>`.
+ */
+export function javaHome(major, env = process.env) {
+  const home = [
+    `JAVA_HOME_${major}_X64`,
+    `JAVA_HOME_${major}_ARM64`,
+    `JAVA_HOME_${major}`,
+  ]
+    .map(name => env[name])
+    .find(Boolean);
+  if (!home) {
+    throw new Error(
+      `No JDK ${major}: set JAVA_HOME_${major} (bench.yml's measure job installs 21 and 25)`,
+    );
+  }
+  return home;
+}
+
 function runnerInfo() {
   const read = path => (existsSync(path) ? readFileSync(path, 'utf8') : '');
   const cpuinfo = read('/proc/cpuinfo');
@@ -2715,6 +2795,8 @@ function runnerInfo() {
     cores,
     memoryGb: memKb ? Math.round(memKb / 1024 / 1024) : undefined,
     runner: process.env.RUNNER_NAME,
+    // The JDK of the load generator and, unless an arm names its own, the servers (D393).
+    jdk: javaRelease(process.env.JAVA_HOME),
   };
 }
 
@@ -2854,7 +2936,15 @@ export const AXON_INSTALL =
 export function axonInstall(
   repo,
   run = command =>
-    spawnSync(command[0], command.slice(1), { cwd: repo, stdio: 'inherit' }),
+    spawnSync(command[0], command.slice(1), {
+      cwd: repo,
+      stdio: 'inherit',
+      // Built on JDK 21, as the build job builds Wow's server: the measure job's own JDK is 25, the runtime (D393).
+      env: {
+        ...process.env,
+        JAVA_HOME: process.env.JAVA_HOME_21_X64 ?? process.env.JAVA_HOME,
+      },
+    }),
 ) {
   const install = join(repo, AXON_INSTALL);
   if (existsSync(join(install, 'bin', 'axon-server'))) return install;
@@ -2905,6 +2995,8 @@ export function runSuite(name, options) {
     properties,
     // The hand-over helper's process functions (HOST_PROCESSES); a test passes its own.
     processes,
+    // Where an arm's JDK is found (javaHome).
+    env = process.env,
   } = options;
   // Before anything runs: a cluster suite's hand-overs signal the node they stop.
   const handoverProcesses =
@@ -2982,7 +3074,12 @@ export function runSuite(name, options) {
     cold: definition.cold === true,
     aa: aaRun,
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
-    arms,
+    // An arm on a JDK of its own records which (its release; the major version without one).
+    arms: arms.map(arm =>
+      arm.java
+        ? { ...arm, jdk: javaRelease(javaHome(arm.java, env)) ?? `${arm.java}` }
+        : arm,
+    ),
     refs,
     runner: runnerInfo(),
     // The taskset lists the processes ran on: load, server, and for a paired MongoDB suite store and bus.
@@ -3000,12 +3097,14 @@ export function runSuite(name, options) {
     );
     writeFileSync(join(out, 'summary.md'), renderSuite(suite));
   };
-  // An arm's servers: its backend, its build (`--install`, when the build is not the one in the harness's own tree)
-  // and its server arguments, which a run on a session names again (bench.sh refuses one that differs from `up`'s).
+  // An arm's servers: its backend, its build (`--install`, when the build is not the one in the harness's own tree),
+  // its server arguments and its JDK (`--server-java`, when it names one), which a run on a session names again
+  // (bench.sh refuses one that differs from `up`'s).
   const server = arm => [
     `--backend=${arm.backend}`,
     ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
     ...(arm.serverArgs ? [`--server-args=${arm.serverArgs}`] : []),
+    ...(arm.java ? [`--server-java=${javaHome(arm.java, env)}`] : []),
   ];
   const seedConcurrency = definition.seedConcurrency ?? data.seedConcurrency;
   const pins = [
@@ -3648,7 +3747,7 @@ export function renderReport(suites, meta = {}) {
     let beyond = 0;
     let calibrated = 0;
     for (const suite of significant) {
-      const thresholds = noise[labelOf(suite)];
+      const thresholds = noise[noiseLabel(suite)];
       if (thresholds) calibrated++;
       const [a, b] = suite.arms.map(arm => arm.id);
       // Throughput and CPU compare at the calibrated rates, latencies at the equal rate.
@@ -3755,12 +3854,12 @@ export function renderReport(suites, meta = {}) {
   lines.push(
     '## Runners',
     '',
-    '| Suite | CPU | Cores | Memory | CPU layout |',
-    '| --- | --- | --- | --- | --- |',
+    '| Suite | CPU | Cores | Memory | JDK | CPU layout |',
+    '| --- | --- | --- | --- | --- | --- |',
   );
   for (const suite of suites) {
     lines.push(
-      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${layoutOf(suite.cpus)} |`,
+      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${suite.runner?.jdk ?? '?'} | ${layoutOf(suite.cpus)} |`,
     );
   }
   lines.push(
