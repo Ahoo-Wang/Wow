@@ -79,9 +79,18 @@ internal interface NineXEventSource {
 
     /**
      * At most [limit] streams of [aggregate] committed at or after [from] and after [after] (from [from] when null),
-     * in commit-time order.
+     * up to [until] included (with no end when null), in commit-time order.
      */
-    fun committedSince(aggregate: NineXAggregate, from: Long, after: NineXPosition?, limit: Int): List<NineXStream>
+    fun committedSince(
+        aggregate: NineXAggregate,
+        from: Long,
+        after: NineXPosition?,
+        limit: Int,
+        until: NineXPosition? = null,
+    ): List<NineXStream>
+
+    /** Where [aggregate]'s latest committed stream stands, by commit time; null when it has none. */
+    fun lastCommitted(aggregate: NineXAggregate): NineXPosition?
 
     /**
      * The tenants of [aggregate]'s instances whose id is [id], by their first streams, sorted: one for an instance

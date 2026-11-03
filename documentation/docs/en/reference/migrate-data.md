@@ -141,7 +141,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `pageSize` | `500` | Instances imported between two checkpoints, read with their streams in one scan, at most ten streams per instance of the page: a page of larger instances holds fewer. Also the streams the tail reads at once. |
 | `streamBatch` | `200` | Streams of one instance read from the 9.x store at once, for the rest of an instance its page held only in part. |
 | `concurrency` | `8` | Instances imported at a time. |
-| `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. |
+| `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. Each pass ends at the latest stream committed when it starts, so a stream is read when it becomes visible within this window of its commit time: make it larger than the clock skew of 9.x's nodes plus the slowest 9.x commit. |
 | `pollIntervalMillis` | `1000` | The pause between two tail passes. |
 | `final.lookbackMillis` | `60000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose commit time is set before the write is visible. Make it twice the larger of the measured clock skew and the slowest 9.x commit. |
 | `final.maxTailAgeMillis` | `600000` | How recently the tail's last pass must have ended for `import --final` to accept it. |
