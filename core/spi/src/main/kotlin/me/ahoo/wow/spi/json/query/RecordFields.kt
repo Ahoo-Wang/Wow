@@ -31,7 +31,12 @@ object SnapshotFields {
     const val OWNER_ID: String = "ownerId"
     const val SPACE_ID: String = "spaceId"
     const val DELETED: String = "deleted"
-    const val TAGS: String = "tags"
+
+    /**
+     * The aggregate's declared access attributes, `{name: value | [values]}` in their stored form
+     * ([me.ahoo.wow.spi.access.AccessValues]); the built-in owner and space are [OWNER_ID] and [SPACE_ID].
+     */
+    const val ACCESS: String = "access"
     const val FIRST_EVENT_TIME: String = "firstEventTime"
     const val LAST_EVENT_TIME: String = "lastEventTime"
     const val OPERATOR: String = "operator"
@@ -53,7 +58,7 @@ object OperatorFields {
 /**
  * The names of an event stream record's fields: one record per stream, the commit of one command at
  * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, crossScope}`, or
- * null for an anonymous caller; [TAGS] the tags after the commit, or null when not recorded;
+ * null for an anonymous caller; [ACCESS] the aggregate's current access attributes, or null when not stamped;
  * [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
  */
 @InternalWowApi
@@ -70,10 +75,12 @@ object EventStreamFields {
     const val OPERATOR: String = "operator"
 
     /**
-     * The aggregate's tags after the stream's commit, `{key: [values]}`: null when the log did not
-     * record them (a stream appended before format 1 learned them, until `migrate-data` backfills it).
+     * The aggregate's current access attributes, `{name: value | [values]}` in their stored form
+     * ([me.ahoo.wow.spi.access.AccessValues]), the built-in `owner` and `space` among them: those after the stream's
+     * commit, kept current by a stamp; null when not stamped (a stream appended before the log recorded them, or
+     * imported without them).
      */
-    const val TAGS: String = "tags"
+    const val ACCESS: String = "access"
     const val EVENTS: String = "events"
 }
 

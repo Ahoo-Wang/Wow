@@ -39,7 +39,7 @@
       "spaceId": null
     },
     "deleted": false,
-    "tags": {},
+    "access": null,
     "causation": null,
     "headers": {
       "app_id": "teller-app"

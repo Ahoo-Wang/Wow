@@ -9,7 +9,7 @@ Every read in Wow is derived from the log. This page explains which read models 
 
 ## The snapshot is the default read model
 
-A snapshot is the latest committed state of one aggregate, with its metadata: version, tenant, owner, space, deletion mark, tags, the time of the first and last event, and the operator of the first and last commit. One copy serves three purposes:
+A snapshot is the latest committed state of one aggregate, with its metadata: version, tenant, owner, space, deletion mark, access attributes, the time of the first and last event, and the operator of the first and last commit. One copy serves three purposes:
 
 | Purpose | How |
 | --- | --- |

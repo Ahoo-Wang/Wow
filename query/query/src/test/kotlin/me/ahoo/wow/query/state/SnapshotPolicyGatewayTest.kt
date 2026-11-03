@@ -59,7 +59,7 @@ class SnapshotPolicyGatewayTest {
         version = 1,
         scope = Scope(owner, null),
         deleted = false,
-        tags = emptyMap(),
+        access = emptyMap(),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,

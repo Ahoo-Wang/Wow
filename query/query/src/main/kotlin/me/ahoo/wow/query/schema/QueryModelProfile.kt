@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.spec
 import me.ahoo.wow.spi.json.query.OperatorFields
@@ -177,7 +178,7 @@ internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryM
                 SnapshotFields.OWNER_ID.stringField(nullable = true),
                 SnapshotFields.SPACE_ID.stringField(nullable = true),
                 SnapshotFields.DELETED.booleanField(),
-                SnapshotFields.TAGS.tagsField(),
+                SnapshotFields.ACCESS.accessField(),
                 SnapshotFields.FIRST_EVENT_TIME.epochField(),
                 SnapshotFields.LAST_EVENT_TIME.epochField(),
                 // The operators of the last and the first stream; null when that caller was anonymous.
@@ -246,26 +247,49 @@ internal fun String.integerField() = field(QueryValueType.INTEGER)
 private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
 /**
- * A tags system field: an object of each tag's values by its key, each an array of strings; [nullable]
- * when a record may not have recorded them (an event stream appended before its log learned them).
+ * An access attributes system field: an object of the attributes the aggregate declares, which its Manifest types
+ * ([accessDeclaration]), and of [builtIn] ones (an event stream's owner and space), each a nullable string;
+ * [nullable] when a record may not be stamped (an event stream appended before its log recorded them). An attribute
+ * neither declares is no field.
  */
-internal fun String.tagsField(nullable: Boolean = false) = field(
+internal fun String.accessField(nullable: Boolean = false, builtIn: List<String> = emptyList()) = field(
     QueryValueType.OBJECT,
     nullable = nullable,
 ).let { (field, declaration) ->
     field to declaration.copy(
-        additionalProperties = DeclarationValue.Set(
-            QueryFieldDeclaration(
-                nullable = DeclarationValue.Set(false),
-                items = DeclarationValue.Set(
-                    QueryFieldDeclaration(
-                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
-                        nullable = DeclarationValue.Set(false),
-                    )
-                ),
-            )
-        ),
+        properties = DeclarationValue.Set(builtIn.associateWith { it.stringField(nullable = true).second }),
     )
+}
+
+/**
+ * The declaration of [access], an aggregate's access attributes as its Manifest declares them, under [root] (the
+ * system field [SnapshotFields.ACCESS]): a single one a nullable value of its type, a multiple one an array of them;
+ * null when it declares none. A record written before an attribute was declared lacks it, so none is required.
+ */
+internal fun accessDeclaration(access: List<AccessAttributeManifest>, root: String): QuerySchemaDeclaration? {
+    if (access.isEmpty()) {
+        return null
+    }
+    return QuerySchemaDeclaration(
+        access.associate { attribute ->
+            val value = QueryFieldDeclaration(
+                valueTypes = DeclarationValue.Set(setOf(attribute.type.valueType())),
+                nullable = DeclarationValue.Set(!attribute.multiple),
+            )
+            val declaration = if (attribute.multiple) {
+                QueryFieldDeclaration(nullable = DeclarationValue.Set(false), items = DeclarationValue.Set(value))
+            } else {
+                value
+            }
+            QueryField("$root.${attribute.name}") to declaration
+        },
+    )
+}
+
+private fun AccessAttributeManifest.Type.valueType(): QueryValueType = when (this) {
+    AccessAttributeManifest.Type.STRING -> QueryValueType.STRING
+    AccessAttributeManifest.Type.INTEGER -> QueryValueType.INTEGER
+    AccessAttributeManifest.Type.BOOLEAN -> QueryValueType.BOOLEAN
 }
 
 internal fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(

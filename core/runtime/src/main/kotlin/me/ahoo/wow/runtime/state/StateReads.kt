@@ -145,7 +145,7 @@ class StateReplayLimitException(val ref: AggregateRef, val limit: Int, cause: Th
 /**
  * One commit of a trace: the stream at [version], committed at [commitTime] (epoch milliseconds) for
  * the command [commandId] of type [commandType] sent with [requestId] in the name of [operator], its
- * [events], and the aggregate after it: its [scope], [deleted] mark, [tags] and [state].
+ * [events], and the aggregate after it: its [scope], [deleted] mark, declared [access] attributes and [state].
  */
 @InternalWowApi
 data class CommitView(
@@ -157,7 +157,7 @@ data class CommitView(
     val events: List<EventView>,
     val scope: Scope,
     val deleted: Boolean,
-    val tags: Map<String, List<String>>,
+    val access: Map<String, Any?>,
     val state: JsonNode,
     val operator: Operator? = null,
 )
@@ -216,7 +216,14 @@ class KernelStateReads(
             val caughtUp = gate.replay(ref) {
                 bounded { reads.kernel.stateAt(model, ref, Instant.MAX, snapshot, maxReplay) }
             }
-            if (caughtUp != null && caughtUp.version >= minVersion) return caughtUp.view(ref, reads.kernel, snapshot)
+            if (caughtUp != null && caughtUp.version >= minVersion) {
+                return caughtUp.view(
+                    ref,
+                    reads.kernel,
+                    model,
+                    snapshot
+                )
+            }
             if (deadline.hasPassedNow()) {
                 throw MinVersionNotReachedException(ref, minVersion, caughtUp?.version ?: 0)
             }
@@ -232,7 +239,7 @@ class KernelStateReads(
         reads.snapshots.load(ref)?.let { return it.view() }
         return gate.replay(ref) {
             bounded { reads.kernel.stateAt(model, ref, Instant.MAX, maxReplay = maxReplay) }
-        }?.view(ref, reads.kernel, null)
+        }?.view(ref, reads.kernel, model, null)
     }
 
     override suspend fun at(ref: AggregateRef, version: Int): Snapshot<JsonNode>? {
@@ -264,8 +271,7 @@ class KernelStateReads(
                 },
                 scope = commit.scope,
                 deleted = commit.deleted,
-                // No tags any more; work package C gives the access attributes instead.
-                tags = emptyMap(),
+                access = commit.access,
                 state = commit.state,
                 operator = stream.operator,
             )
@@ -283,7 +289,8 @@ class KernelStateReads(
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         val snapshot = reads.snapshots.load(ref)
-        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }?.view(ref, reads.kernel, snapshot)
+        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }
+            ?.view(ref, reads.kernel, model, snapshot)
     }
 
     /** [replay]'s result; a replay past the kernel's bound is this read's [StateReplayLimitException]. */
@@ -317,7 +324,7 @@ class KernelStateReads(
             ref = ref,
             version = version,
             scope = scope,
-            tags = tags,
+            access = access,
             deleted = deleted,
             operator = operator,
             firstEventTime = firstEventTime,
@@ -334,6 +341,7 @@ class KernelStateReads(
         private suspend fun CachedState.view(
             ref: AggregateRef,
             kernel: Kernel,
+            model: AggregateModel<*>,
             snapshot: SnapshotRecord?,
         ): Snapshot<JsonNode> {
             val last = checkNotNull(kernel.streamAt(ref, version)) { "The log holds no version $version of $ref." }
@@ -345,8 +353,7 @@ class KernelStateReads(
                 ref = ref,
                 version = version,
                 scope = scope,
-                // No tags any more; work package C gives the access attributes instead.
-                tags = emptyMap(),
+                access = kernel.accessOf(model, state),
                 deleted = deleted,
                 operator = last.operator,
                 firstEventTime = firstEventTime,

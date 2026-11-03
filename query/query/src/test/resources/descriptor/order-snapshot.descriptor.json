@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:531fcd7057a954e6af8e0b932b0d1fa0646bc6910a1f723b2381c38a024a04db",
+  "version" : "sha256:f074b5cbf6f4aa4223ab4e7d8312d2e917d053cce1d6157535a8f2d6d0fd6aae",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -49,6 +49,20 @@
     "rootGroups" : true
   },
   "fields" : [ {
+    "path" : "access",
+    "types" : [ "object" ],
+    "kind" : "object",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
     "path" : "aggregateId",
     "role" : "aggregate-id",
     "types" : [ "string" ],
@@ -1062,20 +1076,6 @@
     },
     "aliases" : [ ]
   }, {
-    "path" : "tags",
-    "types" : [ "object" ],
-    "kind" : "object",
-    "nullable" : false,
-    "project" : true,
-    "filter" : {
-      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : false,
-      "cursor" : false
-    },
-    "aliases" : [ ]
-  }, {
     "path" : "tenantId",
     "role" : "tenant-id",
     "types" : [ "string" ],
@@ -1289,29 +1289,6 @@
       "firstLast" : true,
       "expressionInput" : false,
       "inMetricFilter" : true
-    }
-  }, {
-    "pattern" : "tags.{key}",
-    "types" : [ "string" ],
-    "kind" : "array",
-    "nullable" : false,
-    "filter" : {
-      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : true,
-      "cursor" : false
-    },
-    "aggregate" : {
-      "groups" : [ "terms" ],
-      "missingKey" : false,
-      "functions" : [ ],
-      "distinctCount" : true,
-      "percentile" : false,
-      "any" : false,
-      "firstLast" : false,
-      "expressionInput" : false,
-      "inMetricFilter" : false
     }
   } ],
   "constraints" : [ {

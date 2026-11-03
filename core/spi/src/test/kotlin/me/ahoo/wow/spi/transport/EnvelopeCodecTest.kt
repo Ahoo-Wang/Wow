@@ -30,6 +30,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 
 /** The Kafka envelope of design 08 §8 (decisions D58, D59) and the state events it carries. */
 class EnvelopeCodecTest {
@@ -54,7 +55,13 @@ class EnvelopeCodecTest {
         state = state,
         scope = Scope("alice", "space-1"),
         deleted = false,
-        tags = mapOf("region" to listOf("eu")),
+        access = mapOf(
+            "owner" to "alice",
+            "space" to "space-1",
+            "region" to "eu",
+            "level" to 2L,
+            "teams" to listOf("a", "b")
+        ),
         causation = Causation("root", "shop.cart/t1/alice@3"),
         headers = mapOf("app" to "web"),
         operator = Operator("alice", "t0", crossScope = true),
@@ -86,7 +93,7 @@ class EnvelopeCodecTest {
         val payload = value["payload"]
         payload.properties().map { it.key }.assert().containsExactly(
             "ref", "version", "commandId", "requestId", "commandType", "commitTime", "events", "state", "scope",
-            "deleted", "tags", "causation", "headers", "operator",
+            "deleted", "access", "causation", "headers", "operator",
         )
         payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "crossScope")
         payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
@@ -116,6 +123,17 @@ class EnvelopeCodecTest {
         val made = record().copyWith(transport = null)
         tree(String(EnvelopeCodec.message(made).value))["payload"].has("imported").assert().isFalse()
         EnvelopeCodec.stateEventOf(EnvelopeCodec.message(made).value).imported.assert().isFalse()
+    }
+
+    @Test
+    fun `an envelope a version that recorded tags wrote should read as one not stamped`() {
+        val written = EnvelopeCodec.stateEvent(record())
+        val payload = (written.payload as ObjectNode).deepCopy().apply {
+            remove("access")
+            putObject("tags").putArray("region").add("eu")
+        }
+        EnvelopeCodec.stateEventOf(Envelope(written.kind, written.id, written.type, payload)).access.assert().isNull()
+        EnvelopeCodec.stateEventOf(EnvelopeCodec.stateEvent(record())).access.assert().isEqualTo(record().access)
     }
 
     @Test

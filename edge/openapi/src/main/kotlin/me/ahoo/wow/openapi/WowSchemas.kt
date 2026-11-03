@@ -102,8 +102,13 @@ internal object WowSchemas {
     val SYSTEM_COMMANDS: Set<String>
         get() = LIFECYCLE.keys + JOB_COMMANDS.keys + REBUILD
 
-    private val TAGS: Map<String, Any?>
-        get() = map(array(type("string")))
+    private val ACCESS: Map<String, Any?>
+        get() = map(
+            obj(
+                "description" to "An access attribute's value: a string, an integer, a boolean or null; an array " +
+                    "of them for a multiple one.",
+            ),
+        )
 
     private val STRING: Map<String, Any?> get() = type("string")
     private val NULLABLE_STRING: Map<String, Any?> get() = type("string", nullable = true)
@@ -321,7 +326,7 @@ internal object WowSchemas {
             "events" to array(schemaRef(COMMITTED_EVENT)),
             "scope" to schemaRef(SCOPE),
             "deleted" to BOOLEAN,
-            "tags" to TAGS,
+            "access" to ACCESS,
             "state" to obj("description" to "The aggregate's state after the commit."),
             "operator" to nullable(schemaRef(OPERATOR)),
         ),
@@ -336,7 +341,7 @@ internal object WowSchemas {
             "ownerId" to NULLABLE_STRING,
             "spaceId" to NULLABLE_STRING,
             "deleted" to BOOLEAN,
-            "tags" to TAGS,
+            "access" to ACCESS,
             "firstEventTime" to INTEGER,
             "lastEventTime" to INTEGER,
             "operator" to nullable(schemaRef(OPERATOR)),

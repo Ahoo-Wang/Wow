@@ -139,7 +139,8 @@ internal class StateHistory(
             val events = ArrayList<Any>(stream.events.size)
             current = kernel.evolve(model, current, stream, events)
             // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
-            traces += CommitTrace(stream, events, codec.stateTree(current.state), current.deleted)
+            val state = current.state
+            traces += CommitTrace(stream, events, codec.stateTree(state), current.deleted, codec.accessOf(model, state))
         }
         return traces
     }

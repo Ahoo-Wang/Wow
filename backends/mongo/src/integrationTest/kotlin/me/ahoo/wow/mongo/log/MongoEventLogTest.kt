@@ -502,7 +502,6 @@ class MongoEventLogTest : EventLogSpec() {
             tailed(log, 2).map { it.position.sequence }.assert().containsExactly(1L, 3L)
             log.head(0).assert().isEqualTo(3L)
             log.read(type.ref("tenant", "a")).toList().size.assert().isEqualTo(1)
-            log.untagged(type, null, 10).assert().containsExactly(type.ref("tenant", "a"), type.ref("tenant", "b"))
         }
 
     @Test

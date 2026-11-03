@@ -77,7 +77,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 - **时区。** 不带 `zoneId` 的相对时间过滤按 UTC 读取日期，而 9.x 用的是服务器的时区：在本意是本地日期的地方传入 `zoneId`。
 - **命令体指明了聚合的命令。** 这类命令没有带 `{id}` 的路由：发往这种路由的客户端得到 404，应改为发往不带 `{id}` 的路由，ID 放在命令体中。
 - **事件名。** 9.x 的 `bodyType` 类名变成 `name` 值；以它们为键保存的过滤和界面要随之改变。
-- **快照字段。** 9.x 的 `eventId` 和 `snapshotTime` 已去掉；`firstEventTime`、`lastEventTime`、`operator`、`firstOperator` 和 `tags` 仍然保留。
+- **快照字段。** 9.x 的 `eventId` 和 `snapshotTime` 已去掉；`firstEventTime`、`lastEventTime`、`operator` 和 `firstOperator` 仍然保留，`tags` 变成了 `access`，即聚合的访问属性。
 
 ## 步骤 {#steps}
 

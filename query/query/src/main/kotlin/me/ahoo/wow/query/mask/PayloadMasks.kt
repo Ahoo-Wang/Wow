@@ -86,7 +86,7 @@ class PayloadMasks(
         val logical = QuerySchemaMerger().merge(
             QuerySchemaDeclaration(mapOf(PAYLOAD to declaration)),
             emptyList(),
-            extensionRoot = null,
+            extensionRoots = null,
         )
         return SchemaMasker.create(QueryModelSchema(QueryModel.SNAPSHOT, emptySet(), logical, emptyMap()))
     }

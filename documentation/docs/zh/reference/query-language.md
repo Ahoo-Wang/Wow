@@ -55,7 +55,7 @@ outline: deep
 | `version` | integer | 它的事件数 |
 | `ownerId`、`spaceId` | string 或 `null` | 它的所有者和空间 |
 | `deleted` | boolean | 它是否已删除 |
-| `tags` | 由字符串数组组成的对象 | 它的标签；`tags.<key>` 指明其中一个 |
+| `access` | object | 它声明的访问属性；`access.<name>` 指明其中一个，类型按 Manifest 的声明 |
 | `firstEventTime`、`lastEventTime` | integer | 它第一个和最后一个事件的时间，纪元毫秒 |
 | `operator`、`firstOperator` | object 或 `null` | 谁发送了最后一条和第一条命令：`{id, tenantId, crossScope}`；匿名调用方为 `null`。按 `operator.id` 过滤 |
 | `schedules` | object | 它保有的调度，按键存放每条规则：`type`（`at`、`after` 或 `cron`），以及 `epochMillis`、`millis`，或 `expression`、`zone` 和 `misfire`；`schedules.<key>` 指明其中一条 |
@@ -63,7 +63,7 @@ outline: deep
 
 模型不认识的路径返回 400 `wow.query.invalid`，`unknown-field`。集合元素的字段只能在对该集合的 `element-match` 中、相对于元素来指明（否则为 `element-scope-required`）。[能力描述](#the-capability-descriptor)列出每条路径，以及它接受的操作符、排序和聚合。
 
-`events` 模型每条已提交的流一条记录：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`、`ownerId`、`spaceId`、`tags`、`operator`，以及 `events`，每个事件为 `{name, revision, body}`。对事件的过滤是在 `events` 上的 `element-match`，对事件的聚合要先展开 `events`；两者见[查询事件流](../guide/event-queries)。部署可以要求每个事件查询都指明它的聚合（`wow.query.events.unpinned`）。
+`events` 模型每条已提交的流一条记录：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`、`ownerId`、`spaceId`、`access`（聚合当前的访问属性，`owner` 与 `space` 也在其中，`access.<name>` 指明其中一个；未盖章的流为 `null`）、`operator`，以及 `events`，每个事件为 `{name, revision, body}`。对事件的过滤是在 `events` 上的 `element-match`，对事件的聚合要先展开 `events`；两者见[查询事件流](../guide/event-queries)。部署可以要求每个事件查询都指明它的聚合（`wow.query.events.unpinned`）。
 
 ## 过滤 {#filters}
 
@@ -413,8 +413,6 @@ outline: deep
   ],
   "elements": [{ "path": "state.lines", "filter": true, "aggregate": true }],
   "dynamic": [
-    { "pattern": "tags.{key}", "types": ["string"], "kind": "array", "nullable": false,
-      "filter": { "operators": ["eq", "..."] }, "sort": { "paged": false, "cursor": false }, "aggregate": { "groups": ["terms"], "...": "..." } },
     { "pattern": "state.deliveryDates.{key}", "types": ["string"], "kind": "scalar", "nullable": true, "semantic": { "type": "temporal-date" },
       "filter": { "operators": ["eq", "gt", "..."] }, "sort": { "paged": true, "cursor": false }, "aggregate": { "groups": ["terms", "date-histogram"], "...": "..." } }
   ],
@@ -423,7 +421,7 @@ outline: deep
 ```
 
 - `fields` 列出每条路径，以及它的值类型、能否为 `null`、它的 `semantic` 语义类型（若有：日期、纪元时间、金额、时长、引用）、它的 `filter` 接受的操作符、它能否在分页和游标中排序，以及它怎样分组和聚合。`elements` 是 `element-match` 或 `elements` 项能到达的集合。
-- `dynamic` 列出 map 键的模式，例如 `tags.{key}`，或者状态里的 `Map<String, LocalDate>`。每一项都说明字段项对任意一个键会说明的内容：`nullable`、`semantic`、`filter`、`sort` 和 `aggregate`，所以客户端可以像对待声明过的字段一样展示和查询 `state.deliveryDates.berlin`。map 属性上的语义注解描述的是它的值：`Map<String, Long>` 上的 `@QueryTemporal` 让每个值都是纪元时间。另外单独声明过的键列在 `fields` 里，并写在该模式的 `excludedKeys` 中。
+- `dynamic` 列出 map 键的模式，例如状态里的 `Map<String, LocalDate>`。每一项都说明字段项对任意一个键会说明的内容：`nullable`、`semantic`、`filter`、`sort` 和 `aggregate`，所以客户端可以像对待声明过的字段一样展示和查询 `state.deliveryDates.berlin`。map 属性上的语义注解描述的是它的值：`Map<String, Long>` 上的 `@QueryTemporal` 让每个值都是纪元时间。另外单独声明过的键列在 `fields` 里，并写在该模式的 `excludedKeys` 中。
 - 数组字段上的 `terms` 分组，把一条记录分到它的每个不同元素下，所以 `["a", "b", "a"]` 在 `a` 与 `b` 里各算一次；没有元素的记录（数组为空或不存在）进入 `null` 组。每个能按数组分组的后端都这样做；不能的后端会在该字段的 `aggregate.groups` 里不列出 `terms`，请求它的查询以 `unsupported-capability` 被拒绝。
 - `record.rootOperators` 是不指明字段的操作符；组合操作符 `and`、`or` 和 `nor` 在任何地方都适用。
 - `version` 是能力描述的摘要。响应把它作为 `ETag` 携带；描述不变时，带 `If-None-Match: "<version>"` 的 `GET` 返回 304，所以客户端可以缓存它，并低成本地再次询问。

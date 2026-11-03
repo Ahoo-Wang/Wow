@@ -89,7 +89,7 @@ class SystemQuerySchemaSourceTest {
             SnapshotFields.OWNER_ID,
             SnapshotFields.SPACE_ID,
             SnapshotFields.DELETED,
-            SnapshotFields.TAGS,
+            SnapshotFields.ACCESS,
             SnapshotFields.FIRST_EVENT_TIME,
             SnapshotFields.LAST_EVENT_TIME,
             SnapshotFields.OPERATOR,
@@ -122,16 +122,19 @@ class SystemQuerySchemaSourceTest {
     }
 
     @Test
-    fun `snapshot tags should be a dynamic single object`() {
-        val tags = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
-            .fields.getValue(QueryField("tags"))
+    fun `the access attributes are an object the Manifest types, the events' with the built-in owner and space`() {
+        val access = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
+            .fields.getValue(QueryField("access"))
 
-        tags.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
-        tags.items.assert().isEqualTo(DeclarationValue.Unset)
-        tags.required.assert().isEqualTo(DeclarationValue.Set(true))
-        tags.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        tags.additionalProperties.valueOr(null)!!.items.valueOr(null)!!.valueTypes.assert()
-            .isEqualTo(DeclarationValue.Set(setOf(QueryValueType.STRING)))
+        access.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(QueryValueType.OBJECT)))
+        access.items.assert().isEqualTo(DeclarationValue.Unset)
+        access.required.assert().isEqualTo(DeclarationValue.Set(true))
+        access.nullable.assert().isEqualTo(DeclarationValue.Set(false))
+        access.properties.valueOr(null).assert().isEqualTo(emptyMap<String, QueryFieldDeclaration>())
+        access.additionalProperties.assert().isEqualTo(DeclarationValue.Unset)
+        val streams = SystemQuerySchemaSource.declaration(QueryModel.EVENTS).fields.getValue(QueryField("access"))
+        streams.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+        streams.properties.valueOr(emptyMap()).keys.assert().containsExactly("owner", "space")
     }
 
     @Test

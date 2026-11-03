@@ -291,6 +291,9 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     /** The aggregate's access attributes (`@Access`) in declaration order; the built-in ones are not among them. */
     val accessAttributes: List<AccessAttribute<*, *>> = this.access.keys.toList()
 
+    /** The names of [accessAttributes]: the keys of [accessOf]. */
+    val accessNames: Set<String> = accessAttributes.mapTo(LinkedHashSet()) { it.name }
+
     /** Whether the aggregate's owner is fixed: it has none ([Ownership.TENANT]), or its id is its owner's. */
     private val ownerFixed: Boolean = ownership == Ownership.TENANT || idSource == AggregateIdSource.OWNER
 

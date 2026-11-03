@@ -90,7 +90,7 @@ class QueryEngineRecheckTest {
         version = 1,
         scope = Scope.NONE,
         deleted = false,
-        tags = emptyMap(),
+        access = emptyMap(),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,

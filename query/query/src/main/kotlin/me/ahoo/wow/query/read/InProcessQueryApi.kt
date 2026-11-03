@@ -274,7 +274,7 @@ class InProcessQueryApi @InternalWowApi constructor(
                                     it.ref,
                                     it.version,
                                     it.scope,
-                                    it.tags,
+                                    it.access,
                                     it.deleted,
                                     it.operator,
                                     it.firstEventTime,

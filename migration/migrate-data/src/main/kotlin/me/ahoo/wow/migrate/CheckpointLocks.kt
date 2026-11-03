@@ -52,7 +52,6 @@ internal enum class CheckpointRole(val label: String, val commands: String) {
     IMPORT("import", "import, import --final, tail or export"),
     COMPARE("compare", "compare"),
     SNAPSHOT("snapshot", "snapshot or import --snapshots"),
-    TAGS("backfill-tags", "backfill-tags"),
     EXPORT("export", "export"),
     ;
 

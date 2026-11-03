@@ -27,6 +27,7 @@ import me.ahoo.wow.api.query.annotation.QueryDuration
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.schema.ManifestFixtures.ITEM_STATE_DEFS
@@ -53,7 +54,7 @@ class ManifestQuerySchemaSourceTest {
         runTest {
             val schema = orderSchema()
             schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-            listOf("tenantId", "aggregateId", "version", "ownerId", "spaceId", "deleted", "tags").forEach {
+            listOf("tenantId", "aggregateId", "version", "ownerId", "spaceId", "deleted", "access").forEach {
                 schema.field(QueryField(it)).assert().isNotNull()
             }
             schema.value("state").kind.assert().isEqualTo(QueryValueKind.OBJECT)
@@ -65,6 +66,29 @@ class ManifestQuerySchemaSourceTest {
             schema.value("state.placedAt").semanticType.assert().isEqualTo(Temporal.Date)
             schema.value("state.lines").kind.assert().isEqualTo(QueryValueKind.ARRAY)
             schema.value("state.lines.sku").valueTypes.assert().containsExactly(QueryValueType.STRING)
+        }
+    }
+
+    @Test
+    fun `the Manifest types each access attribute, a multiple one as an array, and no other is a field`() {
+        runTest {
+            val access = listOf(
+                AccessAttributeManifest("department", AccessAttributeManifest.Type.STRING),
+                AccessAttributeManifest("sharedWith", AccessAttributeManifest.Type.STRING, multiple = true),
+                AccessAttributeManifest("level", AccessAttributeManifest.Type.INTEGER),
+                AccessAttributeManifest("published", AccessAttributeManifest.Type.BOOLEAN),
+            )
+            val schema = schemaOf(ManifestQuerySchemaSource(manifest(access = access), STRATEGIES))
+            schema.value("access.department").valueTypes.assert().containsExactly(QueryValueType.STRING)
+            schema.value("access.department").nullable.assert().isTrue()
+            schema.value("access.department").cardinality.assert().isEqualTo(QueryCardinality.SINGLE)
+            schema.value("access.sharedWith").kind.assert().isEqualTo(QueryValueKind.ARRAY)
+            schema.value("access.sharedWith").items!!.valueTypes.assert().containsExactly(QueryValueType.STRING)
+            schema.value("access.sharedWith").cardinality.assert().isEqualTo(QueryCardinality.MANY)
+            schema.value("access.level").valueTypes.assert().containsExactly(QueryValueType.INTEGER)
+            schema.value("access.published").valueTypes.assert().containsExactly(QueryValueType.BOOLEAN)
+            schema.field(QueryField("access.region")).assert().isNull()
+            orderSchema().field(QueryField("access.department")).assert().isNull()
         }
     }
 

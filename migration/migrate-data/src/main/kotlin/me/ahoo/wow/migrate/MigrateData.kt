@@ -15,7 +15,6 @@ package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.Manifest
 import java.io.PrintStream
 import java.nio.file.Files
@@ -35,7 +34,6 @@ import kotlin.system.exitProcess
  * migrate-data tail     --config <file> [--once]
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
  * migrate-data snapshot --config <file> [--restart]
- * migrate-data backfill-tags --config <file> [--restart] [--force]
  * migrate-data export   --config <file> [--dry-run] [--restart]
  * migrate-data --help
  * ```
@@ -76,20 +74,13 @@ import kotlin.system.exitProcess
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped). Each
  *   instance whose snapshot it cannot write is printed, and it fails once it has walked every aggregate.
  *
- * - `backfill-tags` records the tags of every stream the V10 log appended before format 1 learned them,
- *   each aggregate of the configured contexts' Manifests replayed with its V10 model ([TagsBackfiller]),
- *   resuming from its checkpoint; `--restart` walks every aggregate again. Then, when the configuration names an
- *   Elasticsearch cluster, it overwrites the events index documents indexed before the tags from the log
- *   ([TagsBackfiller.resink]), and only once the logs hold no stream without tags: the logs first, never the other
- *   way round; `--force` re-sinks anyway, leaving the documents of the streams still without tags.
- *
  * - `export` writes back to the 9.x store what V10 wrote after the cut-over, for a rollback after V10 has written
  *   ([EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
  *   stream 9.x lacks holds a V10-only type (each named) or 9.x holds another stream at its version; then writes the
  *   streams 9.x lacks, resuming from its checkpoint, and checks that each 9.x aggregate holds as many streams as V10
  *   holds of its type. `--dry-run` only scans; `--restart` walks every partition from its first entry again.
  *
- * `compare`, `snapshot` and `backfill-tags` rebuild states with the services' V10 models, found on the configuration's `classpath`
+ * `compare` and `snapshot` rebuild states with the services' V10 models, found on the configuration's `classpath`
  * ([MigrationModels]).
  *
  * From the repository: `./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"`.
@@ -204,9 +195,6 @@ internal class MigrateData(
             }
             COMPARE -> checkpoints.holding(setOf(CheckpointRole.COMPARE)) { repository, keys ->
                 compare(plan, config, connections, repository, keys, sample ?: CompareOptions.ALL, restart)
-            }
-            BACKFILL_TAGS -> checkpoints.holding(setOf(CheckpointRole.TAGS)) { repository, _ ->
-                backfillTags(plan, config, connections, repository, restart, FORCE in options)
             }
             // The export writes into the 9.x store the import and the tail read, so it never runs beside them.
             EXPORT -> {
@@ -576,49 +564,6 @@ internal class MigrateData(
         return OK
     }
 
-    /** Backfills the tags of every aggregate of the plan's contexts in their Manifests, then prints what comes next. */
-    @Suppress("LongParameterList") // A command's inputs.
-    private suspend fun backfillTags(
-        plan: MigrationPlan,
-        config: MigrationConfig,
-        connections: MigrationConnections,
-        checkpoints: CheckpointRepository,
-        restart: Boolean,
-        force: Boolean,
-    ): Int {
-        val backfiller = TagsBackfiller(
-            models = models(config),
-            logOf = connections::logOf,
-            checkpoints = checkpoints,
-            options = config.options(restart = restart),
-            progress = { out.println(it.render()) },
-        )
-        val types = plan.manifest.contexts.filter { it.name in plan.contexts }
-            .flatMap { context -> context.aggregates.map { AggregateType(context.name, it.name) } }
-        out.println(TAGS_ORDER)
-        types.forEach { backfiller.backfill(it) }
-        val left = types.filter { backfiller.untagged(it) }
-        if (left.isNotEmpty()) {
-            out.println("Streams without tags remain in $left (appended meanwhile by an old node?): run it again.")
-            if (!force) return FAILED
-        }
-        val sinks = connections.eventSinks
-        if (sinks == null) {
-            out.println("Tags backfilled. No Elasticsearch cluster is configured: nothing to re-sink.")
-            return if (left.isEmpty()) OK else FAILED
-        }
-        types.forEach { type ->
-            val overwritten = backfiller.resink(
-                type,
-                UntaggedDocuments.of(sinks.sinkOf(type.context, type.name)),
-                force
-            )
-            out.println("$type events index: $overwritten documents re-sunk with their tags")
-        }
-        out.println("Tags backfilled and re-sunk.")
-        return if (left.isEmpty()) OK else FAILED
-    }
-
     /** Exports to 9.x what V10 wrote after the cut-over: scan, then write, then count. */
     @Suppress("LongParameterList") // A command's inputs.
     private suspend fun export(
@@ -741,7 +686,6 @@ internal class MigrateData(
         private const val TAIL = "tail"
         private const val COMPARE = "compare"
         private const val SNAPSHOT = "snapshot"
-        private const val BACKFILL_TAGS = "backfill-tags"
         private const val EXPORT = "export"
         private const val CONFIG = "--config"
         private const val DRY_RUN = "--dry-run"
@@ -755,14 +699,9 @@ internal class MigrateData(
         private const val DECODE = "--decode"
         private val HELP = setOf("--help", "-h", "help")
 
-        /** The order of a tags backfill, printed before it starts. */
-        const val TAGS_ORDER = "Tags backfill, in this order: 1. backfill the tags of every V10 log; 2. only then " +
-            "re-sink the Elasticsearch events documents indexed without them, from the log (refused while a log " +
-            "still holds a stream without tags, unless --force)."
-
         /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
         const val IMPORTED_KEYS = ".reservations.jsonl"
-        private val COMMANDS = setOf(DRAFT_MAP, CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS, EXPORT)
+        private val COMMANDS = setOf(DRAFT_MAP, CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, EXPORT)
         private val KNOWN_OPTIONS = mapOf(
             DRAFT_MAP to setOf(CONFIG, OUT, FORCE, DRY_RUN),
             CHECK to setOf(CONFIG, DECODE),
@@ -770,7 +709,6 @@ internal class MigrateData(
             TAIL to setOf(CONFIG, ONCE),
             COMPARE to setOf(CONFIG, SAMPLE, RESTART),
             SNAPSHOT to setOf(CONFIG, RESTART),
-            BACKFILL_TAGS to setOf(CONFIG, RESTART, FORCE),
             EXPORT to setOf(CONFIG, DRY_RUN, RESTART),
         )
         private val USAGE = """
@@ -788,8 +726,6 @@ internal class MigrateData(
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
                         from the log at its version; exits with 3 when one differs
               snapshot  [--restart]  writes the V10 snapshot of every imported instance
-              backfill-tags  [--restart] [--force]  records the tags of the V10 streams appended without them,
-                        then re-sinks the Elasticsearch events documents indexed without them
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
                         for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
               --help    prints this

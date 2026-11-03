@@ -53,7 +53,7 @@ An end-to-end rehearsal on an isolated target, on production-sized data, leaves:
    - started with a clean environment that holds only the configuration the rehearsal names, so no variable a shell inherited points a service at shared infrastructure, and their logs naming no address outside the target;
    - in the 9.x services' time zone (`TZ`), when domain code turns dates into instants with the system's zone;
    - a first start on the migrated target, every partition acquired and kept;
-5. the timings: the whole import with `compare`, `snapshot` and `backfill-tags` for offline, or the final pass for online;
+5. the timings: the whole import with `compare` and `snapshot` for offline, or the final pass for online;
 6. both rollbacks rehearsed, with the list of what cannot go back.
 
 ## The point of no easy return
@@ -71,7 +71,7 @@ The first such write in production ends the rollback window. Either accept that 
 2. **Take and verify the backup** of the 9.x stores.
 3. **Import:** `check`, then `import`.
 4. **Gate:** `compare` shows only the signed-off kinds of difference, and no unexplained unresolved key or execution. Otherwise stop here and restart 9.x: V10 has written nothing.
-5. **Prepare the read side:** `snapshot`, and `backfill-tags` where ABAC reads the events model.
+5. **Prepare the read side:** `snapshot`.
 6. **Start the V10 services** and probe the critical paths: a command on a migrated aggregate, a read, a query, a subscription, the parked entries.
 7. **Move the external consumers** of the 9.x bus to V10's published streams.
 8. **Switch traffic to V10**, the external command producers with it ([below](#move-the-external-command-producers)), then scale it out. Keep 9.x stopped, not deleted.
@@ -83,7 +83,7 @@ From the first import until the switch, 9.x serves and V10 waits: `tail` follows
 
 1. **Announce the window, stop 9.x's writes**, as offline does.
 2. **Take and verify the final backup.**
-3. **Final pass.** Stop the tail first: the final pass takes its role, and waits for its lease. `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare`, `snapshot` and `backfill-tags`.
+3. **Final pass.** Stop the tail first: the final pass takes its role, and waits for its lease. `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare` and `snapshot`.
 4. **Gate**, as offline does. Otherwise go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**
@@ -178,7 +178,7 @@ The estate shares one write stop. Each service still chooses [offline or online]
    V10 does not take up what 9.x had not handled: a saga or reactor of its own context starts at the end of its log, and one of another context's stream passes over the imported history (step 4). An event a 9.x consumer had not handled when writes stopped is handled by no one.
 
 2. **Take and verify the backup** of every 9.x store of the estate.
-3. **Import every service.** Each V10 log store is a `migrate-data` run of its own, with its own configuration, map and checkpoint, so the runs go side by side: `check` and `import` offline, `import --final` online. Then, per service, the gate: `compare` shows only the signed-off kinds of difference; then `snapshot` and `backfill-tags`. A service that fails its gate stops the estate: restart every 9.x service, since no V10 service has written.
+3. **Import every service.** Each V10 log store is a `migrate-data` run of its own, with its own configuration, map and checkpoint, so the runs go side by side: `check` and `import` offline, `import --final` online. Then, per service, the gate: `compare` shows only the signed-off kinds of difference; then `snapshot`. A service that fails its gate stops the estate: restart every 9.x service, since no V10 service has written.
 4. **Give the published topics room for the history.** Each import records where the imported history ends in the service's log, its cut-over. Once a service is active, its transport sink publishes its whole history, each record up to the cut-over marked imported ([Published Streams](../guide/published-streams#history-imported-from-9x)). A peer's saga or reactor passes over the imported records, since 9.x already acted on them, and a peer's projection builds its read model from them. Give the published topics a retention that holds that history.
 
 5. **Start every V10 node on standby**, the offline services' too (`wow.node.standby=true`), and probe each service's reads and queries against the imported data.

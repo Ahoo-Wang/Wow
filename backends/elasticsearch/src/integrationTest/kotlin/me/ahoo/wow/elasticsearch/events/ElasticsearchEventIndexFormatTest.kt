@@ -22,21 +22,22 @@ import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import org.junit.jupiter.api.Test
 import java.io.StringReader
 
-/** The events index's format 1 (decision D59): an index created before the tags (decision D259) gets their mapping. */
+/** The events index's format 1 (decision D59): an index created before the access attributes gets their mapping. */
 class ElasticsearchEventIndexFormatTest {
     @Test
-    fun `an events index created before the tags gets them when its Sink prepares it`(): Unit = runBlocking {
+    fun `an events index created before the access attributes gets them when its Sink prepares it`(): Unit = runBlocking {
         val context = ElasticsearchFixture.newContext()
         val index = ElasticsearchFixture.names.events(context, "order")
         val before = ElasticsearchEventIndex.DEFINITION
-            .replace(Regex(""""tags": \{[^}]*},\s*"tagsRecorded": \{[^}]*},\s*"""), "")
-        before.assert().doesNotContain("tagsRecorded")
+            .replace(Regex(""""dynamic_templates":\s*\[[^\]]*]\s*,\s*"""), "")
+            .replace(Regex(""""access": \{[^}]*},\s*"accessVersion": \{[^}]*},\s*"""), "")
+        before.assert().doesNotContain("accessVersion").doesNotContain("access_strings")
         ElasticsearchFixture.client.indices()
             .create(CreateIndexRequest.of { it.index(index).withJson(StringReader(before)) }).await()
         ElasticsearchEventSinks.of(ElasticsearchFixture.store()).sinkOf(context, "order").prepare()
         val properties = checkNotNull(ElasticsearchIndices(ElasticsearchFixture.client).mapping(index)).properties()
-        properties.getValue("tags").isFlattened.assert().isTrue()
-        properties.getValue(ElasticsearchEventIndex.TAGS_RECORDED).isBoolean.assert().isTrue()
+        properties.getValue("access").isObject.assert().isTrue()
+        properties.getValue(ElasticsearchEventIndex.ACCESS_VERSION).isInteger.assert().isTrue()
         // Prepared again, nothing is left to add.
         ElasticsearchEventSinks.of(ElasticsearchFixture.store()).sinkOf(context, "order").prepare()
     }

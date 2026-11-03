@@ -259,7 +259,7 @@ class PostgresSnapshotQueryStorageTest {
                 statement.execute(
                     """
                     INSERT INTO $table (tenant_id, aggregate_id, version, schema_fingerprint, state,
-                        owner_id, space_id, deleted, first_event_time, last_event_time, tags)
+                        owner_id, space_id, deleted, first_event_time, last_event_time, access)
                     SELECT 't' || (i % 10), 'id-' || i, 1, 'it',
                         jsonb_build_object('status', 'S' || (i % 50), 'amount', i, 'name', 'n' || i),
                         'owner-' || (i % 500), 'space-' || (i % 300), i % 20 = 0, 0, i, '{}'::jsonb

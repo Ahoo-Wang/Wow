@@ -68,7 +68,7 @@ lines += [
     "",
     f"- Write stop (9.x stopped to V10 serving): {seconds('offline-write-stop')}: import {seconds('offline-import')}, "
     f"compare {seconds('offline-compare')}, snapshot {seconds('offline-snapshot')}, "
-    f"backfill-tags {seconds('offline-backfill-tags')}, V10 hosts started {seconds('offline-start')}.",
+    f"V10 hosts started {seconds('offline-start')}.",
     f"- Compare: " + "; ".join(log_lines("offline-compare", r"compared:")),
     f"- V10 states vs 9.x before it stopped: orders {data('offline-states-compare')}, "
     f"views {data('offline-views-compare')}.",
@@ -84,7 +84,7 @@ lines += [
     + (f"{lag['caughtUpMillis']} ms after the writes stopped" if "caughtUpMillis" in lag else f"in one pass of {seconds('dual-run-lag')}")
     + ".",
     f"- Write stop (9.x stopped to V10 serving): {seconds('write-stop')}: final import {seconds('final-import')}, "
-    f"compare {seconds('compare')}, snapshot {seconds('snapshot')}, backfill-tags {seconds('backfill-tags')}.",
+    f"compare {seconds('compare')}, snapshot {seconds('snapshot')}.",
     f"- Compare: " + "; ".join(log_lines("compare", r"compared:|Comparison done")[:4]),
     "",
     "## Rollbacks",

@@ -1,6 +1,6 @@
 # migrate-data serves nothing and reaches only its stores: the 9.x MongoDB it reads (source.uri, and compensation.uri
-# when the compensation database is on another server), the V10 target it writes (PostgreSQL or MongoDB), the
-# Elasticsearch cluster backfill-tags re-sinks when the configuration names one, and DNS. Set the selectors to your
+# when the compensation database is on another server), the V10 target it writes (PostgreSQL or MongoDB), and DNS.
+# Set the selectors to your
 # stores' pods, or an ipBlock for a store outside the cluster; the stores' own policies must admit these pods too
 # (deploy/mongodb admits app.kubernetes.io/name: migrate-data). Enforced where the cluster's network plugin enforces
 # NetworkPolicy.

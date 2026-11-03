@@ -36,6 +36,8 @@ object MongoQueryTestSchemas {
     val TYPE = AggregateType("shop", "order")
 
     val DECLARATION: QuerySchemaDeclaration = querySchema {
+        // An access attribute, as the aggregate's Manifest types it.
+        field("access.region") { types(QueryValueType.STRING) }
         field("state.name") { types(QueryValueType.STRING) }
         field("state.status") { types(QueryValueType.STRING) }
         field("state.amount") { types(QueryValueType.DECIMAL) }

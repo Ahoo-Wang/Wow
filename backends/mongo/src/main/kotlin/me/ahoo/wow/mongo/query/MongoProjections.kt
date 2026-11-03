@@ -26,7 +26,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * A query's projection in two steps. MongoDB returns a superset of what the projection keeps ([native]): whole
- * subtrees of at most two segments (`tenant_id`, `state.name`, `tags.region`), which never cross an array, plus the
+ * subtrees of at most two segments (`tenant_id`, `state.name`, `access.region`), which never cross an array, plus the
  * sort fields a keyset page reads its positions from. The record built from it is then projected exactly
  * ([project]), with the reference semantics: an include keeps the path's subtree (through arrays of objects, keeping
  * their positions), an exclude removes it, and both apply when a projection names both. A native projection alone

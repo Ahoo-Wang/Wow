@@ -17,7 +17,7 @@ outline: deep
 | `aggregateId`、`tenantId`、`version` | 聚合，以及提交之后它的版本 |
 | `commitTime` | 提交的时间，单位是纪元毫秒 |
 | `commandId`、`requestId`、`commandType` | 产生它的命令 |
-| `ownerId`、`spaceId`、`tags`、`operator` | 聚合的作用域和标签，以及这次提交以谁的名义记录 |
+| `ownerId`、`spaceId`、`access`、`operator` | 聚合的作用域、它当前的访问属性（属主与空间也在其中；未盖章时为 `null`），以及这次提交以谁的名义记录 |
 | `events` | 它的事件，按顺序，每个带着 `name`、`revision` 和 `body` |
 
 catalog 读取一个商品的时间线，统计它包含某个事件的提交数，并按名字统计它的事件：

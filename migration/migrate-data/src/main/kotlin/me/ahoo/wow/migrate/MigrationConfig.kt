@@ -13,11 +13,9 @@
 
 package me.ahoo.wow.migrate
 
-import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariDataSource
-import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSinks
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -43,7 +41,6 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
-import org.apache.hc.core5.http.HttpHost
 import tools.jackson.databind.DeserializationFeature
 import java.io.Closeable
 import java.net.URLClassLoader
@@ -65,8 +62,7 @@ import java.util.concurrent.ConcurrentHashMap
  *               "password": "env:WOW_PG_PASSWORD", "poolSize": 16 },
  *   "partitions": { "example": 16 },
  *   "classpath": ["libs"],
- *   "compensation": { "database": "compensation_db", "service": "example-service" },
- *   "elasticsearch": { "uri": "http://localhost:9200", "indexPrefix": "" }
+ *   "compensation": { "database": "compensation_db", "service": "example-service" }
  * }
  * ```
  *
@@ -81,8 +77,6 @@ import java.util.concurrent.ConcurrentHashMap
  * - [source] is the 9.x MongoDB event store ([SourceConfig]); [target] the V10 log ([TargetConfig]).
  * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
  *   into the V10 service's failure ledger ([CompensationConfig]).
- * - [elasticsearch], when given, is the cluster of the services' events indices, which `backfill-tags` re-sinks
- *   ([ElasticsearchConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
  * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
  *   pause between two tail passes.
@@ -102,7 +96,6 @@ internal data class MigrationConfig(
     val pollIntervalMillis: Long = 1_000,
     val classpath: List<String> = emptyList(),
     val compensation: CompensationConfig? = null,
-    val elasticsearch: ElasticsearchConfig? = null,
     val final: FinalPassConfig = FinalPassConfig(),
 ) {
     init {
@@ -143,7 +136,6 @@ internal data class MigrationConfig(
                 database = read(target.database),
             ),
             compensation = compensation?.let { it.copy(database = read(it.database)!!, uri = read(it.uri)) },
-            elasticsearch = elasticsearch?.let { it.copy(uri = read(it.uri)!!) },
         )
     }
 
@@ -186,13 +178,6 @@ internal data class MigrationConfig(
         private val CHECKPOINT_NAME = Regex("[A-Za-z0-9._-]{1,128}")
     }
 }
-
-/**
- * The Elasticsearch cluster at [uri] whose events indices the services' event search Sinks write,
- * their names prefixed with [indexPrefix] as the store's `index-prefix` prefixes them: `backfill-tags` overwrites the
- * documents indexed there before the indices learned the tags, and nothing else.
- */
-internal data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
 
 /**
  * The final pass of the import once 9.x has stopped writing (`import --final`, step 3): one pass of the
@@ -346,9 +331,6 @@ internal interface MigrationConnections : Closeable {
     /** The V10 service's failure ledger on the target backend, its schema created; only with [compensation]. */
     fun failureLedger(): FailureLedger = throw MigrationException("The configuration names no 9.x compensation.")
 
-    /** The event search Sinks of the configured Elasticsearch cluster; null when the configuration names none. */
-    val eventSinks: ElasticsearchEventSinks? get() = null
-
     /** The 9.x store the rollback export writes to: the source store. */
     val nineXTarget: NineXEventTarget get() = throw MigrationException("This run has no 9.x store to export to.")
 
@@ -475,17 +457,8 @@ internal class ConfiguredConnections(
 
     override fun failureLedger(): FailureLedger = failureLedger
 
-    private val elasticsearch: Rest5Client? = config.elasticsearch?.let {
-        Rest5Client.builder(HttpHost.create(it.uri)).build()
-    }
-
-    override val eventSinks: ElasticsearchEventSinks? = elasticsearch?.let {
-        ElasticsearchEventSinks.of(it, requireNotNull(config.elasticsearch).indexPrefix)
-    }
-
     override fun close() {
         if (dataSource.isInitialized()) dataSource.value.close()
-        elasticsearch?.close()
         sourceClient.close()
         compensationClient?.close()
         targetClient?.close()

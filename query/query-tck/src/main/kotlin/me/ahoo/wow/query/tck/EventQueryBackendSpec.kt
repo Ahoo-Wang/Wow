@@ -36,6 +36,8 @@ import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
+import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
@@ -48,6 +50,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
@@ -138,6 +141,11 @@ abstract class EventQueryBackendSpec {
                             EventManifest("OrderPaid", revision = 2, schema = Manifest.schemaRef("tck.OrderPaid")),
                         ),
                         retired = listOf("LegacyNoted"),
+                        access = listOf(
+                            AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                            AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
+                            AccessAttributeManifest("dept", AccessAttributeManifest.Type.STRING),
+                        ),
                     ),
                 ),
             ),
@@ -203,7 +211,7 @@ abstract class EventQueryBackendSpec {
         tenantId: String = TENANT,
         scope: Scope = Scope("owner-1"),
         operator: Operator? = null,
-        tags: Map<String, List<String>>? = null,
+        access: Map<String, Any?>? = null,
     ) = EventStreamRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -214,7 +222,7 @@ abstract class EventQueryBackendSpec {
         events = events,
         scope = scope,
         operator = operator,
-        tags = tags,
+        access = access,
     )
 
     /** An event of this test's [type] named [name] (prefixed as the log stores it). */
@@ -306,30 +314,71 @@ abstract class EventQueryBackendSpec {
         Unit
     }
 
-    // Tags recorded with each stream
+    // The access attributes each stream carries
 
     /**
-     * `o1` moved from `east` to `west`, then lost its tags; `o2` was appended before the log learned them; `o3` has
-     * another key only.
+     * `o1`'s single attribute `region` went from `east` to `west`, then to none, and its multiple `teams` from `[a, b]`
+     * to `[b]`, then to `[]`, each stream as the log holds it; `o2` was appended before the log recorded them; `o3`
+     * declares another attribute only. Every stamped stream holds the built-in `owner` and `space` too.
      */
-    private fun taggedStreams() = listOf(
-        stream("o1", 1, T0, listOf(event("OrderCreated", "{}")), tags = mapOf("region" to listOf("east"))),
-        stream("o1", 2, T0 + 1, listOf(event("ItemAdded", "{}")), tags = mapOf("region" to listOf("west", "north"))),
-        stream("o1", 3, T0 + 2, listOf(event("ItemAdded", "{}")), tags = emptyMap()),
-        stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), tags = null),
-        stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), tags = mapOf("dept" to listOf("eng"))),
+    private fun stampedStreams() = listOf(
+        stream(
+            "o1",
+            1,
+            T0,
+            listOf(event("OrderCreated", "{}")),
+            access = access("region" to "east", "teams" to listOf("a", "b"))
+        ),
+        stream(
+            "o1",
+            2,
+            T0 + 1,
+            listOf(event("ItemAdded", "{}")),
+            access = access("region" to "west", "teams" to listOf("b"))
+        ),
+        stream(
+            "o1",
+            3,
+            T0 + 2,
+            listOf(event("ItemAdded", "{}")),
+            access = access("region" to null, "teams" to emptyList<String>())
+        ),
+        stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), access = null),
+        stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), access = access("dept" to "eng")),
     )
 
+    /** The attributes of a stream of `owner-1` with [declared]. */
+    private fun access(vararg declared: Pair<String, Any?>): Map<String, Any?> =
+        linkedMapOf<String, Any?>("owner" to "owner-1", "space" to null) + declared
+
     @Test
-    fun `a record shows the tags its stream recorded, null when it recorded none`() = blocking {
-        val records = given(taggedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
-        fun regions(key: String) = records.getValue(key).path("tags").path("region").toList().map { it.stringValue() }
-        regions("o1@1").assert().containsExactly("east")
-        regions("o1@2").assert().containsExactly("west", "north")
-        records.getValue("o1@3").path("tags").let { (it.isObject && it.isEmpty).assert().describedAs("$it").isTrue() }
-        records.getValue("o2@1").path("tags").isNull.assert().isTrue()
+    fun `a record shows the access attributes its stream carries, null when it carries none`() = blocking {
+        val records = given(stampedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
+        fun access(key: String) = records.getValue(key).path("access")
+        access("o1@1").path("region").stringValue().assert().isEqualTo("east")
+        access("o1@1").path("teams").toList().map { it.stringValue() }.assert().containsExactly("a", "b")
+        access("o1@1").path("owner").stringValue().assert().isEqualTo("owner-1")
+        access("o1@3").path("region").isNull.assert().isTrue()
+        access("o1@3").path("teams").let { (it.isArray && it.isEmpty).assert().describedAs("$it").isTrue() }
+        access("o2@1").isNull.assert().isTrue()
         Unit
     }
+
+    @Test
+    fun `access attributes select streams, a multiple one by any of its values, an unstamped stream by none`() =
+        blocking {
+            val fixture = given(stampedStreams())
+            fixture.keys(EqualFilter(QueryField("access.region"), "east")).assert().containsExactly("o1@1")
+            fixture.keys(InFilter(QueryField("access.region"), listOf("east", "west"))).assert()
+                .containsExactly("o1@1", "o1@2")
+            fixture.keys(EqualFilter(QueryField("access.teams"), "b")).assert().containsExactly("o1@1", "o1@2")
+            fixture.keys(EqualFilter(QueryField("access.owner"), "owner-1")).assert()
+                .containsExactly("o1@1", "o1@2", "o1@3", "o3@1")
+            fixture.keys(IsNotNullFilter(QueryField("access"))).assert()
+                .containsExactly("o1@1", "o1@2", "o1@3", "o3@1")
+            fixture.count(EqualFilter(QueryField("access.teams"), "b")).assert().isEqualTo(2L)
+            Unit
+        }
 
     // Event conditions are element predicates over the array
 

@@ -78,7 +78,7 @@ class MongoEventQueryStorage @JvmOverloads constructor(
 /**
  * A stream document `MongoEventLog` writes, as the `events` model reads it: each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
- * crossScope}` or absent, the tags the document `tags` of string arrays or absent when not recorded,
+ * crossScope}` or absent, the access attributes the document `access` or absent when not stamped,
  * and the events the array `events`, each `{name, revision, payload}`, whose
  * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
  */
@@ -95,7 +95,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         EventStreamFields.OWNER_ID to "owner_id",
         EventStreamFields.SPACE_ID to "space_id",
         EventStreamFields.OPERATOR to "operator",
-        EventStreamFields.TAGS to "tags",
+        EventStreamFields.ACCESS to "access",
         EventStreamFields.EVENTS to "events",
     )
     private val LOGICAL: Map<String, String> = PHYSICAL.entries.associate { (logical, physical) -> physical to logical }
@@ -103,7 +103,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     /** The streams of a log collection, not its placeholders, which have no version. */
     override val scope: Bson = Filters.exists("version")
 
-    private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.TAGS)
+    private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.ACCESS)
     private const val PAYLOAD = "payload"
     private val EVENTS = QueryPathSegment.Property(EventStreamFields.EVENTS)
     private val BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(EventFields.BODY))
@@ -121,7 +121,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         "owner_id" to STRING_TYPES,
         "space_id" to STRING_TYPES,
         "operator" to OBJECT_TYPES,
-        "tags" to OBJECT_TYPES,
+        "access" to OBJECT_TYPES,
         "events" to ARRAY_TYPES,
     )
 
@@ -151,8 +151,8 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     override fun record(document: Document): ObjectNode = nodes.objectNode().apply {
         PHYSICAL.forEach { (logical, physical) ->
             if (!document.containsKey(physical)) {
-                // A stream of an anonymous caller stores no operator, one appended before the log learned them no
-                // tags; one without a scope stores null.
+                // A stream of an anonymous caller stores no operator, one not stamped no access attributes; one
+                // without a scope stores null.
                 if (logical in ABSENT_AS_NULL && document.containsKey("tenant_id")) putNull(logical)
                 return@forEach
             }

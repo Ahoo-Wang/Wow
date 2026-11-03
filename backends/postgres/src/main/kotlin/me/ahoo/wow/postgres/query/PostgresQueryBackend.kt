@@ -236,7 +236,7 @@ class PostgresQueryBackend internal constructor(
             put(SnapshotFields.OWNER_ID, row.getString("owner_id"))
             put(SnapshotFields.SPACE_ID, row.getString("space_id"))
             put(SnapshotFields.DELETED, row.getBoolean("deleted"))
-            set(SnapshotFields.TAGS, WowJson.mapper.readTree(row.getString("tags")))
+            set(SnapshotFields.ACCESS, WowJson.mapper.readTree(row.getString("access")))
             put(SnapshotFields.FIRST_EVENT_TIME, row.getLong("first_event_time"))
             put(SnapshotFields.LAST_EVENT_TIME, row.getLong("last_event_time"))
             set(SnapshotFields.OPERATOR, row.getString("operator")?.let(WowJson.mapper::readTree) ?: nodes.nullNode())

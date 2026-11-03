@@ -21,7 +21,8 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
  * An aggregate's latest committed state as a snapshot query and a state read answer it: the
- * aggregate [ref] at [version], its [scope] (owner and space), its [tags], whether it is [deleted], the [operator] of
+ * aggregate [ref] at [version], its [scope] (owner and space), its [access] attributes (`@Access`, by name: a single
+ * one's value or null, a multiple one's values as a list), whether it is [deleted], the [operator] of
  * its last commit and the [firstOperator] of its first, the one that created it (each null for an anonymous caller),
  * the times of its first and last events (epoch milliseconds), the [schedules] it keeps, each rule by its key, and
  * its [state], masked as the schema says.
@@ -32,7 +33,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
     val scope: Scope,
-    val tags: Map<String, List<String>>,
+    val access: Map<String, Any?>,
     val deleted: Boolean,
     val operator: Operator?,
     val firstEventTime: Long,
@@ -47,7 +48,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "Snapshot(ref=$ref, version=$version, scope=$scope, tags=$tags, deleted=$deleted, operator=$operator, " +
+        "Snapshot(ref=$ref, version=$version, scope=$scope, access=$access, deleted=$deleted, operator=$operator, " +
             "firstEventTime=$firstEventTime, lastEventTime=$lastEventTime, state=$state, " +
             "firstOperator=$firstOperator, schedules=$schedules)"
 
@@ -56,7 +57,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
             ref,
             version,
             scope,
-            tags,
+            access,
             deleted,
             operator,
             firstEventTime,
@@ -75,7 +76,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
             ref: AggregateRef,
             version: Int,
             scope: Scope,
-            tags: Map<String, List<String>>,
+            access: Map<String, Any?>,
             deleted: Boolean,
             operator: Operator?,
             firstEventTime: Long,
@@ -87,7 +88,7 @@ class Snapshot<out S : Any> @InternalWowApi constructor(
             ref,
             version,
             scope,
-            tags,
+            access,
             deleted,
             operator,
             firstEventTime,

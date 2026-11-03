@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -107,7 +107,7 @@ ORDER BY (tenant_id, aggregate_id, version, sequence)
 SETTINGS non_replicated_deduplication_window = 1000;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
@@ -116,6 +116,6 @@ FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:a699c6d81110f884';
+COMMENT 'wow-sink-flat:eb326856599fc0e7';

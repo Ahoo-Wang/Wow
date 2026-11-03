@@ -30,7 +30,8 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  *   snapshot of a lower revision replace one of a higher revision;
  * - [state] is the serialized state, a JSON document;
  * - [scope] is the aggregate's owner and space, the scope of the last event stream folded, and
- *   [tags] its access tags; the query side filters on the same fields;
+ *   [access] its declared access attributes after it, in their stored form ([me.ahoo.wow.spi.access.AccessValues]),
+ *   the built-in owner and space being [scope]'s; the query side filters on the same fields;
  * - [deleted] marks an aggregate that is deleted; its snapshot stays, so it can be queried and restored;
  * - [firstEventTime] and [lastEventTime] are the commit times (epoch milliseconds) of its first and last streams;
  * - [operator] and [firstOperator] are the operators of its last stream and of its first, the one
@@ -49,7 +50,7 @@ class SnapshotRecord @InternalWowApi constructor(
     val deleted: Boolean = false,
     val firstEventTime: Long,
     val lastEventTime: Long,
-    val tags: Map<String, List<String>> = emptyMap(),
+    val access: Map<String, Any?> = emptyMap(),
     val operator: Operator? = null,
     val firstOperator: Operator? = null,
     val schedules: Map<String, ScheduleRule> = emptyMap(),
@@ -61,7 +62,7 @@ class SnapshotRecord @InternalWowApi constructor(
         require(schemaFingerprint.isNotBlank()) { "A snapshot needs its state's schema fingerprint." }
         require(state.isNotBlank()) { "A snapshot needs a state." }
         require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }
-        require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
+        require(access.keys.none { it.isBlank() }) { "An access attribute needs a name." }
     }
 
     /** This SnapshotRecord with the given fields replaced: Wow's own copy, left out of the ABI. */
@@ -75,7 +76,7 @@ class SnapshotRecord @InternalWowApi constructor(
         deleted: Boolean = this.deleted,
         firstEventTime: Long = this.firstEventTime,
         lastEventTime: Long = this.lastEventTime,
-        tags: Map<String, List<String>> = this.tags,
+        access: Map<String, Any?> = this.access,
         operator: Operator? = this.operator,
         firstOperator: Operator? = this.firstOperator,
         schedules: Map<String, ScheduleRule> = this.schedules,
@@ -90,7 +91,7 @@ class SnapshotRecord @InternalWowApi constructor(
             deleted,
             firstEventTime,
             lastEventTime,
-            tags,
+            access,
             operator,
             firstOperator,
             schedules,
@@ -105,7 +106,7 @@ class SnapshotRecord @InternalWowApi constructor(
     override fun toString(): String =
         "SnapshotRecord(ref=$ref, version=$version, schemaFingerprint=$schemaFingerprint, state=$state, " +
             "scope=$scope, deleted=$deleted, firstEventTime=$firstEventTime, lastEventTime=$lastEventTime, " +
-            "tags=$tags, operator=$operator, firstOperator=$firstOperator, schedules=$schedules, " +
+            "access=$access, operator=$operator, firstOperator=$firstOperator, schedules=$schedules, " +
             "stateRevision=$stateRevision)"
 
     private fun valueFields(): List<Any?> = listOf(
@@ -117,7 +118,7 @@ class SnapshotRecord @InternalWowApi constructor(
         deleted,
         firstEventTime,
         lastEventTime,
-        tags,
+        access,
         operator,
         firstOperator,
         schedules,
@@ -137,7 +138,7 @@ class SnapshotRecord @InternalWowApi constructor(
             deleted: Boolean = false,
             firstEventTime: Long,
             lastEventTime: Long,
-            tags: Map<String, List<String>> = emptyMap(),
+            access: Map<String, Any?> = emptyMap(),
             operator: Operator? = null,
             firstOperator: Operator? = null,
             schedules: Map<String, ScheduleRule> = emptyMap(),
@@ -152,7 +153,7 @@ class SnapshotRecord @InternalWowApi constructor(
                 deleted,
                 firstEventTime,
                 lastEventTime,
-                tags,
+                access,
                 operator,
                 firstOperator,
                 schedules,

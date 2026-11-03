@@ -14,14 +14,10 @@
 package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
-import co.elastic.clients.elasticsearch._types.ElasticsearchException
-import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.Refresh
-import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
@@ -33,7 +29,6 @@ import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageUnavailableException
-import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.store.Store
@@ -46,8 +41,7 @@ import java.util.concurrent.ConcurrentHashMap
  * sink subscription hands it as one stream document ([ElasticsearchEventDocuments]) of the type's events index
  * ([ElasticsearchNames.events], [ElasticsearchEventIndex]), which the `events` queries of an Elasticsearch store read.
  *
- * - **Batch**: one `_bulk` request per [write], every record a `create` of its document. Only the tags backfill's
- *   re-sink ([overwrite]) writes `index` operations, over the documents [untagged] lists.
+ * - **Batch**: one `_bulk` request per [write], every record a `create` of its document.
  * - **Idempotent by id**: a document's id is the commit's identity ([ElasticsearchNames.streamId]: tenant, aggregate
  *   id and version), and a record written before is answered `409` by its `create`, which counts as written: a
  *   record written again changes nothing, whether a retry, a replay or an old owner of the partition writes it.
@@ -80,57 +74,6 @@ class ElasticsearchEventSink internal constructor(
     private var ensured = false
 
     override suspend fun write(records: List<StateEventRecord>) = bulk(records, refresh, ::create)
-
-    /**
-     * The streams whose documents were indexed before the index learned the tags: no
-     * [ElasticsearchEventIndex.TAGS_RECORDED], in `(aggregateId, tenantId, version)` order, strictly after [after]
-     * when given, at most [limit]. None when the index does not exist.
-     */
-    suspend fun untagged(after: StreamKey?, limit: Int): List<StreamKey> {
-        require(limit >= 1) { "A page holds at least one stream." }
-        val response = try {
-            client.search({ search ->
-                search.index(index).size(limit)
-                    .query { query ->
-                        query.bool { bool ->
-                            bool.mustNot { it.exists { exists -> exists.field(ElasticsearchEventIndex.TAGS_RECORDED) } }
-                        }
-                    }
-                    .sort { it.field { field -> field.field(EventStreamFields.AGGREGATE_ID).order(SortOrder.Asc) } }
-                    .sort { it.field { field -> field.field(EventStreamFields.TENANT_ID).order(SortOrder.Asc) } }
-                    .sort { it.field { field -> field.field(EventStreamFields.VERSION).order(SortOrder.Asc) } }
-                    .apply {
-                        after?.let {
-                            searchAfter(
-                                FieldValue.of(it.ref.id),
-                                FieldValue.of(it.ref.tenantId),
-                                FieldValue.of(it.version.toLong())
-                            )
-                        }
-                    }
-            }, ObjectNode::class.java).awaitElasticsearch()
-        } catch (failure: ElasticsearchException) {
-            if (ElasticsearchFailures.isIndexNotFound(failure)) return emptyList()
-            throw failure
-        }
-        return response.hits().hits().mapNotNull { it.source() }.map { source ->
-            StreamKey(
-                type.ref(
-                    source.path(EventStreamFields.TENANT_ID).asString(),
-                    source.path(EventStreamFields.AGGREGATE_ID).asString()
-                ),
-                source.path(EventStreamFields.VERSION).asInt(),
-            )
-        }
-    }
-
-    /**
-     * Writes [records] over the documents of their streams (`index`, not `create`): the tags backfill's re-sink of the
-     * documents indexed before the index learned the tags. A stream document is immutable but for
-     * those tags, so it is overwritten with its content and its tags; the subscription's writes stay `create`s. The
-     * write is immediately visible to searches, so a walk of [untagged] goes on past it.
-     */
-    suspend fun overwrite(records: List<StateEventRecord>) = bulk(records, Refresh.True, ::overwriteOf)
 
     private suspend fun bulk(
         records: List<StateEventRecord>,
@@ -186,17 +129,6 @@ class ElasticsearchEventSink internal constructor(
         }
     }
 
-    private fun overwriteOf(record: StateEventRecord): BulkOperation = BulkOperation.of { operation ->
-        operation.index<ObjectNode> {
-            it.id(ElasticsearchNames.streamId(record.ref, record.version))
-                .document(ElasticsearchEventDocuments.document(record))
-        }
-    }
-
-    /** A stream of the Sink's aggregate type: its aggregate and version. */
-    @InternalWowApi
-    data class StreamKey(val ref: AggregateRef, val version: Int)
-
     override fun toString(): String = "ElasticsearchEventSink($index)"
 
     private companion object {
@@ -229,8 +161,7 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
 
         /**
          * The Sinks of the cluster [restClient] reaches, their indices named with [indexPrefix] as a store's
-         * `index-prefix` names them, made sure of as [ddl] says: a tool's (`migrate-data backfill-tags`),
-         * outside a host's stores.
+         * `index-prefix` names them, made sure of as [ddl] says: a tool's, outside a host's stores.
          */
         @JvmStatic
         @JvmOverloads

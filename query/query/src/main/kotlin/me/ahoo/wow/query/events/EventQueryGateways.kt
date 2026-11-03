@@ -27,6 +27,7 @@ import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
@@ -135,12 +136,11 @@ object EventStreamRecords {
                 .put("tenantId", operator.tenantId)
                 .put("crossScope", operator.crossScope)
         }
-        val tags = stream.tags
-        if (tags == null) {
-            record.putNull(EventStreamFields.TAGS)
+        val access = stream.access
+        if (access == null) {
+            record.putNull(EventStreamFields.ACCESS)
         } else {
-            val node = record.putObject(EventStreamFields.TAGS)
-            tags.forEach { (key, values) -> node.putArray(key).also { array -> values.forEach(array::add) } }
+            record.set(EventStreamFields.ACCESS, AccessValues.json(access))
         }
         val events = record.putArray(EventStreamFields.EVENTS)
         stream.events.forEach { event ->

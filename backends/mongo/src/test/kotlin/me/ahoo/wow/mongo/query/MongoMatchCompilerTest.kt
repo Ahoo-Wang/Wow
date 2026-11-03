@@ -90,7 +90,7 @@ class MongoMatchCompilerTest {
         json(EqualFilter(QueryField("firstEventTime"), 1)).assert().isEqualTo("""{"first_event_time": 1}""")
         json(GreaterThanFilter(QueryField("lastEventTime"), 1)).assert()
             .isEqualTo("""{"last_event_time": {"${'$'}gt": 1}}""")
-        json(EqualFilter(QueryField("tags.region"), "east")).assert().isEqualTo("""{"tags.region": "east"}""")
+        json(EqualFilter(QueryField("access.region"), "east")).assert().isEqualTo("""{"access.region": "east"}""")
         json(MatchAllFilter).assert().isEqualTo("{}")
         json(MatchNoneFilter).assert().isEqualTo("""{"_id": {"${'$'}in": []}}""")
     }
@@ -204,7 +204,7 @@ class MongoMatchCompilerTest {
                 GreaterThanFilter(name, value),
                 ContainsFilter(name, value),
                 StartsWithFilter(name, value, StringComparison.CASE_INSENSITIVE),
-                EqualFilter(QueryField("tags.region"), value),
+                EqualFilter(QueryField("access.region"), value),
                 ElementMatchFilter(QueryField("state.lines"), EqualFilter(QueryField("sku"), value)),
             )
         }
@@ -222,7 +222,7 @@ class MongoMatchCompilerTest {
             assertThrownBy<QueryExecutionException> { MongoSnapshotDocuments.checked(path) }
         }
         MongoSnapshotDocuments.checked("state.lines.sku").assert().isEqualTo("state.lines.sku")
-        MongoSnapshotDocuments.checked("tags.@type").assert().isEqualTo("tags.@type")
+        MongoSnapshotDocuments.checked("access.@type").assert().isEqualTo("access.@type")
     }
 
     @Test

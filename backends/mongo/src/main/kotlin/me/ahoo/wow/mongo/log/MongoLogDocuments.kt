@@ -17,7 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoOperators
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION_ID
@@ -36,7 +38,6 @@ import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REQUEST_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.REVISION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SEQUENCE
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.SPACE_ID
-import me.ahoo.wow.mongo.log.MongoEventLog.Companion.TAGS
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.TENANT_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.TRANSPORT
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.VERSION
@@ -75,8 +76,8 @@ internal class MongoLogDocuments(private val context: String) {
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
-        // The tags after the commit: absent when not recorded, an empty document for none.
-        .apply { stream.tags?.let { append(TAGS, Document(it)) } }
+        // The access attributes: absent when not stamped.
+        .apply { stream.access?.let { append(ACCESS, Document(it)) } }
         .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
 
     /** The transport bytes as stored: the driver reads generic binary data as a byte array, other subtypes as [Binary]. */
@@ -120,8 +121,6 @@ internal class MongoLogDocuments(private val context: String) {
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
-        tags = document.get(TAGS, Document::class.java)?.let { tags ->
-            tags.keys.associateWith { tags.getList(it, String::class.java).toList() }
-        },
+        access = MongoAccess.of(document.get(ACCESS, Document::class.java)),
     )
 }

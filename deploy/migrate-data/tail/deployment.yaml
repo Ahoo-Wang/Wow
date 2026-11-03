@@ -33,7 +33,7 @@ spec:
         runAsGroup: 10001
       initContainers:
         # The service's distribution, from the image its nodes run: its lib holds the domain modules whose models
-        # compare, snapshot, backfill-tags and check --decode rebuild states with, and their Manifest fragments.
+        # compare, snapshot and check --decode rebuild states with, and their Manifest fragments.
         # Set the image and the distribution's path to your service's; the image needs cp.
         - name: service
           image: order-service:local

@@ -93,7 +93,7 @@ class QueryEngineTest {
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
-        tags = mapOf("region" to listOf(region)),
+        access = mapOf("region" to listOf(region)),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,

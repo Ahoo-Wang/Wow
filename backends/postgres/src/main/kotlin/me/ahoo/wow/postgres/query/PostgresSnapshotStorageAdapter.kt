@@ -36,7 +36,7 @@ import me.ahoo.wow.query.schema.storageFamilies
 /**
  * What a PostgreSQL snapshot table proves about a snapshot query model, from the types of its columns
  * ([facts] with the catalog's column types; [PostgresQuerySchemaAdapter] reads them). This object's own [facts] assume
- * the table this module creates. Every logical path is stored under its own name, a system field in its column and anything else in the `state` or `tags` `jsonb`; each
+ * the table this module creates. Every logical path is stored under its own name, a system field in its column and anything else in the `state` or `access` `jsonb`; each
  * binding states its [PostgresQueryType] as its storage type, which the SQL compiler and the expression indexes read.
  *
  * A path is granted the capabilities the storage-family table ([storageFamilies]) allows for its values and its type
@@ -49,7 +49,7 @@ import me.ahoo.wow.query.schema.storageFamilies
  * - a multi-valued path (an array) is not sortable or aggregatable: its elements have no single value;
  * - a value of mixed types (`jsonb`) only exists;
  * - a path whose column does not have the type this module creates it with (a system column of another type, a
- *   `state` or `tags` column that is not `jsonb`) only exists: its values may not be what the compiler casts.
+ *   `state` or `access` column that is not `jsonb`) only exists: its values may not be what the compiler casts.
  *
  * `jsonb` states no type per path, so a `state.*` path is typed from its declared value types, as 9.x MongoDB typed a
  * path its collection's validator did not declare. Indexes prove no capability: PostgreSQL sorts, ranges and

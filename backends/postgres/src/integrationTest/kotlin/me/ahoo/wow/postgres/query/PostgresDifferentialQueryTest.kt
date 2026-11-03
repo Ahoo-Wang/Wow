@@ -163,9 +163,9 @@ class PostgresDifferentialQueryTest {
 
     @TestFactory
     fun `projections keep what the reference keeps`(): List<DynamicTest> = listOf(
-        Projection(include = listOf(QueryField("aggregateId"), QueryField("tags"))),
+        Projection(include = listOf(QueryField("aggregateId"), QueryField("access"))),
         Projection(include = listOf(QueryField("state.lines.sku"), QueryField("state.name"))),
-        Projection(exclude = listOf(QueryField("state.lines"), QueryField("tags"))),
+        Projection(exclude = listOf(QueryField("state.lines"), QueryField("access"))),
         Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.keywords"))),
     ).mapIndexed { index, projection ->
         same("projection $index") {
@@ -188,7 +188,7 @@ class PostgresDifferentialQueryTest {
         private val KEYWORDS = field("keywords")
         private val SCORES = field("scores")
         private val CREATED = field("createdAt")
-        private val REGION = QueryField("tags.region")
+        private val REGION = QueryField("access.region")
         private val ACTIVE = DeletionFilter(DeletionState.ACTIVE)
 
         private fun JsonNode.normalized(): Any? = when {

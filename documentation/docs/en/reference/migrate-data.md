@@ -45,7 +45,6 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. |
-| `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then rewrites the Elasticsearch events documents indexed without them. |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
 | Option | Meaning |
@@ -59,7 +58,7 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `--snapshots` | After `import`, runs `snapshot`. |
 | `--once` | `tail` makes one pass and ends. |
 | `--sample <percent>` | `compare` compares that share of the instances, chosen by a hash of tenant and id, so every run compares the same ones. Another sample restarts the comparison. |
-| `--force` | `backfill-tags` rewrites the Elasticsearch documents even while a log still holds a stream without tags, leaving those documents as they are; `draft-map` replaces an existing map. |
+| `--force` | `draft-map` replaces an existing map. |
 
 An option a command does not take is a usage error.
 
@@ -135,11 +134,10 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `target.poolSize` | `16` | The most connections to the PostgreSQL target. |
 | `target.uri`, `target.database` | | The MongoDB target, a replica set. |
 | `partitions` | | Each V10 context's partition count, which must be the services' own. |
-| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars, such as a service's distribution `lib`. `compare`, `snapshot` and `backfill-tags` rebuild states with their models, `check --decode` reads the 9.x events with them, and without `manifests` the Manifests come from them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
+| `classpath` | the tool's own class path | The services' V10 domain modules, each a jar or a directory of classes or jars, such as a service's distribution `lib`. `compare` and `snapshot` rebuild states with their models, `check --decode` reads the 9.x events with them, and without `manifests` the Manifests come from them. The tool runs no decide function, so it stands in for each dependency the models take that is an interface, and gives a `java.time.Clock` or `java.time.ZoneId` the system's UTC one. A model taking a dependency of another class fails, naming it: take it as an interface in the model. |
 | `compensation.database` | | The 9.x compensation service's database. Without `compensation`, nothing of the compensation service is read. |
 | `compensation.uri` | the source's | The server of that database. |
 | `compensation.service` | | The V10 service whose failure ledger receives the unresolved executions: its `wow.service`, or `spring.application.name`. |
-| `elasticsearch.uri`, `elasticsearch.indexPrefix` | | The cluster of the services' events indices, and their index prefix. Only `backfill-tags` writes to it. |
 | `pageSize` | `500` | Instances imported between two checkpoints; streams the tail reads at once. |
 | `streamBatch` | `200` | Streams of one instance read from the 9.x store at once. |
 | `concurrency` | `8` | Instances imported at a time. |
@@ -347,7 +345,6 @@ A run that writes the checkpoints holds the role of its command until it ends:
 | `import` | `import`, `import --final`, `tail`, `export` |
 | `compare` | `compare` |
 | `snapshot` | `snapshot`, `import --snapshots` |
-| `backfill-tags` | `backfill-tags` |
 | `export` | `export` |
 
 `export` holds the `import` role too, since it writes into the 9.x store that the import and the tail read. Runs of different roles share the checkpoints, each writing its own entries, such as `tail` beside `compare`. `check`, `draft-map` and the dry runs hold no role.

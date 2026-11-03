@@ -1,6 +1,6 @@
 ---
 title: 重建与重放
-description: 从日志（唯一的事实）重建读模型、快照和标签：从头开始的新订阅、按修订号或按请求重建快照，以及标签回填。
+description: 从日志（唯一的事实）重建读模型和快照：从头开始的新订阅、按修订号或按请求重建快照，以及开始记录访问属性之前写入的流的访问属性。
 outline: deep
 ---
 
@@ -43,9 +43,9 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild" \
 
 给某个聚合类型增加一个快照目标（`wow.snapshot.stores`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.*`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引，会从日志开头填充它：新存储自己的快照订阅从开头开始；如果是给一个订阅早已越过开头的存储新增聚合类型，则由一个它自己的订阅填充，目标追平后这个订阅就停止。切换主目标（即查询读取的那个）不会移动任何检查点。
 
-## 标签 {#tags}
+## 访问属性 {#access-attributes}
 
-在日志开始记录标签之前追加的流（例如从 9.x 导入的流）没有标签，而基于属性的访问匹配不到没有标签的聚合。`migrate-data backfill-tags` 重放每个聚合，记录每条流之后它所带的标签，然后改写没有标签就被索引的 Elasticsearch 事件文档（[migrate-data 命令行](../reference/migrate-data)）。
+每条流都记下聚合在这次提交之后的访问属性（属主与空间也在其中），快照和各 Sink 的记录也一样。日志开始记录访问属性之前追加的流（10.0 beta 写入的，或者从 9.x 导入的）没有访问属性：盖章之前，访问策略下它们一条也看不到。记录标签的版本建的 Sink 表在启动时会被拒绝，并指明是哪张表；它保存的都是日志里有的内容，所以删掉它，再重置这个 Sink 的订阅，它就会从日志重新填充。
 
 ## 数仓 {#the-warehouse}
 

@@ -18,8 +18,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -172,12 +174,13 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         operator,
         firstOperator,
         schedules,
+        accessOf(model, state),
     )
 
     /**
      * The snapshot of a state this codec already serialized as [stateText]: the shared state taken
-     * when the stream at [version] committed, so it is not serialized again. The rest is as for the
-     * snapshot of a state object.
+     * when the stream at [version] committed, so it is not serialized again, and [access] its declared access
+     * attributes in their stored form ([accessOf], [accessAfter]). The rest is as for the snapshot of a state object.
      */
     @Suppress("LongParameterList")
     fun snapshotOf(
@@ -192,6 +195,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         operator: Operator? = null,
         firstOperator: Operator? = null,
         schedules: Map<String, ScheduleRule> = emptyMap(),
+        access: Map<String, Any?>,
     ): SnapshotRecord {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         return SnapshotRecord(
@@ -207,7 +211,36 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             operator = operator,
             firstOperator = firstOperator,
             schedules = schedules,
+            access = access,
         )
+    }
+
+    /**
+     * The declared access attributes of [state], a state of [model] ([AggregateModel.accessOf]), in their stored form
+     * ([AccessValues]): an enum by the JSON name this codec writes it under. Empty when [model] declares none, without
+     * reading [state].
+     */
+    fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> {
+        if (model.accessAttributes.isEmpty()) {
+            return emptyMap()
+        }
+        @Suppress("UNCHECKED_CAST") // The state is the model's, as every caller holds it.
+        val declared = (model as AggregateModel<Any>).accessOf(state)
+        return checkNotNull(AccessValues.of(mapper.valueToTree(declared)))
+    }
+
+    /**
+     * The declared access attributes after [stream], a stream of [model] that left the state [stateText]: the
+     * stream's own when it holds [model]'s current ones (a stamp may have given it later ones, which are still the
+     * aggregate's), else those of the state, decoded: a stream not stamped, or stamped before [model] declared what it
+     * declares now.
+     */
+    fun accessAfter(model: AggregateModel<*>, stream: EventStreamRecord, stateText: String): Map<String, Any?> {
+        stream.access?.let(AccessValues::declared)?.takeIf { it.keys == model.accessNames }?.let { return it }
+        if (model.accessAttributes.isEmpty()) {
+            return emptyMap()
+        }
+        return accessOf(model, mapper.readValue(stateText, model.stateType))
     }
 
     /**

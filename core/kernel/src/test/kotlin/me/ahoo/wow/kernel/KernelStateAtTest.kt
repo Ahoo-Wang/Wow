@@ -137,7 +137,16 @@ class KernelStateAtTest {
     @Test
     fun `a shared state gives the same snapshot as its state`() {
         val state = CartState("cart-1").apply { owner = "ahoo" }
-        codec.snapshotOf(cartModel, ref, codec.stateText(state), 3, owned, 1, 2)
+        codec.snapshotOf(
+            cartModel,
+            ref,
+            codec.stateText(state),
+            3,
+            owned,
+            1,
+            2,
+            access = codec.accessOf(cartModel, state)
+        )
             .assert().isEqualTo(codec.snapshotOf(cartModel, ref, state, 3, owned, 1, 2))
     }
 }

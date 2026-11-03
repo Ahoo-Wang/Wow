@@ -35,10 +35,10 @@ The stores create their tables on first use. Names derive from the context and t
 
 | Table | Holds |
 | --- | --- |
-| `wow_log__<context>__<aggregate>` | The log of one aggregate type: one row per committed stream, its facts in columns (version, command, request, scope, causation, operator, tags as `jsonb`) and its events |
+| `wow_log__<context>__<aggregate>` | The log of one aggregate type: one row per committed stream, its facts in columns (version, command, request, scope, causation, operator, access attributes as `jsonb`, `null` when not stamped) and its events |
 | `wow_log__<context>__partition` | One counter row per partition of the context's log |
 | `wow_log_aggregate` | Which aggregate tables each context's log has |
-| `wow_snapshot__<context>__<aggregate>` | One row per aggregate: its latest snapshot, state and tags as `jsonb`, queried in place |
+| `wow_snapshot__<context>__<aggregate>` | One row per aggregate: its latest snapshot, state and access attributes as `jsonb`, queried in place |
 | `wow_snapshot_table` | The state revision each snapshot table holds |
 | `wow_timer__<context>__<aggregate>` | The scheduled commands of one aggregate type, one row per timer, each in its owner's partition |
 | `wow_timer_aggregate` | Which timer tables each context has; the due read unions them in one statement |

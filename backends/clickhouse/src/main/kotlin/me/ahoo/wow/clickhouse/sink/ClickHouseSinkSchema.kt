@@ -183,7 +183,7 @@ class ClickHouseSinkSchema(
             ClickHouseColumn("owner_id", "String"),
             ClickHouseColumn("space_id", "String"),
             ClickHouseColumn("deleted", "Bool"),
-            ClickHouseColumn("tags", "Map(String, Array(String))"),
+            ClickHouseColumn("access", "String"),
             ClickHouseColumn("correlation_id", "String"),
             ClickHouseColumn("causation_id", "String"),
             ClickHouseColumn("headers", "Map(String, String)"),
@@ -218,7 +218,7 @@ class ClickHouseSinkSchema(
 
         /** The system columns `_state_flat` starts with, as `_state` has them. */
         val FLAT_SYSTEM_COLUMNS: List<ClickHouseColumn> =
-            listOf("id", "tenant_id", "aggregate_id", "version", "commit_time", "owner_id", "space_id", "deleted", "tags")
+            listOf("id", "tenant_id", "aggregate_id", "version", "commit_time", "owner_id", "space_id", "deleted", "access")
                 .map { name -> BASE_COLUMNS.first { it.name == name } }
 
         private const val BASE_ORDER = "tenant_id, aggregate_id, version"

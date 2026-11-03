@@ -59,7 +59,12 @@ abstract class SnapshotStoreSpec {
         aggregate: AggregateType = type,
         scope: Scope = Scope("owner", "space"),
         deleted: Boolean = false,
-        tags: Map<String, List<String>> = mapOf("region" to listOf("east", "west"), "tier" to listOf("gold")),
+        access: Map<String, Any?> = mapOf(
+            "region" to "east",
+            "level" to 2L,
+            "teams" to listOf("a", "b"),
+            "lead" to null
+        ),
         operator: Operator? = Operator("bob", tenant),
         firstOperator: Operator? = Operator("alice ü", "home", crossScope = true),
         schedules: Map<String, ScheduleRule> = mapOf(
@@ -76,7 +81,7 @@ abstract class SnapshotStoreSpec {
         deleted = deleted,
         firstEventTime = FIRST_EVENT_TIME,
         lastEventTime = FIRST_EVENT_TIME + version,
-        tags = tags,
+        access = access,
         operator = operator,
         firstOperator = firstOperator,
         schedules = schedules,
@@ -143,7 +148,7 @@ abstract class SnapshotStoreSpec {
             1,
             scope = Scope.NONE,
             deleted = true,
-            tags = emptyMap(),
+            access = emptyMap(),
             operator = null,
             firstOperator = null,
             schedules = emptyMap(),

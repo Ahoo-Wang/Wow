@@ -21,14 +21,14 @@
 #                renamed, shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the
 #                9.x compensation service's database with unresolved CartSaga executions
 #   1b. offline  the offline cut-over, into its own database (offline): 9.x stops (the write stop starts), import,
-#                compare, snapshot and backfill-tags, and the V10 hosts start and serve (the write stop ends); their
+#                compare and snapshot, and the V10 hosts start and serve (the write stop ends); their
 #                sampled states equal 9.x's before it stopped. They stop and 9.x starts again for the online cut-over
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL (database example)
 #   3. dual-run  the V10 hosts start on standby (wow.node.standby): they serve reads and refuse commands while 9.x keeps
 #                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
-#                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags; the operator
+#                or import --restart with FINAL_PASS=restart), compare and snapshot; the operator
 #                activates the V10 hosts on their internal ports, and they serve writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states (orders, views) equal V10's; then the cut-over again
@@ -384,7 +384,6 @@ stop_pid ninex
 step offline-import 0 migrate import
 compared offline-compare migrate compare
 step offline-snapshot 0 migrate snapshot
-step offline-backfill-tags 0 migrate backfill-tags
 step offline-start 0 start_hosts
 record offline-write-stop "$offline_started" 0
 step offline-v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-offline.json"
@@ -419,7 +418,6 @@ stop_pid ninex
 step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
-step backfill-tags 0 migrate backfill-tags
 step activate 0 activate_hosts
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"

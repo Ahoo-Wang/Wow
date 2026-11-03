@@ -394,6 +394,7 @@ class SnapshotMaintenance(
             last.operator,
             first.operator,
             state.schedules,
+            codec.accessOf(model, state.state),
         )
     }
 

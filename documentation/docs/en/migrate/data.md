@@ -13,7 +13,7 @@ There are two ways to cut over:
 | | Offline, the default | Online, for large systems |
 | --- | --- | --- |
 | 9.x writes stop | Before the import, for the whole migration | Only for the final pass, after the history is imported while 9.x serves |
-| Steps | Import, compare, snapshots and tags, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and activation |
+| Steps | Import, compare, snapshots, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and activation |
 | Use it when | The service can stop writing for as long as a full import takes | A full import takes longer than the service can stop writing |
 
 The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, the offline path stopped writes for 243.4 seconds, of which the full import took 98.2; the online path stopped them for 159.5 seconds, of which its final pass took 15.2 ([Cut Over](./cutover)). The online path pays off only once the history is much larger than the final window.
@@ -36,7 +36,7 @@ Each imported stream keeps its version, command id, request id and commit time, 
 - **The map.** The `wow-migrate` Skill wrote `migration-map.json` while rewriting the source. It names, for each 9.x aggregate, its V10 type and every command and event mapping. See [The map](../reference/migrate-data#the-map). For a large service, `draft-map` drafts the renames from the 9.x store and the Manifest, and lists what it cannot match for you to resolve ([Draft the map](../reference/migrate-data#draft-the-map)).
 - **Reads on the 9.x store.** The tool only reads the 9.x MongoDB store, unless you let it create the index the tail needs, and except for the rollback's `export`, which writes back to it.
 - **An empty V10 target**, or one this tool alone has written to.
-- **The V10 domain modules on a class path.** `compare`, `snapshot` and `backfill-tags` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.
+- **The V10 domain modules on a class path.** `compare` and `snapshot` rebuild states with the service's own V10 models, the same evolve and upgrade functions the service runs. List the modules in `classpath`.
 - **The partition count of each V10 context**, the one the service will run with. A log refuses another.
 
 Rehearse the whole procedure against a copy of production data before the real cut-over.
@@ -92,7 +92,7 @@ A long import waits on its stores, stream by stream. When they are in a Kubernet
 - **The service's classes.** An init container copies the service's `lib` from the image its nodes run into a volume the tool reads (`"classpath": ["/service/lib"]`). The configuration names no `manifests`: the tool reads each service's Manifest from its modules' fragments in that `lib`, as the node does at startup.
 - **The configuration and the secrets.** The configuration and the map come from a ConfigMap, the passwords from a Secret, which `env:NAME` reads.
 - **The checkpoints.** They are kept in the target (`"checkpoint": "target:<name>"`), so a Pod that restarts on another node resumes where the last one stopped. One run of each kind writes them at a time; a second one waits for the first's lease, or fails, naming it ([Checkpoints](../reference/migrate-data#checkpoints)).
-- **The network.** A NetworkPolicy admits nothing, and lets the pods reach DNS and their stores alone: the 9.x MongoDB, the V10 target, and Elasticsearch when `backfill-tags` re-sinks one.
+- **The network.** A NetworkPolicy admits nothing, and lets the pods reach DNS and their stores alone: the 9.x MongoDB and the V10 target.
 
 A Job ends with the tool's exit code. A failed check, a usage error and differences fail it at once, since running it again changes nothing. A Pod lost to its node or its memory limit is run again, and resumes from the checkpoints.
 
@@ -169,9 +169,9 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 `snapshot`, or `import --snapshots`, writes the V10 snapshot of every imported aggregate at its last version, so V10's queries have data the moment traffic arrives. The V10 service's own snapshot subscription then finds them in place.
 
-## 7. Record the tags
+## 7. The access attributes
 
-Streams the import appended carry no tags yet, and attribute-based access control on the `events` model matches no stream without tags. Run `backfill-tags` once the import is done: it replays each aggregate and records the tags it had after each stream. If the services copy event streams to Elasticsearch, it then rewrites the search documents indexed without tags.
+Streams the import appended carry no access attributes yet, so an access policy shows none of them on the `events` model until they are stamped ([Rebuild and Replay](../operate/replay#access-attributes)).
 
 ## 8. Start V10 and switch traffic
 
@@ -207,7 +207,7 @@ Through this dual run, start the V10 service's nodes on standby, with [`wow.node
 1. Stop 9.x writing, and stop the 9.x compensation service.
 2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
 3. Run `compare` and review the result (step 5).
-4. Run `snapshot` and `backfill-tags` (steps 6 and 7).
+4. Run `snapshot` (step 6).
 5. Activate every V10 node: `POST /wow/node/activate` on its internal port, with `Wow-Service: <the node's service>` and a JSON body naming who activates it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the activation ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
 6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams.
 

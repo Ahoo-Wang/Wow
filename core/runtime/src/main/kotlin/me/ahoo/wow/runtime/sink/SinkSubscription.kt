@@ -23,8 +23,10 @@ import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.sink.Sink
@@ -110,13 +112,22 @@ internal class SinkSubscription(
             },
             scope = stream.scope,
             deleted = view.deleted,
-            // No tags any more; work package C writes the access attributes instead.
+            access = accessOf(stream, view.state),
             causation = stream.causation,
             headers = stream.headers,
             operator = stream.operator,
             transport = published(entry.transport, currentCoroutineContext().trace),
             imported = entry.imported,
         )
+    }
+
+    /**
+     * The access attributes after [stream], the built-in ones among them: the stream's own when it holds the model's
+     * current ones, else those of the state [stateText] it left with the stream's scope.
+     */
+    private fun accessOf(stream: EventStreamRecord, stateText: String): Map<String, Any?> {
+        val current = stream.access?.takeIf { AccessValues.declared(it).keys == model.accessNames }
+        return current ?: AccessValues.ofStream(codec.accessAfter(model, stream, stateText), stream.scope)
     }
 
     /** [record] at its event type's current name and revision: as stored when it is, upgraded through the model else. */

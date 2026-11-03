@@ -61,7 +61,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             deleted boolean NOT NULL,
             first_event_time bigint NOT NULL,
             last_event_time bigint NOT NULL,
-            tags jsonb NOT NULL,
+            access jsonb NOT NULL DEFAULT '{}',
             operator jsonb,
             first_operator jsonb,
             schedules jsonb,
@@ -84,18 +84,25 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     )
 
     /**
-     * Adds format 1's added columns (the operators; the schedules; the state revision and the stale version)
-     * to a table created before them.
+     * Adds format 1's added columns (the operators; the schedules; the state revision and the stale version; the
+     * access attributes) to a table created before them.
      */
     val additions: String
         get() = "ALTER TABLE $snapshot ADD COLUMN IF NOT EXISTS operator jsonb, " +
             "ADD COLUMN IF NOT EXISTS first_operator jsonb, ADD COLUMN IF NOT EXISTS schedules jsonb, " +
             "ADD COLUMN IF NOT EXISTS state_revision integer NOT NULL DEFAULT 1, " +
-            "ADD COLUMN IF NOT EXISTS stale_version integer"
+            "ADD COLUMN IF NOT EXISTS stale_version integer, " +
+            "ADD COLUMN IF NOT EXISTS access jsonb NOT NULL DEFAULT '{}'"
+
+    /**
+     * Drops the `tags` column a table of an earlier version holds, `NOT NULL`, which the saves of this one would
+     * violate: they write the access attributes instead ([FORMER_COLUMN]).
+     */
+    val dropFormerColumn: String get() = "ALTER TABLE $snapshot DROP COLUMN IF EXISTS $FORMER_COLUMN"
 
     private fun upsert(guard: String, rows: Int = 1, returning: String = "version") = """
         INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
-            owner_id, space_id, deleted, first_event_time, last_event_time, tags, operator, first_operator, schedules,
+            owner_id, space_id, deleted, first_event_time, last_event_time, access, operator, first_operator, schedules,
             state_revision)
         VALUES ${List(rows) { ROW }.joinToString(", ")}
         ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
@@ -107,7 +114,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             deleted = excluded.deleted,
             first_event_time = excluded.first_event_time,
             last_event_time = excluded.last_event_time,
-            tags = excluded.tags,
+            access = excluded.access,
             operator = excluded.operator,
             first_operator = excluded.first_operator,
             schedules = excluded.schedules,
@@ -226,7 +233,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             "deleted" to "boolean",
             "first_event_time" to "bigint",
             "last_event_time" to "bigint",
-            "tags" to "text",
+            "access" to "text",
             "operator" to "text",
             "first_operator" to "text",
             "schedules" to "text",
@@ -234,6 +241,9 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         )
 
         const val PREFIX = "wow_snapshot"
+
+        /** The column of the tags an earlier version of the table holds, which this one drops ([dropFormerColumn]). */
+        const val FORMER_COLUMN = "tags"
 
         /** The parameters of one snapshot's row. */
         const val ROW_PARAMETERS = 15

@@ -127,7 +127,7 @@ class InProcessQueryApiTest {
                 scope = Scope(owner),
                 firstEventTime = 10,
                 lastEventTime = 20,
-                tags = mapOf("region" to listOf("east")),
+                access = mapOf("region" to listOf("east")),
                 operator = operator,
             ),
         )
@@ -180,7 +180,7 @@ class InProcessQueryApiTest {
         version = 3,
         scope = Scope(owner),
         deleted = false,
-        tags = emptyMap(),
+        access = emptyMap(),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,
@@ -208,7 +208,7 @@ class InProcessQueryApiTest {
         snapshot.ref.assert().isEqualTo(cart.ref("acme", "c-1"))
         snapshot.version.assert().isEqualTo(2)
         snapshot.scope.assert().isEqualTo(Scope("alice"))
-        snapshot.tags.assert().isEqualTo(mapOf("region" to listOf("east")))
+        snapshot.access.assert().isEqualTo(mapOf("region" to listOf("east")))
         snapshot.deleted.assert().isFalse()
         snapshot.operator.assert().isEqualTo(operator)
         snapshot.firstEventTime.assert().isEqualTo(10)
@@ -245,7 +245,7 @@ class InProcessQueryApiTest {
                 scope = Scope("alice"),
                 firstEventTime = 10,
                 lastEventTime = 20,
-                tags = emptyMap(),
+                access = emptyMap(),
                 operator = operator,
             ),
         )
@@ -256,7 +256,7 @@ class InProcessQueryApiTest {
                 version = 2,
                 scope = Scope("alice"),
                 deleted = false,
-                tags = emptyMap(),
+                access = emptyMap(),
                 operator = null,
                 firstEventTime = 10,
                 lastEventTime = 20,
@@ -356,8 +356,8 @@ class InProcessQueryApiTest {
         assertThrows<IllegalStateException> { record.toSnapshot(cart, CartState::class.java) }
             .message.assert().contains("state")
         record.set("state", storage.records(cart).single()["state"])
-        record.remove("tags")
-        record.toSnapshot(cart, CartState::class.java).tags.assert().isEmpty()
+        record.remove("access")
+        record.toSnapshot(cart, CartState::class.java).access.assert().isEmpty()
     }
 
     @Test
@@ -403,7 +403,7 @@ class InProcessQueryApiTest {
         state.version.assert().isEqualTo(3)
         state.scope.assert().isEqualTo(Scope("alice"))
         state.deleted.assert().isFalse()
-        state.tags.assert().isEmpty()
+        state.access.assert().isEmpty()
         state.state.assert().isEqualTo(CartState(7))
         carts.state("b").assert().isNull()
         carts.state("missing").assert().isNull()

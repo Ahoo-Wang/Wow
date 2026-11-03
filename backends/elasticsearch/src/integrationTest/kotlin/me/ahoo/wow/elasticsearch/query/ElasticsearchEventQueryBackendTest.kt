@@ -50,14 +50,14 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
         QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
             .compile(QuerySchemaContext(type, QueryModel.EVENTS), binding(type).storage)
             .schema()
-        val (tagged, untagged) = streams.partition { (stream) -> stream.tags != null }
-        sink.write(tagged.map { (stream, transport) -> recordOf(stream, transport) })
-        // A stream without tags stands for a document indexed before the index learned them (decision D259).
+        val (stamped, unstamped) = streams.partition { (stream) -> stream.access != null }
+        sink.write(stamped.map { (stream, transport) -> recordOf(stream, transport) })
+        // A stream not stamped stands for a document indexed before the index learned the access attributes.
         val index = ElasticsearchFixture.names.events(type.context, type.name)
-        untagged.forEach { (stream, transport) ->
+        unstamped.forEach { (stream, transport) ->
             val document = ElasticsearchEventDocuments.document(recordOf(stream, transport))
-            document.remove(EventStreamFields.TAGS)
-            document.remove(ElasticsearchEventIndex.TAGS_RECORDED)
+            document.remove(EventStreamFields.ACCESS)
+            document.remove(ElasticsearchEventIndex.ACCESS_VERSION)
             ElasticsearchFixture.client.index<ObjectNode> {
                 it.index(index).id(ElasticsearchNames.streamId(stream.ref, stream.version)).document(document)
                     .refresh(Refresh.True)
@@ -81,7 +81,7 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
             },
             scope = stream.scope,
             operator = stream.operator,
-            tags = stream.tags.orEmpty(),
+            access = stream.access,
             transport = transport?.let(TransportCodec::decode),
         )
     }

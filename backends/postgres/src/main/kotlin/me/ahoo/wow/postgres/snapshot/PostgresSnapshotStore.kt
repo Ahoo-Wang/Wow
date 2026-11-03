@@ -23,11 +23,13 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresSchema
+import me.ahoo.wow.postgres.PostgresTimeouts
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
@@ -47,7 +49,8 @@ import javax.sql.DataSource
  * The [SnapshotStore] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §3).
  *
  * Each aggregate type has a table of its own ([PostgresSnapshotTables]), created on its first save or
- * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and the tags are `jsonb`, so the snapshot can be queried in place
+ * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and
+ * the access attributes are `jsonb`, so the snapshot can be queried in place
  * as the default read model. A save is one autocommitted statement that carries its own version and state revision
  * guard (see [PostgresSnapshotTables.save]); a save refused for a higher state revision then marks the row stale. The
  * claimed state revision of each table is a row of [PostgresSnapshotTables.TABLES], claimed with one
@@ -93,7 +96,29 @@ class PostgresSnapshotStore(
                 PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
                     PostgresSchema.execute(connection, tables.ddl())
                 }
+                dropFormerColumn(connection, tables)
             }
+        }
+    }
+
+    /**
+     * Drops the tags a table of an earlier version holds ([PostgresSnapshotTables.dropFormerColumn]) under `auto`;
+     * under `validate` refuses the table while it holds them, naming the statement to run: its saves would fail.
+     * Only a table an earlier version created holds them, so a current one costs one catalog read.
+     */
+    private fun dropFormerColumn(connection: Connection, tables: PostgresSnapshotTables) {
+        if (!ddl.checks ||
+            !PostgresSchema.hasColumns(connection, tables.snapshot, listOf(PostgresSnapshotTables.FORMER_COLUMN))
+        ) {
+            return
+        }
+        check(ddl.creates) {
+            "${tables.snapshot} holds the column ${PostgresSnapshotTables.FORMER_COLUMN} of an earlier version, " +
+                "NOT NULL, which the saves of this one would violate, and the store only validates its schema " +
+                "(ddl validate): run ${tables.dropFormerColumn}, or start once with ddl auto."
+        }
+        PostgresTimeouts.ddl(connection) {
+            connection.createStatement().use { it.execute(tables.dropFormerColumn) }
         }
     }
 
@@ -254,7 +279,7 @@ class PostgresSnapshotStore(
         save.setBoolean(offset + 8, snapshot.deleted)
         save.setLong(offset + 9, snapshot.firstEventTime)
         save.setLong(offset + 10, snapshot.lastEventTime)
-        save.setString(offset + 11, json.writeValueAsString(snapshot.tags))
+        save.setString(offset + 11, AccessValues.text(snapshot.access))
         save.setNullableString(offset + 12, snapshot.operator?.let(json::writeValueAsString))
         save.setNullableString(offset + 13, snapshot.firstOperator?.let(json::writeValueAsString))
         save.setNullableString(offset + 14, snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
@@ -383,7 +408,7 @@ class PostgresSnapshotStore(
         deleted = row.getBoolean(prefix + "deleted"),
         firstEventTime = row.getLong(prefix + "first_event_time"),
         lastEventTime = row.getLong(prefix + "last_event_time"),
-        tags = decodeTags(row.getString(prefix + "tags")),
+        access = AccessValues.parse(row.getString(prefix + "access")).orEmpty(),
         operator = row.getString(prefix + "operator")?.let(::decodeOperator),
         firstOperator = row.getString(prefix + "first_operator")?.let(::decodeOperator),
         schedules = row.getString(prefix + "schedules")?.let(::decodeSchedules).orEmpty(),
@@ -433,17 +458,6 @@ class PostgresSnapshotStore(
         fun decodeSchedules(text: String): Map<String, ScheduleRule> = buildMap {
             for ((key, rule) in json.readTree(text).properties()) {
                 put(key, json.treeToValue(rule, ScheduleRule::class.java))
-            }
-        }
-
-        fun decodeTags(text: String): Map<String, List<String>> = buildMap {
-            for ((name, values) in json.readTree(text).properties()) {
-                // An array node has a map member of its own, so iterate rather than map.
-                val list = ArrayList<String>(values.size())
-                for (value in values) {
-                    list += value.asString()
-                }
-                put(name, list)
             }
         }
     }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.events
 
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -24,10 +25,10 @@ import tools.jackson.databind.node.ObjectNode
  * The stream document of the events index: the record of the `events` model as it is
  * (`EventStreamRecords.stored`), each field under the model's name ([RECORD_FIELDS]), the operator `{id, tenantId,
  * crossScope}` or null, each event `{name, revision, body}` as committed: its stored name and revision,
- * its body as Wow's JSON, whose numbers Elasticsearch keeps exactly in `_source`; the tags after the
- * commit with [ElasticsearchEventIndex.TAGS_RECORDED] `true`. A document indexed before the index
- * learned the tags has neither, and its record's `tags` is null. The position, causation, headers, state and transport
- * of a commit are not part of it.
+ * its body as Wow's JSON, whose numbers Elasticsearch keeps exactly in `_source`; the aggregate's access attributes
+ * with [ElasticsearchEventIndex.ACCESS_VERSION], the version they are of. A document of a stream not stamped has
+ * neither, and its record's `access` is null. The position, causation, headers, state and transport of a commit are
+ * not part of it.
  */
 internal object ElasticsearchEventDocuments {
     /** The fields of a stream record, in the record's order. */
@@ -42,7 +43,7 @@ internal object ElasticsearchEventDocuments {
         EventStreamFields.OWNER_ID,
         EventStreamFields.SPACE_ID,
         EventStreamFields.OPERATOR,
-        EventStreamFields.TAGS,
+        EventStreamFields.ACCESS,
         EventStreamFields.EVENTS,
     )
 
@@ -64,9 +65,10 @@ internal object ElasticsearchEventDocuments {
         put(EventStreamFields.OWNER_ID, record.scope.ownerId)
         put(EventStreamFields.SPACE_ID, record.scope.spaceId)
         set(EventStreamFields.OPERATOR, operator(record.operator))
-        val tags = putObject(EventStreamFields.TAGS)
-        record.tags.forEach { (key, values) -> tags.putArray(key).also { array -> values.forEach(array::add) } }
-        put(ElasticsearchEventIndex.TAGS_RECORDED, true)
+        record.access?.let { access ->
+            set(EventStreamFields.ACCESS, AccessValues.json(access))
+            put(ElasticsearchEventIndex.ACCESS_VERSION, record.version)
+        }
         val events = putArray(EventStreamFields.EVENTS)
         record.events.forEach { event ->
             events.addObject()
@@ -82,8 +84,8 @@ internal object ElasticsearchEventDocuments {
             val value = source.get(field)
             when {
                 value != null -> set(field, value)
-                // Indexed before the index learned the tags: not recorded.
-                field == EventStreamFields.TAGS -> putNull(field)
+                // A stream not stamped.
+                field == EventStreamFields.ACCESS -> putNull(field)
             }
         }
     }

@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:a55b9a688d61d7cb9677ee471f9cd2eb47b2ad99aef0922bfca89ab062abbe19",
+  "version" : "sha256:ee992c768940b6c48ef980c6c3bb41a99495615206ecca01b3c27ecaefcba5a7",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -49,6 +49,20 @@
     "rootGroups" : true
   },
   "fields" : [ {
+    "path" : "access",
+    "types" : [ "object" ],
+    "kind" : "object",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
     "path" : "aggregateId",
     "role" : "aggregate-id",
     "types" : [ "string" ],
@@ -527,20 +541,6 @@
     },
     "aliases" : [ ]
   }, {
-    "path" : "tags",
-    "types" : [ "object" ],
-    "kind" : "object",
-    "nullable" : false,
-    "project" : true,
-    "filter" : {
-      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : false,
-      "cursor" : false
-    },
-    "aliases" : [ ]
-  }, {
     "path" : "tenantId",
     "role" : "tenant-id",
     "types" : [ "string" ],
@@ -750,29 +750,6 @@
       "firstLast" : true,
       "expressionInput" : false,
       "inMetricFilter" : true
-    }
-  }, {
-    "pattern" : "tags.{key}",
-    "types" : [ "string" ],
-    "kind" : "array",
-    "nullable" : false,
-    "filter" : {
-      "operators" : [ "eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts-with", "ends-with", "in", "not-in", "between", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : true,
-      "cursor" : false
-    },
-    "aggregate" : {
-      "groups" : [ "terms" ],
-      "missingKey" : false,
-      "functions" : [ ],
-      "distinctCount" : true,
-      "percentile" : false,
-      "any" : false,
-      "firstLast" : false,
-      "expressionInput" : false,
-      "inMetricFilter" : false
     }
   } ],
   "constraints" : [ {

@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -175,7 +175,7 @@ ORDER BY (tenant_id, aggregate_id, version, sequence)
 SETTINGS non_replicated_deduplication_window = 1000;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
@@ -184,9 +184,9 @@ FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:a699c6d81110f884';
+COMMENT 'wow-sink-flat:eb326856599fc0e7';
 ```
 
 排序键就是一行的身份：键与先前某行相同的行，在 ClickHouse 合并时替换它。
@@ -210,7 +210,7 @@ COMMENT 'wow-sink-flat:a699c6d81110f884';
 | `command_id`、`request_id`、`command_type` | 产生这次提交的命令：它的 id、幂等键和类型 |
 | `commit_time` | 提交的时间，UTC，精确到毫秒 |
 | `owner_id`、`space_id` | 提交之后聚合的作用域，没有则为空 |
-| `deleted`、`tags` | 聚合是否已删除，以及它的标签 |
+| `deleted`、`access` | 聚合是否已删除，以及提交时的访问属性（JSON 文本，含内置的 `owner` 与 `space`）：只作信息，不用于读取的授权 |
 | `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
 | `headers` | 命令携带的请求事实 |
 | `operator_id`、`operator_tenant_id`、`operator_cross_scope` | 谁提交的；没有时为空和 false |
@@ -220,7 +220,7 @@ COMMENT 'wow-sink-flat:a699c6d81110f884';
 
 **`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `payload`，以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
 
-**`_state_flat`** 以 `id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `tags` 开头，随后是状态 schema 的每个顶层标量属性各一列，顺序与 schema 相同：
+**`_state_flat`** 以 `id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `access` 开头，随后是状态 schema 的每个顶层标量属性各一列，顺序与 schema 相同：
 
 | 属性 | 它的列 |
 | --- | --- |
@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -335,7 +335,7 @@ ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash6
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events_local`;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
@@ -344,9 +344,9 @@ FROM `default`.`shop_order_state_events_local`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:a699c6d81110f884';
+COMMENT 'wow-sink-flat:eb326856599fc0e7';
 ```
 
 - **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、或列不同时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。

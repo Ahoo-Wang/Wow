@@ -89,7 +89,7 @@ object SinkFixtures {
         state = state?.let { PublishedState(version, "fingerprint-1", WowJson.mapper.readTree(it)) },
         scope = Scope("owner-1", null),
         deleted = false,
-        tags = mapOf("color" to listOf("red", "blue")),
+        access = mapOf("owner" to "owner-1", "space" to null, "colors" to listOf("blue", "red")),
         causation = Causation("correlation-1", "upstream@1"),
         headers = mapOf("app" to "web"),
         operator = operator,

@@ -50,14 +50,20 @@ class ManifestQuerySchemaSource(
         return declarations.computeIfAbsent(context.aggregateType, ::declare)
     }
 
-    /** The declaration of [type]'s snapshot `state`, compiled once; empty when the Manifest declares no such model. */
+    /**
+     * The declaration of [type]'s snapshot `state` and of its access attributes ([accessDeclaration]), compiled once;
+     * empty when the Manifest declares no such model.
+     */
     fun declare(type: AggregateType): List<QuerySchemaDeclaration> {
         val aggregate = manifest.aggregate(type)?.takeIf { it.snapshot.enabled } ?: return emptyList()
         val reader = ManifestSchemaReader(manifest.defs, type.context, strategies)
         val state = reader.declaration(mapOf(REF to aggregate.state.schema), QueryField(SnapshotFields.STATE))
         // The system field states the payload's nullability and presence; the state schema states its structure.
         val structure = state.copy(nullable = DeclarationValue.Unset, required = DeclarationValue.Unset)
-        return listOf(QuerySchemaDeclaration(mapOf(QueryField(SnapshotFields.STATE) to structure)))
+        return listOfNotNull(
+            QuerySchemaDeclaration(mapOf(QueryField(SnapshotFields.STATE) to structure)),
+            accessDeclaration(aggregate.access, SnapshotFields.ACCESS),
+        )
     }
 
     private fun Manifest.aggregate(type: AggregateType): AggregateManifest? =

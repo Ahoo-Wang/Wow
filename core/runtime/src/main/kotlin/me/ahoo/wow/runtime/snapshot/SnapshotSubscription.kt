@@ -159,7 +159,7 @@ class SnapshotSubscription(
 
     /**
      * The snapshot of [stream]: [state] with the kernel's [deleted] mark and [schedules] after it, its scope and operator,
-     * and what [first] says of the aggregate's first stream.
+     * its access attributes ([EventCodec.accessAfter]), and what [first] says of the aggregate's first stream.
      */
     @Suppress("LongParameterList")
     private fun snapshotOf(
@@ -181,6 +181,7 @@ class SnapshotSubscription(
         stream.operator,
         first.operator,
         schedules,
+        codec.accessAfter(model, stream, state),
     )
 
     /**

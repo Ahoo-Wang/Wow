@@ -38,6 +38,8 @@ object QueryFixtures {
     const val TENANT = "tenant"
 
     val DECLARATION: QuerySchemaDeclaration = querySchema {
+        // An access attribute of several values, as the aggregate's Manifest types it.
+        field("access.region") { items { types(QueryValueType.STRING) } }
         field("state.name") { types(QueryValueType.STRING) }
         field("state.status") { types(QueryValueType.STRING) }
         field("state.amount") { types(QueryValueType.DECIMAL) }
@@ -102,7 +104,7 @@ object QueryFixtures {
         deleted: Boolean = false,
         version: Int = 1,
         lastEventTime: Long = T0,
-        tags: Map<String, List<String>> = emptyMap(),
+        access: Map<String, Any?> = emptyMap(),
     ) = SnapshotRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -112,7 +114,7 @@ object QueryFixtures {
         deleted = deleted,
         firstEventTime = T0 - DAY,
         lastEventTime = lastEventTime,
-        tags = tags,
+        access = access,
     )
 
     /** Five orders whose values cover nulls, missing fields, unicode, wildcards and arrays. */
@@ -124,7 +126,7 @@ object QueryFixtures {
                 """"createdAt":$T0,"createdSeconds":${T0 / 1000},"createdMicros":${T0 * 1000},"code":"2026-01-05",""" +
                 """"keywords":["x","y_1"],"scores":[1,5],"mixed":"one",""" +
                 """"lines":[{"sku":"A","price":5,"quantity":1,"parts":[{"name":"bolt"}]}]}""",
-            tags = mapOf("region" to listOf("east", "west")),
+            access = mapOf("region" to listOf("east", "west")),
         ),
         snapshot(
             type,
@@ -135,7 +137,7 @@ object QueryFixtures {
             scope = Scope("owner-2", "space-1"),
             version = 2,
             lastEventTime = T0 + DAY,
-            tags = mapOf("region" to listOf("east")),
+            access = mapOf("region" to listOf("east")),
         ),
         snapshot(
             type,

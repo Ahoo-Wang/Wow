@@ -166,6 +166,7 @@ internal class SnapshotWriter(
                 last.operator,
                 first.operator,
                 state.schedules,
+                codec.accessOf(target.model, state.state),
             ),
         )
     }

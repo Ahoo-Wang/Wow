@@ -95,7 +95,7 @@ class ReadRecordsTest {
         read.operator.assert().isNull()
         read.firstOperator.assert().isNull()
         read.schedules.assert().isEmpty()
-        read.tags.assert().isEmpty()
+        read.access.assert().isEmpty()
         read.scope.assert().isEqualTo(Scope.NONE)
         // An explicit null too.
         record.putNull(SnapshotFields.SCHEDULES)

@@ -17,7 +17,7 @@ Each aggregate type serves its event streams at `POST /<context>/<aggregate>/eve
 | `aggregateId`, `tenantId`, `version` | The aggregate and its version after the commit |
 | `commitTime` | When it committed, in epoch milliseconds |
 | `commandId`, `requestId`, `commandType` | The command that produced it |
-| `ownerId`, `spaceId`, `tags`, `operator` | The aggregate's scope and tags, and in whose name the commit is recorded |
+| `ownerId`, `spaceId`, `access`, `operator` | The aggregate's scope, its current access attributes (owner and space among them; `null` when not stamped), and in whose name the commit is recorded |
 | `events` | Its events in order, each with its `name`, `revision` and `body` |
 
 The catalog reads a product's timeline, counts its commits that hold a given event, and counts its events by name:

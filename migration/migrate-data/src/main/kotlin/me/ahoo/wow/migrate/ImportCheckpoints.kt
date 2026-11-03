@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -120,10 +119,9 @@ internal data class ExportCheckpoint(
 /**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
  * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
- * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the tags
- * backfill's by V10 aggregate type ([tags]); and the rollback export's by V10 context ([exports]).
- * The last six joined format 1 as optional properties (.2, 8b.4, 8c.1, -Q2c):
- * a file without them reads as before.
+ * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the rollback
+ * export's by V10 context ([exports]). The last five joined format 1 as optional properties (.2, 8b.4, 8c.1, -Q2c):
+ * a file without them reads as before, and the `tags` of a file the removed tags backfill wrote is ignored.
  */
 internal data class ImportCheckpoints(
     val format: Int = FORMAT,
@@ -132,7 +130,6 @@ internal data class ImportCheckpoints(
     val snapshots: Map<String, SnapshotCheckpoint> = emptyMap(),
     val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
     val compensation: CompensationCheckpoint? = null,
-    val tags: Map<String, TagsCheckpoint> = emptyMap(),
     val exports: Map<String, ExportCheckpoint> = emptyMap(),
 ) {
     init {
@@ -160,11 +157,6 @@ internal data class ImportCheckpoints(
         copy(reservations = reservations + (name to checkpoint))
 
     fun with(checkpoint: CompensationCheckpoint): ImportCheckpoints = copy(compensation = checkpoint)
-
-    fun tagsOf(type: AggregateType): TagsCheckpoint? = tags[type.toString()]
-
-    fun with(type: AggregateType, checkpoint: TagsCheckpoint): ImportCheckpoints =
-        copy(tags = tags + (type.toString() to checkpoint))
 
     fun exportOf(context: String): ExportCheckpoint? = exports[context]
 

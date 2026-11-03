@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.error.QueryStorageUnavailableException
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
@@ -156,7 +157,11 @@ class DefaultQueryModelSchemaProvider(
         }
         val profile = profile
             ?: throw QuerySchemaValidationException("Unsupported System query model: [${context.model}].")
-        val logicalSchema = merger.merge(profile.systemDeclaration, loaded, sensitivity, profile.payloadField?.path)
+        // The payload and the access attributes, which a model's Manifest types per aggregate.
+        val roots = profile.payloadField?.path?.let { payload ->
+            setOfNotNull(payload, SnapshotFields.ACCESS.takeIf { QueryField(it) in profile.systemDeclaration.fields })
+        }
+        val logicalSchema = merger.merge(profile.systemDeclaration, loaded, sensitivity, roots)
         return factsOf(logicalSchema, refresh).compile(context.model, logicalSchema, profile)
     }
 

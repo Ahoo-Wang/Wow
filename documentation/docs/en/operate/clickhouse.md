@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -175,7 +175,7 @@ ORDER BY (tenant_id, aggregate_id, version, sequence)
 SETTINGS non_replicated_deduplication_window = 1000;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events`;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
@@ -184,9 +184,9 @@ FROM `default`.`shop_order_state_events`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:a699c6d81110f884';
+COMMENT 'wow-sink-flat:eb326856599fc0e7';
 ```
 
 The sorting key is a row's identity: a row with the same key as an earlier one replaces it when ClickHouse merges them.
@@ -210,7 +210,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 | `command_id`, `request_id`, `command_type` | The command that made the commit: its id, its idempotency key and its type |
 | `commit_time` | When it was committed, in UTC, to the millisecond |
 | `owner_id`, `space_id` | The scope of the aggregate after the commit, empty when none |
-| `deleted`, `tags` | Whether the aggregate is deleted, and its tags |
+| `deleted`, `access` | Whether the aggregate is deleted, and its access attributes at the commit as JSON text, the built-in `owner` and `space` among them: information only, never what authorizes a read |
 | `correlation_id`, `causation_id` | The root command's id and the direct cause, empty for a command a caller sent directly |
 | `headers` | The request facts the command carried |
 | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | Who committed it; empty and false when none |
@@ -220,7 +220,7 @@ Each table of an aggregate has `SETTINGS non_replicated_deduplication_window = N
 
 **`_events`**, one row per event: `sequence` (the event's place in its commit, from 1), `event_name`, `event_revision` and `payload`, with the commit's `id`, `tenant_id`, `aggregate_id`, `version`, `command_id`, `request_id`, `command_type`, `commit_time`, `owner_id`, `space_id`, `correlation_id` and `causation_id`.
 
-**`_state_flat`** starts with `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `tags`, then has a column for each top-level scalar property of the state schema, in its order:
+**`_state_flat`** starts with `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted` and `access`, then has a column for each top-level scalar property of the state schema, in its order:
 
 | The property | Its column |
 | --- | --- |
@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER 
     `owner_id` String,
     `space_id` String,
     `deleted` Bool,
-    `tags` Map(String, Array(String)),
+    `access` String,
     `correlation_id` String,
     `causation_id` String,
     `headers` Map(String, String),
@@ -335,7 +335,7 @@ ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash6
 
 -- The views run on every node, from its own shard's local tables.
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
-SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, access, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
 FROM `default`.`shop_order_state_events_local`;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
@@ -344,9 +344,9 @@ FROM `default`.`shop_order_state_events_local`
 ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
 
 CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
-SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `access`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
 FROM `default`.`shop_order_state` FINAL
-COMMENT 'wow-sink-flat:a699c6d81110f884';
+COMMENT 'wow-sink-flat:eb326856599fc0e7';
 ```
 
 - **Set `wow.clickhouse.ddl: validate`.** The sink then creates nothing, and refuses to write while a table or view it expects is missing or has other columns, naming it. The Distributed tables pass, since ClickHouse reports their columns as their local tables'. `auto` would create what is missing on the one node its endpoint reaches, as a single-node table; `none` checks nothing.

@@ -64,10 +64,11 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] comes from the command too: whose name the commit is recorded in, the primary record of
  *   an audit; null for an anonymous caller.
- * - [tags] are the aggregate's tags **after** this commit, as [scope] is its owner and space: the
- *   events model filters by them, so ABAC restricts an event timeline as each stream stood when it was committed. Null
- *   when not recorded (a stream appended before format 1 learned them, until `migrate-data` backfills it); empty when
- *   the aggregate had none.
+ * - [access] are the aggregate's access attributes, the built-in owner and space among them, in their stored form
+ *   ([me.ahoo.wow.spi.access.AccessValues]): those **after** this commit when it is appended, and then always the
+ *   aggregate's current ones, which a stamp writes over its earlier streams when they change, so the events model
+ *   authorizes a timeline by what the aggregate is now. Null when not stamped: a stream appended before the log
+ *   recorded them, or imported without them, until a stamp gives them.
  * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
  *   `wow.ScheduleCancelled`, from which the built-in `timers` subscription derives the timer store.
  * - [rejection] is the rejection whose events this stream holds, when a decision rejected its command with events,
@@ -89,7 +90,7 @@ class EventStreamRecord @InternalWowApi constructor(
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
-    val tags: Map<String, List<String>>? = null,
+    val access: Map<String, Any?>? = null,
 ) {
     init {
         require(version >= 1) { "An event stream's version starts at 1." }
@@ -111,7 +112,7 @@ class EventStreamRecord @InternalWowApi constructor(
         causation: Causation? = this.causation,
         headers: Map<String, String> = this.headers,
         operator: Operator? = this.operator,
-        tags: Map<String, List<String>>? = this.tags,
+        access: Map<String, Any?>? = this.access,
     ): EventStreamRecord =
         EventStreamRecord(
             ref,
@@ -125,7 +126,7 @@ class EventStreamRecord @InternalWowApi constructor(
             causation,
             headers,
             operator,
-            tags,
+            access,
         )
 
     override fun equals(other: Any?): Boolean =
@@ -136,7 +137,7 @@ class EventStreamRecord @InternalWowApi constructor(
     override fun toString(): String =
         "EventStreamRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, scope=$scope, causation=$causation, " +
-            "headers=$headers, operator=$operator, tags=$tags)"
+            "headers=$headers, operator=$operator, access=$access)"
 
     private fun valueFields(): List<Any?> = listOf(
         ref,
@@ -150,7 +151,7 @@ class EventStreamRecord @InternalWowApi constructor(
         causation,
         headers,
         operator,
-        tags,
+        access,
     )
 
     /** The rejection whose events this stream holds; null for a commit ([REJECTION_PREFIX]). */
@@ -209,7 +210,7 @@ class EventStreamRecord @InternalWowApi constructor(
             causation: Causation? = null,
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
-            tags: Map<String, List<String>>? = null,
+            access: Map<String, Any?>? = null,
         ): EventStreamRecord =
             EventStreamRecord(
                 ref,
@@ -223,7 +224,7 @@ class EventStreamRecord @InternalWowApi constructor(
                 causation,
                 headers,
                 operator,
-                tags,
+                access,
             )
     }
 }

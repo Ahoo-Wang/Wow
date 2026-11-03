@@ -190,7 +190,7 @@ abstract class QueryBackendSpec {
         deleted: Boolean = false,
         version: Int = 1,
         lastEventTime: Long = T0,
-        tags: Map<String, List<String>> = emptyMap(),
+        access: Map<String, Any?> = emptyMap(),
         operator: Operator? = null,
         firstOperator: Operator? = operator,
         schedules: Map<String, ScheduleRule> = emptyMap(),
@@ -203,13 +203,13 @@ abstract class QueryBackendSpec {
         deleted = deleted,
         firstEventTime = T0 - DAY,
         lastEventTime = lastEventTime,
-        tags = tags,
+        access = access,
         operator = operator,
         firstOperator = firstOperator,
         schedules = schedules,
     )
 
-    /** Five orders over two tenants, one deleted, one tagged: the records most tests read. */
+    /** Five orders over two tenants, one deleted, one with access attributes: the records most tests read. */
     protected fun orders(): List<SnapshotRecord> = listOf(
         snapshot(
             "o1",
@@ -248,7 +248,7 @@ abstract class QueryBackendSpec {
             scope = Scope.NONE,
             version = 5,
             lastEventTime = T0 + 4 * DAY,
-            tags = mapOf("region" to listOf("east")),
+            access = mapOf("region" to "east", "teams" to listOf("a", "b")),
         ),
     )
 
@@ -307,7 +307,8 @@ abstract class QueryBackendSpec {
         fixture.ids(DeletionFilter(DeletionState.ACTIVE)).assert().containsExactlyInAnyOrder("o1", "o2", "o3", "o5")
         fixture.ids(DeletionFilter(DeletionState.DELETED)).assert().containsExactly("o4")
         fixture.ids(DeletionFilter(DeletionState.ALL)).assert().hasSize(5)
-        fixture.ids(EqualFilter(QueryField("tags.region"), "east")).assert().containsExactly("o5")
+        fixture.ids(EqualFilter(QueryField("access.region"), "east")).assert().containsExactly("o5")
+        fixture.ids(EqualFilter(QueryField("access.teams"), "b")).assert().containsExactly("o5")
         fixture.ids(EqualFilter(QueryField("version"), 2)).assert().containsExactly("o2")
         fixture.ids(GreaterThanFilter(QueryField("lastEventTime"), T0 + 2 * DAY))
             .assert().containsExactlyInAnyOrder("o4", "o5")
@@ -1174,6 +1175,9 @@ abstract class QueryBackendSpec {
             field("state.probeText") { types(QueryValueType.STRING) }
             field("state.probeNumber") { types(QueryValueType.INTEGER) }
             field("state.probeTags") { items { types(QueryValueType.STRING) } }
+            // The access attributes the Manifest of an aggregate types: one single, one multiple.
+            field("access.region") { types(QueryValueType.STRING) }
+            field("access.teams") { items { types(QueryValueType.STRING) } }
         }
 
         private fun ObjectNode.id(): String = path("aggregateId").stringValue()

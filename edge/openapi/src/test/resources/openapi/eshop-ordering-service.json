@@ -2148,13 +2148,10 @@
           "deleted" : {
             "type" : "boolean"
           },
-          "tags" : {
+          "access" : {
             "type" : "object",
             "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
+              "description" : "An access attribute's value: a string, an integer, a boolean or null; an array of them for a multiple one."
             }
           },
           "state" : {
@@ -2858,13 +2855,10 @@
           "deleted" : {
             "type" : "boolean"
           },
-          "tags" : {
+          "access" : {
             "type" : "object",
             "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
+              "description" : "An access attribute's value: a string, an integer, a boolean or null; an array of them for a multiple one."
             }
           },
           "firstEventTime" : {

@@ -77,8 +77,8 @@ class PostgresEventQueryStorage @JvmOverloads constructor(
 
 /**
  * The fields of a log table (`AggregateLogTable`), by physical name: each system field of a stream its
- * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorCrossScope`, the tags the
- * nullable `jsonb` column `tags`, and the events
+ * column, the operator's three columns as `operatorId`, `operatorTenantId` and `operatorCrossScope`, the access
+ * attributes the nullable `jsonb` column `access`, and the events
  * the one `jsonb` column `events`, each `{name, revision, payload}`.
  */
 internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
@@ -95,7 +95,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         PostgresEventQueryLayout.OPERATOR_ID to "operator_id",
         PostgresEventQueryLayout.OPERATOR_TENANT_ID to "operator_tenant_id",
         PostgresEventQueryLayout.OPERATOR_CROSS_SCOPE to "operator_cross_scope",
-        EventStreamFields.TAGS to "tags",
+        EventStreamFields.ACCESS to "access",
         EventStreamFields.EVENTS to "events",
     ),
     columnTypes = mapOf(
@@ -111,7 +111,7 @@ internal object PostgresEventQueryExpressions : PostgresQueryExpressions(
         PostgresEventQueryLayout.OPERATOR_ID to PostgresQueryType.TEXT,
         PostgresEventQueryLayout.OPERATOR_TENANT_ID to PostgresQueryType.TEXT,
         PostgresEventQueryLayout.OPERATOR_CROSS_SCOPE to PostgresQueryType.BOOLEAN,
-        EventStreamFields.TAGS to PostgresQueryType.JSONB,
+        EventStreamFields.ACCESS to PostgresQueryType.JSONB,
         EventStreamFields.EVENTS to PostgresQueryType.JSONB,
     ),
 )
@@ -126,7 +126,7 @@ internal object PostgresEventQueryLayout {
     const val PAYLOAD: String = "payload"
 
     private const val COLUMNS = "tenant_id, aggregate_id, version, commit_time, command_id, request_id, command_type, " +
-        "owner_id, space_id, operator_id, operator_tenant_id, operator_cross_scope, tags"
+        "owner_id, space_id, operator_id, operator_tenant_id, operator_cross_scope, access"
     private val nodes: JsonNodeFactory = JsonNodeFactory.instance
 
     /** The log table: by tenant, aggregate and version, its key; the events only read when the projection keeps them. */
@@ -167,11 +167,11 @@ internal object PostgresEventQueryLayout {
                 .put("tenantId", row.getString("operator_tenant_id"))
                 .put("crossScope", row.getBoolean("operator_cross_scope"))
         }
-        val tags = row.getString("tags")
-        if (tags == null) {
-            putNull(EventStreamFields.TAGS)
+        val access = row.getString("access")
+        if (access == null) {
+            putNull(EventStreamFields.ACCESS)
         } else {
-            set(EventStreamFields.TAGS, WowJson.mapper.readTree(tags))
+            set(EventStreamFields.ACCESS, WowJson.mapper.readTree(access))
         }
         if (projection.keepsEvents()) {
             val events = putArray(EventStreamFields.EVENTS)

@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "snapshot",
-  "version" : "sha256:664413f4776724efb712e1e220a042926fc2e0c5cf8f9af89b5b300acca9c5fb",
+  "version" : "sha256:d62ed861359ca9e9531705d539bd41fc5a59d6c6e7de96a65df174f5412596bf",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -68,6 +68,20 @@ Files from the user's project, shown inline:
     "rootGroups" : true
   },
   "fields" : [ {
+    "path" : "access",
+    "types" : [ "object" ],
+    "kind" : "object",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
     "path" : "aggregateId",
     "role" : "aggregate-id",
     "types" : [ "string" ],
@@ -477,20 +491,6 @@ Files from the user's project, shown inline:
     },
     "sort" : {
       "paged" : true,
-      "cursor" : false
-    },
-    "aliases" : [ ]
-  }, {
-    "path" : "tags",
-    "types" : [ "object" ],
-    "kind" : "object",
-    "nullable" : false,
-    "project" : true,
-    "filter" : {
-      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : false,
       "cursor" : false
     },
     "aliases" : [ ]

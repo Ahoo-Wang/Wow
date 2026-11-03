@@ -271,7 +271,7 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         /**
-         * A map key below a `flattened` field (an events index's `tags`): the mapping never lists its
+         * A map key below a `flattened` field: the mapping never lists its
          * keys, so the path is bound with its key, as the field indexes each key's values, for what a flattened key
          * executes: presence and exact string matches.
          */
@@ -411,8 +411,8 @@ internal class ElasticsearchQuerySchemaAdapter(
         private const val DOCUMENT_ID = "_id"
 
         /**
-         * The presence of a field a built-in store marks with a field of its own: an events index cannot tell an empty
-         * `tags` object from a missing one, so whether a stream recorded its tags is its `tagsRecorded`.
+         * The presence of a field a built-in store marks with a field of its own: an events index cannot tell an
+         * `access` object of null values from a missing one, so whether a stream is stamped is its `accessVersion`.
          */
         private fun ElasticsearchIndexMapping.presenceMarkerBinding(
             model: QueryModel,
@@ -426,7 +426,7 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         private val PRESENCE_MARKERS: Map<Pair<QueryModel, String>, String> = mapOf(
-            (QueryModel.EVENTS to EventStreamFields.TAGS) to ElasticsearchEventIndex.TAGS_RECORDED,
+            (QueryModel.EVENTS to EventStreamFields.ACCESS) to ElasticsearchEventIndex.ACCESS_VERSION,
         )
 
         /**
@@ -529,7 +529,7 @@ private fun String.sourceTemplate(arrayPaths: Set<String>): QueryPathTemplate {
  * `ignore_above` is stored in `_source` but not indexed, so no filter matches it (an `eq`, `in`, `contains` or prefix
  * with that value finds nothing; `ne` and `notIn` include the document), it sorts as missing, it falls into no terms
  * bucket and an expression reads no value. `exists` and `isNull` still see it through `_ignored`
- * (`ElasticsearchFilterCompiler`), so an over-long ABAC tag never reads as an untagged, public resource; inside a
+ * (`ElasticsearchFilterCompiler`), so an over-long access attribute never reads as a missing one; inside a
  * nested element it reads as missing.
  */
 internal const val UNCAPPED_IGNORE_ABOVE = 8191

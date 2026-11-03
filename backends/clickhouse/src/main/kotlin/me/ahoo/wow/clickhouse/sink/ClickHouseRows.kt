@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventRecord
 import tools.jackson.databind.JsonNode
@@ -32,7 +33,8 @@ import java.time.format.DateTimeFormatter
  * | `version`, `command_id`, `request_id`, `command_type` | as they are |
  * | `commit_time` | the commit time in UTC, to the millisecond |
  * | `owner_id`, `space_id` | the scope, empty when none |
- * | `deleted`, `tags` | as they are |
+ * | `deleted` | as it is |
+ * | `access` | the access attributes as JSON text, the built-in `owner` and `space` among them ([AccessValues]); empty when the record has none |
  * | `correlation_id`, `causation_id` | the causation, empty when none |
  * | `headers` | as they are |
  * | `operator_id`, `operator_tenant_id`, `operator_cross_scope` | the operator; empty and false when none |
@@ -59,9 +61,7 @@ internal object ClickHouseRows {
         put("owner_id", record.scope.ownerId.orEmpty())
         put("space_id", record.scope.spaceId.orEmpty())
         put("deleted", record.deleted)
-        putObject("tags").apply {
-            record.tags.forEach { (key, values) -> putArray(key).apply { values.forEach(::add) } }
-        }
+        put("access", record.access?.let(AccessValues::text).orEmpty())
         put("correlation_id", record.causation?.correlationId.orEmpty())
         put("causation_id", record.causation?.causationId.orEmpty())
         putObject("headers").apply { record.headers.forEach { (key, value) -> put(key, value) } }

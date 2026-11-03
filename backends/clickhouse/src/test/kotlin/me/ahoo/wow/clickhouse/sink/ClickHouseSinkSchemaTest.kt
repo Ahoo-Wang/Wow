@@ -41,7 +41,7 @@ class ClickHouseSinkSchemaTest {
                 `owner_id` String,
                 `space_id` String,
                 `deleted` Bool,
-                `tags` Map(String, Array(String)),
+                `access` String,
                 `correlation_id` String,
                 `causation_id` String,
                 `headers` Map(String, String),
@@ -93,7 +93,7 @@ class ClickHouseSinkSchemaTest {
         schema.flatView(FlatLineage(listOf("0a", schema.flatFingerprint))).assert().isEqualTo(
             "CREATE OR REPLACE VIEW `analytics`.`shop_order_state_flat` AS\n" +
                 "SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, " +
-                "`tags`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`\n" +
+                "`access`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`\n" +
                 "FROM `analytics`.`shop_order_state` FINAL\n" +
                 "COMMENT 'wow-sink-flat:0a,${schema.flatFingerprint}'",
         )

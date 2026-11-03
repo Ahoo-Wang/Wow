@@ -21,7 +21,7 @@ const order = await orderStates.get('order-1');
 console.log(order.version, order.state.status, order.state.totalAmount);
 ```
 
-快照包含状态，以及聚合的 `aggregateId`、`tenantId` 和 `version`，它的 `ownerId` 与 `spaceId`、`tags`、是否 `deleted`，以及首末事件的时间与操作人。不存在的聚合以 404 `wow.aggregate.not-found` reject；`find(id, options?)` 则对它回答 `undefined`，其他 404 仍然 reject。`totalAmount` 在服务端是 `BigDecimal`，所以在这里是 `string`，数字与写入时完全相同。
+快照包含状态，以及聚合的 `aggregateId`、`tenantId` 和 `version`，它的 `ownerId` 与 `spaceId`、声明的访问属性 `access`、是否 `deleted`，以及首末事件的时间与操作人。不存在的聚合以 404 `wow.aggregate.not-found` reject；`find(id, options?)` 则对它回答 `undefined`，其他 404 仍然 reject。`totalAmount` 在服务端是 `BigDecimal`，所以在这里是 `string`，数字与写入时完全相同。
 
 选项可以选择另一个状态：
 
@@ -54,7 +54,7 @@ const order = await orderStates.get(placed.ref.id, {
 
 ## 查询快照 {#query-snapshots}
 
-`<Aggregate>SnapshotQueryClient` 在 `POST /<context>/<aggregate>/snapshot/query` 上查询聚合的快照。快照记录把状态放在 `state` 下，旁边是系统字段（`aggregateId`、`version`、`ownerId`、`tags`、`lastEventTime` 等），所以过滤要指明 `state.status`，而不是 `status`：
+`<Aggregate>SnapshotQueryClient` 在 `POST /<context>/<aggregate>/snapshot/query` 上查询聚合的快照。快照记录把状态放在 `state` 下，旁边是系统字段（`aggregateId`、`version`、`ownerId`、`access`、`lastEventTime` 等），所以过滤要指明 `state.status`，而不是 `status`：
 
 <!-- typecheck-context
 import { OrderSnapshotQueryClient } from './generated/ordering/index.js';

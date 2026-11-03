@@ -39,6 +39,7 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.call.DecidingCommand
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AggregateTail
@@ -673,8 +674,7 @@ class Kernel(
             causation = command.causation,
             headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
             operator = command.operator,
-            // Recorded, and empty: the aggregate has no tags any more; work package C replaces the field.
-            tags = emptyMap(),
+            access = AccessValues.ofStream(codec.accessOf(model, evolved), metadata.scope),
         )
         val after = loaded.with(evolved, stream.version, metadata)
         if (stream.version == 1) {
@@ -885,6 +885,9 @@ class Kernel(
         maxReplay: Int = options.maxReplay,
     ): CachedState? =
         history.stateAt(model, ref, version, snapshot, maxReplay)
+
+    /** The declared access attributes of [state], a state of [model], in their stored form ([EventCodec.accessOf]). */
+    fun accessOf(model: AggregateModel<*>, state: Any): Map<String, Any?> = codec.accessOf(model, state)
 
     /**
      * The stream of [ref] at [version] as the log holds it, or null when it holds none: what a state read tells

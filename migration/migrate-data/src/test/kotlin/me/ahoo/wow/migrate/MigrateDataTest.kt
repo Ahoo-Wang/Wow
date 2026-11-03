@@ -16,7 +16,6 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -29,7 +28,6 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
-import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -537,7 +535,6 @@ class MigrateDataTest {
             "PG_PASSWORD" to "secret",
             "LEDGER_DB" to "compensation_db",
             "LEDGER_URI" to "mongodb://ledger:27017",
-            "ES_URI" to "http://search:9200",
         )
         val written = MigrationConfig(
             map = "map.json",
@@ -550,7 +547,6 @@ class MigrateDataTest {
                 password = "env:PG_PASSWORD",
             ),
             compensation = CompensationConfig("env:LEDGER_DB", "order-service", "env:LEDGER_URI"),
-            elasticsearch = ElasticsearchConfig("env:ES_URI", "wow-"),
         )
         val resolved = written.resolved { environment[it] }
         resolved.source.assert().isEqualTo(SourceConfig("mongodb://source:27017", "example_db"))
@@ -560,7 +556,6 @@ class MigrateDataTest {
         resolved.compensation.assert().isEqualTo(
             CompensationConfig("compensation_db", "order-service", "mongodb://ledger:27017")
         )
-        resolved.elasticsearch.assert().isEqualTo(ElasticsearchConfig("http://search:9200", "wow-"))
         // A string not written so stays as written, and an unset variable is named.
         written.copy(target = TargetConfig(TargetConfig.POSTGRES, jdbcUrl = "jdbc:postgresql://x/wow")).resolved {
             environment[it]
@@ -600,42 +595,8 @@ class MigrateDataTest {
     }
 
     @Test
-    fun `backfill-tags records the tags of the imported streams, in its printed order`(): Unit = runBlocking {
-        val config = config()
-        run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
-        val order = NineXExample.orderModel.type
-        log.untagged(order, null, 1).assert().isNotEmpty()
-        run("backfill-tags", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
-        printed.assert().contains(MigrateData.TAGS_ORDER)
-            .contains("example.order tags done")
-            .contains("No Elasticsearch cluster is configured: nothing to re-sink.")
-        log.untagged(order, null, 1).assert().isEmpty()
-        FileCheckpointRepository(directory.resolve("migrate-data.checkpoint.json")).load().tagsOf(order)!!
-            .completed.assert().isTrue()
-        run("backfill-tags", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
-        run("backfill-tags", "--config", config.toString(), "--sample", "5").assert().isEqualTo(MigrateData.USAGE_ERROR)
-    }
-
-    @Test
-    fun `backfill-tags fails while streams without tags remain, forced or not`(): Unit = runBlocking {
-        val config = config()
-        run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
-        // A log that records nothing: as if an old node appended each stream again meanwhile.
-        val stubborn = object : EventLog by log, TagsBackfill by log {
-            override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>) = 0
-        }
-        val untagged = object : MigrationConnections by connections {
-            override fun logOf(context: String): EventLog = stubborn
-        }
-        fun backfill(vararg options: String) =
-            MigrateData(
-                PrintStream(output, true),
-                { untagged }
-            ).run(listOf("backfill-tags", "--config", "$config") + options)
-        backfill().assert().isEqualTo(MigrateData.FAILED)
-        printed.assert().contains("Streams without tags remain in [example.order")
-        backfill("--restart", "--force").assert().isEqualTo(MigrateData.FAILED)
-        printed.assert().contains("nothing to re-sink")
+    fun `backfill-tags is gone, the service stamps the access attributes itself`() {
+        run("backfill-tags", "--config", config().toString()).assert().isEqualTo(MigrateData.USAGE_ERROR)
     }
 
     @Test
