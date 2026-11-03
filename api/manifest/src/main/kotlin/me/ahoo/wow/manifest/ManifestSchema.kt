@@ -102,6 +102,18 @@ object ManifestSchema {
                 "ownership" to enumOf(Ownership.entries, "Who owns an aggregate; owner when absent."),
                 "retired" to strings("The events the aggregate no longer produces."),
                 "idSource" to enumOf(AggregateIdSource.entries, "Where an aggregate's id comes from; assigned when absent."),
+                "access" to array(ref(ACCESS), "The aggregate's access attributes; none when absent."),
+            ),
+            ACCESS to objectOf(
+                "An access attribute of an aggregate: its name, the type of its values, and whether it holds several.",
+                listOf("name", "type"),
+                "name" to obj(
+                    "type" to "string",
+                    "pattern" to "^${AccessAttributeName.PATTERN.pattern}$",
+                    "maxLength" to AccessAttributeName.MAX_LENGTH,
+                ),
+                "type" to enumOf(AccessAttributeManifest.Type.entries),
+                "multiple" to boolean("Whether it holds several values; one when absent."),
             ),
             STATE to objectOf(
                 "An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view.",
@@ -230,6 +242,7 @@ object ManifestSchema {
     private const val SERVICE = "Service"
     private const val CONTEXT = "Context"
     private const val AGGREGATE = "Aggregate"
+    private const val ACCESS = "AccessAttribute"
     private const val COMMAND = "Command"
     private const val EVENT = "Event"
     private const val ROUTE = "Route"

@@ -11,7 +11,7 @@ description: "服务的 Manifest 写成的 JSON：每个对象及其键。"
 
 写出时省略的内容：
 
-Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
+Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default, its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access attribute's `multiple` when false, and the Manifest's `requires` when it has none.
 
 ## `Manifest`
 
@@ -101,6 +101,10 @@ Absent optional values (a null description, unknown `produces`, `derives`, `sche
 - `ownership`: 缺省或取默认值时省略
 - `retired`: 缺省或取默认值时省略
 - `idSource`: 缺省或取默认值时省略
+- `access`: 对象数组; 缺省或取默认值时省略
+  - `name`
+  - `type`
+  - `multiple`: 缺省或取默认值时省略
 
 ## `Route`
 

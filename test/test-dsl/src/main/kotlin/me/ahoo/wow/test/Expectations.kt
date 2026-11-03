@@ -328,11 +328,28 @@ class Expectations<S : Any> @InternalWowApi constructor(
      * rejected, or its decide function threw), the state the aggregate is in.
      */
     fun expectState(check: S.() -> Unit) {
+        currentState().check()
+    }
+
+    /**
+     * The aggregate's access attributes (`@Access`) are exactly [expected] after the committed events, or, after a
+     * command that committed nothing, in the state the aggregate is in: each declared attribute by name, a single one's
+     * value or null, a multiple one's values in any order ([AggregateModel.accessOf]).
+     */
+    fun expectAccess(expected: Map<String, Any?>) {
+        val actual = model.accessOf(currentState())
+        val normalized = expected.mapValues { (_, value) -> if (value is Collection<*>) value.toSet() else value }
+        if (normalized != actual) {
+            throw AssertionError("The access attributes differ: expected $normalized, but were $actual.")
+        }
+    }
+
+    /** The state after the committed events, or the one the aggregate is in after a command that committed nothing. */
+    private fun currentState(): S {
         val committed = result.getOrNull() as? CommandOutcome.Committed
 
         @Suppress("UNCHECKED_CAST")
-        val state = if (committed != null) committed.state as S else stateAt(version)
-        state.check()
+        return if (committed != null) committed.state as S else stateAt(version)
     }
 
     /**

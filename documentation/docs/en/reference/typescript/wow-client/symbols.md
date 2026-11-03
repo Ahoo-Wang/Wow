@@ -9,12 +9,13 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 129 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
+| `AccessAttributeManifest` | interface | An access attribute of an aggregate: its name, the type of its values, and whether it holds several. | — |
 | `AggregateManifest` | interface | An aggregate type: its state, snapshots, commands, events and query models. | — |
 | `AggregateRef` | interface | One aggregate: its type, its tenant and its id. | — |
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |

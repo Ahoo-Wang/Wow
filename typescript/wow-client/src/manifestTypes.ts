@@ -81,6 +81,16 @@ export interface AggregateManifest {
   readonly retired?: readonly string[];
   /** Where an aggregate's id comes from; assigned when absent. */
   readonly idSource?: 'assigned' | 'owner' | (string & {});
+  /** The aggregate's access attributes; none when absent. */
+  readonly access?: readonly AccessAttributeManifest[];
+}
+
+/** An access attribute of an aggregate: its name, the type of its values, and whether it holds several. */
+export interface AccessAttributeManifest {
+  readonly name: string;
+  readonly type: 'string' | 'integer' | 'boolean' | (string & {});
+  /** Whether it holds several values; one when absent. */
+  readonly multiple?: boolean;
 }
 
 /** An aggregate's state: its schema, the fingerprint of its shape and, in a contract, its view. */

@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -603,6 +604,31 @@ class ManifestCompatibilityTest {
                 "revision 2, but the subscribers of its published stream read the state",
             "ADDITIVE $CART.state.items[]: type widened from [string] to any",
         )
+    }
+
+    @Test
+    fun `an access attribute removed, renamed, retyped or changed in multiplicity should break, one added should not`() {
+        fun changes(baseline: Manifest, current: Manifest) =
+            ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        fun access(name: String, type: AccessAttributeManifest.Type, multiple: Boolean = false) =
+            BASELINE.cart { it.copyWith(access = listOf(AccessAttributeManifest(name, type, multiple))) }
+
+        val region = access("region", AccessAttributeManifest.Type.STRING)
+        val multiple = access("region", AccessAttributeManifest.Type.STRING, multiple = true)
+        val removed = "BREAKING $CART.access[region]: access attribute removed"
+
+        changes(BASELINE, region).assert().containsExactly("ADDITIVE $CART.access[region]: access attribute added")
+        changes(region, BASELINE).assert().containsExactly(removed)
+        changes(region, region).assert().isEmpty()
+        changes(region, access("area", AccessAttributeManifest.Type.STRING))
+            .assert().containsExactly(removed, "ADDITIVE $CART.access[area]: access attribute added")
+        changes(region, access("region", AccessAttributeManifest.Type.INTEGER)).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute type changed from STRING to INTEGER")
+        changes(region, multiple).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute made multiple")
+        changes(multiple, region).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute made single")
     }
 
     @Test

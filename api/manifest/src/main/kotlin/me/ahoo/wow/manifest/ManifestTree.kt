@@ -24,7 +24,8 @@ import me.ahoo.wow.api.problem.Retry
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
  * `nullableState` and a command's `mounted`, `system` and `internal` when false, an aggregate's `ownership` when it is `OWNER`, the default,
- * its `idSource` when it is `ASSIGNED`, the default, its `retired` events when it has none, and the Manifest's `requires` when it has none.
+ * its `idSource` when it is `ASSIGNED`, the default, its `retired` events and its `access` attributes when it has none, an access
+ * attribute's `multiple` when false, and the Manifest's `requires` when it has none.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -123,6 +124,9 @@ object ManifestTree {
         "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.let(::wire),
         "retired" to aggregate.retired.ifEmpty { null },
         "idSource" to aggregate.idSource.takeIf { it != AggregateIdSource.ASSIGNED }?.let(::wire),
+        "access" to aggregate.access.ifEmpty { null }?.map {
+            obj("name" to it.name, "type" to wire(it.type), "multiple" to it.multiple.takeIf { multiple -> multiple })
+        },
     )
 
     private fun writeRoute(route: RouteManifest): Map<String, Any?> =
@@ -185,13 +189,15 @@ object ManifestTree {
 
     /**
      * Reads [tree], the JSON object of a Manifest; fails on a missing field, another [Manifest.FORMAT], a marker of
-     * `requires` this reader does not understand ([ManifestFeatures]), or a context whose name breaks [ContextName].
+     * `requires` this reader does not understand ([ManifestFeatures]), a context whose name breaks [ContextName], or an
+     * access attribute whose name breaks [AccessAttributeName].
      *
      * A value it does not know of an enumeration, which a newer writer may have added, leaves out what it belongs to,
-     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership` or `idSource`, a subscription of an
-     * unknown `kind`, function `kind` or `start`. Each of them decides behaviour (how a command routes, whom an
-     * aggregate is scoped to, how a subscription runs), so a reader never guesses it: it reads what it understands
-     * and leaves out what it does not. No enumeration of the format is merely descriptive.
+     * told to [warn]: a command of an unknown `creation`, an aggregate of an unknown `ownership`, `idSource` or access
+     * attribute `type`, a subscription of an unknown `kind`, function `kind` or `start`. Each of them decides behaviour
+     * (how a command routes, whom an aggregate is scoped to and who may see it, how a subscription runs), so a reader
+     * never guesses it: it reads what it understands and leaves out what it does not. No enumeration of the format is
+     * merely descriptive.
      */
     fun read(tree: Map<*, *>, warn: (String) -> Unit = {}): Manifest {
         val root = Node(tree, "manifest", warn)
@@ -287,7 +293,10 @@ object ManifestTree {
             )
         }
 
-    /** The aggregate of [node], or null, told, when its ownership is unknown to this reader. */
+    /**
+     * The aggregate of [node], or null, told, when its ownership, its id source or the type of one of its access
+     * attributes is unknown to this reader.
+     */
     private fun readAggregate(node: Node): AggregateManifest? {
         val state = node.obj("state")
         val ownership = if (node.has("ownership")) {
@@ -300,6 +309,7 @@ object ManifestTree {
         } else {
             AggregateIdSource.ASSIGNED
         }
+        val access = readAccess(node) ?: return node.leftOut()
         return AggregateManifest(
             name = node.string("name"),
             description = node.stringOrNull("description"),
@@ -331,6 +341,21 @@ object ManifestTree {
             ownership = ownership,
             retired = if (node.has("retired")) node.strings("retired") else emptyList(),
             idSource = idSource,
+            access = access,
+        )
+    }
+
+    /**
+     * The access attributes of the aggregate [node], none when it lists none; null when the type of one is unknown to
+     * this reader. A name that breaks [AccessAttributeName] fails.
+     */
+    private fun readAccess(node: Node): List<AccessAttributeManifest>? = node.objects("access").map { attribute ->
+        val name = attribute.string("name")
+        AccessAttributeName.problem(name)?.let { throw IllegalArgumentException(it) }
+        AccessAttributeManifest(
+            name,
+            attribute.enum("type", AccessAttributeManifest.Type.entries) ?: return null,
+            attribute.booleanOrNull("multiple") ?: false,
         )
     }
 
