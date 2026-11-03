@@ -73,20 +73,28 @@ fun interface CommandRouter {
  *
  * - A command of a context this node has no lease group for in [groups] (keyed by context) runs locally.
  * - A command for a partition this node holds and accepts runs here, counted for the partition's hand-off.
- * - Otherwise it is forwarded over [channel] to [PartitionOwnership.forwardTarget], waiting for the reply at most
- *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline. The timeout is the
+ * - Otherwise it is forwarded over [channel] to [PartitionOwnership.forwardTarget] by its deadline,
+ *   [ClusterOptions.forwardTimeout] from then, capped by the command's own wait deadline. The timeout is the
  *   request's: the channel [connects][ClusterChannel.connect] to the peer first, within the wait's deadline, so the
- *   first forward to a peer that started a moment ago does not spend its second opening a connection.
+ *   first forward to a peer that started a moment ago does not spend its second opening a connection. The forward
+ *   then [reserves][ClusterChannel.reserve] one of the peer's streams, waiting its turn while they are all taken,
+ *   until its deadline, and is sent once it has one.
  * - A forward the owner surely did not receive degrades to running locally, without retrying it: no
  *   known owner, the peer's [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the
- *   wait's deadline ([ClusterChannelException.unsent]), or a refusal ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a
- *   type the peer does not know): the peer did not run it.
- * - A forward whose wait ran out before it could be sent is withdrawn ([ResultCodes.WAIT_TIMEOUT]):
- *   neither sent nor run here, so it is not reported unknown.
- * - A forward that was sent and got no reply by its deadline, or failed after it was sent, does not degrade
- * (revising): the owner may be deciding it still, and deciding it here too would run a decide that does
- *   I/O twice. Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered from the
- *   owner's commit, if any. The forward timeout only says when to report that.
+ *   wait's deadline ([ClusterChannelException.unsent]), or a refusal before the forward's deadline
+ *   ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a type the peer does not know): the peer did not run it.
+ * - Past its deadline a forward runs nowhere: one not sent by then (no stream to the peer was free, or its wait ran
+ *   out before it could be sent), or refused after it, is withdrawn ([ResultCodes.WAIT_TIMEOUT]) once its wait has run
+ *   out, as a command still queued in its lane at its wait's deadline is, and answered busy ([ResultCodes.BUSY]) while
+ *   it has not, as a full lane is. Either way it was not executed, so it is not reported unknown; and running it here
+ *   instead, under the load that kept it from the owner, would put a second writer beside the owner.
+ * - A forward that was sent waits for the reply until its deadline and the channel's [ClusterChannel.answerGrace]
+ *   after it: the owner answers a command it withdraws at its wait's deadline just after that deadline, and that
+ *   answer ([ResultCodes.WAIT_TIMEOUT], not executed) is the outcome. One that got no reply by then, or failed after it
+ *   was sent, does not degrade (revising): the owner may be deciding it still, and deciding it here too would run a
+ *   decide that does I/O twice. Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered
+ *   from the owner's commit, if any. So [route] answers a forward at most the grace after its deadline; a waited
+ *   command's wait still ends at its own deadline.
  *
  * A failed forward also refreshes the routes. Degrading is safe without fencing: the kernel deduplicates by request
  * id, and version-unique keys turn concurrent writers into conflicts that are decided again.
@@ -127,8 +135,8 @@ class PartitionedRouter(
     }
 
     /**
-     * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here; an
-     * unknown outcome when it may have.
+     * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here;
+     * withdrawn or busy when it was not sent by its deadline; an unknown outcome when it may have reached [peer].
      */
     @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local.
     private suspend fun forward(
@@ -153,15 +161,20 @@ class PartitionedRouter(
             } catch (failure: Exception) {
                 return unsent(ownership, command, peer, failure.toString())
             } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
-            if (request.deadline <= clock.millis()) {
-                // Nothing left to send it in: it was not sent, so its outcome is not unknown.
-                return if (wait != null && wait.deadline <= clock.millis()) {
-                    expired(model, command)
-                } else {
-                    unsent(ownership, command, peer, "no time left to send it")
+            var stream: ClusterStream? = null
+            try {
+                // Its turn on the peer's streams, until its deadline: until it has one, it is not sent.
+                withTimeoutOrNull(left(request.deadline)) { stream = channel.reserve(peer.address) }
+                val reserved = stream
+                if (reserved == null || request.deadline <= clock.millis()) {
+                    // Nothing left to send it in: it was not sent, so its outcome is not unknown.
+                    return late(model, command, request, wait, peer, "no stream to the peer by the deadline")
                 }
+                return send(ownership, peer, model, command, wait, request, reserved)
+            } finally {
+                // Frees a stream taken just as the deadline passed; nothing once the forward was sent on it.
+                stream?.release()
             }
-            return send(ownership, peer, model, command, request)
         } finally {
             // An idle peer's counter goes: a peer that left, or changed its address in a rolling
             // update, leaves nothing behind. A forward racing the removal counts on the old counter, a soft bound.
@@ -181,8 +194,8 @@ class PartitionedRouter(
         command: Command<*>,
         wait: WaitContext?,
     ): ForwardCommand? {
-        val waitLeft = wait?.let { (it.deadline - clock.millis()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
-        withTimeoutOrNull(waitLeft) { channel.connect(peer.address) } ?: return null
+        withTimeoutOrNull(wait?.let { left(it.deadline) } ?: Duration.INFINITE) { channel.connect(peer.address) }
+            ?: return null
         val trace = currentCoroutineContext().trace
         return ForwardCommand(
             command = ClusterCodec.wire(model, command),
@@ -194,37 +207,46 @@ class PartitionedRouter(
         )
     }
 
-    /** Sends [request] to [peer]: its settlement; null when it surely did not arrive or was refused; else unknown. */
+    /**
+     * Sends [request] to [peer] on [stream], waiting for the reply until its deadline and the channel's
+     * [ClusterChannel.answerGrace] after it: its settlement; null when it surely did not arrive or was refused before
+     * its deadline; withdrawn or busy when it was not sent by then or refused after it; else unknown.
+     */
     @Suppress("TooGenericExceptionCaught") // A failure after the send leaves the outcome unknown.
     private suspend fun send(
         ownership: PartitionOwnership,
         peer: Member,
         model: AggregateModel<*>,
         command: Command<*>,
+        wait: WaitContext?,
         request: ForwardCommand,
+        stream: ClusterStream,
     ): Settlement? {
         val reply = try {
-            withTimeoutOrNull((request.deadline - clock.millis()).coerceAtLeast(0).milliseconds) {
-                channel.forward(peer.address, request)
-            }
+            withTimeoutOrNull(left(request.deadline) + channel.answerGrace) { stream.forward(request) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: ClusterChannelException) {
-            return if (failure.unsent) {
-                unsent(ownership, command, peer, failure.toString())
-            } else {
-                unknown(ownership, model, command, peer, failure.toString())
+            return when {
+                !failure.unsent -> unknown(ownership, model, command, peer, failure.toString())
+                // Not sent by its deadline, as one the peer's connection kept refusing for its streams.
+                request.deadline <= clock.millis() -> late(model, command, request, wait, peer, failure.toString())
+                else -> unsent(ownership, command, peer, failure.toString())
             }
         } catch (failure: Exception) {
             return unknown(ownership, model, command, peer, failure.toString())
         }
         return when {
-            reply == null -> unknown(ownership, model, command, peer, "no reply by the deadline")
+            reply == null -> unknown(ownership, model, command, peer, "no reply by the deadline and its grace")
             reply.result != null -> Settlement(reply.result, reply.reached)
-            // A refusal is the peer's answer that it did not run the command.
+            // A refusal is the peer's answer that it did not run the command; past the deadline, one it took too late.
+            request.deadline <= clock.millis() -> late(model, command, request, wait, peer, "refused: ${reply.refused}")
             else -> unsent(ownership, command, peer, "refused: ${reply.refused}")
         }
     }
+
+    /** The time left until [deadline], none once it passed. */
+    private fun left(deadline: Long): Duration = (deadline - clock.millis()).coerceAtLeast(0).milliseconds
 
     /** The forward surely did not reach [peer], or [peer] refused it: the command runs here. */
     private fun unsent(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
@@ -235,25 +257,42 @@ class PartitionedRouter(
     }
 
     /**
-     * The wait of [command] ran out before it could be forwarded: it was not sent, so it is not run
-     * here either, past its wait, and it is withdrawn as a command waiting in its lane past its deadline is
-     * ([ResultCodes.WAIT_TIMEOUT]): it committed nothing, and a retry with the same request id runs it.
+     * The forward [request] of [command] to [peer] was not sent by its deadline, or [peer] refused it past it: the
+     * command was not executed, and it is not run here either, past the deadline. It is withdrawn once its [wait] has
+     * run out, its deadline the forward's or passed since, as a command waiting in its lane past its wait's deadline is
+     * ([ResultCodes.WAIT_TIMEOUT]), else answered busy, as a full lane answers ([ResultCodes.BUSY]): it committed
+     * nothing, and a retry with the same request id runs it.
      */
-    private fun expired(model: AggregateModel<*>, command: Command<*>): Settlement {
-        logger.debug { "The wait of ${command.id} ran out before it was forwarded; it is withdrawn, not sent." }
+    private fun late(
+        model: AggregateModel<*>,
+        command: Command<*>,
+        request: ForwardCommand,
+        wait: WaitContext?,
+        peer: Member,
+        why: String,
+    ): Settlement {
+        // A forward whose deadline was its wait's ran out with the wait, whatever the clock reads a moment later.
+        val expired = wait != null && (wait.deadline <= request.deadline || wait.deadline <= clock.millis())
+        logger.debug {
+            "Forwarding ${command.id} to ${peer.node} at ${peer.address} did not start by its deadline ($why); it is " +
+                if (expired) "withdrawn." else "answered busy."
+        }
+        val code = if (expired) ResultCodes.WAIT_TIMEOUT else ResultCodes.BUSY
+        observer.observed(ObservedEvent.Refused(command.ref.type, code))
         val committed = reachedResult(
             command,
             commandFunction(model, command),
             Hop.committed(command.ref.type.context),
             clock.millis(),
         )
-        return Settlement(
-            committed.failed(
-                ResultCodes.WAIT_TIMEOUT,
-                "The wait timed out before command ${command.id} on ${command.ref} was sent to its owner; it was " +
-                    "withdrawn, not executed.",
-            ),
-        )
+        val message = if (expired) {
+            "The wait timed out before the owner of ${command.ref} took command ${command.id}; it was withdrawn, " +
+                "not executed."
+        } else {
+            "The owner of ${command.ref} was too busy to take command ${command.id} before its deadline; it was not " +
+                "executed. Retry it later with the same request id."
+        }
+        return Settlement(committed.failed(code, message))
     }
 
     /**

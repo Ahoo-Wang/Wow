@@ -422,7 +422,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | 转发 | `{v, command, transport, deadline}`：线上形式的[命令](#commands-on-a-topic)、传输段（未结束的等待的等待上下文与追踪传播字段，两者都没有时为 null）和绝对截止时间。 |
 | 回复 | `{v, result, reached, refused}`：要么是属主在 `COMMITTED` 上的 `result`，以及它当即 `reached` 的后续各跳；要么是 `refused`，取值为 `not-owner`、`expired`、`unknown-type`、`too-large` 之一。 |
 
-被拒绝的转发由发送节点自己执行。已经发出、随后超时的转发则不会：发送方回答结果未知，调用方用同一个请求 ID 重试。
+在期限之前被拒绝的转发由发送节点自己执行；在期限之后被拒绝的，不再执行。已经发出、在期限及其后 2 秒内没有得到回复的转发，发送方也不执行：发送方回答结果未知，调用方用同一个请求 ID 重试。
 
 ## 快照 {#snapshot}
 

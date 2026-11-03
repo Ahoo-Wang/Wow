@@ -83,11 +83,13 @@ object InternalHttp {
     const val MAX_CONCURRENT_STREAMS: Int = 100
 
     /**
-     * How long a forward's stream stays open past its deadline for the owner's answer. The sender stops waiting at the
-     * deadline; the owner answers about then, as it withdraws a command still queued at its wait's deadline. A request
-     * timing out resets its stream (`RST_STREAM`), and the internal port, as any Netty server, closes a connection on
-     * which it reads more than 200 resets in 30 seconds, failing every request on it: so a stream is not reset at the
-     * very deadline the owner answers at, only when the owner has not answered [ANSWER_GRACE] after it.
+     * How long a forward's stream stays open past its deadline for the owner's answer, and how long the router waits
+     * for that answer past it ([HttpClusterChannel.answerGrace]). The owner answers about the deadline, as it withdraws
+     * a command still queued at its wait's deadline: that answer, not executed, is the forward's outcome rather than an
+     * unknown one, so a caller waits at most this long past a forward's deadline. A request timing out resets its
+     * stream (`RST_STREAM`), and the internal port, as any Netty server, closes a connection on which it reads more
+     * than 200 resets in 30 seconds, failing every request on it: so a stream is not reset at the very deadline the
+     * owner answers at, only when the owner has not answered [ANSWER_GRACE] after it.
      */
     val ANSWER_GRACE: Duration = 2.seconds
 

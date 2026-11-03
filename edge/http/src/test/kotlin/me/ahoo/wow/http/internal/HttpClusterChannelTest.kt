@@ -219,9 +219,13 @@ class HttpClusterChannelTest {
     }
 
     @Test
-    fun `a forward past its deadline fails by itself`(): Unit = runBlocking {
-        val request = forwardCommand(context = "slow", deadline = System.currentTimeMillis() + 200)
-        failsWith<ClusterChannelException> { channel.forward(server.address, request) }.unsent.assert().isFalse()
+    fun `a forward the owner does not answer fails by itself, its grace after its deadline`(): Unit = runBlocking {
+        val graced = HttpClusterChannel(client, answerGrace = 300.milliseconds)
+        graced.answerGrace.assert().isEqualTo(300.milliseconds)
+        val started = System.currentTimeMillis()
+        val request = forwardCommand(context = "slow", deadline = started + 200)
+        failsWith<ClusterChannelException> { graced.forward(server.address, request) }.unsent.assert().isFalse()
+        (System.currentTimeMillis() - started).assert().isGreaterThanOrEqualTo(500L)
     }
 
     @Test
