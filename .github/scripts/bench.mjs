@@ -61,9 +61,8 @@ const AXON = {
   install: 'axon',
   sql: 'test/benchmarks/axon-server/inspect.sql',
 };
-// Axon's transfer reactions in its tracking processor of 16 segments and threads against 2, the server's CPUs on a
-// runner and so axon-server's own there (a segment per CPU, at most 16), set when the session starts: the segments
-// suite.
+// Axon's transfer reactions in its tracking processor of 16 segments and threads, axon-server's own, against 2, the
+// server's CPUs on a runner, set when the session starts: the segments suite.
 const AXON_16 = {
   ...AXON,
   id: 'axon-16',
@@ -425,7 +424,7 @@ export const SUITES = {
     sweeps: [{ scenario: 'E1' }, { scenario: 'E3' }],
     own: false,
     answers:
-      "Axon's tracking processor on a runner: 16 segments and threads against 2, the server's CPUs and so axon-server's own there (a segment per CPU, at most 16), by their peaks and E3 at one rate.",
+      "Axon's tracking processor on a runner: 16 segments and threads, axon-server's own, against 2, the server's CPUs, by their peaks and E3 at one rate.",
   },
   // A diagnostic suite (`dumpEvery`) dumps each sweep's threads and PostgreSQL sessions every so many seconds.
   'axon-pg-e3-pool': {
@@ -1357,7 +1356,7 @@ export const AXON_PARITY = [
   [
     'Transfer (E3)',
     "TransferSaga, the built-in subscription of the account's state events, on the partition owners, from the log's tail",
-    'An event handler in a tracking processor of a segment and a thread per CPU, at most 16 (2 on a runner; axon-pg-segments compares 16), its tokens in PostgreSQL; a reaction that fails is retried (PropagatingErrorHandler)',
+    "An event handler in a tracking processor of 16 segments and threads, sized by its reactions' PostgreSQL round trips, not by the CPUs (axon-pg-segments compares 2), its tokens in PostgreSQL; a reaction that fails is retried (PropagatingErrorHandler)",
   ],
   [
     'Answer',

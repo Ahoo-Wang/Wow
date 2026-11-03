@@ -44,12 +44,4 @@ class CommandSendersTest {
             senders.destroy()
         }
     }
-
-    @Test
-    fun `the transfer processor has a segment per CPU, at most 16`() {
-        assertEquals(1, segmentsFor(1))
-        assertEquals(2, segmentsFor(2))
-        assertEquals(16, segmentsFor(16))
-        assertEquals(16, segmentsFor(64))
-    }
 }

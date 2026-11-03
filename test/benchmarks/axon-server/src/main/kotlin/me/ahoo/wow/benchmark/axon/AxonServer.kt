@@ -57,21 +57,8 @@ import javax.sql.DataSource
 class AxonServer
 
 fun main(args: Array<String>) {
-    runApplication<AxonServer>(*args) {
-        setDefaultProperties(mapOf(SEGMENTS to segmentsFor(Runtime.getRuntime().availableProcessors())))
-    }
+    runApplication<AxonServer>(*args)
 }
-
-/** The property that sets the transfer processor's segments and threads (`application.yaml`); [segmentsFor] else. */
-const val SEGMENTS = "benchmark.axon.segments"
-
-private const val MAX_SEGMENTS = 16
-
-/**
- * The transfer processor's segments and threads unless [SEGMENTS] sets them: one per CPU of the node, at most 16. On a
- * runner's two CPUs the suite axon-pg-segments found 16 faster in E3 and 2 cheaper in CPU and memory per command.
- */
-fun segmentsFor(processors: Int): Int = minOf(MAX_SEGMENTS, processors)
 
 /**
  * Axon Framework's configuration for production without Axon Server, as its reference guide recommends it: the JDBC
@@ -79,7 +66,7 @@ fun segmentsFor(processors: Int): Int = minOf(MAX_SEGMENTS, processors)
  * and snapshot (`application.yaml`), the account's repository with a cache of strong references that holds every
  * account ([BoundedCache], [ACCOUNT_CACHE_CAPACITY]) and a snapshot every [SNAPSHOT_THRESHOLD] events taken on threads
  * of its own ([SNAPSHOT_THREADS]), not on the thread that committed, and the transfer's reactions in a tracking
- * processor of a segment per CPU ([segmentsFor]), retried when they fail ([transferErrors]).
+ * processor of 16 segments (`application.yaml`), retried when they fail ([transferErrors]).
  */
 @Configuration
 class AxonConfiguration {
