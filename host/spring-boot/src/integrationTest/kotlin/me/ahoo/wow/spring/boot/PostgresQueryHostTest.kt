@@ -83,6 +83,22 @@ class PostgresQueryHostTest {
         }
     }
 
+    @Test
+    fun `the access indexes of the log should be created at startup and kept by a validating start`() {
+        val log = "wow_log__bank__account"
+        val indexes = listOf("${log}_access_owner", "${log}_access_space")
+        host.context.getBean(QueryIndexesLifecycle::class.java).eventReports.getValue(account).created.assert()
+            .containsExactlyInAnyOrderElementsOf(indexes)
+        host.context.getBean(DataSource::class.java).connection.use { connection ->
+            connection.prepareStatement("SELECT indexname FROM pg_indexes WHERE tablename = '$log'")
+                .executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        }.assert().containsAll(indexes)
+        validatingHost().use { validating ->
+            validating.context.getBean(QueryIndexesLifecycle::class.java).eventReports.getValue(account)
+                .assert().isEqualTo(QueryIndexReport.NONE)
+        }
+    }
+
     private fun validatingHost() = startHost(
         "wow.log.partitions" to 4,
         "wow.ddl" to "validate",

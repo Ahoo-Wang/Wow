@@ -280,11 +280,11 @@ class QueryIndexesLifecycle(
     private val types: List<AggregateType>,
     private val backend: SnapshotQueryBackend,
     private val catalog: QuerySchemaCatalog,
-    /** The key of the `ddl` that applies to a store, by the store's name: `wow.ddl` unless the store sets its own. */
-    private val ddlKeyOf: (store: String?) -> String = { DDL },
     /** The `events` query backend, whose logs' access attributes are indexed for the types in [eventTypes]. */
     private val events: EventQueryBackend = EventQueryBackend.NONE,
     private val eventTypes: List<AggregateType> = emptyList(),
+    /** The key of the `ddl` that applies to a store, by the store's name: `wow.ddl` unless the store sets its own. */
+    private val ddlKeyOf: (store: String?) -> String = { DDL },
 ) : SmartLifecycle {
     @Volatile
     private var running = false

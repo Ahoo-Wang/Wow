@@ -62,7 +62,7 @@ An events query shows only the commits of aggregates the caller may see. The nod
 
 ## Unpinned queries
 
-A query that names its aggregates by id is cheap: it reads each aggregate's streams by their key. A query that names none scans the aggregate type's log, on the store the appends write to. Such queries run by default, bounded by the budget and the store's query bulkhead. A deployment that wants none of them on its write store refuses them:
+A query that names its aggregates by id is cheap: it reads each aggregate's streams by their key. On PostgreSQL and MongoDB, a log also indexes the access attributes, the owner and the space and each one the aggregate declares, so a query under an access policy reads its attributes' indexes. Any other query that names none scans the aggregate type's log, on the store the appends write to. Such queries run by default, bounded by the budget and the store's query bulkhead. A deployment that wants none of them on its write store refuses them:
 
 | Key | Applies to |
 | --- | --- |

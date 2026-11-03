@@ -509,12 +509,11 @@ class QueryAutoConfiguration {
             ManifestTypes.snapshots(manifest, node.contexts.keys),
             backend,
             catalog,
-            { store ->
-                store?.takeIf { wow.ifAvailable?.stores?.get(it)?.ddl != null }?.let { "wow.stores.$it.ddl" } ?: "wow.ddl"
-            },
             events,
             ManifestTypes.events(manifest, node.contexts.keys),
-        )
+        ) { store ->
+            store?.takeIf { wow.ifAvailable?.stores?.get(it)?.ddl != null }?.let { "wow.stores.$it.ddl" } ?: "wow.ddl"
+        }
     }
 
     private companion object {

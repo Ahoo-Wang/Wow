@@ -44,9 +44,10 @@ import tools.jackson.databind.node.ObjectNode
  * `MongoEventLog` appends to, its documents read as streams ([MongoEventDocuments]), with the facts of
  * [MongoEventStorageAdapter]. One record per stream, as stored.
  *
- * The log is the write store: its only indexes are `(aggregate_id, tenant_id, version)`, `(tenant_id, request_id)` and
- * `(partition, sequence)`, so a query that does not pin the aggregate (or the request) scans the aggregate type's
- * collection. The entry's budget bounds it (`maxTimeMS`, sizes, the count limit). [readPreference] moves the reads
+ * The log is the write store: its indexes are `(aggregate_id, tenant_id, version)`, `(tenant_id, request_id)`,
+ * `(partition, sequence)` and those of the access attributes, partial on the streams ([MongoQueryIndexes.planLog]), so a
+ * query under an access policy uses its attributes' indexes, and any other that does not pin the aggregate (or the
+ * request) scans the aggregate type's collection. The entry's budget bounds it (`maxTimeMS`, sizes, the count limit). [readPreference] moves the reads
  * off the primary (`secondaryPreferred`, say), at the cost of reading a little behind the appends; the primary's by
  * default. An analytics-heavy deployment serves the model from ClickHouse or Elasticsearch.
  */

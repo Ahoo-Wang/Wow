@@ -121,8 +121,11 @@ object MongoQueryIndexes {
             require(index.keys.count { it.cardinality != QueryCardinality.SINGLE } <= 1) {
                 "Index [${index.name}] has more than one key with many values: MongoDB cannot index parallel arrays."
             }
-            val paths = listOf(MongoEventLog.TENANT_ID) +
-                index.keys.map { MongoSnapshotDocuments.checked(it.physicalField.path) }
+            val paths = listOf(MongoEventLog.TENANT_ID) + index.keys.map { key ->
+                // A planned key, not an admitted query: no admission resolved it, so its physical field is read directly.
+                val physical = key.physicalField
+                MongoSnapshotDocuments.checked(physical.path)
+            }
             MongoQueryIndex(context, aggregate, index.name, paths.distinct(), collection, streams)
         }
     }

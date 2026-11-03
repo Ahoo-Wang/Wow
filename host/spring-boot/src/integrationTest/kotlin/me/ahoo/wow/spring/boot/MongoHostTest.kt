@@ -105,6 +105,12 @@ class MongoHostTest {
         host.context.getBean(MongoClient::class.java).getDatabase("host_test")
             .getCollection("wow_snapshot__bank__account").listIndexes().map { it.getString("name") }.toList()
             .assert().contains("ix_account_owner")
+        // The log's access indexes: the owner's and the space's.
+        host.context.getBean(QueryIndexesLifecycle::class.java).eventReports.getValue(account).created.assert()
+            .containsExactlyInAnyOrder("access_owner", "access_space")
+        host.context.getBean(MongoClient::class.java).getDatabase("host_test")
+            .getCollection("wow_log__bank__account").listIndexes().map { it.getString("name") }.toList()
+            .assert().contains("access_owner", "access_space")
         val opened = host.post("/bank/account/open-account", """{"owner":"query-mona"}""")
         opened.status.assert().isEqualTo(200)
         val listed = host.post(

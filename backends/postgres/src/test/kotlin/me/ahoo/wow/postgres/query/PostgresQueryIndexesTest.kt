@@ -91,7 +91,10 @@ class PostgresQueryIndexesTest {
             listOf("region", "teams").map { QueryIndexDeclaration("access_$it", listOf("access.$it")) }
         val indexes = PostgresQueryIndexes.planLog("shop", "order", QueryIndexPlan.of(events, declarations))
         val log = "\"wow_log__shop__order\""
-        fun value(name: String) = PostgresEventQueryExpressions.value(QueryField("access.$name"), PostgresQueryType.TEXT)
+        fun value(name: String) = PostgresEventQueryExpressions.value(
+            QueryField("access.$name"),
+            PostgresQueryType.TEXT
+        )
         indexes.map { it.name }.assert().containsExactly(
             "wow_log__shop__order_access_owner",
             "wow_log__shop__order_access_space",
