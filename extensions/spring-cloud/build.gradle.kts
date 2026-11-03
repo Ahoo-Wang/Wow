@@ -38,9 +38,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-test")
     // The host, which takes the module's discovery and checks the keys (D302).
     testImplementation(project(":spring-boot"))
-    // The quickstart's bank service, two nodes of it registered in Consul, and a peer of another service calling them.
+    // The quickstart's bank service, two nodes of it registered in Consul, and a node of the eShop's catalog service,
+    // a peer of another service, calling them.
     integrationTestImplementation(project(":test-spring-boot"))
     integrationTestImplementation(project(":quickstart"))
+    integrationTestImplementation(project(":eshop-catalog-domain"))
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-consul-discovery")
     integrationTestImplementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     integrationTestImplementation("org.testcontainers:testcontainers-consul")

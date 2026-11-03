@@ -273,9 +273,9 @@ object ArchitectureRules {
         // the tests, which generate the module's configuration metadata and check the host accepts its keys.
         COCACHE to setOf("cocache-api", "manifest", "runtime", "spring-boot"),
         // The peer discovery port and the client's endpoints (decision D396); the runtime's node, compileOnly, for the
-        // address a registration carries. The host and the quickstart only for the tests, which start nodes of the
-        // bank service that register in a registry and a peer that finds them there.
-        SPRING_CLOUD to setOf("spi", "client", "runtime", "spring-boot", "quickstart"),
+        // address a registration carries. The host, the quickstart and the eShop's catalog domain only for the tests,
+        // which start nodes of the bank service that register in a registry and a catalog node that finds them there.
+        SPRING_CLOUD to setOf("spi", "client", "runtime", "spring-boot", "quickstart", "eshop-catalog-domain"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
