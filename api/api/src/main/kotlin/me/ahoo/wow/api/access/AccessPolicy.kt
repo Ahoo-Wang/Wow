@@ -1,0 +1,190 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.access
+
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
+
+/**
+ * Who may read and who may change the aggregates whose state is [S]: for a caller, a predicate over their access
+ * attributes ([AccessPredicate]) to [read] them and one to [write] them. A service declares one per aggregate whose
+ * state declares access attributes (`@Access`), as a bean; [aggregate] names the aggregate when several share the
+ * state type, null otherwise. Build one with [accessPolicy].
+ */
+class AccessPolicy<S : Any> @InternalWowApi constructor(
+    val stateType: Class<S>,
+    val aggregate: AggregateType?,
+    private val read: AccessScope<S>.(Caller) -> AccessPredicate,
+    private val write: AccessScope<S>.(Caller) -> AccessPredicate,
+) {
+    private val scope = AccessScope<S>()
+
+    /** What [caller] may read of the aggregates. */
+    fun read(caller: Caller): AccessPredicate = scope.read(caller)
+
+    /** What [caller] may change of the aggregates. */
+    fun write(caller: Caller): AccessPredicate = scope.write(caller)
+
+    override fun toString(): String = "AccessPolicy(stateType=${stateType.name}, aggregate=$aggregate)"
+}
+
+/**
+ * The access policy of the aggregates whose state is [S], from [block]: it gives [AccessPolicyBuilder.read] and
+ * [AccessPolicyBuilder.write], or [AccessPolicyBuilder.readWrite] for one predicate of both. [aggregate] names the
+ * aggregate when several share the state type.
+ *
+ * ```kotlin
+ * @Bean
+ * fun documentAccess(): AccessPolicy<DocumentState> = accessPolicy {
+ *     read { caller ->
+ *         anyOf(
+ *             DocumentStateAccess.DEPARTMENT isIn caller.claims("departments"),
+ *             DocumentStateAccess.SHARED_WITH contains caller.subject,
+ *             DocumentStateAccess.ORG startsWith caller.claim("org"),
+ *             allowIf(caller.hasRole("auditor")),
+ *         )
+ *     }
+ *     write { caller -> DocumentStateAccess.DEPARTMENT isIn caller.claims("departments") }
+ * }
+ * ```
+ */
+inline fun <reified S : Any> accessPolicy(
+    aggregate: AggregateType? = null,
+    noinline block: AccessPolicyBuilder<S>.() -> Unit,
+): AccessPolicy<S> = accessPolicy(S::class.java, aggregate, block)
+
+/** The access policy of the aggregates whose state is [stateType], as the reified [accessPolicy] builds it. */
+fun <S : Any> accessPolicy(
+    stateType: Class<S>,
+    aggregate: AggregateType? = null,
+    block: AccessPolicyBuilder<S>.() -> Unit,
+): AccessPolicy<S> = AccessPolicyBuilder(stateType, aggregate).apply(block).build()
+
+/**
+ * Builds an [AccessPolicy]. Nothing is granted by omission: a policy gives what may be read and what may be changed,
+ * [read] and [write], or [readWrite] for both at once; one without a write predicate is refused, and
+ * `write { denyAll() }` makes a read-only aggregate explicit.
+ */
+class AccessPolicyBuilder<S : Any> internal constructor(
+    private val stateType: Class<S>,
+    private val aggregate: AggregateType?,
+) {
+    private var read: (AccessScope<S>.(Caller) -> AccessPredicate)? = null
+    private var write: (AccessScope<S>.(Caller) -> AccessPredicate)? = null
+
+    /** What a caller may read of the aggregates. */
+    fun read(predicate: AccessScope<S>.(Caller) -> AccessPredicate) {
+        require(read == null) { "The access policy of ${stateType.name} gives two read predicates." }
+        read = predicate
+    }
+
+    /** What a caller may change of the aggregates; `write { denyAll() }` for none. */
+    fun write(predicate: AccessScope<S>.(Caller) -> AccessPredicate) {
+        require(write == null) { "The access policy of ${stateType.name} gives two write predicates." }
+        write = predicate
+    }
+
+    /** What a caller may read and change of the aggregates alike. */
+    fun readWrite(predicate: AccessScope<S>.(Caller) -> AccessPredicate) {
+        read(predicate)
+        write(predicate)
+    }
+
+    internal fun build(): AccessPolicy<S> {
+        val read = requireNotNull(read) {
+            "The access policy of ${stateType.name} gives no read predicate: give read { … }, or readWrite { … } " +
+                "for one predicate of reading and changing."
+        }
+        val write = requireNotNull(write) {
+            "The access policy of ${stateType.name} gives no write predicate: nothing is granted by omission. Give " +
+                "write { … }, readWrite { … } for one predicate of reading and changing, or write { denyAll() } " +
+                "for an aggregate no caller changes."
+        }
+        return AccessPolicy(stateType, aggregate, read, write)
+    }
+}
+
+/**
+ * What an access policy's predicates are written with, for the aggregates whose state is [S]: comparisons of their
+ * access attributes (`<State>Access`, typed by [S]) with the caller's claims, and logic. A comparison with a claim the
+ * caller does not hold, a null or no values, denies ([AccessPredicate.Unknown]), as does one of a value the aggregate
+ * does not have.
+ */
+@Suppress("TooManyFunctions") // The operators of the policy language.
+class AccessScope<S : Any> internal constructor() {
+    /** The attribute's value is [value]. */
+    infix fun <V : Any> AccessAttribute.Single<S, V>.eq(value: V?): AccessPredicate =
+        compare(this, AccessOperator.EQUAL, listOfNotNull(value))
+
+    /** The attribute's value is one of [values]. */
+    infix fun <V : Any> AccessAttribute.Single<S, V>.isIn(values: Collection<V>): AccessPredicate =
+        compare(this, AccessOperator.IN, values.distinct())
+
+    /** The attribute's value, a string, starts with [prefix]: a level of a materialized path, say. */
+    infix fun AccessAttribute.Single<S, String>.startsWith(prefix: String?): AccessPredicate =
+        compare(this, AccessOperator.STARTS_WITH, listOfNotNull(prefix))
+
+    /** The aggregate has no value of the attribute. */
+    fun AccessAttribute.Single<S, *>.isNull(): AccessPredicate =
+        AccessPredicate.Comparison(this, AccessOperator.IS_NULL)
+
+    /** The attribute's values hold [value]. */
+    infix fun <V : Any> AccessAttribute.Multiple<S, V>.contains(value: V?): AccessPredicate =
+        compare(this, AccessOperator.CONTAINS, listOfNotNull(value))
+
+    /** The attribute's values hold one of [values]. */
+    infix fun <V : Any> AccessAttribute.Multiple<S, V>.containsAny(values: Collection<V>): AccessPredicate =
+        compare(this, AccessOperator.CONTAINS_ANY, values.distinct())
+
+    /** The attribute holds no value. */
+    fun AccessAttribute.Multiple<S, *>.isEmpty(): AccessPredicate =
+        AccessPredicate.Comparison(this, AccessOperator.IS_EMPTY)
+
+    /** Each of [predicates] holds; always when none is given. */
+    fun allOf(vararg predicates: AccessPredicate): AccessPredicate = AccessPredicate.AllOf(predicates.toList())
+
+    /** One of [predicates] holds; never when none is given. */
+    fun anyOf(vararg predicates: AccessPredicate): AccessPredicate = AccessPredicate.AnyOf(predicates.toList())
+
+    /** [predicate] does not hold, of a value the aggregate has: an absent value grants neither way. */
+    fun not(predicate: AccessPredicate): AccessPredicate = AccessPredicate.Not(predicate)
+
+    /** Every aggregate when [condition] holds, none otherwise: a condition on the caller alone, such as a role. */
+    fun allowIf(condition: Boolean): AccessPredicate =
+        if (condition) AccessPredicate.Allowed else AccessPredicate.Denied
+
+    /** Every aggregate: public data, said explicitly. */
+    fun allowAll(): AccessPredicate = AccessPredicate.Allowed
+
+    /** No aggregate: `write { denyAll() }` for one no caller changes. */
+    fun denyAll(): AccessPredicate = AccessPredicate.Denied
+
+    /** The first value of the caller's claim [name], or null when the caller does not hold it. */
+    fun Caller.claim(name: String): String? = attributes[name]?.firstOrNull()
+
+    /** The values of the caller's claim [name], none when the caller does not hold it. */
+    fun Caller.claims(name: String): List<String> = attributes[name].orEmpty()
+
+    /** Whether the caller holds the role [role]: one of the values of its `roles` claim. */
+    fun Caller.hasRole(role: String): Boolean = role in claims(ROLES)
+
+    private fun compare(attribute: AccessAttribute<*, *>, operator: AccessOperator, values: List<Any>): AccessPredicate =
+        if (values.isEmpty()) AccessPredicate.Unknown else AccessPredicate.Comparison(attribute, operator, values)
+
+    private companion object {
+        /** The claim of the caller's roles. */
+        const val ROLES = "roles"
+    }
+}

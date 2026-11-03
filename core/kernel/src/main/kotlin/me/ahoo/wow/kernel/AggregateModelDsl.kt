@@ -75,7 +75,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
     private val aggregateIds = LinkedHashMap<Class<*>, (Any) -> String?>()
-    private val access = LinkedHashMap<AccessAttribute<*>, (S) -> Any?>()
+    private val access = LinkedHashMap<AccessAttribute<*, *>, (S) -> Any?>()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -338,7 +338,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
      * function of the state, derived on each commit: it reads the state alone, does no I/O, reads no clock and draws
      * no random number. A state member marked `@Access` calls it in a generated model, a value class unwrapped.
      */
-    fun <V : Any> access(attribute: AccessAttribute.Single<V>, read: (S) -> V?) {
+    fun <V : Any> access(attribute: AccessAttribute.Single<S, V>, read: (S) -> V?) {
         declare(attribute, read)
     }
 
@@ -346,11 +346,11 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
      * Declares the access attribute [attribute], several values of the state that [read] gives, as
      * [access] of one value does.
      */
-    fun <V : Any> access(attribute: AccessAttribute.Multiple<V>, read: (S) -> Collection<V>) {
+    fun <V : Any> access(attribute: AccessAttribute.Multiple<S, V>, read: (S) -> Collection<V>) {
         declare(attribute, read)
     }
 
-    private fun declare(attribute: AccessAttribute<*>, read: (S) -> Any?) {
+    private fun declare(attribute: AccessAttribute<*, *>, read: (S) -> Any?) {
         require(access.keys.none { it.name == attribute.name }) {
             "$type declares the access attribute ${attribute.name} twice."
         }

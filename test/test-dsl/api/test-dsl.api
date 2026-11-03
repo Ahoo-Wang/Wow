@@ -1,3 +1,24 @@
+public final class me/ahoo/wow/test/AccessExpectations {
+	public final fun expectNoRead ()V
+	public final fun expectNoWrite ()V
+	public final fun expectRead ()V
+	public final fun expectWrite ()V
+}
+
+public final class me/ahoo/wow/test/AccessPolicySpec {
+	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
+	public static synthetic fun given$default (Lme/ahoo/wow/test/AccessPolicySpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun givenState (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
+	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AccessPolicySpec;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun whenCaller (Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public final fun whenCaller (Lme/ahoo/wow/api/caller/Caller;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenCaller$default (Lme/ahoo/wow/test/AccessPolicySpec;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/AccessPolicySpecKt {
+	public static final fun accessPolicySpec (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/access/AccessPolicy;Lkotlin/jvm/functions/Function1;)V
+}
+
 public final class me/ahoo/wow/test/AggregateSpec {
 	public fun <init> (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/time/Instant;)V
 	public synthetic fun <init> (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/time/Instant;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

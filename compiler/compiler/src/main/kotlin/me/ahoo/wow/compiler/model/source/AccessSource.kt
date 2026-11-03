@@ -67,7 +67,8 @@ internal object AccessSource {
         appendLine(" * The access attributes of [${state.qualifiedName!!.asString()}]: the built-in ones of")
         appendLine(" * [$ATTRIBUTES] and the state's own (`@Access`).")
         appendLine(" */")
-        appendLine("$visibility object ${className(state)} : $ATTRIBUTES() {")
+        val stateType = state.qualifiedName!!.asString()
+        appendLine("$visibility object ${className(state)} : $ATTRIBUTES<$stateType>() {")
         attributes.forEachIndexed { index, attribute ->
             if (index > 0) {
                 appendLine()
@@ -76,7 +77,7 @@ internal object AccessSource {
             appendLine("    /** `${attribute.name}` */")
             appendLine("    @JvmField")
             appendLine(
-                "    $visibility val ${attribute.constant}: $ATTRIBUTE.$kind<${attribute.valueType}> = " +
+                "    $visibility val ${attribute.constant}: $ATTRIBUTE.$kind<$stateType, ${attribute.valueType}> = " +
                     "$ATTRIBUTE.$factory(\"${attribute.name}\", ${attribute.valueType}::class.javaObjectType)",
             )
         }
