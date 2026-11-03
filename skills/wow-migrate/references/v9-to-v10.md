@@ -29,7 +29,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 |---|---|
 | `wow-spring-boot-starter` with capability variants (`mongo-support`, `kafka-support`, ...) | `wow-spring-boot` (wiring only) plus one module per technology the host uses: `wow-postgres`, `wow-mongo`, `wow-kafka`, `wow-http`, `wow-cosec` |
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
-| `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
+| `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync). The sink creates single-node tables, with no command table: a 9.x cluster (`ON CLUSTER`, replicated and distributed tables) is rebuilt by hand from the published columns, and a command history from the commits (site: Operate › ClickHouse, *Run it on a cluster* and *Commands are not written*) |
 | `wow-apiclient` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
 | `wow-cocache` | `wow-cocache` of the V10 version in a new shape (decision D364): the owner writes, readers inject `StateViewCache<V>`; see [State caches](#state-caches-9x-wow-cocache) |
 | `wow-compensation-*` (the 9.x compensation service) | Retired: each node's failure ledger and its operator routes, see [Compensation and failed executions](#compensation-and-failed-executions) |
