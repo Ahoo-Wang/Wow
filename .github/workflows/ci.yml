@@ -70,6 +70,7 @@ jobs:
       view-store-contract: ${{ steps.scope.outputs.viewStoreContract }}
       ops-console: ${{ steps.scope.outputs.opsConsole }}
       catalog-console: ${{ steps.scope.outputs.catalogConsole }}
+      migrate-data-image: ${{ steps.scope.outputs.migrateDataImage }}
       # The eShop web UI builds on the JVM services and the client packages.
       web: ${{ steps.scope.outputs.jvm == 'true' || steps.scope.outputs.sdk == 'true' }}
     steps:
@@ -692,6 +693,76 @@ jobs:
         run: pnpm --filter @ahoo-wang/wow-view-store... build
       - name: Test the view store client against the service
         run: pnpm --filter wow-integration-test test
+
+  # The migrate-data image (migration/migrate-data/Dockerfile), built from the
+  # commit's distribution and never pushed, then run as a user runs it: its
+  # usage, as its non-root user with the heap of its memory limit, and `check`
+  # on a read-only root as a Job runs it, over a MongoDB holding one 9.x cart
+  # stream, with the fixture's configuration, map and Manifest mounted at
+  # /config (migration/migrate-data/src/test/resources/image-smoke, which
+  # ImageSmokeFixtureTest keeps passing). The release builds it for amd64 and
+  # arm64 (image-deploy.yml); this builds the runner's.
+  migrate-data-image:
+    name: migrate-data image
+    needs: scope
+    if: needs.scope.outputs.migrate-data-image == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    services:
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok'"
+          --health-interval 2s --health-timeout 10s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Build the distribution and the image
+        run: |
+          ./gradlew :migrate-data:installDist --stacktrace
+          docker build -t wow-migrate-data:ci migration/migrate-data
+      - name: Run its usage, as its user, with the heap of its memory limit
+        run: |
+          [ "$(docker run --rm --entrypoint id wow-migrate-data:ci -u)" = 10001 ]
+          docker run --rm -m 1g -e JAVA_TOOL_OPTIONS=-Xlog:gc+init wow-migrate-data:ci --help | tee help.txt
+          grep -q 'Usage: migrate-data <command> --config <file>' help.txt
+          # MaxRAMPercentage=75 of the 1 GiB limit.
+          heap="$(sed -n 's/.*Heap Max Capacity: \([0-9]*\)M.*/\1/p' help.txt)"
+          echo "Heap Max Capacity: ${heap}M"
+          [ "$heap" -ge 700 ] && [ "$heap" -le 800 ]
+      - name: Write one 9.x cart stream into the MongoDB
+        env:
+          MONGO: ${{ job.services.mongo.id }}
+        run: |
+          docker cp migration/migrate-data/src/test/resources/ninex-example/cart-stream-v1.json "$MONGO:/tmp/cart-stream.json"
+          docker exec "$MONGO" mongosh --quiet ninex_smoke --eval '
+            const stream = EJSON.parse(require("fs").readFileSync("/tmp/cart-stream.json", "utf8"));
+            stream._id = stream.id;
+            delete stream.id;
+            stream.size = stream.body.length;
+            stream.createTime = Long.fromNumber(stream.createTime);
+            db.cart_event_stream.insertOne(stream);'
+      - name: Run check against the fixture
+        run: |
+          docker run --rm --network host --read-only --tmpfs /tmp -e WOW_PG_PASSWORD=unused \
+            -v "$PWD/migration/migrate-data/src/test/resources/image-smoke:/config:ro" \
+            wow-migrate-data:ci check --config /config/migrate-data.json | tee check.txt
+          grep -q 'Mapping check passed.' check.txt
 
   storybook-build:
     name: Build Storybook
@@ -1333,6 +1404,7 @@ jobs:
         ops-console-e2e,
         catalog-console,
         catalog-console-e2e,
+        migrate-data-image,
         coverage,
       ]
     if: always()
