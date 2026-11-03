@@ -147,6 +147,40 @@ sealed class ObservedEvent {
     }
 
     /**
+     * [streams] streams of [type]'s history stamped with their aggregate's current access attributes, in [millis],
+     * for [cause]: a commit that changed them, the walk of the type, or a stream the follower found without them.
+     */
+    class AccessStamped @InternalWowApi constructor(
+        val type: AggregateType,
+        val cause: Cause,
+        val streams: Int,
+        val millis: Long,
+    ) : ObservedEvent() {
+        override fun fields() = listOf("type" to type, "cause" to cause, "streams" to streams, "millis" to millis)
+
+        /** Why a history was stamped. */
+        enum class Cause(val value: String) {
+            /** A commit changed the attributes: the streams before it take them. */
+            CHANGE("change"),
+
+            /** The walk of the type stamped one of its aggregates. */
+            WALK("walk"),
+
+            /** The follower read a stream without attributes after the walk's heads, and stamped its aggregate. */
+            CATCH_UP("catch-up"),
+        }
+    }
+
+    /** A page of [aggregates] aggregates of [type] walked, after which the walk is [completed] or not. */
+    class AccessWalked @InternalWowApi constructor(
+        val type: AggregateType,
+        val aggregates: Int,
+        val completed: Boolean,
+    ) : ObservedEvent() {
+        override fun fields() = listOf("type" to type, "aggregates" to aggregates, "completed" to completed)
+    }
+
+    /**
      * A store of [context] fell back from an optional [capability] for [reason]; the work went on the way every store
      * can. Counted, never failing.
      */

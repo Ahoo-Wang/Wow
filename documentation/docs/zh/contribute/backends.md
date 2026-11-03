@@ -199,7 +199,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 后端在端口本身上声明它能做什么，spec 通过一个说明原因的 JUnit 假设，跳过它不能做的那些测试：
 
 - **存储保存什么。** `Store.holdsLogs` 与 `Store.holdsSnapshots` 默认都为 `true`，说明它打开哪些端口。对不保存日志的存储，`StoreTck` 跳过日志的 spec 和控制面（`Skipped: the <type> store holds no log, so no control plane either.`），对不保存快照的存储跳过快照的 spec，并改为检查这样的存储会拒绝它不保存的东西。测试列出的 `facets` 是断言，从不跳过。
-- **存储的可选能力。** 快照尾读的测试用日志的尾部读取 `createSnapshots` 返回的快照：在 `EventLogSpec` 里经由 `snapshotTailsOf`，在 `StoreTck` 下经由存储的 `openSnapshotTails`，即节点使用的一次往返读取；两者都没有时，spec 像节点那时一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。是 `TagsBackfill` 的日志运行标签回填的测试。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
+- **存储的可选能力。** 快照尾读的测试用日志的尾部读取 `createSnapshots` 返回的快照：在 `EventLogSpec` 里经由 `snapshotTailsOf`，在 `StoreTck` 下经由存储的 `openSnapshotTails`，即节点使用的一次往返读取；两者都没有时，spec 像节点那时一样分开读取快照和尾部，没有 `createSnapshots` 时则跳过这些测试。`EventLog.appendsAcrossPartitions` 让跨分区的单次 `appendAll` 测试运行。是 `AccessStamps` 的日志运行盖章的测试，是 `AccessWalks` 的日志还运行分页取聚合与认领遍历的测试。`SnapshotStore.rebuilds`（一个 `SnapshotRebuildStore`）让重建的测试运行。
 - **提供者。** `SinkSpec` 和 `TopicTransportSpec` 里的 `provided()` 通过提供者、按它声明的选项打开 Sink 或传输，并运行「提供者只读取这些选项」的测试；没有它时跳过这个测试（`No provider opens this sink.`）。
 - **存储拒绝什么。** `refused` 返回一个后端的存储无法保存的流，比如 PostgreSQL `jsonb` 字符串中的 NUL，spec 期望它的追加被拒绝（`AppendOutcome.Rejected`），并且在 `appendAll` 中只有它单独失败；没有它时，spec 跳过这个测试。
 - **查询后端的存储。** 绑定的存储事实（`StorageSupport`）说明存储对哪些特性是原生支持、部分支持还是不支持，声明为 `NONE` 的特性，spec 会跳过它的测试，并说明是哪个事实、取什么值：`Skipped: the storage declares storage.paging.keyset = NONE (keyset pages).` spec 读取的事实有 keyset 分页、无界流、`having`、展开元素后在记录根上的分组，以及去重计数。

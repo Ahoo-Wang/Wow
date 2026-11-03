@@ -25,8 +25,10 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
-import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -110,7 +112,7 @@ class PostgresEventLog(
     /** How the log's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : EventLog,
-    AccessStamps {
+    AccessWalks {
     private val tables = PostgresEventLogTables(context)
 
     /** Validates the partition count first: a log of another count is refused when it is built. */
@@ -144,6 +146,13 @@ class PostgresEventLog(
                     tables.partitionAdditions,
                 )
                 connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
+                // A registry created before the access walks gets their column.
+                PostgresFormat.addColumns(
+                    connection,
+                    PostgresEventLogTables.REGISTRY,
+                    PostgresEventLogTables.REGISTRY_ADDED,
+                    tables.registryAdditions,
+                )
                 // A table created before format 1's added columns gets them, so the tail reads every table.
                 register(connection).forEach { addColumns(connection, it) }
                 // Read again on first use, with the tables created from now on.
@@ -568,6 +577,74 @@ class PostgresEventLog(
                         update.executeUpdate()
                     }
                 }
+            }
+        }
+    }
+
+    /** A statement a page: each aggregate's first stream, by the version key, its cursor [AggregatePage.cursorOf]. */
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
+        require(limit > 0) { "A page holds at least one aggregate." }
+        val key = after?.let(AggregatePage::keyOf)
+        val refs = dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                withTable(connection, type) { table ->
+                    connection.prepareStatement(if (key == null) table.firstAggregates else table.aggregatesAfter).use {
+                        var index = 1
+                        key?.let { (id, tenant) ->
+                            it.setString(index++, id)
+                            it.setString(index++, tenant)
+                        }
+                        it.setInt(index, limit)
+                        it.executeQuery().use { rows -> rows.map { type.ref(it.getString(2), it.getString(1)) } }
+                    }
+                }
+            }
+        }
+        return AggregatePage.of(refs, limit)
+    }
+
+    /** The registry's `access_walk` of [type] ([PostgresAccessWalks]), its table made sure of first: registered. */
+    override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            tableOf(connection, type)
+            connection.prepareStatement(tables.walk).use { query ->
+                query.setString(1, context)
+                query.setString(2, type.name)
+                query.executeQuery().use { rows ->
+                    if (rows.next()) rows.getString(1)?.let(PostgresAccessWalks::walkOf) else null
+                }
+            }
+        }
+    }
+
+    /** One conditional update of the registry row: concurrent claims serialize on it. */
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            tableOf(connection, type)
+            connection.prepareStatement(tables.claimWalk).use { update ->
+                update.setString(1, PostgresAccessWalks.textOf(walk))
+                update.setString(2, context)
+                update.setString(3, type.name)
+                update.setNullableString(4, expected)
+                update.executeUpdate() == 1
+            }
+        }
+    }
+
+    override suspend fun advance(
+        type: AggregateType,
+        schema: String,
+        cursor: String?,
+        walked: Long,
+        completed: Boolean,
+    ): Boolean = dispatcher.jdbc {
+        dataSource.autoCommitted { connection ->
+            connection.prepareStatement(tables.advanceWalk).use { update ->
+                update.setString(1, PostgresAccessWalks.progressOf(cursor, walked, completed))
+                update.setString(2, context)
+                update.setString(3, type.name)
+                update.setString(4, schema)
+                update.executeUpdate() == 1
             }
         }
     }

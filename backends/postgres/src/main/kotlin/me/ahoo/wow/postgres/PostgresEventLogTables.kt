@@ -24,7 +24,9 @@ import java.util.concurrent.ConcurrentHashMap
  *   `parent` (null) and `epoch` (0) for every partition the log is created with, reserved for the
  *   online splits of 10.x;
  * - `wow_log__<context>__<aggregate>`: the streams of one aggregate type ([AggregateLogTable]);
- * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all.
+ * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all,
+ *   and the access walk of each one's type (`access_walk`, a nullable `jsonb` column added within format 1:
+ *   `{schema, heads: {partition: head}, cursor, walked, completed}`, null before the first claim).
  */
 internal class PostgresEventLogTables(val context: String) {
     val partitionsBase = PostgresIdentifiers.of(PREFIX, context, PARTITION)
@@ -44,6 +46,7 @@ internal class PostgresEventLogTables(val context: String) {
             context text NOT NULL,
             aggregate text NOT NULL,
             log_table text NOT NULL UNIQUE,
+            access_walk jsonb,
             PRIMARY KEY (context, aggregate)
         )
         """.trimIndent(),
@@ -80,6 +83,24 @@ internal class PostgresEventLogTables(val context: String) {
         }
         return table
     }
+
+    /** The access walk column of the registry, added within format 1 to a registry created without it. */
+    val registryAdditions = "ALTER TABLE $REGISTRY ADD COLUMN IF NOT EXISTS access_walk jsonb"
+
+    /** The access walk of an aggregate type: context, aggregate. */
+    val walk = "SELECT access_walk FROM $REGISTRY WHERE context = ? AND aggregate = ?"
+
+    /**
+     * Records a new access walk while the recorded one is of a schema, or none is recorded when it is null: walk,
+     * context, aggregate, schema. Concurrent claims serialize on the row, and each one after the first finds its schema
+     * changed.
+     */
+    val claimWalk = "UPDATE $REGISTRY SET access_walk = ?::jsonb WHERE context = ? AND aggregate = ? " +
+        "AND (access_walk ->> 'schema') IS NOT DISTINCT FROM ?"
+
+    /** Records how far the access walk of a schema is: progress, context, aggregate, schema. */
+    val advanceWalk = "UPDATE $REGISTRY SET access_walk = access_walk || ?::jsonb " +
+        "WHERE context = ? AND aggregate = ? AND access_walk ->> 'schema' = ?"
 
     /** Records an aggregate table: context, aggregate, table. An existing record is kept. */
     val register = "INSERT INTO $REGISTRY (context, aggregate, log_table) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
@@ -261,6 +282,9 @@ internal class PostgresEventLogTables(val context: String) {
 
         /** The columns [partitionAdditions] adds. */
         val PARTITION_ADDED = listOf("parent", "epoch")
+
+        /** The columns [registryAdditions] adds. */
+        val REGISTRY_ADDED = listOf("access_walk")
         const val PARTITION = "partition"
     }
 }
@@ -405,6 +429,17 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
      */
     val stamp = "UPDATE $log SET access = ?::jsonb, access_version = ? WHERE aggregate_id = ? AND tenant_id = ? " +
         "AND version >= ? AND version < ? AND (access_version IS NULL OR access_version <= ?)"
+
+    /**
+     * The first page of the table's aggregates, by the version key: each one's first stream, in the key's order
+     * (aggregate id, then tenant). Parameter: limit.
+     */
+    val firstAggregates = "SELECT aggregate_id, tenant_id FROM $log WHERE version = 1 " +
+        "ORDER BY aggregate_id, tenant_id LIMIT ?"
+
+    /** The page of the table's aggregates after one, as [firstAggregates]: aggregate id, tenant, limit. */
+    val aggregatesAfter = "SELECT aggregate_id, tenant_id FROM $log WHERE (aggregate_id, tenant_id) > (?, ?) " +
+        "AND version = 1 ORDER BY aggregate_id, tenant_id LIMIT ?"
 
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 

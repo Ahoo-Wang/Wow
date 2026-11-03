@@ -50,6 +50,15 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.timer.delay` | Timer | `wow.context` | 定时器在到期时间之后多晚触发 |
 | `wow.subscription.offset.gaps` | Counter | `messaging.destination.name` | 读取 topic 时要从分区已不再保留的 offset 开始的次数：消息因保留期而丢失 |
 
+### 访问属性 {#access-attributes}
+
+| 指标 | 类型 | 标签 | 度量 |
+| --- | --- | --- | --- |
+| `wow.access.stamped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.reason` | 盖上聚合当前访问属性的流：`change`（一次提交改变了它们，它之前的流随之盖章）、`walk`（该类型的访问遍历）、`catch-up`（`wow.access` 在遍历的日志头之后读到不带它们的流） |
+| `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | 为一个聚合的历史盖章所用的时间：`change`、`walk`、`catch-up` |
+| `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | 该类型的访问遍历在本节点盖过章的聚合 |
+| `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 按日志的记录，该类型的访问遍历完成之前为 1，之后为 0：在此之前，访问策略下的事件查询不包含遍历尚未到达的流 |
+
 ### 查询 {#queries}
 
 | 指标 | 类型 | 标签 | 度量 |

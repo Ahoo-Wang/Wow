@@ -213,10 +213,13 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         ledgerPublisher?.start()
     }
 
-    /** Starts the jobs and the snapshot maintenance, in the background. */
+    /** Starts the jobs, the snapshot maintenance and the access walks, in the background. */
     private fun work() {
         startJobs()
-        contexts.values.forEach { it.snapshotMaintenance?.start(background) }
+        contexts.values.forEach {
+            it.snapshotMaintenance?.start(background)
+            it.accessWalking?.start(background)
+        }
     }
 
     /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
@@ -311,7 +314,8 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     }
 
     /**
-     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions.
+     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions and
+     * the access schemas.
      */
     private suspend fun handOff() = coroutineScope {
         ledgerPublisher?.stop()
@@ -319,6 +323,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             launch {
                 context.ownership.stop()
                 context.snapshotMaintenance?.stop()
+                context.accessWalking?.stop()
             }
         }
         topicSubscriptions.values.forEach { launch { it.stop() } }

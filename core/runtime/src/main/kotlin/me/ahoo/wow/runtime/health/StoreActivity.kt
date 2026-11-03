@@ -22,6 +22,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -167,12 +170,19 @@ private fun unavailable(failure: Throwable): Boolean = failure is StorageUnavail
 /** Any failure of a lease store's call: the ownership retries them all. */
 private fun anyFailure(failure: Throwable): Boolean = failure !is CancellationException
 
-/** [log], every call recorded in [activity], and each append's latency in [pressure] when there is one. */
+/**
+ * [log], every call recorded in [activity], and each append's latency in [pressure] when there is one. A log that
+ * stamps and walks its histories ([AccessWalks]) stays one, so the access stamping finds it behind the tracking.
+ */
 internal fun trackedLog(
     log: EventLog,
     activity: StoreActivity,
     pressure: StoreWritePressure? = null,
-): EventLog = TrackedEventLog(log, activity, pressure)
+): EventLog = if (log is AccessWalks) {
+    TrackedWalksLog(log, activity, pressure)
+} else {
+    TrackedEventLog(log, activity, pressure)
+}
 
 /** [leases], every call recorded in [activity]. */
 internal fun trackedLeases(
@@ -193,7 +203,7 @@ internal fun activityOf(leases: LeaseStore): StoreActivity? = (leases as? Tracke
 /** The lease store [leases] tracks, or [leases] itself: what two contexts' tracked lease stores share. */
 internal fun untracked(leases: LeaseStore): LeaseStore = (leases as? TrackedLeaseStore)?.leases ?: leases
 
-private class TrackedEventLog(
+private open class TrackedEventLog(
     private val log: EventLog,
     val activity: StoreActivity,
     private val pressure: StoreWritePressure?,
@@ -266,6 +276,33 @@ private class TrackedEventLog(
         }
 
     override fun toString(): String = log.toString()
+}
+
+/** A tracked log that stamps and walks its histories, each call recorded as the others are. */
+private class TrackedWalksLog<L>(
+    private val walks: L,
+    activity: StoreActivity,
+    pressure: StoreWritePressure?,
+) : TrackedEventLog(walks, activity, pressure),
+    AccessWalks where L : EventLog, L : AccessWalks {
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
+        activity.call(::unavailable) { walks.stamp(ref, access, asOf, from, until) }
+
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage =
+        activity.call(::unavailable) { walks.aggregates(type, after, limit) }
+
+    override suspend fun walk(type: AggregateType): AccessWalk? = activity.call(::unavailable) { walks.walk(type) }
+
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean =
+        activity.call(::unavailable) { walks.claim(type, walk, expected) }
+
+    override suspend fun advance(
+        type: AggregateType,
+        schema: String,
+        cursor: String?,
+        walked: Long,
+        completed: Boolean,
+    ): Boolean = activity.call(::unavailable) { walks.advance(type, schema, cursor, walked, completed) }
 }
 
 private class TrackedLeaseStore(val leases: LeaseStore, val activity: StoreActivity) : LeaseStore {

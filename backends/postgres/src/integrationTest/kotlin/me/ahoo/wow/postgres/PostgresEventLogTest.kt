@@ -34,6 +34,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -117,6 +118,21 @@ class PostgresEventLogTest : EventLogSpec() {
             (upgraded.append(none) is AppendOutcome.Committed).assert().isTrue()
             upgraded.read(legacy.ref, 2).toList().single().access.assert().isEqualTo(emptyMap<String, Any?>())
         }
+
+    @Test
+    fun `a registry created before the access walks gets their column, its types not walked`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val order = AggregateType(context, "order")
+        PostgresFixture.log(1, context, listOf(order.name))
+        // The registry of a version before the walks; the tests run one at a time.
+        execute("ALTER TABLE ${PostgresEventLogTables.REGISTRY} DROP COLUMN access_walk")
+        // The next node to start adds it.
+        val upgraded = PostgresFixture.log(1, context, listOf(order.name))
+        upgraded.walk(order).assert().isNull()
+        val walk = AccessWalk("region:string", mapOf(0 to 0L))
+        upgraded.claim(order, walk, expected = null).assert().isTrue()
+        upgraded.walk(order).assert().isEqualTo(walk)
+    }
 
     private fun execute(sql: String) {
         PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }

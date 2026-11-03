@@ -46,6 +46,9 @@ import java.util.concurrent.atomic.AtomicReference
  * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
  *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions,
  *   which show a store slowing down before the node refuses commands as busy.
+ * - [WowMetrics.ACCESS_WALK_PENDING], per context and aggregate type: 1 while the access walk of the type its log
+ *   records has not completed, as this node last read it ([me.ahoo.wow.runtime.access.AccessWalking.walks]): every
+ *   node reads the one record, so each reports the same.
  *
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
  * longer reports it) is removed from [meters], so it does not report its last value forever.
@@ -87,6 +90,11 @@ class NodeMetrics(
             taken += gauge(WowMetrics.EXECUTOR_IN_FLIGHT, tags, context.executor.commandsInFlight.toDouble())
             taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
             taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
+            context.accessWalking?.walks()?.forEach { (type, walk) ->
+                val pending = if (walk.completed) 0.0 else 1.0
+                val walkTags = WowMetrics.ACCESS_WALK_PENDING.tagsOf(name, type.name)
+                taken += gauge(WowMetrics.ACCESS_WALK_PENDING, walkTags, pending)
+            }
         }
         val paused = node.pauses.paused().groupingBy { subscriptionTags(it.group, it.subscription) }.eachCount()
         val throttled = node.throttled.groupingBy { subscriptionTags(it.group, it.subscription) }.eachCount()

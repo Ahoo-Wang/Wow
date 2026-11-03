@@ -26,6 +26,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
@@ -33,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
@@ -238,6 +240,19 @@ class SnapshotMaintenance(
      */
     suspend fun rebuild(ref: AggregateRef) {
         val model = models[ref.type] ?: return
+        rebuild(model, ref) { recordOf(model, ref) }
+    }
+
+    /**
+     * Rebuilds the snapshot of [ref] as [rebuild] does, from [streams], its whole log, already replayed as [state]: the
+     * access walk's, which read them to stamp them.
+     */
+    suspend fun rebuild(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState) {
+        val model = models[ref.type] ?: return
+        rebuild(model, ref) { recordOf(model, ref, streams, state) }
+    }
+
+    private suspend fun rebuild(model: AggregateModel<*>, ref: AggregateRef, recordOf: suspend () -> SnapshotRecord?) {
         targets.placementOf(ref.type).targets.forEach { name ->
             val store = storeOf(name)
             val rebuilds = store.rebuilds
@@ -248,10 +263,10 @@ class SnapshotMaintenance(
             }
             val table = rebuilds.table(ref.type)
             if (table == null || table.revision == model.stateRevision) {
-                recordOf(model, ref)?.let { rebuilds.rewrite(it) }
+                recordOf()?.let { rebuilds.rewrite(it) }
             } else {
                 if (!rebuilds.markStale(ref)) {
-                    recordOf(model, ref)?.let { store.save(it) }
+                    recordOf()?.let { store.save(it) }
                 }
                 rebuilds.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
             }
@@ -380,6 +395,16 @@ class SnapshotMaintenance(
     private suspend fun recordOf(model: AggregateModel<*>, ref: AggregateRef): SnapshotRecord? {
         val streams = log.read(ref).toList()
         val state = kernel.replayed(model, ref, streams) ?: return null
+        return recordOf(model, ref, streams, state)
+    }
+
+    /** The snapshot of [ref] from [streams], its whole log, replayed as [state]. */
+    private fun recordOf(
+        model: AggregateModel<*>,
+        ref: AggregateRef,
+        streams: List<EventStreamRecord>,
+        state: CachedState,
+    ): SnapshotRecord {
         val first = streams.first()
         val last = streams.last()
         return codec.snapshotOf(

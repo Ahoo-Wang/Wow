@@ -256,6 +256,35 @@ object WowMetrics {
         tags = listOf(CONTEXT),
     )
 
+    val ACCESS_STAMPED: MetricSpec = MetricSpec.counter(
+        "wow.access.stamped",
+        "The streams of a type's history stamped with their aggregate's current access attributes, by why: a commit " +
+            "that changed them, the type's walk, or a stream the follower read without them.",
+        tags = listOf(CONTEXT, AGGREGATE, REASON),
+        values = mapOf(REASON to ObservedEvent.AccessStamped.Cause.entries.map { it.value }),
+    )
+
+    val ACCESS_STAMP_DURATION: MetricSpec = MetricSpec.timer(
+        "wow.access.stamp.duration",
+        "How long stamping one aggregate's history took, by why (as wow.access.stamped).",
+        tags = listOf(CONTEXT, AGGREGATE, REASON),
+        values = mapOf(REASON to ObservedEvent.AccessStamped.Cause.entries.map { it.value }),
+    )
+
+    val ACCESS_WALKED: MetricSpec = MetricSpec.counter(
+        "wow.access.walked",
+        "The aggregates of a type the access walk stamped on this node.",
+        tags = listOf(CONTEXT, AGGREGATE),
+    )
+
+    val ACCESS_WALK_PENDING: MetricSpec = MetricSpec.gauge(
+        "wow.access.walk.pending",
+        "1 while the access walk of a type has not completed, as its log records it, else 0. Until it completes, " +
+            "the streams it has not reached carry no current access attributes: an events query under an access " +
+            "policy leaves them out.",
+        tags = listOf(CONTEXT, AGGREGATE),
+    )
+
     val SUBSCRIPTION_LAG: MetricSpec = MetricSpec.timer(
         "wow.subscription.lag",
         "From a stream's commit to a subscription handling it.",
@@ -398,7 +427,8 @@ object WowMetrics {
     val ALL: List<MetricSpec> = listOf(
         COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
-        STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
+        STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
+        ACCESS_WALKED, ACCESS_WALK_PENDING, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
         EVENTS_PINNED, QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,

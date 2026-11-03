@@ -26,29 +26,52 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
+import me.ahoo.wow.spi.observation.Observer
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
- * How the built-in subscription [AccessStamping] stamps a history: at most [batch] streams in one stamp, so one long
- * history is written in statements of a bounded size, each by the version key; and the last stamped attributes of at
- * most [capacity] aggregates, which spare it a read of the previous stream. The host configures them (`wow.access.*`).
+ * How a context stamps the histories ([AccessStamping], [AccessWalking]): at most [batch] streams in one stamp, so one
+ * long history is written in statements of a bounded size, each by the version key; the last stamped attributes of at
+ * most [capacity] aggregates, which spare the follower a read of the previous stream; and the walks, [walkBatch]
+ * aggregates a page, at most [walkRate] a second, run every [interval] under a lease of [leaseTtl], each node a member
+ * of its access schema of each type for [memberTtl] after its last run. The host configures them (`wow.access.*`).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal to Wow.
  */
+@Suppress("LongParameterList")
 class AccessStampOptions @InternalWowApi constructor(
     val batch: Int = DEFAULT_BATCH,
     val capacity: Int = DEFAULT_CAPACITY,
+    val walkBatch: Int = DEFAULT_WALK_BATCH,
+    val walkRate: Int = DEFAULT_WALK_RATE,
+    val interval: Duration = DEFAULT_INTERVAL,
+    val leaseTtl: Duration = DEFAULT_TTL,
+    val memberTtl: Duration = DEFAULT_TTL,
 ) {
     init {
         require(batch >= 1) { "A stamp writes at least one stream." }
         require(capacity >= 1) { "The stamping remembers at least one aggregate." }
+        require(walkBatch >= 1) { "A walk stamps at least one aggregate a page." }
+        require(walkRate >= 1) { "A walk stamps at least one aggregate a second." }
+        require(interval.isPositive()) { "The walks run at a positive interval." }
+        require(leaseTtl > interval) { "The walk lease outlives the interval between runs." }
+        require(memberTtl > interval) { "A schema membership outlives the interval between runs." }
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || other is AccessStampOptions && batch == other.batch && capacity == other.capacity
+        this === other || other is AccessStampOptions && valueFields() == other.valueFields()
 
-    override fun hashCode(): Int = 31 * batch + capacity
+    override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "AccessStampOptions(batch=$batch, capacity=$capacity)"
+    override fun toString(): String =
+        "AccessStampOptions(batch=$batch, capacity=$capacity, walkBatch=$walkBatch, walkRate=$walkRate, " +
+            "interval=$interval, leaseTtl=$leaseTtl, memberTtl=$memberTtl)"
+
+    private fun valueFields(): List<Any> = listOf(batch, capacity, walkBatch, walkRate, interval, leaseTtl, memberTtl)
 
     companion object {
         /** The most streams one stamp writes by default. */
@@ -56,6 +79,15 @@ class AccessStampOptions @InternalWowApi constructor(
 
         /** The aggregates whose last attributes the stamping remembers by default. */
         const val DEFAULT_CAPACITY: Int = 100_000
+
+        /** The aggregates a page of a walk stamps by default. */
+        const val DEFAULT_WALK_BATCH: Int = 100
+
+        /** The most aggregates a walk stamps a second by default. */
+        const val DEFAULT_WALK_RATE: Int = 500
+
+        val DEFAULT_INTERVAL: Duration = 5.seconds
+        val DEFAULT_TTL: Duration = 30.seconds
     }
 }
 
@@ -76,12 +108,17 @@ class AccessStampOptions @InternalWowApi constructor(
  * - **Idempotent**: a stamp writes only the streams not stamped as of a later version, so a replay, a retry or two
  *   owners of a partition at once leave each stream with its aggregate's latest attributes. A stream before that
  *   carries none (appended by a node of an earlier version, or imported) is stamped with the rest.
- * - **A stream without its attributes**: one not stamped, or stamped before the model declared the attributes it
- *   declares now, is not the follower's to stamp: it would replay the aggregate's state for each one. [unstamped] is
- *   told of its type, and the stamp of its aggregate's next commit writes it.
+ * - **Whatever the schema**: the attributes are compared as stored, so a commit of a node of another access schema
+ *   (a rolling deployment) is followed as any: history follows the aggregate's latest stream, and the walk of the new
+ *   schema ([AccessWalking]) derives them anew once its claim moves.
+ * - **A stream without attributes**: one not stamped is the walk's when the walk's heads reach it ([walking]'s
+ *   [AccessWalking.covers]); after them (a node of an earlier version still running, an import), the follower stamps
+ *   its aggregate's whole history with the attributes of its current state ([AccessWalking.stampCurrent]), once, and
+ *   passes over its streams up to that version.
  * - **Run as [FunctionKind.PROJECT]**: it writes derived data of the log, as a projection does. A kind of its own would
  *   be a new value of an enum the wire carries (the OpenAPI document, the TypeScript client) for one built-in.
  */
+@Suppress("LongParameterList")
 @InternalWowApi
 class AccessStamping(
     context: String,
@@ -90,8 +127,10 @@ class AccessStamping(
     /** Where each type's history is stamped: its log; none, for a type whose log keeps no stamps. */
     private val stampsOf: (AggregateType) -> AccessStamps?,
     private val options: AccessStampOptions = AccessStampOptions(),
-    /** Told of the type of each stream that carries no current attributes. */
-    private val unstamped: (AggregateType) -> Unit = {},
+    /** The context's walks, which stamp the streams without attributes; none: such a stream stays as it is. */
+    val walking: AccessWalking? = null,
+    private val observer: Observer = Observer.NONE,
+    private val time: TimeSource = TimeSource.Monotonic,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val last = LruMap<AggregateRef, Stamped>(options.capacity)
@@ -113,37 +152,29 @@ class AccessStamping(
         val ref = stream.ref
         val model = models[ref.type] ?: return
         val stamps = stampsOf(ref.type) ?: return
-        val access = stream.access?.takeIf { AccessValues.declared(it).keys == model.accessNames }
+        val version = stream.version
+        val access = stream.access
         if (access == null) {
-            last.remove(ref)
-            unstamped(ref.type)
+            val caughtUp = last[ref]?.let { it.version >= version } == true
+            if (!caughtUp && walking?.covers(ref.type, entry.position) != true) {
+                // Its whole history, the streams after it that are already in the log too.
+                walking?.stampCurrent(model, ref, Cause.CATCH_UP)?.let { last[ref] = it }
+            }
             return
         }
-        val version = stream.version
         if (version > 1) {
             val before = last[ref]?.takeIf { it.version == version - 1 }?.access
                 ?: kernel.streamAt(ref, version - 1)?.access
             if (before != access) {
-                stampHistory(stamps, ref, access, version)
+                val started = time.markNow()
+                val written = stamps.stampIn(ref, access, version, 1, version, options.batch)
+                val millis = started.elapsedNow().inWholeMilliseconds
+                observer.observed(ObservedEvent.AccessStamped(ref.type, Cause.CHANGE, written, millis))
+                logger.debug { "Stamped the access attributes of $ref@$version over $written streams before it." }
             }
         }
         last[ref] = Stamped(version, access)
     }
-
-    /** Stamps [access] over the streams of [ref] before [asOf], at most a batch of them in each stamp. */
-    private suspend fun stampHistory(stamps: AccessStamps, ref: AggregateRef, access: Map<String, Any?>, asOf: Int) {
-        var from = 1
-        var written = 0
-        while (from < asOf) {
-            val until = minOf(from + options.batch, asOf)
-            written += stamps.stamp(ref, access, asOf, from, until)
-            from = until
-        }
-        logger.debug { "Stamped the access attributes of $ref@$asOf over $written streams before it." }
-    }
-
-    /** The attributes of an aggregate's stream at [version], as this subscription last saw them. */
-    private class Stamped(val version: Int, val access: Map<String, Any?>)
 
     override fun toString(): String = "AccessStamping($NAME)"
 

@@ -23,7 +23,9 @@ import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.access.AccessSnapshots
 import me.ahoo.wow.runtime.access.AccessStamping
+import me.ahoo.wow.runtime.access.AccessWalking
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.ForwardEndpoint
 import me.ahoo.wow.runtime.cluster.LeaseGroup
@@ -172,7 +174,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val group = LeaseGroup(service, context)
         val progress = progressOf(group, groups)
         val maintenance = snaps.maintenance(group.name, node, backends.leases, progress, options.snapshots) { address }
-        val builtIns = snapshots.map { it.subscription } + stampingOf(context, models, kernel, parts).subscription +
+        val stamping = stampingOf(context, models, kernel, parts, group.name, backends, maintenance)
+        val builtIns = snapshots.map { it.subscription } + stamping.subscription +
             listOfNotNull(maintenance?.rebuildSubscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
             logGroupOf(context, progress[index].group, part, builtIns, timersOf(context, part, firing))
@@ -180,14 +183,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
         val ownership = ownershipOf(group, backends, logGroups, intake, states)
-        val executor = Executor(
-            kernel,
-            options.executor.laneCapacity,
-            options.executor.maxBatch,
-            views.forExecutor(),
-            inFlight,
-            clock = clock,
-        )
+        val executor = executorOf(kernel, views)
         return Parts(
             context,
             models,
@@ -208,21 +204,42 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             firing,
             logGroups,
             names,
+            stamping.walking,
         )
     }
 
+    /** The context's executor over [kernel], its commands reading the shared states of [views]. */
+    private fun executorOf(kernel: Kernel, views: SharedStates): Executor = Executor(
+        kernel,
+        options.executor.laneCapacity,
+        options.executor.maxBatch,
+        views.forExecutor(),
+        inFlight,
+        clock = clock,
+    )
+
     /**
-     * The built-in subscription `wow.access` of [context]: each type's history is stamped on its log group's own log
-     * ([parts], before the hand-over wraps it), when that log keeps stamps.
+     * The built-in subscription `wow.access` of [context] and the context's access walks, in the lease [group]: each
+     * type's history is stamped and walked on its log group's own log ([parts], before the hand-over wraps it), when
+     * that log keeps stamps and walks; the walks rewrite the snapshots through the context's [maintenance].
      */
+    @Suppress("LongParameterList")
     private fun stampingOf(
         context: String,
         models: List<AggregateModel<*>>,
         kernel: Kernel,
         parts: List<GroupParts>,
+        group: String,
+        backends: ContextBackends,
+        maintenance: SnapshotMaintenance?,
     ): AccessStamping {
-        val stamps = parts.flatMap { part -> part.types.map { it to (part.log as? AccessStamps) } }.toMap()
-        return AccessStamping(context, models, kernel, stamps::get, options.access)
+        val logs = parts.flatMap { part -> part.types.map { it to part.log } }.toMap()
+        val snapshots = maintenance?.let { AccessSnapshots(it::rebuild) } ?: AccessSnapshots.NONE
+        val walking = AccessWalking(
+            context, group, node, models, kernel, logs::get, backends.leases, options.access, snapshots, { address },
+            observer,
+        )
+        return AccessStamping(context, models, kernel, { logs[it] as? AccessStamps }, options.access, walking, observer)
     }
 
     /**
@@ -439,6 +456,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val firing: LateFirer,
         val logGroups: List<LogGroupNode>,
         val commandTypes: CommandTypes,
+        val accessWalking: AccessWalking?,
     ) {
         fun complete(router: CommandRouter): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
@@ -489,6 +507,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 queries,
                 peerEvents,
                 admission.validators,
+                accessWalking,
             )
         }
     }
