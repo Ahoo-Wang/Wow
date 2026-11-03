@@ -294,7 +294,7 @@ class QueryGatewayTest {
     @Test
     fun `an in-process caller drops the inherited scope, selection and entry`() {
         val http = QueryCaller(
-            Caller(subject = "user", attributes = mapOf("abac.region" to listOf("east"))),
+            Caller(subject = "user", attributes = mapOf("region" to listOf("east"))),
             entry = QueryEntry.HTTP,
             scope = QueryScope(authenticated = TenantIdFilter("tenant")),
         ).withSelection(AggregateIdFilter("aggregate"))

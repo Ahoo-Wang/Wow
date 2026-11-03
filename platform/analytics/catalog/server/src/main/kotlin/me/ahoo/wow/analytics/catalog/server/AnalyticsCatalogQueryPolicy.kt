@@ -32,7 +32,7 @@ import me.ahoo.wow.query.schema.QueryModel
  *
  * The published datasets themselves (the `DATASET` model, the data plane) are not the catalog's to
  * guard: their queries go through the node's other policies as any dataset's do, each caller reading the rows of its
- * own scope (tenant, owner, space, ABAC tags) with each value masked as its lineage says. It hides no row, so its
+ * own scope (tenant, owner, space) with each value masked as its lineage says. It hides no row, so its
  * events queries need not name their aggregates ([EventsMode.NONE]).
  */
 class AnalyticsCatalogQueryPolicy : QueryPolicy {

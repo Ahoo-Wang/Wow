@@ -141,7 +141,7 @@ interface QueryGateway {
      * The single-aggregate visibility check of the policy chain: [record], the snapshot-shaped record of
      * one aggregate a point read chose by [selection] (a state read by id, its version or its trace, or the aggregate
      * of an events query), as [caller] may read it: admitted by the same caller scope and [QueryPolicy] restrictions
-     * (ABAC's among them) and the model's default scope as a query, evaluated in memory, and masked; null when the
+     * and the model's default scope as a query, evaluated in memory, and masked; null when the
      * caller may not read it, so a row a query hides is hidden from a read by id too. A gateway without policies
      * admits every record.
      */

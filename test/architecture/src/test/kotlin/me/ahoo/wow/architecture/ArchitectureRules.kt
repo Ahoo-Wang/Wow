@@ -456,7 +456,7 @@ object ArchitectureRules {
     private val HOST_QUERY_TYPES: List<String> = listOf(
         // The engine, its builder's inputs and its outputs.
         "engine.QueryEngine", "engine.ManifestTypes", "engine.CommittedStates", "engine.ReadFacade",
-        "policy.QueryEntryPolicy", "admission.QueryBudget", "policy.AbacQueryOptions", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
+        "policy.QueryEntryPolicy", "admission.QueryBudget", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
         "QueryGateway", "QueryModule", "CrossTenantAudit",
         // The application's ports the engine is built of.
         "policy.QueryPolicy", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",

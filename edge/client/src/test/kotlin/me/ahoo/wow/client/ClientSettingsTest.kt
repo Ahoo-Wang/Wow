@@ -85,7 +85,7 @@ class ClientSettingsTest {
             attributes = mapOf(
                 DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", " ", "auditor"),
                 Caller.APP to listOf("console"),
-                "abac.region" to listOf("eu"),
+                "region" to listOf("eu"),
             ),
         )
         UserCredential.DEVELOPMENT.headers(erin).assert().isEqualTo(

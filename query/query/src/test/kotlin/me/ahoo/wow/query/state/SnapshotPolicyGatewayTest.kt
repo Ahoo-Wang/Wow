@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.Snapshot
@@ -34,8 +35,6 @@ import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.events.EventVisibility
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.spi.json.WowJson
@@ -50,29 +49,30 @@ class SnapshotPolicyGatewayTest {
     private val gateway = SnapshotPolicyGateway(
         type,
         catalog.policyProvider(type),
-        listOf(AbacQueryPolicy(AbacQueryOptions(enabled = true, matchMissingTagKey = false))),
+        // Each caller reads the states it owns.
+        listOf(QueryPolicy { caller, _ -> caller.subject?.let(::OwnerIdFilter) ?: MatchNoneFilter }),
     )
-    private val state = stateTagged(mapOf("region" to listOf("east")))
+    private val state = stateOwnedBy("alice")
 
-    private fun stateTagged(access: Map<String, Any?>) = Snapshot.of<JsonNode>(
+    private fun stateOwnedBy(owner: String?) = Snapshot.of<JsonNode>(
         ref = type.ref("acme", "c-1"),
         version = 1,
-        scope = Scope("alice", null),
+        scope = Scope(owner, null),
         deleted = false,
-        access = access,
+        access = emptyMap(),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,
         state = WowJson.mapper.createObjectNode().put("items", 2),
     )
 
-    private fun tagged(region: String) = QueryCaller(Caller(attributes = mapOf("abac.region" to listOf(region))))
+    private fun caller(subject: String) = QueryCaller(Caller(subject = subject))
 
     @Test
     fun `the policies decide on the state alone, as a snapshot query would`(): Unit = runBlocking {
-        StateVisibility.visible(gateway, tagged("east"), state).assert().isTrue()
-        StateVisibility.visible(gateway, tagged("west"), state).assert().isFalse()
-        StateVisibility.admitted(gateway, tagged("east"), state)!!["items"].asInt().assert().isEqualTo(2)
+        StateVisibility.visible(gateway, caller("alice"), state).assert().isTrue()
+        StateVisibility.visible(gateway, caller("bob"), state).assert().isFalse()
+        StateVisibility.admitted(gateway, caller("alice"), state)!!["items"].asInt().assert().isEqualTo(2)
     }
 
     @Test
@@ -87,10 +87,9 @@ class SnapshotPolicyGatewayTest {
     }
 
     @Test
-    fun `a state without the caller's tag, or with another value, is hidden`(): Unit = runBlocking {
-        StateVisibility.visible(gateway, tagged("west"), stateTagged(emptyMap())).assert().isFalse()
-        StateVisibility.visible(gateway, tagged("east"), stateTagged(mapOf("region" to listOf("north"))))
-            .assert().isFalse()
+    fun `a state of no owner, or of another, is hidden`(): Unit = runBlocking {
+        StateVisibility.visible(gateway, caller("alice"), stateOwnedBy(null)).assert().isFalse()
+        StateVisibility.visible(gateway, caller("alice"), stateOwnedBy("bob")).assert().isFalse()
     }
 
     @Test
@@ -100,10 +99,11 @@ class SnapshotPolicyGatewayTest {
             val ids = listOf(ref.id)
             // The policy gateway queries no snapshots: each aggregate is read on its own.
             val visible = EventVisibility.of({ gateway }) { state }
-            visible.visible(type, ref.tenantId, ids, tagged("east")).assert().isEqualTo(ids)
-            visible.visible(type, ref.tenantId, ids, tagged("west")).assert().isEmpty()
+            visible.visible(type, ref.tenantId, ids, caller("alice")).assert().isEqualTo(ids)
+            visible.visible(type, ref.tenantId, ids, caller("bob")).assert().isEmpty()
             visible.pins(type).assert().isTrue()
-            EventVisibility.of({ gateway }) { null }.visible(type, ref.tenantId, ids, tagged("east")).assert().isEmpty()
+            val stateless = EventVisibility.of({ gateway }) { null }
+            stateless.visible(type, ref.tenantId, ids, caller("alice")).assert().isEmpty()
         }
 
     @Test

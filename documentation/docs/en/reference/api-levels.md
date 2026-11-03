@@ -71,8 +71,6 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.dataset.QueryDatasetChange` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetListener` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
-| `me.ahoo.wow.query.policy.AbacQueryOptions` | class | `wow-query` |
-| `me.ahoo.wow.query.policy.AbacQueryPolicy` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.DeclarationValue` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QuerySchemaDeclaration` | class | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |

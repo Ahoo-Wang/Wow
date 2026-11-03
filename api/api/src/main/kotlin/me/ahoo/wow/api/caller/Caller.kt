@@ -27,7 +27,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *   anonymous caller.
  * - [crossScope] says the caller may act in another tenant or scope by naming it (the `Wow-Scope` header).
  * - [attributes] are further facts about the principal an authorizer or a query policy may read (roles, policies,
- *   `abac.` attributes). They live only as long as the request: none of them is written into a fact,
+ *   claims). They live only as long as the request: none of them is written into a fact,
  *   but for the standard attribute [APP], the calling application, which the edge records as the
  *   command's request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
  * - [service] says the caller is a service identity: another service of the system, which names itself on the
@@ -64,7 +64,7 @@ class Caller @InternalWowApi constructor(
     /**
      * The application the caller calls from: the first value of its [APP] attribute, which only its
      * resolver sets, from what it authenticated (CoSec's resolver: the application CoSec authorized the request in);
-     * null when it has none. ABAC and query policies read it here, and a command records it as its request fact
+     * null when it has none. Query policies read it here, and a command records it as its request fact
      * [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
      */
     val app: String? get() = attributes[APP]?.firstOrNull()?.takeIf { it.isNotBlank() }

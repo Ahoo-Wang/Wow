@@ -121,7 +121,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Implementing or subclassing the query types (`IPagedList`) | Dropped | The V10 query types are final classes built with their factories or the DSL. |
 | Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |
 | Masking sensitive fields, in queries and state reads | Kept | — |
-| ABAC query policies, CoSec `abac.` attributes | Kept | Off by default. |
+| ABAC query policies, CoSec `abac.` attributes | Replaced | By access attributes and access policies; `wow.query.abac.*` is refused at startup. |
 | Query policy SPI and scopes | Kept | — |
 | Snapshot queries on MongoDB and Elasticsearch | Kept | PostgreSQL as well. |
 | Event stream queries and aggregation across aggregates | Kept | One query engine for snapshots, events and datasets. |

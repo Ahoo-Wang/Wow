@@ -64,7 +64,7 @@ class QueryCallerTest {
     @Test
     fun `entry is unspecified until stated and in-process queries drop the caller, scope and entry`() {
         val http = QueryCaller(
-            Caller(subject = "alice", attributes = mapOf("abac.dept" to listOf("eng"))),
+            Caller(subject = "alice", attributes = mapOf("dept" to listOf("eng"))),
             entry = QueryEntry.HTTP,
         ).withScope(QueryScope(declared = TenantIdFilter("tenant"))).withSelection(IdFilter("a1"))
         QueryCaller().entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)

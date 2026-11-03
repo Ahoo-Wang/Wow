@@ -124,7 +124,6 @@ class KeyNamingTest {
         val BOOLEANS: Map<String, String> = mapOf(
             "wow.health.topics.required" to "how strict a health check is: a missing topic makes the node not ready",
             "wow.node.standby" to "the state the node starts in, not a feature",
-            "wow.query.abac.match-missing-tag-key" to "a matching rule of the ABAC tags",
             "wow.query.budgets.http.unindexed-sort-expensive" to "what the budget counts as an expensive operator",
             "wow.query.budgets.in-process.unindexed-sort-expensive" to "what the budget counts as an expensive operator",
             "wow.query.count-cache.paged-totals" to "what the count cache covers, not a switch of its own",

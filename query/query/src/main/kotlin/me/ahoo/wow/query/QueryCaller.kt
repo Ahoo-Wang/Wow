@@ -97,8 +97,7 @@ enum class QueryEntry {
  * [QueryTargets] decide the tenant and scope it acts in; the query adds only its execution context. In-process code passes [IN_PROCESS].
  *
  * - [caller]: who; null for trusted in-process code, which is bound to no tenant, owner or space. Policies read it:
- *   [ScopeQueryPolicy] restricts a query to its tenant (through the host's `TenantPolicy`) and its scope, and
- *   [AbacQueryPolicy] matches its `abac.` attributes against the snapshot tags.
+ *   [ScopeQueryPolicy] restricts a query to its tenant (through the host's `TenantPolicy`) and its scope.
  * - [entry]: where the query came from, which picks its budget.
  * - [selection]: what a route names in its URL (an aggregate id, a version range): an operation constraint, not
  *   caller scope. Admission appends it at step 2 with the scope, after every
@@ -128,7 +127,7 @@ class QueryCaller @InternalWowApi constructor(
     /** The [caller]'s subject, for policies and audit; null for an anonymous or in-process caller. */
     val subject: String? get() = caller?.subject
 
-    /** The [caller]'s attributes, such as the `abac.` attributes [AbacQueryPolicy] matches; none in process. */
+    /** The [caller]'s attributes, which the application's policies may read; none in process. */
     val attributes: Map<String, List<String>> get() = caller?.attributes ?: emptyMap()
 
     /**
