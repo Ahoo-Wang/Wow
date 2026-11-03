@@ -149,7 +149,7 @@ class QueryCaller @InternalWowApi constructor(
     /**
      * The caller of a query issued from inside a query extension, a policy or a cache loader: trusted in-process code,
      * [IN_PROCESS]. The caller, scope, route selection, cross-tenant reach and entry are all dropped, so an HTTP
-     * caller's budgets, tenant, scope and tags do not leak into a nested lookup.
+     * caller's budgets, tenant, scope and claims do not leak into a nested lookup.
      */
     fun inProcess(): QueryCaller = IN_PROCESS
 

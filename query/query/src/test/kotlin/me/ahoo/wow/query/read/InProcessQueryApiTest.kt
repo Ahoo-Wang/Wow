@@ -70,6 +70,7 @@ import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.toSnapshot
 import me.ahoo.wow.spi.log.EventRecord
@@ -147,6 +148,7 @@ class InProcessQueryApiTest {
             ),
             scope = Scope("alice"),
             operator = operator,
+            access = AccessValues.ofStream(emptyMap(), Scope("alice")),
         ),
     )
 

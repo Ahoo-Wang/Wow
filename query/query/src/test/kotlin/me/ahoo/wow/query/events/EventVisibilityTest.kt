@@ -67,7 +67,7 @@ class EventVisibilityTest {
         gateway: QueryGateway? = snapshots,
         hides: Boolean = true,
         latest: suspend (me.ahoo.wow.api.aggregate.AggregateRef) -> Snapshot<JsonNode>?,
-    ) = EventVisibility.of({ gateway }, { hides }, batched = { false }, latest = latest)
+    ) = EventVisibility.of({ gateway }, hides, batched = { false }, latest = latest)
 
     private suspend fun EventVisibility.visible(id: String, caller: QueryCaller): Boolean =
         visible(type, "acme", listOf(id), caller) == listOf(id)
@@ -112,7 +112,7 @@ class EventVisibilityTest {
     @Test
     fun `a type is pinned only while a pinned policy applies, and batched as it is told`() {
         EventVisibility.of({ snapshots }) { state(1) }.pins(type).assert().isTrue()
-        EventVisibility.of({ snapshots }, hides = { false }) { state(1) }.pins(type).assert().isFalse()
+        EventVisibility.of({ snapshots }, hides = false) { state(1) }.pins(type).assert().isFalse()
         EventVisibility.of({ snapshots }) { state(1) }.batches(type).assert().isTrue()
         pointReads { state(1) }.batches(type).assert().isFalse()
         EventVisibility { _, _, ids, _ -> ids }.pins(type).assert().isTrue()

@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
@@ -66,7 +67,8 @@ class BankModels : ModelProvider {
         return listOf(
             aggregate<Account>(BANK, "account") {
                 initial { Account() }
-                lifecycle()
+                // An account may be given to another owner; its other lifecycle commands are off.
+                lifecycle(TransferOwner::class.java)
                 decide<OpenAccount>(Creation.REQUIRED) { _, body ->
                     decided.ids += command.ref.id
                     decided.timeouts += command.wait.timeout

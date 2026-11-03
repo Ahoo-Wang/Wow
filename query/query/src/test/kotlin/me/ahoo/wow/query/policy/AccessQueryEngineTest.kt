@@ -24,8 +24,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -54,12 +56,14 @@ import me.ahoo.wow.query.policy.AccessFixtures.caller
 import me.ahoo.wow.query.policy.AccessFixtures.documents
 import me.ahoo.wow.query.policy.AccessFixtures.record
 import me.ahoo.wow.query.policy.AccessFixtures.state
+import me.ahoo.wow.query.policy.AccessFixtures.stream
 import me.ahoo.wow.query.state.StateVisibility
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** The reads of the aggregates an access policy governs, through the engine a host builds (D390 B2). */
+/** The reads of the aggregates an access policy governs, through the engine a host builds (D390 B2, B3). */
 class AccessQueryEngineTest {
     private val storage = InMemoryQueryStorage().apply {
         save(record(DOCUMENT, "d-sales", mapOf("department" to "sales", "sharedWith" to emptyList<String>())))
@@ -72,12 +76,43 @@ class AccessQueryEngineTest {
         save(record(LEDGER, "l-1", owner = "alice"))
     }
 
-    private fun engine(vararg policies: AccessPolicy<*>, counts: QueryCountCache? = null): QueryEngine =
+    private val streams = listOf(
+        stream(DOCUMENT, "d-sales", mapOf("department" to "sales", "sharedWith" to emptyList<String>())),
+        stream(DOCUMENT, "d-hr", mapOf("department" to "hr", "sharedWith" to listOf("bob"), "level" to 2L)),
+        // Committed before the stamping, and not stamped yet.
+        stream(DOCUMENT, "d-none", null),
+        stream(NOTE, "n-alice", emptyMap(), owner = "alice"),
+        stream(NOTE, "n-zed", emptyMap()),
+        // Committed by zed, its aggregate since transferred to alice: stamped with its owner of now.
+        stream(NOTE, "n-moved", emptyMap(), owner = "alice", committed = Scope("zed")),
+        stream(NOTE, "n-space", emptyMap(), space = "s1"),
+        stream(NOTE, "n-unstamped", null, owner = "alice"),
+    )
+    private val events = InMemoryEventQueryStorage({ type -> streams.filter { it.ref.type == type } })
+
+    private fun engine(
+        vararg policies: AccessPolicy<*>,
+        counts: QueryCountCache? = null,
+        eventCounts: QueryCountCache? = null,
+        applications: List<QueryPolicy> = emptyList(),
+    ): QueryEngine =
         QueryEngine.Builder(MANIFEST)
             .snapshots(storage)
+            .events(events)
             .accessPolicies(policies.toList(), AccessFixtures::aggregatesOf)
-            .counts(counts, null)
+            .policies(applications)
+            .counts(counts, eventCounts)
             .build()
+
+    private suspend fun QueryEngine.streams(
+        type: AggregateType,
+        caller: QueryCaller,
+        filter: FilterExpression = MatchAllFilter,
+    ): List<String> = events(type)!!.list(ListQuery(filter, limit = 100), caller).toList()
+        .map { it[EventStreamFields.AGGREGATE_ID].stringValue() }
+
+    private suspend fun QueryEngine.pinned(type: AggregateType): Boolean =
+        events(type)!!.describe(QueryEntry.HTTP).constraints.any { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
 
     private suspend fun QueryEngine.ids(type: AggregateType, caller: QueryCaller): List<String> =
         snapshots(type)!!.list(ListQuery(MatchAllFilter, limit = 100), caller).toList()
@@ -115,7 +150,9 @@ class AccessQueryEngineTest {
             engine.ids(NOTE, caller("bob", "space" to listOf("s1"))).assert().containsExactly("n-space")
             // A caller acting in a space of its own reads the documents by their policy, not by that space.
             engine.ids(DOCUMENT, caller("bob", scope = Scope("bob", "s9"))).assert().containsExactly("d-hr")
-            AccessQueryPolicy(engine.access).events.assert().isEqualTo(EventsMode.PINNED)
+            // On the events, the owner and space each stream records, the aggregate's of now.
+            engine.streams(NOTE, caller("alice")).assert().containsExactlyInAnyOrder("n-alice", "n-moved")
+            engine.streams(NOTE, caller("bob", "space" to listOf("s1"))).assert().containsExactly("n-space")
         }
 
     @Test
@@ -178,23 +215,50 @@ class AccessQueryEngineTest {
     }
 
     @Test
-    fun `the events of a governed aggregate should be pinned to its snapshots, and only its`(): Unit = runBlocking {
-        val events = InMemoryEventQueryStorage({ emptyList() })
-        val engine = QueryEngine.Builder(MANIFEST)
-            .snapshots(storage)
-            .events { type -> events.binding(type) }
-            .accessPolicies(listOf(documents), AccessFixtures::aggregatesOf)
-            .build()
-        fun pinned(type: AggregateType) = runBlocking {
-            engine.events(type)!!.describe(QueryEntry.HTTP).constraints
-                .any { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
+    fun `the events of a governed aggregate should be read by its policy on what each stream records`(): Unit =
+        runBlocking {
+            val cache = QueryCountCache({ 1L })
+            val engine = engine(documents, eventCounts = cache)
+            AccessQueryPolicy(engine.access).events.assert().isEqualTo(EventsMode.PUSHDOWN)
+            // An events query need not name its aggregates.
+            engine.pinned(DOCUMENT).assert().isFalse()
+            engine.streams(DOCUMENT, alice).assert().containsExactly("d-sales")
+            engine.streams(DOCUMENT, caller("bob")).assert().containsExactly("d-hr")
+            engine.streams(DOCUMENT, caller("bob"), AggregateIdFilter("d-sales")).assert().isEmpty()
+            // A stream not stamped yet shows to no caller a policy reads for.
+            engine.streams(DOCUMENT, auditor).assert().containsExactlyInAnyOrder("d-sales", "d-hr")
+            engine.streams(DOCUMENT, caller(null)).assert().isEmpty()
+            engine.streams(DOCUMENT, QueryCaller(Caller.ofService("basket", "acme"))).assert()
+                .containsExactlyInAnyOrder("d-sales", "d-hr", "d-none")
+            val gateway = engine.events(DOCUMENT)!!
+            gateway.count(CountQuery(MatchAllFilter), alice).count.assert().isEqualTo(1)
+            gateway.count(CountQuery(MatchAllFilter), auditor).count.assert().isEqualTo(2)
+            cache.size.assert().isEqualTo(2)
         }
-        pinned(DOCUMENT).assert().isTrue()
-        pinned(NOTE).assert().isFalse()
-        // Its streams show when its snapshot does: the policy adds nothing of its own on them.
-        engine.events(DOCUMENT)!!.list(ListQuery(AggregateIdFilter("d-hr"), limit = 10), caller("bob")).toList()
-            .assert().isEmpty()
+
+    @Test
+    fun `an aggregate without a policy should show its events to its owner and space of now`(): Unit = runBlocking {
+        val engine = engine(documents)
+        engine.pinned(NOTE).assert().isFalse()
+        engine.streams(NOTE, caller("alice")).assert().containsExactlyInAnyOrder("n-alice", "n-moved")
+        // Its committer no longer owns it; a stream not stamped yet shows to no owner.
+        engine.streams(NOTE, caller("zed")).assert().containsExactlyInAnyOrder("n-zed", "n-space")
+        engine.streams(NOTE, caller("emma", scope = Scope(spaceId = "s1"))).assert().containsExactly("n-space")
+        // A filter of the query's own on the owner reads the one recorded at the commit.
+        engine.streams(NOTE, caller("alice"), OwnerIdFilter("zed")).assert().containsExactly("n-moved")
+        engine.streams(NOTE, caller("emma", scope = Scope.NONE)).assert().hasSize(5)
     }
+
+    @Test
+    fun `an application's policy, which reads the state, should still pin the events of every aggregate`(): Unit =
+        runBlocking {
+            val engine = engine(documents, applications = listOf(QueryPolicy { _, _ -> MatchAllFilter }))
+            engine.pinned(DOCUMENT).assert().isTrue()
+            engine.pinned(NOTE).assert().isTrue()
+            // Both rules hold: the snapshot the pinned policy checks, and the stream the access policy filters.
+            engine.streams(DOCUMENT, caller("bob"), AggregateIdFilter("d-hr")).assert().containsExactly("d-hr")
+            engine.streams(DOCUMENT, alice, AggregateIdFilter("d-hr")).assert().isEmpty()
+        }
 
     @Test
     fun `a governed type whose snapshots are not queried should still have its policy evaluated on its states`(): Unit =

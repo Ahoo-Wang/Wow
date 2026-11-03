@@ -18,11 +18,13 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CrossTenant
+import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.manifest.AggregateManifest
@@ -32,6 +34,9 @@ import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
 
@@ -75,7 +80,10 @@ fun interface QueryOwnership {
  *   and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names a space: a
  *   tenant-level caller, whose principal names no owner, reads every aggregate of its tenant. This is the default
  *   access rule of an aggregate: one with an access policy of its own ([AccessPolicies.governs]), and a dataset whose
- *   rows are such an aggregate's, read by that policy instead ([AccessQueryPolicy]);
+ *   rows are such an aggregate's, read by that policy instead ([AccessQueryPolicy]). On the events, the owner and
+ *   space compared are the aggregate's current ones each stream records among its access attributes (`access.owner`,
+ *   `access.space`), not those of its commit: an aggregate's history shows to its owner of now, and a stream not yet
+ *   stamped to no owner or space;
  * - the deletion scope the model defaults to (a snapshot query sees active aggregates) unless the query states its
  *   own deletion filter. Admission's step 3 would add the same default; stating it here keeps the whole scope one
  *   audited policy.
@@ -95,7 +103,7 @@ class ScopeQueryPolicy(
     /** The read side's scope rules, which an HTTP caller is checked against again. */
     private val targets = QueryTargets(tenants, crossTenant)
 
-    /** The tenant, owner and space are recorded with each stream at its commit. */
+    /** Each stream records its tenant, and its aggregate's current owner and space. */
     override val events: EventsMode
         get() = EventsMode.PUSHDOWN
 
@@ -107,8 +115,8 @@ class ScopeQueryPolicy(
             (context.schema.profile as? DatasetQueryModelProfile)?.dataset?.let(access::governs) != true
         val restrictions = listOfNotNull(
             tenants.queryTenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),
-            caller.principal.ownerId?.takeIf { owned && scoped }?.let(::OwnerIdFilter),
-            caller.principal.spaceId?.takeIf { scoped }?.let(::SpaceIdFilter),
+            caller.principal.ownerId?.takeIf { owned && scoped }?.let { owner(context, it) },
+            caller.principal.spaceId?.takeIf { scoped }?.let { space(context, it) },
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter },
         )
         return when (restrictions.size) {
@@ -118,10 +126,21 @@ class ScopeQueryPolicy(
         }
     }
 
+    /** The owner equality on [context]'s model: on the events, the stream's current owner, an access attribute. */
+    private fun owner(context: QueryContext<*>, ownerId: String): FilterExpression =
+        if (context.schema.model == QueryModel.EVENTS) EqualFilter(STREAM_OWNER, ownerId) else OwnerIdFilter(ownerId)
+
+    /** The space equality on [context]'s model: on the events, the stream's current space, an access attribute. */
+    private fun space(context: QueryContext<*>, spaceId: String): FilterExpression =
+        if (context.schema.model == QueryModel.EVENTS) EqualFilter(STREAM_SPACE, spaceId) else SpaceIdFilter(spaceId)
+
     @InternalWowApi
     companion object {
         /** Before every other policy, so a scope failure is reported first. */
         const val ORDER: Int = Int.MIN_VALUE
+
+        private val STREAM_OWNER = QueryField("${EventStreamFields.ACCESS}.${AccessValues.OWNER}")
+        private val STREAM_SPACE = QueryField("${EventStreamFields.ACCESS}.${AccessValues.SPACE}")
     }
 }
 
