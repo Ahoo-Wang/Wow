@@ -69,7 +69,7 @@ private const val MAX_SEGMENTS = 16
 
 /**
  * The transfer processor's segments and threads unless [SEGMENTS] sets them: one per CPU of the node, at most 16. On a
- * runner's two CPUs the suite axon-pg-segments found 2 cheaper than 16 in CPU and memory per command.
+ * runner's two CPUs the suite axon-pg-segments found 16 faster in E3 and 2 cheaper in CPU and memory per command.
  */
 fun segmentsFor(processors: Int): Int = minOf(MAX_SEGMENTS, processors)
 
