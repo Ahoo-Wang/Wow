@@ -86,7 +86,7 @@ wow:
         eshop-payment-service: payments
 ```
 
-Set these in a YAML file or `SPRING_APPLICATION_JSON`: an environment variable loses the dashes of the service's name. A call that needs a namespace when none is known, as off Kubernetes with nothing set, fails, naming these keys and the peer's `url`. The requests go to its nodes in turn; a node that does not take the connection, or that answers it is shutting down or on standby, is passed over for the next one in the same attempt. The records are looked up again every 30 seconds, and at once when no node takes a connection. `wow.peer.discovery: static` takes the `url`s alone, and a community provider of `PeerDiscovery` may find them otherwise. A saga's call needs no listing either: a context whose contract is on the class path is found the same way.
+Set these in a YAML file or `SPRING_APPLICATION_JSON`: an environment variable loses the dashes of the service's name. A call that needs a namespace when none is known, as off Kubernetes with nothing set, fails, naming these keys and the peer's `url`. The requests go to its nodes in turn; a node that does not take the connection, or that answers it is shutting down or on standby, is passed over for the next one in the same attempt. The records are looked up again every 30 seconds, and at once when no node takes a connection. `wow.peer.discovery: static` takes the `url`s alone; off Kubernetes, `wow.peer.discovery: spring-cloud` finds them in a Spring Cloud service registry ([Spring Cloud Discovery](../operate/spring-cloud)), and a community provider of `PeerDiscovery` may find them otherwise. A saga's call needs no listing either: a context whose contract is on the class path is found the same way.
 
 `wow.peer.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.peer.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains what a peer accepts from a service that names itself.
 
@@ -96,7 +96,7 @@ A console, a gateway or a tool may call a peer without its api jar. It lists the
 
 ## Outside a Wow host
 
-An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode (`service` with the name of the service it calls as, or `user` with the end user's credential), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the api jars on the class path.
+An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode (`service` with the name of the service it calls as, or `user` with the end user's credential), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the api jars on the class path. [Call Wow from Other Services](./calling-from-other-services) says which port and identity each kind of caller uses, and what its requests carry.
 
 ## From Java
 

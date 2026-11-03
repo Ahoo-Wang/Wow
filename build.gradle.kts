@@ -83,7 +83,7 @@ val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-loa
 val moduleProjects = listOf(
     "annotations", "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
-    "observability", "spring-boot", "cosid", "cocache-api", "cocache",
+    "observability", "spring-boot", "cosid", "cocache-api", "cocache", "spring-cloud",
     "models", "migrate-data", "architecture",
     "test-dsl", "test-query", "test-spring-boot", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
@@ -106,7 +106,7 @@ val abiProjects = includedProjects(
     ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":observability", ":spring-boot",
-    ":cosid", ":cocache-api", ":cocache", ":models", ":test-dsl", ":test-query", ":test-spring-boot", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":cocache-api", ":cocache", ":spring-cloud", ":models", ":test-dsl", ":test-query", ":test-spring-boot", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
@@ -165,6 +165,7 @@ val integrationTestProjects = includedProjects(
     ":elasticsearch",
     ":spring-boot",
     ":cocache",
+    ":spring-cloud",
     ":routing-spike",
     ":lease-spike",
     ":eshop-ordering-server",

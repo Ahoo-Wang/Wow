@@ -3,6 +3,8 @@
 spring-boot = "4.1.2"
 cosid = "5.0.0"
 cocache = "6.10.0"
+# The train of Spring Boot 4.0.x and 4.1.x (spring-cloud-commons 5.0.x; 2026.0 is the 4.2 train), for wow-spring-cloud (D396)
+spring-cloud = "2025.1.4"
 cosec = "8.0.0-alpha.2"
 testcontainers = "2.0.5"
 opentelemetry = "1.67.0"
@@ -33,6 +35,7 @@ publish-plugin = "2.0.0"
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
+spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
 cocache-spring-boot-starter = { module = "me.ahoo.cocache:cocache-spring-boot-starter", version.ref = "cocache" }
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
 cosec-spring-boot = { module = "me.ahoo.cosec:cosec-spring-boot", version.ref = "cosec" }

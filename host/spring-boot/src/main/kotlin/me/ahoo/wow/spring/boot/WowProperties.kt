@@ -1302,9 +1302,10 @@ class WowProperties {
         /**
          * How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records
          * `wow.peer.dns.name-template` names after the peer's service, as its contract on the class path or its
-         * Manifest names it; `static` takes `wow.peers.<context>.url` alone; another value names a community
-         * provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A peer's `url`
-         * wins over any discovery.
+         * Manifest names it; `static` takes `wow.peers.<context>.url` alone; `spring-cloud`, with wow-spring-cloud on
+         * the class path, reads the instances a Spring Cloud service registry has of the service; another value names
+         * a community provider's discovery. Each is configured under `wow.peer.<type>` by the options it declares. A
+         * peer's `url` wins over any discovery.
          */
         var discovery: String = DnsPeerDiscovery.TYPE
 
