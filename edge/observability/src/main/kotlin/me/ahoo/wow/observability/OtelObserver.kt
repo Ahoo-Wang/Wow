@@ -141,6 +141,10 @@ class OtelObserver(
             is ObservedEvent.StateCache -> stateCache(event.context, event.outcome)
             is ObservedEvent.ReservationLost -> reservationLost(event.context)
             is ObservedEvent.StoreFellBack -> storeFellBack(event.context, event.capability.value, event.reason.value)
+            is ObservedEvent.AccessStamped -> accessStamped(event)
+            is ObservedEvent.AccessWalked ->
+                cached.counter(WowMetrics.ACCESS_WALKED, event.type.context, event.type.name)
+                    .increment(event.aggregates.toDouble())
             is ObservedEvent.PartitionPaused -> pausedNotice(event.group, event.subscription, WowMetrics.PAUSED_KIND)
             is ObservedEvent.PartitionResumed -> pausedNotice(event.group, event.subscription, WowMetrics.RESUMED_KIND)
             is ObservedEvent.PartitionThrottled -> partitionThrottled(event.group, event.subscription, event.throttled)
@@ -211,6 +215,13 @@ class OtelObserver(
 
     private fun storeFellBack(context: String, capability: String, reason: String) {
         cached.counter(WowMetrics.STORE_FALLBACKS, context, capability, reason).increment()
+    }
+
+    private fun accessStamped(event: ObservedEvent.AccessStamped) {
+        val (context, aggregate) = event.type.context to event.type.name
+        cached.counter(WowMetrics.ACCESS_STAMPED, context, aggregate, event.cause.value).increment(event.streams.toDouble())
+        cached.timer(WowMetrics.ACCESS_STAMP_DURATION, context, aggregate, event.cause.value)
+            .record(event.millis, TimeUnit.MILLISECONDS)
     }
 
     private fun tailRead(context: String, reason: String) {

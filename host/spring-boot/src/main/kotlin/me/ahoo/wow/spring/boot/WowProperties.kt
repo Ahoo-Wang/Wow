@@ -456,8 +456,9 @@ class WowProperties {
     }
 
     /**
-     * How the built-in subscription `wow.access` stamps the access attributes over a history: in stamps of a bounded
-     * number of streams, remembering the last attributes of a bounded number of aggregates.
+     * How the access attributes are stamped over the histories: by the built-in subscription `wow.access`, in stamps of a
+     * bounded number of streams, remembering the last attributes of a bounded number of aggregates; and by the access
+     * walk of each aggregate type, a page of aggregates at a time, at a bounded rate.
      */
     @InternalWowApi
     class Access {
@@ -467,8 +468,17 @@ class WowProperties {
         /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
         var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY
 
+        /** The aggregates a page of an access walk stamps; the walk records how far it is after each page. */
+        var walkBatch: Int = AccessStampOptions.DEFAULT_WALK_BATCH
+
+        /**
+         * The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk
+         * puts on the stores.
+         */
+        var walkRate: Int = AccessStampOptions.DEFAULT_WALK_RATE
+
         /** The node's stamping options. */
-        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity)
+        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity, walkBatch, walkRate)
     }
 
     /**

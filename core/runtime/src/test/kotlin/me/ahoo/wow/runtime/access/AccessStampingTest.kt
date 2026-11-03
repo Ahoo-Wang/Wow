@@ -18,7 +18,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
@@ -67,18 +66,8 @@ class AccessStampingTest {
         access = access,
     )
 
-    private fun stamping(
-        log: Recording,
-        batch: Int = AccessStampOptions.DEFAULT_BATCH,
-        unstamped: (AggregateType) -> Unit = {},
-    ) = AccessStamping(
-        "office",
-        listOf(model),
-        Kernel(log.log),
-        { log },
-        AccessStampOptions(batch = batch),
-        unstamped,
-    )
+    private fun stamping(log: Recording, batch: Int = AccessStampOptions.DEFAULT_BATCH) =
+        AccessStamping("office", listOf(model), Kernel(log.log), { log }, AccessStampOptions(batch = batch))
 
     /** Appends [streams] and hands each to [stamping] as its subscription would. */
     private fun commit(log: Recording, stamping: AccessStamping, vararg streams: EventStreamRecord) = runBlocking {
@@ -115,15 +104,14 @@ class AccessStampingTest {
     }
 
     @Test
-    fun `a stream without current attributes is told, and its aggregate's next stamped commit stamps it`() {
+    fun `a stream of another schema's attributes is followed as any, and one without them is left to the walks`() {
         val log = Recording()
-        val told = ArrayList<AggregateType>()
-        val stamping = stamping(log) { told += it }
+        val stamping = stamping(log)
         // Imported, then stamped before the model declared its department.
         commit(log, stamping, stream(1, null), stream(2, AccessValues.ofStream(emptyMap(), Scope("alice"))))
-        told.assert().containsExactly(model.type, model.type)
-        log.ranges.assert().isEmpty()
+        log.ranges.assert().containsExactly(1 until 2)
         commit(log, stamping, stream(3, access("sales")))
+        log.ranges.assert().containsExactly(1 until 2, 1 until 3)
         history(log).assert().containsExactly(access("sales"), access("sales"), access("sales"))
     }
 }

@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.access.AccessWalking
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
@@ -114,6 +115,8 @@ class ContextNode internal constructor(
      * takes from its topic, are checked as admitted ones are.
      */
     val validators: List<CommandValidator> = emptyList(),
+    /** The context's access walks: each type's history stamped with its aggregates' current access attributes. */
+    val accessWalking: AccessWalking? = null,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate: a saga's derived command, one
