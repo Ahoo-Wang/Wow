@@ -31,6 +31,21 @@ public final class me/ahoo/wow/test/server/FakePeerKt {
 	public static final fun fakePeer (Ljava/lang/String;)Lme/ahoo/wow/test/server/FakePeer;
 }
 
+public final class me/ahoo/wow/test/server/LocalPorts : java/lang/Enum {
+	public static final field Companion Lme/ahoo/wow/test/server/LocalPorts$Companion;
+	public static final field FIXED Lme/ahoo/wow/test/server/LocalPorts;
+	public static final field PROPERTY Ljava/lang/String;
+	public static final field RANDOM Lme/ahoo/wow/test/server/LocalPorts;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/test/server/LocalPorts;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/test/server/LocalPorts;
+	public static fun values ()[Lme/ahoo/wow/test/server/LocalPorts;
+}
+
+public final class me/ahoo/wow/test/server/LocalPorts$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/test/server/LocalPorts;
+}
+
 public final class me/ahoo/wow/test/server/PeerAnswer {
 	public static final field Companion Lme/ahoo/wow/test/server/PeerAnswer$Companion;
 	public static final fun rejected (Ljava/lang/String;)Lme/ahoo/wow/test/server/PeerAnswer;
@@ -78,6 +93,34 @@ public final class me/ahoo/wow/test/server/WowHttp : java/lang/AutoCloseable {
 	public static synthetic fun post$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
 	public final fun request (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
 	public static synthetic fun request$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+}
+
+public final class me/ahoo/wow/test/server/WowLocal : java/lang/AutoCloseable {
+	public static final field Companion Lme/ahoo/wow/test/server/WowLocal$Companion;
+	public static final field DEFAULT_PARTITIONS I
+	public static final field EXIT_ON_STDIN_EOF Ljava/lang/String;
+	public fun close ()V
+	public final fun getPublicPorts ()Ljava/util/Map;
+	public final fun getReadyLine ()Ljava/lang/String;
+	public final fun getServers ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/test/server/WowLocal$Builder {
+	public final fun service (Ljava/lang/Class;Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/test/server/WowLocal$Builder;
+	public final fun service (Ljava/lang/Class;Ljava/lang/String;Ljava/util/List;I)Lme/ahoo/wow/test/server/WowLocal$Builder;
+	public final fun service (Ljava/lang/Class;Ljava/lang/String;Ljava/util/List;II)Lme/ahoo/wow/test/server/WowLocal$Builder;
+	public final fun service (Ljava/lang/Class;Ljava/lang/String;Ljava/util/List;IILjava/util/Map;)Lme/ahoo/wow/test/server/WowLocal$Builder;
+	public static synthetic fun service$default (Lme/ahoo/wow/test/server/WowLocal$Builder;Ljava/lang/Class;Ljava/lang/String;Ljava/util/List;IILjava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowLocal$Builder;
+}
+
+public final class me/ahoo/wow/test/server/WowLocal$Companion {
+}
+
+public final class me/ahoo/wow/test/server/WowLocalKt {
+	public static final fun runWowLocal (Lme/ahoo/wow/test/server/LocalPorts;ILkotlin/jvm/functions/Function1;)V
+	public static synthetic fun runWowLocal$default (Lme/ahoo/wow/test/server/LocalPorts;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun wowLocal (Lme/ahoo/wow/test/server/LocalPorts;ILkotlin/jvm/functions/Function1;)Lme/ahoo/wow/test/server/WowLocal;
+	public static synthetic fun wowLocal$default (Lme/ahoo/wow/test/server/LocalPorts;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/test/server/WowLocal;
 }
 
 public final class me/ahoo/wow/test/server/WowServer : java/lang/AutoCloseable {

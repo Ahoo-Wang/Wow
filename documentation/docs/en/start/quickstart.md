@@ -345,6 +345,37 @@ class Teller(private val commands: CommandClient) {
 
 `wait` answers once the command's wait ends, the snapshot by default; `send` answers once it is accepted. [Call Other Services](../guide/calling-services) shows the rest.
 
+## Run several services locally
+
+A system of several services runs in one JVM, for development, a front end against its back ends, or a demo. `runWowLocal` from `wow-test-spring-boot` starts each service serving its own contexts, all on the memory backend and sharing one set of topics in memory. A saga's commands to another service and the streams the services publish then flow between them as they do on Kafka. Write its `main` in a source set that has every service on its class path, such as the `integrationTest` suite:
+
+<!-- sample: fragment -->
+
+```kotlin
+fun main() = runWowLocal {
+    service<InventoryServer>("eshop-inventory-service", listOf("eshop-inventory"), 8084, 9094)
+    service<OrderingServer>("eshop-ordering-service", listOf("eshop-ordering"), 8083, 9093)
+    service<BasketServer>("eshop-basket-service", listOf("eshop-basket"), 8082, 9092)
+}
+```
+
+- Each service runs in the `dev` profile, so a request names its caller in the `Wow-*` headers. It is named by `spring.application.name` and serves its own contexts alone (`wow.contexts.include`); `properties` add its own settings.
+- The services start in the order listed, and each calls the ones listed before it: its `wow.peers.<context>.url` names their internal ports. List a called service before its callers, here the ordering before the basket, whose checkout calls it.
+- The ports are each service's own; `-Dwow-local.ports=random` lets the system choose every one, and a service may then name none.
+- Once every service listens, it prints one line with their public ports, `wow-local ready {"eshop-inventory-service":8084,…}`. With `-Dwow-local.exit-on-stdin-eof=true` the JVM exits when its standard input closes, so a process that started it, a front end's end-to-end test say, never leaves it running.
+- `wowLocal { … }` starts the same services from a test and gives them back (`servers`, `publicPorts`) to close.
+
+A task of the build runs it:
+
+<!-- sample: fragment -->
+
+```kotlin
+tasks.register<JavaExec>("runLocal") {
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    mainClass.set("com.example.shop.LocalKt")
+}
+```
+
 ## Where to go next
 
 - **The concepts.** [Architecture Overview](../concepts/) explains what the host did for you.
