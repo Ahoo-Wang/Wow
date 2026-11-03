@@ -101,7 +101,7 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
     'gradlew',
     'bom/dependencies/build.gradle.kts',
     'test/benchmarks/README.md',
-    'test/benchmarks/results/reports/v10-counts-e1-e3.md',
+    'test/benchmarks/results/reports/v10-actions-l3-l4-rc.md',
     'examples/README.md',
   ])
     assert.ok(none([path]), path);

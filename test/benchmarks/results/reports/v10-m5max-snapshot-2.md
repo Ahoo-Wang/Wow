@@ -1,6 +1,6 @@
 # V10 milestone snapshot 2 on Apple M5 Max
 
-The second milestone saturation snapshot of Wow 10 on an Apple M5 Max: single-node closed-loop sweeps on disk (PostgreSQL and MongoDB), reproduction of multi-node concurrency conflicts (X-34), and investigation of in-memory transport behavior under overload (X-40). Measured on 2026-11-01 at `30d0c0348e` (`main`), compared against the first M5 Max snapshot (`cebdb88d0`, 2026-10-30). Between the two snapshots, `main` moved by 78 commits. The raw runs, scripts, and logs are in [`v10-m5max-snapshot-2/`](v10-m5max-snapshot-2/).
+The second milestone saturation snapshot of Wow 10 on an Apple M5 Max: single-node closed-loop sweeps on disk (PostgreSQL and MongoDB), reproduction of multi-node concurrency conflicts (X-34), and investigation of in-memory transport behavior under overload (X-40). Measured on 2026-11-01 at `30d0c0348e` (`main`), compared against the first M5 Max snapshot (`cebdb88d0`, 2026-10-30). Between the two snapshots, `main` moved by 78 commits. The raw runs and scripts are in [`v10-m5max-snapshot-2/`](v10-m5max-snapshot-2/); the node logs (about 20 MB) are not in the tree and stay at commit `1357642891` (links below).
 
 ## Setup
 
@@ -66,7 +66,7 @@ Single-node E3 uniform saturation across step 1,024 (the knee) and step 4,096:
 | MongoDB | E3 fixed | 1,024 (60s) | 263.7 | 0 | 386 | 2,637 |
 
 ### 2. Evidence & Timeline Analysis
-Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) were captured before session teardown and are preserved in `2-X34-postgres/logs/` and `2-X34-mongo/logs/`.
+Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) were captured before session teardown; they are not in the tree (node logs are not committed, decision D391) and stay at commit `1357642891` in [`2-X34-postgres/logs/`](https://github.com/Ahoo-Wang/Wow/tree/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-m5max-snapshot-2/2-X34-postgres/logs) and [`2-X34-mongo/logs/`](https://github.com/Ahoo-Wang/Wow/tree/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-m5max-snapshot-2/2-X34-mongo/logs).
 
 #### Timeline of Critical Failure Chain:
 1. **Internal Cluster Stream Exhaustion**:
@@ -129,7 +129,7 @@ Complete logs for all three nodes (`node-1.log`, `node-2.log`, `node-3.log`) wer
 
 ### 3. Server Logs, Heap, and GC Analysis
 - **HTTP 500 Count**: Exactly **0**.
-- **Server Logs**: Server logs (`3-X40-inmem/logs/node-1.log` and `3-X40-notransport/logs/node-1.log`) contain no `InternalServerError`, no `OutOfMemoryError`, and no uncaught exceptions.
+- **Server Logs**: Server logs ([`3-X40-inmem/logs/node-1.log`](https://github.com/Ahoo-Wang/Wow/blob/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-m5max-snapshot-2/3-X40-inmem/logs/node-1.log) and [`3-X40-notransport/logs/node-1.log`](https://github.com/Ahoo-Wang/Wow/blob/1357642891a5a458bdb8fc7adc364af7bcb8ee21/test/benchmarks/results/reports/v10-m5max-snapshot-2/3-X40-notransport/logs/node-1.log), at commit `1357642891`, no longer in the tree) contain no `InternalServerError`, no `OutOfMemoryError`, and no uncaught exceptions.
 - **Client Disconnections**: The only warnings in server logs were standard Netty socket reset notices (`java.net.SocketException: Connection reset`) emitted when the load generator closed client connections between sweep steps.
 - **Heap and GC**: On 8 GB heap, G1 GC maintained young generation collections comfortably; average heap usage remained under 2.5 GB throughout the sweeps, and in-memory bounded queues did not accumulate uncollected garbage.
 
