@@ -2617,6 +2617,10 @@
             "type" : "boolean",
             "description" : "A system command (wow.*): a lifecycle command, a rebuild or a job command."
           },
+          "internal" : {
+            "type" : "boolean",
+            "description" : "An internal command: only the platform sends it, on the internal port; the public port does not serve its routes."
+          },
           "transformsTo" : {
             "type" : "array",
             "items" : {

@@ -31,7 +31,8 @@ clients), and, for a context with routes of its own, `routes.ts`
 - `aggregate.ts`: the aggregate's descriptor, its state fields and its event
   union;
 - `commandClient.ts`: `<Aggregate>CommandClient`, a method per command and a
-  `…Stream` twin that answers one result per hop of the wait;
+  `…Stream` twin that answers one result per hop of the wait; an internal
+  command (`"internal": true`), which the public port does not serve, has none;
 - `queryClient.ts`: `<Aggregate>SnapshotQueryClient`,
   `<Aggregate>EventQueryClient` and `<Aggregate>StateClient`.
 

@@ -18,6 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { readdirSync } from 'fs';
 import { EXIT_CODES } from '../../src/api/errors';
 import { generateCold } from '../support/generation';
 import { generateCompiling } from '../support/probes';
@@ -372,6 +373,55 @@ describe('Manifest clients', () => {
     expect(read('probe/manifest.ts')).toContain(
       "{ name: 'Restock', routes: [{ method: 'POST', path: '/probe/thing/restock' }], idProperty: 'thingId' },",
     );
+  });
+
+  it('leaves an internal command out, and the types only it reaches', async () => {
+    const { read, output } = await generateCompiling(
+      manifest(
+        {
+          commands: [
+            {
+              name: 'Ship',
+              schema: schema('a.Ship'),
+              routes: [{ method: 'POST', path: '/probe/thing/{id}/ship' }],
+            },
+            {
+              name: 'Settle',
+              schema: schema('a.Settle'),
+              routes: [{ method: 'POST', path: '/probe/thing/{id}/settle' }],
+              internal: true,
+            },
+          ],
+        },
+        {
+          'a.Ship': {
+            type: 'object',
+            properties: { carrier: { type: 'string' } },
+          },
+          'a.Settle': {
+            type: 'object',
+            properties: { receipt: { $ref: schema('a.Receipt') } },
+          },
+          'a.Receipt': {
+            type: 'object',
+            properties: { n: { type: 'integer' } },
+          },
+        },
+      ),
+      `import { ThingCommandClient } from './out/index.js';
+       const commands = new ThingCommandClient();
+       void commands.ship('t1', { carrier: 'c' });
+       // @ts-expect-error an internal command has no method
+       void commands.settle('t1', {});`,
+    );
+    const generated = readdirSync(output, { recursive: true, encoding: 'utf8' })
+      .filter(file => file.endsWith('.ts'))
+      .map(read)
+      .join('\n');
+    expect(read('probe/thing/commandClient.ts')).toContain('ship(id: string');
+    expect(generated).not.toContain('Settle');
+    expect(generated).not.toContain('Receipt');
+    expect(generated).not.toContain('/probe/thing/{id}/settle');
   });
 
   it('warns of a schema $defs does not hold', async () => {

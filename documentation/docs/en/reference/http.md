@@ -25,7 +25,7 @@ A service's public port serves these routes, materialized from its Manifest. [Se
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | A rebuild of the snapshots of `{"ids": [...]}` |
 | `POST /<context>/wow.schedule/{job}/<command>` | A job command: `enable`, `reschedule`, `disable` |
 
-Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`. A command whose body names its aggregate (`@AggregateId`) has the route without `{id}` alone, and the Manifest lists its `idProperty`, the property of the body that holds the id: a blank one is `wow.command.malformed` (400), and so is a request that names another aggregate beside the body. The snapshot rebuild and the job commands are system commands of Wow's built-in aggregates: a service without a command authorizer refuses them on this port (403 `wow.auth.forbidden`), never allowing them by default ([Authorize commands](../operate/security#authorize-commands)).
+An internal command (`@InternalCommand`, `"internal": true` in the Manifest) has its routes on the internal port alone, where the services' calls reach it: on this port a request to one is the `404` problem of any unknown path, and `GET /wow/openapi` leaves the command out ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` get routes. The body of a command is its JSON; an empty one is `{}`. A command whose body names its aggregate (`@AggregateId`) has the route without `{id}` alone, and the Manifest lists its `idProperty`, the property of the body that holds the id: a blank one is `wow.command.malformed` (400), and so is a request that names another aggregate beside the body. The snapshot rebuild and the job commands are system commands of Wow's built-in aggregates: a service without a command authorizer refuses them on this port (403 `wow.auth.forbidden`), never allowing them by default ([Authorize commands](../operate/security#authorize-commands)).
 
 **Reads**
 
@@ -44,8 +44,8 @@ Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` ge
 
 | Method and path | Answers |
 | --- | --- |
-| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`) |
-| `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`) |
+| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`), its internal commands among them, marked `internal` |
+| `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them |
 
 A context's own service routes, the handlers its code declares, are served as its Manifest lists them. `wow.http.ops.enabled: true` (off by default) also serves the operator's routes: the parked entries under `/wow/ops/parked` and the read of the node's subscriptions, `GET /wow/ops/subscriptions` ([Ops Console](../operate/ops-console)).
 

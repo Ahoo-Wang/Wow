@@ -104,11 +104,12 @@ Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `
 | Command | Sent by | Accepted when | Rejections |
 | --- | --- | --- | --- |
 | `RequestPayment` (creates it) | `OrderPaymentSaga`, on the order's `OrderStockConfirmed` | The payment does not exist yet | None: an amount that is not positive breaks the command's constraint (`wow.command.invalid`, 400) |
-| `ConfirmPayment` | `PaymentGatewaySaga`, when the gateway approves | `REQUESTED`; again on `SUCCEEDED` changes nothing | `wrong-status` (409) |
-| `FailPayment` | `PaymentGatewaySaga`, when the gateway declines | `REQUESTED`; again on `FAILED` changes nothing | `wrong-status` (409) |
+| `ConfirmPayment` (internal) | `PaymentGatewaySaga`, when the gateway approves | `REQUESTED`; again on `SUCCEEDED` changes nothing | `wrong-status` (409) |
+| `FailPayment` (internal) | `PaymentGatewaySaga`, when the gateway declines | `REQUESTED`; again on `FAILED` changes nothing | `wrong-status` (409) |
 | `RefundPayment` | `OrderPaymentSaga`, when the order rejects its `PayOrder`; the gateway's chargeback callback, `ChargebackNotified` | `SUCCEEDED`; again on `REFUNDED` changes nothing | `wrong-status` (409) |
 
 - **States.** `REQUESTED`, then `SUCCEEDED` or `FAILED`; a succeeded payment may become `REFUNDED`.
+- **Internal commands.** `ConfirmPayment` and `FailPayment` record the gateway's answer, so only the gateway saga sends them: they are `@InternalCommand`, the public port serves no route of them, and the web app's generated clients have none. A buyer cannot confirm a payment the gateway never charged.
 - **Request.** `OrderPaymentSaga.onOrderStockConfirmed` reads the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, matches `eshop-ordering.order.OrderStockConfirmed` by name and reads the order's `totalAmount` from its published state. The server starts it at the beginning of the stream.
 - **Gateway.** `PaymentGatewaySaga` charges the `PaymentGateway` for each requested payment, with its execution as the idempotency key, and records the answer. It is a saga, not a reactor, because it sends a command. The server binds the `SimulatedPaymentGateway`: it approves an amount up to `eshop.payment.gateway.limit` (1000.00) and declines one above it, so a test picks the outcome by the order's total.
 - **Outcome.** A succeeded payment sends `PayOrder` (the payment's id and amount) to the ordering context; a failed one sends `CancelOrder`, and the cancelled order releases its stock as any cancelled order does.

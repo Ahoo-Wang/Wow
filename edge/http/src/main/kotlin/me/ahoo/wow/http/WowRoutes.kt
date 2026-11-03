@@ -82,7 +82,9 @@ import reactor.core.publisher.Mono
  * - every route of every command (`CommandManifest.routes`) sends that command through [gateway]: a command a
  *   transformer finds the aggregate of (`@Unaddressed`, or mounted) has its route without an id there, as the
  *   compiler writes it. The system commands are among them, routed as the Manifest says ([systemTarget]): the
- *   lifecycle commands an aggregate lists, its snapshot rebuild, and the job commands of its context;
+ *   lifecycle commands an aggregate lists, its snapshot rebuild, and the job commands of its context. An internal
+ *   command's routes (`@InternalCommand`, `CommandManifest.internal`) are not served here but on the internal port
+ *   ([callRoutes]): a request to one is the 404 problem of any unknown path, which does not say the command exists;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads], and
  *   `GET /{context}/{aggregate}/state` and `…/state/trace` the caller's own aggregate of one whose id is its owner's,
  * in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command;
@@ -95,7 +97,8 @@ import reactor.core.publisher.Mono
  *   while the node runs is served or not from then on;
  * - `GET /wow/manifest` answers [manifest] without the JVM class names of its schemas ([withoutClassNames]), which
  *   the internal port's keeps, unless [WowHttpOptions.manifestEndpoint] is off;
- * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf],.2), unless
+ * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf],.2), the internal commands left
+ *   out, unless
  *   [WowHttpOptions.openApiEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
@@ -156,7 +159,7 @@ fun wowRoutes(
             datasetRoutes(queryHandler)
         }
         aggregateRoutes(manifest) { context, aggregate ->
-            commandRoutes(context, aggregate, commands, statuses)
+            commandRoutes(context, aggregate, commands, statuses, publicPort = true)
             val type = AggregateType(context, aggregate.name)
             val state = "/$context/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
             GET(state) { request -> statuses.answering { states.handle(request, type) } }
@@ -256,7 +259,8 @@ private fun CoRouterFunctionDsl.document(
 /**
  * The routes of the services' synchronous calls, served on the internal port beside
  * the cluster channel and the wait signals: every command route of [manifest], the same paths and answers as on the
- * public port, sending the command through [gateway]. Each request must come from a
+ * public port, sending the command through [gateway], an internal command's (`@InternalCommand`) included, which the
+ * public port does not serve. Each request must come from a
  * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (the service the request
  * names, [me.ahoo.wow.http.caller.DeclaredServices]), and carry `Wow-Call`; any other, one that names no
  * service too, is answered 403
@@ -295,7 +299,9 @@ fun callRoutes(
         permits = permits,
     )
     return coRouter {
-        aggregateRoutes(manifest) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
+        aggregateRoutes(manifest) { context, aggregate ->
+            commandRoutes(context, aggregate, commands, statuses, publicPort = false)
+        }
         // The job commands, which a service calls when its permits list them.
         manifest.contexts.forEach { context -> contextRoutes(context, commands, statuses) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
@@ -369,14 +375,18 @@ private const val COMMAND = "command"
 private fun unknownTarget(context: String, request: ServerRequest, byId: Boolean): CommandTarget =
     CommandTarget(context, request.pathVariable(AGGREGATE), request.pathVariable(COMMAND), byId)
 
-/** The routes of [aggregate]'s commands, its system commands among them. */
+/**
+ * The routes of [aggregate]'s commands, its system commands among them; on the [publicPort], its internal commands'
+ * left out.
+ */
 private fun CoRouterFunctionDsl.commandRoutes(
     context: String,
     aggregate: AggregateManifest,
     handler: CommandHandler,
     statuses: ErrorStatuses,
+    publicPort: Boolean,
 ) {
-    aggregate.commands.forEach { command ->
+    aggregate.commands.filterNot { publicPort && it.internal }.forEach { command ->
         command.routes.forEach { route ->
             val target = if (command.system) {
                 // A lifecycle command of an aggregate whose id is its owner's has a route by no id, the caller's own.

@@ -239,6 +239,12 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CART.commands[AddItem].creation: creation changed from NONE to ALLOWED",
             ),
             row(
+                "command made internal",
+                BASELINE.addItem { it.copyWith(internal = true) },
+                "BREAKING $CART.commands[AddItem].internal: the command was made internal: the public port no " +
+                    "longer serves its routes",
+            ),
+            row(
                 "produced event removed",
                 BASELINE.addItem { it.copyWith(produces = emptyList()) },
                 "BREAKING $CART.commands[AddItem].produces: produced event ItemAdded removed",
@@ -627,6 +633,12 @@ class ManifestCompatibilityTest {
         ).assert().containsExactly("BREAKING $CART.commands[AddItem].aliases: alias Put removed")
         changes(BASELINE.cart { it.copyWith(snapshot = SnapshotManifest(false)) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CART.snapshot: snapshots enabled")
+        changes(BASELINE.addItem { it.copyWith(internal = true) }, BASELINE).assert().containsExactly(
+            "ADDITIVE $CART.commands[AddItem].internal: the command was made public: the public port serves its routes",
+        )
+        // A command internal on both sides keeps its contract.
+        val internal = BASELINE.addItem { it.copyWith(internal = true) }
+        changes(internal, internal).assert().isEmpty()
         changes(BASELINE.addItem { it.copyWith(produces = null) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CART.commands[AddItem].produces: produced events declared")
         changes(BASELINE.subscription { it.copyWith(derives = null) }, BASELINE)

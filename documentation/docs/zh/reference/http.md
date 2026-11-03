@@ -25,7 +25,7 @@ outline: deep
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | 重建 `{"ids": [...]}` 的快照 |
 | `POST /<context>/wow.schedule/{job}/<command>` | 任务命令：`enable`、`reschedule`、`disable` |
 
-只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。命令体指明了聚合的命令（`@AggregateId`）只有不带 `{id}` 的路由，Manifest 列出它的 `idProperty`，即命令体中承载 ID 的属性：空白的 ID 是 `wow.command.malformed`（400），在命令体之外又指明另一个聚合的请求也是。快照重建和任务命令是 Wow 内置聚合的系统命令：没有命令授权器的服务在这个端口上拒绝它们（403 `wow.auth.forbidden`），默认从不放行（[授权命令](../operate/security#authorize-commands)）。
+内部命令（`@InternalCommand`，Manifest 中的 `"internal": true`）的路由只在内部端口上，服务间的调用在那里送达它：在这个端口上请求它的路由，得到与任何未知路径相同的 `404` problem，`GET /wow/openapi` 也不含这条命令（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。只有聚合在 `@AggregateRoot(lifecycle)` 中列出的生命周期命令才有路由。命令的请求体是它的 JSON；空的命令体是 `{}`。命令体指明了聚合的命令（`@AggregateId`）只有不带 `{id}` 的路由，Manifest 列出它的 `idProperty`，即命令体中承载 ID 的属性：空白的 ID 是 `wow.command.malformed`（400），在命令体之外又指明另一个聚合的请求也是。快照重建和任务命令是 Wow 内置聚合的系统命令：没有命令授权器的服务在这个端口上拒绝它们（403 `wow.auth.forbidden`），默认从不放行（[授权命令](../operate/security#authorize-commands)）。
 
 **读取**
 
@@ -44,8 +44,8 @@ outline: deep
 
 | 方法和路径 | 返回 |
 | --- | --- |
-| `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`） |
-| `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`） |
+| `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`），其中包括内部命令，标注为 `internal` |
+| `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`）：其中没有内部命令 |
 
 上下文自己的服务路由（它的代码声明的处理函数）按 Manifest 列出的样子提供。`wow.http.ops.enabled: true`（默认关闭）还提供运维人员的路由：`/wow/ops/parked` 下的停放条目，以及读取节点订阅的 `GET /wow/ops/subscriptions`（[运维控制台](../operate/ops-console)）。
 

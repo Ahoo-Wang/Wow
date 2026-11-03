@@ -46,6 +46,7 @@
                   "path": "/eshop-payment/payment/{id}/confirm-payment"
                 }
               ],
+              "internal": true,
               "description": "Confirm a payment"
             },
             {
@@ -60,6 +61,7 @@
                   "path": "/eshop-payment/payment/{id}/fail-payment"
                 }
               ],
+              "internal": true,
               "description": "Fail a payment"
             },
             {

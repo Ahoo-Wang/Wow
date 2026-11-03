@@ -64,6 +64,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@StaticTenantId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@StaticAggregateId` | Removed: no fixed aggregate id ([9.x Capabilities in V10](./capabilities)) |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
+| `@CommandRoute(enabled = false)` | `@InternalCommand` on the command class: only the platform sends it (sagas, timers, the in-process gateway, other services on the internal port), and the public port serves no route of it ([Keep a command internal](../guide/aggregates#keep-a-command-internal)) |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |

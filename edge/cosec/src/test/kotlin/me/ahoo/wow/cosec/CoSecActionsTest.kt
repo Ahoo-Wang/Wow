@@ -17,10 +17,14 @@ import me.ahoo.cosec.runtime.route.RouteMap
 import me.ahoo.cosec.runtime.route.RouteMapCodec
 import me.ahoo.cosec.runtime.route.RouteResolution
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.ServiceRouteManifest
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 
 /** [CoSecActions]: one action name for a command's HTTP route and for the command in the process (D367). */
@@ -70,6 +74,48 @@ class CoSecActionsTest {
     @Test
     fun `a service route is its action on the route`() {
         resolve("GET", "/shop/summaries/mon").assert().isEqualTo("shop:summary route/summary")
+    }
+
+    @Test
+    fun `an internal command's routes are not mapped, as the public port does not serve them`() {
+        val internal = Manifest(
+            contexts = manifest.contexts.map { context ->
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copyWith(
+                            commands = aggregate.commands.map { it.copyWith(internal = it.name == "AddItem") },
+                        )
+                    },
+                )
+            },
+        )
+        val mapped = RouteMap.of(CoSecActions.routes(internal).routes.map { RouteMap.Located(it, "cosec-routes.json") })
+        mapped.resolve("POST", "/shop/cart/c-1/add-item").assert().isSameAs(RouteResolution.Unmapped)
+        mapped.resolve("POST", "/shop/cart/c-1/open-cart").assert().isNotSameAs(RouteResolution.Unmapped)
+    }
+
+    @Test
+    fun `a mounted command's routes are not mapped`() {
+        val mounted = Manifest(
+            contexts = manifest.contexts.map { context ->
+                context.copyWith(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copyWith(
+                            commands = aggregate.commands + CommandManifest(
+                                name = "ImportCart",
+                                schema = Manifest.schemaRef("ImportCart"),
+                                routes = CommandRoutes.of(CONTEXT, "cart", "ImportCart", Creation.NONE, true),
+                                mounted = true,
+                            ),
+                        )
+                    },
+                )
+            },
+        )
+        val mapped = RouteMap.of(CoSecActions.routes(mounted).routes.map { RouteMap.Located(it, "cosec-routes.json") })
+        mapped.resolve("POST", "/shop/cart/import-cart").assert().isSameAs(RouteResolution.Unmapped)
+        mapped.resolve("POST", "/shop/cart/c-1/import-cart").assert().isSameAs(RouteResolution.Unmapped)
+        mapped.resolve("POST", "/shop/cart/c-1/add-item").assert().isNotSameAs(RouteResolution.Unmapped)
     }
 
     @Test

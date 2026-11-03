@@ -84,7 +84,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | `routes.ts` | `<Context>Routes`：上下文每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
 | `types.ts` | Manifest 的 schema 中的命令、事件和状态 |
 | `<aggregate>/aggregate.ts` | 聚合的描述符、查询能指明的 `state.*` 字段，以及它的事件的联合类型 |
-| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个 `…Stream` 孪生方法，以及聚合列出的生命周期命令 |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个 `…Stream` 孪生方法，以及聚合列出的生命周期命令。内部命令（`"internal": true`，[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）没有方法，`manifest.ts` 里也没有它的条目，只有它用到的类型也不生成：公开端口不提供它 |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
 | `index.ts` | 以上全部，再导出一次 |
 | `.wow-generator.json` | 这次运行写出的文件，以便之后的运行删除它不再写出的文件 |

@@ -39,7 +39,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  * alone, the id being the server's to choose: a policy for such a command names the aggregate type both with and
  * without an id. So is the route of a command whose body names its aggregate (`@AggregateId`), whose action the
  * authorizer then decides on `<aggregate>/<id>`, the id its body names. The query and state routes
- * are not mapped: CoSec reads them as `http:<METHOD>` on their path.
+ * are not mapped: CoSec reads them as `http:<METHOD>` on their path. Nor are an internal command's
+ * (`@InternalCommand`): the public port does not serve them, so CoSec reads a request to one as it reads any unknown
+ * path, and its answer says nothing of the command.
  */
 @ExperimentalWowApi
 object CoSecActions {
@@ -73,13 +75,13 @@ object CoSecActions {
     @JvmStatic
     fun routeResource(route: String): String = "$ROUTE/$route"
 
-    /** CoSec's route map of the command and service routes of [manifest]. */
+    /** CoSec's route map of the command and service routes the public port serves of [manifest]. */
     @JvmStatic
     fun routes(manifest: Manifest): RouteMapDocument {
         val routes = buildList {
             manifest.contexts.forEach { context ->
                 context.aggregates.forEach { aggregate ->
-                    aggregate.commands.filterNot { it.mounted }.forEach { command ->
+                    aggregate.commands.filterNot { it.mounted || it.internal }.forEach { command ->
                         command.routes.forEach { route ->
                             val resource = when {
                                 command.name == SnapshotRebuilds.REBUILD ->

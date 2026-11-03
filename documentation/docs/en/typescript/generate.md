@@ -84,7 +84,7 @@ For each bounded context, a directory named after it:
 | `routes.ts` | `<Context>Routes`: a method per service route of the context, on `ServiceRoutes` of `@ahoo-wang/wow-client/routes`; written only when the Manifest lists service routes |
 | `types.ts` | The commands, events and states of the Manifest's schemas |
 | `<aggregate>/aggregate.ts` | The aggregate's descriptor, the `state.*` fields a query names, and the union of its events |
-| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each, and the lifecycle commands the aggregate lists |
+| `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`: a method per command, a `…Stream` twin of each, and the lifecycle commands the aggregate lists. An internal command (`"internal": true`, [Keep a command internal](../guide/aggregates#keep-a-command-internal)) has none, nor an entry in `manifest.ts`, nor a type only it uses: the public port does not serve it |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`, `<Aggregate>EventQueryClient` and `<Aggregate>StateClient` |
 | `index.ts` | Everything above, exported again |
 | `.wow-generator.json` | The files the run wrote, so a later run deletes the ones it no longer writes |

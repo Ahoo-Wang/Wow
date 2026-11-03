@@ -126,6 +126,10 @@ object ManifestSchema {
                 "routes" to array(ref(ROUTE)),
                 "mounted" to boolean(),
                 "system" to boolean("A system command (wow.*): a lifecycle command, a rebuild or a job command."),
+                "internal" to boolean(
+                    "An internal command: only the platform sends it, on the internal port; the public port does " +
+                        "not serve its routes."
+                ),
                 "transformsTo" to strings(),
                 "idProperty" to string("The property of the command's body that holds its aggregate's id."),
                 "description" to string(),

@@ -14,6 +14,7 @@
 package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.MountedCommand
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
@@ -21,6 +22,7 @@ import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.compiler.model.symbol.render
 
 /**
@@ -30,6 +32,7 @@ import me.ahoo.wow.compiler.model.symbol.render
  */
 internal object MountedCommandResolver {
     val MOUNTED_COMMAND: String = MountedCommand::class.java.name
+    private val INTERNAL_COMMAND: String = InternalCommand::class.java.name
     private const val AGGREGATE = "aggregate"
     private const val TRANSFORMS_TO = "transformsTo"
 
@@ -60,6 +63,7 @@ internal object MountedCommandResolver {
             transformsTo = transformsTo,
             problems = problems,
             description = Descriptions.of(declaration, problems),
+            internal = declaration.annotations.any { it.isOf(INTERNAL_COMMAND) },
         )
     }
 

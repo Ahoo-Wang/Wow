@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopPaymentManifest } from '../manifest.js';
-import type { ApplyTags, ChargebackNotified, ConfirmPayment, FailPayment, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
+import type { ApplyTags, ChargebackNotified, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
 import { PaymentAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-payment.payment` by its service's routes (`EshopPaymentManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -29,34 +29,6 @@ export class PaymentCommandClient {
   /** `ChargebackNotified`, answered as one result per hop of its wait (`text/event-stream`). */
   chargebackNotifiedStream(body: ChargebackNotified, options?: CreateCommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-payment.payment.ChargebackNotified', body });
-  }
-
-  /**
-   * Confirm a payment
-   * `ConfirmPayment`: `POST /eshop-payment/payment/{id}/confirm-payment`.
-   * Produces `PaymentSucceeded`.
-   */
-  confirmPayment(id: string, body: ConfirmPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'eshop-payment.payment.ConfirmPayment', body, id });
-  }
-
-  /** `ConfirmPayment`, answered as one result per hop of its wait (`text/event-stream`). */
-  confirmPaymentStream(id: string, body: ConfirmPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'eshop-payment.payment.ConfirmPayment', body, id });
-  }
-
-  /**
-   * Fail a payment
-   * `FailPayment`: `POST /eshop-payment/payment/{id}/fail-payment`.
-   * Produces `PaymentFailed`.
-   */
-  failPayment(id: string, body: FailPayment, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'eshop-payment.payment.FailPayment', body, id });
-  }
-
-  /** `FailPayment`, answered as one result per hop of its wait (`text/event-stream`). */
-  failPaymentStream(id: string, body: FailPayment, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'eshop-payment.payment.FailPayment', body, id });
   }
 
   /**

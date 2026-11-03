@@ -521,6 +521,50 @@ class ManifestOpenApiTest {
     }
 
     @Test
+    fun `an internal command should be left out, with the schemas only it reaches`() {
+        val cart = MANIFEST.contexts.single().aggregates.first()
+        val settle = command("Settle", Creation.NONE).copyWith(internal = true)
+        val manifest = MANIFEST.copyWith(
+            contexts = MANIFEST.contexts.map { context ->
+                context.copyWith(
+                    aggregates = listOf(cart.copyWith(commands = cart.commands + settle)) + context.aggregates.drop(1),
+                    // A saga that derives the internal command refers to its schema too.
+                    subscriptions = listOf(
+                        SubscriptionManifest(
+                            name = "Settling.onCartCreated",
+                            kind = SubscriptionKind.SAGA,
+                            source = SubscriptionSource("shop", listOf("cart")),
+                            function = FunctionManifest(FunctionKind.SAGA, "shop", "Settling", "onCartCreated"),
+                            derives = listOf(settle.schema),
+                        ),
+                    ),
+                )
+            },
+            defs = MANIFEST.defs + mapOf(
+                // The internal command's body, a type only it reaches, and one a public command reaches too.
+                "sample.Settle" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "receipt" to mapOf("\$ref" to Manifest.schemaRef("sample.Receipt")),
+                        "item" to mapOf("\$ref" to Manifest.schemaRef("sample.Item")),
+                    ),
+                ),
+                "sample.Receipt" to mapOf("type" to "object"),
+            ),
+        )
+        val written = ManifestOpenApi.write(manifest)
+        OpenApiChecks.check(written)
+        @Suppress("UNCHECKED_CAST")
+        val paths = written["paths"] as Map<String, Any?>
+        paths.keys.assert().doesNotContain("/shop/cart/{id}/settle")
+        @Suppress("UNCHECKED_CAST")
+        val schemas = (written["components"] as Map<String, Any?>)["schemas"] as Map<String, Any?>
+        schemas.keys.assert().doesNotContain("sample.Settle", "sample.Receipt").contains("sample.Item")
+        // Without it, the document is the one of the Manifest without the command.
+        written.assert().isEqualTo(document)
+    }
+
+    @Test
     fun `the framework schemas should hold what the edge writes`() {
         OpenApiChecks.validate(document, WowSchemas.PROBLEM, PROBLEM).assert().isEmpty()
         OpenApiChecks.validate(document, WowSchemas.SNAPSHOT, STATE).assert().isEmpty()

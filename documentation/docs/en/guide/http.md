@@ -20,7 +20,7 @@ A service serves an HTTP API derived from its Manifest: a route per command, the
 | `POST /wow/dataset/<context>/<dataset>/query` | A dataset of the service |
 | `GET /wow/manifest`, `GET /wow/openapi` | The Manifest and the OpenAPI 3.1 document of these routes |
 
-An aggregate whose id is its owner's, such as the eShop's basket, has one per owner: its routes without an id mean the caller's own aggregate, and no route generates its id ([One aggregate per owner](./ownership#one-aggregate-per-owner)). The routes are on the public port. The internal port serves the cluster and other services, never a client.
+An aggregate whose id is its owner's, such as the eShop's basket, has one per owner: its routes without an id mean the caller's own aggregate, and no route generates its id ([One aggregate per owner](./ownership#one-aggregate-per-owner)). The routes are on the public port. The internal port serves the cluster and other services, never a client. An internal command (`@InternalCommand`, [Keep a command internal](./aggregates#keep-a-command-internal)) has its routes on the internal port alone: the public port answers them as unknown paths, and its OpenAPI document and generated clients leave the command out.
 
 ## Who the caller is
 

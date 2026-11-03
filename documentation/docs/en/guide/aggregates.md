@@ -107,6 +107,31 @@ The property is declared by the command class or by an interface it implements. 
 
 Wow 10 takes a command's aggregate from its body only by `@AggregateId`, never by a property's name. So the compiler warns of a command that has a `String` property named `id` and no `@AggregateId`, where it could name its aggregate: the `id` may be stored or computed, the command's own or an interface's, such as a 9.x `Identifier.id`. If that `id` names the aggregate, mark it `@AggregateId`, as a 9.x command whose body named its aggregate needs, a creation a saga sends without an id among them. If 9.x bound it from the path, it only repeated the route: remove it and read `command.ref.id` ([What a command body holds](../migrate/source#what-a-command-body-holds)). An `id` that names something else stays, and `@Suppress("UnmarkedAggregateId")` on the command class silences the warning.
 
+### Keep a command internal
+
+Some commands record what the service's own processes found, never what a client asks: the payment gateway's answer, a timer's verdict, a step only a saga takes. `@InternalCommand` on the command class keeps it off the public port:
+
+<!-- sample: examples/eshop/payment/payment-api/src/main/kotlin/me/ahoo/wow/example/eshop/payment/api/payment/PaymentCommands.kt#internal -->
+
+```kotlin
+/**
+ * Records that the gateway approved the payment, under its [transactionId]. The gateway saga sends it, and only it:
+ * the command is internal, so the public port serves no route of it, and a client cannot confirm a payment the gateway
+ * never charged.
+ */
+@InternalCommand
+@Summary("Confirm a payment")
+data class ConfirmPayment(
+    val transactionId: String,
+)
+```
+
+Only the platform sends an internal command: the service's sagas and timers, its in-process `CommandClient`, and another service's call on the internal port, which [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) permits as it permits any command ([Call Other Services](./calling-services)). The Manifest lists it with `"internal": true` and the routes any command of its kind has, and the internal port serves them on the same paths. The public port does not: a request to `POST /eshop-payment/payment/{id}/confirm-payment` there is answered `404`, the problem of any unknown path, which does not say the command exists. Its OpenAPI document and the clients `wow-generator` generates leave the command out, with the types only it uses. The command authorizer still decides every call the internal port takes.
+
+The `404` keeps a probe from telling an internal command from an unknown path; the contract itself stays public. `GET /wow/manifest` on the public port lists the command, marked `"internal": true`, as it lists every command: tools that call the service by name read the contract there, and the sagas' `derives` and the wait chains name the command. A deployment that does not publish its contract turns that endpoint off with [`wow.http.manifest.enabled: false`](../reference/configuration#wow-http-manifest).
+
+The eShop's `ConfirmPayment` and `FailPayment` are internal: the gateway saga records the gateway's answer with them, and a buyer who could send `ConfirmPayment` would pay with no charge. Making a public command internal removes its public routes, a breaking change the compatibility check reports; making an internal command public adds them ([The Manifest and Compatibility](./manifest#the-compatibility-check)). The system commands, the lifecycle commands among them, are never internal.
+
 ## Write the root
 
 The root is a class annotated `@AggregateRoot`, built from its state. Its command functions decide: each takes a command and returns what it decided.

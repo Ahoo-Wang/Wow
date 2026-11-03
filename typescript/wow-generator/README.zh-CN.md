@@ -25,7 +25,7 @@ pnpm exec wow-generator generate \
 上下文还有 `routes.ts`（`<Context>Routes`）；每个聚合写出：
 
 - `aggregate.ts`：聚合的描述、状态字段与事件联合类型；
-- `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；
+- `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；公开端口不提供的内部命令（`"internal": true`）没有方法；
 - `queryClient.ts`：`<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 与 `<Aggregate>StateClient`。
 
 <!-- typecheck-generated: examples/eshop/web/src/generated/basket -->

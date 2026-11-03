@@ -15,7 +15,7 @@ outline: deep
 | `GET /wow/openapi` | 运行时，从服务合并后的 Manifest 生成（`wow.http.openapi.enabled`，默认打开） |
 | `build/wow/openapi.json` | 构建时，由 Gradle 插件的 `generateWowOpenApi` 生成，供需要在服务运行之前就拿到它的工具使用 |
 
-文档是 OpenAPI 3.1，使用 JSON Schema 2020-12 的 schema。它不声明 `jsonSchemaDialect`：OpenAPI 3.1 的默认方言就是 JSON Schema 2020-12 再加上 OpenAPI 自己的关键字，schema 在它之下含义不变，而 Swagger UI 不接受其他方言。它只描述公开端口：内部端口的调用、集群通道和信号从不出现在其中。
+文档是 OpenAPI 3.1，使用 JSON Schema 2020-12 的 schema。它不声明 `jsonSchemaDialect`：OpenAPI 3.1 的默认方言就是 JSON Schema 2020-12 再加上 OpenAPI 自己的关键字，schema 在它之下含义不变，而 Swagger UI 不接受其他方言。它只描述公开端口：内部端口的调用、集群通道和信号从不出现在其中；公开端口不提供的内部命令（`@InternalCommand`）及只有它们用到的 schema 也不在其中（[只在内部受理的命令](./aggregates#keep-a-command-internal)）。
 
 ## 配合 springdoc {#with-springdoc}
 
@@ -34,4 +34,4 @@ springdoc 的文档（`/v3/api-docs`、`/v3/api-docs/wow`）声明调用方怎�
 
 ## 基于文档的客户端 {#clients-from-the-document}
 
-TypeScript 客户端从 Manifest 而不是 OpenAPI 文档生成，这样它们能保留 OpenAPI 表达不了的东西，例如等待计划和查询字段。OpenAPI 文档服务于其他所有语言和工具。
+TypeScript 客户端从 Manifest 而不是 OpenAPI 文档生成，这样它们能保留 OpenAPI 表达不了的东西，例如等待计划和查询字段；与文档一样，它们不含内部命令。OpenAPI 文档服务于其他所有语言和工具。

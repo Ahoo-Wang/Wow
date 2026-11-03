@@ -362,6 +362,11 @@ class QueryManifest @InternalWowApi constructor(val model: String, val routes: L
  * ([CommandRoutes.SYSTEM_SEGMENT_PREFIX]). Every route the edge serves is a command's [routes], a system command's
  * included, so a client routes from the Manifest alone.
  *
+ * An [internal] command (`@InternalCommand`) is sent by the platform alone: the service's own sagas, schedules and
+ * in-process gateway, and other services on its internal port. Its [routes] are written as any command's, and the
+ * internal port serves them; the public port does not, and its OpenAPI document and the generated clients leave the
+ * command out. A system command is never internal.
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class CommandManifest @InternalWowApi constructor(
@@ -376,6 +381,7 @@ class CommandManifest @InternalWowApi constructor(
     val description: String? = null,
     val system: Boolean = false,
     val idProperty: String? = null,
+    val internal: Boolean = false,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandManifest && valueFields() == other.valueFields()
@@ -385,7 +391,7 @@ class CommandManifest @InternalWowApi constructor(
     override fun toString(): String =
         "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
             "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description, system=$system, " +
-            "idProperty=$idProperty)"
+            "idProperty=$idProperty, internal=$internal)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -399,6 +405,7 @@ class CommandManifest @InternalWowApi constructor(
         description,
         system,
         idProperty,
+        internal,
     )
 }
 

@@ -216,6 +216,7 @@ internal object ManifestFragmentBuilder {
                         routes = routesOf(context, binding, command, name),
                         description = command.description,
                         idProperty = command.aggregateId?.json,
+                        internal = command.internal,
                     )
                 } + binding.mounted.map { mounted ->
                     val name = mounted.commandName ?: simpleName(mounted.type)
@@ -227,6 +228,7 @@ internal object ManifestFragmentBuilder {
                         transformsTo = mounted.transformsTo.map(commands::referenceOf).distinct().sorted()
                             .ifEmpty { null },
                         description = mounted.description,
+                        internal = mounted.internal,
                     )
                 }
                 ).sortedBy { it.name } + systemCommands(context, binding),

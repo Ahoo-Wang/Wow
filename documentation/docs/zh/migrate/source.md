@@ -64,6 +64,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `@StaticTenantId` | 宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@StaticAggregateId` | 已移除：没有固定的聚合 ID（[V10 中的 9.x 能力](./capabilities)） |
 | `@AggregateRoute`、`@CommandRoute` | 已移除：路由来自 Manifest |
+| `@CommandRoute(enabled = false)` | 在命令类上标注 `@InternalCommand`：只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务），公开端口不挂它的路由（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)） |
 | `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
 | 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Tags` |

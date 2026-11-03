@@ -99,6 +99,9 @@ data class CompatibilityReport(val changes: List<ManifestChange>) {
  *   code added or removed is additive.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
+ * - A command made internal (`@InternalCommand`) breaks: the public port no longer serves its routes, which its public
+ *   clients send. One made public again is additive: the internal port, and the services that call it, keep its
+ *   routes either way.
  * - Changing an aggregate's id source (`@AggregateRoot(idSource)`) either way breaks: a route by no id, the caller's own
  *   aggregate's for one whose id is its owner's, means another aggregate, and the ids its clients send or keep change
  *   meaning. The routes by no id the change adds or removes are part of it, reported once with it; any other route
@@ -422,6 +425,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         list += schemas.compare("$path.schema", baseline.schema, current.schema)
+        compareInternal("$path.internal", baseline.internal, current.internal)
         if (baseline.creation != current.creation) {
             val change = "creation changed from ${baseline.creation} to ${current.creation}"
             if (current.creation == Creation.ALLOWED) {
@@ -446,6 +450,15 @@ private class Changes(val schemas: SchemaCompatibility) {
             if (owned == Side.BASELINE) baseline.routes.filterNot { it.isOwn(current.routes) } else baseline.routes,
             if (owned == Side.CURRENT) current.routes.filterNot { it.isOwn(baseline.routes) } else current.routes,
         )
+    }
+
+    /** A command made internal, whose public routes go, or made public, whose public routes come. */
+    private fun compareInternal(path: String, baseline: Boolean, current: Boolean) {
+        if (current && !baseline) {
+            breaking(path, "the command was made internal: the public port no longer serves its routes")
+        } else if (baseline && !current) {
+            additive(path, "the command was made public: the public port serves its routes")
+        }
     }
 
     /**
