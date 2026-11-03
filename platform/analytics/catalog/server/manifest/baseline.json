@@ -52,6 +52,7 @@
           "method" : "POST",
           "path" : "/analytics-catalog/dataset/{id}/drop-dataset-views"
         } ],
+        "internal" : true,
         "description" : "Drop a retired dataset's views"
       }, {
         "name" : "PublishDataset",
@@ -74,6 +75,7 @@
           "method" : "POST",
           "path" : "/analytics-catalog/dataset/{id}/recompile-dataset"
         } ],
+        "internal" : true,
         "description" : "Compile a published dataset again after a source changed"
       }, {
         "name" : "RefuseDatasetPublication",
@@ -304,6 +306,7 @@
           "method" : "POST",
           "path" : "/analytics-catalog/source/sync-source"
         } ],
+        "internal" : true,
         "description" : "Bring a source up to date with the warehouse"
       }, {
         "name" : "wow.snapshot.Rebuild",

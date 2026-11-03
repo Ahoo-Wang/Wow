@@ -82,7 +82,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 - `elementTitle` 必须是该字段 `elements` 里声明过的字段（否则 `definition.field.element-title-unknown`，没有 `elements` 的字段同样报它：没有元素可题名），且它得自己持有值——无字段种类（搜索／元数据）不是元素的成员，又一层对象数组是一个列表而不是一个名字（`definition.field.element-title-not-a-value`）。它决定单元格按什么读每一个元素，读不到的名字不会报错，只会让每个元素都读成「未命名」（[model.md#数组对象在单元格里按元素的标题读](model.md#数组对象在单元格里按元素的标题读)）；
 - `fieldGroups[]` 的 `id` 与 `label` 非空且 `id` 唯一（`definition.fieldGroup.invalid`／`duplicate`），其 `fields[]` 必须是已声明的根字段，且一个字段不得被两个分组同时列出（`definition.fieldGroup.field-unknown`／`field-duplicate`）；
 - `views[].id` 在定义内唯一，否则按名称查找无法确定使用哪一份能力；
-- `RecordCapability.rowFields` 的每一项都必须是已声明、且行里真有值的字段（不是搜索／元数据这类无字段种类），否则报 `definition.record.row-field-unknown`／`row-field-not-a-path`：它每一页都要被要回来，一个要不回来的名字只会让读它的动作永远读到 `undefined`；
+- `RecordCapability.rowFields` 的每一项都必须是已声明、且行里真有值的字段（不是搜索／元数据这类无字段种类），否则报 `definition.record.row-field-unknown`／`row-field-not-a-path`：它每一页都要被要回来，一个要不回来的名字只会让读它的动作永远读到 `undefined`；`RecordCapability.rowName` 同理（`definition.record.row-name-unknown`／`row-name-not-a-path`），每页也都要回来；
 - `RecordCapability.layouts` 非空且 `rowKey` 指向已声明字段（`definition.record.row-key-unknown`），`AnalysisCapability.fields[].field` 同样必须存在，使各 `default*Config` 对任何被接受的定义都能返回合法完整配置；
 - 行键字段还必须 `sortable: true`（`definition.record.row-key-unsortable`）：每条记录查询都以行键收尾（见「Record 内核的规则」），后端对不可排序的字段排序会整条拒绝，所以这件事在准入时说，而不是在第一次翻页时；
 - `layouts` 写了 `'kanban'` 时，定义里至少要有一个声明了 `options` 的 `enum` 字段可作分栏字段（`definition.record.kanban-no-lane`，error）：看板视图没有分栏字段就画不出一栏（[D83](decisions.md#d83-记录视图的第三种布局看板视图2026-10-10)）；

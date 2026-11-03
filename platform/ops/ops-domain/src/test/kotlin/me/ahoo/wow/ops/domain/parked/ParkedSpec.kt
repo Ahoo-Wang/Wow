@@ -172,10 +172,7 @@ class ParkedSpec {
                 expectState { requested.assert().isEqualTo(ParkedState.APPLY_RETRY_SPEC) }
             }
             whenCommand(ApplyRetrySpec()) { expectEvents(ApplyRetrySpecRequested()) }
-            whenCommand(ApplyRetrySpec(maxRetries = -1)) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(initialBackoff = "soon")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(claimTtl = "-1m")) { expectRejected(ParkedRejections.INVALID) }
-            whenCommand(ApplyRetrySpec(claimTtl = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
+            // Its count and durations are input, refused at admission (ApplyRetrySpecInputTest), not by the entry.
             // The service's next record answers the request.
             whenCommand(RecordParked(entry("request" to "retry", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }

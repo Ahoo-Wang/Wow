@@ -10,4 +10,6 @@ plugins {
 dependencies {
     // The domain module whose contract this api module carries (decision D363 ①).
     wowContract(project(":ops-domain"))
+    // The commands' Jakarta constraints, which the host checks at admission (decision D106).
+    api("jakarta.validation:jakarta.validation-api")
 }

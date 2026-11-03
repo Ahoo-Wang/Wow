@@ -599,6 +599,7 @@ interface BulkRun {
     each(key: RecordKey, options: {
         signal: AbortSignal;
     }): Promise<unknown>;
+    names?: ReadonlyMap<RecordKey, string>;
     operation?: string;
     timeout?: number;
     title: string;
@@ -1988,6 +1989,7 @@ export const en: {
     readonly 'label.reorder.later': "Move one place later";
     readonly 'label.reorder.last': "Move to the end";
     readonly 'label.action.more': "Actions for {record}";
+    readonly 'label.action.row': "{action} {record}";
     readonly 'label.action.bulk': "{action} {count}";
     readonly 'label.action.bulk-able': "{action} {able}/{count}";
     readonly 'label.action.confirm': "Run “{action}” on {count} records?";
@@ -2115,6 +2117,8 @@ export const en: {
     readonly 'definition.record.row-key-unknown': "The row key {field} is not a declared field.";
     readonly 'definition.record.row-field-unknown': "The row field {field} is not a declared field.";
     readonly 'definition.record.row-field-not-a-path': "The row field {field} is a search or metadata handle, not a value a row holds.";
+    readonly 'definition.record.row-name-unknown': "The row name {field} is not a declared field.";
+    readonly 'definition.record.row-name-not-a-path': "The row name {field} is a search or metadata handle, not a value a row holds.";
     readonly 'definition.record.row-key-unsortable': "The row key {field} must be sortable: every page is ordered by it last, so a row never shows on two pages.";
     readonly 'definition.view.id-duplicate': "Two views share the id {id}.";
     readonly 'definition.view.id-separator': "A view id cannot contain {separator}.";
@@ -5854,6 +5858,7 @@ interface RecordCapability {
     requiresFilter?: boolean;
     rowFields?: string[];
     rowKey: string;
+    rowName?: string;
 }
 
 // @public
@@ -6239,6 +6244,7 @@ interface RecordTableController {
     // (undocumented)
     refresh(): void;
     rowKey?: string;
+    rowName?: string;
     // (undocumented)
     rows: RecordRow[];
     select(keys: readonly RecordKey[]): void;

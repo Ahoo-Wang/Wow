@@ -14,6 +14,7 @@
 package me.ahoo.wow.analytics.catalog.api.dataset
 
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.Summary
 
 /**
@@ -55,7 +56,11 @@ data class RollbackDataset(val version: Int)
 @Summary("Retire a dataset")
 data object RetireDataset
 
-/** Drops the views of a dataset retired for the retention; the catalog schedules it when it retires one. */
+/**
+ * Drops the views of a dataset retired for the retention; the catalog schedules it when it retires one, and only that
+ * schedule sends it: internal.
+ */
+@InternalCommand
 @Summary("Drop a retired dataset's views")
 data object DropDatasetViews
 
@@ -63,8 +68,9 @@ data object DropDatasetViews
  * Compiles the dataset's published definition again against the catalog as it is now, because a source it reads
  * changed (-2): what compiles the same changes nothing; what compiles otherwise (a source's values
  * now more protected, say) is published as the next version; what no longer compiles marks the dataset
- * `NEEDS_REVISION`. The catalog sends it when a source changes.
+ * `NEEDS_REVISION`. The catalog sends it when a source changes, and nothing else does: internal.
  */
+@InternalCommand
 @Summary("Compile a published dataset again after a source changed")
 data object RecompileDataset
 

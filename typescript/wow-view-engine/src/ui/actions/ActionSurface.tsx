@@ -217,6 +217,7 @@ export function useActionSurface({
         {declared && (
           <RowActionButtons
             row={row}
+            rowName={table.rowName}
             place={place}
             views={forRow(row, place)}
             busy={busy}

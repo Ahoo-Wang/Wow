@@ -33,9 +33,10 @@ The data owner signs in to the console by pasting a CoSec access token, which th
 | `analytics.catalog.viewer` | Read the sources and the datasets |
 | `analytics.catalog.editor` | An analyst's work: draft, revise and review the protection of the sources; draft, revise, publish, roll back and retire the datasets |
 | `analytics.catalog.approver` | Mark a source reviewed; approve a lower protection; approve a source for datasets; approve or refuse a publication |
-| `analytics.catalog.admin` | All an editor does, mark a source reviewed, and the catalog's own commands: sync a source, recompile a dataset, drop a retired dataset's views |
+| `analytics.catalog.admin` | All an editor does, and mark a source reviewed |
 
 - **Reading the catalog** needs one of the four roles. A caller with none reads nothing: its queries of the sources and datasets are refused with 403 `wow.auth.forbidden`, and the console says so. This guards the control plane, the definitions, columns, protections and lineage, not the datasets' rows.
+- **The catalog's own commands are internal** ([Keep a command internal](../guide/aggregates#keep-a-command-internal)): syncing a source (`SyncSource`), recompiling a dataset (`RecompileDataset`) and dropping a retired dataset's views (`DropDatasetViews`). The catalog's watcher, its recompilation after a source changes and a retirement's schedule send them, and the public port answers their routes `404`, to an admin too. The watcher syncs every table whose listing changed at every `wow.analytics.catalog.refresh-interval` (30 seconds), and every table when a node starts, so restarting a node is how to sync the whole catalog by hand.
 - **An approval is the approver's alone.** An admin cannot approve a lower protection, a source or a publication: these are the privileged reviews, kept apart from whoever manages the catalog.
 - **Where CoSec decides** (`wow.cosec.authorizer.enabled: true`), its policies decide every command, and the catalog's roles decide nothing. The console cannot read a policy ahead, so it then offers every action, and a refusal comes back as the service's answer, `wow.auth.forbidden`.
 

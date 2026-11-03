@@ -674,6 +674,7 @@ export interface BulkOutcome {
     done?: string;
     failed: readonly BulkFailure[];
     kept: readonly RecordKey[];
+    names?: ReadonlyMap<RecordKey, string>;
     refused: readonly BulkFailure[];
     skipped: readonly RecordKey[];
     // (undocumented)
@@ -700,6 +701,7 @@ export interface BulkRun {
     each(key: RecordKey, options: {
         signal: AbortSignal;
     }): Promise<unknown>;
+    names?: ReadonlyMap<RecordKey, string>;
     operation?: string;
     timeout?: number;
     title: string;
@@ -2848,9 +2850,13 @@ export interface PendingAction {
     invalid: Readonly<Record<string, string>>;
     keys: readonly RecordKey[];
     missing: readonly string[];
+    names?: ReadonlyMap<RecordKey, string>;
     // (undocumented)
     place: ActionPlace;
     refused: readonly RefusalGroup[];
+    returned?: {
+        reason: string | null;
+    };
     value: string | null;
 }
 
@@ -3050,6 +3056,7 @@ export interface RecordActionsOptions {
 export interface RecordActionTable {
     // (undocumented)
     refresh(): void;
+    rowName?: string;
     // (undocumented)
     rows: readonly RecordRow[];
     // (undocumented)
@@ -3088,6 +3095,7 @@ interface RecordCapability {
     requiresFilter?: boolean;
     rowFields?: string[];
     rowKey: string;
+    rowName?: string;
 }
 
 // @public
@@ -3402,6 +3410,7 @@ export interface RecordTableController {
     // (undocumented)
     refresh(): void;
     rowKey?: string;
+    rowName?: string;
     // (undocumented)
     rows: RecordRow[];
     select(keys: readonly RecordKey[]): void;

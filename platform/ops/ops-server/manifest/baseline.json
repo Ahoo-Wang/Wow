@@ -49,6 +49,7 @@
           "method" : "POST",
           "path" : "/ops/parked/{id}/record-action-refused"
         } ],
+        "internal" : true,
         "description" : "Record an action the owning service refused"
       }, {
         "name" : "RecordParked",
@@ -63,6 +64,7 @@
           "method" : "POST",
           "path" : "/ops/parked/record-parked"
         } ],
+        "internal" : true,
         "description" : "Record a parked entry"
       }, {
         "name" : "RecordResolved",
@@ -74,6 +76,7 @@
           "method" : "POST",
           "path" : "/ops/parked/{id}/record-resolved"
         } ],
+        "internal" : true,
         "description" : "Record a resolved entry"
       }, {
         "name" : "Retry",
@@ -544,7 +547,8 @@
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ],
-          "format" : "int32"
+          "format" : "int32",
+          "minimum" : 0
         }
       },
       "description" : "Apply a retry spec to a parked entry",

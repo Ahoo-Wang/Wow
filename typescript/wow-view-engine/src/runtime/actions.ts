@@ -524,6 +524,28 @@ export class ActionRefusedError extends Error {
 }
 
 /**
+ * What an action's `run` throws when the source refused what the form gave
+ * — a value it cannot read, a number past its range — rather than the
+ * record. The form comes back over the records it was refused for, with
+ * what was typed: each field `fields` names marked with its reason, which
+ * holds while the field keeps the value refused, and `reason` said above
+ * the fields where it names none of them. Any other failure closes the
+ * form and is said on the outcome line.
+ */
+export class ActionInputError extends Error {
+  /** The source's reason, in its own words. */
+  readonly reason: string;
+  /** Why each field it names was refused, by the form's field name. */
+  readonly fields: Readonly<Record<string, string>>;
+  constructor(reason: string, fields: Readonly<Record<string, string>> = {}) {
+    super(reason);
+    this.name = 'ActionInputError';
+    this.reason = reason;
+    this.fields = { ...fields };
+  }
+}
+
+/**
  * Sends one record the command as the engine does: asked again at the
  * moment it goes (the state may have changed since it was picked), and
  * refused with the reason rather than sent where it no longer takes it.

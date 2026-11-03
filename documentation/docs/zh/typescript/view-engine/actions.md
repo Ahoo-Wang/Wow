@@ -295,7 +295,9 @@ export const dealActions = (
 
 按出错的代价来选。会失去东西的，例如取消或退款：危险语气，加上一个说明后果的 `confirm`。例行但不可撤销的，例如发货：不带危险语气的 `confirm`。撤销和执行一样容易的，例如换仓库：`ask: 'bulk'`。
 
-`confirm` 的措辞可以包含 `{count}`、`{value}` 和 `{record}`。表单字段是 `text`、`number` 或 `boolean`，或者选项；除非写 `required: false`，否则都是必填。
+`confirm` 的措辞可以包含 `{count}`、`{value}` 和 `{record}`：单条时是记录名（定义给了行名 `record.rowName` 时），否则是记录键。表单字段是 `text`、`number` 或 `boolean`，或者选项；除非写 `required: false`，否则都是必填。字段的 `check(value)` 在发送之前，把服务会拒绝的值（例如负的次数）连同理由标在字段下面；照服务自己的规则写。
+
+服务仍然拒绝了填写的内容时，`run` 抛出 [`ActionInputError`](../../reference/typescript/wow-view-engine/host#api-ActionInputError)，带上理由和它点名的字段。表单会带着填写的内容回来，点名的字段标出理由，键盘落在第一个上，读者改正即可，不必全部重填。
 
 ## 批量执行 {#bulk}
 
@@ -306,7 +308,7 @@ export const dealActions = (
 | 结果 | 何时 | 然后 |
 | --- | --- | --- |
 | 完成 | `run` resolve 了 | 重新读取视图 |
-| 失败 | `run` reject 了：服务拒绝了命令 | 显示服务给出的原因；记录保持选中 |
+| 失败 | `run` reject 了：服务拒绝了命令 | 显示服务给出的原因；记录保持选中。因填写的内容被拒（`ActionInputError`）时，表单也会回来 |
 | 未执行 | 轮到它时，记录已不再符合条件 | 显示原因；记录保持选中 |
 | 未知 | 没有回答：超时、中止、连接断开、操作的 `timeout`，或**不再等待** | “结果未知，先刷新核对”；取消选中这条记录 |
 

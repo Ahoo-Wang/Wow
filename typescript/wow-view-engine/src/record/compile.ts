@@ -167,6 +167,7 @@ export function recordProjection(
   for (const summary of config.summaries ?? [])
     if (summary.fn !== AggregationMetricTypes.COUNT) asked.push(summary.field);
   asked.push(...(capability.rowFields ?? []));
+  if (capability.rowName !== undefined) asked.push(capability.rowName);
   // Money whose currency each record holds reads in that currency, so the
   // field holding it comes back with the amount, shown or not. Its path is
   // the definition's, never the stored config's, so it is asked for as

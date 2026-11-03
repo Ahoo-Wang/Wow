@@ -15,9 +15,13 @@ package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
@@ -56,13 +60,28 @@ data class Who(val headers: Map<String, String>) {
     }
 }
 
-/** The analytics catalog started in this JVM, called over HTTP on its public port. */
+/**
+ * The analytics catalog started in this JVM, called over HTTP on its public port; [peerCommands] call its internal port
+ * as another service does.
+ */
 class CatalogNode(val server: WowServer) : AutoCloseable {
     val context: ConfigurableApplicationContext get() = server.context
+    private val peer = lazy {
+        WowClient.builder()
+            .endpoints(EndpointResolver.of(emptyMap(), mapOf(AnalyticsCatalogContext.NAME to server.internal.base)))
+            .service(PEER_SERVICE)
+            .build()
+    }
 
     fun post(path: String, body: String, who: Who): Answer = server.http.post(path, body, who.headers)
 
     fun get(path: String, who: Who): Answer = server.http.get(path, who.headers)
+
+    /**
+     * The command client of the internal port as [caller], sent by the service [PEER_SERVICE] naming itself: the
+     * `wow-client` a peer calls with in service mode, which sends an internal command (`@InternalCommand`) too.
+     */
+    fun peerCommands(caller: Caller): CommandClient = peer.value.commands.of(caller)
 
     /** Sends the source command [command] (`draft-source`, ...) of [id] with [body]. */
     fun command(id: String, command: String, body: String, who: Who = Who.ADMIN): Answer =
@@ -85,11 +104,15 @@ class CatalogNode(val server: WowServer) : AutoCloseable {
         get("/analytics-catalog/source/$id/state", who).assertOk().json
 
     override fun close() {
+        if (peer.isInitialized()) peer.value.close()
         server.close()
     }
 
     companion object {
         const val QUERY: String = "/analytics-catalog/source/snapshot/query"
+
+        /** The service [peerCommands] sends as. */
+        const val PEER_SERVICE: String = "shop-service"
     }
 }
 
