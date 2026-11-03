@@ -150,7 +150,7 @@ class EshopClientTest {
 
     private companion object {
         fun start(application: Class<*>, context: String, vararg arguments: String): Service = Service(
-            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).profiles("dev").run(
+            SpringApplicationBuilder(application).profiles("dev").run(
                 *arguments,
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",

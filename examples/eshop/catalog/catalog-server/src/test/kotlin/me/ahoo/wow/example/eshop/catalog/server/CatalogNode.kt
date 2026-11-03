@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
-import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
@@ -28,28 +27,17 @@ import org.springframework.http.MediaType
 import tools.jackson.databind.JsonNode
 
 private const val OK = 200
-private const val BAD_REQUEST = 400
 
 /** The body as JSON, which the response must have. */
 val Answer.json: JsonNode get() = requireNotNull(body) { "The response has no body." }
 
 /** Asserts this is the RFC 9457 problem of [code] with [status], and returns it. */
 fun Answer.assertProblem(status: Int, code: String): Answer {
-    this.status.assert().describedAs(text).isEqualTo(status)
+    val problem = requireNotNull(problem) { "No problem: $this" }
+    problem.status.assert().describedAs(text).isEqualTo(status)
+    problem.code.assert().isEqualTo(code)
+    problem.type.assert().isEqualTo("urn:wow:error:$code")
     header(HttpHeaders.CONTENT_TYPE).assert().isEqualTo(MediaType.APPLICATION_PROBLEM_JSON_VALUE)
-    json["type"].asString().assert().isEqualTo("urn:wow:error:$code")
-    json["code"].asString().assert().isEqualTo(code)
-    return this
-}
-
-/**
- * Asserts this is the problem `wow.command.invalid` (400) the gateway answers a command that breaks its body's
- * constraints with, its violations exactly [violations] (path to constraint), and returns it.
- */
-fun Answer.assertInvalid(vararg violations: Pair<String, String>): Answer {
-    assertProblem(BAD_REQUEST, FrameworkErrors.COMMAND_INVALID)
-    json["violations"].values().map { it["path"].asString() to it["code"].asString() }
-        .assert().containsExactly(*violations)
     return this
 }
 

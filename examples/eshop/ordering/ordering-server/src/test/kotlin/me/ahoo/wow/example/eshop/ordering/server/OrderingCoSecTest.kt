@@ -37,11 +37,12 @@ import java.util.UUID
  * buyer owns the orders it submits and reads only its own; an employee, a tenant-level caller, reads every order; a
  * request without the header is anonymous and answered 401, whatever else it carries, a token included, since the
  * service verifies none. Outside development, a node without CoSec does not start: it would take its callers from
- * headers any client sets.
+ * headers any client sets. Over HTTP: the caller is the gateway's `CoSec-Identity` header, the contract this test is
+ * about, which the typed clients, sending the development identity headers, do not write.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingCoSecTest {
-    private val server = wowServer<OrderingServer>("cosec", sources = listOf(InMemoryOrderingTopics::class.java))
+    private val server = wowServer<OrderingServer>("cosec")
 
     @AfterAll
     fun close() {
@@ -91,10 +92,7 @@ class OrderingCoSecTest {
     @Test
     fun `a node outside development without CoSec should not start`() {
         val failure = assertThrows<Exception> {
-            wowServer<OrderingServer>(
-                properties = mapOf("wow.internal.host" to "0.0.0.0"),
-                sources = listOf(InMemoryOrderingTopics::class.java),
-            ).close()
+            wowServer<OrderingServer>(properties = mapOf("wow.internal.host" to "0.0.0.0")).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.mapNotNull { it.message }.joinToString("\n")
             .assert().contains("No durable backend", "A development profile")

@@ -27,7 +27,6 @@ private val server = wowServer<OrderingServer>(
         "wow.timers.poll-interval" to "200ms",
         "eshop.ordering.payment-grace-period" to "2s",
     ),
-    sources = listOf(InMemoryOrderingTopics::class.java),
 )
 ```
 
@@ -57,7 +56,7 @@ fun `servers given the same topics should share them, which outlive each`() {
 - 节点用给它的主题代替自己的，并设 `wow.transport=memory`；关闭时不关闭这些主题，所以它们比共用它们的每个服务器都活得久。
 - `server.bean<InMemoryTopics>()` 是节点的主题，无论是给的还是它自己的，用来读它的 Saga 发出的命令、它的流发布的记录。
 
-然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
+然后测试用服务器的类型化客户端驱动服务（[以调用者身份发送与读取](#send-and-read-as-a-caller)）：等待计划能到的，等到 Saga 链尾；等待计划到不了的，才轮询。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#grace -->
 
@@ -65,15 +64,13 @@ fun `servers given the same topics should share them, which outlive each`() {
 @Test
 fun `an order not paid within its grace period should cancel itself`() {
     submit("order-unpaid")
-    eventually("order-unpaid awaits validation") { status("order-unpaid") == "AWAITING_VALIDATION" }
-    post("/eshop-ordering/order/order-unpaid/confirm-order-stock", """{"productId":"mug"}""")
-    post("/eshop-ordering/order/order-unpaid/confirm-order-stock", """{"productId":"cap"}""")
-    status("order-unpaid").assert().isEqualTo("STOCK_CONFIRMED")
-    eventually("order-unpaid cancelled") { status("order-unpaid") == "CANCELLED" }
-    state("order-unpaid")["cancelReason"].asString().assert().contains("payment grace period")
-    val late = post("/eshop-ordering/order/order-unpaid/pay-order", """{"paymentId":"p-2","amount":29.00}""")
-    late.status.assert().isEqualTo(CONFLICT)
-    late.body!!["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
+    confirm("order-unpaid", "mug", "cap")
+    order("order-unpaid").status.assert().isEqualTo(OrderStatus.STOCK_CONFIRMED)
+    // The order cancels itself by a scheduled command of its own, which no command of the test's waits for.
+    eventually("order-unpaid cancelled") { order("order-unpaid").status == OrderStatus.CANCELLED }
+    order("order-unpaid").cancelReason.assert().contains("payment grace period")
+    rejected { orders().wait(PayOrder("p-2", BigDecimal("29.00")), "order-unpaid") }
+        .code.assert().isEqualTo("eshop-ordering.order.wrong-status")
 }
 ```
 
@@ -191,7 +188,6 @@ private val server = wowServer<OrderingServer>(
         "wow.clickhouse.password" to clickhouse.password,
         "wow.log.partitions" to 4,
     ),
-    sources = listOf(InMemoryOrderingTopics::class.java),
 )
 ```
 

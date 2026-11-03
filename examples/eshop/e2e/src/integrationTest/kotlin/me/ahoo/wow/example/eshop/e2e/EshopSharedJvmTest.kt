@@ -26,8 +26,6 @@ import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
-import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.Test
@@ -38,8 +36,8 @@ import java.time.Duration
 /**
  * eShop services in this one JVM, on one class path that holds every server (decision D169, DX gaps G4 and G21): each
  * selects its own context with `wow.contexts.include`, so each serves that context alone, and none takes another
- * server's copy of its own Manifest for a peer. The basket's and the ordering's sagas send other contexts' commands,
- * so they get their command transport in memory ([InMemoryTopicsBeans]).
+ * server's copy of its own Manifest for a peer. The basket's and the ordering's sagas send other contexts' commands:
+ * each test server keeps its command topics in its JVM.
  */
 class EshopSharedJvmTest {
     @Test
@@ -48,12 +46,7 @@ class EshopSharedJvmTest {
             // The checkout saga calls the ordering (decision D259): the node checks it has its address, which no
             // checkout here uses.
             val ordering = mapOf("wow.peers.eshop-ordering.url" to "http://127.0.0.1:$UNUSED_PORT")
-            start(
-                BasketServer::class.java,
-                "basket",
-                InMemoryTopicsBeans::class.java,
-                properties = ordering
-            ).use { basket ->
+            start(BasketServer::class.java, "basket", properties = ordering).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")
 
@@ -86,13 +79,11 @@ class EshopSharedJvmTest {
             start(
                 OrderingServer::class.java,
                 "ordering",
-                InMemoryTopicsBeans::class.java,
                 properties = mapOf("eshop.ordering.payment-grace-period" to "30m"),
             ).use { ordering ->
                 start(
                     PaymentServer::class.java,
                     "payment",
-                    InMemoryTopicsBeans::class.java,
                     properties = mapOf("eshop.payment.gateway.limit" to "100.00"),
                 ).use { payment ->
                     inventory.contexts().assert().containsExactly("eshop-inventory")
@@ -186,14 +177,4 @@ class TracingBeans {
         .setTracerProvider(SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spans)).build())
         .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
         .build()
-}
-
-/** A command transport in memory in place of Kafka, as the guide gives it to a test. */
-@Configuration(proxyBeanMethods = false)
-class InMemoryTopicsBeans {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
 }

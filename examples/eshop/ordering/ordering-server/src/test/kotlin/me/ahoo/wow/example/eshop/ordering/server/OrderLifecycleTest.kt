@@ -13,27 +13,41 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
-import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
-import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
+import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.time.Duration
+import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
 import java.util.UUID
 
 /**
  * The lifecycle routes the Manifest lists for every aggregate (decision D113), on the ordering's orders, which belong
  * to the buyers who submitted them (decision D189): an order deleted and restored, an order moved to another buyer's
- * account, and an order tagged and moved into a fulfilment space.
+ * account, and an order tagged and moved into a fulfilment space. The lifecycle commands go over HTTP, to the routes
+ * this test is about; the orders are submitted, confirmed and read by the typed clients.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderLifecycleTest {
-    private val server = wowServer<OrderingServer>("dev", sources = listOf(InMemoryOrderingTopics::class.java))
+    private val server = wowServer<OrderingServer>("dev")
 
     @AfterAll
     fun close() {
@@ -44,18 +58,16 @@ class OrderLifecycleTest {
     fun `a deleted order should refuse its next command until it is restored`() {
         val alice = buyer()
         val id = submitted(alice)
-        val deleted = send("DELETE", "/eshop-ordering/order/$id", alice)
-        deleted.status.assert().describedAs(deleted.text).isEqualTo(OK)
+        val deleted = server.http.request("DELETE", "/eshop-ordering/order/$id", headers = headersOf(alice))
+        deleted.problem.assert().describedAs(deleted.text).isNull()
         deleted.body!!["version"].asInt().assert().isEqualTo(VERSION_AFTER_VALIDATION + 1)
-        read(id, alice).body!!["deleted"].asBoolean().assert().isTrue()
+        read(id, alice)!!.deleted.assert().isTrue()
 
-        val refused = confirm(id, "mug", alice)
-        refused.status.assert().isEqualTo(GONE)
-        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
+        rejected { confirm(id, alice) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
 
-        lifecycle(id, "restore-aggregate", alice).status.assert().isEqualTo(OK)
-        read(id, alice).body!!["deleted"].asBoolean().assert().isFalse()
-        confirm(id, "mug", alice).status.assert().isEqualTo(OK)
+        lifecycle(id, "restore-aggregate", headersOf(alice)).problem.assert().isNull()
+        read(id, alice)!!.deleted.assert().isFalse()
+        confirm(id, alice)
     }
 
     @Test
@@ -63,79 +75,71 @@ class OrderLifecycleTest {
         val second = buyer()
         val main = buyer()
         val id = submitted(second)
-        lifecycle(id, "transfer-owner", second, """{"ownerId":"${main[USER]}"}""").status.assert().isEqualTo(OK)
-        read(id, main).let { answer ->
-            answer.status.assert().isEqualTo(OK)
-            answer.body!!["ownerId"].asString().assert().isEqualTo(main[USER])
-        }
+        val transfer = """{"ownerId":"${main.subject}"}"""
+        lifecycle(id, "transfer-owner", headersOf(second), transfer).problem.assert().isNull()
+        read(id, main)!!.scope.ownerId.assert().isEqualTo(main.subject)
 
         // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
         // kernel's scope guard refuses its commands (decision D94).
-        read(id, second).let { answer ->
-            answer.status.assert().isEqualTo(NOT_FOUND)
-            answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
-        }
-        confirm(id, "mug", second).body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-        confirm(id, "mug", main).status.assert().isEqualTo(OK)
+        read(id, second).assert().isNull()
+        rejected { confirm(id, second) }.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        confirm(id, main)
     }
 
     @Test
     fun `an employee should tag an order and move it into a fulfilment space`() {
         val alice = buyer()
         val id = submitted(alice)
-        lifecycle(id, "apply-tags", EMPLOYEE, """{"tags":{"channel":["web"]}}""").status.assert().isEqualTo(OK)
-        lifecycle(id, "transfer-space", EMPLOYEE, """{"spaceId":"warehouse-east"}""").status.assert().isEqualTo(OK)
-        val view = read(id, EMPLOYEE).body!!
-        view["tags"]["channel"][0].asString().assert().isEqualTo("web")
-        view["spaceId"].asString().assert().isEqualTo("warehouse-east")
+        lifecycle(id, "apply-tags", EMPLOYEE_HEADERS, """{"tags":{"channel":["web"]}}""").problem.assert().isNull()
+        lifecycle(id, "transfer-space", EMPLOYEE_HEADERS, """{"spaceId":"warehouse-east"}""").problem.assert().isNull()
+        val order = read(id, EMPLOYEE)!!
+        order.tags["channel"].assert().isEqualTo(listOf("web"))
+        order.scope.spaceId.assert().isEqualTo("warehouse-east")
         // The order is still its buyer's.
-        view["ownerId"].asString().assert().isEqualTo(alice[USER])
+        order.scope.ownerId.assert().isEqualTo(alice.subject)
     }
 
-    /** A buyer of this test only. */
-    private fun buyer(): Map<String, String> =
-        ("buyer-" + UUID.randomUUID().toString().take(8)).let { mapOf(USER to it, OWNER to it) }
+    /** A buyer of this test only: the user, and the owner of what it creates. */
+    private fun buyer(): Caller =
+        ("buyer-" + UUID.randomUUID().toString().take(8)).let { Caller.of(subject = it, scope = Scope(ownerId = it)) }
+
+    /** The development identity headers of [buyer], for the lifecycle routes. */
+    private fun headersOf(buyer: Caller): Map<String, String> =
+        mapOf(DevelopmentHeaders.USER to buyer.subject!!, DevelopmentHeaders.OWNER to buyer.subject!!)
 
     /** Submits an order as [buyer] and waits until the order process has it await its stock validation; its id. */
-    private fun submitted(buyer: Map<String, String>): String {
+    private fun submitted(buyer: Caller): String {
         val id = "order-" + UUID.randomUUID()
-        val submitted = send(
-            "POST",
-            "/eshop-ordering/order/$id/submit-order",
-            buyer,
-            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2},{"productId":"cap","unitPrice":12.00,"quantity":1}]}""",
-        )
-        submitted.status.assert().describedAs(submitted.text).isEqualTo(OK)
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (read(id, buyer).body?.get("version")?.asInt() != VERSION_AFTER_VALIDATION) {
-            check(System.nanoTime() < deadline) { "The order $id did not await its validation in $DEADLINE." }
-            Thread.sleep(POLL.toMillis())
-        }
+        val items = listOf(OrderItem("mug", BigDecimal("8.50"), 2), OrderItem("cap", BigDecimal("12.00"), 1))
+        val request = CommandRequest.builder(SubmitOrder(items)).id(id).wait(TO_VALIDATION).build()
+        runBlocking { server.commands(buyer).wait(request) }
         return id
     }
 
-    /** Sends the lifecycle command [kebab] (`wow.lifecycle.<kebab>`) to the order [id]. */
-    private fun lifecycle(id: String, kebab: String, caller: Map<String, String>, body: String = "{}") =
-        send("POST", "/eshop-ordering/order/$id/wow.lifecycle.$kebab", caller, body)
+    /** Sends the lifecycle command [kebab] (`wow.lifecycle.<kebab>`) to the order [id], over its route. */
+    private fun lifecycle(id: String, kebab: String, headers: Map<String, String>, body: String = "{}"): Answer =
+        server.http.post("/eshop-ordering/order/$id/wow.lifecycle.$kebab", body, headers)
 
-    private fun confirm(id: String, product: String, caller: Map<String, String>): Answer =
-        send("POST", "/eshop-ordering/order/$id/confirm-order-stock", caller, """{"productId":"$product"}""")
+    private fun confirm(id: String, caller: Caller) {
+        runBlocking { server.commands(caller).wait(ConfirmOrderStock("mug"), id) }
+    }
 
-    private fun read(id: String, caller: Map<String, String>): Answer =
-        send("GET", "/eshop-ordering/order/$id/state", caller)
+    private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
+        runBlocking { server.queries(caller).snapshots(OrderStateView::class.java).state(id) }
 
-    private fun send(method: String, path: String, headers: Map<String, String>, body: String? = null): Answer =
-        server.http.request(method, path, body, headers)
+    private fun rejected(send: () -> Unit): CommandRejectedException = assertThrows<CommandRejectedException> { send() }
 
     private companion object {
-        const val OK = 200
-        const val NOT_FOUND = 404
-        const val GONE = 410
-
         /** The order's version once the order process had it await its validation: submitted, then awaiting. */
         const val VERSION_AFTER_VALIDATION = 2
-        val EMPLOYEE = mapOf(USER to "erin", ROLES to "employee")
-        val DEADLINE: Duration = Duration.ofSeconds(20)
-        val POLL: Duration = Duration.ofMillis(100)
+        val EMPLOYEE = Caller.of(
+            subject = "erin",
+            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
+        )
+        val EMPLOYEE_HEADERS = mapOf(DevelopmentHeaders.USER to "erin", DevelopmentHeaders.ROLES to "employee")
+        val TO_VALIDATION: WaitPlan = WaitPlan.of(
+            Hop.handled("OrderProcessSaga.onOrderSubmitted", EshopOrderingContract.NAME),
+            Hop.snapshot(EshopOrderingContract.NAME),
+        )
     }
 }
