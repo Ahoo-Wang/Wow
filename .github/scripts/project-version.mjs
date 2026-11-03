@@ -10,7 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // The one version source is `version` in gradle.properties. Every package.json
 // in the workspace follows it: the TypeScript packages (published or not), the
-// ops console and the documentation site.
+// ops console and the documentation site; and so do the Helm charts released
+// with Wow, their `version` and `appVersion` (the image tag they default to).
 //
 //   node .github/scripts/project-version.mjs set <version>   (pnpm set-version)
 //   node .github/scripts/project-version.mjs check           (pnpm check:versions)
@@ -24,6 +25,11 @@ const EXTRA_PACKAGES = [
   'platform/analytics/catalog/console',
   'documentation',
 ];
+
+/** The Chart.yaml of each Helm chart released with Wow (chart-deploy.yml). */
+export const CHARTS = ['deploy/helm/wow-service/Chart.yaml'];
+/** A chart's top-level `version` or `appVersion`, unquoted. */
+const CHART_FIELD = /^(version|appVersion):[ \t]*(\S+)[ \t]*$/gm;
 
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 
@@ -80,6 +86,14 @@ export function versionedPackageFiles(root = ROOT) {
   ];
 }
 
+/** The `version` and `appVersion` of a Chart.yaml's text, those it has. */
+export function chartVersions(text) {
+  const fields = {};
+  for (const [, field, value] of text.matchAll(CHART_FIELD))
+    fields[field] = value;
+  return fields;
+}
+
 /** Lists every file whose version differs from the expected one. */
 export function versionMismatches(root = ROOT, releaseTag) {
   const expected = readProjectVersion(root);
@@ -92,6 +106,14 @@ export function versionMismatches(root = ROOT, releaseTag) {
     const { version } = JSON.parse(readFileSync(join(root, file), 'utf8'));
     if (version !== expected)
       mismatches.push(`${file}: ${version} != ${expected} (gradle.properties)`);
+  }
+  for (const file of CHARTS) {
+    const fields = chartVersions(readFileSync(join(root, file), 'utf8'));
+    for (const field of ['version', 'appVersion'])
+      if (fields[field] !== expected)
+        mismatches.push(
+          `${file} ${field}: ${fields[field]} != ${expected} (gradle.properties)`,
+        );
   }
   return mismatches;
 }
@@ -119,6 +141,21 @@ export function setProjectVersion(version, root = ROOT) {
     );
     if (JSON.parse(next).version !== version)
       throw new Error(`${file}: could not set the top-level version field`);
+    if (next !== text) {
+      writeFileSync(path, next);
+      changed.push(file);
+    }
+  }
+  for (const file of CHARTS) {
+    const path = join(root, file);
+    const text = readFileSync(path, 'utf8');
+    const next = text.replace(
+      CHART_FIELD,
+      (_, field) => `${field}: ${version}`,
+    );
+    const fields = chartVersions(next);
+    if (fields.version !== version || fields.appVersion !== version)
+      throw new Error(`${file}: could not set its version and appVersion`);
     if (next !== text) {
       writeFileSync(path, next);
       changed.push(file);
@@ -158,7 +195,7 @@ if (
     for (const mismatch of mismatches) console.error(mismatch);
     if (mismatches.length > 0) process.exit(1);
     console.log(
-      `Versions match ${readProjectVersion()} across ${versionedPackageFiles().length} package.json files`,
+      `Versions match ${readProjectVersion()} across ${versionedPackageFiles().length} package.json files and ${CHARTS.length} chart`,
     );
   } else {
     console.error(
