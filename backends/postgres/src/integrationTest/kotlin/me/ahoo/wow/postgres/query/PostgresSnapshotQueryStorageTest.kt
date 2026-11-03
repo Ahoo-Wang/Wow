@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
@@ -31,14 +32,17 @@ import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SearchFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
+import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.postgres.PostgresFixture
@@ -228,6 +232,51 @@ class PostgresSnapshotQueryStorageTest {
         explain(compiler.count(counted, counted.query.filter, 11)).assert().contains(indexes.single().name)
     }
 
+    @Test
+    fun `access filters use each attribute's index, a B-tree of a single one and a GIN index of a multiple one`(): Unit =
+        runBlocking {
+            val type = newType()
+            val storage = storage(type)
+            val schema = schema(type)
+            val indexes = PostgresQueryIndexes.plan(
+                type.context,
+                type.name,
+                QueryIndexPlan.of(
+                    schema,
+                    listOf(
+                        QueryIndexDeclaration("access_dept", listOf("access.dept")),
+                        QueryIndexDeclaration("access_region", listOf("access.region")),
+                    ),
+                ),
+            )
+            storage.manageIndexes(indexes)
+            seed(storage.table(type.name), ROWS)
+            val (dept, region) = indexes.map { it.name }
+            val compiler = PostgresSnapshotSqlCompiler(storage.table(type.name))
+            fun scoped(vararg filters: FilterExpression): FilterExpression =
+                AndFilter(listOf(TenantIdFilter("t3"), DeletionFilter(DeletionState.ACTIVE)) + filters)
+            fun plan(filter: FilterExpression): String =
+                explain(compiler.list(QueryAdmission.Trusted.list(ListQuery(scoped(filter), limit = 10), schema)))
+            val single = QueryField("access.dept")
+            val multiple = QueryField("access.region")
+
+            plan(EqualFilter(single, "D7")).assert().contains(dept)
+            plan(InFilter(single, listOf("D7", "D8"))).assert().contains(dept)
+            plan(StartsWithFilter(single, "D1")).assert().contains(dept)
+            // Many values are found through the GIN index. A list keeps the key's order, and PostgreSQL keeps no
+            // statistics of a containment, so for a page it may walk the key instead; an exact count reads every match.
+            fun count(filter: FilterExpression): String {
+                val counted = QueryAdmission.Trusted.count(CountQuery(scoped(filter), 10), schema)
+                return explain(compiler.count(counted, counted.query.filter, null))
+            }
+            count(EqualFilter(multiple, "K7")).assert().contains(region)
+            count(InFilter(multiple, listOf("K7", "K8"))).assert().contains(region)
+            count(ContainsAllFilter(multiple, listOf("K7", "R7"))).assert().contains(region)
+            // A policy ORs its branches: each takes its own attribute's index.
+            count(OrFilter(listOf(EqualFilter(single, "D7"), EqualFilter(multiple, "K7")))).assert()
+                .contains(dept).contains(region)
+        }
+
     private fun explain(statement: SqlStatement): String = PostgresFixture.dataSource.connection.use { connection ->
         connection.autoCommit = false
         try {
@@ -262,7 +311,8 @@ class PostgresSnapshotQueryStorageTest {
                         owner_id, space_id, deleted, first_event_time, last_event_time, access)
                     SELECT 't' || (i % 10), 'id-' || i, 1, 'it',
                         jsonb_build_object('status', 'S' || (i % 50), 'amount', i, 'name', 'n' || i),
-                        'owner-' || (i % 500), 'space-' || (i % 300), i % 20 = 0, 0, i, '{}'::jsonb
+                        'owner-' || (i % 500), 'space-' || (i % 300), i % 20 = 0, 0, i,
+                        jsonb_build_object('dept', 'D' || (i % 40), 'region', jsonb_build_array('R' || (i % 30), 'K' || (i % 5000)))
                     FROM generate_series(1, $rows) AS i
                     """.trimIndent(),
                 )

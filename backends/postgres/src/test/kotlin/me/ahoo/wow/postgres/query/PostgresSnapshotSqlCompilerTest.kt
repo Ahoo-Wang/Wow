@@ -127,10 +127,15 @@ class PostgresSnapshotSqlCompilerTest {
 
     @Test
     fun `a multi-valued field compares its jsonb node`() {
+        // One containment of each value, which a GIN index of the node serves: ORed for a membership, ANDed for all.
         list(InFilter(KEYWORDS, listOf("a", "b"))).let { statement ->
-            statement.sql.assert().contains("((state #> '{keywords}') @> ANY(?::jsonb[]))")
-            statement.parameters.assert().contains(SqlParameter.Array("text", listOf("\"a\"", "\"b\"")))
+            statement.sql.assert().contains(
+                "((state #> '{keywords}') @> ?::jsonb OR (state #> '{keywords}') @> ?::jsonb)"
+            )
+            statement.parameters.assert().contains(SqlParameter.Json("\"a\""), SqlParameter.Json("\"b\""))
         }
+        list(ContainsAllFilter(KEYWORDS, listOf("a", "b"))).sql.assert()
+            .contains("((state #> '{keywords}') @> ?::jsonb AND (state #> '{keywords}') @> ?::jsonb)")
         list(NotInFilter(KEYWORDS, listOf("a"))).sql.assert().contains(") IS NOT TRUE")
         list(StartsWithFilter(KEYWORDS, "a")).sql.assert()
             .contains(
