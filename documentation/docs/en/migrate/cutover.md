@@ -37,7 +37,8 @@ Record, for every store and stream:
 - the 9.x topics and the V10 topics, and their brokers. A 9.x state topic is named `wow.<context>.<aggregate>.state`, as a V10 published stream is by default: on a broker 9.x used, give V10 a `wow.kafka.topics.prefix`. Without it, a V10 subscription stops at the first 9.x record it reads, logging the topic and the prefix to set, and after a rollback 9.x meets V10's records;
 - the backup of each 9.x store, and a restore that was tested;
 - what the 9.x side must provide: the `(createTime, _id)` index the tail reads each event stream collection by, created by the store's owner (`check` warns of each one missing), the 9.x services' time zone, and the state of their CosId segments;
-- the migration map, and the V10 Manifests it was checked against.
+- the migration map, and the V10 Manifests it was checked against;
+- where `migrate-data` runs and how it reaches each store: next to them, such as a Job in their Kubernetes cluster ([Run it next to the stores](./data#run-it-next-to-the-stores)), rather than through a port-forward or a VPN for the whole import.
 
 Do not start a write with an unknown writer, an unknown owner or an untested backup.
 
@@ -82,7 +83,7 @@ From the first import until the switch, 9.x serves and V10 waits: `tail` follows
 
 1. **Announce the window, stop 9.x's writes**, as offline does.
 2. **Take and verify the final backup.**
-3. **Final pass.** `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare`, `snapshot` and `backfill-tags`.
+3. **Final pass.** Stop the tail first: the final pass takes its role, and waits for its lease. `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare`, `snapshot` and `backfill-tags`.
 4. **Gate**, as offline does. Otherwise go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**

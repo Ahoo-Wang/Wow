@@ -78,6 +78,24 @@ outline: deep
 ./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"
 ```
 
+或者运行该版本的镜像 `ahoowang/wow-migrate-data:<version>`，它的参数就是命令行的参数（[运行](../reference/migrate-data#running)）：
+
+```bash
+docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
+  ahoowang/wow-migrate-data:<version> check --config /config/migrate-data.json
+```
+
+### 在存储旁边运行 {#run-it-next-to-the-stores}
+
+长时间的导入逐个流地等待存储。存储在 Kubernetes 集群里时，就在集群里运行工具，而不是连续几个小时通过 port-forward 或 VPN 访问它们。[`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) 把每个命令作为镜像的一个 Job 运行，把 `tail` 作为单副本的 Deployment 运行：
+
+- **服务的类。** 一个 init 容器把服务的 `lib` 从其节点所运行的镜像复制到工具读取的卷里（`"classpath": ["/service/lib"]`）。配置不写 `manifests`：工具从这个 `lib` 中各模块的片段读取每个服务的 Manifest，与节点启动时相同。
+- **配置和密钥。** 配置文件和映射文件来自 ConfigMap，密码来自 Secret，由 `env:NAME` 读取。
+- **检查点。** 它们保存在目标里（`"checkpoint": "target:<name>"`），所以在另一个节点上重启的 Pod 会从上一个停下的地方继续。每类运行同时只有一个写它们；第二个会等前一个的租约，或者失败并给出前一个（[检查点](../reference/migrate-data#checkpoints)）。
+- **网络。** NetworkPolicy 不放行任何入站流量，只允许 Pod 访问 DNS 和它的存储：9.x 的 MongoDB、V10 目标，以及 `backfill-tags` 要重新写入时的 Elasticsearch。
+
+Job 以工具的退出码结束。检查失败、用法错误和发现差异会让它立即失败，因为再运行一次也不会改变什么。因节点或内存上限而丢失的 Pod 会重新运行，并从检查点继续。
+
 ## 2. 检查映射文件 {#_2-check-the-map}
 
 `check` 扫描 9.x 存储，把找到的东西与映射文件和 V10 的 Manifest 比较。它不写任何东西。以下情况它会失败：
@@ -110,7 +128,7 @@ outline: deep
 
 ## 4. 导入 {#_4-import}
 
-`import` 先再检查一次，然后导入每个已映射的聚合、预留键和未解决的补偿执行。它把进度记在检查点文件里，所以中途停下的运行会从停下的地方继续，最多重复一页。追加是幂等的：已经在日志里的流不会写两次。
+`import` 先再检查一次，然后导入每个已映射的聚合、预留键和未解决的补偿执行。它把进度记在检查点里，可以是文件，也可以是 V10 目标（[检查点](../reference/migrate-data#checkpoints)），所以中途停下的运行会从停下的地方继续，最多重复一页。追加是幂等的：已经在日志里的流不会写两次。
 
 **映射改动需要全新的目标。** `import`（包括 `--restart`）会跳过日志里已有的流，保持它当时的转换结果：映射的改动，比如加上生命周期或者不再退役某个事件，到不了改动之前导入的流。把改动涉及的聚合导入一个全新的目标，或者先把它们从目标里删掉，然后重新比对。
 
@@ -176,7 +194,7 @@ V10 停放的是聚合，不是事件：停放的聚合后续的事件在停放�
 
 追尾按 `(createTime, _id)` 索引读取每个事件流集合，9.x 不会创建这个索引。没有这个索引，追尾拒绝启动，并打印创建索引的命令。创建索引会写入 9.x 存储，所以它是 9.x 侧的切换前提：在双跑之前、对 9.x 数据库合适的时候建好它，或者让工具来创建（`source.createCommitTimeIndex`）。工具以只读凭据读取的存储，需要由存储的所有者来建。`check` 会对每个缺少该索引的已映射集合发出警告。
 
-`tail` 一直运行到被停止为止。`tail --once` 只跑一轮。让 `tail` 一直运行到 9.x 停止写入：这样切换时的最后一次遍历就是 `import --final`，它从追尾停下的地方读起，而不是再遍历一遍所有的流。
+`tail` 一直运行到被停止为止。`tail --once` 只跑一轮。让 `tail` 一直运行到 9.x 停止写入：这样切换时的最后一次遍历就是 `import --final`，它从追尾停下的地方读起，而不是再遍历一遍所有的流。最后一次遍历之前先停止追尾，因为它们持有同一个角色：在 Kubernetes 上，删除追尾的 Deployment，它会结束当前这一轮并释放租约。
 
 ### V10 待机 {#v10-on-standby}
 
