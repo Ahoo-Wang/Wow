@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateIdSource
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
@@ -105,6 +106,26 @@ class KernelOwnerIdTest {
         send(CreateCart("alice"), Scope(ownerId = "bob")).rejection().assert()
             .isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         log.read(alice).toList().map { it.version }.assert().containsExactly(1)
+    }
+
+    @Test
+    fun `a refused creation leaves the initial state it was decided on as it was`(): Unit = runTest {
+        val cache = object : StateCache {
+            val states = HashMap<AggregateRef, CachedState>()
+
+            override fun take(ref: AggregateRef): CachedState? = states.remove(ref)
+
+            override fun put(ref: AggregateRef, state: CachedState) {
+                states[ref] = state
+            }
+        }
+        val cached = Kernel(log, EventCodec(), states = cache)
+        val refused = cached.execute(model, Command("c-x", "r-x", alice, CreateCart("mallory"), scope = Scope("bob")))
+        refused.rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        // Refused before its state evolved: what the cache keeps is the initial state, as no event changed it.
+        cache.states[alice]?.let { (it.state as CartState).owner.assert().isNull() }
+        cached.execute(model, Command("c-y", "r-y", alice, CreateCart("alice"), scope = Scope("alice")))
+            .committed().state.let { (it as CartState).owner.assert().isEqualTo("alice") }
     }
 
     @Test

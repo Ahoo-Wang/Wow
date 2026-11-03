@@ -660,6 +660,9 @@ class Kernel(
         // The decision's own time: what it read as `now` is the time its events are committed at.
         val commitTime = scope.now
         val metadata = metadataAfter(model, loaded, command, events)
+        // A creation is checked again on the aggregate it creates, before evolving the state: a caller creates none
+        // out of its own reach, and a refused creation leaves the initial state untouched.
+        creatable(command, version, metadata.scope)?.let { return Prepared.Done(it) }
         val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
         val stream = EventStreamRecord(
             ref = command.ref,
@@ -677,8 +680,6 @@ class Kernel(
             // The attributes after this commit are of its own version, until a later change stamps them.
             accessVersion = version + 1,
         )
-        // A creation is checked again on the aggregate it creates: a caller creates none out of its own reach.
-        creatable(command, version, metadata.scope)?.let { return Prepared.Done(it) }
         val after = loaded.with(evolved, stream.version, metadata)
         if (stream.version == 1) {
             after.first = FirstCommit.of(stream)
