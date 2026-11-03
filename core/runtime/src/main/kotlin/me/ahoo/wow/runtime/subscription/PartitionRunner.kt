@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
@@ -33,12 +34,16 @@ import kotlinx.coroutines.sync.withLock
  * A joined worker without room for the next entry is detached rather than waited for, so one slow subscription never
  * holds up the others; it catches up on its own and joins again. In the steady state every worker is joined and the
  * partition is read once, whatever the number of subscriptions.
+ *
+ * Nothing is read, by the shared tail or a catch-up, before [reads] completes, when given: a partition held back while
+ * its node starts the others ([SubscriptionRuntime.startPartition]).
  */
 internal class PartitionRunner(
     private val partition: Int,
     private val source: EntrySource,
     private val readers: CoroutineScope,
     private val options: SubscriptionOptions,
+    private val reads: Job? = null,
 ) {
     private val lock = Mutex()
     private val joined = LinkedHashSet<SubscriptionWorker>()
@@ -53,6 +58,7 @@ internal class PartitionRunner(
         joined += current
         behind.forEach(::catchUp)
         readers.launch {
+            reads?.join()
             retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
                 source.tail(partition, head.takeIf { it > 0 }).collect { entry ->
                     lock.withLock {
@@ -78,6 +84,7 @@ internal class PartitionRunner(
 
     private fun catchUp(worker: SubscriptionWorker) {
         readers.launch {
+            reads?.join()
             // Joins without reading when the worker is not behind.
             retryForever(
                 options.readRetry,

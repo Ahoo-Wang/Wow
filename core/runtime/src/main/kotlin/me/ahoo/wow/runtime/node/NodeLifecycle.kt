@@ -206,9 +206,20 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
     }
 
-    /** Joins every context's lease group and every topic's, and starts the ledger's publisher. */
+    /**
+     * Joins every context's lease group and every topic's, and starts the ledger's publisher. The partitions the
+     * contexts' first reconciles start read nothing until every context has started its own
+     * ([me.ahoo.wow.runtime.cluster.PartitionOwnership.start]): the backlog of a log, a history migrate-data imported
+     * say, is read once the node runs all of them, not while it starts the others. A topic's group, which joins in the
+     * background, holds back its own first reconcile.
+     */
     private suspend fun join() {
-        contexts.values.forEach { it.ownership.start() }
+        val reads = Job()
+        try {
+            contexts.values.forEach { it.ownership.start(reads) }
+        } finally {
+            reads.complete()
+        }
         topicSubscriptions.values.forEach { it.start() }
         ledgerPublisher?.start()
     }

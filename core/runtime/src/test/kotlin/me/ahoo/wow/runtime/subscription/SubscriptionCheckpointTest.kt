@@ -122,7 +122,8 @@ class SubscriptionCheckpointTest {
             // B.D diagnostics: one round trip a tick for all the subscriptions and partitions, not one each.
             val log = InMemoryEventLog(partitions = 4)
             val appender = Appender(log)
-            val failures = AtomicInteger(1)
+            // The store fails once the partitions have started, whose first checkpoints it saves in one call each.
+            val failures = AtomicInteger(0)
             val failingOnce = object : CheckpointStore by checkpoints {
                 override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
                     check(failures.getAndDecrement() <= 0) { "The store is down." }
@@ -142,6 +143,7 @@ class SubscriptionCheckpointTest {
             )
             repeat(30) { appender.append("a$it") }
             runtime.start(setOf(0, 1, 2, 3))
+            failures.set(1)
             eventually {
                 (0..3).all { partition ->
                     listOf("one", "two").all { checkpoints.load("group", it, partition) == appender.ends[partition] }
@@ -149,7 +151,7 @@ class SubscriptionCheckpointTest {
             }
             runtime.stop()
             failures.get().assert().isLessThan(0)
-            checkpoints.batches.assert().contains(8)
+            checkpoints.batches.assert().startsWith(2, 2, 2, 2).contains(8)
         }
 
     @Test

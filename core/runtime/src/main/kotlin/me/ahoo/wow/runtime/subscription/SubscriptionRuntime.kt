@@ -15,11 +15,15 @@ package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -170,7 +174,6 @@ class SubscriptionRuntime internal constructor(
         val run = Running(root, CoroutineScope(context + root))
         var started = false
         try {
-            val parked = subscriptions.values.associate { it.name to parkedIn(it, partitions) }
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
             // beginning only when none did, whichever partition or subscription starts first.
             val saved = checkpoints.list(group)
@@ -179,7 +182,7 @@ class SubscriptionRuntime internal constructor(
                 orphansTold = true
                 tellOrphans(saved)
             }
-            partitions.forEach { open(run, it, parked) }
+            partitions.forEach { open(run, it, startsIn(run, subscriptions.values, it)) }
             started = true
         } finally {
             if (!started) {
@@ -205,8 +208,10 @@ class SubscriptionRuntime internal constructor(
     @Suppress("TooGenericExceptionCaught") // A failed read of the ledger is retried on the next scan.
     private suspend fun scanQuietly(run: Running) {
         try {
-            // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down.
-            retries.scan(run.scope, directory.keys.sorted(), run.partitions.keys.toSet()) { subscription, ref ->
+            // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down. A
+            // partition held back reads none yet ([startPartition]).
+            val reading = run.partitions.filterValues { it.reading }.keys
+            retries.scan(run.scope, directory.keys.sorted(), reading) { subscription, ref ->
                 run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
             }
         } catch (cancelled: CancellationException) {
@@ -218,38 +223,121 @@ class SubscriptionRuntime internal constructor(
 
     /**
      * Starts reading [partition] on the running runtime, each subscription from its checkpoint: the node has just
-     * acquired it. Nothing happens when it is read already.
+     * acquired it. Nothing happens when it is read already; a start of it already running is waited for.
+     *
+     * What the start reads, each subscription's parked aggregates and checkpoint and the partition's cut-over row, is
+     * read at once and outside the runtime's lifecycle mutex, so the partitions a reconcile starts together do not
+     * queue behind each other's round trips; the checkpoints its subscriptions start at for the first time are saved
+     * in one write. Only opening the partition's workers holds the mutex.
+     *
+     * With [reads], the partition reads nothing until that job completes: neither its entries nor its parked retries.
+     * Its subscriptions stand at their checkpoints meanwhile, and their lag counts what waits. A node holds back the
+     * partitions its first reconcile starts this way ([me.ahoo.wow.runtime.cluster.PartitionOwnership.start]): the
+     * backlog the first of them would read at once, a history migrate-data imported say, would slow down the starts of
+     * the others.
      */
-    suspend fun startPartition(partition: Int): Unit = lifecycle.withLock {
+    suspend fun startPartition(partition: Int, reads: Job? = null) {
         requirePartition(partition)
-        val run = checkNotNull(running) { "Subscription group $group is not running." }
-        if (!run.partitions.containsKey(partition)) {
-            open(run, partition, subscriptions.values.associate { it.name to parkedIn(it, listOf(partition)) })
+        val begun = CompletableDeferred<Unit>()
+        val claimed = lifecycle.withLock {
+            val current = checkNotNull(running) { "Subscription group $group is not running." }
+            when {
+                current.partitions.containsKey(partition) -> null
+                current.starting.putIfAbsent(partition, begun) != null -> null
+                else -> current to subscriptions.values.toList()
+            }
+        }
+        if (claimed == null) {
+            running?.starting?.get(partition)?.join()
+            return
+        }
+        val (run, named) = claimed
+        try {
+            val starts = startsIn(run, named, partition)
+            lifecycle.withLock {
+                val current = checkNotNull(running) { "Subscription group $group is not running." }
+                if (current.partitions.containsKey(partition)) {
+                    return@withLock
+                }
+                // A subscription added meanwhile, or a runtime started again, reads its start here.
+                val known = if (current === run) starts else emptyMap()
+                val missing = subscriptions.values.filter { it.name !in known }
+                open(current, partition, known + startsIn(current, missing, partition), reads)
+            }
+        } finally {
+            run.starting.remove(partition, begun)
+            begun.complete(Unit)
         }
     }
 
     /**
      * Stops reading [partition] as [stop] does for all of them: waits at most [SubscriptionOptions.stopTimeout] for
      * its entries in flight and saves its checkpoints, so the node can hand the partition off. The
-     * other partitions keep running. Nothing happens when it is not read.
+     * other partitions keep running. Nothing happens when it is not read; a start of it running is waited for first.
      */
-    suspend fun stopPartition(partition: Int): Unit = lifecycle.withLock {
-        val run = running ?: return@withLock
-        val part = run.partitions.remove(partition) ?: return@withLock
-        try {
-            halt(listOf(part))
-        } finally {
-            part.workers.forEach { run.workers.remove(it.subscription.name to partition) }
+    suspend fun stopPartition(partition: Int) {
+        running?.starting?.get(partition)?.join()
+        lifecycle.withLock {
+            val run = running ?: return@withLock
+            val part = run.partitions.remove(partition) ?: return@withLock
+            try {
+                halt(listOf(part))
+            } finally {
+                part.workers.forEach { run.workers.remove(it.subscription.name to partition) }
+            }
         }
     }
 
     private fun requirePartition(partition: Int) = source.requirePartition(partition)
 
-    private suspend fun open(run: Running, partition: Int, parked: Map<String, Map<Int, Map<AggregateRef, Long>>>) {
-        val part = PartitionRun(partition, run)
+    private fun open(run: Running, partition: Int, starts: Map<String, WorkerStart>, reads: Job? = null) {
+        val part = PartitionRun(partition, run, reads)
         run.partitions[partition] = part
-        val workers = subscriptions.values.map { worker(run, part, it, parked.getValue(it.name), run.joined) }
+        val workers = subscriptions.values.map { worker(run, part, starts.getValue(it.name)) }
         part.runner.start(workers)
+    }
+
+    /**
+     * Where each of [named] starts in [partition], read at once: its parked aggregates there, and its checkpoint,
+     * or, for one that has none yet, where its start puts it, saved at once, 0 included, so a restart before the first
+     * save does not move the start to a later end. Those first checkpoints are saved in one write. The partition's
+     * cut-over row is read alongside, for its workers.
+     */
+    private suspend fun startsIn(
+        run: Running,
+        named: Collection<Subscription>,
+        partition: Int
+    ): Map<String, WorkerStart> {
+        val starts = coroutineScope {
+            launch { importedThrough(partition) }
+            named.map { subscription ->
+                async {
+                    val parked = async { parkedIn(subscription, listOf(partition))[partition].orEmpty() }
+                    workerStart(subscription, partition, run.joined, parked.await())
+                }
+            }.awaitAll()
+        }
+        val first = starts.filter { it.first }.map { Checkpoint.of(it.subscription.name, partition, it.checkpoint) }
+        if (first.isNotEmpty()) {
+            checkpoints.saveAll(group, first)
+        }
+        return starts.associateBy { it.subscription.name }
+    }
+
+    /**
+     * Where [subscription] starts in [partition], with its [parked] aggregates there: at its checkpoint, or, without
+     * one, where it starts ([startOf]) among the subscriptions [joined] before; [WorkerStart.first] then, for its
+     * caller to save.
+     */
+    private suspend fun workerStart(
+        subscription: Subscription,
+        partition: Int,
+        joined: Set<String>,
+        parked: Map<AggregateRef, Long>,
+    ): WorkerStart {
+        val saved = checkpoints.load(group, subscription.name, partition)
+        val checkpoint = saved ?: source.checkpointOf(startOf(subscription, joined), partition)
+        return WorkerStart(subscription, checkpoint, saved == null, parked)
     }
 
     /**
@@ -262,7 +350,11 @@ class SubscriptionRuntime internal constructor(
         val parked = parkedIn(subscription, run.partitions.keys)
         val joined = joinedSubscriptions()
         for (part in run.partitions.values) {
-            part.runner.attach(worker(run, part, subscription, parked, joined))
+            val start = workerStart(subscription, part.partition, joined, parked[part.partition].orEmpty())
+            if (start.first) {
+                checkpoints.save(group, subscription.name, part.partition, start.checkpoint)
+            }
+            part.runner.attach(worker(run, part, start))
         }
     }
 
@@ -454,19 +546,10 @@ class SubscriptionRuntime internal constructor(
         return workers[subscription to source.partitionOf(ref)]
     }
 
-    private suspend fun worker(
-        run: Running,
-        part: PartitionRun,
-        subscription: Subscription,
-        parked: Map<Int, Map<AggregateRef, Long>>,
-        joined: Set<String>,
-    ): SubscriptionWorker {
+    /** [start]'s subscription's worker in [part], at its checkpoint: its first one saved already. */
+    private fun worker(run: Running, part: PartitionRun, start: WorkerStart): SubscriptionWorker {
         val partition = part.partition
-        val checkpoint = checkpoints.load(group, subscription.name, partition) ?: source
-            .checkpointOf(startOf(subscription, joined), partition).also {
-                // Saved at once, 0 included, so a restart before the first save does not move the start to a later end.
-                checkpoints.save(group, subscription.name, partition, it)
-            }
+        val subscription = start.subscription
         return SubscriptionWorker(
             group = group,
             subscription = subscription,
@@ -481,9 +564,9 @@ class SubscriptionRuntime internal constructor(
             notifier = notifier,
             observer = observer,
             classification = classification,
-            checkpoint = checkpoint,
-            parked = parked[partition].orEmpty(),
-            importedThrough = importedThrough(partition),
+            checkpoint = start.checkpoint,
+            parked = start.parked,
+            importedThrough = checkNotNull(importedThrough[partition]) { "The cut-over of $partition is read first." },
         ).also {
             part.workers += it
             run.workers[subscription.name to partition] = it
@@ -495,9 +578,8 @@ class SubscriptionRuntime internal constructor(
      * partition (the cut-over does not move once V10 runs); 0 when the context was never migrated.
      */
     private suspend fun importedThrough(partition: Int): Long {
-        val group = cutover ?: return 0L
         importedThrough[partition]?.let { return it }
-        val through = checkpoints.load(group, ImportCutover.SUBSCRIPTION, partition) ?: 0L
+        val through = cutover?.let { checkpoints.load(it, ImportCutover.SUBSCRIPTION, partition) } ?: 0L
         return importedThrough.putIfAbsent(partition, through) ?: through
     }
 
@@ -548,12 +630,18 @@ class SubscriptionRuntime internal constructor(
         val partitions = ConcurrentHashMap<Int, PartitionRun>()
         val workers = ConcurrentHashMap<Pair<String, Int>, SubscriptionWorker>()
 
+        /** The partitions [startPartition] is reading the starts of, outside the mutex, each done once it opened. */
+        val starting = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
+
         /** The subscriptions that had read the stream when the runtime started ([joinedSubscriptions]). */
         var joined: Set<String> = emptySet()
     }
 
-    /** One partition being read: its shared tail and catch-up reads, and its subscriptions' lanes, stopped together. */
-    private inner class PartitionRun(val partition: Int, run: Running) {
+    /**
+     * One partition being read: its shared tail and catch-up reads, and its subscriptions' lanes, stopped together.
+     * Its reads wait for [reads], when given ([startPartition]).
+     */
+    private inner class PartitionRun(val partition: Int, run: Running, private val reads: Job?) {
         val readersJob = SupervisorJob(run.root)
         val lanesJob = SupervisorJob(run.root)
         val lanes = CoroutineScope(run.scope.coroutineContext + lanesJob)
@@ -561,10 +649,25 @@ class SubscriptionRuntime internal constructor(
             partition,
             source,
             CoroutineScope(run.scope.coroutineContext + readersJob),
-            options
+            options,
+            reads,
         )
         val workers = ArrayList<SubscriptionWorker>()
+
+        /** Whether the partition reads: not held back, or no longer. */
+        val reading: Boolean get() = reads?.isCompleted ?: true
     }
+
+    /**
+     * Where [subscription] starts in a partition: at [checkpoint], its [first] when it had none there, with its [parked]
+     * aggregates.
+     */
+    private class WorkerStart(
+        val subscription: Subscription,
+        val checkpoint: Long,
+        val first: Boolean,
+        val parked: Map<AggregateRef, Long>,
+    )
 }
 
 /**

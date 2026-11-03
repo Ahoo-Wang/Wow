@@ -95,6 +95,7 @@ fun fastOptions(
     forwardTimeout: Duration = 1.seconds,
     maxInFlightPerPeer: Int = 1_024,
     drainTimeout: Duration = 5.seconds,
+    leaseParallelism: Int = ClusterOptions().leaseParallelism,
 ): ClusterOptions = ClusterOptions(
     leaseTtl = 1_500.milliseconds,
     renewInterval = 300.milliseconds,
@@ -105,6 +106,7 @@ fun fastOptions(
     forwardTimeout = forwardTimeout,
     maxInFlightPerPeer = maxInFlightPerPeer,
     drainTimeout = drainTimeout,
+    leaseParallelism = leaseParallelism,
 )
 
 /**

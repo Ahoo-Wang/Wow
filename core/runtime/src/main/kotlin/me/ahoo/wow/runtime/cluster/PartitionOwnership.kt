@@ -113,6 +113,10 @@ data class RenewalRound(
  * ([SubscriptionRuntime.startPartition]), then the
  * same partition of the context's command topic in [intake], then its [timers], before the node accepts commands for
  * it: while they start, the partition is still [pending], its lease renewed with the others. A hand-off stops the timers first, once the node stops accepting, so it sends no command it would not run.
+ * The partitions the first reconcile of a [start] acquires read nothing, their entries or their parked retries, until
+ * it has started all of them, or until the job [start] is given completes: a backlog the first of them would read at
+ * once (a history migrate-data imported, a long stop) would slow down the starts of the others. The partitions later
+ * reconciles acquire read at once.
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
@@ -267,14 +271,17 @@ class PartitionOwnership internal constructor(
      * Joins the group: heartbeats, reconciles at once and keeps doing so until [stop]. A start that fails, the lease
      * store unreachable say, undoes what it did before it throws: it leaves the members, hands off
      * what it acquired and stops the runtimes it started, so the ownership can be started again.
+     *
+     * The partitions the first reconcile starts read nothing until [reads] completes, or, without it, until that
+     * reconcile has started all of them: a node passes one job to every context it starts.
      */
-    suspend fun start(): Unit = lifecycle.withLock {
+    suspend fun start(reads: Job? = null): Unit = lifecycle.withLock {
         check(running == null) { "$node is already part of $group." }
         requireAddress(address)
         val started = mutableListOf<SubscriptionRuntime>()
         var joined = false
         try {
-            join(started)
+            join(started, reads)
             joined = true
         } finally {
             if (!joined) {
@@ -283,7 +290,7 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    private suspend fun join(started: MutableList<SubscriptionRuntime>) {
+    private suspend fun join(started: MutableList<SubscriptionRuntime>, reads: Job?) {
         runtimes.filterNot { it.isRunning }.forEach {
             started += it
             it.start()
@@ -305,7 +312,12 @@ class PartitionOwnership internal constructor(
         }
         membership.join(group.name, ::membersRead)
         refreshRoutes()
-        reconcile()
+        val own = if (reads == null) Job() else null
+        try {
+            reconcile(reads ?: own)
+        } finally {
+            own?.complete()
+        }
         run.membership.launch { every(options.heartbeatInterval, "check the reconcile") { checkStuck() } }
         run.membership.launch {
             while (true) {
@@ -426,7 +438,10 @@ class PartitionOwnership internal constructor(
     }
 
     /** Compares the partitions held with the HRW target once, handing off and acquiring what differs. */
-    suspend fun reconcile(): Unit = reconcileLock.withLock {
+    suspend fun reconcile(): Unit = reconcile(null)
+
+    /** [reconcile], the partitions it acquires reading once [reads] completes when given. */
+    private suspend fun reconcile(reads: Job?): Unit = reconcileLock.withLock {
         if (running == null) {
             return@withLock
         }
@@ -441,7 +456,7 @@ class PartitionOwnership internal constructor(
             handOff(gates.keys.filter { it !in goal })
             val missing = goal.filter { !gates.containsKey(it) }
             coroutineScope {
-                missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition) } } }
+                missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition, reads) } } }
             }
         } finally {
             reconciling = null
@@ -543,8 +558,11 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    /** Not cancellable: a lease acquired is either tracked by a gate or released. */
-    private suspend fun acquire(partition: Int) = withContext(NonCancellable) {
+    /**
+     * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
+     * [reads] completes, when given.
+     */
+    private suspend fun acquire(partition: Int, reads: Job?) = withContext(NonCancellable) {
         val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
         // Another node may have committed to the partition's aggregates since this one last cached them.
@@ -553,8 +571,8 @@ class PartitionOwnership internal constructor(
         val gate = Gate(asked)
         gates[partition] = gate
         try {
-            runtimes.forEach { it.startPartition(partition) }
-            intake?.startPartition(partition)
+            runtimes.forEach { it.startPartition(partition, reads) }
+            intake?.startPartition(partition, reads)
             timers.forEach { it.startPartition(partition) }
         } catch (cancelled: CancellationException) {
             throw cancelled
