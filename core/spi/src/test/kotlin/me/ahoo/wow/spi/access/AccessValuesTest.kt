@@ -60,7 +60,8 @@ class AccessValuesTest {
         AccessValues.parse("{}").assert().isEqualTo(emptyMap<String, Any?>())
     }
 
-      fun `a value of no attribute type is refused, naming the attribute`() {
+    @Test
+    fun `a value of no attribute type is refused, naming the attribute`() {
         listOf("""{"ratio":0.5}""" to "ratio", """{"nested":{"a":1}}""" to "nested").forEach { (json, name) ->
             assertThrownBy<IllegalArgumentException> { AccessValues.parse(json) }.hasMessageContaining(name)
         }
@@ -68,9 +69,6 @@ class AccessValuesTest {
         val ratio = mapOf("ratio" to 0.5)
         assertThrownBy<IllegalArgumentException> { AccessValues.normalized(ratio) }.hasMessageContaining("ratio")
         assertThrownBy<IllegalArgumentException> { AccessValues.json(mapOf("teams" to listOf(0.5))) }
-    }
-
-
     }
 
     @Test
