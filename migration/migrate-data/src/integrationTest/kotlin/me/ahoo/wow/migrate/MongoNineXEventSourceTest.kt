@@ -132,6 +132,10 @@ class MongoNineXEventSourceTest {
         // Each reads as of the blank tenant, as the in-memory store reads it.
         source.aggregateIds(order, null, 10).filter { it.id == "o-2" }.assert().containsExactly(NineXAggregateId("o-2", ""))
         source.tenantsOf(order, "o-1").assert().containsExactly("", " ")
+        // The walk reads them as streams does: no stream of the absent tenant, the blank ones by their own tenant.
+        source.instances(order, null, 10, 100).filter { it.id.id.startsWith("o-") }
+            .map { "${it.id}:${it.streams.map { stream -> stream.id }}" }.assert()
+            .containsExactly("/o-1:[]", " /o-1:[blank]", "/o-2:[other]")
     }
 
     @Test

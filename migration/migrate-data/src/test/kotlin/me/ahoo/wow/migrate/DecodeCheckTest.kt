@@ -41,6 +41,19 @@ class DecodeCheckTest {
     }
 
     @Test
+    fun `an instance its page read in part should be read on and decoded whole`() = runTest {
+        val inMemory = InMemoryNineXEventSource(NineXExample.streams())
+        val source = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(aggregate, after, limit, 1).onEach { it.complete.assert().isFalse() }
+        }
+        decoding(source).check(order).also {
+            it.passed.assert().isTrue()
+            it.streams.assert().isEqualTo(4)
+        }
+    }
+
+    @Test
     fun `every event that does not read should be reported, and the walk go on`() = runTest {
         val source = InMemoryNineXEventSource(
             NineXExample.streams() +
