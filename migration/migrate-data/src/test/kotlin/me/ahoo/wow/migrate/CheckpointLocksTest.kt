@@ -97,6 +97,26 @@ class CheckpointLocksTest {
     }
 
     @Test
+    fun `a run that cannot take every role should give back the ones it took`() = runTest {
+        val store = InMemoryLeaseStore(virtualClock())
+        val holding = CompletableDeferred<Unit>()
+        val done = CompletableDeferred<Unit>()
+        launch {
+            leases(store, tail).holding(setOf(CheckpointRole.EXPORT)) {
+                holding.complete(Unit)
+                done.await()
+            }
+        }
+        holding.await()
+        assertThrows<MigrationException> {
+            leases(store, import).holding(setOf(CheckpointRole.IMPORT, CheckpointRole.EXPORT)) { }
+        }.message.assert().contains("holds its export lease")
+        store.owners("${TargetCheckpointLeases.GROUP_PREFIX}order-service").map { it.partition }
+            .assert().containsExactly(CheckpointRole.EXPORT.partition)
+        done.complete(Unit)
+    }
+
+    @Test
     fun `a crashed holder's lease should be taken over once it expires, at the next epoch`() = runTest {
         val store = InMemoryLeaseStore(virtualClock())
         // A run that stopped without releasing: nothing renews its lease.

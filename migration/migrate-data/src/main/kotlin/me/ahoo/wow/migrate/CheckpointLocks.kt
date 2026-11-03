@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
@@ -174,13 +175,20 @@ internal class TargetCheckpointLeases(
 
     /**
      * Runs [block] holding [roles], renewing their leases on a thread of its own, so a run whose own thread blocks
-     * keeps them; releases them when [block] ends, however it ends.
+     * keeps them; releases them when [block] ends, however it ends, and those it took when it cannot take them all.
      */
     suspend fun <T> holding(roles: Set<CheckpointRole>, block: suspend (CheckpointLock) -> T): T = coroutineScope {
         if (roles.isEmpty()) {
             return@coroutineScope block(CheckpointLock.None)
         }
-        val held = Held(roles.sorted().associateWith { acquire(it) })
+        val leases = LinkedHashMap<CheckpointRole, Lease>()
+        try {
+            roles.sorted().forEach { leases[it] = acquire(it) }
+        } catch (@Suppress("TooGenericExceptionCaught") refused: Throwable) {
+            withContext(NonCancellable) { release(leases.keys) }
+            throw refused
+        }
+        val held = Held(leases)
         val renewer = launch(renewing) {
             while (isActive) {
                 delay(renewal)
@@ -191,7 +199,20 @@ internal class TargetCheckpointLeases(
             block(held)
         } finally {
             renewer.cancel()
-            withContext(NonCancellable) { held.release() }
+            withContext(NonCancellable) { release(leases.keys) }
+        }
+    }
+
+    private suspend fun release(roles: Collection<CheckpointRole>) {
+        roles.forEach { role ->
+            try {
+                store.release(group, role.partition, holder.toString())
+            } catch (@Suppress("TooGenericExceptionCaught") unavailable: RuntimeException) {
+                // The lease ends at its expiry instead.
+                report(
+                    "The lease store did not release the ${role.label} lease of the checkpoint target:$name: ${unavailable.message}"
+                )
+            }
         }
     }
 
@@ -236,6 +257,8 @@ internal class TargetCheckpointLeases(
         suspend fun renew() {
             val renewed = try {
                 store.renew(group, epochs.keys.map { it.partition }, holder.toString(), ttl)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (@Suppress("TooGenericExceptionCaught") unavailable: RuntimeException) {
                 // The store did not answer: the next round tries again, and the lease ends at its expiry meanwhile.
                 report(
@@ -256,12 +279,6 @@ internal class TargetCheckpointLeases(
                 "This run lost its ${role.label} lease of the checkpoint target:$name: it was not renewed in time, " +
                     "and another run may hold it now. It stops without writing.",
             )
-        }
-
-        suspend fun release() {
-            epochs.keys.forEach { role ->
-                runCatching { store.release(group, role.partition, holder.toString()) }
-            }
         }
     }
 
