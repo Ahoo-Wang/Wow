@@ -83,18 +83,19 @@ const VIEW_STORE_CONTRACT_PATH =
 // ci.yml's ops-console jobs: the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope. Decided apart from RULES, by
-// OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
-// client is generated from, its routes the suite runs against), the workspace
-// packages and files the console builds with, and the workflow itself.
-// The wow-service Helm chart: its lint, unit tests, schema checks and an install
-// on kind. The chart and its CI fixtures, and the workflow that defines the jobs.
+// The wow-service Helm chart: its lint, unit tests, schema checks and an
+// install on kind. The chart, its CI fixtures, and the workflow of the jobs.
 const HELM = 'helm';
-const HELM_PATH = /^(?:deploy\/helm\/|\.github\/helm\/|\.github\/workflows\/ci\.yml$)/;
+const HELM_PATH =
+  /^(?:deploy\/helm\/|\.github\/helm\/|\.github\/workflows\/ci\.yml$)/;
 // The WOW_ variables the files of deploy/ set (the chart's templates, the
 // services' values) are keys the host knows: ConfigurationKeysTest, which the
 // JVM jobs run, and the architecture job runs on their behalf otherwise.
 const DEPLOY_KEYS = 'deployKeys';
 const DEPLOY_KEYS_PATH = /^deploy\/.+\.yaml$/;
+// OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
+// client is generated from, its routes the suite runs against), the workspace
+// packages and files the console builds with, and the workflow itself.
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
   /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
