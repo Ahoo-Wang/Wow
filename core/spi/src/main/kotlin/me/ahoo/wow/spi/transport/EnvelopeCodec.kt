@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.state.PublishedState
@@ -40,9 +41,11 @@ import tools.jackson.databind.JsonNode
  *   [IllegalArgumentException].
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
- *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, tags, causation,
- *   headers, operator, imported}` (`operator` and `imported`, additions within format 1; `imported` only when true)
- *   with each event `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
+ *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access, causation,
+ *   headers, operator, imported}` (`operator`, `imported` and `access`, additions within format 1; `imported` only when
+ *   true; `access` in its stored form, [AccessValues], or null when not stamped, and an envelope of a version that
+ *   wrote `tags` instead reads with none) with each event `{name, revision, payload}` and the state
+ *   `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
@@ -138,7 +141,7 @@ object EnvelopeCodec {
         state = record.state,
         scope = record.scope,
         deleted = record.deleted,
-        tags = record.tags,
+        access = record.access?.let(AccessValues::json),
         causation = record.causation,
         headers = record.headers,
         operator = record.operator,
@@ -160,7 +163,7 @@ object EnvelopeCodec {
             state = wire.state,
             scope = wire.scope,
             deleted = wire.deleted,
-            tags = wire.tags,
+            access = AccessValues.of(wire.access),
             causation = wire.causation,
             headers = wire.headers,
             operator = wire.operator,
@@ -205,7 +208,7 @@ object EnvelopeCodec {
         val state: PublishedState? = null,
         val scope: Scope = Scope.NONE,
         val deleted: Boolean = false,
-        val tags: Map<String, List<String>> = emptyMap(),
+        val access: JsonNode? = null,
         val causation: Causation? = null,
         val headers: Map<String, String> = emptyMap(),
         val operator: Operator? = null,

@@ -181,7 +181,7 @@ Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-c
 - They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
 - They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the activation, so it never acts on the imported 9.x history.
 
-At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, activate each node on its internal port, naming the node's service in `Wow-Service`. The body names who activates it and why, for the audit:
+At the cut-over, once 9.x has stopped and the final pass, `compare` and `snapshot` have run, activate each node on its internal port, naming the node's service in `Wow-Service`. The body names who activates it and why, for the audit:
 
 ```bash
 curl -X POST "http://<node>:9090/wow/node/activate" \

@@ -2015,6 +2015,7 @@ public final class me/ahoo/wow/api/query/SingleQuery$Companion {
 }
 
 public class me/ahoo/wow/api/query/SnapshotProperties {
+	public final field ACCESS Lme/ahoo/wow/api/query/QueryField;
 	public final field AGGREGATE_ID Lme/ahoo/wow/api/query/QueryField;
 	public static final field Companion Lme/ahoo/wow/api/query/SnapshotProperties$Companion;
 	public final field DELETED Lme/ahoo/wow/api/query/QueryField;
@@ -2032,12 +2033,11 @@ public class me/ahoo/wow/api/query/SnapshotProperties {
 	public final field SCHEDULES Lme/ahoo/wow/api/query/QueryField;
 	public final field SPACE_ID Lme/ahoo/wow/api/query/QueryField;
 	public final field STATE Lme/ahoo/wow/api/query/QueryField;
-	public final field TAGS Lme/ahoo/wow/api/query/QueryField;
 	public final field TENANT_ID Lme/ahoo/wow/api/query/QueryField;
 	public final field VERSION Lme/ahoo/wow/api/query/QueryField;
 	protected fun <init> ()V
+	public final fun access (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
 	public final fun schedule (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
-	public final fun tag (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
 }
 
 public final class me/ahoo/wow/api/query/SnapshotProperties$Companion : me/ahoo/wow/api/query/SnapshotProperties {

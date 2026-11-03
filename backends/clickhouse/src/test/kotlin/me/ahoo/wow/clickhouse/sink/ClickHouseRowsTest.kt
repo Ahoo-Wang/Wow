@@ -35,7 +35,9 @@ class ClickHouseRowsTest {
         row.get("owner_id").asString().assert().isEqualTo("owner-1")
         row.get("space_id").asString().assert().isEmpty()
         row.get("deleted").asBoolean().assert().isFalse()
-        WowJson.mapper.writeValueAsString(row.get("tags")).assert().isEqualTo("""{"color":["red","blue"]}""")
+        row.get(
+            "access"
+        ).stringValue().assert().isEqualTo("""{"owner":"owner-1","space":null,"colors":["blue","red"]}""")
         row.get("correlation_id").asString().assert().isEqualTo("correlation-1")
         row.get("causation_id").asString().assert().isEqualTo("upstream@1")
         WowJson.mapper.writeValueAsString(row.get("headers")).assert().isEqualTo("""{"app":"web"}""")

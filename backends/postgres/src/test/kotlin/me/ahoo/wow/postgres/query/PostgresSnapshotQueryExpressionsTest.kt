@@ -39,8 +39,8 @@ class PostgresSnapshotQueryExpressionsTest {
         PostgresSnapshotQueryExpressions.value(QueryField("state.flag"), PostgresQueryType.BOOLEAN).assert().isEqualTo(
             "(CASE WHEN jsonb_typeof((state #> '{flag}')) = 'boolean' THEN (state #>> '{flag}')::boolean END)",
         )
-        PostgresSnapshotQueryExpressions.value(QueryField("tags.region"), PostgresQueryType.JSONB).assert()
-            .isEqualTo("(tags #> '{region}')")
+        PostgresSnapshotQueryExpressions.value(QueryField("access.region"), PostgresQueryType.JSONB).assert()
+            .isEqualTo("(access #> '{region}')")
         PostgresSnapshotQueryExpressions.value("e1.v", emptyList(), PostgresQueryType.INTEGER).assert()
             .isEqualTo("(CASE WHEN jsonb_typeof(e1.v) = 'number' THEN (e1.v #>> '{}')::numeric END)")
         // The same field and type always give the same text, which the expression indexes rely on.
@@ -58,7 +58,7 @@ class PostgresSnapshotQueryExpressionsTest {
         PostgresSnapshotQueryExpressions.node(
             QueryField("ownerId")
         ).assert().isEqualTo("coalesce(to_jsonb(owner_id), 'null'::jsonb)")
-        PostgresSnapshotQueryExpressions.node(QueryField("tags")).assert().isEqualTo("tags")
+        PostgresSnapshotQueryExpressions.node(QueryField("access")).assert().isEqualTo("access")
         assertThrownBy<QueryExecutionException> {
             PostgresSnapshotQueryExpressions.value(QueryField("ownerId.x"), PostgresQueryType.TEXT)
         }

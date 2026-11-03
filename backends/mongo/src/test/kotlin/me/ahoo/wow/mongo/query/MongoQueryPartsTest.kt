@@ -99,9 +99,9 @@ class MongoQueryPartsTest {
         native(Projection(include = listOf(QueryField("aggregateId"))), listOf("state.amount", "aggregate_id")).assert()
             .isEqualTo("""{"aggregate_id": 1, "state.amount": 1, "_id": 0}""")
         native(
-            Projection(exclude = listOf(QueryField("state.lines.sku"), QueryField("tags"), QueryField("deleted")))
+            Projection(exclude = listOf(QueryField("state.lines.sku"), QueryField("access"), QueryField("deleted")))
         ).assert()
-            .isEqualTo("""{"tags": 0, "deleted": 0, "_id": 0}""")
+            .isEqualTo("""{"access": 0, "deleted": 0, "_id": 0}""")
         native(
             Projection(exclude = listOf(QueryField("state"), QueryField("state.name"))),
             listOf("state.amount")
@@ -120,9 +120,9 @@ class MongoQueryPartsTest {
             .append("last_event_time", 2L)
             .append("tenant_id", "t")
             .append("owner_id", null)
-            .append("tags", Document("region", listOf("east")))
+            .append("access", Document("region", listOf("east")))
         MongoSnapshotDocuments.record(document).toString().assert().isEqualTo(
-            """{"tenantId":"t","ownerId":null,"tags":{"region":["east"]},"lastEventTime":2,"state":{"amount":0.10}}""",
+            """{"tenantId":"t","ownerId":null,"access":{"region":["east"]},"lastEventTime":2,"state":{"amount":0.10}}""",
         )
         val projected = MongoProjections.project(
             admitted(

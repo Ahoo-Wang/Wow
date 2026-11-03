@@ -60,6 +60,6 @@ class SnapshotPropertiesTest {
                 InMemoryQueryStorage().binding(type).storage,
             ).schema()
         }
-        (properties + SnapshotProperties.tag("region")).filter { schema.field(it) == null }.assert().isEmpty()
+        (properties + SnapshotProperties.access("region")).filter { schema.field(it) == null }.assert().isEmpty()
     }
 }

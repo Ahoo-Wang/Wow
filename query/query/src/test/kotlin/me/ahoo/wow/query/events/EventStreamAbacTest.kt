@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test
 class EventStreamAbacTest {
     private val type = AggregateType("shop", "order")
 
-    private fun stream(id: String, version: Int, tags: Map<String, List<String>>?) = EventStreamRecord(
+    private fun stream(id: String, version: Int, access: Map<String, Any?>?) = EventStreamRecord(
         ref = type.ref(TENANT, id),
         version = version,
         commandId = "cmd-$id-$version",
@@ -52,7 +52,7 @@ class EventStreamAbacTest {
         commitTime = 1000L * version,
         events = listOf(EventRecord("shop.order.Changed", 1, "{}")),
         scope = Scope.NONE,
-        tags = tags,
+        access = access,
     )
 
     private val streams = listOf(

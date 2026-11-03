@@ -21,10 +21,10 @@ import org.junit.jupiter.api.Test
 
 /**
  * The connections a configuration names, built without connecting: a PostgreSQL target behind a pool of its
- * `poolSize`, opened on first use and closed with the connections, and Elasticsearch Sinks only when configured.
+ * `poolSize`, opened on first use and closed with the connections.
  */
 class ConfiguredConnectionsTest {
-    private fun config(elasticsearch: ElasticsearchConfig? = null) = MigrationConfig(
+    private fun config() = MigrationConfig(
         map = "migration-map.json",
         manifests = emptyList(),
         source = SourceConfig("mongodb://localhost:27017", "example_db"),
@@ -34,19 +34,16 @@ class ConfiguredConnectionsTest {
             username = "wow",
             poolSize = 3
         ),
-        elasticsearch = elasticsearch,
     )
 
     @Test
     fun `a PostgreSQL target is pooled as configured, and the pool closes with the connections`() {
-        val connections = ConfiguredConnections(config(ElasticsearchConfig("http://localhost:9200", "app")))
+        val connections = ConfiguredConnections(config())
         val store = connections.snapshotStoreOf("example") as PostgresSnapshotStore
         val pool = store.javaClass.declaredFields.single { it.type == javax.sql.DataSource::class.java }
             .apply { isAccessible = true }.get(store) as HikariDataSource
         pool.maximumPoolSize.assert().isEqualTo(3)
         pool.username.assert().isEqualTo("wow")
-        connections.eventSinks.assert().isNotNull()
-        connections.eventSinks!!.sinkOf("example", "order").index.assert().isEqualTo("app_wow_events__example__order")
         connections.close()
         pool.isClosed.assert().isTrue()
     }
@@ -94,9 +91,8 @@ class ConfiguredConnectionsTest {
     }
 
     @Test
-    fun `without Elasticsearch there are no Sinks, and an unused pool is never opened`() {
+    fun `an unused pool is never opened`() {
         val connections = ConfiguredConnections(config())
-        connections.eventSinks.assert().isNull()
         connections.close()
     }
 }

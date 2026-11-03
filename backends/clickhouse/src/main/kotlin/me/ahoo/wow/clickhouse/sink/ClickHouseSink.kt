@@ -258,7 +258,8 @@ class ClickHouseSink internal constructor(
         check(problems.isEmpty()) {
             "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString(
                 "; "
-            )}."
+            )}. They hold nothing the log does not: an earlier version's (one with a tags column, say) is dropped and " +
+                "filled again from the log by resetting the Sink's subscription."
         }
     }
 

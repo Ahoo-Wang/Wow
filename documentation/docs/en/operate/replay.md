@@ -43,9 +43,9 @@ The route sends the system command `wow.snapshot.Rebuild` to the context's built
 
 Adding a snapshot target to an aggregate type (`wow.snapshot.stores`, or `wow.aggregates.[<context>.<aggregate>].snapshot.*`), an Elasticsearch index beside PostgreSQL, say, fills it from the beginning of the log: a new store's own snapshot subscription starts there, and for a type added to a store whose subscription is already past the beginning, a subscription of its own does, and stops once the target has caught up. Switching the primary target, the one queries read, moves no checkpoint.
 
-## Tags
+## Access attributes
 
-Streams appended before the log recorded tags, imported from 9.x for example, have none, and attribute-based access matches no aggregate without tags. `migrate-data backfill-tags` replays each aggregate and records the tags it had after each stream, then rewrites the Elasticsearch event documents indexed without them ([migrate-data CLI](../reference/migrate-data)).
+Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. Streams appended before the log recorded them, by a 10.0 beta or by an import from 9.x, carry none: an access policy shows none of them until they are stamped. A Sink table of a version that recorded tags is refused at startup, naming it; it holds nothing the log does not, so drop it and reset the Sink's subscription, which fills it again from the log.
 
 ## The warehouse
 

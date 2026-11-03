@@ -282,14 +282,14 @@ class AbacQueryPolicyTest {
         ids(required, QueryCaller.IN_PROCESS).assert().containsExactly("both", "east", "other-key", "public", "west")
     }
 
-    private fun tagged(type: AggregateType, id: String, tags: Map<String, List<String>>) = SnapshotRecord(
+    private fun tagged(type: AggregateType, id: String, access: Map<String, Any?>) = SnapshotRecord(
         ref = type.ref("tenant", id),
         version = 1,
         schemaFingerprint = "abac",
         state = """{"name":"$id"}""",
         firstEventTime = 1,
         lastEventTime = 1,
-        tags = tags,
+        access = access,
     )
 
     private fun caller(entry: QueryEntry, vararg attributes: Pair<String, List<String>>) =

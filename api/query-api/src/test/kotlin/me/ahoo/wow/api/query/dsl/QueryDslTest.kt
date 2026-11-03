@@ -130,7 +130,7 @@ class QueryDslTest {
     fun `the system fields of a snapshot`() {
         SnapshotProperties.OPERATOR__ID.assert().isEqualTo(QueryField("operator.id"))
         SnapshotProperties.FIRST_OPERATOR__CROSS_SCOPE.assert().isEqualTo(QueryField("firstOperator.crossScope"))
-        SnapshotProperties.tag("region").assert().isEqualTo(QueryField("tags.region"))
+        SnapshotProperties.access("region").assert().isEqualTo(QueryField("access.region"))
         SnapshotProperties.SCHEDULES.assert().isEqualTo(QueryField("schedules"))
         SnapshotProperties.schedule("tick").assert().isEqualTo(QueryField("schedules.tick"))
         SnapshotProperties.STATE.assert().isEqualTo(QueryField("state"))

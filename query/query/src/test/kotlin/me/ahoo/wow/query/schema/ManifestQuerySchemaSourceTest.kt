@@ -53,7 +53,7 @@ class ManifestQuerySchemaSourceTest {
         runTest {
             val schema = orderSchema()
             schema.model.assert().isEqualTo(QueryModel.SNAPSHOT)
-            listOf("tenantId", "aggregateId", "version", "ownerId", "spaceId", "deleted", "tags").forEach {
+            listOf("tenantId", "aggregateId", "version", "ownerId", "spaceId", "deleted", "access").forEach {
                 schema.field(QueryField(it)).assert().isNotNull()
             }
             schema.value("state").kind.assert().isEqualTo(QueryValueKind.OBJECT)

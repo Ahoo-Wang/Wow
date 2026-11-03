@@ -39,7 +39,6 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
-import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.log.readSnapshotTailApart
@@ -109,7 +108,7 @@ abstract class EventLogSpec {
         deleted = false,
         firstEventTime = 1_700_000_000_001L,
         lastEventTime = 1_700_000_000_000L + version,
-        tags = mapOf("tier" to listOf("gold")),
+        access = mapOf("tier" to "gold", "teams" to listOf("a", "b")),
         operator = Operator("bob", "tenant"),
         schedules = mapOf("remind" to ScheduleRule.After(60_000)),
     )
@@ -134,7 +133,7 @@ abstract class EventLogSpec {
         headers: Map<String, String> = emptyMap(),
         aggregate: AggregateType = type,
         operator: Operator? = null,
-        tags: Map<String, List<String>>? = null,
+        access: Map<String, Any?>? = null,
     ) = EventStreamRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -150,7 +149,7 @@ abstract class EventLogSpec {
         causation = causation,
         headers = headers,
         operator = operator,
-        tags = tags,
+        access = access,
     )
 
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
@@ -216,55 +215,34 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `the tags read back as appended, none and not recorded told apart`(): Unit = runBlocking {
+    fun `the access attributes read back as appended, none and not stamped told apart`(): Unit = runBlocking {
         val log = createLog()
-        val tagged = stream("a", 1, tags = mapOf("region" to listOf("east", "north ü"), "dept" to listOf("eng")))
-        val none = stream("b", 1, tags = emptyMap())
-        val unrecorded = stream("c", 1, tags = null)
-        val streams = listOf(tagged, none, unrecorded)
+        val stamped = stream(
+            "a",
+            1,
+            access = linkedMapOf(
+                "owner" to "owner",
+                "space" to null,
+                "region" to "north ü",
+                "level" to 3L,
+                "public" to true,
+                "teams" to listOf("eng", "ops"),
+                "grades" to listOf(1L, 2L),
+                "none" to emptyList<String>(),
+            ),
+        )
+        val none = stream("b", 1, access = emptyMap())
+        val unstamped = stream("c", 1, access = null)
+        val streams = listOf(stamped, none, unstamped)
         streams.forEach { log.append(it) }
         streams.forEach { appended ->
             log.read(appended.ref).toList().single().assertSameAs(appended)
             checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         }
         streams.forEach { appended ->
-            log.readEntries(appended.ref, 1, 1).toList().single().stream.tags.assert().isEqualTo(appended.tags)
+            log.readEntries(appended.ref, 1, 1).toList().single().stream.access.assert().isEqualTo(appended.access)
         }
     }
-
-    @Test
-    fun `a log that backfills tags lists the untagged aggregates and records only the missing tags`(): Unit =
-        runBlocking {
-            val log = createLog()
-            Assumptions.assumeTrue(log is TagsBackfill, "This log records no tags to backfill.")
-            val backfill = log as TagsBackfill
-            val east = mapOf("region" to listOf("east"))
-            listOf(
-                stream("a", 1),
-                stream("a", 2),
-                stream("b", 1, tags = east),
-                stream("c", 1),
-                stream("c", 1, tenant = "other"),
-            ).forEach { (log.append(it) is AppendOutcome.Committed).assert().isTrue() }
-            val a = type.ref("tenant", "a")
-            val c = type.ref("tenant", "c")
-            val otherC = type.ref("other", "c")
-            // The log's key order: aggregate id, then tenant.
-            // In the log's own order (MongoDB's leads with the partition); a page resumes after the last.
-            val walk = backfill.untagged(type, null, 10)
-            walk.assert().containsExactlyInAnyOrder(a, otherC, c)
-            backfill.untagged(type, limit = 1).assert().containsExactly(walk[0])
-            backfill.untagged(type, walk[0], 10).assert().containsExactlyElementsOf(walk.drop(1))
-            backfill.untagged(type, walk[1], 10).assert().containsExactlyElementsOf(walk.drop(2))
-            backfill.recordTags(a, mapOf(1 to east, 2 to emptyMap(), 9 to east)).assert().isEqualTo(2)
-            log.read(a).toList().map { it.tags }.assert().containsExactly(east, emptyMap())
-            // Recorded tags are never changed.
-            backfill.recordTags(a, mapOf(1 to emptyMap())).assert().isEqualTo(0)
-            backfill.recordTags(type.ref("tenant", "b"), mapOf(1 to emptyMap())).assert().isEqualTo(0)
-            backfill.recordTags(c, emptyMap()).assert().isEqualTo(0)
-            log.read(a).toList().first().tags.assert().isEqualTo(east)
-            backfill.untagged(type, null, 10).assert().containsExactlyElementsOf(walk.filter { it != a })
-        }
 
     @Test
     fun `the schedule system events read back as appended, alone or with the events`(): Unit = runBlocking {

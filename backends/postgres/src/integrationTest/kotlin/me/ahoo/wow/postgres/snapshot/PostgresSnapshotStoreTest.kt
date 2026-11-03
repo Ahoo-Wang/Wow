@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.CountedDataSource
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
@@ -48,6 +49,28 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context).createTable("aggregate") }
         val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalStateException> { runBlocking { PostgresFixture.snapshotStore(context).save(saved) } }
+    }
+
+    @Test
+    fun `a table of a version that recorded tags loses them under auto, and is refused under validate`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val type = AggregateType(context, "aggregate")
+            val tags = "wow_snapshot__${context.replace('-', '_')}__aggregate"
+            // The table as 10.0.0-beta.1 left it: its tags NOT NULL, no access attributes.
+            PostgresFixture.snapshotStore(context).createTable(type.name)
+            execute("ALTER TABLE \"$tags\" DROP COLUMN access, ADD COLUMN tags jsonb NOT NULL DEFAULT '{}'")
+            execute("ALTER TABLE \"$tags\" ALTER COLUMN tags DROP DEFAULT")
+            assertThrownBy<IllegalStateException> {
+                PostgresSnapshotStore(PostgresFixture.dataSource, context, ddl = Ddl.VALIDATE).createTable(type.name)
+            }.message.assert().contains("DROP COLUMN IF EXISTS tags").contains("ddl validate")
+            val saved = snapshot("a", 1).copyWith(ref = type.ref("tenant", "a"))
+            PostgresFixture.snapshotStore(context).save(saved).assert().isTrue()
+            PostgresFixture.snapshotStore(context).load(saved.ref).assert().isEqualTo(saved)
+        }
+
+    private fun execute(sql: String) {
+        PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
     }
 
     @Test

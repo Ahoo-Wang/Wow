@@ -28,7 +28,7 @@ internal enum class ClickHouseTypeFamily {
     DATE,
     DATE_TIME,
 
-    /** `Array(String)`, the one array a dataset column may be: several strings per record, such as ABAC tags. */
+    /** `Array(String)`, the one array a dataset column may be: several strings per record, such as a multiple access attribute. */
     STRING_ARRAY,
 
     /** Other arrays, maps, tuples and the other types a dataset column cannot have. */

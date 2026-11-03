@@ -25,6 +25,7 @@ import me.ahoo.wow.api.read.TenantQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.AggregateManifest
@@ -39,6 +40,7 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.test.GivenAggregate
@@ -102,7 +104,8 @@ class MemoryQueries @InternalWowApi constructor(
 
     /**
      * Holds [state] as the latest snapshot of the aggregate [id] of [type] in [tenantId]: what the snapshot queries
-     * and a state read by id of it return. [owner] is its scope, the owner and space the scope policies check.
+     * and a state read by id of it return. [owner] is its scope, the owner and space the scope policies check, and
+     * [access] its declared access attributes by name (a single one's value, a multiple one's values).
      */
     @Suppress("LongParameterList") // One parameter per field of the snapshot a spec may set.
     fun snapshot(
@@ -112,7 +115,7 @@ class MemoryQueries @InternalWowApi constructor(
         tenantId: String = Caller.DEFAULT_TENANT,
         owner: Scope = Scope.NONE,
         version: Int = 1,
-        tags: Map<String, List<String>> = emptyMap(),
+        access: Map<String, Any?> = emptyMap(),
         deleted: Boolean = false,
     ): MemoryQueries = apply {
         val aggregate = requireNotNull(aggregateOf(type)) {
@@ -124,6 +127,7 @@ class MemoryQueries @InternalWowApi constructor(
         }
         val ref = type.ref(tenantId, id)
         val tree: JsonNode = WowJson.mapper.valueToTree(state)
+        val stored = AccessValues.of(WowJson.mapper.valueToTree(access)).orEmpty()
         storage.save(
             SnapshotRecord(
                 ref = ref,
@@ -134,17 +138,18 @@ class MemoryQueries @InternalWowApi constructor(
                 deleted = deleted,
                 firstEventTime = 0,
                 lastEventTime = 0,
-                tags = tags,
+                access = stored,
             ),
         )
-        committed[ref] = Snapshot.of(ref, version, owner, tags, deleted, null, 0, 0, tree)
+        committed[ref] = Snapshot.of(ref, version, owner, stored, deleted, null, 0, 0, tree)
     }
 
     /**
      * Holds the state [events] leave the aggregate [id] of [model] in as its latest snapshot, in [tenantId], at the
      * version of its last event, one commit per event: [model] replays them as [ProcessorSpec.givenAggregate] does, so
      * the state is the one the aggregate's own sourcing builds. An event [model] has no sourcing function for is
-     * refused. [owner], [tags] and [deleted] are the snapshot's, as [snapshot] of a state takes them.
+     * refused. [owner] and [deleted] are the snapshot's, as [snapshot] of a state takes them; its access attributes
+     * are those [model] reads from the state.
      *
      * A state given as a map is written to JSON without the state class: a misspelled field is dropped, and the state
      * reads back with that field's default. Built from the events, the snapshot holds what the aggregate would.
@@ -156,7 +161,6 @@ class MemoryQueries @InternalWowApi constructor(
         vararg events: Any,
         tenantId: String = Caller.DEFAULT_TENANT,
         owner: Scope = Scope.NONE,
-        tags: Map<String, List<String>> = emptyMap(),
         deleted: Boolean = false,
     ): MemoryQueries = apply {
         require(events.isNotEmpty()) { "The snapshot of $id of ${model.type} is the state of at least one event." }
@@ -164,7 +168,7 @@ class MemoryQueries @InternalWowApi constructor(
         if (stateTypes.putIfAbsent(model.type, model.stateType) == null) {
             api = null
         }
-        snapshot(model.type, id, state, tenantId, owner, events.size, tags, deleted)
+        snapshot(model.type, id, state, tenantId, owner, events.size, EventCodec().accessOf(model, state), deleted)
     }
 
     /** Holds each of [states], an aggregate id to its state, as a snapshot of [type] in [tenantId]; see [snapshot]. */

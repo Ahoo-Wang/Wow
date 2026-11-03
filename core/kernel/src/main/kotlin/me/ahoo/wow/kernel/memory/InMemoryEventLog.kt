@@ -32,19 +32,14 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.TagsBackfill
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
  * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created.
- * It backfills the tags a stream was appended without ([TagsBackfill]) as the durable
- * logs do.
  */
 @InternalWowApi
-class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
-    EventLog,
-    TagsBackfill {
+class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : EventLog {
     init {
         Partitioner.requirePartitions(partitions)
     }
@@ -61,35 +56,6 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val entries = List(partitions) { ArrayList<LogEntry>() }
     private val appended = List(partitions) { MutableStateFlow(0L) }
     private val lineages = List(partitions) { PartitionLineage.ROOT }
-
-    override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
-        require(limit >= 1) { "A page holds at least one aggregate." }
-        return lock.withLock {
-            streams.filter { (ref, list) -> ref.type == type && list.any { it.tags == null } }.keys
-                .sortedWith(KEY_ORDER)
-                .filter { after == null || KEY_ORDER.compare(it, after) > 0 }
-                .take(limit)
-        }
-    }
-
-    /** Replaces each stream it tags wherever the log keeps it: by aggregate, by request and in its partition. */
-    override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>): Int =
-        lock.withLock {
-            val aggregate = streams[ref] ?: return@withLock 0
-            var recorded = 0
-            tagsByVersion.forEach { (version, tags) ->
-                val stream = aggregate.getOrNull(version - 1)?.takeIf { it.tags == null } ?: return@forEach
-                val tagged = stream.copyWith(tags = tags)
-                aggregate[version - 1] = tagged
-                requests[ref.tenantId to stream.requestId]?.replaceAll { if (it === stream) tagged else it }
-                val entry = checkNotNull(aggregateEntries[ref])[version - 1]
-                val retagged = entry.copyWith(stream = tagged)
-                checkNotNull(aggregateEntries[ref])[version - 1] = retagged
-                entries[entry.position.partition][(entry.position.sequence - 1).toInt()] = retagged
-                recorded++
-            }
-            recorded
-        }
 
     override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = lock.withLock {
         val request = stream.ref.tenantId to stream.requestId
@@ -164,8 +130,5 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
 
     private companion object {
         const val DEFAULT_PARTITIONS = 4
-
-        /** The durable logs' key order: aggregate id, then tenant. */
-        val KEY_ORDER: Comparator<AggregateRef> = compareBy<AggregateRef>({ it.id }, { it.tenantId })
     }
 }

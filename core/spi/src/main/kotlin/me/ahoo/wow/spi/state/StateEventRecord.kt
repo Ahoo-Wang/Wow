@@ -61,8 +61,10 @@ class StateEventPayload @InternalWowApi constructor(val name: String, val revisi
  * - [commandId], [requestId], [commandType], [commitTime], [scope], [causation], [headers] and [operator] are the
  *   stream's facts; [events] are its events at their current revision.
  * - [state] is the aggregate's state after the stream; null when the sink publishes the aggregate type without it
- *   (`PublishedManifest.includeState`). [deleted] and [tags] are the aggregate's after the stream, as
- *   the kernel evolved them, published either way.
+ *   (`PublishedManifest.includeState`). [deleted] is the aggregate's after the stream, as the kernel evolved it, and
+ *   [access] its access attributes, the built-in owner and space among them, in their stored form
+ *   ([me.ahoo.wow.spi.access.AccessValues]): the stream's, which a stamp keeps current; null when the stream has none
+ *   and the state is not at hand. Both are published either way.
  * - [transport] is the stream's transport metadata: the wait context and the trace. It is not a fact:
  *   the envelope carries it beside the record ([me.ahoo.wow.spi.transport.Envelope.transport]), never inside it.
  * - [imported] marks a commit migrate-data imported from 9.x, at or before the context's cut-over
@@ -82,7 +84,7 @@ class StateEventRecord @InternalWowApi constructor(
     val state: PublishedState? = null,
     val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
-    val tags: Map<String, List<String>> = emptyMap(),
+    val access: Map<String, Any?>? = null,
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
@@ -115,7 +117,7 @@ class StateEventRecord @InternalWowApi constructor(
         state: PublishedState? = this.state,
         scope: Scope = this.scope,
         deleted: Boolean = this.deleted,
-        tags: Map<String, List<String>> = this.tags,
+        access: Map<String, Any?>? = this.access,
         causation: Causation? = this.causation,
         headers: Map<String, String> = this.headers,
         operator: Operator? = this.operator,
@@ -133,7 +135,7 @@ class StateEventRecord @InternalWowApi constructor(
             state,
             scope,
             deleted,
-            tags,
+            access,
             causation,
             headers,
             operator,
@@ -149,7 +151,7 @@ class StateEventRecord @InternalWowApi constructor(
     override fun toString(): String =
         "StateEventRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
             "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
-            "deleted=$deleted, tags=$tags, causation=$causation, headers=$headers, operator=$operator, " +
+            "deleted=$deleted, access=$access, causation=$causation, headers=$headers, operator=$operator, " +
             "transport=$transport, imported=$imported)"
 
     private fun valueFields(): List<Any?> = listOf(
@@ -163,7 +165,7 @@ class StateEventRecord @InternalWowApi constructor(
         state,
         scope,
         deleted,
-        tags,
+        access,
         causation,
         headers,
         operator,
@@ -189,7 +191,7 @@ class StateEventRecord @InternalWowApi constructor(
             state: PublishedState? = null,
             scope: Scope = Scope.NONE,
             deleted: Boolean = false,
-            tags: Map<String, List<String>> = emptyMap(),
+            access: Map<String, Any?>? = null,
             causation: Causation? = null,
             headers: Map<String, String> = emptyMap(),
             operator: Operator? = null,
@@ -207,7 +209,7 @@ class StateEventRecord @InternalWowApi constructor(
                 state,
                 scope,
                 deleted,
-                tags,
+                access,
                 causation,
                 headers,
                 operator,

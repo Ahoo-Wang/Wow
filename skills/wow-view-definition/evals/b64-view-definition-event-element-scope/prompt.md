@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:183dddfe09d472b8a553163565c868cadc4f3e099bdca5f80d4083ade9394317",
+  "version" : "sha256:3b2e09f01bfb717dd9c16dc77a0319e186f4a7a4a122c6671cfa78430cd82520",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -63,6 +63,20 @@ Files from the user's project, shown inline:
     "rootGroups" : true
   },
   "fields" : [ {
+    "path" : "access",
+    "types" : [ "object" ],
+    "kind" : "object",
+    "nullable" : true,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
     "path" : "aggregateId",
     "role" : "aggregate-id",
     "types" : [ "string" ],
@@ -573,20 +587,6 @@ Files from the user's project, shown inline:
     },
     "aliases" : [ ]
   }, {
-    "path" : "tags",
-    "types" : [ "object" ],
-    "kind" : "object",
-    "nullable" : true,
-    "project" : true,
-    "filter" : {
-      "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : false,
-      "cursor" : false
-    },
-    "aliases" : [ ]
-  }, {
     "path" : "tenantId",
     "role" : "tenant-id",
     "types" : [ "string" ],
@@ -643,22 +643,10 @@ Files from the user's project, shown inline:
     "filter" : true,
     "aggregate" : true
   } ],
-  "dynamic" : [ {
-    "pattern" : "tags.{key}",
-    "types" : [ "string" ],
-    "kind" : "array",
-    "nullable" : false,
-    "filter" : {
-      "operators" : [ "eq", "ne", "in", "not-in", "contains-all", "is-empty", "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : false,
-      "cursor" : false
-    }
-  } ],
+  "dynamic" : [ ],
   "constraints" : [ {
     "type" : "null-or-empty-as-missing",
-    "fields" : [ "operator", "ownerId", "spaceId", "tags" ]
+    "fields" : [ "access", "operator", "ownerId", "spaceId" ]
   }, {
     "type" : "array-equality"
   }, {

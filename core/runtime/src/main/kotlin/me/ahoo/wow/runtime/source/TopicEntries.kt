@@ -168,7 +168,7 @@ internal class TopicEntries(
             causation = record.causation,
             headers = record.headers,
             operator = record.operator,
-            tags = record.tags,
+            access = record.access,
         )
     }
 }

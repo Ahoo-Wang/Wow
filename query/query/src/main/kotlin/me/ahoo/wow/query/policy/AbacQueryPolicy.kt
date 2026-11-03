@@ -37,8 +37,6 @@ import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.spi.json.query.EventStreamFields
-import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /**
  * The options of [AbacQueryPolicy] (`wow.query.abac.*`). The defaults keep it off; once [enabled], the other two
@@ -163,7 +161,10 @@ class AbacQueryPolicy(
         /** The value that matches any value of its key: the key only has to exist. */
         const val WILDCARD: String = "*"
 
-        private val STREAM_TAGS = QueryField(EventStreamFields.TAGS)
+        /** The tags field ABAC filters on, which the records no longer hold: removed with ABAC (work package B). */
+        private const val TAGS = "tags"
+
+        private val STREAM_TAGS = QueryField(TAGS)
 
         /**
          * This condition on a stream's tags, of a stream that recorded them: one appended before its log
@@ -235,7 +236,7 @@ class AbacQueryPolicy(
         private const val EMPTY_TAG = ""
 
         private fun tagCondition(key: String, values: List<String>, matchMissingTagKey: Boolean): FilterExpression {
-            val field = runCatching { QueryField("${SnapshotFields.TAGS}.$key") }.getOrNull()
+            val field = runCatching { QueryField("$TAGS.$key") }.getOrNull()
                 ?.takeIf { '.' !in key }
                 ?: return MatchNoneFilter
             return when {

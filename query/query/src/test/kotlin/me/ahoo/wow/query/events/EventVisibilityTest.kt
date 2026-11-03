@@ -55,7 +55,7 @@ class EventVisibilityTest {
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
-        tags = mapOf("region" to listOf("east")),
+        access = mapOf("region" to listOf("east")),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,

@@ -54,12 +54,12 @@ class SnapshotPolicyGatewayTest {
     )
     private val state = stateTagged(mapOf("region" to listOf("east")))
 
-    private fun stateTagged(tags: Map<String, List<String>>) = Snapshot.of<JsonNode>(
+    private fun stateTagged(access: Map<String, Any?>) = Snapshot.of<JsonNode>(
         ref = type.ref("acme", "c-1"),
         version = 1,
         scope = Scope("alice", null),
         deleted = false,
-        tags = tags,
+        access = access,
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,

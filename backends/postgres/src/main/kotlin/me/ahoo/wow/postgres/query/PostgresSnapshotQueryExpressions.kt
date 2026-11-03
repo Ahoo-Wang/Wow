@@ -87,7 +87,7 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
  * every query on it compares. Expressions are deterministic for a physical path and a [PostgresQueryType], and
  * contain no parameter: the path segments, checked against [SEGMENT], are the only text they take from a query.
  *
- * A system field is its column (`tenantId` is `tenant_id`). A path below `state`, `tags`, `operator`,
+ * A system field is its column (`tenantId` is `tenant_id`). A path below `state`, `access`, `operator`,
  * `firstOperator` or `schedules`, all `jsonb`, is
  * - its node, `(state #> '{a,b}')`, which presence, containment and array operators read; and
  * - its typed value: the node's text cast to the type when the node holds a JSON value of that type, otherwise
@@ -108,7 +108,7 @@ internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
         SnapshotFields.OWNER_ID to "owner_id",
         SnapshotFields.SPACE_ID to "space_id",
         SnapshotFields.DELETED to "deleted",
-        SnapshotFields.TAGS to "tags",
+        SnapshotFields.ACCESS to "access",
         SnapshotFields.FIRST_EVENT_TIME to "first_event_time",
         SnapshotFields.LAST_EVENT_TIME to "last_event_time",
         SnapshotFields.OPERATOR to "operator",
@@ -123,7 +123,7 @@ internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
         SnapshotFields.OWNER_ID to PostgresQueryType.TEXT,
         SnapshotFields.SPACE_ID to PostgresQueryType.TEXT,
         SnapshotFields.DELETED to PostgresQueryType.BOOLEAN,
-        SnapshotFields.TAGS to PostgresQueryType.JSONB,
+        SnapshotFields.ACCESS to PostgresQueryType.JSONB,
         SnapshotFields.FIRST_EVENT_TIME to PostgresQueryType.BIGINT,
         SnapshotFields.LAST_EVENT_TIME to PostgresQueryType.BIGINT,
         SnapshotFields.OPERATOR to PostgresQueryType.JSONB,

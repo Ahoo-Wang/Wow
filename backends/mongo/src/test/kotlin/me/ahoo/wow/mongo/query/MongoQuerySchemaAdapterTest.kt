@@ -42,7 +42,7 @@ class MongoQuerySchemaAdapterTest {
         schema.physical("version").assert().isEqualTo("version")
         schema.physical("deleted").assert().isEqualTo("deleted")
         schema.physical("state.name").assert().isEqualTo("state.name")
-        schema.physical("tags.region").assert().isEqualTo("tags.region")
+        schema.physical("access.region").assert().isEqualTo("access.region")
         checkNotNull(schema.field(QueryField("tenantId"))).let { field ->
             field.responseField.assert().isEqualTo(QueryField("tenantId"))
             field.projectionField.assert().isEqualTo(QueryField("tenant_id"))

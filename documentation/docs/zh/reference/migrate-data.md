@@ -26,7 +26,6 @@ outline: deep
 | `tail` | `--once` | 追踪 9.x 在导入之后提交的内容，直到被停止。 |
 | `compare` | `--sample <percent>`、`--restart` | 把每个 9.x 快照与 V10 在快照版本上从日志重建的状态比较，然后比较预留和停放的条目。 |
 | `snapshot` | `--restart` | 为每个导入的聚合写入它最后一个版本的 V10 快照。状态无法重建的实例逐个打印出来并继续，遍历完所有聚合后失败；下次运行会重新遍历这些聚合，跳过已写入的快照。 |
-| `backfill-tags` | `--restart`、`--force` | 为每条追加时没有标签的 V10 流记录标签，然后改写没有标签就被索引的 Elasticsearch 事件文档。 |
 | `export` | `--dry-run`、`--restart` | 为回滚把 V10 在切换之后写入的流写回 9.x 存储；拒绝带有 V10 独有类型的流。 |
 
 | 选项 | 含义 |
@@ -40,7 +39,7 @@ outline: deep
 | `--snapshots` | 在 `import` 之后运行 `snapshot`。 |
 | `--once` | `tail` 跑一轮就结束。 |
 | `--sample <percent>` | `compare` 只比对这个比例的实例，按租户和 ID 的哈希挑选，所以每次运行比对的都是同一批。换一个比例会重新开始比对。 |
-| `--force` | 即使某个日志里仍有没有标签的流，`backfill-tags` 也改写 Elasticsearch 文档，这些流对应的文档保持原样；`draft-map` 替换已有的映射文件。 |
+| `--force` | `draft-map` 替换已有的映射文件。 |
 
 命令不接受的选项属于用法错误。
 
@@ -116,11 +115,10 @@ outline: deep
 | `target.poolSize` | `16` | 连接 PostgreSQL 目标的最大连接数。 |
 | `target.uri`、`target.database` | | MongoDB 目标，必须是副本集。 |
 | `partitions` | | 每个 V10 上下文的分区数，必须与服务自己的相同。 |
-| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare`、`snapshot` 和 `backfill-tags` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
+| `classpath` | 工具自己的类路径 | 服务的 V10 领域模块，每项是一个 jar，或者一个包含类或 jar 的目录。`compare` 和 `snapshot` 用它们的模型重建状态，`check --decode` 用它们读取 9.x 事件。工具不运行任何决定函数，所以模型需要的依赖中，接口用替身代替，`java.time.Clock` 或 `java.time.ZoneId` 给系统的 UTC 时钟或时区。模型需要其他类的依赖时失败并给出类名：在模型中改为接收接口。 |
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |
 | `compensation.uri` | 与来源相同 | 该数据库所在的服务器。 |
 | `compensation.service` | | 接收未解决执行的 V10 服务，其失败台账会收到它们：填它的 `wow.service` 或 `spring.application.name`。 |
-| `elasticsearch.uri`、`elasticsearch.indexPrefix` | | 服务的事件索引所在的集群，以及索引前缀。只有 `backfill-tags` 写入它。 |
 | `pageSize` | `500` | 两个检查点之间导入的实例数；追尾一次读取的流数。 |
 | `streamBatch` | `200` | 一次从 9.x 存储读取的同一实例的流数。 |
 | `concurrency` | `8` | 同时导入的实例数。 |

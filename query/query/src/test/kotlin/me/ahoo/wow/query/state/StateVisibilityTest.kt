@@ -41,7 +41,7 @@ class StateVisibilityTest {
         version = 3,
         scope = Scope("alice", "s-1"),
         deleted = true,
-        tags = mapOf("region" to listOf("east", "west")),
+        access = mapOf("region" to listOf("east", "west")),
         operator = null,
         firstEventTime = 0,
         lastEventTime = 0,
@@ -70,7 +70,7 @@ class StateVisibilityTest {
             it["ownerId"].asString().assert().isEqualTo("alice")
             it["spaceId"].asString().assert().isEqualTo("s-1")
             it["deleted"].asBoolean().assert().isTrue()
-            it["tags"].toString().assert().isEqualTo("""{"region":["east","west"]}""")
+            it["access"].toString().assert().isEqualTo("""{"region":["east","west"]}""")
         }
     }
 

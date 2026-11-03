@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -26,8 +27,8 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The snapshot document of the Elasticsearch snapshot index: each field of the snapshot record
- * under its own name, at the top level ([RECORD_FIELDS]): the state as the object `state`, the tags as an object of
- * string arrays, the operators as `{id, tenantId, crossScope}` or null, the schedules as the object
+ * under its own name, at the top level ([RECORD_FIELDS]): the state as the object `state`, the access attributes as an
+ * object of them, the operators as `{id, tenantId, crossScope}` or null, the schedules as the object
  * of each rule by its key, `{type, ...}`; beside them the store's own fields, which no record shows:
  * the state's schema fingerprint, its state revision and, when it is marked stale, the version it was marked at.
  *
@@ -41,7 +42,7 @@ internal object ElasticsearchSnapshotDocuments {
     const val OWNER_ID = SnapshotFields.OWNER_ID
     const val SPACE_ID = SnapshotFields.SPACE_ID
     const val DELETED = SnapshotFields.DELETED
-    const val TAGS = SnapshotFields.TAGS
+    const val ACCESS = SnapshotFields.ACCESS
     const val FIRST_EVENT_TIME = SnapshotFields.FIRST_EVENT_TIME
     const val LAST_EVENT_TIME = SnapshotFields.LAST_EVENT_TIME
     const val OPERATOR = SnapshotFields.OPERATOR
@@ -64,7 +65,7 @@ internal object ElasticsearchSnapshotDocuments {
         OWNER_ID,
         SPACE_ID,
         DELETED,
-        TAGS,
+        ACCESS,
         FIRST_EVENT_TIME,
         LAST_EVENT_TIME,
         OPERATOR,
@@ -86,14 +87,7 @@ internal object ElasticsearchSnapshotDocuments {
         put(OWNER_ID, snapshot.scope.ownerId)
         put(SPACE_ID, snapshot.scope.spaceId)
         put(DELETED, snapshot.deleted)
-        set(
-            TAGS,
-            nodes.objectNode().also { tags ->
-                snapshot.tags.forEach { (name, values) ->
-                    tags.set(name, nodes.arrayNode().also { array -> values.forEach(array::add) })
-                }
-            },
-        )
+        set(ACCESS, AccessValues.json(snapshot.access))
         put(FIRST_EVENT_TIME, snapshot.firstEventTime)
         put(LAST_EVENT_TIME, snapshot.lastEventTime)
         set(OPERATOR, operator(snapshot.operator))
@@ -112,7 +106,6 @@ internal object ElasticsearchSnapshotDocuments {
 
     /** The snapshot of [type] that [document] holds. */
     fun snapshot(type: AggregateType, document: ObjectNode): SnapshotRecord {
-        val tags = document.path(TAGS)
         return SnapshotRecord(
             ref = type.ref(document.path(TENANT_ID).stringValue(), document.path(AGGREGATE_ID).stringValue()),
             version = document.path(VERSION).intValue(),
@@ -122,7 +115,8 @@ internal object ElasticsearchSnapshotDocuments {
             deleted = document.path(DELETED).booleanValue(),
             firstEventTime = document.path(FIRST_EVENT_TIME).longValue(),
             lastEventTime = document.path(LAST_EVENT_TIME).longValue(),
-            tags = tags.propertyNames().associateWith { name -> tags.path(name).toList().map { it.stringValue() } },
+            // A document of a version that recorded tags holds no access attributes until it is written again.
+            access = AccessValues.of(document.get(ACCESS)).orEmpty(),
             operator = operatorOf(document.path(OPERATOR)),
             firstOperator = operatorOf(document.path(FIRST_OPERATOR)),
             schedules = document.path(SCHEDULES).let { rules ->

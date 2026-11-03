@@ -28,7 +28,8 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The snapshot document `MongoSnapshotStore` writes, as the query side reads it: each system
  * field of a snapshot record is a top-level field under its stored name ([PHYSICAL]), the state is the document
- * `state`, the tags the document `tags` of string arrays, and the operators the documents `{id, tenantId,
+ * `state`, the access attributes the document `access` (absent from a snapshot of a version that recorded tags), and
+ * the operators the documents `{id, tenantId,
  * crossScope}` or null (a snapshot written before them has neither field), and the schedules the
  * document of each rule by its key, `{type, ...}`. `_id` is the store's own and never part of a record.
  */
@@ -44,7 +45,7 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
         SnapshotFields.OWNER_ID to "owner_id",
         SnapshotFields.SPACE_ID to "space_id",
         SnapshotFields.DELETED to "deleted",
-        SnapshotFields.TAGS to "tags",
+        SnapshotFields.ACCESS to "access",
         SnapshotFields.FIRST_EVENT_TIME to "first_event_time",
         SnapshotFields.LAST_EVENT_TIME to "last_event_time",
         SnapshotFields.OPERATOR to "operator",
@@ -72,7 +73,7 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
         "deleted" to BOOLEAN_TYPES,
         "first_event_time" to setOf("long"),
         "last_event_time" to setOf("long"),
-        "tags" to OBJECT_TYPES,
+        "access" to OBJECT_TYPES,
         "operator" to OBJECT_TYPES,
         "first_operator" to OBJECT_TYPES,
         "schedules" to OBJECT_TYPES,

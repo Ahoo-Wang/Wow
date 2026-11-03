@@ -60,9 +60,12 @@ open class SnapshotProperties protected constructor() {
     @JvmField
     val DELETED: QueryField<Boolean> = QueryField.of("deleted")
 
-    /** The aggregate's tags, a map of string lists; [tag] names one of them. */
+    /**
+     * The aggregate's declared access attributes (`@Access`), by name: a single one's value, a multiple one's values;
+     * [access] names one of them. The built-in owner and space are [OWNER_ID] and [SPACE_ID].
+     */
     @JvmField
-    val TAGS: QueryField<Any?> = QueryField.of("tags")
+    val ACCESS: QueryField<Any?> = QueryField.of("access")
 
     /** When the aggregate got its first event, in epoch milliseconds. */
     @JvmField
@@ -109,8 +112,8 @@ open class SnapshotProperties protected constructor() {
     @JvmField
     val STATE: QueryField<Any?> = QueryField.of("state")
 
-    /** The tag [name] of [TAGS]: `tags.<name>`. */
-    fun tag(name: String): QueryField<*> = TAGS.append(QueryField(name))
+    /** The access attribute [name] of [ACCESS]: `access.<name>`. */
+    fun access(name: String): QueryField<*> = ACCESS.append(QueryField(name))
 
     /** The schedule [key] of [SCHEDULES]: `schedules.<key>`, its rule. */
     fun schedule(key: String): QueryField<*> = SCHEDULES.append(QueryField(key))

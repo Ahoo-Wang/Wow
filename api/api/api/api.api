@@ -974,6 +974,7 @@ public abstract interface class me/ahoo/wow/api/read/RowQueries {
 public final class me/ahoo/wow/api/read/Snapshot {
 	public static final field Companion Lme/ahoo/wow/api/read/Snapshot$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccess ()Ljava/util/Map;
 	public final fun getDeleted ()Z
 	public final fun getFirstEventTime ()J
 	public final fun getFirstOperator ()Lme/ahoo/wow/api/caller/Operator;
@@ -983,7 +984,6 @@ public final class me/ahoo/wow/api/read/Snapshot {
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getState ()Ljava/lang/Object;
-	public final fun getTags ()Ljava/util/Map;
 	public final fun getVersion ()I
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;

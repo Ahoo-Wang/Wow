@@ -285,7 +285,7 @@ class QueryModelSchema(
         if (staticFields.containsKey(field)) staticFields[field] else dynamicField(field)
 
     /**
-     * A field outside the static paths (a map key such as ABAC `tags.<key>`, or an unknown path), resolved once and
+     * A field outside the static paths (a map key such as `access.<name>`, or an unknown path), resolved once and
      * kept with its compiled capability record. Every query naming such a field looks it up, so a lookup takes no
      * lock. Keys come from callers, so only fields that resolve are kept, and the cache starts over once it holds
      * [MAX_CACHED_DYNAMIC_FIELDS]: unknown paths cannot fill it, and no run of distinct keys can pin it.

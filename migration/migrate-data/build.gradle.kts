@@ -15,8 +15,6 @@ dependencies {
     // event store is read with the same sync driver :mongo builds on, by its storage format: no 9.x module (D85).
     implementation(project(":postgres"))
     implementation(project(":mongo"))
-    // The events index the tags backfill re-sinks (decision D259); no other Elasticsearch use.
-    implementation(project(":elasticsearch"))
     // The PostgreSQL target's connection pool (version from the Spring Boot BOM): one connection per call would exhaust
     // the client's ports on a large log (R4-Q2c).
     implementation("com.zaxxer:HikariCP")

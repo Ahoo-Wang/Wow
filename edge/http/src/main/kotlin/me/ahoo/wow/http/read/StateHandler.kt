@@ -345,7 +345,7 @@ internal class StateHandler(
             ref = ref,
             version = version,
             scope = scope,
-            tags = tags,
+            access = access,
             deleted = deleted,
             operator = operator,
             firstEventTime = latest.firstEventTime,

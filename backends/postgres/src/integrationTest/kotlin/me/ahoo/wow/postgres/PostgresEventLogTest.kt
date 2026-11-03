@@ -100,21 +100,22 @@ class PostgresEventLogTest : EventLogSpec() {
         }
 
     @Test
-    fun `a log table created before the tags gets them, its streams reading as not recorded (D259)`(): Unit =
+    fun `a log table created before the access attributes gets them, its streams reading as not stamped`(): Unit =
         runBlocking {
             val context = PostgresFixture.newContext()
             val order = AggregateType(context, "order")
             val log = PostgresFixture.log(1, context, listOf(order.name))
-            val legacy = stream("o-1", 1, aggregate = order, tags = mapOf("region" to listOf("east")))
+            val legacy = stream("o-1", 1, aggregate = order, access = mapOf("owner" to "owner", "region" to "east"))
             (log.append(legacy) is AppendOutcome.Committed).assert().isTrue()
-            // A table of format 1 created before the tags: its rows have none.
-            execute("ALTER TABLE \"${table(context, order.name)}\" DROP COLUMN tags")
+            // A table of format 1 created before the access attributes, with the tags of the version that wrote it.
+            execute("ALTER TABLE \"${table(context, order.name)}\" DROP COLUMN access")
+            execute("ALTER TABLE \"${table(context, order.name)}\" ADD COLUMN tags jsonb")
             // The next node to start adds the column.
             val upgraded = PostgresFixture.log(1, context, listOf(order.name))
-            upgraded.read(legacy.ref).toList().single().tags.assert().isNull()
-            val none = stream("o-1", 2, aggregate = order, tags = emptyMap())
+            upgraded.read(legacy.ref).toList().single().access.assert().isNull()
+            val none = stream("o-1", 2, aggregate = order, access = emptyMap())
             (upgraded.append(none) is AppendOutcome.Committed).assert().isTrue()
-            upgraded.read(legacy.ref, 2).toList().single().tags.assert().isEqualTo(emptyMap<String, List<String>>())
+            upgraded.read(legacy.ref, 2).toList().single().access.assert().isEqualTo(emptyMap<String, Any?>())
         }
 
     private fun execute(sql: String) {
@@ -309,7 +310,7 @@ class PostgresEventLogTest : EventLogSpec() {
         deleted = false,
         firstEventTime = 1L,
         lastEventTime = version.toLong(),
-        tags = emptyMap(),
+        access = emptyMap(),
     )
 
     @Test

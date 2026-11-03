@@ -23,6 +23,7 @@ import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -38,7 +39,7 @@ fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): S
     ref = type.ref(text(SnapshotFields.TENANT_ID), text(SnapshotFields.AGGREGATE_ID)),
     version = present(SnapshotFields.VERSION).asInt(),
     scope = scope(SnapshotFields.OWNER_ID, SnapshotFields.SPACE_ID),
-    tags = tags(),
+    access = AccessValues.of(get(SnapshotFields.ACCESS)).orEmpty(),
     deleted = present(SnapshotFields.DELETED).asBoolean(),
     operator = operator(SnapshotFields.OPERATOR),
     firstEventTime = present(SnapshotFields.FIRST_EVENT_TIME).asLong(),
@@ -61,9 +62,7 @@ fun Snapshot<JsonNode>.toRecord(): ObjectNode = WowJson.mapper.createObjectNode(
     put(SnapshotFields.OWNER_ID, scope.ownerId)
     put(SnapshotFields.SPACE_ID, scope.spaceId)
     put(SnapshotFields.DELETED, deleted)
-    putObject(SnapshotFields.TAGS).also { node ->
-        tags.forEach { (name, values) -> node.putArray(name).also { array -> values.forEach(array::add) } }
-    }
+    set(SnapshotFields.ACCESS, AccessValues.json(access))
     put(SnapshotFields.FIRST_EVENT_TIME, firstEventTime)
     put(SnapshotFields.LAST_EVENT_TIME, lastEventTime)
     set(SnapshotFields.OPERATOR, operator.toRecordValue())
@@ -121,11 +120,6 @@ private fun JsonNode.text(field: String): String = present(field).asString()
 private fun JsonNode.optionalText(field: String): String? = get(field)?.takeUnless { it.isNull }?.asString()
 
 private fun JsonNode.scope(owner: String, space: String): Scope = Scope(optionalText(owner), optionalText(space))
-
-private fun JsonNode.tags(): Map<String, List<String>> {
-    val tags = get(SnapshotFields.TAGS)?.takeUnless { it.isNull } ?: return emptyMap()
-    return tags.properties().associate { (name, values) -> name to values.elements().map { it.asString() } }
-}
 
 private fun JsonNode.schedules(): Map<String, ScheduleRule> {
     val rules = get(SnapshotFields.SCHEDULES)?.takeUnless { it.isNull } ?: return emptyMap()

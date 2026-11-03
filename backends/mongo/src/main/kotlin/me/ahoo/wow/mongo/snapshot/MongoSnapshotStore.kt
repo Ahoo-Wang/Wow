@@ -37,6 +37,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoDatabases
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -83,7 +84,8 @@ import kotlin.time.Duration
  * first time this store touches the type, or up front by [createCollection]. Two partial indexes cover the predicates
  * the query side adds to every query: `{tenant_id, owner_id}` and `{tenant_id, space_id}`, over the
  * snapshots that are not deleted.
- * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
+ * The state and the access attributes are BSON documents, so the snapshot can be queried in place as the default
+ * read model; the
  * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version and state revision guard (`version < new`, the
  * stored `state_revision` not above the new one): no transaction, and concurrent saves leave the highest version (see
@@ -319,15 +321,13 @@ class MongoSnapshotStore(
         .append(DELETED, BsonBoolean.valueOf(snapshot.deleted))
         .append(FIRST_EVENT_TIME, BsonInt64(snapshot.firstEventTime))
         .append(LAST_EVENT_TIME, BsonInt64(snapshot.lastEventTime))
-        .append(TAGS, BsonDocument().apply { snapshot.tags.forEach { (tag, values) -> put(tag, stringsOf(values)) } })
+        .append(ACCESS, MongoAccess.bson(snapshot.access))
         .append(OPERATOR, MongoOperators.bson(snapshot.operator))
         .append(FIRST_OPERATOR, MongoOperators.bson(snapshot.firstOperator))
         .append(SCHEDULES, schedulesOf(snapshot.schedules))
         .append(STATE_REVISION, BsonInt32(snapshot.stateRevision))
 
     private fun stringOf(value: String?): BsonValue = value?.let(::BsonString) ?: BsonNull.VALUE
-
-    private fun stringsOf(values: List<String>) = BsonArray(values.map(::BsonString))
 
     private fun schedulesOf(schedules: Map<String, ScheduleRule>) = BsonDocument().apply {
         schedules.forEach { (name, rule) -> put(name, MongoRules.bson(rule)) }
@@ -441,7 +441,6 @@ class MongoSnapshotStore(
     )
 
     private fun snapshotOf(type: AggregateType, document: Document): SnapshotRecord {
-        val tags = document.get(TAGS, Document::class.java)
         return SnapshotRecord(
             ref = type.ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
             version = document.getInteger(VERSION),
@@ -451,7 +450,8 @@ class MongoSnapshotStore(
             deleted = document.getBoolean(DELETED),
             firstEventTime = document.getLong(FIRST_EVENT_TIME),
             lastEventTime = document.getLong(LAST_EVENT_TIME),
-            tags = tags.keys.associateWith { tags.getList(it, String::class.java).toList() },
+            // A snapshot of a version that recorded tags holds none: no attributes until it is written again.
+            access = MongoAccess.of(document.get(ACCESS, Document::class.java)).orEmpty(),
             operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
             firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
             schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
@@ -536,7 +536,7 @@ class MongoSnapshotStore(
         const val DELETED = "deleted"
         const val FIRST_EVENT_TIME = "first_event_time"
         const val LAST_EVENT_TIME = "last_event_time"
-        const val TAGS = "tags"
+        const val ACCESS = "access"
         const val OPERATOR = "operator"
         const val FIRST_OPERATOR = "first_operator"
         const val SCHEDULES = "schedules"

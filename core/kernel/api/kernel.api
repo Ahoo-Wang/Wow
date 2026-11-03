@@ -35,6 +35,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun findEventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
 	public final fun findMountedCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun getAccessAttributes ()Ljava/util/List;
+	public final fun getAccessNames ()Ljava/util/Set;
 	public final fun getCommandTypes ()Ljava/util/List;
 	public final fun getIdSource ()Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public final fun getLifecycleCommands ()Ljava/util/Set;

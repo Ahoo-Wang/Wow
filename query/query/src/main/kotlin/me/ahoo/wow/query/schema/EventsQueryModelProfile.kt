@@ -110,8 +110,8 @@ class EventsQueryModelProfile internal constructor(
                     EventStreamFields.SPACE_ID.stringField(nullable = true),
                     // Whose name the commit is recorded in; null when that caller was anonymous.
                     EventStreamFields.OPERATOR.operatorField(),
-                    // The tags after the commit; null when the log did not record them.
-                    EventStreamFields.TAGS.tagsField(nullable = true),
+                    // The aggregate's current access attributes, owner and space among them; null when not stamped.
+                    EventStreamFields.ACCESS.accessField(nullable = true),
                     EventStreamFields.EVENTS.payloadField(),
                 ),
             ),

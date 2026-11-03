@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -37,7 +38,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
-import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
@@ -108,8 +108,7 @@ class PostgresEventLog(
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the log's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-) : EventLog,
-    TagsBackfill {
+) : EventLog {
     private val tables = PostgresEventLogTables(context)
 
     /** Validates the partition count first: a log of another count is refused when it is built. */
@@ -316,7 +315,7 @@ class PostgresEventLog(
         } else {
             statement.setBoolean(index++, operator.crossScope)
         }
-        statement.setNullableString(index, stream.tags?.let(json::writeValueAsString))
+        statement.setNullableString(index, stream.access?.let(AccessValues::text))
     }
 
     /**
@@ -545,47 +544,6 @@ class PostgresEventLog(
             }
         }
         streams.forEach { emit(it) }
-    }
-
-    @InternalWowApi
-    override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
-        require(limit >= 1) { "A page holds at least one aggregate." }
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                withTable(connection, type) { table ->
-                    connection.prepareStatement(table.untagged).use { query ->
-                        query.setString(1, after?.id.orEmpty())
-                        query.setString(2, after?.tenantId.orEmpty())
-                        query.setInt(3, limit)
-                        query.executeQuery().use { rows ->
-                            rows.map { type.ref(it.getString("tenant_id"), it.getString("aggregate_id")) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /** One batch of updates, each version's only where its stream records no tags. */
-    @InternalWowApi
-    override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>): Int {
-        if (tagsByVersion.isEmpty()) return 0
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                withTable(connection, ref.type) { table ->
-                    connection.prepareStatement(table.recordTags).use { update ->
-                        tagsByVersion.forEach { (version, tags) ->
-                            update.setString(1, json.writeValueAsString(tags))
-                            update.setString(2, ref.id)
-                            update.setString(3, ref.tenantId)
-                            update.setInt(4, version)
-                            update.addBatch()
-                        }
-                        update.executeBatch().sum()
-                    }
-                }
-            }
-        }
     }
 
     /** One statement: the tail and the earlier request keys, both by the version key. */
@@ -850,7 +808,7 @@ class PostgresEventLog(
         operator = row.getString("operator_id")?.let {
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
         },
-        tags = row.getString("tags")?.let(PostgresSnapshotStore::decodeTags),
+        access = AccessValues.parse(row.getString("access")),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

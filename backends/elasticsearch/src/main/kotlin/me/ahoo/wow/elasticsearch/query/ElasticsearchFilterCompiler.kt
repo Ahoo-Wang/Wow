@@ -201,8 +201,8 @@ internal object ElasticsearchFilterCompiler {
     /**
      * Whether the document holds a value at [path]. A value longer than a keyword's `ignore_above` (or one
      * `ignore_malformed` drops) is not indexed, so `exists` misses it; Elasticsearch names such fields in the root
-     * document's `_ignored`, which counts them as present. Without it a resource whose ABAC tag is over-long would
-     * read as untagged, a public resource. Inside a nested query `_ignored`, a root document field, cannot be read.
+     * document's `_ignored`, which counts them as present. Without it a resource whose access attribute is over-long
+     * would read as one without it. Inside a nested query `_ignored`, a root document field, cannot be read.
      */
     private fun present(path: String, nested: Boolean): Query {
         val exists = exists { it.field(path) }

@@ -106,7 +106,9 @@ class ElasticsearchSnapshotStore internal constructor(
                 ElasticsearchSnapshotIndex.KIND,
                 ElasticsearchSnapshotIndex.FORMAT,
                 ElasticsearchSnapshotIndex.DEFINITION,
-                ddl
+                ddl,
+                ElasticsearchSnapshotIndex.ADDED,
+                ElasticsearchSnapshotIndex.ADDITIONS,
             )
             ensured += index
         }
