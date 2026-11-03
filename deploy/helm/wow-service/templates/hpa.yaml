@@ -1,0 +1,37 @@
+{{- include "wow-service.validate" . -}}
+{{- if .Values.autoscaling.hpa.enabled }}
+{{- $hpa := .Values.autoscaling.hpa -}}
+# Scaling moves partitions: each node that joins or leaves hands partitions over through the leases, which drains their
+# commands in flight and restarts their subscriptions from their checkpoints. The behavior scales up one node at a time
+# and down slowly, so a burst does not move the partitions back and forth; maxReplicas beyond the log's partitions
+# (wow.log.partitions) adds nodes that own none.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "wow-service.name" . }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wow-service.name" . }}
+  minReplicas: {{ $hpa.minReplicas }}
+  maxReplicas: {{ $hpa.maxReplicas }}
+  metrics:
+    {{- with $hpa.cpuUtilization }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+    {{- with $hpa.metrics }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

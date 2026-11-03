@@ -1,0 +1,57 @@
+# Every optional object on, as a service of a platform in its own namespace with a peer in another.
+service:
+  name: eshop-basket-service
+  peers:
+    - context: eshop-ordering
+      service: eshop-ordering-service
+      namespace: orders
+    - context: eshop-catalog
+      service: eshop-catalog-service
+image:
+  repository: ghcr.io/example/eshop-basket-server
+  tag: 10.0.0
+  pullSecrets:
+    - name: registry
+partOf: eshop
+replicas: 3
+config:
+  SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
+  WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
+  WOW_LOG_PARTITIONS: 64
+settings:
+  wow:
+    subscriptions:
+      "[eshop-basket.CheckoutSaga.onEvent]":
+        parked:
+          max-retries: 0
+envFrom:
+  - secretRef:
+      name: eshop-basket-service-mongo
+env:
+  - name: JAVA_TOOL_OPTIONS
+    value: -javaagent:/otel/opentelemetry-javaagent.jar
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-java: "true"
+podDisruptionBudget:
+  minAvailable: 2
+autoscaling:
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+metrics:
+  serviceMonitor:
+    enabled: true
+  podMonitor:
+    enabled: true
+extraVolumes:
+  - name: otel
+    hostPath:
+      path: /otel
+      type: Directory
+extraVolumeMounts:
+  - name: otel
+    mountPath: /otel
+    readOnly: true
+global:
+  imageRegistry: registry.example.com

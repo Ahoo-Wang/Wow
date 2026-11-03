@@ -1,0 +1,5 @@
+# The least a release needs: the generated service block's name and an image.
+service:
+  name: eshop-catalog-service
+image:
+  repository: ghcr.io/example/eshop-catalog-server

@@ -83,6 +83,16 @@ const VIEW_STORE_CONTRACT_PATH =
 // ci.yml's ops-console jobs: the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope. Decided apart from RULES, by
+// The wow-service Helm chart: its lint, unit tests, schema checks and an
+// install on kind. The chart, its CI fixtures, and the workflow of the jobs.
+const HELM = 'helm';
+const HELM_PATH =
+  /^(?:deploy\/helm\/|\.github\/helm\/|\.github\/workflows\/ci\.yml$)/;
+// The WOW_ variables the files of deploy/ set (the chart's templates, the
+// services' values) are keys the host knows: ConfigurationKeysTest, which the
+// JVM jobs run, and the architecture job runs on their behalf otherwise.
+const DEPLOY_KEYS = 'deployKeys';
+const DEPLOY_KEYS_PATH = /^deploy\/.+\.yaml$/;
 // OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
 // client is generated from, its routes the suite runs against), the workspace
 // packages and files the console builds with, and the workflow itself.
@@ -346,6 +356,8 @@ export function scopes(paths) {
     OPS_CONSOLE,
     CATALOG_CONSOLE,
     MIGRATE_DATA_IMAGE,
+    HELM,
+    DEPLOY_KEYS,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -385,6 +397,11 @@ export function scopes(paths) {
   result[MIGRATE_DATA_IMAGE] = paths.some(path =>
     MIGRATE_DATA_IMAGE_PATH.test(path),
   );
+  // And the chart's.
+  result[HELM] = paths.some(path => HELM_PATH.test(path));
+  // And the deployment keys', unless the JVM jobs already run them.
+  result[DEPLOY_KEYS] =
+    !result[JVM] && paths.some(path => DEPLOY_KEYS_PATH.test(path));
   return result;
 }
 

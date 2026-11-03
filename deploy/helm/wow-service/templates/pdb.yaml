@@ -1,0 +1,22 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+# Voluntary disruptions (a node drained, the cluster upgraded) take the nodes one at a time by default: each node that
+# leaves hands its partitions off, and the others take them through the leases before the next one goes.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "wow-service.name" . }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+spec:
+  {{- if hasKey .Values.podDisruptionBudget "minAvailable" }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  {{- with .Values.podDisruptionBudget.unhealthyPodEvictionPolicy }}
+  unhealthyPodEvictionPolicy: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
+{{- end }}
