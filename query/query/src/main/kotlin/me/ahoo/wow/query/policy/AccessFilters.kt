@@ -47,7 +47,8 @@ import tools.jackson.databind.JsonNode
  *   not store ([fieldOf] null, a dataset with no column for it), matches nothing, negated or not.
  * - One value: `EQUAL` is [EqualFilter], `IN` [InFilter] and `STARTS_WITH` [StartsWithFilter]. Several: `CONTAINS`
  *   is [ContainsAllFilter] of the one value, `CONTAINS_ANY` an [OrFilter] of those, and `IS_EMPTY` an [IsEmptyFilter]
- *   of a present field. An enum's value is compared as the name Jackson writes for it, as its records store it.
+ *   of a present field. An enum's value is compared as the name Jackson writes for it, and an integer as a long, as
+ *   the records store them.
  *
  * It agrees with [AccessPredicate.allows], which the kernel evaluates: the query TCK's `AccessFilterSpec` holds every
  * backend, the in-memory one among them, to it.
@@ -107,9 +108,12 @@ object AccessFilters {
         }
     }
 
-    /** [value] as a record stores it: an enum by the name Jackson writes, any other as it is. */
-    private fun stored(value: Any): Any =
-        if (value is Enum<*>) WowJson.mapper.valueToTree<JsonNode>(value).stringValue() else value
+    /** [value] as a record stores it: an enum by the name Jackson writes, an integer as a long, any other as it is. */
+    private fun stored(value: Any): Any = when (value) {
+        is Enum<*> -> WowJson.mapper.valueToTree<JsonNode>(value).stringValue()
+        is Int -> value.toLong()
+        else -> value
+    }
 
     private fun and(operands: List<FilterExpression>): FilterExpression {
         if (MatchNoneFilter in operands) return MatchNoneFilter

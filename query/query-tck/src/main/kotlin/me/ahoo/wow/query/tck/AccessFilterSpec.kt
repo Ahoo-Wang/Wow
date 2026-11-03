@@ -27,6 +27,8 @@ import me.ahoo.wow.api.access.AccessPredicate.Denied
 import me.ahoo.wow.api.access.AccessPredicate.Not
 import me.ahoo.wow.api.access.AccessPredicate.Unknown
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SnapshotProperties
@@ -58,11 +60,17 @@ import java.util.UUID
  * supplies its binding of an aggregate type in [binding]; on the in-memory backend it is the matrix that holds the
  * kernel's evaluator to the point reads', on the others the access attributes' push-down.
  *
- * Each record holds an aggregate's access attributes as its snapshot does: the built-in owner and space as `ownerId`
- * and `spaceId`, each declared attribute under [fieldOf] it, `access.<name>` by default, its value as Jackson writes it
- * ([accessTree]: an enum by its name, a multiple attribute an array), an absent one left out, and a record of no
- * attribute at all (one not yet stamped) holding none. The matrix covers each operator of one value and of several,
- * negated or not, on present, absent and unstamped values, with claims the caller holds and those it does not.
+ * Each record holds an aggregate's access attributes as its snapshot does: the built-in owner and space as [owner]
+ * and [space] (`ownerId` and `spaceId`; an event stream's `access.owner` and `access.space`), each declared attribute
+ * under [fieldOf] it, `access.<name>` by default, its value as stored ([accessTree]: a string, an enum by its name, an
+ * integer as a long, a boolean, a multiple attribute a sorted array of distinct values), an absent one left out: a
+ * record written before the attribute was declared. A record not yet stamped has a null `access`. Every filter is
+ * guarded by `IS_NOT_NULL` of [access], as the query assembly guards it, so a record not stamped is never read, not
+ * even by a check of absence.
+ *
+ * The matrix covers each operator of one value and of several, negated or not, on present values, on values a record
+ * lacks and on a record not stamped, with claims the caller holds and those it does not: a negation over a missing
+ * value never grants (a document store's `$nor` matches a missing field, which the guard of each negation excludes).
  */
 abstract class AccessFilterSpec {
     /** Stores [records], all of [type], where the backend under test reads them. */
@@ -71,8 +79,17 @@ abstract class AccessFilterSpec {
     /** The query backend of [type]'s snapshots, with its storage adapter. */
     protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
 
+    /** The field of the access attributes, null on a record not stamped: `access`. */
+    protected open val access: QueryField<*> = QueryField(ACCESS)
+
     /** The field the attribute [name] is stored under: `access.<name>`. */
-    protected open fun fieldOf(name: String): QueryField<*> = QueryField("$ACCESS.$name")
+    protected open fun fieldOf(name: String): QueryField<*> = QueryField("${access.path}.$name")
+
+    /** The field of the built-in owner: a snapshot's `ownerId`. */
+    protected open val owner: QueryField<*> = SnapshotProperties.OWNER_ID
+
+    /** The field of the built-in space: a snapshot's `spaceId`. */
+    protected open val space: QueryField<*> = SnapshotProperties.SPACE_ID
 
     /** The aggregate type of this test: a fresh context, so each test has its own records. */
     protected val type: AggregateType =
@@ -91,11 +108,14 @@ abstract class AccessFilterSpec {
         val stamped: Boolean = true,
     )
 
-    /** [record]'s declared attributes as its snapshot's `access` holds them; null for a record not stamped. */
+    /**
+     * [record]'s declared attributes as its snapshot's `access` holds them: an integer a long, a multiple attribute
+     * its distinct values sorted; null for a record not stamped.
+     */
     protected fun accessTree(record: AccessRecord): ObjectNode? {
         if (!record.stamped) return null
         val tree = WowJson.mapper.createObjectNode()
-        record.values.filterValues { it != null }.forEach { (name, value) -> tree.set(name, treeOf(value)) }
+        record.values.filterValues { it != null }.forEach { (name, value) -> tree.set(name, treeOf(stored(value!!))) }
         return tree
     }
 
@@ -108,8 +128,10 @@ abstract class AccessFilterSpec {
         val backend = binding(type).backend
         return CASES.map { (name, predicate) ->
             DynamicTest.dynamicTest(name) {
-                val expected = RECORDS.filter { record -> predicate.allows { valueOf(record, it) } }.map { it.id }
-                val filter = AccessFilters.compile(predicate, ::fieldOf)
+                val expected = RECORDS.filter { record ->
+                    record.stamped && predicate.allows { valueOf(record, it) }
+                }.map { it.id }
+                val filter = AndFilter(listOf(IsNotNullFilter(access), AccessFilters.compile(predicate, ::fieldOf)))
                 val actual = runBlocking {
                     backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = RECORDS.size + 1), schema))
                         .toList().map { it.path("aggregateId").stringValue() }
@@ -121,16 +143,15 @@ abstract class AccessFilterSpec {
 
     /** The field of [attribute]: the built-ins' system fields, a declared one's [fieldOf]. */
     private fun fieldOf(attribute: AccessAttribute<*, *>): QueryField<*> = when (attribute) {
-        AccessAttribute.OWNER -> SnapshotProperties.OWNER_ID
-        AccessAttribute.SPACE -> SnapshotProperties.SPACE_ID
+        AccessAttribute.OWNER -> owner
+        AccessAttribute.SPACE -> space
         else -> fieldOf(attribute.name)
     }
 
-    private fun valueOf(record: AccessRecord, attribute: AccessAttribute<*, *>): Any? = when {
-        attribute == AccessAttribute.OWNER -> record.owner
-        attribute == AccessAttribute.SPACE -> record.space
-        !record.stamped -> null
-        attribute.multiple -> record.values[attribute.name] ?: emptySet<Any>()
+    /** [attribute]'s value in [record], as the kernel derives it: null where the record lacks it. */
+    private fun valueOf(record: AccessRecord, attribute: AccessAttribute<*, *>): Any? = when (attribute) {
+        AccessAttribute.OWNER -> record.owner
+        AccessAttribute.SPACE -> record.space
         else -> record.values[attribute.name]
     }
 
@@ -205,8 +226,10 @@ abstract class AccessFilterSpec {
                 space = "s1",
                 values = mapOf("department" to "sales", "org" to "/beta", "sharedWith" to setOf("dave"))
             ),
-            // Written before the attributes were: no value of any.
+            // Written before the attributes were: its access null.
             AccessRecord("d5", owner = "carol", space = "s2", stamped = false),
+            // Written before every attribute but its department was declared: they are missing, the empty set too.
+            AccessRecord("d6", owner = "bob", values = mapOf("department" to "hr")),
         )
 
         fun eq(attribute: AccessAttribute<*, *>, value: Any) = Comparison(
@@ -216,6 +239,13 @@ abstract class AccessFilterSpec {
         )
 
         fun treeOf(value: Any?): JsonNode = WowJson.mapper.valueToTree(value)
+
+        /** [value] as an access record stores it: an integer a long, several values distinct and sorted. */
+        fun stored(value: Any): Any = when (value) {
+            is Int -> value.toLong()
+            is Collection<*> -> value.map { stored(it!!) }.distinct().sortedBy { it.toString() }
+            else -> value
+        }
 
         val SALES = eq(Attributes.DEPARTMENT, "sales")
         val SHARED_WITH_BOB = Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS, listOf("bob"))
@@ -237,13 +267,15 @@ abstract class AccessFilterSpec {
             "in enum" to Comparison(Attributes.LEVEL, AccessOperator.IN, listOf(Level.LOW, Level.HIGH)),
             "starts with" to Comparison(Attributes.ORG, AccessOperator.STARTS_WITH, listOf("/acme")),
             "not starts with" to Not(Comparison(Attributes.ORG, AccessOperator.STARTS_WITH, listOf("/acme/sales"))),
-            "is null" to Comparison(Attributes.DEPARTMENT, AccessOperator.IS_NULL),
+            "is null: unstamped never" to Comparison(Attributes.DEPARTMENT, AccessOperator.IS_NULL),
+            "is null of a missing attribute" to Comparison(Attributes.ORG, AccessOperator.IS_NULL),
+            "not eq of a missing attribute never" to Not(eq(Attributes.ORG, "/acme/hr")),
             "not is null" to Not(Comparison(Attributes.DEPARTMENT, AccessOperator.IS_NULL)),
             "contains" to SHARED_WITH_BOB,
-            "not contains: unstamped never" to Not(SHARED_WITH_BOB),
+            "not contains: missing and unstamped never" to Not(SHARED_WITH_BOB),
             "contains any" to Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS_ANY, listOf("carol", "dave")),
             "not contains any" to Not(Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS_ANY, listOf("carol", "dave"))),
-            "is empty: unstamped never" to Comparison(Attributes.SHARED_WITH, AccessOperator.IS_EMPTY),
+            "is empty: missing and unstamped never" to Comparison(Attributes.SHARED_WITH, AccessOperator.IS_EMPTY),
             "not is empty" to Not(Comparison(Attributes.SHARED_WITH, AccessOperator.IS_EMPTY)),
             "owner" to eq(AccessAttribute.OWNER, "alice"),
             "not owner: no owner never" to Not(eq(AccessAttribute.OWNER, "alice")),

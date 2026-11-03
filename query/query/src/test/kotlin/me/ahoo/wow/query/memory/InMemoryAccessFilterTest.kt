@@ -24,12 +24,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 /**
  * The access filter contract on the in-memory backend, whose filters are the point reads' (X-26): the kernel's
  * evaluator and the compiled filter agree. Until snapshots record the `access` system field, the attributes are
- * stored under the state, `state.access.<name>`.
+ * stored under the state, `state.access`.
  */
 class InMemoryAccessFilterTest : AccessFilterSpec() {
     private val storage = InMemoryQueryStorage()
 
-    override fun fieldOf(name: String): QueryField<*> = QueryField("state.access.$name")
+    override val access: QueryField<*> = QueryField("state.access")
 
     override suspend fun store(type: AggregateType, records: List<AccessRecord>) {
         records.forEach { record ->
