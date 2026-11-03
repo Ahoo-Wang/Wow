@@ -57,6 +57,14 @@ internal fun inProcessQueue(project: Project): WorkQueue {
             override fun getParameters() = it
         }
     }
+    queue.runs<ManifestToolsWork.GenerateHelmValues.Parameters>(
+        project,
+        ManifestToolsWork.GenerateHelmValues::class.java,
+    ) {
+        object : ManifestToolsWork.GenerateHelmValues() {
+            override fun getParameters() = it
+        }
+    }
     queue.runs<ManifestToolsWork.CheckCompatibility.Parameters>(
         project,
         ManifestToolsWork.CheckCompatibility::class.java,

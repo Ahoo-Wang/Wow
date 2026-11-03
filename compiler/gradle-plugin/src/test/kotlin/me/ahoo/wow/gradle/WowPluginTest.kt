@@ -231,6 +231,7 @@ class WowPluginTest {
         project.tasks.filter { it.group == "wow" }.map { it.name }.assert().containsExactlyInAnyOrder(
             WowPlugin.MERGE_TASK,
             WowPlugin.OPENAPI_TASK,
+            WowPlugin.HELM_VALUES_TASK,
             WowPlugin.UPDATE_BASELINE_TASK,
         )
         generate.schemaOverrides.get().assert().containsEntry("a.Money", """{"type":"string"}""")
@@ -329,6 +330,23 @@ class WowPluginTest {
         document["openapi"].assert().isEqualTo("3.1.0")
         (document["info"] as Map<*, *>)["title"].assert().isEqualTo("shop")
         (document["paths"] as Map<*, *>).keys.assert().contains("/wow/openapi")
+    }
+
+    @Test
+    fun `the Helm values task should write the chart's values of the merged Manifest`() {
+        val project = project()
+        val values = project.tasks.getByName(WowPlugin.HELM_VALUES_TASK) as GenerateHelmValues
+        values.group.assert().isEqualTo("wow")
+        val manifest = File(project.projectDir, "build/wow/manifest.json")
+        values.manifestFile.get().asFile.assert().isEqualTo(manifest)
+        val output = File(project.projectDir, "build/wow/helm/values.yaml")
+        values.outputFile.get().asFile.assert().isEqualTo(output)
+        ManifestJson.write(Manifest(service = ServiceInfo("shop-service", "1.0.0")), manifest)
+        values.classpath.setFrom()
+
+        values.submit(inProcessQueue(project))
+
+        output.readText().assert().contains("  name: \"shop-service\"", "  peers: []", "    route: \"/wow/manifest\"")
     }
 
     @Test
@@ -543,8 +561,13 @@ class WowPluginTest {
         val domain = project(id = WowPlugin.ID)
         domain.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNotNull()
         domain.tasks.findByName(WowPlugin.GENERATE_CONTRACT_TASK).assert().isNotNull()
-        listOf(WowPlugin.MERGE_TASK, WowPlugin.OPENAPI_TASK, WowPlugin.CHECK_TASK, WowPlugin.UPDATE_BASELINE_TASK)
-            .forEach { domain.tasks.findByName(it).assert().describedAs(it).isNull() }
+        listOf(
+            WowPlugin.MERGE_TASK,
+            WowPlugin.OPENAPI_TASK,
+            WowPlugin.HELM_VALUES_TASK,
+            WowPlugin.CHECK_TASK,
+            WowPlugin.UPDATE_BASELINE_TASK,
+        ).forEach { domain.tasks.findByName(it).assert().describedAs(it).isNull() }
         domain.extensions.getByType(WowExtension::class.java).assert().isNotInstanceOf(WowServiceExtension::class.java)
         val service = project()
         listOf(

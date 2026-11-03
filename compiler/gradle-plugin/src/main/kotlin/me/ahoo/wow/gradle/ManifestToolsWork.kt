@@ -148,6 +148,25 @@ internal object ManifestToolsWork {
         }
     }
 
+    /** Writes the `wow-service` chart's values the service's build knows (`ManifestTools.generateHelmValues`). */
+    abstract class GenerateHelmValues : WorkAction<GenerateHelmValues.Parameters> {
+        interface Parameters : WorkParameters {
+            val manifest: RegularFileProperty
+            val classpath: ConfigurableFileCollection
+            val output: RegularFileProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "generateHelmValues",
+                parameters.manifest.get().asFile,
+                parameters.classpath.files.toList<File>(),
+                parameters.output.get().asFile,
+            )
+        }
+    }
+
     /** Generates the Kotlin sources of an api module's contract (`ManifestTools.generateContractSources`). */
     abstract class GenerateContractSources : WorkAction<GenerateContractSources.Parameters> {
         interface Parameters : WorkParameters {

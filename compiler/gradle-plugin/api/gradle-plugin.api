@@ -28,6 +28,7 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;
 	public static final field GENERATE_CONTRACT_TASK Ljava/lang/String;
 	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
+	public static final field HELM_VALUES_TASK Ljava/lang/String;
 	public static final field ID Ljava/lang/String;
 	public static final field INTEGRATION_TEST Ljava/lang/String;
 	public static final field MERGE_TASK Ljava/lang/String;

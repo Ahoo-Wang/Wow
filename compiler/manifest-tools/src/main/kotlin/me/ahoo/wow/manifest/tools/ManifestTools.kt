@@ -317,6 +317,21 @@ object ManifestTools {
     }
 
     /**
+     * Writes the values of the `wow-service` Helm chart that the build knows ([HelmValues]) into [output]: the name of
+     * the service of its merged [manifest], the peers whose contracts are on its [classpath] (the contexts it does not
+     * host, each with the service its contract names) and the route of its Manifest. What the Gradle plugin's
+     * `generateWowHelmValues` does. Returns the number of peers.
+     */
+    @JvmStatic
+    fun generateHelmValues(manifest: File, classpath: List<File>, output: File): Int {
+        val contracts = classpath.mapNotNull { ManifestJson.contract(it)?.manifest }
+        val values = HelmValues.of(ManifestJson.read(manifest), contracts)
+        output.parentFile.mkdirs()
+        output.writeText(values.yaml())
+        return values.peers.size
+    }
+
+    /**
      * Writes the Kotlin sources generated from the api module's [contracts] (none, or the one `assembleWowContract`
      * wrote) under [output], which it clears first ([ContractSources]): the `<Context>Contract`s and the views of
      * the states, which reference the classes of the [classpath] the code compiles against; with `wow-query-api` on
