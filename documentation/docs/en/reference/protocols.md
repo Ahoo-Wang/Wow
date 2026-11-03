@@ -66,7 +66,7 @@ The event stream is the fact: the events one command produced, committed by one 
 | `commitTime` | When it was committed. |
 | `events` | Each event's `name`, `revision` and `payload`, in order. Schedules set or cancelled are among them, as the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`. |
 | `scope` | The aggregate's owner and space after this commit. |
-| `tags` | The aggregate's tags after this commit. |
+| `access` | The aggregate's access attributes, `owner` and `space` among them: those after this commit, then kept current as they change; null for a stream not stamped. |
 | `causation` | The chain the command belongs to, if a saga sent it. |
 | `headers` | The request facts admission recorded, such as `app_id`. |
 | `operator` | Whose name the commit is recorded under; null for an anonymous caller. |
@@ -151,7 +151,7 @@ A published state event:
       "spaceId": null
     },
     "deleted": false,
-    "tags": {},
+    "access": null,
     "causation": null,
     "headers": {
       "app_id": "teller-app"
@@ -434,12 +434,12 @@ A snapshot is the latest state of one aggregate with its metadata, as the snapsh
 | `state` | The serialized state. |
 | `schemaFingerprint` | The fingerprint of the state's schema, the same as a state view's. |
 | `stateRevision` | The aggregate's state revision when the snapshot was written. A snapshot of a lower revision never replaces one of a higher revision. |
-| `scope`, `tags`, `deleted` | The aggregate's owner and space, tags and deletion mark, as of the last commit. |
+| `scope`, `access`, `deleted` | The aggregate's owner and space, its declared access attributes and its deletion mark, as of the last commit. |
 | `firstEventTime`, `lastEventTime` | The commit times of its first and last commits. |
 | `operator`, `firstOperator` | The operators of its last and first commits. |
 | `schedules` | The schedules it keeps, each rule by its key. |
 
-The `snapshot` query model reads them as its system fields, flattened: `tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `schedules` and `state`; `schemaFingerprint` and `stateRevision` are not among them.
+The `snapshot` query model reads them as its system fields, flattened: `tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `access`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `schedules` and `state`; `schemaFingerprint` and `stateRevision` are not among them.
 
 ## Format versions
 

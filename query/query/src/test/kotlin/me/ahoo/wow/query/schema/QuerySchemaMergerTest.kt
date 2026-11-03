@@ -331,7 +331,7 @@ class QuerySchemaMergerTest {
                         QuerySchemaDeclaration(mapOf(QueryField("region") to QueryFieldDeclaration())),
                     ),
                 ),
-                extensionRoot = "state",
+                extensionRoots = setOf("state"),
             )
         }
         merger.merge(
@@ -346,7 +346,7 @@ class QuerySchemaMergerTest {
                     ),
                 ),
             ),
-            extensionRoot = null,
+            extensionRoots = null,
         ).value(QueryField("tags.region").toPathTemplate())!!.title.assert().isEqualTo("Region")
     }
 

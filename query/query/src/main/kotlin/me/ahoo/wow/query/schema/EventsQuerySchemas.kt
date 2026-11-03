@@ -81,7 +81,7 @@ class EventsQuerySchemas(
     fun adapter(type: AggregateType, storage: QueryStorageAdapter): QueryStorageAdapter =
         RevisionStableAdapter(storage, profile(type))
 
-    /** The declaration of [type]'s `events`, compiled once. */
+    /** The declaration of [type]'s `events` and of its declared access attributes ([accessDeclaration]), compiled once. */
     fun declare(type: AggregateType): List<QuerySchemaDeclaration> {
         val aggregate = manifest.aggregate(type)
         val reader = ManifestSchemaReader(manifest.defs, type.context, strategies)
@@ -104,7 +104,10 @@ class EventsQuerySchemas(
             required = DeclarationValue.Unset,
             items = DeclarationValue.Set(events.items.valueOr(null)?.withVariants(names)),
         )
-        return listOf(QuerySchemaDeclaration(mapOf(QueryField(EventStreamFields.EVENTS) to structure)))
+        return listOfNotNull(
+            QuerySchemaDeclaration(mapOf(QueryField(EventStreamFields.EVENTS) to structure)),
+            aggregate?.let { accessDeclaration(it.access, EventStreamFields.ACCESS) },
+        )
     }
 
     /** Each alternative of this union marked as the variant of its name, in [names]' order. */

@@ -19,20 +19,24 @@ import me.ahoo.wow.spi.json.query.SnapshotFields
 
 internal class QuerySchemaMerger {
     /**
-     * Merges [extensions] over the [system] fields. Every extension field lies under [extensionRoot], the model's
-     * payload; `null` lets extensions declare fields anywhere, as a dataset's do.
+     * Merges [extensions] over the [system] fields. Every extension field lies under one of [extensionRoots], the
+     * model's payload and its access attributes; `null` lets extensions declare fields anywhere, as a dataset's do.
      */
     fun merge(
         system: QuerySchemaDeclaration,
         extensions: List<PrioritizedQuerySchemaDeclaration>,
         sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
-        extensionRoot: String? = payloadRootOf(system),
+        extensionRoots: Set<String>? = payloadRootsOf(system),
     ): LogicalQuerySchema {
         extensions.forEach { extension ->
             extension.declaration.fields.forEach { (field, declaration) ->
-                if (extensionRoot != null && field.path != extensionRoot && !field.path.startsWith("$extensionRoot.")) {
+                if (extensionRoots != null &&
+                    extensionRoots.none { field.path == it || field.path.startsWith("$it.") }
+                ) {
                     throw QuerySchemaConflictException(
-                        "Query schema extension must be under [$extensionRoot]: [$field]."
+                        "Query schema extension must be under ${extensionRoots.joinToString(
+                            " or "
+                        ) { "[$it]" }}: [$field]."
                     )
                 }
                 system.fields[field]?.rejectSystemOverwrite(field, declaration)
@@ -84,9 +88,16 @@ internal class QuerySchemaMerger {
     }
 
     private companion object {
-        /** The payload root of a built-in model's [system] fields: the snapshot state; a dataset declares none. */
-        fun payloadRootOf(system: QuerySchemaDeclaration): String? =
-            SnapshotFields.STATE.takeIf { QueryField(it) in system.fields }
+        /**
+         * The roots extensions declare under in a built-in model's [system] fields: the snapshot state and the access
+         * attributes; a dataset declares none.
+         */
+        fun payloadRootsOf(system: QuerySchemaDeclaration): Set<String>? =
+            if (QueryField(SnapshotFields.STATE) in system.fields) {
+                setOf(SnapshotFields.STATE, SnapshotFields.ACCESS)
+            } else {
+                null
+            }
     }
 }
 

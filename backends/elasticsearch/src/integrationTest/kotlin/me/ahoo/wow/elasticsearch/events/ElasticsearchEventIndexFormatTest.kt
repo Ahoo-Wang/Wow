@@ -29,7 +29,7 @@ class ElasticsearchEventIndexFormatTest {
         val context = ElasticsearchFixture.newContext()
         val index = ElasticsearchFixture.names.events(context, "order")
         val before = ElasticsearchEventIndex.DEFINITION
-            .replace(Regex(""""dynamic_templates": \[[^\]]*],\s*"""), "")
+            .replace(Regex(""""dynamic_templates":\s*\[[^\]]*]\s*,\s*"""), "")
             .replace(Regex(""""access": \{[^}]*},\s*"accessVersion": \{[^}]*},\s*"""), "")
         before.assert().doesNotContain("accessVersion").doesNotContain("access_strings")
         ElasticsearchFixture.client.indices()

@@ -1175,6 +1175,9 @@ abstract class QueryBackendSpec {
             field("state.probeText") { types(QueryValueType.STRING) }
             field("state.probeNumber") { types(QueryValueType.INTEGER) }
             field("state.probeTags") { items { types(QueryValueType.STRING) } }
+            // The access attributes the Manifest of an aggregate types: one single, one multiple.
+            field("access.region") { types(QueryValueType.STRING) }
+            field("access.teams") { items { types(QueryValueType.STRING) } }
         }
 
         private fun ObjectNode.id(): String = path("aggregateId").stringValue()

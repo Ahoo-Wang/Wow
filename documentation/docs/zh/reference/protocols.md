@@ -66,7 +66,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 | `commitTime` | 提交的时间。 |
 | `events` | 每个事件的 `name`、`revision` 和 `payload`，按顺序。设置或取消的定时也在其中，即系统事件 `wow.ScheduleSet` 和 `wow.ScheduleCancelled`。 |
 | `scope` | 这次提交之后聚合的所有者和空间。 |
-| `tags` | 这次提交之后聚合的标签。 |
+| `access` | 聚合的访问属性（`owner` 与 `space` 也在其中）：先是这次提交之后的值，之后随属性变化保持为当前值；未盖章的流为 null。 |
 | `causation` | 命令所属的链，如果它是 Saga 发出的。 |
 | `headers` | 准入记录的请求事实，例如 `app_id`。 |
 | `operator` | 提交以谁的名义记录；匿名调用方为 null。 |
@@ -151,7 +151,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
       "spaceId": null
     },
     "deleted": false,
-    "tags": {},
+    "access": null,
     "causation": null,
     "headers": {
       "app_id": "teller-app"
@@ -434,12 +434,12 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 | `state` | 序列化的状态。 |
 | `schemaFingerprint` | 状态 schema 的指纹，与状态视图的相同。 |
 | `stateRevision` | 写入快照时聚合的状态修订号。修订号较低的快照绝不替换修订号较高的快照。 |
-| `scope`、`tags`、`deleted` | 截至最后一次提交，聚合的所有者和空间、标签和删除标记。 |
+| `scope`、`access`、`deleted` | 截至最后一次提交，聚合的所有者和空间、声明的访问属性和删除标记。 |
 | `firstEventTime`、`lastEventTime` | 它第一次和最后一次提交的时间。 |
 | `operator`、`firstOperator` | 它最后一次和第一次提交的操作人。 |
 | `schedules` | 它保持的定时，每条规则按它的键。 |
 
-`snapshot` 查询模型把它们作为系统字段读取，并展开为：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`、`schedules` 和 `state`；`schemaFingerprint` 和 `stateRevision` 不在其中。
+`snapshot` 查询模型把它们作为系统字段读取，并展开为：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`access`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`、`schedules` 和 `state`；`schemaFingerprint` 和 `stateRevision` 不在其中。
 
 ## 格式版本 {#format-versions}
 

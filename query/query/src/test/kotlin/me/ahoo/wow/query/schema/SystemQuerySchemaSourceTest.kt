@@ -122,7 +122,7 @@ class SystemQuerySchemaSourceTest {
     }
 
     @Test
-    fun `snapshot access attributes should be an object of scalars or arrays`() {
+    fun `the access attributes are an object the Manifest types, the events' with the built-in owner and space`() {
         val access = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT)
             .fields.getValue(QueryField("access"))
 
@@ -130,11 +130,11 @@ class SystemQuerySchemaSourceTest {
         access.items.assert().isEqualTo(DeclarationValue.Unset)
         access.required.assert().isEqualTo(DeclarationValue.Set(true))
         access.nullable.assert().isEqualTo(DeclarationValue.Set(false))
-        val (single, multiple) = access.additionalProperties.valueOr(null)!!.alternatives.valueOr(emptyList())
-        val types = setOf(QueryValueType.STRING, QueryValueType.INTEGER, QueryValueType.BOOLEAN)
-        single.valueTypes.assert().isEqualTo(DeclarationValue.Set(types))
-        single.nullable.assert().isEqualTo(DeclarationValue.Set(true))
-        multiple.items.valueOr(null)!!.valueTypes.assert().isEqualTo(DeclarationValue.Set(types))
+        access.properties.valueOr(null).assert().isEqualTo(emptyMap<String, QueryFieldDeclaration>())
+        access.additionalProperties.assert().isEqualTo(DeclarationValue.Unset)
+        val streams = SystemQuerySchemaSource.declaration(QueryModel.EVENTS).fields.getValue(QueryField("access"))
+        streams.nullable.assert().isEqualTo(DeclarationValue.Set(true))
+        streams.properties.valueOr(emptyMap()).keys.assert().containsExactly("owner", "space")
     }
 
     @Test

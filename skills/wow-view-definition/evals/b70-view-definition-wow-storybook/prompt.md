@@ -15,7 +15,7 @@ Files from the user's project, shown inline:
 ```json
 {
   "model" : "events",
-  "version" : "sha256:3b2e09f01bfb717dd9c16dc77a0319e186f4a7a4a122c6671cfa78430cd82520",
+  "version" : "sha256:eb2ac39cd73372cc41b295fc55ddbd96128aa1b782a0687c5a56949ec2370f35",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -70,6 +70,34 @@ Files from the user's project, shown inline:
     "project" : true,
     "filter" : {
       "operators" : [ "is-null", "is-not-null", "exists", "not-exists" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "access.owner",
+    "types" : [ "string" ],
+    "kind" : "scalar",
+    "nullable" : true,
+    "project" : true,
+    "filter" : {
+      "operators" : [ ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "access.space",
+    "types" : [ "string" ],
+    "kind" : "scalar",
+    "nullable" : true,
+    "project" : true,
+    "filter" : {
+      "operators" : [ ]
     },
     "sort" : {
       "paged" : false,

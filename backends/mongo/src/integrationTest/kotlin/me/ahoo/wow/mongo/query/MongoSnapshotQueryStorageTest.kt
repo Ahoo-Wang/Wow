@@ -318,7 +318,7 @@ class MongoSnapshotQueryStorageTest {
                             .append("deleted", i % 20 == 0)
                             .append("first_event_time", 0L)
                             .append("last_event_time", i.toLong())
-                            .append("tags", Document())
+                            .append("access", Document())
                     },
                 )
             }

@@ -1,6 +1,6 @@
 {
   "model" : "snapshot",
-  "version" : "sha256:b96c3722d95fe7305d139e013119aea630eda94b8dce543dc9c9300a70ab93c3",
+  "version" : "sha256:ee992c768940b6c48ef980c6c3bb41a99495615206ecca01b3c27ecaefcba5a7",
   "timeZone" : "Z",
   "record" : {
     "identity" : "aggregateId",
@@ -594,29 +594,6 @@
   } ],
   "elements" : [ ],
   "dynamic" : [ {
-    "pattern" : "access.{key}",
-    "types" : [ "boolean", "integer", "string" ],
-    "kind" : "union",
-    "nullable" : true,
-    "filter" : {
-      "operators" : [ "eq", "ne", "in", "not-in", "is-null", "is-not-null", "exists", "not-exists" ]
-    },
-    "sort" : {
-      "paged" : true,
-      "cursor" : false
-    },
-    "aggregate" : {
-      "groups" : [ "terms" ],
-      "missingKey" : false,
-      "functions" : [ ],
-      "distinctCount" : true,
-      "percentile" : false,
-      "any" : false,
-      "firstLast" : false,
-      "expressionInput" : false,
-      "inMetricFilter" : false
-    }
-  }, {
     "pattern" : "schedules.{key}",
     "types" : [ "object" ],
     "kind" : "object",

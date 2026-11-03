@@ -50,6 +50,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
@@ -140,6 +141,11 @@ abstract class EventQueryBackendSpec {
                             EventManifest("OrderPaid", revision = 2, schema = Manifest.schemaRef("tck.OrderPaid")),
                         ),
                         retired = listOf("LegacyNoted"),
+                        access = listOf(
+                            AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                            AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
+                            AccessAttributeManifest("dept", AccessAttributeManifest.Type.STRING),
+                        ),
                     ),
                 ),
             ),

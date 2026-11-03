@@ -15,6 +15,7 @@ package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.annotation.MaskStrategy
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -69,6 +70,7 @@ internal object ManifestFixtures {
         defs: Map<String, Any?> = ORDER_DEFS,
         state: String = ORDER_STATE,
         snapshots: Boolean = true,
+        access: List<AccessAttributeManifest> = emptyList(),
     ): Manifest = Manifest(
         contexts = listOf(
             ContextManifest(
@@ -78,6 +80,7 @@ internal object ManifestFixtures {
                         name = ORDER.name,
                         state = StateManifest(Manifest.schemaRef(state)),
                         snapshot = SnapshotManifest(snapshots),
+                        access = access,
                     ),
                 ),
             ),

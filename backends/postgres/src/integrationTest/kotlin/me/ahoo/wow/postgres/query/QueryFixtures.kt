@@ -38,6 +38,8 @@ object QueryFixtures {
     const val TENANT = "tenant"
 
     val DECLARATION: QuerySchemaDeclaration = querySchema {
+        // An access attribute of several values, as the aggregate's Manifest types it.
+        field("access.region") { items { types(QueryValueType.STRING) } }
         field("state.name") { types(QueryValueType.STRING) }
         field("state.status") { types(QueryValueType.STRING) }
         field("state.amount") { types(QueryValueType.DECIMAL) }

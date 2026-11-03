@@ -16,6 +16,7 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.Collections
@@ -111,7 +112,10 @@ class EventsQueryModelProfile internal constructor(
                     // Whose name the commit is recorded in; null when that caller was anonymous.
                     EventStreamFields.OPERATOR.operatorField(),
                     // The aggregate's current access attributes, owner and space among them; null when not stamped.
-                    EventStreamFields.ACCESS.accessField(nullable = true),
+                    EventStreamFields.ACCESS.accessField(
+                        nullable = true,
+                        builtIn = listOf(AccessValues.OWNER, AccessValues.SPACE)
+                    ),
                     EventStreamFields.EVENTS.payloadField(),
                 ),
             ),

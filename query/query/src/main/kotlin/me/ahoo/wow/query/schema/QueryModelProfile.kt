@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.spec
 import me.ahoo.wow.spi.json.query.OperatorFields
@@ -246,41 +247,50 @@ internal fun String.integerField() = field(QueryValueType.INTEGER)
 private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
 /**
- * An access attributes system field: an object of each attribute's value by its name, a single one's a string, an
- * integer, a boolean or null, a multiple one's an array of them; [nullable] when a record may not be stamped (an event
- * stream appended before its log recorded them).
+ * An access attributes system field: an object of the attributes the aggregate declares, which its Manifest types
+ * ([accessDeclaration]), and of [builtIn] ones (an event stream's owner and space), each a nullable string;
+ * [nullable] when a record may not be stamped (an event stream appended before its log recorded them). An attribute
+ * neither declares is no field.
  */
-internal fun String.accessField(nullable: Boolean = false) = field(
+internal fun String.accessField(nullable: Boolean = false, builtIn: List<String> = emptyList()) = field(
     QueryValueType.OBJECT,
     nullable = nullable,
 ).let { (field, declaration) ->
     field to declaration.copy(
-        additionalProperties = DeclarationValue.Set(
-            QueryFieldDeclaration(
-                alternatives = DeclarationValue.Set(
-                    listOf(
-                        QueryFieldDeclaration(
-                            valueTypes = DeclarationValue.Set(ACCESS_VALUE_TYPES),
-                            nullable = DeclarationValue.Set(true),
-                        ),
-                        QueryFieldDeclaration(
-                            nullable = DeclarationValue.Set(false),
-                            items = DeclarationValue.Set(
-                                QueryFieldDeclaration(
-                                    valueTypes = DeclarationValue.Set(ACCESS_VALUE_TYPES),
-                                    nullable = DeclarationValue.Set(false),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
+        properties = DeclarationValue.Set(builtIn.associateWith { it.stringField(nullable = true).second }),
     )
 }
 
-/** The types of an access attribute's values. */
-private val ACCESS_VALUE_TYPES = setOf(QueryValueType.STRING, QueryValueType.INTEGER, QueryValueType.BOOLEAN)
+/**
+ * The declaration of [access], an aggregate's access attributes as its Manifest declares them, under [root] (the
+ * system field [SnapshotFields.ACCESS]): a single one a nullable value of its type, a multiple one an array of them;
+ * null when it declares none. A record written before an attribute was declared lacks it, so none is required.
+ */
+internal fun accessDeclaration(access: List<AccessAttributeManifest>, root: String): QuerySchemaDeclaration? {
+    if (access.isEmpty()) {
+        return null
+    }
+    return QuerySchemaDeclaration(
+        access.associate { attribute ->
+            val value = QueryFieldDeclaration(
+                valueTypes = DeclarationValue.Set(setOf(attribute.type.valueType())),
+                nullable = DeclarationValue.Set(!attribute.multiple),
+            )
+            val declaration = if (attribute.multiple) {
+                QueryFieldDeclaration(nullable = DeclarationValue.Set(false), items = DeclarationValue.Set(value))
+            } else {
+                value
+            }
+            QueryField("$root.${attribute.name}") to declaration
+        },
+    )
+}
+
+private fun AccessAttributeManifest.Type.valueType(): QueryValueType = when (this) {
+    AccessAttributeManifest.Type.STRING -> QueryValueType.STRING
+    AccessAttributeManifest.Type.INTEGER -> QueryValueType.INTEGER
+    AccessAttributeManifest.Type.BOOLEAN -> QueryValueType.BOOLEAN
+}
 
 internal fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
     valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
