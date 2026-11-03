@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -253,6 +254,11 @@ class CommandType @InternalWowApi constructor(
  * [aggregateIds] reads, by command class, the id of the aggregate a command acts on from its body (`@AggregateId`):
  * such a command's request need not name its aggregate ([aggregateIdOf]). A command decided here takes one, not an
  * aggregate whose id is its owner's.
+ *
+ * [access] are the aggregate's access attributes (`@Access`), each with the function that reads it from the state:
+ * the facts its access policies compare with a caller's claims, derived from the state alone ([accessOf]) by pure,
+ * cheap functions, since they run on each commit. Their names differ even ignoring case, and none is a built-in
+ * attribute's ([AccessAttribute.BUILT_IN]).
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
@@ -275,9 +281,15 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * version, as the log records them), by event class; the others are in [evolvers].
      */
     commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = emptyMap(),
+    access: Map<AccessAttribute<*>, (S) -> Any?> = emptyMap(),
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
+
+    private val access: Map<AccessAttribute<*>, (S) -> Any?> = LinkedHashMap(access)
+
+    /** The aggregate's access attributes (`@Access`) in declaration order; the built-in ones are not among them. */
+    val accessAttributes: List<AccessAttribute<*>> = this.access.keys.toList()
 
     /** Whether the aggregate's owner is fixed: it has none ([Ownership.TENANT]), or its id is its owner's. */
     private val ownerFixed: Boolean = ownership == Ownership.TENANT || idSource == AggregateIdSource.OWNER
@@ -393,6 +405,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
                 "$type names ${typeClass.name} $name: only the lifecycle types have names in ${Lifecycle.NAMESPACE}."
             }
         }
+        val sameIgnoringCase = accessAttributes.map { it.name }.groupBy { it.lowercase() }.values.filter { it.size > 1 }
+        require(sameIgnoringCase.isEmpty()) {
+            "$type declares access attributes whose names differ only in case: $sameIgnoringCase"
+        }
+        accessAttributes.filter { it.name in AccessAttribute.BUILT_IN }.let { builtIn ->
+            require(builtIn.isEmpty()) { "$type declares the built-in access attributes ${builtIn.map { it.name }}." }
+        }
     }
 
     private fun isSystemName(name: String): Boolean = KernelLifecycle.isSystemName(name)
@@ -416,6 +435,33 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /** The after hooks that run for [commandType], in declaration order. */
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()
+
+    /**
+     * The values of the aggregate's access attributes in [state], by name, in declaration order: a single attribute's
+     * value or null, a multiple one's values as a set, copied, so a mutable state evolving further does not change
+     * them. Empty when it declares none. A value that is not of its attribute's type fails, naming the attribute.
+     */
+    fun accessOf(state: S): Map<String, Any?> {
+        if (access.isEmpty()) {
+            return emptyMap()
+        }
+        val values = LinkedHashMap<String, Any?>(access.size * 2)
+        access.forEach { (attribute, read) -> values[attribute.name] = valueOf(attribute, read(state)) }
+        return values
+    }
+
+    private fun valueOf(attribute: AccessAttribute<*>, value: Any?): Any? {
+        if (!attribute.multiple) {
+            check(value == null || attribute.type.isInstance(value)) {
+                "The access attribute ${attribute.name} of $type is a ${attribute.type.name}, not ${value!!.javaClass.name}."
+            }
+            return value
+        }
+        check(value is Collection<*> && value.all { attribute.type.isInstance(it) }) {
+            "The access attribute ${attribute.name} of $type is a collection of ${attribute.type.name}, not $value."
+        }
+        return value.toSet()
+    }
 
     /**
      * Applies [event] to [state]. [commit] is the commit the event belongs to, which an evolve function may read

@@ -9,6 +9,13 @@ description: "The annotations of the programming model: where each goes, its par
 
 The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artifact `wow-api`), generated from [their sources](https://github.com/Ahoo-Wang/Wow/tree/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation). The compiler reads them at build time; each name links to its source, whose documentation says the rest.
 
+## `@Access`
+
+[Access](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Access.kt): Marks a member of an aggregate's state as one of the aggregate's access attributes: a fact of the state that decides who may read and change the aggregate, which the service's access policies compare with the caller's claims.
+
+- Targets: `PROPERTY`, `FUNCTION`
+- Parameters: `name: String = ""`
+
 ## `@AfterCommand`
 
 [AfterCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AfterCommand.kt): A function of an `AggregateRoot` that runs after its command functions: it sees the state the command function saw, not yet evolved by its events, and returns events appended after them in the same stream.

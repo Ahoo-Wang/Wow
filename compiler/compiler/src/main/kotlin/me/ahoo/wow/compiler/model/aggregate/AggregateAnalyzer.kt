@@ -32,6 +32,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
+import me.ahoo.wow.compiler.model.source.AccessSource
 import me.ahoo.wow.compiler.model.symbol.AnnotationArguments
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.Descriptions
@@ -126,6 +127,8 @@ internal class AggregateAnalyzer(
             snapshot = AggregateRootArguments.snapshot(rootArguments),
             stateRevision = AggregateRootArguments.stateRevision(rootArguments, problems),
             retiredEvents = retiredEvents,
+            access = AccessResolver.of(state, problems),
+            accessObject = AccessSource.qualifiedName(state),
             warnings = warnings,
             internal = with(RootStateResolver) { root.isInternal() || state.isInternal() },
         )

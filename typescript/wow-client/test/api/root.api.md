@@ -8,7 +8,17 @@ import { Fetcher } from '@ahoo-wang/fetcher';
 import { RequestInterceptor } from '@ahoo-wang/fetcher';
 
 // @public
+export interface AccessAttributeManifest {
+    readonly multiple?: boolean;
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly type: 'string' | 'integer' | 'boolean' | (string & {});
+}
+
+// @public
 export interface AggregateManifest {
+    readonly access?: readonly AccessAttributeManifest[];
     // (undocumented)
     readonly commands: readonly CommandManifest[];
     // (undocumented)

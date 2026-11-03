@@ -205,6 +205,10 @@ class ContextManifest @InternalWowApi constructor(
  * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
  * the data migration checks a mapping to a retired name against it.
  *
+ * [access] lists the aggregate's access attributes, as its state's `@Access` members declare them, in declaration
+ * order: the facts its access policies compare with a caller's claims. The built-in ones, `owner` and `space`, are
+ * every aggregate's and not listed. The compatibility gate takes one removed, renamed or retyped for a break.
+ *
  * Fields may be added: pass the constructor's arguments by name.
  */
 class AggregateManifest @InternalWowApi constructor(
@@ -219,6 +223,7 @@ class AggregateManifest @InternalWowApi constructor(
     val ownership: Ownership = Ownership.OWNER,
     val retired: List<String> = emptyList(),
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
+    val access: List<AccessAttributeManifest> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is AggregateManifest && valueFields() == other.valueFields()
@@ -228,7 +233,7 @@ class AggregateManifest @InternalWowApi constructor(
     override fun toString(): String =
         "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
             "commands=$commands, events=$events, queries=$queries, schedules=$schedules, " +
-            "ownership=$ownership, retired=$retired, idSource=$idSource)"
+            "ownership=$ownership, retired=$retired, idSource=$idSource, access=$access)"
 
     /** The commands of the domain: those the aggregate decides or mounts, its system commands left out. */
     val domainCommands: List<CommandManifest> get() = commands.filterNot { it.system }
@@ -249,7 +254,42 @@ class AggregateManifest @InternalWowApi constructor(
         ownership,
         retired,
         idSource,
+        access,
     )
+}
+
+/**
+ * An access attribute of an aggregate (`@Access`): its [name] ([AccessAttributeName]), unique within the aggregate
+ * ignoring case, the [type] of its values, and whether it holds several of them ([multiple]) or one, which may be
+ * absent.
+ *
+ * Fields may be added: pass the constructor's arguments by name.
+ */
+class AccessAttributeManifest @InternalWowApi constructor(
+    val name: String,
+    val type: Type,
+    val multiple: Boolean = false,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AccessAttributeManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AccessAttributeManifest(name=$name, type=$type, multiple=$multiple)"
+
+    private fun valueFields(): List<Any?> = listOf(name, type, multiple)
+
+    /** The type of an access attribute's values. */
+    enum class Type {
+        /** A string; an enum's values are the names its constants are written under. */
+        STRING,
+
+        /** An integer, an `Int` or a `Long`. */
+        INTEGER,
+
+        /** A boolean. */
+        BOOLEAN,
+    }
 }
 
 /** Where an aggregate's id comes from (`me.ahoo.wow.api.aggregate.AggregateIdSource`). */

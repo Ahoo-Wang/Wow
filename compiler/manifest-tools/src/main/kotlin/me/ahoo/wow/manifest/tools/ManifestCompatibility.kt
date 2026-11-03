@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -106,6 +107,9 @@ data class CompatibilityReport(val changes: List<ManifestChange>) {
  *   aggregate's for one whose id is its owner's, means another aggregate, and the ids its clients send or keep change
  *   meaning. The routes by no id the change adds or removes are part of it, reported once with it; any other route
  *   follows the rules above.
+ * - An aggregate's access attribute (`@Access`) removed or renamed breaks the access policies and the stored records
+ *   that name it, and so does one whose type changes or that changes between one value and several; one added is
+ *   additive.
  * - Disabling snapshots, changing the ownership, a published stream's topic, or dropping its state breaks; so does a
  *   subscription changing its kind, function or source stream, no longer deriving a command, or an `@OnRejected` /
  *   `@OnCommitted` handler no longer taking a command's receipts; a removed `@OnCommitted` handler is a removed
@@ -325,6 +329,24 @@ private class Changes(val schemas: SchemaCompatibility) {
         )
         compareValues("$path.retired", baseline.retired, current.retired, "retired event")
         compareNamed("$path.queries", baseline.queries, current.queries, { it.model }, "query model", ::compareQuery)
+        compareNamed(
+            "$path.access",
+            baseline.access,
+            current.access,
+            { it.name },
+            "access attribute",
+            ::compareAccess,
+        )
+    }
+
+    /** An access attribute's values are stored, indexed and compared by policies: retyping it breaks them. */
+    private fun compareAccess(path: String, baseline: AccessAttributeManifest, current: AccessAttributeManifest) {
+        if (baseline.type != current.type) {
+            breaking(path, "access attribute type changed from ${baseline.type} to ${current.type}")
+        }
+        if (baseline.multiple != current.multiple) {
+            breaking(path, if (current.multiple) "access attribute made multiple" else "access attribute made single")
+        }
     }
 
     /**

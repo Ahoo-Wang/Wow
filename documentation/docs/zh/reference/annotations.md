@@ -9,6 +9,13 @@ description: "编程模型的注解：用在哪里、有哪些参数、表达什
 
 编程模型的注解，位于 `me.ahoo.wow.api.annotation`（制品 `wow-api`），由[它们的源码](https://github.com/Ahoo-Wang/Wow/tree/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation)生成；说明取自源码，为英文。编译器在构建期读取它们；每个名字都链接到源码，其余细节见源码中的文档。
 
+## `@Access`
+
+[Access](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Access.kt): Marks a member of an aggregate's state as one of the aggregate's access attributes: a fact of the state that decides who may read and change the aggregate, which the service's access policies compare with the caller's claims.
+
+- 目标: `PROPERTY`, `FUNCTION`
+- 参数: `name: String = ""`
+
 ## `@AfterCommand`
 
 [AfterCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AfterCommand.kt): A function of an `AggregateRoot` that runs after its command functions: it sees the state the command function saw, not yet evolved by its events, and returns events appended after them in the same stream.

@@ -1,3 +1,40 @@
+public abstract class me/ahoo/wow/api/access/AccessAttribute {
+	public static final field BUILT_IN Ljava/util/Set;
+	public static final field Companion Lme/ahoo/wow/api/access/AccessAttribute$Companion;
+	public static final field OWNER Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public static final field SPACE Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Class;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public abstract fun getMultiple ()Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/Class;
+	public fun hashCode ()I
+	public static final fun isValueType (Ljava/lang/Class;)Z
+	public static final fun multiple (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Multiple;
+	public static final fun single (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Companion {
+	public final fun isValueType (Ljava/lang/Class;)Z
+	public final fun multiple (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Multiple;
+	public final fun single (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Single;
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Multiple : me/ahoo/wow/api/access/AccessAttribute {
+	public fun getMultiple ()Z
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Single : me/ahoo/wow/api/access/AccessAttribute {
+	public fun getMultiple ()Z
+}
+
+public abstract class me/ahoo/wow/api/access/AccessAttributes {
+	public final field OWNER Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public final field SPACE Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	protected fun <init> ()V
+}
+
 public final class me/ahoo/wow/api/aggregate/AggregateIdSource : java/lang/Enum {
 	public static final field ASSIGNED Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public static final field OWNER Lme/ahoo/wow/api/aggregate/AggregateIdSource;
@@ -78,6 +115,10 @@ public final class me/ahoo/wow/api/aggregate/Scope {
 }
 
 public final class me/ahoo/wow/api/aggregate/Scope$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Access : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/AfterCommand : java/lang/annotation/Annotation {
