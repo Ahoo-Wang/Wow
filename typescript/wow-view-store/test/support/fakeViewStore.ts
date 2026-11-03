@@ -535,7 +535,12 @@ export function fakeViewStore(
     id: string,
     expected: number | undefined,
   ): Aggregate {
-    if (!aggregate)
+    // Out of the caller's scope is answered as missing, before the deleted
+    // mark: the caller learns nothing of the aggregate.
+    if (
+      !aggregate ||
+      (name !== 'dataset_wording' && aggregate.ownerId !== caller.ownerId)
+    )
       fail(
         404,
         'wow.aggregate.not-found',
@@ -546,12 +551,6 @@ export function fakeViewStore(
         410,
         'wow.aggregate.deleted',
         `view-store.${name}/${id} is deleted.`,
-      );
-    if (name !== 'dataset_wording' && aggregate.ownerId !== caller.ownerId)
-      fail(
-        403,
-        'wow.aggregate.forbidden',
-        `view-store.${name}/${id} is outside the caller's scope.`,
       );
     if (expected !== undefined && expected !== aggregate.version)
       fail(
