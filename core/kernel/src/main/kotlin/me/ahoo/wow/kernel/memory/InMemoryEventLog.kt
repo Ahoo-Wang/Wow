@@ -54,9 +54,6 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
-    /** The version each stream's access attributes are of, by version; null for a stream not stamped. */
-    private val stamps = HashMap<AggregateRef, MutableList<Int?>>()
-
     /** The walk of each type, as [claim] and [advance] recorded it. */
     private val walks = HashMap<AggregateType, AccessWalk>()
 
@@ -80,7 +77,6 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
             return AppendOutcome.Conflict(current)
         }
         aggregate += stream
-        stamps.getOrPut(stream.ref) { ArrayList() } += stream.version.takeIf { stream.access != null }
         requests.getOrPut(request) { ArrayList() } += stream
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val log = entries[partition]
@@ -95,15 +91,12 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
         lock.withLock {
             val aggregate = streams[ref] ?: return@withLock 0
-            val stamped = checkNotNull(stamps[ref])
             var written = 0
             for (version in from.coerceAtLeast(1) until minOf(until, aggregate.size + 1)) {
-                val stamp = stamped[version - 1]
-                if (stamp != null && stamp > asOf) continue
                 val stream = aggregate[version - 1]
-                val restamped = stream.copyWith(access = access)
+                if ((stream.accessVersion ?: 0) > asOf) continue
+                val restamped = stream.copyWith(access = access, accessVersion = asOf)
                 aggregate[version - 1] = restamped
-                stamped[version - 1] = asOf
                 requests[ref.tenantId to stream.requestId]?.replaceAll { if (it === stream) restamped else it }
                 val entry = checkNotNull(aggregateEntries[ref])[version - 1]
                 val moved = entry.copyWith(stream = restamped)

@@ -41,11 +41,12 @@ import tools.jackson.databind.JsonNode
  *   [IllegalArgumentException].
  * - **State events**: [stateEvent] and [stateEventOf] turn a [StateEventRecord] into the envelope of kind
  *   [EnvelopeKind.STATE_EVENT] and back: `id` is `ref@version`, `type` the aggregate type, `payload`
- *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access, causation,
- *   headers, operator, imported}` (`operator`, `imported` and `access`, additions within format 1; `imported` only when
- *   true; `access` in its stored form, [AccessValues], or null when not stamped, and an envelope of a version that
- *   wrote `tags` instead reads with none) with each event `{name, revision, payload}` and the state
- *   `{version, schemaFingerprint, state}` or null.
+ *   `{ref, version, commandId, requestId, commandType, commitTime, events, state, scope, deleted, access,
+ *   accessVersion, causation, headers, operator, imported}` (`operator`, `imported`, `access` and `accessVersion`,
+ *   additions within format 1; `imported` only when true; `access` in its stored form, [AccessValues], or null when
+ *   not stamped, and an envelope of a version that wrote `tags` instead reads with none; `accessVersion` the version
+ *   it is of, null with it or when an envelope of an earlier version left it out) with each event
+ *   `{name, revision, payload}` and the state `{version, schemaFingerprint, state}` or null.
  */
 object EnvelopeCodec {
     private val mapper = WowJson.mapper
@@ -142,6 +143,7 @@ object EnvelopeCodec {
         scope = record.scope,
         deleted = record.deleted,
         access = record.access?.let(AccessValues::json),
+        accessVersion = record.accessVersion,
         causation = record.causation,
         headers = record.headers,
         operator = record.operator,
@@ -169,6 +171,7 @@ object EnvelopeCodec {
             operator = wire.operator,
             transport = envelope.transport,
             imported = wire.imported,
+            accessVersion = wire.accessVersion,
         )
     }
 
@@ -209,6 +212,7 @@ object EnvelopeCodec {
         val scope: Scope = Scope.NONE,
         val deleted: Boolean = false,
         val access: JsonNode? = null,
+        val accessVersion: Int? = null,
         val causation: Causation? = null,
         val headers: Map<String, String> = emptyMap(),
         val operator: Operator? = null,

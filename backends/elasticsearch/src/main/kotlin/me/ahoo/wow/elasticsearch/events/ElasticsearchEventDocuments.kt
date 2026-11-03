@@ -26,7 +26,8 @@ import tools.jackson.databind.node.ObjectNode
  * (`EventStreamRecords.stored`), each field under the model's name ([RECORD_FIELDS]), the operator `{id, tenantId,
  * crossScope}` or null, each event `{name, revision, body}` as committed: its stored name and revision,
  * its body as Wow's JSON, whose numbers Elasticsearch keeps exactly in `_source`; the aggregate's access attributes
- * with [ElasticsearchEventIndex.ACCESS_VERSION], the version they are of. A document of a stream not stamped has
+ * with [ElasticsearchEventIndex.ACCESS_VERSION], the version they are of (the record's, its own version when it names
+ * none: a record of an earlier version's envelope). A document of a stream not stamped has
  * neither, and its record's `access` is null. The position, causation, headers, state and transport of a commit are
  * not part of it.
  */
@@ -67,7 +68,7 @@ internal object ElasticsearchEventDocuments {
         set(EventStreamFields.OPERATOR, operator(record.operator))
         record.access?.let { access ->
             set(EventStreamFields.ACCESS, AccessValues.json(access))
-            put(ElasticsearchEventIndex.ACCESS_VERSION, record.version)
+            put(ElasticsearchEventIndex.ACCESS_VERSION, record.accessVersion ?: record.version)
         }
         val events = putArray(EventStreamFields.EVENTS)
         record.events.forEach { event ->

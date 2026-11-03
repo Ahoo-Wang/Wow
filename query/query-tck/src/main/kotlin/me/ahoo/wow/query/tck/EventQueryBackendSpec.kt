@@ -321,31 +321,33 @@ abstract class EventQueryBackendSpec {
      * to `[b]`, then to `[]`, each stream as the log holds it; `o2` was appended before the log recorded them; `o3`
      * declares another attribute only. Every stamped stream holds the built-in `owner` and `space` too.
      */
-    private fun stampedStreams() = listOf(
-        stream(
-            "o1",
-            1,
-            T0,
-            listOf(event("OrderCreated", "{}")),
-            access = access("region" to "east", "teams" to listOf("a", "b"))
-        ),
-        stream(
-            "o1",
-            2,
-            T0 + 1,
-            listOf(event("ItemAdded", "{}")),
-            access = access("region" to "west", "teams" to listOf("b"))
-        ),
-        stream(
-            "o1",
-            3,
-            T0 + 2,
-            listOf(event("ItemAdded", "{}")),
-            access = access("region" to null, "teams" to emptyList<String>())
-        ),
-        stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), access = null),
-        stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), access = access("dept" to "eng")),
-    )
+    /**
+     * Streams of the aggregates' current attributes, as the stamping keeps every stream of an aggregate: an aggregate's
+     * streams share them, other aggregates hold others.
+     */
+    private fun stampedStreams(): List<EventStreamRecord> {
+        val east = access("region" to "east", "teams" to listOf("a", "b"))
+        return listOf(
+            stream("o1", 1, T0, listOf(event("OrderCreated", "{}")), access = east),
+            stream("o1", 2, T0 + 1, listOf(event("ItemAdded", "{}")), access = east),
+            stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), access = null),
+            stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), access = access("dept" to "eng")),
+            stream(
+                "o4",
+                1,
+                T0 + 1,
+                listOf(event("OrderCreated", "{}")),
+                access = access("region" to "west", "teams" to listOf("b"))
+            ),
+            stream(
+                "o5",
+                1,
+                T0 + 2,
+                listOf(event("OrderCreated", "{}")),
+                access = access("region" to null, "teams" to emptyList<String>())
+            ),
+        )
+    }
 
     /** The attributes of a stream of `owner-1` with [declared]. */
     private fun access(vararg declared: Pair<String, Any?>): Map<String, Any?> =
@@ -358,8 +360,8 @@ abstract class EventQueryBackendSpec {
         access("o1@1").path("region").stringValue().assert().isEqualTo("east")
         access("o1@1").path("teams").toList().map { it.stringValue() }.assert().containsExactly("a", "b")
         access("o1@1").path("owner").stringValue().assert().isEqualTo("owner-1")
-        access("o1@3").path("region").isNull.assert().isTrue()
-        access("o1@3").path("teams").let { (it.isArray && it.isEmpty).assert().describedAs("$it").isTrue() }
+        access("o5@1").path("region").isNull.assert().isTrue()
+        access("o5@1").path("teams").let { (it.isArray && it.isEmpty).assert().describedAs("$it").isTrue() }
         access("o2@1").isNull.assert().isTrue()
         Unit
     }
@@ -368,15 +370,15 @@ abstract class EventQueryBackendSpec {
     fun `access attributes select streams, a multiple one by any of its values, an unstamped stream by none`() =
         blocking {
             val fixture = given(stampedStreams())
-            fixture.keys(EqualFilter(QueryField("access.region"), "east")).assert().containsExactly("o1@1")
+            fixture.keys(EqualFilter(QueryField("access.region"), "east")).assert().containsExactly("o1@1", "o1@2")
             fixture.keys(InFilter(QueryField("access.region"), listOf("east", "west"))).assert()
-                .containsExactly("o1@1", "o1@2")
-            fixture.keys(EqualFilter(QueryField("access.teams"), "b")).assert().containsExactly("o1@1", "o1@2")
+                .containsExactly("o1@1", "o1@2", "o4@1")
+            fixture.keys(EqualFilter(QueryField("access.teams"), "b")).assert().containsExactly("o1@1", "o1@2", "o4@1")
             fixture.keys(EqualFilter(QueryField("access.owner"), "owner-1")).assert()
-                .containsExactly("o1@1", "o1@2", "o1@3", "o3@1")
+                .containsExactly("o1@1", "o1@2", "o3@1", "o4@1", "o5@1")
             fixture.keys(IsNotNullFilter(QueryField("access"))).assert()
-                .containsExactly("o1@1", "o1@2", "o1@3", "o3@1")
-            fixture.count(EqualFilter(QueryField("access.teams"), "b")).assert().isEqualTo(2L)
+                .containsExactly("o1@1", "o1@2", "o3@1", "o4@1", "o5@1")
+            fixture.count(EqualFilter(QueryField("access.teams"), "b")).assert().isEqualTo(3L)
             Unit
         }
 

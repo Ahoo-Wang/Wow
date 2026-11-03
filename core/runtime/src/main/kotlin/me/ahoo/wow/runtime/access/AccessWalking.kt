@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -111,6 +112,9 @@ class AccessWalking(
     /** The walk of each type as last read or claimed. */
     private val walked = ConcurrentHashMap<AggregateType, AccessWalk>()
 
+    /** The other stores of each type's history ([target]): the indices of its streams. */
+    private val targets = ConcurrentHashMap<AggregateType, MutableList<AccessStamps>>()
+
     /** While no walk of a type is recorded: the head of a partition read before the last read found none. */
     private val unclaimed = ConcurrentHashMap<Pair<AggregateType, Int>, Long>()
 
@@ -119,6 +123,16 @@ class AccessWalking(
 
     /** The walk of each type, as this node last read or claimed it. */
     fun walks(): Map<AggregateType, AccessWalk> = walked.toMap()
+
+    /**
+     * Adds [stamps], another store of [type]'s history (an index of its streams, which a sink writes and follows the
+     * changes of itself), to what [stampCurrent] stamps: a walk reaches what it wrote before.
+     */
+    fun target(type: AggregateType, stamps: AccessStamps) {
+        if (type in models) {
+            targets.computeIfAbsent(type) { CopyOnWriteArrayList() } += stamps
+        }
+    }
 
     /**
      * Runs [maintain] in [scope], at once and again at once while it leaves a walk of this node, else after an
@@ -200,7 +214,8 @@ class AccessWalking(
 
     /**
      * Stamps the whole history of [ref], of [model], with the attributes of its current state, as of its last version,
-     * and rewrites its snapshot; null when its log keeps no stamps or holds none of it.
+     * in its log and its other stores ([target]), and rewrites its snapshot; null when its log keeps no stamps or
+     * holds none of it.
      */
     suspend fun stampCurrent(
         model: AggregateModel<*>,
@@ -215,6 +230,7 @@ class AccessWalking(
         val head = streams.last().version
         val access = AccessValues.ofStream(kernel.accessOf(model, state.state), state.scope)
         val written = stamps.stampIn(ref, access, head, 1, head + 1, options.batch)
+        targets[ref.type]?.forEach { it.stampIn(ref, access, head, 1, head + 1, options.batch) }
         snapshots.rewrite(ref, streams, state)
         val millis = started.elapsedNow().inWholeMilliseconds
         observer.observed(ObservedEvent.AccessStamped(ref.type, cause, written, millis))

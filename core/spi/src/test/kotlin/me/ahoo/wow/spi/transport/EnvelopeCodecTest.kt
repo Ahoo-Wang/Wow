@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.transport
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -30,6 +31,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /** The Kafka envelope of design 08 §8 (decisions D58, D59) and the state events it carries. */
@@ -93,7 +95,7 @@ class EnvelopeCodecTest {
         val payload = value["payload"]
         payload.properties().map { it.key }.assert().containsExactly(
             "ref", "version", "commandId", "requestId", "commandType", "commitTime", "events", "state", "scope",
-            "deleted", "access", "causation", "headers", "operator",
+            "deleted", "access", "accessVersion", "causation", "headers", "operator",
         )
         payload["operator"].properties().map { it.key }.assert().containsExactly("id", "tenantId", "crossScope")
         payload["events"][0]["payload"]["amount"].isNumber.assert().isTrue()
@@ -134,6 +136,35 @@ class EnvelopeCodecTest {
         }
         EnvelopeCodec.stateEventOf(Envelope(written.kind, written.id, written.type, payload)).access.assert().isNull()
         EnvelopeCodec.stateEventOf(EnvelopeCodec.stateEvent(record())).access.assert().isEqualTo(record().access)
+    }
+
+    /** The fields of a state event a reader of a version before the attributes' version knew of them. */
+    private data class EarlierStateEvent(val ref: AggregateRef, val version: Int, val access: JsonNode? = null)
+
+    @Test
+    fun `the version of the attributes should travel with them, an earlier envelope's reading as none`() {
+        // Stamped by the commit at 7, which changed them.
+        val stamped = record().copyWith(transport = null, accessVersion = 7)
+        val written = EnvelopeCodec.stateEvent(stamped)
+        written.payload["accessVersion"].intValue().assert().isEqualTo(7)
+        EnvelopeCodec.stateEventOf(EnvelopeCodec.encode(written)).assert().isEqualTo(stamped)
+        // A commit carries its attributes as of its own version.
+        record().accessVersion.assert().isEqualTo(2)
+        // An envelope of a version before the field reads with the attributes and no version.
+        val earlier = (written.payload as ObjectNode).deepCopy().apply { remove("accessVersion") }
+        EnvelopeCodec.stateEventOf(Envelope(written.kind, written.id, written.type, earlier)).let {
+            it.access.assert().isEqualTo(record().access)
+            it.accessVersion.assert().isNull()
+        }
+        // A reader of that version reads this one's payload into the fields it knows, the version passed over.
+        WowJson.mapper.treeToValue(written.payload, EarlierStateEvent::class.java).let {
+            it.version.assert().isEqualTo(2)
+            it.access!!["region"].stringValue().assert().isEqualTo("eu")
+        }
+        // Not stamped, none.
+        val none = record().copyWith(transport = null, access = null, accessVersion = null)
+        EnvelopeCodec.stateEvent(none).payload["accessVersion"].isNull.assert().isTrue()
+        EnvelopeCodec.stateEventOf(EnvelopeCodec.stateEvent(none)).accessVersion.assert().isNull()
     }
 
     @Test

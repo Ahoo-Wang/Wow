@@ -386,8 +386,8 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
      */
     val tail = "SELECT 0 AS part, $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version >= ? " +
         "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
-        "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
-        "AND version < ? ORDER BY version DESC LIMIT ?) ORDER BY part, version"
+        "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? " +
+        "AND tenant_id = ? AND version < ? ORDER BY version DESC LIMIT ?) ORDER BY part, version"
 
     /**
      * An aggregate's snapshot in [snapshot] and its [tail] from the snapshot's version, in one statement and so one
@@ -413,7 +413,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             "SELECT 0 AS part, $FACTS, $typedNulls FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
             "AND version >= coalesce((SELECT version FROM s), 1) " +
             "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
-            "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, $nulls FROM $log WHERE aggregate_id = ? " +
+            "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, $nulls FROM $log WHERE aggregate_id = ? " +
             "AND tenant_id = ? AND version < (SELECT version FROM s) ORDER BY version DESC LIMIT ?) " +
             "UNION ALL SELECT 2 AS part, $factNulls, $read FROM s ORDER BY part, version"
     }
@@ -458,6 +458,6 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, operator_id, operator_tenant_id, " +
-            "operator_cross_scope, access"
+            "operator_cross_scope, access, access_version"
     }
 }

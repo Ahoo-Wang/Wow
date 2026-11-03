@@ -14,10 +14,14 @@
 package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
+import co.elastic.clients.elasticsearch._types.Conflicts
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
+import co.elastic.clients.json.JsonData
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
@@ -29,6 +33,9 @@ import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.store.Store
@@ -54,6 +61,15 @@ import java.util.concurrent.ConcurrentHashMap
  *   systemic, any other as an [IllegalStateException]. The records it wrote stay; the retry's
  *   `create`s of them answer `409`.
  *
+ * - **Access attributes**: a document holds its record's attributes with the version they are of
+ *   ([StateEventRecord.accessVersion]). After a write, each record whose attributes differ from those of the
+ *   aggregate's stream before it (the record before it in the write, the last one this Sink wrote of the aggregate,
+ *   [capacity] of them remembered, or else that stream's document) stamps them over the aggregate's earlier
+ *   documents ([stamp]), the last such record of each aggregate only, after a refresh so the documents just written
+ *   are among them. Records are written in log order, so the Sink follows the history it writes as the log does
+ *   ([me.ahoo.wow.spi.access.AccessStamps]): a record read before a stamp of the log and one read after it differ,
+ *   and the later version wins.
+ *
  * The index is created before the first write as the store's DDL mode says (`auto` creates it, `validate` requires
  * it, `none` assumes it), and its primary waited for, as the snapshot indices are.
  */
@@ -64,7 +80,9 @@ class ElasticsearchEventSink internal constructor(
     val type: AggregateType,
     private val ddl: Ddl,
     private val refresh: Refresh?,
-) : Sink {
+    private val capacity: Int = DEFAULT_CAPACITY,
+) : Sink,
+    AccessStamps {
     /** The type's events index. */
     val index: String = names.events(type.context, type.name)
 
@@ -73,7 +91,112 @@ class ElasticsearchEventSink internal constructor(
     @Volatile
     private var ensured = false
 
-    override suspend fun write(records: List<StateEventRecord>) = bulk(records, refresh, ::create)
+    /** The last record this Sink wrote of each aggregate: its version and its attributes. */
+    private val last = object : LinkedHashMap<AggregateRef, Pair<Int, Map<String, Any?>?>>(INITIAL, LOAD, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, Pair<Int, Map<String, Any?>?>>) =
+            size > capacity
+    }
+
+    override suspend fun write(records: List<StateEventRecord>) {
+        bulk(records, refresh, ::create)
+        follow(records)
+    }
+
+    /** Stamps the attributes of each aggregate whose records changed them over its earlier documents; see the class. */
+    private suspend fun follow(records: List<StateEventRecord>) {
+        val before = beforeOf(records)
+        val changed = LinkedHashMap<AggregateRef, StateEventRecord>()
+        records.forEach { record ->
+            val access = record.access
+            if (access != null && record.version > 1 && before[record.ref] != access) {
+                changed[record.ref] = record
+            }
+            before[record.ref] = access
+        }
+        synchronized(last) { records.forEach { last[it.ref] = it.version to it.access } }
+        if (changed.isEmpty()) return
+        // The documents just written are searched once refreshed.
+        whenShardReady { client.indices().refresh { it.index(index) }.awaitElasticsearch() }
+        changed.values.forEach { record ->
+            stamp(record.ref, checkNotNull(record.access), record.accessVersion ?: record.version, 1, record.version)
+        }
+    }
+
+    /**
+     * The attributes of the stream before the first record of each aggregate in [records]: the last record this Sink
+     * wrote of it when that is the one, else that stream's document, read in one `mget`; null for none.
+     */
+    private suspend fun beforeOf(records: List<StateEventRecord>): MutableMap<AggregateRef, Map<String, Any?>?> {
+        val firsts = records.distinctBy { it.ref }.filter { it.version > 1 }
+        val before = HashMap<AggregateRef, Map<String, Any?>?>()
+        val unknown = ArrayList<StateEventRecord>()
+        synchronized(last) {
+            firsts.forEach { record ->
+                val seen = last[record.ref]
+                if (seen != null && seen.first == record.version - 1) before[record.ref] = seen.second else unknown += record
+            }
+        }
+        if (unknown.isEmpty()) return before
+        val ids = unknown.map { ElasticsearchNames.streamId(it.ref, it.version - 1) }
+        val response = whenShardReady {
+            client.mget({ it.index(index).ids(ids).sourceIncludes(EventStreamFields.ACCESS) }, ObjectNode::class.java)
+                .awaitElasticsearch()
+        }
+        response.docs().zip(unknown).forEach { (doc, record) ->
+            before[record.ref] = doc.result()?.source()?.get(EventStreamFields.ACCESS)?.let(AccessValues::of)
+        }
+        return before
+    }
+
+    /**
+     * One `update_by_query` of the documents of [ref] of the versions from [from] until [until], each guarded in the
+     * query and in its script: a document is written when it has no [ElasticsearchEventIndex.ACCESS_VERSION], one
+     * before [asOf], or [asOf] with other attributes (a new model's). A document another stamp changed meanwhile is a
+     * version conflict, passed over and searched again, so the later of two stamps wins whatever their order.
+     */
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
+        if (from >= until) return 0
+        require(ref.type == type) { "The Sink of $type does not stamp $ref." }
+        prepare()
+        val params = mapOf(ACCESS_PARAM to JsonData.of(access), AS_OF_PARAM to JsonData.of(asOf))
+        var written = 0
+        repeat(MAX_STAMP_RUNS) {
+            val response = whenShardReady {
+                client.updateByQuery { request ->
+                    request.index(index)
+                        .conflicts(Conflicts.Proceed)
+                        .query(stamped(ref, asOf, from, until))
+                        .script { script -> script.source { it.scriptString(STAMP_SCRIPT) }.params(params) }
+                        .also { if (refresh != null) it.refresh(true) }
+                }.awaitElasticsearch()
+            }
+            written += response.updated()?.toInt() ?: 0
+            if ((response.versionConflicts() ?: 0L) == 0L) return written
+        }
+        throw StorageUnavailableException(
+            "The access attributes of $ref@$asOf met a concurrent stamp of [$index] $MAX_STAMP_RUNS times.",
+        )
+    }
+
+    /** The documents of [ref] from [from] until [until] that a stamp as of [asOf] may write. */
+    private fun stamped(ref: AggregateRef, asOf: Int, from: Int, until: Int): Query = Query.of { query ->
+        query.bool { bool ->
+            bool.filter { it.term { term -> term.field(EventStreamFields.AGGREGATE_ID).value(ref.id) } }
+                .filter { it.term { term -> term.field(EventStreamFields.TENANT_ID).value(ref.tenantId) } }
+                .filter {
+                    it.range { range ->
+                        range.untyped { versions ->
+                            versions.field(EventStreamFields.VERSION).gte(JsonData.of(from)).lt(JsonData.of(until))
+                        }
+                    }
+                }
+                .should { it.bool { none -> none.mustNot { not -> not.exists { e -> e.field(ACCESS_VERSION) } } } }
+                .should {
+                    it.range { range -> range.untyped { older -> older.field(ACCESS_VERSION).lte(JsonData.of(asOf)) } }
+                }
+                .minimumShouldMatch("1")
+        }
+    }
 
     private suspend fun bulk(
         records: List<StateEventRecord>,
@@ -131,8 +254,26 @@ class ElasticsearchEventSink internal constructor(
 
     override fun toString(): String = "ElasticsearchEventSink($index)"
 
-    private companion object {
-        const val MAX_REPORTED = 3
+    @InternalWowApi
+    companion object {
+        /** The aggregates whose last record a Sink remembers by default. */
+        const val DEFAULT_CAPACITY: Int = 100_000
+
+        private const val MAX_REPORTED = 3
+        private const val MAX_STAMP_RUNS = 5
+        private const val INITIAL = 16
+        private const val LOAD = 0.75f
+        private const val ACCESS_PARAM = "access"
+        private const val AS_OF_PARAM = "asOf"
+        private const val ACCESS_VERSION = ElasticsearchEventIndex.ACCESS_VERSION
+
+        /** The guard of a stamp, again on the document it writes: see [stamp]. */
+        private const val STAMP_SCRIPT =
+            "def stamped = ctx._source.$ACCESS_VERSION; " +
+                "if (stamped == null || stamped < params.$AS_OF_PARAM || " +
+                "(stamped == params.$AS_OF_PARAM && ctx._source.${EventStreamFields.ACCESS} != params.$ACCESS_PARAM)) " +
+                "{ ctx._source.${EventStreamFields.ACCESS} = params.$ACCESS_PARAM; " +
+                "ctx._source.$ACCESS_VERSION = params.$AS_OF_PARAM; } else { ctx.op = 'noop'; }"
     }
 }
 
