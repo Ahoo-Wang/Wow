@@ -30,6 +30,9 @@ import reactor.netty.http.server.HttpServer
  * HTTP/1.1 and h2c. Its codecs take messages of up to [InternalPortSettings.maxMessageSize] bytes, which a host derives
  * from the public port's codec limit ([InternalHttp.messageLimit]), and the server takes an upgrade
  * request of up to that size too, as the JDK client reaches HTTP/2 by upgrading the first request of a connection.
+ * It takes [InternalHttp.MAX_CONCURRENT_STREAMS] streams on a connection at a time, the limit the node's senders keep
+ * within. It keeps Netty's guard against rapid resets: a connection on which it reads more than 200 `RST_STREAM`
+ * frames in 30 seconds is closed.
  *
  * The internal side is a trusted environment: the network keeps it apart, so building the port checks
  * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
@@ -66,6 +69,7 @@ class InternalPort private constructor(
         var configured = HttpServer.create()
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
+            .http2Settings { it.maxConcurrentStreams(InternalHttp.MAX_CONCURRENT_STREAMS.toLong()) }
             .httpRequestDecoder { it.h2cMaxContentLength(maxMessageSize) }
             .handle(adapter)
         host?.let { configured = configured.host(it) }
