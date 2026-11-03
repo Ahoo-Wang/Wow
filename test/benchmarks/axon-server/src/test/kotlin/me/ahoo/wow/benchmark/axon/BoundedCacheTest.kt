@@ -20,6 +20,10 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.LongAdder
 import java.util.function.Supplier
 import java.util.function.UnaryOperator
 
@@ -119,24 +123,86 @@ class BoundedCacheTest {
         assertFalse(cache.remove("a"))
         cache.removeAll()
         assertFalse(cache.containsKey("b") || cache.containsKey("c"))
+        assertEquals(listOf("created a=1", "created b=2", "created c=3", "removed a"), heard.events.take(4))
+        // removeAll removes in the map's order.
+        assertEquals(setOf("removed b", "removed c"), heard.events.drop(4).toSet())
+        assertEquals(0, cache.size)
+    }
+
+    @Test
+    fun `past its capacity it evicts the entry put first, a read or an update leaving its place`() {
+        val (cache, heard) = cache(capacity = 2)
+        cache.put("a", 1)
+        cache.put("b", 2)
+        cache.get<String, Int>("a")
+        cache.put("a", 10)
+        cache.put("c", 3)
+        assertFalse(cache.containsKey("a"))
+        assertTrue(cache.containsKey("b"))
+        assertTrue(cache.containsKey("c"))
         assertEquals(
-            listOf("created a=1", "created b=2", "created c=3", "removed a", "removed b", "removed c"),
+            listOf("created a=1", "created b=2", "read a=1", "updated a=10", "created c=3", "expired a"),
             heard.events,
         )
     }
 
     @Test
-    fun `past its capacity it evicts the least recently used entry`() {
-        val (cache, heard) = cache(capacity = 2)
+    fun `it counts the reads that hit and those that missed`() {
+        val (cache, _) = cache()
         cache.put("a", 1)
-        cache.put("b", 2)
-        // Reading a makes b the least recently used.
         cache.get<String, Int>("a")
-        cache.put("c", 3)
-        assertTrue(cache.containsKey("a"))
-        assertFalse(cache.containsKey("b"))
-        assertTrue(cache.containsKey("c"))
-        assertEquals(listOf("created a=1", "created b=2", "read a=1", "created c=3", "expired b"), heard.events)
+        cache.get<String, Int>("a")
+        cache.get<String, Int>("b")
+        assertEquals(2L, cache.hits)
+        assertEquals(1L, cache.misses)
+        assertEquals(1, cache.size)
+    }
+
+    @Test
+    fun `concurrent puts, reads and removals lose no event and keep within the capacity`() {
+        val cache = BoundedCache(1_000)
+        val created = LongAdder()
+        val gone = LongAdder()
+        cache.registerCacheEntryListener(
+            object : Cache.EntryListenerAdapter() {
+                override fun onEntryCreated(key: Any, value: Any) = created.increment()
+
+                override fun onEntryExpired(key: Any) = gone.increment()
+
+                override fun onEntryRemoved(key: Any) = gone.increment()
+            },
+        )
+        val threads = 8
+        val keys = 5_000
+        val operations = 20_000
+        val start = CountDownLatch(1)
+        val failures = ConcurrentLinkedQueue<Throwable>()
+        val workers = (0 until threads).map { worker ->
+            Thread {
+                try {
+                    start.await()
+                    repeat(operations) { i ->
+                        val key = (i * 31 + worker * 7) % keys
+                        when (i % 4) {
+                            0, 1 -> cache.put(key, i)
+                            2 -> cache.get<Int, Int>(key)
+                            else -> if (i % 40 == 3) cache.remove(key) else cache.putIfAbsent(key, i)
+                        }
+                    }
+                } catch (failure: Throwable) {
+                    failures += failure
+                }
+            }.apply { start() }
+        }
+        start.countDown()
+        workers.forEach { it.join(TimeUnit.SECONDS.toMillis(30)) }
+        assertTrue(workers.none { it.isAlive }, "a worker did not finish")
+        assertTrue(failures.isEmpty(), "$failures")
+        assertTrue(cache.size <= 1_000, "${cache.size} entries")
+        // Every entry created was evicted, removed or is still there.
+        assertEquals(cache.size.toLong(), created.sum() - gone.sum())
+        assertEquals(cache.size, (0 until keys).count { cache.containsKey(it) })
+        assertEquals(threads * operations / 4L, cache.hits + cache.misses)
     }
 
     @Test

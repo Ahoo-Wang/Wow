@@ -15,32 +15,57 @@ package me.ahoo.wow.benchmark.axon
 
 import org.axonframework.common.Registration
 import org.axonframework.common.caching.Cache
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.LongAdder
 import java.util.function.Supplier
 import java.util.function.UnaryOperator
 
 /**
- * The account repository's cache: strong references, at most [capacity] entries, the least recently used evicted
- * first. Axon's [org.axonframework.common.caching.WeakReferenceCache] loses its entries at every collection, so it
- * rarely hits, and Axon's strong-reference caches adapt EhCache or JCache, third-party libraries; Wow's state cache
- * holds strong references too. It keeps Axon's cache contract, as `WeakReferenceCache` does: a listener hears of every
- * read of an entry, its creation, its update, its removal and its eviction (`onEntryExpired`). One lock guards the
- * entries; the listeners are told after it is released.
+ * The account repository's cache: strong references, at most [capacity] entries. Axon's
+ * [org.axonframework.common.caching.WeakReferenceCache] loses its entries at every collection, so it rarely hits, and
+ * Axon's strong-reference caches adapt EhCache or JCache, third-party libraries; Wow's state cache holds strong
+ * references too. It keeps Axon's cache contract, as `WeakReferenceCache` does: a listener hears of every read of an
+ * entry, its creation, its update, its removal and its eviction (`onEntryExpired`).
+ *
+ * A [ConcurrentHashMap] holds the entries, so a read takes no lock: a lock every command's load took would be a
+ * bottleneck of the benchmark's own making at thousands of concurrent commands, and would pin a virtual thread to its
+ * carrier. Past [capacity] the entries put first leave first, as [order] keeps them; a key removed and put again keeps
+ * its first place there, so the order is approximate. The comparison's capacity is above its data set, so nothing is
+ * evicted there.
  */
 class BoundedCache(private val capacity: Int) : Cache {
+    private val entries = ConcurrentHashMap<Any, Any>()
+
+    /** The keys in the order they were put, oldest first, with those removed since (cleared past [capacity]). */
+    private val order = ConcurrentLinkedQueue<Any>()
+    private val removedSince = AtomicInteger()
     private val listeners = CopyOnWriteArrayList<Cache.EntryListener>()
-    private val evicted = mutableListOf<Any>()
-    private val entries = object : LinkedHashMap<Any, Any>(INITIAL_CAPACITY, LOAD_FACTOR, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Any, Any>?): Boolean =
-            (size > capacity).also { evict -> if (evict && eldest != null) evicted += eldest.key }
-    }
+    private val hitCount = LongAdder()
+    private val missCount = LongAdder()
 
     init {
         require(capacity > 0) { "The capacity must be positive: $capacity" }
     }
 
+    /** The reads that found an entry. */
+    val hits: Long get() = hitCount.sum()
+
+    /** The reads that found none. */
+    val misses: Long get() = missCount.sum()
+
+    /** The entries held. */
+    val size: Int get() = entries.size
+
     override fun <K, V> get(key: K): V? {
-        val value = synchronized(entries) { entries[key as Any] } ?: return null
+        val value = entries[key as Any]
+        if (value == null) {
+            missCount.increment()
+            return null
+        }
+        hitCount.increment()
         listeners.forEach { it.onEntryRead(key, value) }
         @Suppress("UNCHECKED_CAST")
         return value as V
@@ -51,18 +76,17 @@ class BoundedCache(private val capacity: Int) : Cache {
             remove(key)
             return
         }
-        val (previous, expired) = locked { entries.put(key, value) }
-        listeners.forEach {
-            if (previous == null) it.onEntryCreated(key, value) else it.onEntryUpdated(key, value)
+        if (entries.put(key, value) == null) {
+            created(key, value)
+        } else {
+            listeners.forEach { it.onEntryUpdated(key, value) }
         }
-        expire(expired)
     }
 
     override fun putIfAbsent(key: Any, value: Any): Boolean {
-        val (previous, expired) = locked { entries.putIfAbsent(key, value) }
-        if (previous == null) listeners.forEach { it.onEntryCreated(key, value) }
-        expire(expired)
-        return previous == null
+        val absent = entries.putIfAbsent(key, value) == null
+        if (absent) created(key, value)
+        return absent
     }
 
     override fun <T> computeIfAbsent(key: Any, valueSupplier: Supplier<T>): T {
@@ -75,32 +99,29 @@ class BoundedCache(private val capacity: Int) : Cache {
     }
 
     override fun remove(key: Any): Boolean {
-        val removed = synchronized(entries) { entries.remove(key) } != null
-        if (removed) listeners.forEach { it.onEntryRemoved(key) }
+        val removed = entries.remove(key) != null
+        if (removed) removed(key)
         return removed
     }
 
     override fun removeAll() {
-        val keys = synchronized(entries) { entries.keys.toList().also { entries.clear() } }
-        keys.forEach { key -> listeners.forEach { it.onEntryRemoved(key) } }
+        entries.keys.forEach { key -> remove(key) }
     }
 
-    override fun containsKey(key: Any): Boolean = synchronized(entries) { entries.containsKey(key) }
+    override fun containsKey(key: Any): Boolean = entries.containsKey(key)
 
     override fun <V> computeIfPresent(key: Any, update: UnaryOperator<V>) {
-        // An absent key returns at once; null from the update removes the entry.
-        val updated: V? = synchronized(entries) {
+        var present = false
+        val updated = entries.computeIfPresent(key) { _, current ->
+            present = true
             @Suppress("UNCHECKED_CAST")
-            val current = entries[key] as V? ?: return
-            val next: V? = update.apply(current)
-            if (next == null) {
-                entries.remove(key)
-            } else {
-                entries[key] = next
-            }
-            next
+            update.apply(current as V)
         }
-        listeners.forEach { if (updated == null) it.onEntryRemoved(key) else it.onEntryUpdated(key, updated) }
+        when {
+            !present -> return
+            updated == null -> removed(key)
+            else -> listeners.forEach { it.onEntryUpdated(key, updated) }
+        }
     }
 
     override fun registerCacheEntryListener(cacheEntryListener: Cache.EntryListener): Registration {
@@ -108,20 +129,31 @@ class BoundedCache(private val capacity: Int) : Cache {
         return Registration { listeners.remove(cacheEntryListener) }
     }
 
-    /** Runs [action] under the lock, with the keys it evicted. */
-    private fun <R> locked(action: () -> R): Pair<R, List<Any>> = synchronized(entries) {
-        val result = action()
-        val expired = evicted.toList()
-        evicted.clear()
-        result to expired
+    private fun created(key: Any, value: Any) {
+        order += key
+        listeners.forEach { it.onEntryCreated(key, value) }
+        evict()
     }
 
-    private fun expire(keys: List<Any>) {
-        keys.forEach { key -> listeners.forEach { it.onEntryExpired(key) } }
+    private fun removed(key: Any) {
+        listeners.forEach { it.onEntryRemoved(key) }
+        // A removed key stays in the order until it comes up or there are too many such: then the order is rebuilt.
+        if (removedSince.incrementAndGet() > capacity) {
+            synchronized(order) {
+                if (removedSince.get() > capacity) {
+                    order.clear()
+                    order.addAll(entries.keys)
+                    removedSince.set(0)
+                }
+            }
+        }
     }
 
-    private companion object {
-        const val INITIAL_CAPACITY = 1024
-        const val LOAD_FACTOR = 0.75f
+    /** Evicts the entries put first while the cache holds more than its capacity. */
+    private fun evict() {
+        while (entries.size > capacity) {
+            val eldest = order.poll() ?: return
+            if (entries.remove(eldest) != null) listeners.forEach { it.onEntryExpired(eldest) }
+        }
     }
 }

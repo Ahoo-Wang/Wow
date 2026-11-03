@@ -16,6 +16,8 @@ server:
 logging:
   level:
     root: warn
+    # The `axon-stats` lines: the account cache's hits and misses, the snapshots and their threads (AxonConfiguration).
+    me.ahoo.wow.benchmark.axon: info
 axon:
   axonserver:
     enabled: false

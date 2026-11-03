@@ -39,8 +39,15 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Configuration
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.LongAdder
 
 @SpringBootApplication
 class AxonServer
@@ -59,8 +66,48 @@ fun main(args: Array<String>) {
  */
 @Configuration
 class AxonConfiguration {
+    // The snapshots taken and the threads they ran on, which the node log reports (axonStats).
+    private val snapshots = LongAdder()
+    private val snapshotThreads: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    private val snapshotThreadIndex = AtomicInteger()
+    private val snapshotPool = Executors.newFixedThreadPool(SNAPSHOT_THREADS) { task ->
+        Thread(task, "snapshotter-${snapshotThreadIndex.incrementAndGet()}").apply { isDaemon = true }
+    }
+    private val snapshotExecutor = Executor { task ->
+        snapshotPool.execute {
+            snapshotThreads += Thread.currentThread().name
+            snapshots.increment()
+            task.run()
+        }
+    }
+
     @Bean(ACCOUNT_CACHE)
-    fun accountCache(): Cache = BoundedCache(ACCOUNT_CACHE_CAPACITY)
+    fun accountCache(): BoundedCache = BoundedCache(ACCOUNT_CACHE_CAPACITY)
+
+    /**
+     * What a run checks of Axon's side from the node log, every [STATS_SECONDS]: the account cache's entries, hits and
+     * misses, and the snapshots taken and the threads they ran on (`axon-stats` lines at INFO, `application.yaml`).
+     */
+    @Bean(destroyMethod = "shutdownNow")
+    fun axonStats(cache: BoundedCache): ScheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor { task -> Thread(task, "axon-stats").apply { isDaemon = true } }
+            .also { stats ->
+                stats.scheduleAtFixedRate(
+                    {
+                        log.info(
+                            "axon-stats cache entries={} hits={} misses={}; snapshots={} on {}",
+                            cache.size,
+                            cache.hits,
+                            cache.misses,
+                            snapshots.sum(),
+                            snapshotThreads.sorted(),
+                        )
+                    },
+                    STATS_SECONDS,
+                    STATS_SECONDS,
+                    TimeUnit.SECONDS,
+                )
+            }
 
     /**
      * The snapshotter of Axon's Spring Boot configuration, with an executor: Axon's takes each snapshot on the thread
@@ -86,7 +133,7 @@ class AxonConfiguration {
         .parameterResolverFactory(parameterResolverFactory)
         .handlerDefinition(handlerDefinition)
         .spanFactory(spanFactory)
-        .executor(Executors.newFixedThreadPool(SNAPSHOT_THREADS) { task -> Thread(task, "snapshotter").apply { isDaemon = true } })
+        .executor(snapshotExecutor)
         .build()
 
     @Bean(ACCOUNT_SNAPSHOTS)
@@ -127,5 +174,9 @@ class AxonConfiguration {
 
         /** As many as the node's CPUs on a benchmark runner. */
         const val SNAPSHOT_THREADS = 2
+
+        const val STATS_SECONDS = 10L
+
+        private val log = LoggerFactory.getLogger(AxonConfiguration::class.java)
     }
 }

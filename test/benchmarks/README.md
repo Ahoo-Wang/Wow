@@ -124,8 +124,8 @@ One difference stays: Axon Framework 4 runs on Spring Boot 3, so the Axon server
 
 **Axon's side of the comparison** (`axon-server/`, as Axon's reference guide configures production):
 
-- The account repository caches every account with strong references (`BoundedCache`, 131,072 entries, least recently used out first), as Wow's state cache holds its states. Axon's `WeakReferenceCache` loses its entries at every collection and so rarely hits. Axon's own strong-reference caches adapt EhCache or JCache, both third-party libraries, so the module has its own, with unit tests of Axon's cache contract.
-- An account is snapshotted every 100 events, on two threads of the snapshotter's own, not on the thread whose commit triggered it.
+- The account repository caches every account with strong references (`BoundedCache`, 131,072 entries), as Wow's state cache holds its states. It is a `ConcurrentHashMap`, so a read takes no lock, which would bottleneck thousands of concurrent commands and pin their virtual threads; past its capacity the entries put first leave first, which the data set never reaches. Axon's `WeakReferenceCache` loses its entries at every collection and so rarely hits. Axon's own strong-reference caches adapt EhCache or JCache, both third-party libraries, so the module has its own, with unit tests of Axon's cache contract.
+- An account is snapshotted every 100 events, on two threads of the snapshotter's own (`snapshotter-1`, `snapshotter-2`), not on the thread whose commit triggered it. The node logs an `axon-stats` line every 10 s: the cache's entries, hits and misses, and the snapshots and the threads they ran on.
 - E1 and `open-account` answer `504 timeout` after 10 s, as E3 does and as Wow answers a wait that timed out; the command goes on.
 - The transfer's reactions run in a tracking processor of 16 segments and 16 threads. The suite `axon-pg-segments` measures 16 against 2 (the server's CPUs) on one runner.
 
