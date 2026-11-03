@@ -22,6 +22,7 @@ import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -35,6 +36,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.dataset.QueryDatasetTest
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.QueryEngine
+import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -46,11 +48,13 @@ import me.ahoo.wow.query.policy.AccessFixtures.LEVEL
 import me.ahoo.wow.query.policy.AccessFixtures.LedgerState
 import me.ahoo.wow.query.policy.AccessFixtures.MANIFEST
 import me.ahoo.wow.query.policy.AccessFixtures.NOTE
+import me.ahoo.wow.query.policy.AccessFixtures.NoteState
 import me.ahoo.wow.query.policy.AccessFixtures.REGION
 import me.ahoo.wow.query.policy.AccessFixtures.caller
 import me.ahoo.wow.query.policy.AccessFixtures.documents
 import me.ahoo.wow.query.policy.AccessFixtures.record
 import me.ahoo.wow.query.policy.AccessFixtures.state
+import me.ahoo.wow.query.state.StateVisibility
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -98,6 +102,23 @@ class AccessQueryEngineTest {
         }
 
     @Test
+    fun `a policy should compare the owner and the space of each snapshot, whatever the caller's scope`(): Unit =
+        runBlocking {
+            storage.save(record(NOTE, "n-space", space = "s1"))
+            val notes = accessPolicy<NoteState> {
+                readWrite { caller ->
+                    anyOf(AccessAttribute.OWNER eq caller.subject, AccessAttribute.SPACE eq caller.claim("space"))
+                }
+            }
+            val engine = engine(documents, notes)
+            engine.ids(NOTE, caller("alice")).assert().containsExactly("n-alice")
+            engine.ids(NOTE, caller("bob", "space" to listOf("s1"))).assert().containsExactly("n-space")
+            // A caller acting in a space of its own reads the documents by their policy, not by that space.
+            engine.ids(DOCUMENT, caller("bob", scope = Scope("bob", "s9"))).assert().containsExactly("d-hr")
+            AccessQueryPolicy(engine.access).events.assert().isEqualTo(EventsMode.PINNED)
+        }
+
+    @Test
     fun `an aggregate without a policy should still be read by its caller's owner and space`(): Unit = runBlocking {
         val engine = engine(documents)
         engine.ids(NOTE, alice).assert().containsExactly("n-alice")
@@ -124,6 +145,8 @@ class AccessQueryEngineTest {
         engine.reads.admitted(caller("bob"), hr)!!["title"].stringValue().assert().isEqualTo("d-hr")
         // Its history is read as the aggregate is now: masked, and checked by no policy again.
         engine.reads.history(hr)["title"].stringValue().assert().isEqualTo("d-hr")
+        ReadFacade.NONE.history(hr)["title"].stringValue().assert().isEqualTo("d-hr")
+        StateVisibility.masked(null, hr)["title"].stringValue().assert().isEqualTo("d-hr")
     }
 
     @Test
@@ -168,6 +191,9 @@ class AccessQueryEngineTest {
         }
         pinned(DOCUMENT).assert().isTrue()
         pinned(NOTE).assert().isFalse()
+        // Its streams show when its snapshot does: the policy adds nothing of its own on them.
+        engine.events(DOCUMENT)!!.list(ListQuery(AggregateIdFilter("d-hr"), limit = 10), caller("bob")).toList()
+            .assert().isEmpty()
     }
 
     @Test
@@ -181,6 +207,7 @@ class AccessQueryEngineTest {
             val hr = state(record(DOCUMENT, "d-hr", mapOf("department" to "hr")))
             engine.reads.admitted(alice, hr).assert().isNull()
             engine.reads.admitted(caller("dave", "departments" to listOf("hr")), hr).assert().isNotNull()
+            engine.reads.history(hr)["title"].stringValue().assert().isEqualTo("d-hr")
         }
 
     @Test

@@ -99,6 +99,8 @@ class AccessPoliciesTest {
         val wrong = accessPolicy<SharedState>(aggregate = DOCUMENT) { readWrite { allowAll() } }
         assertThrows<IllegalStateException> { of(documents, wrong, aggregatesOf = aggregatesOf) }.message.assert()
             .contains("names docs.document, which is not an aggregate of this node whose state is")
+        // Its state's aggregates are this node's: naming another is a mistake, whichever contexts the node hosts.
+        assertThrows<IllegalStateException> { of(documents, wrong, strict = false, aggregatesOf = aggregatesOf) }
     }
 
     @Test

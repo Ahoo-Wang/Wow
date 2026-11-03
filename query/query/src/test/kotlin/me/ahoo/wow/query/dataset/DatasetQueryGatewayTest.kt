@@ -138,8 +138,13 @@ class DatasetQueryGatewayTest {
             admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents).assert().isSameAs(MatchNoneFilter)
             val open = accessPolicy<AccessFixtures.DocumentState> { readWrite { allowAll() } }
             admitted(bound(AccessFixtures.DOCUMENT), open).assert().isInstanceOf(TenantIdFilter::class.java)
-            // An aggregate without a policy of its own: the dataset's owner column, as for any dataset.
+            // An aggregate without a policy of its own, or none bound: the dataset's owner column, as for any dataset.
             (admitted(bound(AccessFixtures.NOTE), AccessFixtures.documents) as AndFilter).operands.assert().hasSize(2)
+            (admitted(orders, AccessFixtures.documents) as AndFilter).operands.assert().hasSize(2)
+            // A dataset that cannot be queried answers no record: none is masked by a policy's rules.
+            val record = WowJson.mapper.createObjectNode().put("city", "Hangzhou")
+            UnavailableDatasetQueryGateway(orders.withUnavailable("rebuilding")).maskRecord(record).assert()
+                .isSameAs(record)
         }
 
     @Test

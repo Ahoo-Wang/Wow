@@ -288,6 +288,11 @@ class HostQueryTest {
         }
         generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }
             .any { "is of no aggregate of this node" in it }.assert().isTrue()
+        // A node of some of the service's contexts leaves such a policy to the node that hosts its aggregate.
+        startHost(
+            "wow.contexts.include" to BANK,
+            sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java),
+        ).use { host -> host.context.getBean(QueryEngine::class.java).access.governed.assert().isEmpty() }
     }
 
     @Test

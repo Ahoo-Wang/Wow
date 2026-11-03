@@ -35,8 +35,6 @@ import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryModelProfile
-import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.concurrent.ConcurrentHashMap
 
@@ -101,7 +99,6 @@ class AccessPolicies private constructor(
          * state, so only a policy built against another version of the state names one its aggregate does not declare.
          */
         @JvmStatic
-        @JvmOverloads
         fun of(
             manifest: Manifest,
             contexts: Set<String>,
@@ -219,20 +216,12 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         }
         val type = context.aggregateType
         val policy = access.of(type) ?: return MatchAllFilter
-        return when (context.schema.model) {
-            QueryModel.SNAPSHOT -> snapshots(type, policy.read(acting), profile)
-            QueryModel.EVENTS -> MatchAllFilter
-            // Records the policy cannot be evaluated on.
-            else -> MatchNoneFilter
-        }
+        // The events are pinned to the snapshots; any other model of an aggregate is its snapshots'.
+        return if (context.schema.model == QueryModel.EVENTS) MatchAllFilter else snapshots(type, policy.read(acting))
     }
 
-    private fun snapshots(
-        type: AggregateType,
-        predicate: AccessPredicate,
-        profile: QueryModelProfile?,
-    ): FilterExpression {
-        val filter = AccessFilters.compile(predicate) { attribute -> fieldOf(type, attribute, profile) }
+    private fun snapshots(type: AggregateType, predicate: AccessPredicate): FilterExpression {
+        val filter = AccessFilters.compile(predicate) { attribute -> fieldOf(type, attribute) }
         return when (filter) {
             MatchNoneFilter -> MatchNoneFilter
             MatchAllFilter -> RECORDED
@@ -241,11 +230,7 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
     }
 
     /** The field [attribute] of [type] is stored under on its snapshots, or null when [type] does not have it. */
-    private fun fieldOf(
-        type: AggregateType,
-        attribute: AccessAttribute<*, *>,
-        profile: QueryModelProfile?,
-    ): QueryField<*>? {
+    private fun fieldOf(type: AggregateType, attribute: AccessAttribute<*, *>): QueryField<*>? {
         if (!access.declares(type, attribute)) {
             if (undeclared.add(type to attribute.name)) {
                 logger.warn {
@@ -256,19 +241,20 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
             return null
         }
         return when (attribute) {
-            AccessAttribute.OWNER -> systemField(profile, SystemField.OWNER_ID)
-            AccessAttribute.SPACE -> systemField(profile, SystemField.SPACE_ID)
+            AccessAttribute.OWNER -> OWNER
+            AccessAttribute.SPACE -> SPACE
             else -> QueryField("${SnapshotFields.ACCESS}.${attribute.name}")
         }
     }
-
-    private fun systemField(profile: QueryModelProfile?, field: SystemField): QueryField<*> =
-        profile?.systemField(field) ?: QueryModelProfile.metadataField(field)
 
     private companion object {
         val logger = KotlinLogging.logger {}
 
         /** A snapshot whose access attributes are recorded. */
         val RECORDED = IsNotNullFilter(QueryField(SnapshotFields.ACCESS))
+
+        /** The snapshot's owner and space, the built-in attributes. */
+        val OWNER = QueryField(SnapshotFields.OWNER_ID)
+        val SPACE = QueryField(SnapshotFields.SPACE_ID)
     }
 }

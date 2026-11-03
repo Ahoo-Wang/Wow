@@ -145,7 +145,7 @@ class CoSecCallerResolverTest {
 
     @Test
     fun `an attribute of the principal named as one CoSec gives the caller is not a claim`() {
-        callerOf("alice;acme;editor;;roles=admin,policies=all,app=other,dept=")!!.attributes.assert().isEqualTo(
+        callerOf("alice;acme;editor;;roles=admin,policies=all,app=other,dept=, =x")!!.attributes.assert().isEqualTo(
             mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
         )
     }
