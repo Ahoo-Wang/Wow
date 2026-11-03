@@ -14,7 +14,7 @@
 package me.ahoo.wow.viewstore.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import org.junit.jupiter.api.Test
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -41,7 +41,7 @@ class ViewStoreSwaggerUiTest {
         startViewStore().use { node ->
             val docs = get(node, "/v3/api-docs")
             docs.statusCode().assert().describedAs(docs.body()).isEqualTo(OK)
-            docs.body().assert().contains("\"/view-store/", "\"${DevelopmentCallerResolver.USER}\"")
+            docs.body().assert().contains("\"/view-store/", "\"${DevelopmentHeaders.USER}\"")
                 // The internal port's routes are never in it.
                 .doesNotContain("/wow/internal/", "/wow/node/")
             get(node, "/swagger-ui.html").statusCode().assert().isEqualTo(OK)
@@ -53,7 +53,7 @@ class ViewStoreSwaggerUiTest {
         startViewStore(profiles = listOf("cosec")).use { node ->
             val docs = get(node, "/v3/api-docs")
             docs.statusCode().assert().describedAs(docs.body()).isEqualTo(OK)
-            docs.body().assert().contains("\"bearer\"").doesNotContain(DevelopmentCallerResolver.USER)
+            docs.body().assert().contains("\"bearer\"").doesNotContain(DevelopmentHeaders.USER)
         }
     }
 

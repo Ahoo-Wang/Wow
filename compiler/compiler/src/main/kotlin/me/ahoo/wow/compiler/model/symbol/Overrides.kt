@@ -26,16 +26,13 @@ internal fun KSFunctionDeclaration.annotatedIn(annotation: String): KSFunctionDe
         function.annotations.any { it.isOf(annotation) }
     }
 
-/** The [annotation] of this function, or of the nearest one it overrides ([annotatedIn]). */
-internal fun KSFunctionDeclaration.annotationIn(annotation: String): KSAnnotation? =
-    annotatedIn(annotation)?.annotations?.firstOrNull { it.isOf(annotation) }
-
 /**
  * The name this subscription handler goes by in its subscription, `processor.name`: its `@Name` (or the one of the
- * function it overrides), else its own name. A blank `@Name` is one of [problems], described as [where].
+ * function it overrides), else its own name. A blank `@Name`, or one without a value, is one of [problems], the
+ * former described as [where].
  */
 internal fun KSFunctionDeclaration.handlerName(where: String, problems: MutableList<String>): String {
-    val named = annotationIn(NAME)?.arguments?.firstOrNull { it.name?.asString() == "value" }?.value as? String
+    val named = annotatedIn(NAME)?.declaredName(problems)
     if (named != null && named.isBlank()) {
         problems += "$where has a blank @Name: a handler's @Name names its subscription"
     }

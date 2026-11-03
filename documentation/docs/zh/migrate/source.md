@@ -172,7 +172,7 @@ fun onOrderSubmitted(
 ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
-处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
+处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。读取 9.x 只读状态聚合标签的 Saga，改读 `event.tags`，即提交之后聚合的标签，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
 
 9.x 服务在 Simba 或 `@Scheduled` 里运行的周期作业，如果是从到期的内容推导命令，就是 Saga 的一个 `@OnSchedule` 处理函数，按 cron 规则运行；要等每条命令的结果再发下一条的作业，留在 Wow 之外，通过 `CommandClient` 发送（[定时命令](../guide/scheduling)）。9.x 把已存储事件重新投递给某个处理函数的回填，在 V10 中是一个新名字的处理函数，带 `@OnEvent(start = OnEvent.Start.BEGINNING)`，从事件流的开头读一遍（[重建与重放](../operate/replay)）。
 

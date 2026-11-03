@@ -20,12 +20,12 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test

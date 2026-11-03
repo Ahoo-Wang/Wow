@@ -404,7 +404,10 @@ class HttpSignalSenderTest {
         java.net.ConnectException("refused").isTransient().assert().isTrue()
         java.net.UnknownHostException("node-2").isTransient().assert().isTrue()
         java.net.http.HttpConnectTimeoutException("connect").isTransient().assert().isTrue()
+        // The JDK client's refusal past the connection's streams: the request was not sent.
+        java.io.IOException("too many concurrent streams").isTransient().assert().isTrue()
         java.net.http.HttpTimeoutException("request").isTransient().assert().isFalse()
+        java.io.EOFException("EOF reached while reading").isTransient().assert().isFalse()
         IllegalStateException("bug").isTransient().assert().isFalse()
     }
 

@@ -110,8 +110,7 @@ tasks.test {
 
 - 加上 `wow-kernel`，生成的模型和绑定索引建立在它之上；
 - 应用 KSP 和插件同版本的 `wow-compiler`，把模块的聚合编译为模型和它的那部分契约，并让构建中的 KSP 任务逐个运行：在同一个 Gradle 守护进程中重叠的 KSP 运行可能读不到自己的类路径，于是对没能解析的部分什么都不生成；
-- 用模块中类型的 JSON Schema 补全这部分（`generateWowManifestFragment`），并提供给声明它的 api 模块；
-- 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[测试领域代码](../guide/testing)）。
+- 用模块中类型的 JSON Schema 补全这部分（`generateWowManifestFragment`），并提供给声明它的 api 模块。
 
 `wow { }` 块用于配置它：
 
@@ -156,7 +155,8 @@ dependencies {
 `me.ahoo.wow.service` 对服务器自己的源码（它的路由、Saga 和投影；没有则什么也不做）做 `me.ahoo.wow` 做的事，并且：
 
 - 把运行时类路径上的各部分合并成服务的 Manifest，即 `build/wow/manifest.json`（`mergeWowManifest`），并写出它的 OpenAPI 文档（`generateWowOpenApi`）；
-- 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）。
+- 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）；
+- 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。
 
 合并后的 Manifest 描述其上下文的契约写明的服务（各领域模块的 `wow { service }`，包括它自己的），这些名字须一致，否则以服务器的项目路径命名（`:catalog-server` 即 `catalog-server`），版本取项目的版本。它的 `wow { }` 块另有：
 

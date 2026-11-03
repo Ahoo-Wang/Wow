@@ -25,6 +25,7 @@ import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import org.junit.jupiter.api.Test
@@ -108,11 +109,11 @@ class SpringdocMergeTest {
             SignedInCallerResolver(CallerResolver.ANONYMOUS)
         ).assert().isEqualTo(WowOpenApiSecurity.NONE)
         WowOpenApiSecurity.DEVELOPMENT.schemes.keys.assert().containsExactly(
-            DevelopmentCallerResolver.USER,
-            DevelopmentCallerResolver.OWNER,
-            DevelopmentCallerResolver.ROLES,
-            DevelopmentCallerResolver.TENANT,
-            DevelopmentCallerResolver.APP,
+            DevelopmentHeaders.USER,
+            DevelopmentHeaders.OWNER,
+            DevelopmentHeaders.ROLES,
+            DevelopmentHeaders.TENANT,
+            DevelopmentHeaders.APP,
         )
         WowOpenApiSecurity.DEVELOPMENT.schemes.values.map { it.name }.assert()
             .isEqualTo(WowOpenApiSecurity.DEVELOPMENT.schemes.keys.toList())

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -65,7 +66,29 @@ class ProcessorDslTest {
         evolve<OrderPaid> { paid += it.amount }
     }
 
+    /** The order whose total is a tag of its own (`@Tags`) while it is unpaid. */
+    private val taggedModel: AggregateModel<Order> = aggregate("shop", "order") {
+        initial { Order(it.id) }
+        evolve<OrderPlaced> { total = it.total }
+        evolve<OrderPaid> { paid += it.amount }
+        tags { if (it.paid == 0) mapOf("total" to listOf(it.total.toString())) else emptyMap() }
+    }
+
     private val stock = AggregateType("inventory", "stock")
+
+    /** Reserves an order's total in the stock of each region its tags name (decision D385). */
+    private fun regionalHandlers(): List<ProcessorBinding<*>> = listOf(
+        ProcessorBinding.saga(
+            "RegionalSaga",
+            "onOrder",
+            Order::class.java,
+            derives = listOf(ReserveStock::class.java),
+        ) { event: StateEvent<Order>, _ ->
+            event.tags["region"].orEmpty().map { region ->
+                CommandRequest.to(stock.ref(event.ref.tenantId, region), ReserveStock(event.ref.id, event.state.total))
+            }
+        },
+    )
 
     /** Reserves the unpaid part of an order's total, and cancels the order when the inventory refuses. */
     private fun sagaHandlers(retry: HandlerRetry? = null, fail: (Order) -> Unit = {}): List<ProcessorBinding<*>> {
@@ -149,6 +172,54 @@ class ProcessorDslTest {
         assertThrownBy<IllegalArgumentException> {
             GivenAggregate(orderModel, stock.ref("acme", "mug"), emptyList(), Scope.NONE)
         }.hasMessageContaining("shop.order")
+    }
+
+    @Test
+    fun `a saga should read the tags a state event built by hand gives, none by default`() =
+        sagaSpec(regionalHandlers()) {
+            val ref = orderModel.type.ref(DEFAULT_TENANT, "order-1")
+            val placed = Order("order-1").apply { total = 3 }
+            val tagged = stateEvent(ref, placed, OrderPlaced(3), tags = mapOf("region" to listOf("eu", "us")))
+            tagged.tags.assert().isEqualTo(mapOf("region" to listOf("eu", "us")))
+            whenEvent(tagged) {
+                expectCommands(
+                    stock.ref(DEFAULT_TENANT, "eu") to ReserveStock("order-1", 3),
+                    stock.ref(DEFAULT_TENANT, "us") to ReserveStock("order-1", 3),
+                )
+            }
+            val untagged = stateEvent(ref, placed, OrderPlaced(3), version = 2)
+            untagged.tags.assert().isEmpty()
+            whenEvent(untagged) { expectNoCommand() }
+        }
+
+    @Test
+    fun `a given aggregate's commit should carry its tags after it, as the kernel keeps them`() {
+        val order = GivenAggregate(
+            taggedModel,
+            taggedModel.type.ref("acme", "order-1"),
+            listOf(OrderPlaced(10), TagsApplied.of(mapOf("region" to listOf("eu"), "total" to listOf("0")))),
+            Scope.NONE,
+        )
+        // The applied tags of the history, the key the state derives overriding them.
+        val placed = order.commit(listOf(OrderPlaced(12)), null, emptyMap(), null)
+        placed.tags.assert().isEqualTo(mapOf("region" to listOf("eu"), "total" to listOf("12")))
+        // A key the state no longer derives keeps its last derived value, until a TagsApplied leaves it out.
+        val paid = order.commit(listOf(OrderPaid(4)), null, emptyMap(), null)
+        paid.tags.assert().isEqualTo(mapOf("region" to listOf("eu"), "total" to listOf("12")))
+        val moved = order.commit(listOf(TagsApplied.of(mapOf("region" to listOf("us")))), null, emptyMap(), null)
+        moved.tags.assert().isEqualTo(mapOf("region" to listOf("us")))
+        // A commit handed again carries the tags it was handed with.
+        order.handed(placed.version).tags.assert().isEqualTo(placed.tags)
+        // An aggregate with no tags hands over none.
+        GivenAggregate(orderModel, orderModel.type.ref("acme", "order-2"), listOf(OrderPlaced(1)), Scope.NONE)
+            .commit(listOf(OrderPaid(1)), null, emptyMap(), null).tags.assert().isEmpty()
+    }
+
+    @Test
+    fun `a saga should read the tags of a given aggregate's commit`() = sagaSpec(regionalHandlers()) {
+        givenAggregate(taggedModel, "order-1", OrderPlaced(10), TagsApplied.of(mapOf("region" to listOf("eu"))))
+        whenEvent(OrderPaid(4)) { expectCommand(ReserveStock("order-1", 10), to = stock.ref(DEFAULT_TENANT, "eu")) }
+        whenEvent(TagsApplied.of(emptyMap())) { expectNoCommand() }
     }
 
     @Test

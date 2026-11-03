@@ -15,13 +15,11 @@ package me.ahoo.wow.compiler.model.symbol
 
 import com.google.devtools.ksp.symbol.KSAnnotated
 
-private const val SUPPRESS = "kotlin.Suppress"
+private const val NAMES = "names"
 
 /**
  * Whether this declaration is annotated `@Suppress` naming [name]. The annotation is kept only in the source, which
- * is what the processor reads.
+ * is what the processor reads. A `@Suppress` without a value is one of [problems] ([argumentsOf]).
  */
-internal fun KSAnnotated.suppresses(name: String): Boolean = annotations.any { annotation ->
-    annotation.isOf(SUPPRESS) &&
-        annotation.arguments.any { argument -> (argument.value as? List<*>)?.contains(name) == true }
-}
+internal fun KSAnnotated.suppresses(name: String, problems: MutableList<String>): Boolean =
+    argumentsOf(Suppress::class, problems)?.strings(NAMES)?.contains(name) == true

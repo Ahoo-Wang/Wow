@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -68,9 +69,9 @@ class HostCallerResolverRequiredTest {
             val resolver = host.context.getBean(CallerResolver::class.java)
             resolver.assert().isSameAs(CallerResolver.ANONYMOUS)
             val named = MockServerRequest.builder()
-                .header(DevelopmentCallerResolver.USER, "mallory")
-                .header(DevelopmentCallerResolver.ROLES, "admin")
-                .header(DevelopmentCallerResolver.TENANT, "other")
+                .header(DevelopmentHeaders.USER, "mallory")
+                .header(DevelopmentHeaders.ROLES, "admin")
+                .header(DevelopmentHeaders.TENANT, "other")
                 .build()
             runBlocking { resolver.resolve(named) }.assert().isSameAs(Caller.ANONYMOUS)
             host.post("/bank/account/open-account", """{"owner":"gina"}""").status.assert().isEqualTo(200)
@@ -83,12 +84,12 @@ class HostCallerResolverRequiredTest {
             host.post(
                 "/bank/account/open-account",
                 """{"owner":"hank"}""",
-                mapOf(DevelopmentCallerResolver.USER to "hank", DevelopmentCallerResolver.OWNER to "hank"),
+                mapOf(DevelopmentHeaders.USER to "hank", DevelopmentHeaders.OWNER to "hank"),
             ).status.assert().isEqualTo(200)
             val resolver = host.context.getBean(CallerResolver::class.java)
             val named = MockServerRequest.builder()
-                .header(DevelopmentCallerResolver.USER, "hank")
-                .header(DevelopmentCallerResolver.OWNER, "hank")
+                .header(DevelopmentHeaders.USER, "hank")
+                .header(DevelopmentHeaders.OWNER, "hank")
                 .build()
             runBlocking { resolver.resolve(named) }!!.subject.assert().isEqualTo("hank")
         }

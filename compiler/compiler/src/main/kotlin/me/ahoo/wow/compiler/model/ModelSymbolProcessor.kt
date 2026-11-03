@@ -362,13 +362,17 @@ internal class ModelSymbolProcessor(
     /** The bounded context of the module's types, when an option or a single `@BoundedContext` names it. */
     private fun context(): String? = manifest.context ?: boundedContexts.keys.singleOrNull()
 
-    /** An `@Upgrade` of a class that is not an event of an aggregate of the module upgrades nothing. */
+    /**
+     * An `@Upgrade` of a class that is not an event of an aggregate of the module upgrades nothing; its own problems,
+     * an argument of its annotation without a value among them, are reported with it.
+     */
     private fun reportUnclaimedUpgrades() {
         if (mode != Mode.GENERATE) {
             return
         }
         (upgrades - claimedUpgrades - reportedUpgrades).forEach { upgrade ->
             reportedUpgrades += upgrade
+            upgrade.problems.forEach { logger.error(it, upgrade.declaration) }
             val event = upgrade.event ?: "an unresolved class"
             logger.error(
                 "upgrade ${upgrade.name} upgrades $event, which is not an event of an aggregate of this module",
@@ -602,6 +606,7 @@ internal class ModelSymbolProcessor(
         ).bufferedWriter().use { it.write(ModelSource.render(binding, context())) }
         if (queryApi == true) {
             QueryPropertiesSource.generate(codeGenerator, RootStateResolver.stateOf(root), propertiesOf)
+                .forEach { logger.error("${binding.root}: $it", root) }
         }
     }
 

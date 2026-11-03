@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
@@ -128,7 +129,7 @@ class LibrarianRole : QueryPolicy {
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val who = caller.caller ?: return MatchAllFilter
-        val roles = who.attributes[DevelopmentCallerResolver.ROLES_ATTRIBUTE].orEmpty()
+        val roles = who.attributes[DevelopmentHeaders.ROLES_ATTRIBUTE].orEmpty()
         if (context.aggregateType.context == LIBRARY && LIBRARIAN !in roles) {
             throw QueryRequestException(
                 "${who.subject} reads no book: it needs $LIBRARIAN.",

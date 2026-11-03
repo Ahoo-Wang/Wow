@@ -182,7 +182,7 @@ A command sent to a context's command topic, and a command forwarded between the
 | `scope`, `operator`, `headers`, `causation` | As admission established them for the root command; a saga's command inherits them. |
 | `replyTo` | Only on a command a saga sent to another context: `{context, subscription, ref, version, committed}`, the saga's commit to send the receipt for; `committed` asks for a receipt on success too. |
 
-The topic's partition is the one the target context's log assigns to `ref`, so the topic has as many partitions as that log. The wait plan does not travel with the command; the wait context of an open wait goes in `transport`:
+The topic's partition is the one the target context's log assigns to `ref`, so the topic has as many partitions as that log. A producer that is not a Wow node sets it on the record, because Kafka's own partitioner picks another: the 64-bit FNV-1a hash (offset basis `0xcbf29ce484222325`, prime `0x100000001b3`) of the UTF-8 text `context.aggregate/tenant/id`, its low bits `hash & (partitions - 1)`, the partition count being a power of two. The hash is part of the log's storage format and does not change between versions. The wait plan does not travel with the command; the wait context of an open wait goes in `transport`:
 
 <!-- sample: core/runtime/src/test/resources/protocols/command.json -->
 

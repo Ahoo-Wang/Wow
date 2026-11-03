@@ -13,45 +13,35 @@
 
 package me.ahoo.wow.compiler.model.symbol
 
-import com.google.devtools.ksp.symbol.KSAnnotation
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 
 // What Jackson, and so Wow's JSON, makes of a property, as its annotations say: the name it writes it under, and whether
 // it writes it at all. The query fields of a state and the property of a command that holds its aggregate's id follow it.
-
-private const val JSON_PROPERTY = "com.fasterxml.jackson.annotation.JsonProperty"
-private const val JSON_IGNORE = "com.fasterxml.jackson.annotation.JsonIgnore"
-private const val JSON_IGNORE_PROPERTIES = "com.fasterxml.jackson.annotation.JsonIgnoreProperties"
+// A Jackson annotation with an argument without a value is one of the problems ([argumentsOf]).
 
 /** The name Jackson writes this property under: its `@JsonProperty` value, else its own name. */
-internal fun KSPropertyDeclaration.wireName(): String =
-    jacksonAnnotations().filter { it.qualifiedName() == JSON_PROPERTY }
-        .firstNotNullOfOrNull { (it.argument("value") as? String)?.takeIf(String::isNotEmpty) }
-        ?: simpleName.asString()
+internal fun KSPropertyDeclaration.wireName(problems: MutableList<String>): String =
+    jacksonHolders().mapNotNull { it.argumentsOf(JsonProperty::class, problems)?.string(AnnotationArguments.VALUE) }
+        .firstOrNull(String::isNotEmpty) ?: simpleName.asString()
 
 /** Whether this property is `@JsonIgnore`d, on itself, its getter or its primary-constructor parameter. */
-internal fun KSPropertyDeclaration.jsonIgnored(): Boolean = jacksonAnnotations().any { it.isJsonIgnore() }
+internal fun KSPropertyDeclaration.jsonIgnored(problems: MutableList<String>): Boolean =
+    jacksonHolders().mapNotNull { it.argumentsOf(JsonIgnore::class, problems)?.boolean(AnnotationArguments.VALUE) }
+        .any { it }
 
 /** The properties this class's `@JsonIgnoreProperties` names, which Jackson writes none of. */
-internal fun KSClassDeclaration.jsonIgnoredProperties(): Set<String> = annotations
-    .filter { it.qualifiedName() == JSON_IGNORE_PROPERTIES }
-    .flatMap { (it.argument("value") as? List<*>).orEmpty() }
-    .filterIsInstance<String>()
-    .toSet()
+internal fun KSClassDeclaration.jsonIgnoredProperties(problems: MutableList<String>): Set<String> =
+    argumentsOf(JsonIgnoreProperties::class, problems)?.strings(AnnotationArguments.VALUE).orEmpty().toSet()
 
-/** Jackson annotations on the property, its getter, or its primary-constructor parameter. */
-private fun KSPropertyDeclaration.jacksonAnnotations(): List<KSAnnotation> {
+/** Where a Jackson annotation of this property stands: the property, its getter and its primary-constructor parameter. */
+private fun KSPropertyDeclaration.jacksonHolders(): List<KSAnnotated> {
     val name = simpleName.asString()
     val parameter = (parentDeclaration as? KSClassDeclaration)?.primaryConstructor?.parameters
-        ?.firstOrNull { it.name?.asString() == name }?.annotations.orEmpty()
-    return (annotations + getter?.annotations.orEmpty() + parameter)
-        .filter { it.qualifiedName() == JSON_PROPERTY || it.qualifiedName() == JSON_IGNORE }
-        .toList()
+        ?.firstOrNull { it.name?.asString() == name }
+    return listOfNotNull(this, getter, parameter)
 }
-
-private fun KSAnnotation.isJsonIgnore(): Boolean = qualifiedName() == JSON_IGNORE && argument("value") as? Boolean ?: true
-
-private fun KSAnnotation.qualifiedName(): String? = annotationType.resolve().declaration.qualifiedName?.asString()
-
-private fun KSAnnotation.argument(name: String): Any? = arguments.firstOrNull { it.name?.asString() == name }?.value

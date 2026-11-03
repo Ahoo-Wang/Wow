@@ -35,22 +35,27 @@ private val server = wowServer<OrderingServer>(
 - It shortens the timeouts a node waits on at its close (`wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`), so the shutdown between test classes is quick; `properties` add the test's own, here `wow.timers.poll-interval=200ms`, which fires scheduled commands promptly.
 - The application's own settings shorten what the test waits for: here the payment grace period, two seconds instead of thirty minutes.
 
-The ordering's sagas send the inventory's commands, so the node needs a command transport. The test gives it topics in memory instead of Kafka:
+The ordering's sagas send the inventory's commands, so the node needs a command transport. A test server needs nothing for it: its internal port is on the loopback interface, so the node runs for development, and `wow.transport=auto` keeps its command topics and published streams in its JVM unless the application configures a transport. A test that writes to the topics before the node starts, such as another context's published stream a saga reads from its beginning, or servers that share topics, gives them with `topics`:
 
-<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
 ```kotlin
-@Configuration(proxyBeanMethods = false)
-class InMemoryOrderingTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
+@Test
+fun `servers given the same topics should share them, which outlive each`() {
+    val topics = InMemoryTopics(4)
+    wowServer<BankServer>("dev", topics = topics).use { first ->
+        first.bean<InMemoryTopics>().assert().isSameAs(topics)
+        runBlocking { first.commands(Caller.ANONYMOUS).wait(OpenAccount("Bea"), "bea") }
+        wowServer<BankServer>("dev", topics = topics).use { second ->
+            second.bean<SourceTopics>().source.assert().isSameAs(topics)
+        }
+    }
+    eventually("the account's stream published") { topics.messages(ACCOUNTS).size == 1 }
 }
 ```
 
-`wow.transport=memory` does the same from configuration, for trying a service out on one machine.
+- The node takes the topics it is given in place of its own, with `wow.transport=memory`, and leaves them open when it closes, so they outlive each server that shares them.
+- `server.bean<InMemoryTopics>()` is a node's topics, given or its own, to read what its sagas sent and its streams published.
 
 A test then drives the service as a client would, and waits for what happens asynchronously. An order whose stock is confirmed and that is not paid cancels itself when its scheduled command is due:
 
@@ -72,9 +77,101 @@ fun `an order not paid within its grace period should cancel itself`() {
 }
 ```
 
+## Send and read as a caller
+
+The server's typed clients send the commands of the service's api module and read its states, as a caller, with no path and no JSON in the test: `commands(caller)` is a `CommandClient` and `queries(caller)` the caller's `Queries`, both on the server's public port. They are `wow-client`'s, the client a service calls its peers with, in user mode. The caller goes as the development identity headers (`Wow-User`, `Wow-Owner`, `Wow-Roles`, `Wow-Tenant`, `Wow-App`: `UserCredential.DEVELOPMENT`), which the host reads in a development profile when the application has no `CallerResolver` and CoSec is off ([Who the caller is](./http#who-the-caller-is)), so the test starts the server in one, `dev`. The quickstart's bank service, tested so:
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#typed-clients -->
+
+```kotlin
+@Test
+fun `the typed clients should send commands and read states as the caller`() {
+    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val commands = server.commands(alice)
+    runBlocking {
+        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
+
+        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        account.state.balance.assert().isEqualTo(100L)
+        account.operator!!.id.assert().isEqualTo("alice")
+
+        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
+        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    }
+}
+```
+
+- `wait` answers with the result the command's wait plan ends with, which may wait to the end of a saga's chain. A rejection, by the aggregate or at admission (an invalid or unknown command, a forbidden caller), is a `CommandRejectedException` with its error code; any other problem a `WowProblemException`.
+- What no wait plan sees, a scheduled command that fires or a call another service received, a test polls with `eventually("what") { condition }`, every 100 milliseconds for at most 20 seconds by default. A condition that throws, an assertion among them, has not held yet; the failure says what was not reached, with the condition's last failure as its cause.
+- `server.http` stays for the wire itself: a route's shape, a header, a problem's members. `Answer.problem` reads an `application/problem+json` answer as a typed `Problem`: its status, code and violations, the rejected command's result, the aggregate's version, and what a retry may do.
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#problem -->
+
+```kotlin
+@Test
+fun `a problem the server answered should be typed`() {
+    server.http.post("/bank/account/carol/open-account", """{"owner":"Carol"}""").status.assert().isEqualTo(200)
+    val invalid = server.http.post("/bank/account/carol/deposit", """{"amount":0}""").problem!!
+    invalid.status.assert().isEqualTo(400)
+    invalid.code.assert().isEqualTo("wow.command.invalid")
+    val violation = invalid.violations.single()
+    violation.path.assert().isEqualTo("amount")
+    violation.code.assert().isEqualTo("positive")
+
+    val rejected = server.http.post("/bank/account/carol/withdraw", """{"amount":1}""").problem!!
+    rejected.status.assert().isEqualTo(409)
+    rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+    rejected.version.assert().isEqualTo(1)
+    rejected.retry.assert().isEqualTo(Retry.NONE)
+}
+```
+
+## Fake the services it calls
+
+A saga that calls another service synchronously, a command to that service's internal port, is tested without the service: `fakePeer(context)` stands in for it, built from the contract its api module carries on the test's class path, and `wowServer(…, peers = listOf(peer))` points the server at it (`wow.peers.<context>.url`). The fake records each call it takes: the command, decoded to its class, the service that sent it, and the root command the call acts for, with its tenant, scope and operator. The basket's checkout calls the ordering so:
+
+<!-- sample: fragment -->
+
+```kotlin
+fakePeer("eshop-ordering").use { ordering ->
+    wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
+        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
+        val call = ordering.called<SubmitOrder>()
+        call.service.assert().isEqualTo("eshop-basket-service")
+        call.operator!!.id.assert().isEqualTo("alice")
+        call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
+    }
+}
+```
+
+- `called<C>()` takes the first call of the command class `C` that it has not given back yet, waiting at most 20 seconds; `calls` lists them all.
+- The fake answers each call as `answer { call -> … }` says. `PeerAnswer.succeeded(id, version)`, the default, commits the command at version 1 to the call's aggregate, or to a new one for a creation that names none. `PeerAnswer.rejected(code, message)` answers with the status the peer's contract gives the code: its error tables, else 422 for a domain rejection. `PeerAnswer.timedOut()` answers 504 `wow.wait.timeout`, which the caller may send again with the same request id.
+- It refuses a request that names no service (`Wow-Service`) or no root command (`Wow-Call`) with 403 `wow.auth.forbidden`, as a peer's internal port does.
+
 ## Run it on real stores
 
-The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. The plugins give a module a test suite of its own for them, `integrationTest`, outside `check`, so the unit tests stay fast and need no Docker:
+The memory backend answers the snapshot and events queries from memory, by the in-memory engine, and writes no warehouse. A test of a store's schema, of its own query engine and of the warehouse runs the service on the stores themselves, started by Testcontainers. `me.ahoo.wow.service` registers a test suite of its own for them, `integrationTest`, which `check` does not run, so the unit tests stay fast and need no Docker: its sources go under `src/integrationTest/kotlin`, and `./gradlew integrationTest` runs them. The suite runs on JUnit Jupiter, against the module's classes and everything `testImplementation` gives; the plugin adds nothing else, so the build script declares what the tests need, Testcontainers among them:
+
+```kotlin
+testing {
+    suites {
+        named<JvmTestSuite>("integrationTest") {
+            dependencies {
+                implementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+                implementation("org.testcontainers:testcontainers-postgresql")
+            }
+        }
+    }
+}
+```
+
+The build script runs after its plugins, so it configures their suite (`named`) instead of registering one: a second suite of that name fails the build. A build that sets up its integration tests before the plugin applies, as a suite or a source set named `integrationTest` (from a convention plugin applied first, or from the root build), keeps them as they are, and the plugin registers nothing.
+
+The tests start the containers and run the service on them:
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 

@@ -96,6 +96,29 @@ class StateEventTest {
     }
 
     @Test
+    fun `a state event carries the aggregate's tags after the commit, none by default`() {
+        val tags = mapOf("region" to listOf("eu", "us"))
+        stateEvent().tags.assert().isEmpty()
+        val tagged = stateEvent().copyWith(tags = tags)
+        tagged.tags.assert().isEqualTo(tags)
+        tagged.assert().isNotEqualTo(stateEvent())
+        tagged.toString().assert().contains("tags=$tags")
+        tagged.copyWith(version = 4).tags.assert().isEqualTo(tags)
+        StateTypedEvent.of<Map<String, Int>, String>(tagged, 0).tags.assert().isEqualTo(tags)
+        val deferred = StateEvent.deferred(
+            ref = ref,
+            version = 3,
+            commandId = "cmd-3",
+            requestId = "req-3",
+            commandType = "example.cart.AddItem",
+            commitTime = 42,
+            events = listOf("ItemAdded"),
+            tags = tags,
+        ) { mapOf("items" to 1) }
+        deferred.assert().isEqualTo(tagged)
+    }
+
+    @Test
     fun `a state event holds a committed stream`() {
         assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(version = 0) }
         assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(commandId = " ") }

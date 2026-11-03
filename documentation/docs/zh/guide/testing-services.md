@@ -35,22 +35,27 @@ private val server = wowServer<OrderingServer>(
 - 它缩短节点关闭时等待的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`），让测试类之间的关闭很快；`properties` 加上测试自己的属性，这里是 `wow.timers.poll-interval=200ms`，让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 
-ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试给它内存中的主题，而不是 Kafka：
+ordering 的 Saga 会发送 inventory 的命令，所以节点需要命令传输。测试服务器为此什么都不用写：它的内部端口在回环网卡上，所以节点运行于开发模式，`wow.transport=auto` 就把命令主题和发布流留在它的 JVM 里，除非应用配置了传输。测试要在节点启动前往主题里写入（例如 Saga 要从头读的别的上下文的发布流），或者几个服务器共用主题，就用 `topics` 给出：
 
-<!-- sample: examples/eshop/ordering/ordering-server/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingServerTest.kt#topics -->
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TestTopicsTest.kt#topics -->
 
 ```kotlin
-@Configuration(proxyBeanMethods = false)
-class InMemoryOrderingTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
+@Test
+fun `servers given the same topics should share them, which outlive each`() {
+    val topics = InMemoryTopics(4)
+    wowServer<BankServer>("dev", topics = topics).use { first ->
+        first.bean<InMemoryTopics>().assert().isSameAs(topics)
+        runBlocking { first.commands(Caller.ANONYMOUS).wait(OpenAccount("Bea"), "bea") }
+        wowServer<BankServer>("dev", topics = topics).use { second ->
+            second.bean<SourceTopics>().source.assert().isSameAs(topics)
+        }
+    }
+    eventually("the account's stream published") { topics.messages(ACCOUNTS).size == 1 }
 }
 ```
 
-`wow.transport=memory` 从配置做到同样的事，用于在一台机器上试用服务。
+- 节点用给它的主题代替自己的，并设 `wow.transport=memory`；关闭时不关闭这些主题，所以它们比共用它们的每个服务器都活得久。
+- `server.bean<InMemoryTopics>()` 是节点的主题，无论是给的还是它自己的，用来读它的 Saga 发出的命令、它的流发布的记录。
 
 然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 
@@ -72,9 +77,101 @@ fun `an order not paid within its grace period should cancel itself`() {
 }
 ```
 
+## 以调用者身份发送与读取 {#send-and-read-as-a-caller}
+
+服务器的类型化客户端以调用者的身份发送服务 api 模块里的命令、读取它的状态，测试里不写路径也不写 JSON：`commands(caller)` 是一个 `CommandClient`，`queries(caller)` 是这个调用者的 `Queries`，都在服务器的公开端口上。它们就是 `wow-client`，服务调用对端用的那个客户端，处于用户模式。调用者以开发身份头发送（`Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant`、`Wow-App`，即 `UserCredential.DEVELOPMENT`），宿主在开发 profile 下、应用没有 `CallerResolver` 且 CoSec 关闭时读取它们（[调用者是谁](./http#who-the-caller-is)），所以测试在开发 profile `dev` 下启动服务器。快速开始的 bank 服务这样测试：
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#typed-clients -->
+
+```kotlin
+@Test
+fun `the typed clients should send commands and read states as the caller`() {
+    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val commands = server.commands(alice)
+    runBlocking {
+        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
+
+        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        account.state.balance.assert().isEqualTo(100L)
+        account.operator!!.id.assert().isEqualTo("alice")
+
+        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
+        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    }
+}
+```
+
+- `wait` 回答命令的等待计划最终的结果，等待计划可以一直等到 Saga 链尾。拒绝，无论来自聚合还是来自准入（无效或未知的命令、被禁止的调用者），是带错误码的 `CommandRejectedException`；其他问题是 `WowProblemException`。
+- 等待计划看不到的东西，例如到期触发的定时命令、另一个服务收到的调用，测试用 `eventually("what") { condition }` 轮询，默认每 100 毫秒一次，最多 20 秒。条件抛出异常（包括断言失败）视为尚未成立；失败时说明哪件事没有达到，并以条件最后一次的失败为原因。
+- `server.http` 留给线上契约本身：路由的形状、请求头、problem 的成员。`Answer.problem` 把 `application/problem+json` 的回答读成类型化的 `Problem`：它的状态、错误码和违规项，被拒命令的结果，聚合的版本，以及重试能做什么。
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#problem -->
+
+```kotlin
+@Test
+fun `a problem the server answered should be typed`() {
+    server.http.post("/bank/account/carol/open-account", """{"owner":"Carol"}""").status.assert().isEqualTo(200)
+    val invalid = server.http.post("/bank/account/carol/deposit", """{"amount":0}""").problem!!
+    invalid.status.assert().isEqualTo(400)
+    invalid.code.assert().isEqualTo("wow.command.invalid")
+    val violation = invalid.violations.single()
+    violation.path.assert().isEqualTo("amount")
+    violation.code.assert().isEqualTo("positive")
+
+    val rejected = server.http.post("/bank/account/carol/withdraw", """{"amount":1}""").problem!!
+    rejected.status.assert().isEqualTo(409)
+    rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+    rejected.version.assert().isEqualTo(1)
+    rejected.retry.assert().isEqualTo(Retry.NONE)
+}
+```
+
+## 伪造它调用的服务 {#fake-the-services-it-calls}
+
+Saga 同步调用另一个服务（向那个服务的内部端口发命令）时，测试不需要那个服务：`fakePeer(context)` 替它出场，按它的 api 模块在测试类路径上携带的契约构建；`wowServer(…, peers = listOf(peer))` 让服务器调用它（`wow.peers.<context>.url`）。假对端记录收到的每次调用：解码成命令类的命令、发出调用的服务，以及调用所代表的根命令及其租户、范围与操作者。basket 的结账这样调用 ordering：
+
+<!-- sample: fragment -->
+
+```kotlin
+fakePeer("eshop-ordering").use { ordering ->
+    wowServer<BasketServer>("dev", peers = listOf(ordering)).use { basket ->
+        val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+        runBlocking { basket.commands(alice).wait(CheckoutBasket, "alice") }
+        val call = ordering.called<SubmitOrder>()
+        call.service.assert().isEqualTo("eshop-basket-service")
+        call.operator!!.id.assert().isEqualTo("alice")
+        call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
+    }
+}
+```
+
+- `called<C>()` 取命令类 `C` 中尚未交出的第一个调用，最多等 20 秒；`calls` 列出全部调用。
+- 假对端按 `answer { call -> … }` 答复每次调用。默认的 `PeerAnswer.succeeded(id, version)` 把命令提交到调用的聚合，版本 1；没有指名聚合的创建则提交到一个新聚合。`PeerAnswer.rejected(code, message)` 用对端契约给这个错误码的状态答复：取它的错误表，领域拒绝没有声明时是 422。`PeerAnswer.timedOut()` 答 504 `wow.wait.timeout`，调用方可以用同一个请求 ID 再发一次。
+- 没有指名服务（`Wow-Service`）或根命令（`Wow-Call`）的请求，它以 403 `wow.auth.forbidden` 拒绝，与对端的内部端口一样。
+
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
-内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。插件为模块注册了单独的测试套件 `integrationTest`，不属于 `check`，这样单元测试保持快速，也不需要 Docker：
+内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。`me.ahoo.wow.service` 为它们注册了单独的测试套件 `integrationTest`，`check` 不会运行它，这样单元测试保持快速，也不需要 Docker：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行。这个套件在 JUnit Jupiter 上运行，能用到模块的类以及 `testImplementation` 提供的一切；插件不再添加别的东西，测试需要什么，包括 Testcontainers，由构建脚本声明：
+
+```kotlin
+testing {
+    suites {
+        named<JvmTestSuite>("integrationTest") {
+            dependencies {
+                implementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+                implementation("org.testcontainers:testcontainers-postgresql")
+            }
+        }
+    }
+}
+```
+
+构建脚本在它的插件之后运行，所以它配置插件的套件（`named`），而不是再注册一个：同名的第二个套件会让构建失败。如果构建在插件应用之前就自己准备好了集成测试，即名为 `integrationTest` 的套件或源码集（来自先应用的约定插件，或来自根构建），插件会原样保留它们，什么也不注册。
+
+测试启动容器，让服务运行在它们上面：
 
 <!-- sample: examples/eshop/ordering/ordering-server/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingAnalyticsTest.kt#containers -->
 

@@ -139,9 +139,11 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Kafka transport | Replaced | A sink for published streams, subscriptions to other contexts' streams, command topics and receipts. |
 | Kafka topic prefix and topic management | Kept | — |
 | Separate producer and consumer settings | 10.x | One `wow.kafka.properties` until then. |
-| BI sync scripts (`/wow/bi/script`) | Replaced | The ClickHouse sink writes the warehouse directly, with flattened views for datasets. |
+| BI sync scripts (`/wow/bi/script`) | Replaced | The ClickHouse sink writes the warehouse directly, with flattened views for datasets. It creates single-node tables: on a cluster the tables are created by hand from the published columns ([Run it on a cluster](../operate/clickhouse#run-it-on-a-cluster)). |
+| ClickHouse command table (`<ctx>_<agg>_command`) | Dropped | The sink writes commits, not commands. A commit keeps its command's id, type and operator; see [Commands are not written](../operate/clickhouse#commands-are-not-written) for a command history. |
 | Nested expansion of state in BI tables | 10.x | — |
 | External consumers of 9.x topics | Dropped | Move each consumer to the V10 published stream at the cut-over. There is no 9.x-format sink. |
+| External producers of commands on 9.x command topics | Replaced | V10 reads `wow.<context>.commands` and no 9.x command record. Move each producer in the cut-over, preferably to the command route ([Move the external command producers](./cutover#move-the-external-command-producers)). |
 
 ## Tenancy and security
 

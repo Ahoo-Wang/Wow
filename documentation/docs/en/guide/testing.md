@@ -279,7 +279,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 | Step | Does |
 | --- | --- |
-| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. A fork advances copies of its own. |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. Each commit carries the aggregate's tags after it, as the kernel keeps them: `TagsApplied.of(tags)` among the events applies tags as `ApplyTags` does, and the keys the state derives (`@Tags`) override them. A fork advances copies of its own. |
 | `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | Commits the events on the given aggregate (`on`, by default the only one) and hands the commit to the handlers that read it. `by` is the command class that committed them, which names the commit's command type as the model does; `handler = "onX"` calls only that handler. |
 | `whenEvent(stateEvent, handler) { … }` | Hands a commit built by hand over ([Peer states and published streams](#peer-states-and-published-streams)). |
 | `whenRedelivered(on, handler) { … }` | Hands the latest commit over again, as a subscription that delivers each commit at least once does after a retry or a rebalance. An idempotent handler does the same again, or nothing. |
@@ -378,7 +378,7 @@ A handler that throws fails the spec unless the step's checks expect it: `expect
 
 ### Peer states and published streams
 
-A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
+A peer's state, which no model of the module sources, is a commit built by hand with `stateEvent(ref, state, vararg events, version, …)`, as `OrderPaymentSagaTest` does; its `tags` are the aggregate's tags after the commit, none by default. A saga that reads another context's published stream gets that context's events; build one by name with `publishedEvent(name, body, revision)` when the other context's classes are not on the test's classpath. `rejectedReceipt` and `committedReceipt` build the receipt of a command another handler derived, for `whenRejected` and `whenCommitted` of a receipt.
 
 ## Projections and reactors
 
@@ -432,7 +432,7 @@ fun `the binding index should name the context and the fragment and build the or
 Domain tests cover the model. A service test starts the application and calls it over HTTP; keep it for what only a running service shows, such as routes, authorization and configuration:
 
 - Run it on the memory backend, with random ports for the public and internal servers and the internal port on the loopback interface.
-- Give the test a caller resolver of its own that reads a test header, so each request has a tenant and an owner.
+- Start it in a development profile (`dev`) without a caller resolver of the application's: the host then reads each request's caller from the development identity headers, which the server's typed clients send for the caller they are given ([Send and read as a caller](./testing-services#send-and-read-as-a-caller)).
 - On the memory backend, the snapshot and events queries are served from memory by default, so a test can query what it wrote; `wow.query.memory.enabled: false` turns them off. They run the in-memory engine, not a real store's.
-- A service whose sagas send commands to another context needs a command transport: Kafka in a container, or `wow.transport=memory`.
-- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the module's `integrationTest` test suite, which the Gradle plugins `me.ahoo.wow` and `me.ahoo.wow.service` register (JUnit Jupiter, the module's classes and everything `testImplementation` gives) and `check` does not run: put the sources under `src/integrationTest/kotlin` and run `./gradlew integrationTest`.
+- A service whose sagas send commands to another context needs a command transport. A test server has one with no configuration: its loopback internal port makes the node a development one, which keeps its topics in its JVM; a test against Kafka runs it in a container.
+- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers, in the service module's `integrationTest` test suite, which the Gradle plugin `me.ahoo.wow.service` registers (JUnit Jupiter, the module's classes and everything `testImplementation` gives) and `check` does not run: put the sources under `src/integrationTest/kotlin`, declare what they need in the suite, and run `./gradlew integrationTest` ([Run it on real stores](./testing-services#run-it-on-real-stores)).

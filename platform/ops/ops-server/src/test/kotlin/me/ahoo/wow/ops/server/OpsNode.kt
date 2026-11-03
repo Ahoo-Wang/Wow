@@ -15,6 +15,9 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.parked.ParkedEntry
@@ -22,9 +25,6 @@ import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
 import me.ahoo.wow.ops.testing.LedgerSimulator
 import me.ahoo.wow.runtime.cluster.CommandWire
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
