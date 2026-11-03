@@ -636,6 +636,9 @@ class ManifestCompatibilityTest {
         changes(BASELINE.addItem { it.copyWith(internal = true) }, BASELINE).assert().containsExactly(
             "ADDITIVE $CART.commands[AddItem].internal: the command was made public: the public port serves its routes",
         )
+        // A command internal on both sides keeps its contract.
+        val internal = BASELINE.addItem { it.copyWith(internal = true) }
+        changes(internal, internal).assert().isEmpty()
         changes(BASELINE.addItem { it.copyWith(produces = null) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CART.commands[AddItem].produces: produced events declared")
         changes(BASELINE.subscription { it.copyWith(derives = null) }, BASELINE)
