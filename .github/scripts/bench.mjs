@@ -93,6 +93,9 @@ const JDK21_PG = onJava(HEAD_PG, 21);
 const JDK25_PG = onJava(HEAD_PG, 25);
 const JDK21_MONGO = onJava(HEAD_MONGO, 21);
 const JDK25_MONGO = onJava(HEAD_MONGO, 25);
+// The `jdk-saturation` suites' closed-loop searches an arm, in turn (ABBA), each from empty stores: the arm's
+// saturation is their median, and their spread its A/A band on the runner (saturationSamples).
+const SATURATION_SAMPLES = 4;
 
 // The mixed suites' operations: writes while point reads and lists run (the query bulkheads, the write priority).
 const MIX = 'E1:50,E4-state:40,E4-list:10';
@@ -123,7 +126,8 @@ const DIAG_RATE = 20;
 
 // Suite groups: `ab` compares the V10 baseline with the head (they need a baseline ref, and are skipped without one),
 // `head` measures the head alone, `axon` the head against Axon Framework 4, `jdk` the head's server on JDK 21 against
-// JDK 25 (the runtime's calibration, D393). `noiseFrom`: the suite whose A/A thresholds (noise.json) a suite takes, a
+// JDK 25 (the runtime's calibration, D393), `jdk-saturation` their closed-loop saturations alone, several an arm (a
+// paired suite's `saturations`). `noiseFrom`: the suite whose A/A thresholds (noise.json) a suite takes, a
 // `jdk` suite its `ab` twin's (the same scenario, backend and layout, paired on the same kind of runner).
 //
 // kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
@@ -492,6 +496,25 @@ export const SUITES = {
     distribution: 'uniform',
     arms: [JDK21_MONGO, JDK25_MONGO],
     answers: 'E1 on MongoDB, as jdk-e1-pg.',
+  },
+  'jdk-e1-pg-saturation': {
+    group: 'jdk-saturation',
+    kind: 'paired',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [JDK21_PG, JDK25_PG],
+    saturations: SATURATION_SAMPLES,
+    answers:
+      "Whether jdk-e1-pg's closed-loop saturation differs between JDK 21 and 25 beyond its A/A band: four searches an arm, ABBA, nothing else.",
+  },
+  'jdk-e3-pg-saturation': {
+    group: 'jdk-saturation',
+    kind: 'paired',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arms: [JDK21_PG, JDK25_PG],
+    saturations: SATURATION_SAMPLES,
+    answers: 'E3 on PostgreSQL, as jdk-e1-pg-saturation.',
   },
 };
 
@@ -1251,6 +1274,40 @@ export function aaSpread(suite, label, key = 'peak') {
 }
 
 /**
+ * A paired suite's closed-loop samples (`saturations`), the second arm's against the first's: each arm's throughputs in
+ * order, the ratio of their medians, and from the lowest second over the highest first to the highest over the lowest.
+ * The A/A spread is the larger of the two arms' (spread); a range within it is level (ratioVerdict).
+ */
+export function saturationSamples(suite) {
+  if (!suite.saturations || suite.arms.length !== 2) return undefined;
+  const [a, b] = suite.arms.map(arm => arm.id);
+  const values = id =>
+    (suite.saturations[id] ?? [])
+      .filter(sample => sample.status === 'ok')
+      .map(sample => sample.throughput);
+  const [first, second] = [values(a), values(b)];
+  if (first.length === 0 || second.length === 0) return undefined;
+  const noise =
+    first.length >= 2 && second.length >= 2
+      ? Math.max(spread(first), spread(second))
+      : undefined;
+  const range = {
+    lo: Math.min(...second) / Math.max(...first),
+    hi: Math.max(...second) / Math.min(...first),
+    bound: '',
+  };
+  return {
+    ids: [a, b],
+    first,
+    second,
+    median: median(second) / median(first),
+    range,
+    noise,
+    verdict: ratioVerdict(range, noise, [b, a]),
+  };
+}
+
+/**
  * What a ratio of two arms' peaks (peakRatio) says beyond the A/A spread `noise`: one arm higher, level, or
  * undetermined. A lower-bound ratio (`≥`) can show the first arm higher only, an upper bound (`≤`) the second.
  */
@@ -1612,13 +1669,22 @@ export function resolveInputs({
   properties,
 }) {
   const groups = {
-    all: ['ab', 'head', 'component', 'axon', 'axon-diag', 'jdk'],
+    all: [
+      'ab',
+      'head',
+      'component',
+      'axon',
+      'axon-diag',
+      'jdk',
+      'jdk-saturation',
+    ],
     ab: ['ab'],
     head: ['head'],
     component: ['component'],
     axon: ['axon'],
     'axon-diag': ['axon-diag'],
     jdk: ['jdk'],
+    'jdk-saturation': ['jdk-saturation'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -2567,6 +2633,24 @@ function sweepTable(suite) {
   ];
 }
 
+/** The closed-loop samples of the suites that took them (saturationSamples), a row a suite. */
+function samplesTable(suites) {
+  return [
+    '| Suite | b/a | a, in order | b, in order | Median ratio | Range | A/A spread | Verdict |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...suites.flatMap(suite => {
+      const samples = saturationSamples(suite);
+      if (!samples) return [];
+      const [a, b] = samples.ids;
+      const list = values => values.map(value => `${num(value)}/s`).join(', ');
+      return [
+        `| ${labelOf(suite)} | ${b}/${a} | ${list(samples.first)} | ${list(samples.second)} | ${ratio(samples.median)} | ` +
+          `${ratio(samples.range.lo)}–${ratio(samples.range.hi)} | ${Number.isFinite(samples.noise) ? `${num(samples.noise * 100)}%` : '-'} | ${samples.verdict} |`,
+      ];
+    }),
+  ];
+}
+
 function saturationTable(suite) {
   if (!suite.saturation || Object.keys(suite.saturation).length === 0)
     return [];
@@ -2635,8 +2719,11 @@ export function renderSuite(suite) {
     definition?.answers ?? '',
     '',
     `${suite.scenario ?? suite.scenarios?.join(' and ') ?? 'scenarios below'}${definition?.mix ? ` (${definition.mix})` : ''}, ${suite.distribution} keys over ${suite.accounts ?? '?'} accounts; warm-up ${suite.warmUp} s, measured ${suite.measure} s` +
-      (suite.kind === 'paired'
+      (suite.kind === 'paired' && !suite.saturations
         ? `, ${suite.fraction * 100}% of saturation, ${suite.repeats} round(s)`
+        : '') +
+      (suite.saturations
+        ? `; closed-loop searches alone, ${SUITES[suite.name]?.saturations ?? '?'} an arm in turn (ABBA), each from empty stores`
         : '') +
       (suite.kind === 'sessions'
         ? ` in open loop, sweeps of ${suite.sweep.step} s steps after ${suite.sweep.warmUp} s, the concurrency ×${suite.sweep.growth} a step to ${suite.sweep.maxConcurrency} and on while it rises, to ${suite.sweep.limit} at most; ${suite.repeats} round(s) of one session per arm, ABBA`
@@ -2660,6 +2747,8 @@ export function renderSuite(suite) {
   }
   const saturation = saturationTable(suite);
   if (saturation.length > 0) lines.push(...saturation, '');
+  const samples = saturationSamples(suite);
+  if (samples) lines.push(...samplesTable([suite]), '');
   if (suite.probes?.length > 0) {
     lines.push(
       'Open-loop calibration probes (not part of the results):',
@@ -2697,7 +2786,8 @@ export function renderSuite(suite) {
       '',
     );
   }
-  if (suite.kind !== 'component') lines.push(...runTable(suite.runs), '');
+  if (suite.kind !== 'component' && !suite.saturations)
+    lines.push(...runTable(suite.runs), '');
   const mixed = suite.runs.filter(run => run.metrics?.byScenario);
   if (mixed.length > 0) {
     const labels = Object.keys(mixed[0].metrics.byScenario);
@@ -3262,7 +3352,31 @@ export function runSuite(name, options) {
     return suite.saturation[key];
   };
 
-  if (definition.kind === 'paired') {
+  if (definition.kind === 'paired' && definition.saturations) {
+    // Closed-loop samples alone: `saturations` searches an arm in turn (ABBA); the arm's saturation is their median.
+    suite.saturations = Object.fromEntries(arms.map(arm => [arm.id, []]));
+    for (let index = 0; index < definition.saturations; index++) {
+      for (const arm of roundOrder(arms, index)) {
+        const key = `${arm.id}-${index + 1}`;
+        suite.saturations[arm.id].push(saturate(arm, key));
+        delete suite.saturation[key];
+      }
+    }
+    for (const arm of arms) {
+      const ok = suite.saturations[arm.id].filter(
+        sample => sample.status === 'ok',
+      );
+      if (ok.length > 0) {
+        suite.saturation[arm.id] = {
+          status: 'ok',
+          throughput: median(ok.map(sample => sample.throughput)),
+          samples: ok.length,
+          capped: ok.some(sample => sample.capped),
+        };
+      }
+    }
+    save();
+  } else if (definition.kind === 'paired') {
     for (const arm of arms) saturate(arm, arm.id);
     const outlier = saturationOutlier(
       suite.saturation,
@@ -3860,6 +3974,17 @@ export function renderReport(suites, meta = {}) {
   for (const suite of suites) {
     lines.push(
       `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB | ${suite.runner?.jdk ?? '?'} | ${layoutOf(suite.cpus)} |`,
+    );
+  }
+  const sampled = suites.filter(suite => saturationSamples(suite));
+  if (sampled.length > 0) {
+    lines.push(
+      '',
+      '## Saturation samples (closed loop)',
+      '',
+      "Closed-loop searches alone, several an arm in turn (ABBA), each from empty stores. The range runs from the lowest b over the highest a to the highest over the lowest; the A/A spread is the larger of the two arms' (their most over their least, less 1), and a range within it is level.",
+      '',
+      ...samplesTable(sampled),
     );
   }
   lines.push(
