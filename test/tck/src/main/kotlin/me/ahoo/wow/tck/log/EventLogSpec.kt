@@ -30,6 +30,9 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -282,6 +285,59 @@ abstract class EventLogSpec {
             // The entries and the request keys read what the stamp wrote.
             log.readEntries(ref, 1, 1).toList().single().stream.access.assert().isEqualTo(north)
             checkNotNull(log.findByRequestId(type, "tenant", history[0].requestId)).access.assert().isEqualTo(north)
+        }
+
+    @Test
+    fun `a type's aggregates are paged once each, in the log's order, whatever their tenants`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
+            val walks = log as AccessWalks
+            val refs = (1..7).flatMap { listOf(type.ref("tenant", "a-$it"), type.ref("tenant ü", "a-$it")) }
+            refs.forEach { ref ->
+                log.append(stream(ref.id, 1, tenant = ref.tenantId))
+                log.append(stream(ref.id, 2, tenant = ref.tenantId))
+            }
+            log.append(stream("a-1", 1, aggregate = other))
+            val pages = ArrayList<AggregatePage>()
+            var after: String? = null
+            do {
+                val page = walks.aggregates(type, after, limit = 3)
+                pages += page
+                after = page.next
+            } while (after != null)
+            pages.flatMap { it.refs }.assert().containsExactlyInAnyOrderElementsOf(refs)
+            pages.dropLast(1).forEach { it.refs.assert().hasSize(3) }
+            val none = walks.aggregates(AggregateType(context, "none"), null, limit = 3)
+            none.assert().isEqualTo(AggregatePage(emptyList(), null))
+        }
+
+    @Test
+    fun `a walk is claimed by its schema, once among concurrent claims, and advances while recorded`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
+            val walks = log as AccessWalks
+            walks.walk(type).assert().isNull()
+            val first = AccessWalk("region:string", mapOf(0 to 4L, 1 to 0L))
+            walks.claim(type, first, expected = "other").assert().isFalse()
+            val claims = (1..4).map { async { walks.claim(type, first, expected = null) } }.awaitAll()
+            claims.count { it }.assert().isEqualTo(1)
+            walks.walk(type).assert().isEqualTo(first)
+            walks.walk(other).assert().isNull()
+
+            walks.advance(type, "region:string", "2:a-b", walked = 2, completed = false).assert().isTrue()
+            walks.walk(type).assert().isEqualTo(first.copy(cursor = "2:a-b", walked = 2))
+            walks.advance(type, "other", null, walked = 9, completed = true).assert().isFalse()
+            walks.advance(other, "region:string", null, walked = 9, completed = true).assert().isFalse()
+
+            // A new schema takes the place of the recorded one, from its start.
+            val second = AccessWalk("region:string,teams:string[]", mapOf(0 to 9L))
+            walks.claim(type, second, expected = null).assert().isFalse()
+            walks.claim(type, second, expected = "region:string").assert().isTrue()
+            walks.walk(type).assert().isEqualTo(second)
+            walks.advance(type, second.schema, null, walked = 5, completed = true).assert().isTrue()
+            walks.walk(type).assert().isEqualTo(second.copy(walked = 5, completed = true))
         }
 
     @Test

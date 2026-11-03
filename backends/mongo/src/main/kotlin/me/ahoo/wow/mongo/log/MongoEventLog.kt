@@ -45,7 +45,9 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
-import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -151,7 +153,7 @@ class MongoEventLog(
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : EventLog,
-    AccessStamps {
+    AccessWalks {
     /** Validates the partition count first: a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
@@ -171,6 +173,9 @@ class MongoEventLog(
 
     /** The registry as a majority has committed it, which [head] reads with the collections' heads. */
     private val committedRegistry: MongoCollection<Document> = registry.withReadConcern(ReadConcern.MAJORITY)
+
+    /** The registry the access walks are claimed in and read from: majority writes and reads, as the counters'. */
+    private val walks: MongoCollection<Document> = committedRegistry.withWriteConcern(WriteConcern.MAJORITY)
     private val appendMillis = appendTimeout.inWholeMilliseconds
 
     private val sequencer =
@@ -318,6 +323,74 @@ class MongoEventLog(
                 Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
             ).matchedCount.toInt()
         }
+    }
+
+    /**
+     * Partition by partition, each by the version key (its aggregates' first streams); the cursor is the partition,
+     * then [AggregatePage.cursorOf] within it.
+     */
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
+        require(limit > 0) { "A page holds at least one aggregate." }
+        return dispatcher.mongo {
+            val log = collections.of(type).log
+            var partition = after?.substringBefore(CURSOR_PARTITION)?.toInt() ?: 0
+            var key = after?.substringAfter(CURSOR_PARTITION)?.let(AggregatePage::keyOf)
+            val refs = ArrayList<AggregateRef>(limit)
+            while (partition < partitions) {
+                val filters = mutableListOf(Filters.eq(PARTITION, partition), Filters.eq(VERSION, 1))
+                key?.let { (id, tenant) ->
+                    filters += Filters.or(
+                        Filters.gt(AGGREGATE_ID, id),
+                        Filters.and(Filters.eq(AGGREGATE_ID, id), Filters.gt(TENANT_ID, tenant)),
+                    )
+                }
+                log.find(Filters.and(filters))
+                    .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID))
+                    .projection(Projections.include(AGGREGATE_ID, TENANT_ID))
+                    .limit(limit - refs.size)
+                    .forEach { refs += type.ref(it.getString(TENANT_ID), it.getString(AGGREGATE_ID)) }
+                if (refs.size == limit) {
+                    break
+                }
+                partition++
+                key = null
+            }
+            val last = refs.takeIf { it.size == limit }?.last()
+            AggregatePage(refs, last?.let { "$partition$CURSOR_PARTITION${AggregatePage.cursorOf(it)}" })
+        }
+    }
+
+    /** The registry document of [type]'s collection, its `access_walk` ([walkOf]); majority read. */
+    override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.mongo {
+        walks.find(Filters.eq(ID, collections.of(type).name)).first()
+            ?.get(ACCESS_WALK, Document::class.java)
+            ?.let(::walkOf)
+    }
+
+    /** One conditional update of the registry document, majority written: concurrent claims serialize on it. */
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.mongo {
+        val recorded = if (expected == null) Filters.eq(ACCESS_WALK, null) else Filters.eq(WALK_SCHEMA, expected)
+        walks.updateOne(
+            Filters.and(Filters.eq(ID, collections.of(type).name), recorded),
+            Updates.set(ACCESS_WALK, documentOf(walk)),
+        ).matchedCount == 1L
+    }
+
+    override suspend fun advance(
+        type: AggregateType,
+        schema: String,
+        cursor: String?,
+        walked: Long,
+        completed: Boolean,
+    ): Boolean = dispatcher.mongo {
+        walks.updateOne(
+            Filters.and(Filters.eq(ID, collections.of(type).name), Filters.eq(WALK_SCHEMA, schema)),
+            Updates.combine(
+                Updates.set("$ACCESS_WALK.$CURSOR", cursor),
+                Updates.set("$ACCESS_WALK.$WALKED", walked),
+                Updates.set("$ACCESS_WALK.$COMPLETED", completed),
+            ),
+        ).matchedCount == 1L
     }
 
     /**
@@ -732,6 +805,33 @@ class MongoEventLog(
         const val OPERATOR = "operator"
         const val ACCESS = "access"
         const val ACCESS_VERSION = "access_version"
+
+        /** A registry document's access walk: `{schema, heads: {partition: head}, cursor, walked, completed}`. */
+        const val ACCESS_WALK = "access_walk"
+        const val SCHEMA = "schema"
+        const val HEADS = "heads"
+        const val CURSOR = "cursor"
+        const val WALKED = "walked"
+        const val COMPLETED = "completed"
+        private const val WALK_SCHEMA = "$ACCESS_WALK.$SCHEMA"
+
+        /** Ends the partition of an [aggregates] cursor. */
+        private const val CURSOR_PARTITION = "/"
+
+        fun documentOf(walk: AccessWalk): Document = Document(SCHEMA, walk.schema)
+            .append(HEADS, Document(walk.heads.toSortedMap().mapKeys { (partition, _) -> partition.toString() }))
+            .append(CURSOR, walk.cursor)
+            .append(WALKED, walk.walked)
+            .append(COMPLETED, walk.completed)
+
+        fun walkOf(document: Document): AccessWalk = AccessWalk(
+            schema = document.getString(SCHEMA),
+            heads = document.get(HEADS, Document::class.java).entries
+                .associate { (partition, head) -> partition.toInt() to (head as Number).toLong() },
+            cursor = document.getString(CURSOR),
+            walked = (document[WALKED] as Number?)?.toLong() ?: 0,
+            completed = document.getBoolean(COMPLETED, false),
+        )
         const val TRANSPORT = "transport"
         const val CONTEXT = "context"
         const val EVENTS = "events"

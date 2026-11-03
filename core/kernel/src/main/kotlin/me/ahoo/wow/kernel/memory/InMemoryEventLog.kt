@@ -23,7 +23,9 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
+import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -37,13 +39,14 @@ import me.ahoo.wow.spi.log.Partitioner
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
- * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created. It keeps each stream's
- * stamp and stamps the access attributes over a history ([AccessStamps]) as the durable logs do.
+ * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created. It keeps each
+ * stream's stamp, stamps the access attributes over a history and records each type's walk ([AccessWalks]) as the
+ * durable logs do; its aggregates are ordered by id, then tenant.
  */
 @InternalWowApi
 class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     EventLog,
-    AccessStamps {
+    AccessWalks {
     init {
         Partitioner.requirePartitions(partitions)
     }
@@ -53,6 +56,9 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
 
     /** The version each stream's access attributes are of, by version; null for a stream not stamped. */
     private val stamps = HashMap<AggregateRef, MutableList<Int?>>()
+
+    /** The walk of each type, as [claim] and [advance] recorded it. */
+    private val walks = HashMap<AggregateType, AccessWalk>()
 
     /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
@@ -107,6 +113,37 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
             }
             written
         }
+
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage = lock.withLock {
+        val key = after?.let(AggregatePage::keyOf)
+        val refs = streams.keys.filter { it.type == type }
+            .sortedWith(compareBy({ it.id }, { it.tenantId }))
+            .dropWhile { key != null && compareValuesBy(it.id to it.tenantId, key, { it.first }, { it.second }) <= 0 }
+            .take(limit)
+        AggregatePage.of(refs, limit)
+    }
+
+    override suspend fun walk(type: AggregateType): AccessWalk? = lock.withLock { walks[type] }
+
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = lock.withLock {
+        if (walks[type]?.schema != expected) {
+            return@withLock false
+        }
+        walks[type] = walk
+        true
+    }
+
+    override suspend fun advance(
+        type: AggregateType,
+        schema: String,
+        cursor: String?,
+        walked: Long,
+        completed: Boolean,
+    ): Boolean = lock.withLock {
+        val walk = walks[type]?.takeIf { it.schema == schema } ?: return@withLock false
+        walks[type] = walk.copy(cursor = cursor, walked = walked, completed = completed)
+        true
+    }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val snapshot = lock.withLock { streams[ref]?.toList().orEmpty() }
