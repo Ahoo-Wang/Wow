@@ -24,10 +24,8 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.api.lifecycle.SpaceTransferred
-import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.FunctionInfo
@@ -106,10 +104,8 @@ class PlainValuesTest {
     fun `the system commands and events, decisions and result parts are values`() {
         valueSemantics({ TransferOwner.of("alice") }, TransferOwner.of("bob"))
         valueSemantics({ TransferSpace.of("space") }, TransferSpace.of("other"))
-        valueSemantics({ ApplyTags.of(mapOf("tier" to listOf("gold"))) }, ApplyTags.of(emptyMap()))
         valueSemantics({ OwnerTransferred.of("alice") }, OwnerTransferred.of("bob"))
         valueSemantics({ SpaceTransferred.of("space") }, SpaceTransferred.of("other"))
-        valueSemantics({ TagsApplied.of(mapOf("tier" to listOf("gold"))) }, TagsApplied.of(emptyMap()))
         valueSemantics({ RetryParked.of("Saga.on", parked) }, RetryParked.of("Saga.other", parked))
         valueSemantics({ SkipParked.of("Saga.on", parked, 1) }, SkipParked.of("Saga.other", parked, 1))
         valueSemantics(

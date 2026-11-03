@@ -433,7 +433,7 @@ class CommandRoutesTest {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
             .assertProblem(410, FrameworkCodes.AGGREGATE_DELETED, withResult = true)
         node.post("/shop/cart/c-1/wow.lifecycle.restore-aggregate", body = null).assertSucceeded()
-        node.post("/shop/cart/c-1/wow.lifecycle.apply-tags", """{"tags":{"tier":["gold"]}}""").assertSucceeded()
+        node.post("/shop/cart/c-1/wow.lifecycle.transfer-space", """{"spaceId":"gold"}""").assertSucceeded()
         node.post("/shop/cart/c-1/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""").assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", user = "bob").assertSucceeded()
     }

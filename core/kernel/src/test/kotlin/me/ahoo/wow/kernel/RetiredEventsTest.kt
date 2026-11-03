@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -46,6 +48,9 @@ class RetiredEventsTest {
     private fun created() = codec.encode(model, CartCreated("ahoo"))
     private fun added(productId: String, quantity: Int) = codec.encode(model, ItemAdded(productId, quantity))
     private fun removed() = EventRecord(REMOVED, 1, """{"productId":"apple"}""")
+
+    /** A record of the tags a released version applied, before Wow retired them with the lifecycle event. */
+    private fun tagsApplied() = EventRecord(TAGS_APPLIED, 1, """{"tags":{"region":["eu"]}}""")
 
     private suspend fun append(version: Int, vararg events: EventRecord) {
         val stream = EventStreamRecord(
@@ -128,6 +133,48 @@ class RetiredEventsTest {
     }
 
     @Test
+    fun `every model retires the stored TagsApplied of the tags Wow no longer has`() {
+        cartModel.isRetired(TAGS_APPLIED).assert().isTrue()
+        cartModel.retiredEvents.assert().isEmpty()
+        model.isRetired(TAGS_APPLIED).assert().isTrue()
+        codec.decodeEvents(cartModel, listOf(created(), tagsApplied(), added("apple", 1)))
+            .assert().containsExactly(CartCreated("ahoo"), ItemAdded("apple", 1))
+        // The events query reads each record as the model does now: this one not at all.
+        codec.current(cartModel, tagsApplied()).assert().isNull()
+        assertThrownBy<IllegalArgumentException> { codec.decode(cartModel, tagsApplied()) }
+            .hasMessageContaining("retired")
+    }
+
+    @Test
+    fun `an aggregate whose log holds a stored TagsApplied loads, replays, snapshots and decides`(): Unit = runBlocking {
+        // As a released version wrote it: between two events of a stream, and a stream of its own.
+        append(1, created())
+        append(2, added("apple", 1), tagsApplied(), added("pear", 2))
+        append(3, tagsApplied())
+
+        val replayed = kernel.replayed(cartModel, ref, log.read(ref).toList())!!
+        replayed.version.assert().isEqualTo(3)
+        (replayed.state as CartState).items.assert().isEqualTo(mapOf("apple" to 1, "pear" to 2))
+        kernel.stateAt(cartModel, ref, 3)!!.version.assert().isEqualTo(3)
+        kernel.trace(cartModel, ref, 1, 3, 10).map { it.events.size }.assert().containsExactly(1, 2, 0)
+
+        // A snapshot rebuilt from the log, then a command on the aggregate loaded from it.
+        val snapshots = InMemorySnapshotStore()
+        snapshots.save(
+            codec.snapshotOf(cartModel, ref, replayed.state as CartState, replayed.version, replayed.scope, 1, 3),
+        )
+        snapshots.load(ref)!!.version.assert().isEqualTo(3)
+        val outcome = Kernel(log, codec, snapshots = snapshots, clock = { 0L })
+            .execute(cartModel, Command("c-4", "r-4", ref, AddItem("apple", 2)))
+        outcome as CommandOutcome.Committed
+        outcome.stream.version.assert().isEqualTo(4)
+        (outcome.state as CartState).items.assert().isEqualTo(mapOf("apple" to 3, "pear" to 2))
+        // And one loaded from the log alone.
+        kernel.execute(cartModel, Command("c-5", "r-5", ref, AddItem("pear", 1)))
+            .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+    }
+
+    @Test
     fun `a retired name cannot be one the model still uses`() {
         fun retiring(vararg names: String, extra: AggregateModelBuilder<CartState>.() -> Unit = {}) =
             assertThrownBy<IllegalArgumentException> {
@@ -155,5 +202,6 @@ class RetiredEventsTest {
 
     private companion object {
         const val REMOVED = "example.cart.ItemRemoved"
+        const val TAGS_APPLIED = "wow.lifecycle.TagsApplied"
     }
 }

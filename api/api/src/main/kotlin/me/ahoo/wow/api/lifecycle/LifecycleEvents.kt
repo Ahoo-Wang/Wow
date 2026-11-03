@@ -72,29 +72,3 @@ class SpaceTransferred @InternalWowApi constructor(val spaceId: String) {
         fun of(spaceId: String): SpaceTransferred = SpaceTransferred(spaceId)
     }
 }
-
-/**
- * The aggregate's tags are now [tags] ([ApplyTags]).
- *
- * Fields may be added: construct one with [of]; the constructor is internal to Wow.
- */
-class TagsApplied @InternalWowApi constructor(val tags: Map<String, List<String>>) {
-    init {
-        require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
-    }
-
-    override fun equals(other: Any?): Boolean =
-        this === other || other is TagsApplied && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String = "TagsApplied(tags=$tags)"
-
-    private fun valueFields(): List<Any?> = listOf(tags)
-
-    companion object {
-        /** A TagsApplied of the given fields; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(tags: Map<String, List<String>>): TagsApplied = TagsApplied(tags)
-    }
-}

@@ -25,7 +25,7 @@ sealed interface CommandOutcome {
     /**
      * The command's events are committed as [stream] at [position]; [state] is the state after them. [results] are
      * what its decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]); they are not
-     * kept, so a duplicate of the command is answered without them. [deleted], [tags] and [schedules] are the metadata the kernel
+     * kept, so a duplicate of the command is answered without them. [deleted] and [schedules] are the metadata the kernel
      * keeps beside the state after the stream ([CachedState]); its scope is the [stream]'s.
      *
      * A command rejected with events commits them too: [rejection] is then its rejection, which the caller is
@@ -38,7 +38,6 @@ sealed interface CommandOutcome {
         val state: Any,
         val results: Map<String, Any> = emptyMap(),
         val deleted: Boolean = false,
-        val tags: Map<String, List<String>> = emptyMap(),
         val schedules: Map<String, ScheduleRule> = emptyMap(),
         /** What the aggregate's first stream recorded, when the kernel knows it. */
         val first: FirstCommit? = null,
@@ -52,10 +51,10 @@ sealed interface CommandOutcome {
 
         override fun toString(): String =
             "Committed(stream=$stream, position=$position, state=$state, results=$results, deleted=$deleted, " +
-                "tags=$tags, schedules=$schedules, first=$first, rejection=$rejection)"
+                "schedules=$schedules, first=$first, rejection=$rejection)"
 
         private fun valueFields(): List<Any?> =
-            listOf(stream, position, state, results, deleted, tags, schedules, first, rejection)
+            listOf(stream, position, state, results, deleted, schedules, first, rejection)
     }
 
     /** The same command was already committed as [stream]: it was not decided again. */

@@ -16,7 +16,7 @@ package me.ahoo.wow.api.lifecycle
 /**
  * The lifecycle of every aggregate: system commands the kernel decides for any aggregate model without
  * user code, and the system events they produce. They change the aggregate's metadata, not its state: the deleted
- * mark, the scope (the owner and the space change only through them) and the tags.
+ * mark and the scope (the owner and the space change only through them).
  *
  * Their names sit in the system namespace [NAMESPACE], so a model that gives one of its own types such a name fails
  * to build instead of colliding.
@@ -29,13 +29,11 @@ object Lifecycle {
     const val RESTORE_AGGREGATE = "$NAMESPACE.RestoreAggregate"
     const val TRANSFER_OWNER = "$NAMESPACE.TransferOwner"
     const val TRANSFER_SPACE = "$NAMESPACE.TransferSpace"
-    const val APPLY_TAGS = "$NAMESPACE.ApplyTags"
 
     const val AGGREGATE_DELETED = "$NAMESPACE.AggregateDeleted"
     const val AGGREGATE_RESTORED = "$NAMESPACE.AggregateRestored"
     const val OWNER_TRANSFERRED = "$NAMESPACE.OwnerTransferred"
     const val SPACE_TRANSFERRED = "$NAMESPACE.SpaceTransferred"
-    const val TAGS_APPLIED = "$NAMESPACE.TagsApplied"
 
     /** The lifecycle commands, by their names. */
     @JvmField
@@ -44,7 +42,6 @@ object Lifecycle {
         RESTORE_AGGREGATE to RestoreAggregate::class.java,
         TRANSFER_OWNER to TransferOwner::class.java,
         TRANSFER_SPACE to TransferSpace::class.java,
-        APPLY_TAGS to ApplyTags::class.java,
     )
 
     /** The lifecycle events, by their names. */
@@ -54,7 +51,6 @@ object Lifecycle {
         AGGREGATE_RESTORED to AggregateRestored::class.java,
         OWNER_TRANSFERRED to OwnerTransferred::class.java,
         SPACE_TRANSFERRED to SpaceTransferred::class.java,
-        TAGS_APPLIED to TagsApplied::class.java,
     )
 
     private val NAMES: Map<Class<*>, String> = (COMMANDS + EVENTS).entries.associate { (name, type) -> type to name }

@@ -110,6 +110,34 @@ class RetiredEventsNodeTest {
     }
 
     @Test
+    fun `a stored TagsApplied of the tags Wow no longer has should load, and the subscriptions pass over it`(): Unit =
+        runBlocking {
+            node.start()
+            add("c-2", "apple").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // As a released version wrote it, the aggregate's model declaring nothing of it.
+            val tagsApplied = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"region":["eu"]}}""")
+            append("c-2", 2, tagsApplied)
+            append("c-2", 3, EventRecord("shop.cart.ItemsAdded", 1, """{"items":["pear"]}"""), tagsApplied)
+
+            val added = add("c-2", "plum")
+            added.status.assert().withFailMessage { added.toString() }.isEqualTo(CommandResult.Status.SUCCEEDED)
+            val ref = CART.ref(TENANT, "c-2")
+            val state = node.context(SHOP).kernel.stateAt(model, ref, 4)!!
+            (state.state as CartState).items.assert().containsExactly("apple", "pear", "plum")
+            val expected = listOf(
+                "c-2@1:[ItemsAdded(items=[apple])]",
+                "c-2@3:[ItemsAdded(items=[pear])]",
+                "c-2@4:[ItemsAdded(items=[plum])]",
+            )
+            eventually { projected.size == 3 && sagas.size == 3 }
+            projected.assert().isEqualTo(expected)
+            sagas.assert().isEqualTo(expected)
+            val ledger = backends.opened.getValue(SHOP).ledger
+            ledger.isParked("CartView.onEvent", ref).assert().isFalse()
+            ledger.isParked("CartSaga.onEvent", ref).assert().isFalse()
+        }
+
+    @Test
     fun `a history holding retired events should load, and its subscriptions pass over them`(): Unit = runBlocking {
         node.start()
         add("c-1", "apple").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

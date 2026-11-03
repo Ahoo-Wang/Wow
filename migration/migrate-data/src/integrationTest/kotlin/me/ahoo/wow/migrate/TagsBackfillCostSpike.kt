@@ -59,7 +59,6 @@ internal class TagsBackfillCostSpike {
         val model = aggregate<Parcel>(context, "parcel") {
             initial { Parcel() }
             evolve<Moved> { region = it.region }
-            tags { mapOf("region" to listOfNotNull(it.region.takeIf(String::isNotEmpty))) }
         }
         val codec = EventCodec()
         val log = logOf(context)

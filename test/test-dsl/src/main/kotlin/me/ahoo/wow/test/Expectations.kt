@@ -63,7 +63,6 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private val result: Result<CommandOutcome>,
     private val version: Int,
     private val stateAt: (Int) -> S,
-    private val tagsAt: (Int) -> Map<String, List<String>> = { emptyMap() },
     private val forker: (String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit,
 ) {
     private var errorChecked = false
@@ -334,20 +333,6 @@ class Expectations<S : Any> @InternalWowApi constructor(
         @Suppress("UNCHECKED_CAST")
         val state = if (committed != null) committed.state as S else stateAt(version)
         state.check()
-    }
-
-    /**
-     * The aggregate's tags are exactly [tags] after the committed events, or, after a command that committed nothing,
-     * the tags the aggregate has: those `ApplyTags` applied, with the keys its state derives (`@Tags`)
-     * overriding them, the tags query policies filter by.
-     */
-    fun expectTags(tags: Map<String, List<String>>) {
-        val committed = result.getOrNull() as? CommandOutcome.Committed
-        val actual = committed?.tags ?: tagsAt(version)
-        val differences = StructuralDiff.of(tags, actual)
-        if (differences.isNotEmpty()) {
-            throw AssertionError("The tags differ:${StructuralDiff.lines(differences)}")
-        }
     }
 
     /**

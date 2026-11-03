@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -34,7 +35,9 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
@@ -108,6 +111,20 @@ class SnapshotMaintenanceTest {
         maintenance.rebuild(AggregateType(CONTEXT, "other").ref("tenant", "a"))
         maintenance.rebuild(type.ref("tenant", "nothing"))
         store.load(type.ref("tenant", "nothing")).assert().isNull()
+    }
+
+    @Test
+    fun `a rebuild replays past a stored TagsApplied of the tags Wow no longer has`(): Unit = runBlocking {
+        val store = InMemorySnapshotStore()
+        val ref = commit("t", 3)
+        val first = log.read(ref).toList().single()
+        val tagsApplied = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"region":["eu"]}}""")
+        log.append(first.copyWith(version = 2, commandId = "old-2", requestId = "old-2", events = listOf(tagsApplied)))
+            .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        maintenance(1, store).rebuild(ref)
+        val snapshot = store.load(ref)!!
+        snapshot.version.assert().isEqualTo(2)
+        snapshot.state.assert().contains("\"total\":3")
     }
 
     @Test

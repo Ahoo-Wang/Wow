@@ -20,7 +20,6 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
@@ -89,13 +88,11 @@ class OrderLifecycleTest {
     }
 
     @Test
-    fun `an employee should tag an order and move it into a fulfilment space`() {
+    fun `an employee should move an order into a fulfilment space`() {
         val alice = buyer()
         val id = submitted(alice)
-        lifecycle(id, ApplyTags.of(mapOf("channel" to listOf("web"))), EMPLOYEE)
         lifecycle(id, TransferSpace.of("warehouse-east"), EMPLOYEE)
         val order = read(id, EMPLOYEE)!!
-        order.tags["channel"].assert().isEqualTo(listOf("web"))
         order.scope.spaceId.assert().isEqualTo("warehouse-east")
         // The order is still its buyer's.
         order.scope.ownerId.assert().isEqualTo(alice.subject)

@@ -48,7 +48,7 @@ object Manifests {
     )
 
     /** The lifecycle commands every sample aggregate lists, among its system commands. */
-    val LIFECYCLE: List<String> = listOf("wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate")
+    val LIFECYCLE: List<String> = listOf("wow.lifecycle.TransferSpace", "wow.lifecycle.DeleteAggregate")
 
     fun fragment(
         context: String = "shop",

@@ -934,93 +934,6 @@
         }
       }
     },
-    "/eshop-ordering/order/{id}/wow.lifecycle.apply-tags" : {
-      "post" : {
-        "tags" : [ "eshop-ordering.order" ],
-        "summary" : "ApplyTags",
-        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`.",
-        "operationId" : "eshop-ordering.order.wow.lifecycle.ApplyTags",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
-        }
-      }
-    },
     "/eshop-ordering/order/{id}" : {
       "delete" : {
         "tags" : [ "eshop-ordering.order" ],
@@ -3422,22 +3335,6 @@
           }
         },
         "required" : [ "confirmedProducts", "items", "status", "totalAmount" ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ],
-        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
       },
       "wow.lifecycle.DeleteAggregate" : {
         "type" : "object",

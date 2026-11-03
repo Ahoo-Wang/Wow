@@ -87,16 +87,6 @@
         } ],
         "description" : "Submit an order"
       }, {
-        "name" : "wow.lifecycle.ApplyTags",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "none",
-        "routes" : [ {
-          "method" : "POST",
-          "path" : "/eshop-ordering/order/{id}/wow.lifecycle.apply-tags"
-        } ],
-        "system" : true
-      }, {
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
@@ -777,23 +767,6 @@
       },
       "required" : [ "confirmedProducts", "items", "status", "totalAmount" ],
       "x-wow-class" : "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
-    },
-    "wow.lifecycle.ApplyTags" : {
-      "type" : "object",
-      "properties" : {
-        "tags" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        }
-      },
-      "required" : [ "tags" ],
-      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-      "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
     },
     "wow.lifecycle.DeleteAggregate" : {
       "type" : "object",

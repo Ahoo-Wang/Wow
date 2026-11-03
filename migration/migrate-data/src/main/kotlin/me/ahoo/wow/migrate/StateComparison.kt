@@ -95,8 +95,9 @@ internal data class ComparisonReport(
  *
  * - **What is compared.** The state, by [StateDiff], the 9.x state read through the aggregate's
  *   [AggregateMapping.state]; the deleted mark (`$deleted`); the owner and the space (`$ownerId`, `$spaceId`), the
- *   9.x ones narrowed by the V10 ownership as the import narrows them; and the tags (`$tags`). A
- *   version the V10 log does not hold is the difference `$version`.
+ *   9.x ones narrowed by the V10 ownership as the import narrows them. A version the V10 log does not hold is the
+ *   difference `$version`. The 9.x tags are not compared: V10 has none, and work package F maps them to
+ *   state fields.
  * - **Report.** Each instance that differs is printed with its aggregate id, version and fields
  *   ([ComparisonReport.render] sums them up); the share of instances with a snapshot is reported, since an instance
  *   without one cannot be compared.
@@ -195,7 +196,6 @@ internal class StateComparison(
             Triple(DELETED, node(snapshot.deleted), node(rebuilt.deleted)),
             Triple(OWNER_ID, node(scope.ownerId), node(rebuilt.scope.ownerId)),
             Triple(SPACE_ID, node(scope.spaceId), node(rebuilt.scope.spaceId)),
-            Triple(TAGS, node(snapshot.tags), node(rebuilt.tags)),
         ).filter { (_, nineX, v10) -> nineX != v10 }.map { (path, nineX, v10) ->
             FieldDifference(path, nineX.takeUnless { it.isNull }, v10.takeUnless { it.isNull })
         }
@@ -222,6 +222,5 @@ internal class StateComparison(
         const val DELETED = "\$deleted"
         const val OWNER_ID = "\$ownerId"
         const val SPACE_ID = "\$spaceId"
-        const val TAGS = "\$tags"
     }
 }

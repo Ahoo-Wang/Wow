@@ -206,12 +206,13 @@ internal class TagsBackfiller(
         ref: AggregateRef,
     ): Int {
         var state = CachedState(model.initialState(ref), 0)
-        val tags = buildMap {
+        val tags = buildMap<Int, Map<String, List<String>>> {
             log.read(ref).toList().forEach { stream ->
                 state = kernel.evolved(model, state, stream) ?: throw MigrationException(
                     "$ref skips a version before ${stream.version} in the V10 log: its tags cannot be derived.",
                 )
-                if (stream.tags == null) put(stream.version, state.tags)
+                // The aggregate has no tags any more: work package C replaces this backfill with re-stamping.
+                if (stream.tags == null) put(stream.version, emptyMap())
             }
         }
         return backfill.recordTags(ref, tags)

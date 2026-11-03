@@ -39,8 +39,8 @@ import me.ahoo.wow.spi.state.StateEventRecord
  *
  * - **What it writes**: one [StateEventRecord] per commit, in version order per aggregate: the stream's facts, its
  *   events at their current revision (an event stored at an older revision or under a former name is upgraded
- *   through the model), and the aggregate's state after the commit, deleted mark and tags. The state is
- *   left out when [includeState] is false; the deleted mark and tags are written either way.
+ *   through the model), and the aggregate's state after the commit and deleted mark. The state is
+ *   left out when [includeState] is false; the deleted mark is written either way.
  * - **The state**: read through the context's shared decoder ([EntryDecoder.stateEvents]) by [reader], whose name
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
@@ -110,7 +110,7 @@ internal class SinkSubscription(
             },
             scope = stream.scope,
             deleted = view.deleted,
-            tags = view.tags,
+            // No tags any more; work package C writes the access attributes instead.
             causation = stream.causation,
             headers = stream.headers,
             operator = stream.operator,

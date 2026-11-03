@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopPaymentManifest } from '../manifest.js';
-import type { ApplyTags, ChargebackNotified, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
+import type { ChargebackNotified, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
 import { PaymentAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-payment.payment` by its service's routes (`EshopPaymentManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -58,14 +58,6 @@ export class PaymentCommandClient {
   /** `RequestPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   requestPaymentStream(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-payment.payment.RequestPayment', body });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-payment', name: 'payment' }, id, body });
   }
 
   /**

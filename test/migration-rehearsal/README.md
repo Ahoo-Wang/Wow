@@ -45,5 +45,4 @@ It needs Docker, JDK 21 in `JAVA_HOME` and Python 3. The stores run in container
 
 `compare` may differ only in what `rehearse.sh` lists as explained for each aggregate (`EXPLAINED_KINDS`), each signed off under design 07 §3 step 4:
 
-- `example-service.order`, `$tags`: 9.x merged the tags its extractor derived into the stored ones, so an order whose address changed kept its old province among its tags. V10's `@Tags` replaces each key it derives (decision D220). This is an intended change.
 - `view-store.dataset_wording`, any field of a wording 9.x deleted (`@deleted`): 9.x's `ClearDatasetWording` was a `DeleteAggregate`, which kept the wording's last values and let it never be set again. V10 clears it (`DatasetWordingCleared`), keeps it, and sets it again. This is an intended change.

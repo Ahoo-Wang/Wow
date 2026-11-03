@@ -180,10 +180,10 @@ class ManifestOpenApiTest {
         delete["operationId"].assert().isEqualTo("shop.cart.wow.lifecycle.DeleteAggregate")
         delete["summary"].assert().isEqualTo("DeleteAggregate")
         schemaOf(delete["requestBody"]).assert().isEqualTo("#/components/schemas/wow.lifecycle.DeleteAggregate")
-        val tags = operation("post", "/shop/cart/{id}/wow.lifecycle.apply-tags")
-        schemaOf(tags["requestBody"]).assert().isEqualTo("#/components/schemas/wow.lifecycle.ApplyTags")
-        responses(tags)["409"].assert().isEqualTo(ref("responses", "wow.command.409"))
-        responses(tags).keys.assert().doesNotContain("422")
+        val transfer = operation("post", "/shop/cart/{id}/wow.lifecycle.transfer-space")
+        schemaOf(transfer["requestBody"]).assert().isEqualTo("#/components/schemas/wow.lifecycle.TransferSpace")
+        responses(transfer)["409"].assert().isEqualTo(ref("responses", "wow.command.409"))
+        responses(transfer).keys.assert().doesNotContain("422")
         @Suppress("UNCHECKED_CAST")
         val archive = (operation("post", "/shop/cart/{id}/wow.lifecycle.archive")["requestBody"] as Map<String, Any?>)
         archive["content"].assert().isEqualTo(
@@ -197,8 +197,8 @@ class ManifestOpenApiTest {
     fun `a lifecycle body and a command description the Manifest holds should be the document's`() {
         val body = mapOf(
             "type" to "object",
-            "properties" to mapOf("tags" to mapOf("type" to "object")),
-            "required" to listOf("tags"),
+            "properties" to mapOf("spaceId" to mapOf("type" to "string", "minLength" to 1)),
+            "required" to listOf("spaceId"),
         )
         val described = MANIFEST.copyWith(
             contexts = MANIFEST.contexts.map { context ->
@@ -216,15 +216,15 @@ class ManifestOpenApiTest {
                     },
                 )
             },
-            defs = MANIFEST.defs + ("wow.lifecycle.ApplyTags" to body),
+            defs = MANIFEST.defs + ("wow.lifecycle.TransferSpace" to body),
         )
         val written = ManifestOpenApi.write(described)
         OpenApiChecks.check(written)
         @Suppress("UNCHECKED_CAST")
         val schemas = (written["components"] as Map<String, Any?>)["schemas"] as Map<String, Any?>
-        schemas["wow.lifecycle.ApplyTags"].assert().isEqualTo(body)
-        val applyTags = schemas.keys.filter { it.startsWith("wow.lifecycle.ApplyTags") }
-        applyTags.assert().containsExactly("wow.lifecycle.ApplyTags")
+        schemas["wow.lifecycle.TransferSpace"].assert().isEqualTo(body)
+        val transfers = schemas.keys.filter { it.startsWith("wow.lifecycle.TransferSpace") }
+        transfers.assert().containsExactly("wow.lifecycle.TransferSpace")
         val delete = schemas["wow.lifecycle.DeleteAggregate"]
         delete.assert().isEqualTo(WowSchemas.LIFECYCLE["wow.lifecycle.DeleteAggregate"])
         @Suppress("UNCHECKED_CAST")
@@ -634,7 +634,7 @@ class ManifestOpenApiTest {
                                     .copyWith(transformsTo = listOf("shop.cart.PutItem")),
                             ) + listOf(
                                 "wow.lifecycle.DeleteAggregate",
-                                "wow.lifecycle.ApplyTags",
+                                "wow.lifecycle.TransferSpace",
                                 "wow.lifecycle.Archive",
                             ).map { SystemCommands.lifecycle("shop", "cart", it) } + SystemCommands.rebuild("shop", "cart"),
                             queries = QueryRoutes.queries("shop", "cart", snapshots = true) +

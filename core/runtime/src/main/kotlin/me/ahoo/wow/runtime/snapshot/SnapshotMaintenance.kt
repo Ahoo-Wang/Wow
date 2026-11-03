@@ -391,7 +391,6 @@ class SnapshotMaintenance(
             first.commitTime,
             last.commitTime,
             state.deleted,
-            state.tags,
             last.operator,
             first.operator,
             state.schedules,

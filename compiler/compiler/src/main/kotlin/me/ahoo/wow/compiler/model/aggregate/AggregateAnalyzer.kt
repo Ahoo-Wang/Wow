@@ -126,7 +126,6 @@ internal class AggregateAnalyzer(
             snapshot = AggregateRootArguments.snapshot(rootArguments),
             stateRevision = AggregateRootArguments.stateRevision(rootArguments, problems),
             retiredEvents = retiredEvents,
-            tags = TagsResolver.of(state, problems),
             warnings = warnings,
             internal = with(RootStateResolver) { root.isInternal() || state.isInternal() },
         )

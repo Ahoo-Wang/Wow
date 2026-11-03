@@ -87,7 +87,7 @@ internal class StateHistory(
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         require(base.version in 0..version) { "The base at version ${base.version} is past $version." }
         if (base.version == version) {
-            return kernel.derived(model, base)
+            return base
         }
         val streams = log.read(ref, base.version + 1, version).toList()
         if (streams.firstOrNull()?.version != base.version + 1 || streams.last().version != version) {
@@ -139,7 +139,7 @@ internal class StateHistory(
             val events = ArrayList<Any>(stream.events.size)
             current = kernel.evolve(model, current, stream, events)
             // The state may be mutable and evolve further: the trace keeps a tree of it as it is now.
-            traces += CommitTrace(stream, events, codec.stateTree(current.state), current.deleted, current.tags)
+            traces += CommitTrace(stream, events, codec.stateTree(current.state), current.deleted)
         }
         return traces
     }

@@ -60,7 +60,6 @@ internal object AnnotationSet {
         "Retry",
         "Sends",
         "WowSpi",
-        "Tags",
         // Not a domain annotation: it marks the framework's own internals.
         "InternalWowApi",
     )
@@ -91,8 +90,8 @@ internal object AnnotationSet {
      */
     private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule", "Sends")
 
-    /** The annotations only a member of an aggregate's state takes: `@Tags`. */
-    private val STATE_NAMES = setOf("Tags")
+    /** The annotations only a member of an aggregate's state takes: none yet. */
+    private val STATE_NAMES = emptySet<String>()
 
     /** The annotations only a property of a command an aggregate decides takes: `@AggregateId`. */
     private val COMMAND_NAMES = setOf("AggregateId")
@@ -106,7 +105,7 @@ internal object AnnotationSet {
     /**
      * The problems of the annotations on [annotated], described as [where]. A command's identity annotations are
      * errors. Only a subscription [processor] or its handler takes `@Retry`, and only a member of an aggregate's
-     * [state] takes `@Tags`.
+     * [state] takes the state-only ones ([STATE_NAMES]).
      */
     fun problems(
         annotated: KSAnnotated,
@@ -143,7 +142,7 @@ internal object AnnotationSet {
     /**
      * The problems of the annotations on [type] and on its members: its fields (properties, constructor parameters,
      * getters) and its functions with their parameters. [role] says what the type is to the model, such as "command";
-     * an aggregate's [state] may mark a member `@Tags`.
+     * an aggregate's [state] may mark a member with a state-only annotation.
      */
     fun problemsOfType(
         type: KSClassDeclaration,
@@ -167,7 +166,7 @@ internal object AnnotationSet {
 
     /**
      * The problems of the annotations on [function] of the type described as [owner], and on its parameters; a
-     * [processor]'s function may take `@Retry`, and a [state]'s `@Tags`.
+     * [processor]'s function may take `@Retry`, and a [state]'s the state-only ones.
      */
     fun problemsOfFunction(
         function: KSFunctionDeclaration,

@@ -15,7 +15,6 @@ package me.ahoo.wow.api.annotation
 
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.Ownership
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
@@ -81,7 +80,6 @@ annotation class AggregateRoot(
         RestoreAggregate::class,
         TransferOwner::class,
         TransferSpace::class,
-        ApplyTags::class,
     ],
     val published: Boolean = true,
     val publishState: Boolean = true,

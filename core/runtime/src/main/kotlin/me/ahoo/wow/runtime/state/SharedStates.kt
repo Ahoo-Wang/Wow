@@ -35,7 +35,7 @@ import kotlin.time.TimeSource
 
 /**
  * The state of an aggregate after its stream [version]: its [state] as the kernel's codec
- * serialized it, the [scope] of the stream, whether it is [deleted], its [tags] and its [schedules],
+ * serialized it, the [scope] of the stream, whether it is [deleted] and its [schedules],
  * as the kernel committed them.
  * A view is serialized once and decoded afresh by each reader, so no reader sees another's changes nor the live
  * instance. This is the runtime's form, the text a snapshot stores; what a sink publishes is the `:spi`
@@ -48,7 +48,6 @@ class SerializedState(
     val state: String,
     val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
-    val tags: Map<String, List<String>> = emptyMap(),
     val schedules: Map<String, ScheduleRule> = emptyMap(),
     /** What the aggregate's first stream recorded, when the kernel knew it. */
     val first: FirstCommit? = null,
@@ -168,7 +167,6 @@ class SharedStates(
             codec.stateText(state.state),
             stream.scope,
             state.deleted,
-            state.tags,
             state.schedules,
             state.first,
         )
@@ -191,7 +189,6 @@ class SharedStates(
                 codec.stateText(committed.state),
                 stream.scope,
                 committed.deleted,
-                committed.tags,
                 committed.schedules,
                 committed.first,
             )

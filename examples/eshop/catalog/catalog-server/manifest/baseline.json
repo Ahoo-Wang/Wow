@@ -43,16 +43,6 @@
         } ],
         "description" : "Rename a brand"
       }, {
-        "name" : "wow.lifecycle.ApplyTags",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "none",
-        "routes" : [ {
-          "method" : "POST",
-          "path" : "/eshop-catalog/brand/{id}/wow.lifecycle.apply-tags"
-        } ],
-        "system" : true
-      }, {
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
@@ -161,16 +151,6 @@
           "path" : "/eshop-catalog/category/{id}/rename-category"
         } ],
         "description" : "Rename a category"
-      }, {
-        "name" : "wow.lifecycle.ApplyTags",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "none",
-        "routes" : [ {
-          "method" : "POST",
-          "path" : "/eshop-catalog/category/{id}/wow.lifecycle.apply-tags"
-        } ],
-        "system" : true
       }, {
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
@@ -324,16 +304,6 @@
           "path" : "/eshop-catalog/product/{id}/update-product"
         } ],
         "description" : "Update a product"
-      }, {
-        "name" : "wow.lifecycle.ApplyTags",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "none",
-        "routes" : [ {
-          "method" : "POST",
-          "path" : "/eshop-catalog/product/{id}/wow.lifecycle.apply-tags"
-        } ],
-        "system" : true
       }, {
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
@@ -974,23 +944,6 @@
         "name" : "ix_product_state_status_state_price",
         "keys" : [ "state.status", "state.price" ]
       } ]
-    },
-    "wow.lifecycle.ApplyTags" : {
-      "type" : "object",
-      "properties" : {
-        "tags" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        }
-      },
-      "required" : [ "tags" ],
-      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-      "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
     },
     "wow.lifecycle.DeleteAggregate" : {
       "type" : "object",

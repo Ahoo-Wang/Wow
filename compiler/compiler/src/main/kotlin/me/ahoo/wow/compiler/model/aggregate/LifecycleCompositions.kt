@@ -25,7 +25,7 @@ import me.ahoo.wow.compiler.model.symbol.ModelNames.SYSTEM_EVENTS
  * - only a command decided on a deleted aggregate (`@OnCommand(onDeleted = true)`) produces `AggregateRestored`: no
  *   other reaches a deleted aggregate;
  * - such a command produces `AggregateRestored` and the aggregate's own events alone: a deleted aggregate's owner,
- *   space, tags or schedules change once it is restored;
+ *   space or schedules change once it is restored;
  * - an aggregate of its tenant ([Ownership.TENANT]) has no owner to transfer: none of its commands produces
  *   `OwnerTransferred`.
  *

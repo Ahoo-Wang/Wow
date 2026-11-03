@@ -145,7 +145,6 @@ class BlockingTest {
             import me.ahoo.wow.api.annotation.AggregateRoot
             import me.ahoo.wow.api.annotation.Blocking
             import me.ahoo.wow.api.annotation.CreateAggregate
-            import me.ahoo.wow.api.annotation.Tags
             import me.ahoo.wow.api.annotation.Upgrade
 
             @CreateAggregate
@@ -174,17 +173,6 @@ class BlockingTest {
     fun `Blocking on a sourcing function should be a compile error`() {
         failing("", state = "@Blocking fun onSourcing(event: Placed) {}")
             .assert().contains("sourcing function onSourcing is annotated @Blocking: evolving does no I/O")
-    }
-
-    @Test
-    fun `Blocking on a Tags function should be a compile error`() {
-        failing(
-            "",
-            state = """
-                fun onSourcing(event: Placed) {}
-                @Blocking @Tags fun tags(): Map<String, List<String>> = emptyMap()
-            """.trimIndent(),
-        ).assert().contains("@Tags function tags is annotated @Blocking: deriving tags does no I/O")
     }
 
     @Test

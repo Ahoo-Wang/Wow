@@ -28,7 +28,7 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 [AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
-- Parameters: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class, ApplyTags::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `idSource: AggregateIdSource = AggregateIdSource.ASSIGNED`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
+- Parameters: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `idSource: AggregateIdSource = AggregateIdSource.ASSIGNED`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
 
 ## `@Alias`
 
@@ -197,13 +197,6 @@ The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artif
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`, `PROPERTY`, `FIELD`
 - Parameters: `value: String`
-
-## `@Tags`
-
-[Tags](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Tags.kt): Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state (9.x `StateAggregateTagsExtractor`), so query policies that filter by tags follow the state.
-
-- Targets: `FUNCTION`, `PROPERTY`
-- Parameters: None.
 
 ## `@Unaddressed`
 

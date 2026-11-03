@@ -24,13 +24,11 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.AggregateRestored
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.SpaceTransferred
-import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.FrameworkCodes
@@ -93,7 +91,6 @@ class KernelLifecycleTest {
             send(AddItem("apple", 1)).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             send(DeleteAggregate).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             send(TransferOwner("bob")).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
-            send(ApplyTags(mapOf("k" to listOf("v")))).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             send(CreateCart("again")).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
             log.read(ref).toList().size.assert().isEqualTo(2)
         }
@@ -140,32 +137,13 @@ class KernelLifecycleTest {
     }
 
     @Test
-    fun `applying tags replaces them, and applying the same ones changes nothing`(): Unit = runTest {
-        created()
-        val tags = mapOf("region" to listOf("eu", "us"))
-        send(ApplyTags(tags)).committed().stream.events.map { it.name }
-            .assert().containsExactly(Lifecycle.TAGS_APPLIED)
-        head().tags.assert().isEqualTo(tags)
-        send(ApplyTags(tags)).assert().isEqualTo(CommandOutcome.Unchanged(2))
-        send(ApplyTags(mapOf("tier" to listOf("gold")))).committed()
-        head().tags.assert().isEqualTo(mapOf("tier" to listOf("gold")))
-        send(ApplyTags(emptyMap())).committed()
-        head().tags.assert().isEmpty()
-    }
-
-    @Test
-    fun `a committed outcome carries the deleted mark and the tags after its stream`(): Unit = runTest {
+    fun `a committed outcome carries the deleted mark after its stream`(): Unit = runTest {
         val created = created().committed()
         created.deleted.assert().isFalse()
-        created.tags.assert().isEmpty()
-        val tags = mapOf("region" to listOf("eu"))
-        send(ApplyTags(tags)).committed().tags.assert().isEqualTo(tags)
         val deleted = send(DeleteAggregate).committed()
         deleted.deleted.assert().isTrue()
-        deleted.tags.assert().isEqualTo(tags)
         val restored = send(RestoreAggregate).committed()
         restored.deleted.assert().isFalse()
-        restored.tags.assert().isEqualTo(tags)
     }
 
     @Test
@@ -178,16 +156,11 @@ class KernelLifecycleTest {
     }
 
     @Test
-    fun `a snapshot and its tail restore the deleted mark, the scope and the tags`(): Unit = runTest {
+    fun `a snapshot and its tail restore the deleted mark and the scope`(): Unit = runTest {
         created()
-        val tags = mapOf("region" to listOf("eu"))
-        send(ApplyTags(tags))
         send(TransferOwner("bob"))
         val atSnapshot = head()
-        atSnapshot.version.assert().isEqualTo(3)
-        atSnapshot.tags.assert().isEqualTo(tags)
-        // A snapshot whose tags differ from the log's shows that the kernel took them from it, then the tail.
-        val marked = mapOf("from" to listOf("snapshot"))
+        atSnapshot.version.assert().isEqualTo(2)
         snapshots.save(
             codec.snapshotOf(
                 cartModel,
@@ -198,7 +171,6 @@ class KernelLifecycleTest {
                 firstEventTime = 0,
                 lastEventTime = 0,
                 deleted = atSnapshot.deleted,
-                tags = marked,
             ),
         )
         send(DeleteAggregate)
@@ -214,8 +186,7 @@ class KernelLifecycleTest {
         Kernel(log, codec, states = cache, snapshots = snapshots).execute(
             cartModel,
             Command("c-last", "r-last", ref, AddItem("apple", 1)),
-        ).committed().stream.version.assert().isEqualTo(6)
-        cache.last!!.tags.assert().isEqualTo(marked)
+        ).committed().stream.version.assert().isEqualTo(5)
         cache.last!!.deleted.assert().isFalse()
         cache.last!!.scope.assert().isEqualTo(Scope("bob", "space-a"))
     }
@@ -332,14 +303,13 @@ class KernelLifecycleTest {
             AggregateRestored,
             OwnerTransferred("bob"),
             SpaceTransferred("space-b"),
-            TagsApplied(mapOf("k" to listOf("v"))),
         ).forEach { event ->
             codec.decode(cartModel, codec.encode(cartModel, event)).assert().isEqualTo(event)
         }
         val mapper = JsonMapper.builder()
             .addModule(KotlinModule.Builder().build())
             .build()
-        listOf(DeleteAggregate, RestoreAggregate, TransferOwner("bob"), TransferSpace("s"), ApplyTags(emptyMap()))
+        listOf(DeleteAggregate, RestoreAggregate, TransferOwner("bob"), TransferSpace("s"))
             .forEach { command ->
                 mapper.readValue(mapper.writeValueAsString(command), command.javaClass).assert().isEqualTo(command)
             }

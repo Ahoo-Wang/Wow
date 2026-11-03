@@ -64,8 +64,6 @@ internal data class AggregateBinding(
      * without a dot within the aggregate.
      */
     val retiredEvents: List<String> = emptyList(),
-    /** The state member marked `@Tags`, which derives the aggregate's tags; null when none is. */
-    val tags: TagsBinding? = null,
     /** What compiles but is likely wrong, reported as warnings, such as `@Blocking` on a Reactor function. */
     val warnings: List<String> = emptyList(),
     /** Whether the root or its state is `internal`, so the generated factory is too. */

@@ -305,20 +305,6 @@ class SchemaIntrospectorTest {
                 "x-wow-class" to Lifecycle.COMMANDS.getValue(Lifecycle.TRANSFER_OWNER).name,
             ),
         )
-        defs[Lifecycle.APPLY_TAGS].assert().isEqualTo(
-            mapOf(
-                "type" to "object",
-                "properties" to mapOf(
-                    "tags" to mapOf(
-                        "type" to "object",
-                        "additionalProperties" to mapOf("type" to "array", "items" to mapOf("type" to "string")),
-                    ),
-                ),
-                "required" to listOf("tags"),
-                "description" to "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-                "x-wow-class" to Lifecycle.COMMANDS.getValue(Lifecycle.APPLY_TAGS).name,
-            ),
-        )
         (defs[Lifecycle.DELETE_AGGREGATE] as Map<*, *>)["type"].assert().isEqualTo("object")
         // A body the fragment already holds is kept.
         val known = fragment.copyWith(defs = mapOf(Lifecycle.DELETE_AGGREGATE to mapOf("type" to "object")))
