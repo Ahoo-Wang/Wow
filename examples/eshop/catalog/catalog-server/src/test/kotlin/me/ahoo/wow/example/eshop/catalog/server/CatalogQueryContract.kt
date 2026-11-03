@@ -38,7 +38,8 @@ import java.util.UUID
 /**
  * The storefront's queries of the catalog, through the snapshot query routes (`/eshop-catalog/product/snapshot/query`)
  * of a running server, as a shopper sends them. Each test files its products under a category of its own, so the tests
- * share the server without seeing each other's products.
+ * share the server without seeing each other's products. Over HTTP: the query language on the wire, its JSON and its
+ * problems, is the contract these tests hold, and the guides show their queries.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class CatalogQueryContract {
