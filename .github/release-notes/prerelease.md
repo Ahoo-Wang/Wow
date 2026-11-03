@@ -24,6 +24,9 @@ body when none exists, replacing VERSION; edit the "What is in it" section after
 - **Docker**, tag `VERSION` only, never `latest`, pushed by `image-deploy.yml`: `ahoowang/wow-ops-server`,
   `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server`, and the data migration tool
   `ahoowang/wow-migrate-data` (also on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`).
+- **Helm**, the `wow-service` chart of version `VERSION`, pushed by `chart-deploy.yml`:
+  `helm install <release> oci://ghcr.io/ahoo-wang/wow-service --version VERSION` (also on `registry-1.docker.io/ahoowang`
+  and `registry.cn-shanghai.aliyuncs.com/ahoo`).
 
 9.x stays the stable line: `latest` on npm and Docker, and the 9.x Maven modules, do not move.
 
