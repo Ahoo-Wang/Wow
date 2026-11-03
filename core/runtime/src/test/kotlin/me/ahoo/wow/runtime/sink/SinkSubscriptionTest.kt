@@ -187,6 +187,30 @@ class SinkSubscriptionTest {
     }
 
     @Test
+    fun `a stored TagsApplied of the tags Wow no longer has should be left out as a retired event`(): Unit =
+        runBlocking {
+            val tagsApplied = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"region":["eu"]}}""")
+            fun stream(version: Int, vararg events: EventRecord) = EventStreamRecord(
+                ref = ref,
+                version = version,
+                commandId = "c-$version",
+                requestId = "r-$version",
+                commandType = "shop.order.SetPrice",
+                commitTime = version.toLong(),
+                events = events.toList(),
+                scope = Scope.NONE,
+            )
+            val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+            log.append(stream(1, priced, tagsApplied)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream(2, tagsApplied)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val sink = sink()
+            log.read(ref).collect { handle(sink, it) }
+            val record = written.single()
+            record.version.assert().isEqualTo(1)
+            record.events.map { it.name }.assert().containsExactly("shop.order.Priced")
+        }
+
+    @Test
     fun `a stream published without its state should still carry the deleted mark`(): Unit = runBlocking {
         val sink = sink(includeState = false)
         handle(sink, commit(SetPrice(BigDecimal.ONE)))

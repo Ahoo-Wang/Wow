@@ -58,6 +58,8 @@ import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -177,6 +179,40 @@ class HostQueryTest {
             // reads none of its events; a caller without ABAC attributes is not restricted.
             eventsOf(Caller(attributes = mapOf("abac.$TIER" to listOf("gold")))).assert().isEmpty()
             eventsOf(Caller()).map { it["version"].asInt() }.assert().containsExactly(1)
+        }
+    }
+
+    @Test
+    fun `the events model should leave out a stored TagsApplied, and the aggregate still take commands`() {
+        startHost(
+            "wow.query.memory.enabled" to false,
+            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val log = host.node.context(BANK).backends.log
+            // As a released version wrote it: the tags it applied, beside an event the model reads.
+            runBlocking {
+                val opened = log.read(ACCOUNT.ref(Caller.DEFAULT_TENANT, id)).toList().single()
+                val stored = opened.copyWith(
+                    version = 2,
+                    commandId = "old-2",
+                    requestId = "old-2",
+                    events = listOf(
+                        EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"tier":["gold"]}}"""),
+                        EventRecord("bank.account.Deposited", 1, """{"amount":5}"""),
+                    ),
+                )
+                log.append(stored).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            }
+            host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(200)
+
+            val events = host.context.getBean(HttpQueries::class.java).events(ACCOUNT)!!
+            val streams = runBlocking {
+                events.list(ListQuery(AggregateIdFilter(id), limit = 10), QueryCaller(Caller())).toList()
+            }
+            streams.map { it["version"].asInt() }.assert().containsExactly(1, 2, 3)
+            val names = streams[1]["events"].values().map { it["name"].asString() }
+            names.assert().containsExactly("bank.account.Deposited")
         }
     }
 

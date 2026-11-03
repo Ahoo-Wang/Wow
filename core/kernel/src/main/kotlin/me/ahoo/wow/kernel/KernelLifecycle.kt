@@ -55,6 +55,13 @@ internal object KernelLifecycle {
     val SCHEDULE_COMMANDS: Set<Class<*>> = Schedules.COMMANDS.values.toSet()
 
     /**
+     * The stored names of the lifecycle events Wow no longer has, which every model retires ([AggregateModel.isRetired]):
+     * a log a released version wrote still holds them, so an aggregate loads, replays and is read past them, its
+     * version counting their streams. `TagsApplied` went with the tags, which the state's access attributes replace.
+     */
+    val RETIRED_EVENTS: Set<String> = setOf("${Lifecycle.NAMESPACE}.TagsApplied")
+
+    /**
      * The kernel's decide function for the lifecycle or schedule command [commandType].
      * [decides] tells whether the aggregate decides the command type of a name or an alias, which a schedule names.
      */

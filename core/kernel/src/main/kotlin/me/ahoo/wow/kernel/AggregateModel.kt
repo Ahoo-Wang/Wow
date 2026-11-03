@@ -246,7 +246,9 @@ class CommandType @InternalWowApi constructor(
  * class is gone, but the log still holds records under the name. Such a record is skipped, never decoded: replaying
  * the stream applies nothing for it, though the stream still counts as a version, and a subscription passes over it.
  * A name that is neither an event's nor retired still fails to read. A retired name is not blank, is listed once, and
- * is none of the model's event or command names, current or former.
+ * is none of the model's event or command names, current or former. Every model also retires the lifecycle events Wow
+ * no longer has ([KernelLifecycle.RETIRED_EVENTS], such as `wow.lifecycle.TagsApplied`), which [retiredEvents] does
+ * not list: a log a released version wrote still loads.
  *
  * [aggregateIds] reads, by command class, the id of the aggregate a command acts on from its body (`@AggregateId`):
  * such a command's request need not name its aggregate ([aggregateIdOf]). A command decided here takes one, not an
@@ -473,8 +475,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** Whether [name] is the stored name of an event this aggregate retired ([retiredEvents]). */
-    fun isRetired(name: String): Boolean = name in retiredEvents
+    /**
+     * Whether [name] is the stored name of an event this aggregate retired ([retiredEvents]), or of a lifecycle event
+     * Wow no longer has ([KernelLifecycle.RETIRED_EVENTS]).
+     */
+    fun isRetired(name: String): Boolean = name in retiredEvents || name in KernelLifecycle.RETIRED_EVENTS
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
     fun findEventType(name: String): EventType? = eventsByName[name]
