@@ -401,6 +401,8 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
                 "p50Ms" to step.latency.percentile(50.0) / MICROS_PER_MILLI,
                 "p99Ms" to step.latency.percentile(99.0) / MICROS_PER_MILLI,
                 "generatorCores" to step.generatorCores,
+                "sentOk" to step.sentOk,
+                "sentFailed" to step.sentFailed,
             )
         },
         "meta" to options.meta(),
