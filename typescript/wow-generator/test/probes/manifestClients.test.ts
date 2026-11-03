@@ -394,12 +394,18 @@ describe('Manifest clients', () => {
           ],
         },
         {
-          'a.Ship': { type: 'object', properties: { carrier: { type: 'string' } } },
+          'a.Ship': {
+            type: 'object',
+            properties: { carrier: { type: 'string' } },
+          },
           'a.Settle': {
             type: 'object',
             properties: { receipt: { $ref: schema('a.Receipt') } },
           },
-          'a.Receipt': { type: 'object', properties: { n: { type: 'integer' } } },
+          'a.Receipt': {
+            type: 'object',
+            properties: { n: { type: 'integer' } },
+          },
         },
       ),
       `import { ThingCommandClient } from './out/index.js';
