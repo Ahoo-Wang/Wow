@@ -19,8 +19,8 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
-// `documentedQueries`, `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules;
-// each has its own tests.
+// `documentedQueries`, `viewStoreContract`, `opsConsole`, `catalogConsole` and `axonServer` are decided apart
+// from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
@@ -29,6 +29,7 @@ const KOTLIN_GATES = new Set([
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
+  'axonServer',
 ]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
@@ -607,6 +608,32 @@ test('the catalog console, the catalog service and what the console builds with 
   );
 });
 
+test("the Axon server's own paths alone run its job, and nothing else", () => {
+  for (const path of [
+    'test/benchmarks/axon-server/build.gradle.kts',
+    'test/benchmarks/axon-server/src/main/kotlin/me/ahoo/wow/benchmark/axon/BoundedCache.kt',
+    'test/benchmarks/axon-server/src/test/kotlin/me/ahoo/wow/benchmark/axon/BoundedCacheTest.kt',
+    'test/benchmarks/axon-server/inspect.sql',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).axonServer, path);
+  for (const path of [
+    'test/benchmarks/server/build.gradle.kts',
+    'test/benchmarks/harness/bench.sh',
+    'test/benchmarks/README.md',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+  ])
+    assert.ok(!scopes([path]).axonServer, path);
+  // Outside the repository's Gradle build: no TypeScript scope, and not the JVM jobs.
+  const server = scopes(['test/benchmarks/axon-server/src/main/kotlin/A.kt']);
+  assert.deepEqual(
+    on(['test/benchmarks/axon-server/src/main/kotlin/A.kt']),
+    [],
+  );
+  assert.ok(!server.jvm && !server.architecture);
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -674,6 +701,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
+      `axonServer=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

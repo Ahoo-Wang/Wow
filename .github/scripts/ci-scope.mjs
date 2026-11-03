@@ -97,6 +97,12 @@ const OPS_CONSOLE_PATH =
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
   /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's axon-server job: the unit tests and the distribution of the
+// industry comparison's Axon Framework server (test/benchmarks/axon-server, a
+// Gradle build of its own, outside the repository's and so outside JVM_PATH).
+// Decided apart from RULES, by AXON_SERVER_PATH: its own paths alone.
+const AXON_SERVER = 'axonServer';
+const AXON_SERVER_PATH = /^test\/benchmarks\/axon-server\//;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -337,6 +343,7 @@ export function scopes(paths) {
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
+    AXON_SERVER,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -372,6 +379,8 @@ export function scopes(paths) {
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   // And the analytics catalog console's.
   result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
+  // And the Axon server's.
+  result[AXON_SERVER] = paths.some(path => AXON_SERVER_PATH.test(path));
   return result;
 }
 
