@@ -69,6 +69,7 @@ import {
   ratioVerdict,
   SATURATION,
   saturationOutlier,
+  saturationSamples,
   runSettings,
   runSuite,
   SAME,
@@ -463,6 +464,90 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
   // Its A/A thresholds are its ab twin's.
   assert.equal(noiseLabel(suite), 'e1-pg-uniform@100k');
   assert.equal(noiseLabel({ name: 'e3-pg', dataset: '1k' }), 'e3-pg@1k');
+});
+
+test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge them by their A/A spread', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  const env = {
+    JAVA_HOME_21_X64: fakeJdk(dir, '21.0.9+10-LTS'),
+    JAVA_HOME_25_X64: fakeJdk(dir, '25.0.1+8-LTS'),
+  };
+  assert.deepEqual(suitesOf('jdk-saturation'), [
+    'jdk-e1-pg-saturation',
+    'jdk-e3-pg-saturation',
+  ]);
+  const suite = runSuite('jdk-e1-pg-saturation', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 2,
+    fraction: 0.8,
+    env,
+    out: join(dir, 'results', 'jdk-e1-pg-saturation'),
+  });
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  // Searches alone, four an arm in turn, each from empty stores: no probe, no round.
+  assert.ok(calls.every(line => line.startsWith('saturate ')));
+  assert.ok(calls.every(line => !line.includes('--reuse')));
+  assert.deepEqual(
+    calls.map(line => line.match(/--label=\S+-saturation-(\S+)/)[1]),
+    [
+      'jdk21-1',
+      'jdk25-1',
+      'jdk25-2',
+      'jdk21-2',
+      'jdk21-3',
+      'jdk25-3',
+      'jdk25-4',
+      'jdk21-4',
+    ],
+  );
+  assert.deepEqual(suite.runs, []);
+  assert.deepEqual(Object.keys(suite.saturation), ['jdk21', 'jdk25']);
+  assert.deepEqual(suite.saturation.jdk21, {
+    status: 'ok',
+    throughput: 150,
+    samples: 4,
+    capped: false,
+  });
+  assert.equal(
+    saturationSamples(suite).verdict,
+    'level (within the A/A spread)',
+  );
+  // The verdict: a range beyond the larger arm's spread names the higher arm.
+  const sampled = (first, second) => ({
+    arms: suite.arms,
+    saturations: {
+      jdk21: first.map(throughput => ({ status: 'ok', throughput })),
+      jdk25: second.map(throughput => ({ status: 'ok', throughput })),
+    },
+  });
+  const lower = saturationSamples(
+    sampled([3900, 3800, 3950, 3850], [3300, 3400, 3350, 3380]),
+  );
+  assert.equal(lower.verdict, 'jdk21 higher');
+  assert.equal(Math.round(lower.median * 1000), 868);
+  assert.equal(Math.round(lower.noise * 1000), 39);
+  assert.equal(
+    saturationSamples(sampled([3900, 3300], [3400, 3800])).verdict,
+    'level (within the A/A spread)',
+  );
+  assert.equal(
+    saturationSamples(sampled([3900], [3400])).verdict,
+    'no A/A (one session an arm)',
+  );
+  assert.match(
+    renderSuite(suite),
+    /\| jdk-e1-pg-saturation@100k \| jdk25\/jdk21 \| 150\.0\/s, 150\.0\/s, 150\.0\/s, 150\.0\/s \| 150\.0\/s, 150\.0\/s, 150\.0\/s, 150\.0\/s \| 1\.000 \| 1\.000–1\.000 \| 0\.0% \| level/,
+  );
+  assert.match(
+    renderSuite(suite),
+    /measured 5 s; closed-loop searches alone, 4 an arm in turn \(ABBA\)/,
+  );
+  assert.doesNotMatch(renderSuite(suite), /\| Run \| Arm \| Rate/);
+  const report = renderReport([suite], {});
+  assert.match(report, /## Saturation samples \(closed loop\)/);
 });
 
 test('runSuite pairs the arms, adds a round on drift, and the report combines the suites', () => {
