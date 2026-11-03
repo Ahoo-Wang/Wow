@@ -79,6 +79,8 @@ class AccessStampOptions @InternalWowApi constructor(
  * - **A stream without its attributes**: one not stamped, or stamped before the model declared the attributes it
  *   declares now, is not the follower's to stamp: it would replay the aggregate's state for each one. [unstamped] is
  *   told of its type, and the stamp of its aggregate's next commit writes it.
+ * - **Run as [FunctionKind.PROJECT]**: it writes derived data of the log, as a projection does. A kind of its own would
+ *   be a new value of an enum the wire carries (the OpenAPI document, the TypeScript client) for one built-in.
  */
 @InternalWowApi
 class AccessStamping(
