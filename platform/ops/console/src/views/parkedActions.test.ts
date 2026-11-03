@@ -202,6 +202,7 @@ describe("what the console checks before the service would refuse it", () => {
     for (const field of [initialBackoff, claimTtl]) {
       for (const taken of durations.taken)
         expect(field.check!(taken)).toBe(true);
+      // A blank field is left out of the spec, never checked.
       for (const refused of durations.refused.filter((text) => text.trim()))
         expect(field.check!(refused)).toBe(duration);
     }
