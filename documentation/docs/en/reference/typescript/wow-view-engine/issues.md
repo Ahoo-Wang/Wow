@@ -404,6 +404,8 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `definition.record.row-field-unknown` | The row field {field} is not a declared field. |
 | `definition.record.row-key-unknown` | The row key {field} is not a declared field. |
 | `definition.record.row-key-unsortable` | The row key {field} must be sortable: every page is ordered by it last, so a row never shows on two pages. |
+| `definition.record.row-name-not-a-path` | The row name {field} is a search or metadata handle, not a value a row holds. |
+| `definition.record.row-name-unknown` | The row name {field} is not a declared field. |
 | `definition.search.reference-label` | {field} searches {references}, which hold ids read as names: the server matches the stored id, not the name shown. Denormalize the name into the read model (customerName, say) and search that field. |
 | `definition.source.unregistered` | No source is registered for {source}: register this definition with its source. |
 | `definition.text.fallback` | The words in force give none for the key {key}; the engine’s starting words say it instead. |

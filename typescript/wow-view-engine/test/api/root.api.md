@@ -79,6 +79,13 @@ export interface ActionFormField {
 export type ActionInput = Readonly<Record<string, unknown>>;
 
 // @public
+export class ActionInputError extends Error {
+    constructor(reason: string, fields?: Readonly<Record<string, string>>);
+    readonly fields: Readonly<Record<string, string>>;
+    readonly reason: string;
+}
+
+// @public
 export type ActionPlace = 'row' | 'bulk' | 'detail';
 
 // @public
@@ -2739,6 +2746,7 @@ export interface RecordCapability {
     requiresFilter?: boolean;
     rowFields?: string[];
     rowKey: string;
+    rowName?: string;
 }
 
 // @public

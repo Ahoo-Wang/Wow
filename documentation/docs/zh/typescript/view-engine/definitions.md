@@ -143,7 +143,7 @@ export const salesOrders = defineView(salesOrderDescriptor, {
 | 问题 | 选择 |
 | --- | --- |
 | 读者会读它、按它过滤或分组吗？ | 会就列，不会就不列。 |
-| 它是人们称呼一条记录的方式吗？ | `cell: 'copyable'`、`analysis: false`；它唯一且可排序时，作为 `record.rowKey`。 |
+| 它是人们称呼一条记录的方式吗？ | `cell: 'copyable'`、`analysis: false`；它唯一且可排序时，作为 `record.rowKey`，否则作为 `record.rowName`，用来给行上的控件命名。 |
 | 是只计数、从不分组的 ID 吗？ | `analysis: { groups: [] }`：它仍能用于去重计数。 |
 | 是自由文本吗？ | `cell: 'text'`、`sortable: false`、`analysis: false`；没人按它过滤时写 `operators: []`。 |
 | 是类别吗？ | 为读者会遇到的每个值写措辞（`options`）；只有好、坏或等待中的值才带 `tone`。 |
@@ -237,6 +237,8 @@ export const SALES_ORDER_WORDS = {
 ## 5. 行必须带的字段 {#_5-the-fields-a-row-must-carry}
 
 行的身份 `record.rowKey` 默认是描述里的身份，快照是 `aggregateId`。它必须是列出的、可排序的字段：每次记录查询都以它作为排序的最后一项，所以分页既不重复也不遗漏。
+
+这个身份是没人念出来的 ID 时，把读者认一行用的字段（例如订单号）写进 `record.rowName`。读屏用户听到的行控件就是「选择 SO-1002」「发货 SO-1002」，而不是一长串键；操作的问句与结果也这样说。
 
 **引擎只查询视图显示的东西**：可见的列、卡片的字段、排序和汇总读取的字段，以及身份。隐藏的列不会取回。所以当宿主代码从行上读一个字段时，例如检查状态的操作，这个字段在不显示它的视图里可能不存在。把宿主代码读取的每个字段都列进 `record.rowFields`：
 

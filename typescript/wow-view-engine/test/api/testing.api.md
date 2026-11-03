@@ -1539,6 +1539,7 @@ interface RecordCapability {
     requiresFilter?: boolean;
     rowFields?: string[];
     rowKey: string;
+    rowName?: string;
 }
 
 // @public (undocumented)

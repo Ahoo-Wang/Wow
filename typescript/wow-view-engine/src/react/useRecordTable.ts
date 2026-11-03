@@ -94,6 +94,12 @@ export interface RecordTableController {
    * without reading the definition itself. Absent before a runtime exists.
    */
   rowKey?: string;
+  /**
+   * The field a reader names a row by (`RecordCapability.rowName`), which
+   * the row's controls and an action's sentences say; absent where the
+   * definition names rows by their key.
+   */
+  rowName?: string;
   /** The picker groups the definition declares, for the column settings. */
   fieldGroups: readonly FieldGroupDefinition[];
   /**
@@ -510,6 +516,7 @@ export function useRecordTable(
     // draft, so a body field appears with the rows it belongs to.
     card: view?.card ?? NO_CARD,
     rowKey: definition?.record?.rowKey,
+    rowName: definition?.record?.rowName,
     fieldGroups: definition?.fieldGroups ?? NO_GROUPS,
     cardSpec: state?.draft.card ?? NO_CARD_SPEC,
     setCard: useCallback(

@@ -50,6 +50,13 @@ export interface BulkRun {
    */
   done?: string;
   /**
+   * What the outcome line calls each record, where the definition names
+   * rows (`RecordCapability.rowName`): read when the command is pressed,
+   * so it still names a record the refresh after took off the page. The
+   * key where it has none.
+   */
+  names?: ReadonlyMap<RecordKey, string>;
+  /**
    * Sends one record's command. `signal` aborts when the run stops waiting
    * for it — past `timeout`, or on the second Stop — so a host can cancel
    * what it has not sent; the outcome is reported as unknown either way.
@@ -113,6 +120,8 @@ export interface BulkOutcome {
    * started, in the order picked; none for a record's own command.
    */
   kept: readonly RecordKey[];
+  /** What each record is called (`BulkRun.names`); the key where absent. */
+  names?: ReadonlyMap<RecordKey, string>;
 }
 
 /**
@@ -391,6 +400,7 @@ export function useActionRunner(
           title: command.title,
           ...(command.values ? { values: command.values } : {}),
           ...(command.done === undefined ? {} : { done: command.done }),
+          ...(command.names ? { names: command.names } : {}),
           succeeded,
           failed,
           refused,

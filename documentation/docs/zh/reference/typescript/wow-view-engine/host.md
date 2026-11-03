@@ -167,8 +167,8 @@ export const orderActions = actions([
 | `available(row, context)` | 记录现在能接受命令时为 `true`，否则说明原因。已知输入时带着输入问，所以一个选择可以拒绝某个选项、提供其余的 |
 | `hidden(row, context)` | 这条记录根本不显示这个操作——读者无权做——区别于 `available` 显示为禁用并说明原因 |
 | `changesAt(row, context)` | `available` 下一次自己变化的时刻（`Date`）；引擎到时重问，宿主不用自己的计时器 |
-| `confirm` | 先问；可以是输入的函数。措辞里 `{count}` 是记录数（有 `-one` 形式给区分单数的语言），`{value}` 是选择的选项，`{record}` 是单条时的记录键。`ask: 'always'`（缺省）单条也问；`'bulk'` 只有选择才问。选择总是问 |
-| `form` | 命令除记录外还要的东西。只有一个带选项字段的表单就是一个选择：选项直接列在菜单里，选中的就是输入 |
+| `confirm` | 先问；可以是输入的函数。措辞里 `{count}` 是记录数（有 `-one` 形式给区分单数的语言），`{value}` 是选择的选项，`{record}` 是单条时的记录名（定义的 `record.rowName`），没有就是记录键。`ask: 'always'`（缺省）单条也问；`'bulk'` 只有选择才问。选择总是问 |
+| `form` | 命令除记录外还要的东西。只有一个带选项字段的表单就是一个选择：选项直接列在菜单里，选中的就是输入。字段的 `check(value)` 在发送之前拒绝服务一定会拒绝的值，理由写在字段下面 |
 | `moves` | 这个命令设置的记录字段，供按它分栏的看板视图用：卡片拖到另一栏，就以那一栏的值为输入执行命令（`{ [moves]: value }`），`available` 也带着这个输入问，所以规则可以只拒某一个阶段。再给一个只有这个字段的表单（选项是各阶段），卡片的菜单就提供同一个移动——键盘移卡片走它。表单问了别的，`actions()` 拒绝 |
 | `on` | 在哪里提供：`row`、`bulk`、`detail`；缺省处处都有 |
 | `primary` | 读者最常按的那个：行里的按钮，不在菜单里 |
@@ -203,11 +203,24 @@ export interface ActionConfirm {
 }
 
 export interface ActionFormField {
+  check?(value: unknown): Availability;
   initial?: string | number | boolean;
   input?: 'text' | 'number' | 'boolean';
   label: string;
   options?: readonly FieldOption[];
   required?: boolean;
+}
+```
+
+### 服务拒绝了填写的内容 {#api-ActionInputError}
+
+`check` 在发送前说出服务已知会拒绝的值；最后的判断仍在服务。服务拒绝的是输入而不是记录时——读不懂的值、超出范围的数——`run` 抛出 `ActionInputError`，带上它的理由，能分辨时还带上被拒的字段。表单会在被拒的那些记录上回来，保留填写的内容：点名的字段标出理由，只要字段还是被拒的那个值理由就一直在，键盘落在第一个上；没有点名表单字段的理由写在所有字段上方。其他失败照常关闭表单，在结果行里报告。选择不画表单，所以不会回来。
+
+```ts
+export declare class ActionInputError extends Error {
+  constructor(reason: string, fields?: Readonly<Record<string, string>>);
+  readonly fields: Readonly<Record<string, string>>;
+  readonly reason: string;
 }
 ```
 

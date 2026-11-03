@@ -12,6 +12,7 @@
  */
 
 import type * as React from 'react';
+import type { RecordKey } from '../../model/index.js';
 import type {
   ActionRunner,
   BulkOutcome,
@@ -189,8 +190,10 @@ function one(
   sayWith: SayWith,
 ): [AlertTone, string] {
   const { succeeded, failed, refused, unknown, skipped } = outcome;
+  // A record by its name where the definition gives rows one.
+  const nameOf = (key: RecordKey) => outcome.names?.get(key) ?? String(key);
   if (succeeded.length > 0) {
-    const record = String(succeeded[0]);
+    const record = nameOf(succeeded[0]);
     return [
       'info',
       outcome.done === undefined
@@ -202,7 +205,7 @@ function one(
     return [
       'error',
       messages.label('label.bulk.one-failed', {
-        record: String(failed[0].key),
+        record: nameOf(failed[0].key),
         reason: messages.say(failed[0].reason),
       }),
     ];
@@ -210,7 +213,7 @@ function one(
     return [
       'warning',
       messages.label('label.bulk.one-refused', {
-        record: String(refused[0].key),
+        record: nameOf(refused[0].key),
         reason: messages.say(refused[0].reason),
       }),
     ];
@@ -218,12 +221,12 @@ function one(
     return [
       'warning',
       messages.label('label.bulk.one-unknown', {
-        record: String(unknown[0].key),
+        record: nameOf(unknown[0].key),
       }),
     ];
   return [
     'warning',
-    messages.label('label.bulk.one-skipped', { record: String(skipped[0]) }),
+    messages.label('label.bulk.one-skipped', { record: nameOf(skipped[0]) }),
   ];
 }
 
