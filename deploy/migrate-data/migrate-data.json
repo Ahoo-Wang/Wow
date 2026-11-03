@@ -9,7 +9,7 @@
     "type": "postgres",
     "jdbcUrl": "jdbc:postgresql://postgres:5432/wow",
     "username": "wow",
-    "password": "env:WOW_PG_PASSWORD",
+    "password": "env:TARGET_PG_PASSWORD",
     "poolSize": 16
   },
   "partitions": { "example": 64 },

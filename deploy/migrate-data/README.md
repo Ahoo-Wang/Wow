@@ -28,7 +28,7 @@ Plain manifests that run `migrate-data`, the tool that moves a 9.x service's dat
 
 3. **The configuration and the map.** Put your map in `migration-map.json`, and set the store addresses, the database names, the partitions and the compensation service in `migrate-data.json`. Both are mounted read-only at `/config`.
 
-4. **The secrets.** `secret.yaml` holds example values. Create the secret from your own store instead, with the names the configuration reads (`env:NINEX_MONGO_URI`, `env:WOW_PG_PASSWORD`).
+4. **The secrets.** `secret.yaml` holds example values. Create the secret from your own store instead, with the names the configuration reads (`env:NINEX_MONGO_URI`, `env:TARGET_PG_PASSWORD`).
 
 5. **The network.** Set the selectors in `networkpolicy.yaml` to your stores' pods, or use an `ipBlock` for a store outside the cluster. The pods reach DNS, the 9.x MongoDB (the source, and the compensation database's server), the V10 target, and the Elasticsearch cluster when `backfill-tags` re-sinks one. They serve no port. The stores' own policies must admit them, by `app.kubernetes.io/name: migrate-data`, as [`deploy/mongodb`](../mongodb/README.md) does.
 

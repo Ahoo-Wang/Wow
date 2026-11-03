@@ -45,6 +45,8 @@ class DocumentationSamplesTest {
         config.manifests.assert().isEmpty()
         config.classpath.assert().containsExactly("/service/lib")
         MigrationConfig.resolve(config.source.uri) { "mongodb://9x" }.assert().isEqualTo("mongodb://9x")
+        MigrationConfig.resolve(config.target.password) { if (it == "TARGET_PG_PASSWORD") "secret" else null }
+            .assert().isEqualTo("secret")
         Files.readString(recipe.resolve("migration-map.json"))
             .assert().isEqualTo(Files.readString(samples.resolve("migration-map.json")))
     }
