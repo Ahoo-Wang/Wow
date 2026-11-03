@@ -67,11 +67,22 @@ internal class InMemoryNineXEventSource(streams: Collection<NineXStream> = empty
         from: Long,
         after: NineXPosition?,
         limit: Int,
+        until: NineXPosition?,
     ): List<NineXStream> = streams.filter { it.aggregate == aggregate && it.createTime >= from }
-        .filter {
-            after == null || it.createTime > after.createTime ||
-                (it.createTime == after.createTime && it.id > after.streamId)
-        }
+        .filter { after == null || it.position > after }
+        .filter { until == null || it.position <= until }
         .sortedWith(compareBy({ it.createTime }, { it.id }))
         .take(limit)
+
+    override fun lastCommitted(aggregate: NineXAggregate): NineXPosition? =
+        streams.filter { it.aggregate == aggregate }.map { it.position }.maxWithOrNull(BY_COMMIT)
+
+    private val NineXStream.position: NineXPosition
+        get() = NineXPosition(createTime, id)
+
+    private operator fun NineXPosition.compareTo(other: NineXPosition): Int = BY_COMMIT.compare(this, other)
+
+    private companion object {
+        val BY_COMMIT: Comparator<NineXPosition> = compareBy({ it.createTime }, { it.streamId })
+    }
 }

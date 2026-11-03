@@ -32,7 +32,10 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-/** The kernel's scope guard (decision D94): an existing aggregate takes commands from its own scope only. */
+/**
+ * The kernel's scope guard (decision D94), the default rule ([me.ahoo.wow.api.access.ScopeAccess]): an existing
+ * aggregate takes commands from its own scope only, and is out of the reach of any other, as if it did not exist.
+ */
 class KernelScopeTest {
     private val codec = EventCodec()
     private val log = InMemoryEventLog()
@@ -65,36 +68,37 @@ class KernelScopeTest {
     private suspend fun versions(): List<Int> = log.read(ref).toList().map { it.version }
 
     @Test
-    fun `a command of another owner is forbidden`(): Unit = runTest {
+    fun `a command of another owner is answered as one of an aggregate that does not exist`(): Unit = runTest {
+        val missing = send(AddItem("apple", 1), owned) as CommandOutcome.Rejected
         created()
         val refused = send(AddItem("apple", 1), Scope("bob", "space-a")) as CommandOutcome.Rejected
-        refused.rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-        refused.rejection.message.assert().contains(ref.toString())
-        send(AddItem("apple", 1), Scope("bob", null)).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        refused.rejection.assert().isEqualTo(missing.rejection)
+        refused.rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(AddItem("apple", 1), Scope("bob", null)).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         versions().assert().containsExactly(1)
     }
 
     @Test
-    fun `a command of another space is forbidden`(): Unit = runTest {
+    fun `a command of another space is answered as one of an aggregate that does not exist`(): Unit = runTest {
         created()
         send(
             AddItem("apple", 1),
             Scope("alice", "space-b")
-        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(
             AddItem("apple", 1),
             Scope(null, "space-b")
-        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         versions().assert().containsExactly(1)
     }
 
     @Test
-    fun `a part the aggregate lacks forbids a command that names it`(): Unit = runTest {
+    fun `a part the aggregate lacks keeps it out of the reach of a command that names it`(): Unit = runTest {
         created(Scope(ownerId = "alice"))
         send(
             AddItem("apple", 1),
             Scope("alice", "space-a")
-        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), Scope(ownerId = "alice")).committed()
     }
 
@@ -108,9 +112,10 @@ class KernelScopeTest {
     }
 
     @Test
-    fun `creating is not guarded and gives the aggregate the creating command's scope`(): Unit = runTest {
+    fun `creating gives the creating command's scope, and a creation out of reach is forbidden`(): Unit = runTest {
         created().stream.scope.assert().isEqualTo(owned)
-        // On an aggregate that exists, the guard comes first: another scope does not learn it is a duplicate creation.
+        // A creation tells whether the aggregate exists whatever it is answered: forbidden, not as if it did not exist.
+        // The guard still comes first: another scope does not learn it is a duplicate creation.
         send(
             CreateCart("bob"),
             Scope("bob", "space-b")
@@ -124,11 +129,11 @@ class KernelScopeTest {
         send(
             TransferOwner("carol"),
             Scope("bob", "space-a")
-        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(TransferOwner("bob"), owned).committed().stream.scope.assert().isEqualTo(Scope("bob", "space-a"))
 
-        send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-        send(TransferOwner("alice"), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(TransferOwner("alice"), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), Scope("bob", "space-a")).committed().stream.scope
             .assert().isEqualTo(Scope("bob", "space-a"))
     }
@@ -138,10 +143,10 @@ class KernelScopeTest {
         runTest {
             created()
             send(TransferSpace("space-c"), Scope("alice", "space-b"))
-                .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+                .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             send(TransferSpace("space-b"), owned).committed().stream.scope
                 .assert().isEqualTo(Scope("alice", "space-b"))
-            send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             send(AddItem("apple", 1), Scope("alice", "space-b")).committed()
         }
 
@@ -157,12 +162,12 @@ class KernelScopeTest {
         send(AddItem("apple", 1), stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         created()
         send(AddItem("apple", 1), stranger, expectedVersion = 7)
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), owned, expectedVersion = 7)
             .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_VERSION_MISMATCH)
         send(DeleteAggregate, owned).committed()
-        send(AddItem("apple", 1), stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
-        send(RestoreAggregate, stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        send(AddItem("apple", 1), stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+        send(RestoreAggregate, stranger).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), owned).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
         send(RestoreAggregate, owned).committed()
         versions().assert().containsExactly(1, 2, 3)
@@ -177,22 +182,22 @@ class KernelScopeTest {
         snapshots.save(codec.snapshotOf(cartModel, ref, head.state as CartState, 2, head.scope, 0, 0))
         val fromSnapshot = Kernel(log, codec, snapshots = snapshots)
         val refused = send(AddItem("apple", 1), owned, kernel = fromSnapshot)
-        refused.rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        refused.rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), Scope("bob", "space-a"), kernel = fromSnapshot).committed()
     }
 
     @Test
-    fun `a duplicate is answered within the scope that sent it, and forbidden outside it`(): Unit = runTest {
+    fun `a duplicate is answered within its scope, and as if nothing existed outside it`(): Unit = runTest {
         val creation = created()
         send(CreateCart("ahoo"), owned, requestId = "create").assert()
             .isEqualTo(CommandOutcome.AlreadyCommitted(creation.stream))
         send(CreateCart("ahoo"), Scope.NONE, requestId = "create").assert()
             .isEqualTo(CommandOutcome.AlreadyCommitted(creation.stream))
         send(CreateCart("ahoo"), Scope("bob", "space-a"), requestId = "create")
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         // Outside the scope, the reuse by another command type is not told apart either.
         send(AddItem("apple", 1), Scope("bob", "space-a"), requestId = "create")
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), owned, requestId = "create")
             .rejection().assert().isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
         versions().assert().containsExactly(1)
@@ -209,9 +214,9 @@ class KernelScopeTest {
             .isEqualTo(CommandOutcome.AlreadyCommitted(space.stream))
         // The part the stream did not transfer is still checked.
         send(TransferOwner("bob"), Scope("alice", "space-x"), requestId = "to-bob")
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(TransferSpace("space-b"), Scope("carol", "space-a"), requestId = "to-b")
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         versions().assert().containsExactly(1, 2, 3)
     }
 
@@ -236,7 +241,7 @@ class KernelScopeTest {
         (send(AddItem("apple", 1), Scope("bob", "space-a"), "bob") as CommandOutcome.Committed)
             .stream.scope.assert().isEqualTo(Scope(spaceId = "space-a"))
         (send(AddItem("apple", 1), Scope("bob", "space-b"), "elsewhere") as CommandOutcome.Rejected)
-            .rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         // A retry of the creation from another owner is answered: the owner is no part of the aggregate's scope.
         send(CreateCart("ahoo"), Scope("carol", "space-a"), "create")
             .assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
@@ -263,9 +268,9 @@ class KernelScopeTest {
         send(
             AddItem("apple", 1),
             Scope("bob", "space-b")
-        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         send(AddItem("apple", 1), Scope("bob", "space-b"), requestId = "derived-add")
-            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         versions().assert().containsExactly(1, 2)
     }
 

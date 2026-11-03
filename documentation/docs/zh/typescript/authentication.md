@@ -52,7 +52,7 @@ export function onSignedIn(
 
 `applyTo` 加上 `Authorization: Bearer <access token>`，在令牌过期之前刷新它（并发的请求只刷新一次），在刷新之后重试被以 401 回答的请求，在刷新也解决不了的 401 时调用 `onUnauthorized`，在 403 时调用 `onForbidden`。它还发送 `CoSec-App-Id`、一个 `CoSec-Device-Id` 和一个 `CoSec-Request-Id`。服务把 CoSec 决定这个请求时所在的应用记录为提交的 `app_id`：宿主自己的应用，或 CoSec 接受的 `CoSec-App-Id`，或在 CoSec 网关之后由网关转发的应用。
 
-服务拒绝的请求以 `WowProblemError` reject：401 `wow.auth.unauthenticated`、403 `wow.auth.forbidden`，或者对调用方作用域之外的聚合的 403 `wow.aggregate.forbidden`。
+服务拒绝的请求以 `WowProblemError` reject：401 `wow.auth.unauthenticated`、403 `wow.auth.forbidden`，或者创建调用方作用域之外的聚合时的 403 `wow.aggregate.forbidden`。对这样的聚合的其他命令得到 404 `wow.aggregate.not-found`，与不存在的聚合相同。
 
 ## 空间与作用域 {#spaces-and-scopes}
 

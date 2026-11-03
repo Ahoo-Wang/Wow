@@ -67,7 +67,9 @@ import kotlin.system.exitProcess
  *   changed on either side since and those that differed, unless what the result depends on changed, which it says;
  *   `--sample` compares that percentage of the instances, the same ones on every run, and `--restart` compares from
  *   the first again. It first prints the time zone it runs in, the
- *   one a state that turns a date into an instant with the system's zone rebuilds in. It then checks that every confirmed 9.x
+ *   one a state that turns a date into an instant with the system's zone rebuilds in. It checks that the log holds
+ *   every stream 9.x committed since the full import started, up to where the tail has read ([ImportCoverage]),
+ *   which the snapshots cannot show after an instance's latest one. It then checks that every confirmed 9.x
  *   `PrepareKey` key is reserved in V10 for the same owner and every key it imported is still confirmed to that
  *   owner in 9.x ([ReservationComparison], every key on every run), and that every unresolved 9.x execution is
  *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
@@ -479,25 +481,20 @@ internal class MigrateData(
             report = out::println,
         )
         val differing = plan.aggregates.keys.map { comparison.compare(it) }.filterNot { it.passed }
-        val reservations = ReservationComparison(
-            source = connections.source,
-            reservations = connections.reservations,
-            plan = plan,
-            store = connections::reservationStore,
-            pageSize = config.pageSize,
-            report = out::println,
-            imported = keys,
-        )
-        val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
+        val missing = checkImports(plan, config, connections, checkpoints, restart)
+        val differingKeys = compareReservations(plan, config, connections, keys)
         val executions = compareCompensation(plan, config, connections)
-        if (differing.isEmpty() && differingKeys.isEmpty() && executions?.passed != false) {
+        val statesAndStreams = differing.isEmpty() && missing.isEmpty()
+        if (statesAndStreams && differingKeys.isEmpty() && executions?.passed != false) {
             out.println(
-                "Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key is " +
+                "Comparison done: every state compared equals its 9.x snapshot, the log holds every stream 9.x " +
+                    "committed since the import up to where the tail has read, every confirmed 9.x key is " +
                     "reserved for its owner, and every unresolved 9.x execution imported is parked; nothing " +
                     "imported was released or resolved in 9.x since.",
             )
             return OK
         }
+        reportMissing(missing)
         if (differing.isNotEmpty()) {
             out.println(
                 "Comparison done: ${differing.sumOf { it.differing }} instances of ${differing.map { it.aggregate }} " +
@@ -535,6 +532,60 @@ internal class MigrateData(
         fingerprint = ComparisonFingerprint.of(config, sample),
         lookbackMillis = config.final.lookbackMillis,
     )
+
+    /** Compares the confirmed 9.x keys with the V10 reservations ([ReservationComparison]); the PrepareKeys that differ. */
+    private suspend fun compareReservations(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        keys: ImportedKeys,
+    ): List<ReservationComparisonResult> {
+        val reservations = ReservationComparison(
+            source = connections.source,
+            reservations = connections.reservations,
+            plan = plan,
+            store = connections::reservationStore,
+            pageSize = config.pageSize,
+            report = out::println,
+            imported = keys,
+        )
+        return plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
+    }
+
+    /** Checks that the log holds the streams 9.x committed since each full import ([ImportCoverage]); those it misses. */
+    private suspend fun checkImports(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
+        restart: Boolean,
+    ): List<CoverageReport> {
+        val coverage = ImportCoverage(
+            source = connections.source,
+            plan = plan,
+            logOf = connections::logOf,
+            checkpoints = checkpoints,
+            options = CoverageOptions(
+                pageSize = config.pageSize,
+                concurrency = config.concurrency,
+                lookbackMillis = config.lookbackMillis,
+                marginMillis = config.final.lookbackMillis,
+                restart = restart,
+            ),
+            report = out::println,
+        )
+        return plan.aggregates.keys.map { coverage.check(it) }.filterNot { it.passed }
+    }
+
+    private fun reportMissing(missing: List<CoverageReport>) {
+        if (missing.isNotEmpty()) {
+            out.println(
+                "Comparison done: ${missing.sumOf { it.missing }} instances of ${missing.map { it.aggregate }} miss " +
+                    "the latest stream 9.x committed to them since the import: before the cut-over, import them with " +
+                    "one tail --once whose lookbackMillis reaches back to the earliest MISSING, or import $RESTART.",
+            )
+        }
+    }
 
     /** Compares the unresolved 9.x executions with the V10 parked entries; null without a compensation database. */
     private suspend fun compareCompensation(
@@ -744,7 +795,8 @@ internal class MigrateData(
                         stops: the tail from its checkpoint, then the reservations and compensation walked again
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
-                        from the log at its version; once done, those changed since; exits with 3 when one differs
+                        from the log at its version, once done those changed since, and checks the log holds every
+                        stream 9.x committed since the import; exits with 3 when one differs or is missing
               snapshot  [--restart]  writes the V10 snapshot of every imported instance; once done, of those the
                         V10 log changed since
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,

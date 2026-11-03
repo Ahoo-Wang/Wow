@@ -241,6 +241,74 @@ class EventStreamImporterTest {
         }
 
     @Test
+    fun `a stream visible after the tail's cursor passed it is read again, under steady writes`(): Unit =
+        runTest {
+            val first = NineXExample.stream("order-stream-v1.json")
+            val start = first.createTime
+            val written = (1..WRITES).map { copyOf(first, "written-$it", createTime = start + it * TICK) }
+            // Committed between the fifth and the sixth, it becomes visible only once the tail's cursor is past it.
+            val late = copyOf(first, "late", createTime = start + 5 * TICK + TICK / 2)
+            val source = SteadyWrites(InMemoryNineXEventSource(listOf(first)), written, late)
+            val options = ImportOptions(pageSize = 1, concurrency = 1, lookbackMillis = 10 * TICK)
+            now = start
+            importer(source, options).importAll(order)
+            // The tail's passes as `tail` runs them, while 9.x commits a stream at each page the tail reads, four
+            // look-backs long; then one more.
+            var passes = 0
+            while (source.writing) {
+                importer(source, options).tailOnce(order)
+                passes++
+            }
+            importer(source, options).tailOnce(order)
+            // It became visible within the look-back of its commit time, which is what the look-back covers.
+            source.lateDelay!!.assert().isLessThan(options.lookbackMillis)
+            log.read(NineXExample.orderModel.type.ref("(0)", "late")).toList().map { it.version }.assert()
+                .containsExactly(1)
+            (written + first).forEach { stream ->
+                log.read(NineXExample.orderModel.type.ref("(0)", stream.aggregateId.id)).toList().size.assert()
+                    .isEqualTo(1)
+            }
+            // Each pass ends at the latest stream committed when it starts, so the tail saves its checkpoint, and
+            // goes on to the next aggregate, while 9.x writes.
+            passes.assert().isGreaterThan(1)
+        }
+
+    /**
+     * A 9.x store under steady writes: each read by commit time first commits the next of [written]; [late], committed
+     * early, becomes visible only at the first read whose cursor is past its commit time, [lateDelay] after it.
+     */
+    private class SteadyWrites(
+        private val nineX: InMemoryNineXEventSource,
+        written: List<NineXStream>,
+        private val late: NineXStream,
+    ) : NineXEventSource by nineX {
+        private val pending = ArrayDeque(written)
+        private var committedTo = 0L
+        var lateDelay: Long? = null
+            private set
+        val writing: Boolean
+            get() = pending.isNotEmpty()
+
+        override fun committedSince(
+            aggregate: NineXAggregate,
+            from: Long,
+            after: NineXPosition?,
+            limit: Int,
+            until: NineXPosition?,
+        ): List<NineXStream> {
+            pending.removeFirstOrNull()?.let {
+                nineX.add(it)
+                committedTo = it.createTime
+            }
+            if (lateDelay == null && after != null && after.createTime > late.createTime) {
+                nineX.add(late)
+                lateDelay = committedTo - late.createTime
+            }
+            return nineX.committedSince(aggregate, from, after, limit, until)
+        }
+    }
+
+    @Test
     fun `the final pass is the tail only when the tail followed 9x until it stopped`(): Unit = runTest {
         val source = InMemoryNineXEventSource(NineXExample.streams().filter { it.aggregate == order })
         importer(
@@ -425,5 +493,7 @@ class EventStreamImporterTest {
 
     private companion object {
         const val MAX_TAIL_AGE = 60_000L
+        const val WRITES = 40
+        const val TICK = 100L
     }
 }

@@ -119,7 +119,7 @@ class AggregateSpecDslTest {
     @Test
     fun `a given state built from the initial one keeps its scope`() = aggregateSpec(model) {
         givenState(version = 3, scope = Scope("ahoo", null)) { limit = 10 }
-        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        whenCommand(Close("done"), scope = Scope("bob", null)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
         whenCommand(Close("done"), scope = Scope("ahoo", null)) {
             expectEvent<Closed> { reason.assert().isEqualTo("done") }
             expectScope(Scope("ahoo", null))

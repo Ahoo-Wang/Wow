@@ -90,8 +90,9 @@ class CoSecEdgeTest {
             .assertProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
         node.post("/shop/cart/$id/add-item", """{"sku":"apple"}""", scope + token("root;acme;admin"))
             .assertSucceeded()["version"].asInt().assert().isEqualTo(2)
+        // Without Wow-Scope, bob acts as himself: alice's cart is out of his reach, as if it did not exist.
         node.post("/shop/cart/$id/add-item", """{"sku":"pear"}""", token("bob;acme"))
-            .assertProblem(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .assertProblem(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test

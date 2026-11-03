@@ -90,6 +90,13 @@ internal data class SnapshotCheckpoint(
 )
 
 /**
+ * Where the check of one 9.x aggregate's import stands ([ImportCoverage]): the log held every stream 9.x committed
+ * since the full import started, up to [checkedTo], a commit time. It is the comparison's own entry, apart from the
+ * import's, which the tail rewrites at each pass.
+ */
+internal data class CoverageCheckpoint(val checkedTo: Long)
+
+/**
  * Where the reservation import of one 9.x `PrepareKey` stands ([ReservationImporter]): [after] is the last key
  * imported or skipped, in key order, [completed] is set once every key is, and the counts are those of every run
  * since it started; [released] counts the imported keys released before the walk started, 9.x no longer confirming
@@ -134,10 +141,11 @@ internal data class ExportCheckpoint(
 
 /**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
- * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
- * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the rollback
- * export's by V10 context ([exports]). The last five joined format 1 as optional properties (.2, 8b.4, 8c.1, -Q2c):
- * a file without them reads as before, and the `tags` of a file the removed tags backfill wrote is ignored.
+ * ([aggregates]), the state comparison's ([compared]), the snapshot writing's ([snapshots]) and the import check's
+ * ([coverage]); and the reservation import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's
+ * ([compensation]); and the rollback export's by V10 context ([exports]). All but [aggregates] joined format 1 as
+ * optional properties (.2, 8b.4, 8c.1, -Q2c, the import check): a file without them reads as before, and the `tags`
+ * of a file the removed tags backfill wrote is ignored.
  */
 internal data class ImportCheckpoints(
     val format: Int = FORMAT,
@@ -147,6 +155,7 @@ internal data class ImportCheckpoints(
     val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
     val compensation: CompensationCheckpoint? = null,
     val exports: Map<String, ExportCheckpoint> = emptyMap(),
+    val coverage: Map<String, CoverageCheckpoint> = emptyMap(),
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -163,6 +172,11 @@ internal data class ImportCheckpoints(
         copy(compared = compared + (aggregate.toString() to checkpoint))
 
     fun snapshotsOf(aggregate: NineXAggregate): SnapshotCheckpoint? = snapshots[aggregate.toString()]
+
+    fun coverageOf(aggregate: NineXAggregate): CoverageCheckpoint? = coverage[aggregate.toString()]
+
+    fun with(aggregate: NineXAggregate, checkpoint: CoverageCheckpoint): ImportCheckpoints =
+        copy(coverage = coverage + (aggregate.toString() to checkpoint))
 
     fun with(aggregate: NineXAggregate, checkpoint: SnapshotCheckpoint): ImportCheckpoints =
         copy(snapshots = snapshots + (aggregate.toString() to checkpoint))

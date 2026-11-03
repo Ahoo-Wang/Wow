@@ -43,7 +43,7 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `check` | `--decode` | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
-| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. Once a full comparison has completed, compares again only the instances changed on either side since and those that differed, or compares in full and says why ([Compare](../migrate/data#_5-compare)). |
+| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, checks that the log holds every stream 9.x committed since the import up to where the tail has read, then compares the reservations and the parked entries. Once a full comparison has completed, compares again only the instances changed on either side since and those that differed, or compares in full and says why ([Compare](../migrate/data#_5-compare)). |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. Once a walk has completed, writes only the snapshots of the instances the V10 log changed since ([Write the snapshots](../migrate/data#_6-write-the-snapshots)). |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
@@ -53,7 +53,7 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `--decode` | After a mapping check that passed, `check` reads every 9.x event of the mapped aggregates with the services' V10 models (the configuration's `classpath`), as the service reads it when it loads the aggregate, upgrades included. It prints a `PROBLEM decode:` line for each event that does not read, with its 9.x type and revision, its stream and the reason, and goes on, then a count by type; it fails when one does not read. An instance whose streams the store holds without a field the import needs is printed too, and the walk goes on with the next instance. |
 | `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing; `draft-map` prints the draft and writes nothing. |
 | `--out <file>` | `draft-map` writes the draft there instead of the map the configuration names. |
-| `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. A stream the log already holds is passed over as it was converted: a map change after an import reaches only a fresh target ([Migrate the Data](../migrate/data#_4-import)). |
+| `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. A stream the log already holds is passed over as it was converted: a map change after an import reaches only a fresh target ([Migrate the Data](../migrate/data#_4-import)). With `compare`, the check of the imported streams also reads again from each import's start. |
 | `--final` | `import`'s shorter final pass after 9.x stops writing, when the tail followed 9.x until it stopped: one tail pass from the tail's checkpoint, reading `final.lookbackMillis` before it, then the reserved keys and the compensation executions walked again from the first. It refuses, writing nothing, when an aggregate's import did not complete or its tail's last pass ended more than `final.maxTailAgeMillis` ago; run `import --restart` then. Not with `--restart` or `--dry-run`. |
 | `--snapshots` | After `import`, runs `snapshot`. |
 | `--once` | `tail` makes one pass and ends. |
@@ -69,7 +69,7 @@ An option a command does not take is a usage error.
 | `0` | Done. |
 | `1` | Failed: the check, a step that stopped, or `import --final` refused. |
 | `2` | Usage error. |
-| `3` | `compare` found differences, in this run or in earlier runs it resumed; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
+| `3` | `compare` found differences, in this run or in earlier runs it resumed, or a stream 9.x committed that the log does not hold; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
 
 ### Output
 
@@ -81,6 +81,7 @@ Lines that need attention start with a marker:
 | `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing; or `snapshot` could not write an instance's snapshot. |
 | `WARNING` | The check found something that does not stop it, such as a mapping nothing uses. |
 | `DIFFERS` | `compare` found a difference: a state, a reservation or a parked entry. |
+| `MISSING` | `compare` found a stream 9.x committed since the import, before where the tail has read, that the log does not hold at its version with its command. |
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
 | `RELEASED` | A reservation imported earlier was released, because 9.x no longer confirms it to that owner. |
 | `RESOLVED` | A parked entry imported earlier was resolved, because its 9.x execution is settled. |
@@ -141,7 +142,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `pageSize` | `500` | Instances imported between two checkpoints, read with their streams in one scan, at most ten streams per instance of the page: a page of larger instances holds fewer. Also the streams the tail reads at once. |
 | `streamBatch` | `200` | Streams of one instance read from the 9.x store at once, for the rest of an instance its page held only in part. |
 | `concurrency` | `8` | Instances imported at a time. |
-| `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. |
+| `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. Each pass ends at the latest stream committed when it starts, so a stream is read when it becomes visible within this window of its commit time: make it larger than the clock skew of 9.x's nodes plus the slowest 9.x commit. |
 | `pollIntervalMillis` | `1000` | The pause between two tail passes. |
 | `final.lookbackMillis` | `60000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose commit time is set before the write is visible. Make it twice the larger of the measured clock skew and the slowest 9.x commit. |
 | `final.maxTailAgeMillis` | `600000` | How recently the tail's last pass must have ended for `import --final` to accept it. |
@@ -320,7 +321,7 @@ It writes into the 9.x store of `source`, and only into a collection with 9.x's 
 
 The checkpoints, format 1, keep where each pass stands:
 
-- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing; the comparison and the snapshot writing also record where the V10 log ended when they started, the comparison its fingerprint and the instances that differed (at most 1000), which `compare` and `snapshot` go on from;
+- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing, and how far `compare` found every stream 9.x committed in the log; the comparison and the snapshot writing also record where the V10 log ended when they started, the comparison its fingerprint and the instances that differed (at most 1000), which `compare` and `snapshot` go on from;
 - per `PrepareKey`: the reservation import;
 - the compensation import;
 - per V10 aggregate type: the tags backfill;
