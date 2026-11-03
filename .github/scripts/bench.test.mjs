@@ -33,6 +33,7 @@ import {
   bootstrapRatio,
   calibratedGeneratorBound,
   confidence,
+  correctnessOf,
   cpuSplit,
   GENERATOR_BOUND,
   generatorWithKafka,
@@ -1528,7 +1529,9 @@ test('two saturations more than 3× apart get the lower probed again, the first 
 // A stand-in for bench.sh's sessions: `up` and `down`, and the open-loop runs and sweeps run on the session
 // (`--reuse`). The Axon server (the build with --install) costs more per operation, answers slower and levels off at
 // 64 clients, failing some requests at 4096; Wow doubles a step up to 4096 and levels off at 16384. A step's p99 is a
-// tenth of its clients in ms. FAKE_FAIL_UP names the `up` that fails.
+// tenth of its clients in ms. `up` writes the node's startup and the prime; `inspect` finds stored every event the
+// session's runs and sweeps sent (FAKE_LOST_CONFIRMATION names an `inspect` whose store lost one). FAKE_FAIL_UP names the
+// `up` that fails.
 function fakeSessionBench(dir) {
   const path = join(dir, 'bench.sh');
   writeFileSync(
@@ -1541,8 +1544,41 @@ fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, [command, ...args, 
 if (command === 'down') process.exit(0);
 const out = opt('out');
 fs.mkdirSync(out, { recursive: true });
-if (command === 'up') process.exit(process.env.FAKE_FAIL_UP && out.endsWith(process.env.FAKE_FAIL_UP) ? 1 : 0);
 const axon = Boolean(opt('install'));
+if (command === 'up') {
+  if (process.env.FAKE_FAIL_UP && out.endsWith(process.env.FAKE_FAIL_UP)) process.exit(1);
+  fs.writeFileSync(out + '/startup.json', JSON.stringify({ nodes: [{ node: 1, readyMs: axon ? 9000 : 6000, rssKb: axon ? 400000 : 300000 }] }));
+  fs.writeFileSync(out + '/prime.json', JSON.stringify({ accounts: 100000, seconds: 50, failed: 0 }));
+  process.exit(0);
+}
+if (command === 'inspect') {
+  const path = require('node:path');
+  const root = path.dirname(out);
+  const session = path.basename(out).replace(/-inspect$/, '');
+  // up's check sent one deposit and one transfer, and the prime a deposit to each account.
+  let deposits = 100001;
+  let transfers = 1;
+  for (const name of fs.readdirSync(root).filter(name => name.startsWith(session + '-'))) {
+    const result = path.join(root, name, 'result.json');
+    const saturation = path.join(root, name, 'saturation.json');
+    const sent = fs.existsSync(result)
+      ? JSON.parse(fs.readFileSync(result, 'utf8')).results.sent.ok
+      : fs.existsSync(saturation)
+        ? JSON.parse(fs.readFileSync(saturation, 'utf8')).steps.reduce((sum, step) => sum + step.sentOk, 0)
+        : 0;
+    if (/-e3/.test(name)) transfers += sent;
+    else deposits += sent;
+  }
+  const lost = process.env.FAKE_LOST_CONFIRMATION && out.endsWith(process.env.FAKE_LOST_CONFIRMATION) ? 1 : 0;
+  const events = { AccountOpened: 100000, Deposited: deposits, AmountLocked: transfers, Prepared: transfers, AmountEntered: transfers, Confirmed: transfers - lost };
+  const tables = [
+    { name: 'log', kind: 'events', rows: 1, totalBytes: 50000000, indexBytes: 10000000 },
+    { name: 'snapshot', kind: 'snapshots', rows: 1, totalBytes: 20000000, indexBytes: 1000000 },
+    { name: 'token', kind: 'other', rows: 1, totalBytes: 1000000, indexBytes: 0 },
+  ];
+  fs.writeFileSync(out + '/inspect.json', JSON.stringify({ rssKb: [axon ? 500000 : 450000], store: { tables, records: deposits, snapshots: 100000, events } }));
+  process.exit(0);
+}
 if (command === 'saturate') {
   const from = Number(opt('start-concurrency') ?? 1);
   const to = Number(opt('max-concurrency'));
@@ -1554,6 +1590,9 @@ if (command === 'saturate') {
       throughput,
       ok: throughput * 30,
       errors: axon && concurrency === 4096 ? { 'http-504-timeout': 7 } : {},
+      // The warm-up's 10 s too.
+      sentOk: throughput * 40,
+      sentFailed: axon && concurrency === 4096 ? 7 : 0,
       p50Ms: 1,
       p99Ms: concurrency / 10,
       generatorCores: 0.5,
@@ -1566,7 +1605,7 @@ if (command === 'saturate') {
   fs.writeFileSync(out + '/result.json', JSON.stringify({
     load: { rate },
     meta: { primed: 'true', primeSeconds: '90', settleSeconds: '4' },
-    results: { perSecond: [{ ok: rate }], throughput: rate, ok: rate * 40, failed: 0, errors: {}, latencyMs: { p50: axon ? 2 : 1, p95: 3, p99: axon ? 20 : 5, p999: 30 }, worstSecondP99Ms: 25 },
+    results: { perSecond: [{ ok: rate }], throughput: rate, ok: rate * 40, failed: 0, sent: { ok: rate * 60, failed: 0 }, errors: {}, latencyMs: { p50: axon ? 2 : 1, p95: 3, p99: axon ? 20 : 5, p999: 30 }, worstSecondP99Ms: 25 },
     resources: {
       seconds: 40,
       processes: { 'node-1': { averageCores: axon ? 0.6 : 0.5, rssMaxMb: axon ? 700 : 600, gc: { delta: { GCT: axon ? 0.8 : 0.4 } } } },
@@ -1610,9 +1649,10 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
   assert.equal(suite.share, 0.5);
   assert.deepEqual(suite.cpus, { load: '2-3', server: '0-1', bus: '2-3' });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Per session: up, the same-rate runs, the sweeps (Wow's past the cap, a step each), the own-share runs, down.
+  // Per session: up, the same-rate runs, the sweeps (Wow's past the cap, a step each), the own-share runs, the
+  // store's inspection, down.
   assert.deepEqual(
-    calls.slice(0, 10).map(call => call.split(' ')[0]),
+    calls.slice(0, 11).map(call => call.split(' ')[0]),
     [
       'up',
       'run',
@@ -1623,7 +1663,38 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
       'saturate',
       'run',
       'run',
+      'inspect',
       'down',
+    ],
+  );
+  // The inspection names the session's servers again, and the SQL of the arm's store.
+  assert.ok(
+    calls.includes(
+      `inspect --backend=postgres --server-args=--wow.transport=none --reuse --accounts=100000 --sql=${join(dir, '..', '..', '..', 'test/benchmarks/server/inspect.sql')} --out=${join(out, '1-wow-inspect')} props=`,
+    ),
+  );
+  assert.ok(
+    calls.some(call =>
+      call.startsWith(
+        `inspect --backend=postgres --install=/builds/axon-server --reuse --accounts=100000 --sql=${join(dir, '..', '..', '..', 'test/benchmarks/axon-server/inspect.sql')} `,
+      ),
+    ),
+  );
+  // Every session's store holds what its runs sent.
+  assert.deepEqual(
+    suite.sessions.map(session => session.correctness.comparable),
+    [true, true, true, true],
+  );
+  assert.deepEqual(
+    suite.sessions[0].correctness.checks.map(check => [check.name, check.ok]),
+    [
+      ['accounts opened', true],
+      ['deposits stored', true],
+      ['transfers stored', true],
+      ['transfer amounts locked', true],
+      ['transfers entered or refused', true],
+      ['entries confirmed', true],
+      ['refusals unlocked', true],
     ],
   );
   assert.equal(calls.filter(call => call === 'down props=').length, 4);
@@ -1770,6 +1841,24 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
     report,
     /The load generator used at most 0\.50 of its 2 CPUs at a peak, and Kafka, idle on the same CPUs, at most 0\.01 cores in an open-loop run: 0\.51 cores together\./,
   );
+  assert.match(report, /\| 1-wow \| 100000 \(100000\) \| \d+ \(\d+–\d+\) \|/);
+  assert.match(
+    report,
+    /\| 1-wow \| \d+ \| \d+ \| 47\.7 MB \| \d+ \| 100000 \| 19\.1 MB \| 200 \| 1\.0 MB \|/,
+  );
+  assert.match(report, /\| 1-wow \| 6\.0 s \| 293\.0 MB \| 439\.5 MB \|/);
+  assert.match(report, /\| 1-axon \| 9\.0 s \| 390\.6 MB \| 488\.3 MB \|/);
+  assert.doesNotMatch(report, /not comparable|store does not match/);
+  // What each server does for a command, once, at the head of the comparison.
+  assert.match(
+    report,
+    /What each server does for a command:\n\n\| \| Wow \| Axon \|/,
+  );
+  assert.match(
+    report,
+    /\| Idempotency \| Each command stored with its request id/,
+  );
+  assert.equal(report.match(/\| Metrics and tracing \|/g).length, 1);
   assert.doesNotMatch(report, /Pairs at the calibrated rates|NaN/);
   const summary = readFileSync(join(out, 'summary.md'), 'utf8');
   assert.match(
@@ -2078,10 +2167,10 @@ test("the segments suite puts Axon's 16 segments against 2, set when each sessio
     ['1-axon-16', '1-axon-2', '2-axon-2', '2-axon-16'],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
-  // Per session: up, E3 at one rate, the two sweeps, down; no own-share runs.
+  // Per session: up, E3 at one rate, the two sweeps, the inspection, down; no own-share runs.
   assert.deepEqual(
-    calls.slice(0, 5).map(call => call.split(' ')[0]),
-    ['up', 'run', 'saturate', 'saturate', 'down'],
+    calls.slice(0, 6).map(call => call.split(' ')[0]),
+    ['up', 'run', 'saturate', 'saturate', 'inspect', 'down'],
   );
   const ups = calls.filter(call => call.startsWith('up '));
   assert.ok(ups[0].endsWith(' props='));
@@ -2287,4 +2376,108 @@ test("metrics read PostgreSQL's WAL bytes, the servers' collection time and thei
     [bare.walBytesPerOp, bare.gcShare, bare.rssMaxMb],
     [undefined, undefined, undefined],
   );
+});
+
+test("a session whose store lost an event makes its arm's numbers not comparable", () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeSessionBench(dir);
+  process.env.FAKE_LOST_CONFIRMATION = '2-axon-2-inspect';
+  try {
+    const suite = runSuite('axon-pg-segments', {
+      benchPath,
+      out: join(dir, 'out'),
+      warmUp: 30,
+      measure: 40,
+      repeats: 2,
+      fraction: 0.8,
+      installs: { axon: '/builds/axon-server' },
+    });
+    assert.deepEqual(
+      suite.sessions.map(session => [
+        session.name,
+        session.correctness.comparable,
+      ]),
+      [
+        ['1-axon-16', true],
+        ['1-axon-2', true],
+        ['2-axon-2', false],
+        ['2-axon-16', true],
+      ],
+    );
+    const report = renderReport([suite]);
+    assert.match(report, /\| not comparable \(axon-2: the store check\) \|/);
+    assert.match(
+      report,
+      /\| axon-pg-segments@100k \| 2-axon-2 \| store \| \*\*store does not match the runs\*\* \| entries confirmed: (\d+) stored, \d+ expected \|/,
+    );
+    assert.match(report, /\*\*Not comparable: axon-2\.\*\*/);
+  } finally {
+    delete process.env.FAKE_LOST_CONFIRMATION;
+  }
+});
+
+test('correctnessOf counts what the runs sent against what the store holds', () => {
+  const run = (scenario, sentOk, sentFailed = 0) => ({
+    scenario,
+    metrics: { sentOk, sentFailed },
+  });
+  const sweep = (scenario, ...steps) => ({
+    scenario,
+    status: 'ok',
+    steps: steps.map(([sentOk, sentFailed]) => ({ sentOk, sentFailed })),
+  });
+  const runs = [run('E1', 1000, 5), run('E3', 300)];
+  const sweeps = [sweep('E1', [40, 0], [160, 2]), sweep('E3', [20, 0])];
+  // up's check sent one of each; the prime one deposit to each of 10 accounts, 1 of which failed.
+  const events = {
+    AccountOpened: 10,
+    Deposited: 1 + 1000 + 200 + 9 + 3,
+    AmountLocked: 321,
+    Prepared: 321,
+    AmountEntered: 320,
+    EntryFailed: 1,
+    Confirmed: 320,
+    AmountUnlocked: 1,
+  };
+  const prime = { accounts: 10, failed: 1 };
+  const ok = correctnessOf({ accounts: 10, events, prime, runs, sweeps });
+  assert.equal(ok.comparable, true);
+  assert.deepEqual(
+    ok.checks.find(check => check.name === 'deposits stored'),
+    { name: 'deposits stored', expected: '1210–1218', stored: 1213, ok: true },
+  );
+  // More stored than were sent: not comparable.
+  const extra = correctnessOf({
+    accounts: 10,
+    events: { ...events, Deposited: 1219 },
+    prime,
+    runs,
+    sweeps,
+  });
+  assert.equal(extra.comparable, false);
+  // A transfer neither entered nor refused.
+  const stuck = correctnessOf({
+    accounts: 10,
+    events: { ...events, AmountEntered: 319, Confirmed: 319 },
+    prime,
+    runs,
+    sweeps,
+  });
+  assert.deepEqual(
+    stuck.checks.filter(check => !check.ok).map(check => check.name),
+    ['transfers entered or refused'],
+  );
+  // A run whose sends are not known (it failed) leaves its scenario's check unknown, which fails nothing.
+  const unknown = correctnessOf({
+    accounts: 10,
+    events,
+    prime,
+    runs: [{ scenario: 'E1', status: 'failed' }, run('E3', 300)],
+    sweeps,
+  });
+  assert.equal(
+    unknown.checks.find(check => check.name === 'deposits stored').ok,
+    undefined,
+  );
+  assert.equal(unknown.comparable, true);
 });

@@ -47,14 +47,20 @@ const withProps = (arm, id, props) => ({ ...arm, id, props });
 export const SIGNALS = { 'bench.signals.enabled': true };
 // The industry comparison's arms (test/benchmarks/README.md): Wow with no bus (`--wow.transport=none`, X-33), as the
 // Axon server has none, and Axon Framework 4 (`test/benchmarks/axon-server`), each on the one PostgreSQL. The `axon`
-// build is made by the suite's own job (axonInstall).
+// build is made by the suite's own job (axonInstall). `sql`: what the store holds after a session (bench.sh inspect).
 const WOW_NO_BUS = {
   id: 'wow',
   backend: 'postgres',
   install: 'head',
   serverArgs: '--wow.transport=none',
+  sql: 'test/benchmarks/server/inspect.sql',
 };
-const AXON = { id: 'axon', backend: 'postgres', install: 'axon' };
+const AXON = {
+  id: 'axon',
+  backend: 'postgres',
+  install: 'axon',
+  sql: 'test/benchmarks/axon-server/inspect.sql',
+};
 // Axon's transfer reactions in its tracking processor of 16 segments and threads (axon-server's application.yaml)
 // against 2, the server's CPUs on a runner, set when the session starts: the segments suite.
 const AXON_16 = { ...AXON, id: 'axon-16' };
@@ -881,6 +887,30 @@ export function anomalies(suite, noise = {}) {
     }
     return rows;
   }
+  if (suite.kind === 'sessions') {
+    // A session whose store does not hold what its runs asked of it: that arm's numbers do not compare.
+    for (const session of suite.sessions ?? []) {
+      if (session.status === 'ok' && session.inspected === 'failed') {
+        rows.push({
+          suite: labelOf(suite),
+          run: session.name,
+          context: 'store',
+          kind: 'not inspected',
+          detail: 'bench.sh inspect failed; see the job log',
+        });
+      }
+      for (const check of session.correctness?.checks ?? []) {
+        if (check.ok !== false) continue;
+        rows.push({
+          suite: labelOf(suite),
+          run: session.name,
+          context: 'store',
+          kind: 'store does not match the runs',
+          detail: `${check.name}: ${check.stored} stored, ${check.expected} expected`,
+        });
+      }
+    }
+  }
   if (suite.kind === 'paired' && suite.arms?.length === 2 && !suite.aa) {
     // The second arm (the head) allocating more per operation than the first, in the median of the equal-rate pairs:
     // a node's background allocation per second is spread over the operations, so bytes per operation fall as the
@@ -1066,6 +1096,8 @@ export function sweepOf(saturation) {
     throughput: step.throughput,
     ok: step.ok,
     errors: Object.values(step.errors ?? {}).reduce((a, b) => a + b, 0),
+    sentOk: step.sentOk,
+    sentFailed: step.sentFailed,
     p50: step.p50Ms,
     p99: step.p99Ms,
     generatorCores: step.generatorCores,
@@ -1156,6 +1188,156 @@ export function ratioVerdict(ratio, noise, ids) {
   if (second) return `${ids[1]} higher`;
   return 'level (within the A/A spread)';
 }
+
+/**
+ * Whether a session's store holds what its runs asked of it, from the events it stored once the nodes were quiet
+ * (bench.sh inspect): every seeded account opened; between the deposits (E1 and the prime) that reached their
+ * completion point and those sent, as many stored, since one that timed out may still commit, and the same for the
+ * transfers (E3); every transfer's amount locked; and every transfer through, entered or refused, an entered one
+ * confirmed and a refused one unlocked. `up`'s check sent one of each, and `prime` is its prime.json. A count the
+ * runs do not give (a failed run, a load generator without them) leaves its check unknown. `comparable` is false when a
+ * check failed: that arm's numbers do not compare.
+ */
+export function correctnessOf({
+  accounts,
+  events = {},
+  prime,
+  runs = [],
+  sweeps = [],
+}) {
+  const sentOf = scenario => {
+    const sends = [
+      ...runs
+        .filter(run => run.scenario === scenario)
+        .map(run => [run.metrics?.sentOk, run.metrics?.sentFailed]),
+      ...sweeps
+        .filter(run => run.scenario === scenario)
+        .flatMap(run =>
+          run.status === 'ok'
+            ? run.steps.map(step => [step.sentOk, step.sentFailed])
+            : [[undefined, undefined]],
+        ),
+    ];
+    if (!sends.every(pair => pair.every(Number.isFinite))) return undefined;
+    // `up`'s check: one of each, and it passed.
+    return sends.reduce(
+      (sum, [ok, failed]) => ({ ok: sum.ok + ok, failed: sum.failed + failed }),
+      { ok: 1, failed: 0 },
+    );
+  };
+  const stored = name => events[name] ?? 0;
+  const deposits = sentOf('E1');
+  const primed =
+    deposits && Number.isFinite(prime?.failed)
+      ? {
+          ok: deposits.ok + accounts - prime.failed,
+          failed: deposits.failed + prime.failed,
+        }
+      : undefined;
+  const transfers = sentOf('E3');
+  const within = (sent, name) => ({
+    expected: sent ? `${sent.ok}–${sent.ok + sent.failed}` : 'unknown',
+    stored: stored(name),
+    ok: sent
+      ? stored(name) >= sent.ok && stored(name) <= sent.ok + sent.failed
+      : undefined,
+  });
+  const equal = (expected, name) => ({
+    expected: `${expected}`,
+    stored: stored(name),
+    ok: stored(name) === expected,
+  });
+  const checks = [
+    { name: 'accounts opened', ...equal(accounts, 'AccountOpened') },
+    { name: 'deposits stored', ...within(primed, 'Deposited') },
+    { name: 'transfers stored', ...within(transfers, 'Prepared') },
+    {
+      name: 'transfer amounts locked',
+      ...equal(stored('Prepared'), 'AmountLocked'),
+    },
+    {
+      name: 'transfers entered or refused',
+      expected: `${stored('Prepared')}`,
+      stored: stored('AmountEntered') + stored('EntryFailed'),
+      ok:
+        stored('AmountEntered') + stored('EntryFailed') === stored('Prepared'),
+    },
+    {
+      name: 'entries confirmed',
+      ...equal(stored('AmountEntered'), 'Confirmed'),
+    },
+    {
+      name: 'refusals unlocked',
+      ...equal(stored('EntryFailed'), 'AmountUnlocked'),
+    },
+  ];
+  return { checks, comparable: !checks.some(check => check.ok === false) };
+}
+
+/**
+ * What each server of the Axon comparison does for a command, side by side (the report's feature parity): Wow's
+ * benchmark server (`test/benchmarks/server`, `--wow.transport=none`) and the Axon server (`test/benchmarks/axon-server`),
+ * as their code configures them. What a run measures of it, such as PostgreSQL's transactions per command, is in the
+ * tables.
+ */
+export const AXON_PARITY = [
+  [
+    'Event store',
+    'Its PostgreSQL log: a row per command, its events in one jsonb array, 64 partitions',
+    'The JDBC event storage engine: a row per event (domainevententry), the payload JSON in bytea',
+  ],
+  [
+    'Unit of work',
+    "A command's events committed with one append; an aggregate's commands queued behind it committed with it (up to 32), and appends of several partitions merged into one statement",
+    "A unit of work and a Spring transaction per command, an INSERT per event; the transfer handler's command joins the processor's unit of work",
+  ],
+  [
+    'Idempotency',
+    'Each command stored with its request id under a unique key (tenant, request id), a new id per request here',
+    'None: a command sent again is handled again',
+  ],
+  [
+    'Aggregate cache',
+    'The state cache: strong references, a tenth of the heap in estimated bytes (about 105,000 accounts at 1 GB)',
+    'BoundedCache: strong references, 131,072 aggregates, least recently used out first',
+  ],
+  [
+    'Snapshots',
+    "The built-in snapshot subscription keeps every account's latest state, on its partition's owner, after the commit",
+    'Every 100 events of an account, on two snapshotter threads, after the commit',
+  ],
+  [
+    'Concurrency of commands',
+    "Coroutines: one lane per aggregate in arrival order, a bound on the commands waiting in a lane and on the node's commands in flight (429 past them)",
+    "The command bus handles a command on its sender's virtual thread, an aggregate locked while it is handled; no bound",
+  ],
+  [
+    'Transfer (E3)',
+    "TransferSaga, the built-in subscription of the account's state events, on the partition owners, from the log's tail",
+    'An event handler in a tracking processor of 16 segments and threads (axon-pg-segments compares 2), its tokens in PostgreSQL',
+  ],
+  [
+    'Answer',
+    "The wait of the request (`Wow-Wait`): E1 `committed`, E3 the target's entry committed; 504 after 10 s",
+    "The command's result: E1 once its unit of work committed, E3 once the target's entry committed with the processor's unit of work; 504 after 10 s",
+  ],
+  [
+    'Serialization',
+    'Jackson, events and snapshots as JSON (jsonb)',
+    'Jackson for every message and snapshot (JSON in bytea)',
+  ],
+  [
+    'Connections',
+    "HikariCP at Spring Boot's default, 10",
+    "HikariCP at Spring Boot's default, 10",
+  ],
+  [
+    'Metrics and tracing',
+    "None: wow-observability is not on the server's classpath (D174)",
+    "None: neither axon-micrometer nor Axon's tracing modules are on its classpath, so its monitors and spans are no-ops",
+  ],
+  ['Bus', 'None (wow.transport=none)', 'None (no Axon Server)'],
+];
 
 /** The load generator's cores and Kafka's together past which a sessions suite's report flags them (2 CPUs). */
 export const GENERATOR_WITH_KAFKA = 1.6;
@@ -1567,6 +1749,9 @@ export function metrics(result) {
       Number.isFinite(commits) && operations > 0
         ? commits / operations
         : undefined,
+    // Every operation the run sent, its warm-up's too: those that reached their completion point and those that failed.
+    sentOk: results.sent?.ok,
+    sentFailed: results.sent?.failed,
     walBytesPerOp:
       Number.isFinite(walBytes) && operations > 0
         ? walBytes / operations
@@ -2095,8 +2280,13 @@ function sessionTables(suite) {
     );
     const ratio = peakRatio(suite, label, key);
     const noise = aaSpread(suite, label, key);
-    return `| ${label} | ${cells.join(' | ')} | ${ratioText(ratio)} | ${Number.isFinite(noise) ? `${num(noise * 100)}%` : '-'} | ${ratioVerdict(ratio, noise, ids)} |`;
+    const verdict =
+      incomparable.length > 0
+        ? `not comparable (${incomparable.join(', ')}: the store check)`
+        : ratioVerdict(ratio, noise, ids);
+    return `| ${label} | ${cells.join(' | ')} | ${ratioText(ratio)} | ${Number.isFinite(noise) ? `${num(noise * 100)}%` : '-'} | ${verdict} |`;
   };
+  const incomparable = incomparableArms(suite);
   const generator = generatorWithKafka(suite);
   const lines = [
     `**Peak**: how much each handles at most. Each sweep's closed-loop peak and the clients it was at, in session order; ${ids[0]}/${ids[1]} from the lowest ${ids[0]} peak over the highest ${ids[1]} peak to the highest over the lowest. \`≥\` marks a lower bound: a peak at the sweep's top step or at the load generator's limit, and a ratio from such a peak. The A/A spread is the larger of the two arms' spreads between their own sessions on this runner; a ratio within it is level.`,
@@ -2135,7 +2325,97 @@ function sessionTables(suite) {
       ...viewTable(suite, OWN),
     );
   }
+  lines.push(
+    '',
+    `**Correctness**: what each session's store held once its runs were done and the nodes quiet, against what the runs asked of it (stored, then expected: a range between the operations that reached their completion point and those sent, as one that timed out may still commit).${incomparable.length > 0 ? ` **Not comparable: ${incomparable.join(', ')}.**` : ''}`,
+    '',
+    ...correctnessTable(suite),
+    '',
+    "**Storage**: the store's tables after each session, their indexes and TOAST included.",
+    '',
+    ...storageTable(suite),
+    '',
+    "**Startup**: each node from its launch to its first answer (the harness probes five times a second), its RSS then, and after the session's runs.",
+    '',
+    ...startupTable(suite),
+  );
   return lines;
+}
+
+/** The arms of a sessions suite with a session whose store did not hold what its runs asked of it. */
+export function incomparableArms(suite) {
+  return [
+    ...new Set(
+      (suite.sessions ?? [])
+        .filter(session => session.correctness?.comparable === false)
+        .map(session => session.arm),
+    ),
+  ];
+}
+
+const megabytes = value =>
+  Number.isFinite(value) ? `${(value / 1024 / 1024).toFixed(1)} MB` : '-';
+
+/** Each session's store checks (correctnessOf): stored, and what the runs make expected. */
+function correctnessTable(suite) {
+  const sessions = (suite.sessions ?? []).filter(s => s.status === 'ok');
+  const names =
+    sessions.find(s => s.correctness)?.correctness.checks.map(c => c.name) ??
+    [];
+  if (names.length === 0) return ['No session was inspected.'];
+  return [
+    `| Session | ${names.join(' | ')} |`,
+    `| --- | ${names.map(() => '---').join(' | ')} |`,
+    ...sessions.map(session => {
+      if (!session.correctness) {
+        return `| ${session.name} | ${names.map(() => '**not inspected**').join(' | ')} |`;
+      }
+      const cells = session.correctness.checks.map(check => {
+        const text = `${check.stored} (${check.expected})`;
+        return check.ok === false ? `**${text}**` : text;
+      });
+      return `| ${session.name} | ${cells.join(' | ')} |`;
+    }),
+  ];
+}
+
+/** Each session's store: its event and snapshot tables, per event and per snapshot, and the rest. */
+function storageTable(suite) {
+  const sessions = (suite.sessions ?? []).filter(s => s.store?.tables);
+  if (sessions.length === 0) return ['No session was inspected.'];
+  const sum = (tables, kind) =>
+    tables
+      .filter(table => table.kind === kind)
+      .reduce((total, table) => total + table.totalBytes, 0);
+  return [
+    '| Session | Event rows | Events | Event table | Bytes per event | Snapshots | Snapshot table | Bytes per snapshot | Other tables |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...sessions.map(session => {
+      const { tables, records, snapshots } = session.store;
+      const events = Object.values(session.store.events ?? {}).reduce(
+        (a, b) => a + b,
+        0,
+      );
+      const eventBytes = sum(tables, 'events');
+      const snapshotBytes = sum(tables, 'snapshots');
+      return `| ${session.name} | ${records} | ${events} | ${megabytes(eventBytes)} | ${events > 0 ? num(eventBytes / events, 0) : '-'} | ${snapshots} | ${megabytes(snapshotBytes)} | ${snapshots > 0 ? num(snapshotBytes / snapshots, 0) : '-'} | ${megabytes(sum(tables, 'other'))} |`;
+    }),
+  ];
+}
+
+/** Each session's node: how long it took to answer, and its RSS then and after the session's runs. */
+function startupTable(suite) {
+  const sessions = (suite.sessions ?? []).filter(s => s.status === 'ok');
+  if (sessions.length === 0) return ['No session started.'];
+  return [
+    '| Session | Ready after | RSS at ready | RSS after the runs |',
+    '| --- | --- | --- | --- |',
+    ...sessions.map(session => {
+      const node = session.startup?.[0];
+      const after = session.rssKb?.[0];
+      return `| ${session.name} | ${Number.isFinite(node?.readyMs) ? `${num(node.readyMs / 1000, 1)} s` : '-'} | ${megabytes(node?.rssKb * 1024)} | ${megabytes(after * 1024)} |`;
+    }),
+  ];
 }
 
 /** A sessions suite's sweeps step by step: each step's throughput and p99, or its errors when it failed some. */
@@ -2468,6 +2748,15 @@ function bench(benchPath, args, props, handover) {
 }
 
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
+
+/** A JSON file a step may not have written, or written partly (a store query that failed): its value, or undefined. */
+function readJsonIfThere(path) {
+  try {
+    return existsSync(path) ? readJson(path) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Where `installDist` puts the Axon server, under the repository. */
 export const AXON_INSTALL =
@@ -3081,6 +3370,44 @@ export function runSuite(name, options) {
       save();
       return run;
     };
+    // A session once its runs are done (bench.sh inspect, after the nodes are quiet): how it started, the servers' RSS,
+    // the store's tables and events, and whether the store holds what the runs asked of it (correctnessOf).
+    const repo = join(dirname(benchPath), '..', '..', '..');
+    const inspect = (arm, record) => {
+      const dir = `${record.name}-inspect`;
+      const ok =
+        bench(benchPath, [
+          'inspect',
+          ...server(arm),
+          '--reuse',
+          `--accounts=${data.accounts}`,
+          ...(arm.sql ? [`--sql=${join(repo, arm.sql)}`] : []),
+          `--out=${join(out, dir)}`,
+        ]) === 0;
+      const up = join(out, record.dir);
+      record.startup = readJsonIfThere(join(up, 'startup.json'))?.nodes;
+      const inspection = ok
+        ? readJsonIfThere(join(out, dir, 'inspect.json'))
+        : undefined;
+      if (!inspection) suite.failures++;
+      record.inspected = inspection ? 'ok' : 'failed';
+      record.rssKb = inspection?.rssKb;
+      record.store = inspection?.store ?? undefined;
+      if (record.store) {
+        record.correctness = correctnessOf({
+          accounts: data.accounts,
+          events: record.store.events ?? {},
+          prime: readJsonIfThere(join(up, 'prime.json')),
+          runs: suite.runs.filter(
+            run => run.round === record.round && run.arm === arm.id,
+          ),
+          sweeps: suite.sweeps.filter(
+            run => run.round === record.round && run.arm === arm.id,
+          ),
+        });
+      }
+      save();
+    };
     for (let index = 0; index < repeats; index++) {
       for (const arm of roundOrder(arms, index)) {
         const session = `${index + 1}-${arm.id}`;
@@ -3100,13 +3427,14 @@ export function runSuite(name, options) {
             ],
             arm.props,
           ) === 0;
-        suite.sessions.push({
+        const record = {
           name: session,
           arm: arm.id,
           round: index,
           dir: `${session}-up`,
           status: up ? 'ok' : 'failed',
-        });
+        };
+        suite.sessions.push(record);
         if (!up) {
           // A failed `up` stops what it started.
           suite.failures++;
@@ -3141,6 +3469,7 @@ export function runSuite(name, options) {
               OWN,
             );
           }
+          inspect(arm, record);
         } finally {
           bench(benchPath, ['down']);
         }
@@ -3302,7 +3631,18 @@ export function renderReport(suites, meta = {}) {
   }
   const comparisons = suites.filter(s => s.kind === 'sessions');
   if (comparisons.length > 0) {
-    lines.push('## The industry comparison', '');
+    lines.push(
+      '## The industry comparison',
+      '',
+      'What each server does for a command:',
+      '',
+      '| | Wow | Axon |',
+      '| --- | --- | --- |',
+      ...AXON_PARITY.map(
+        ([what, wow, axon]) => `| ${what} | ${wow} | ${axon} |`,
+      ),
+      '',
+    );
     for (const suite of comparisons) {
       lines.push(
         `### ${labelOf(suite)}`,
