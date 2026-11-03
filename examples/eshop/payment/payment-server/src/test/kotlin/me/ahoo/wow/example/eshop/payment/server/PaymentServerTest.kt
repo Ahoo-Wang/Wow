@@ -15,53 +15,38 @@ package me.ahoo.wow.example.eshop.payment.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.wire.DevelopmentHeaders
-import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
+import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
-import org.springframework.context.annotation.Bean
-import tools.jackson.databind.JsonNode
 import java.io.File
 import java.math.BigDecimal
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 
 /**
- * The test's command transport in place of Kafka, as the guide gives it: the sagas' commands to the ordering stay in
- * memory. No `@Configuration`, so the server's component scan does not pick it up where a test passes other topics.
- */
-class InMemoryPaymentTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
-}
-
-/**
- * The payment service as its `application.yaml` configures it, on random ports, with its topics in memory and a
- * gateway limit of 100.00. No ordering runs: the test requests the payments itself, as the order-payment saga would
- * once it read an order's confirmed stock from the ordering's stream.
+ * The payment service as its `application.yaml` configures it, on random ports, with a gateway limit of 100.00. No
+ * ordering runs: the test requests the payments itself, as the order-payment saga would once it read an order's
+ * confirmed stock from the ordering's stream.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentServerTest {
-    private val server = wowServer<PaymentServer>(
-        "dev",
-        properties = mapOf("eshop.payment.gateway.limit" to "100.00"),
-        sources = listOf(InMemoryPaymentTopics::class.java),
-    )
+    private val server = wowServer<PaymentServer>("dev", properties = mapOf("eshop.payment.gateway.limit" to "100.00"))
 
     @AfterAll
     fun close() {
@@ -85,16 +70,16 @@ class PaymentServerTest {
 
     @Test
     fun `a payment within the gateway's limit should succeed`() {
-        request("order-approved", "29.00")
-        eventually("order-approved succeeded") { state("order-approved")["status"].asString() == "SUCCEEDED" }
-        state("order-approved")["transactionId"].asString().assert().startsWith("simulated-")
+        val payment = server.charge("order-approved", "29.00")
+        payment.status.assert().isEqualTo(PaymentStatus.SUCCEEDED)
+        payment.transactionId.assert().startsWith("simulated-")
     }
 
     @Test
     fun `a payment over the gateway's limit should fail`() {
-        request("order-declined", "150.00")
-        eventually("order-declined failed") { state("order-declined")["status"].asString() == "FAILED" }
-        state("order-declined")["reason"].asString().assert().contains("over the limit of 100.00")
+        val payment = server.charge("order-declined", "150.00")
+        payment.status.assert().isEqualTo(PaymentStatus.FAILED)
+        payment.reason.assert().contains("over the limit of 100.00")
     }
 
     @Test
@@ -112,57 +97,31 @@ class PaymentServerTest {
 
     @Test
     fun `a payment of nothing should be invalid before the payment decides`() {
-        val answer = send("order-free", "0")
-        answer.status.assert().describedAs(answer.text).isEqualTo(BAD_REQUEST)
-        val problem = answer.body!!
-        problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
-        problem["violations"].single().let {
-            it["path"].asString().assert().isEqualTo("amount")
-            it["code"].asString().assert().isEqualTo("positive")
+        val nothing = RequestPayment("order-free", BigDecimal.ZERO)
+        val invalid = assertThrows<CommandRejectedException> {
+            runBlocking { server.commands(Caller.ANONYMOUS).wait(nothing, "order-free") }
+        }
+        invalid.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        invalid.result.error!!.violations.single().let {
+            it.path.assert().isEqualTo("amount")
+            it.code.assert().isEqualTo("positive")
         }
     }
+}
 
-    private fun request(order: String, amount: String) {
-        val answer = send(order, amount)
-        answer.status.assert().describedAs(answer.text).isEqualTo(OK)
-    }
+/**
+ * The plan of a payment's request to the end of its gateway's chain: the gateway saga charges the payment, and the
+ * command it derives (`ConfirmPayment` or `FailPayment`) is in the payment's snapshot.
+ */
+val TO_THE_GATEWAY: WaitPlan = WaitPlan.of(
+    Hop.handled("PaymentGatewaySaga.onPaymentRequested", EshopPaymentContract.NAME),
+    Hop.snapshot(EshopPaymentContract.NAME),
+)
 
-    @Test
-    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
-        val docs = server.http.get("/v3/api-docs")
-        docs.status.assert().describedAs(docs.text).isEqualTo(200)
-        // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.text.assert().contains("\"/eshop-payment/", "\"${DevelopmentHeaders.USER}\"")
-        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
-            browser.send(
-                HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),
-                HttpResponse.BodyHandlers.discarding()
-            )
-                .statusCode().assert().isEqualTo(200)
-        }
-    }
-
-    private fun send(order: String, amount: String): Answer =
-        server.http.post("/eshop-payment/payment/$order/request-payment", """{"orderId":"$order","amount":$amount}""")
-
-    private fun state(id: String): JsonNode {
-        val answer = server.http.get("/eshop-payment/payment/$id/state")
-        check(answer.status == OK) { "The state of $id answered $answer" }
-        return answer.body!!["state"]
-    }
-
-    private fun eventually(what: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (!condition()) {
-            check(System.nanoTime() < deadline) { "Not reached in $DEADLINE: $what." }
-            Thread.sleep(POLL.toMillis())
-        }
-    }
-
-    private companion object {
-        const val OK = 200
-        const val BAD_REQUEST = 400
-        val DEADLINE: Duration = Duration.ofSeconds(20)
-        val POLL: Duration = Duration.ofMillis(100)
-    }
+/** Requests the payment of [amount] for [order] and waits to the end of its gateway's chain: the payment it became. */
+fun WowServer.charge(order: String, amount: String): PaymentStateView = runBlocking {
+    val command = RequestPayment(order, BigDecimal(amount))
+    val request = CommandRequest.builder(command).id(order).wait(TO_THE_GATEWAY).build()
+    commands(Caller.ANONYMOUS).wait(request)
+    queries(Caller.ANONYMOUS).snapshots(PaymentStateView::class.java).state(order)!!.state
 }

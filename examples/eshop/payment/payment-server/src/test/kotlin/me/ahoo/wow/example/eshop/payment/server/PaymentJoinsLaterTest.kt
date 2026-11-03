@@ -17,29 +17,26 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.state.PublishedState
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.test.server.eventually
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.context.properties.bind.Bindable
 import org.springframework.boot.context.properties.bind.Binder
-import org.springframework.context.annotation.Bean
 import tools.jackson.databind.json.JsonMapper
-import java.time.Duration
 
 /**
  * The ordering's order stream as it is before the payment service first starts: the stock of an order was already
- * confirmed, so the order waits for its payment. In place of [InMemoryPaymentTopics]; no `@Configuration`, so the
- * server's component scan does not pick it up.
+ * confirmed, so the order waits for its payment. The payment service is given these topics.
  */
-class ConfirmedBeforeTopics {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1).also { topics ->
+object ConfirmedBeforeTopics {
+    fun topics(): InMemoryTopics = InMemoryTopics(1).also { topics ->
         val order = PaymentJoinsLaterTest.ORDER
         val record = StateEventRecord.of(
             ref = order,
@@ -64,12 +61,7 @@ class ConfirmedBeforeTopics {
         runBlocking { topics.send("wow.eshop-ordering.order.state", listOf(EnvelopeCodec.message(record))) }
     }
 
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
-
-    private companion object {
-        val json: JsonMapper = JsonMapper.builder().build()
-    }
+    private val json: JsonMapper = JsonMapper.builder().build()
 }
 
 /**
@@ -80,7 +72,7 @@ class ConfirmedBeforeTopics {
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PaymentJoinsLaterTest {
-    private val payment = PaymentNode(topics = ConfirmedBeforeTopics::class.java)
+    private val payment = PaymentNode(topics = ConfirmedBeforeTopics.topics())
 
     @AfterAll
     fun close() {
@@ -94,25 +86,18 @@ class PaymentJoinsLaterTest {
             payment.context.environment
         ).bind("wow.subscriptions", Bindable.mapOf(String::class.java, Any::class.java))
             .isBound.assert().isFalse()
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (!succeeded()) {
-            check(System.nanoTime() < deadline) { "The order confirmed before the service started was not paid." }
-            Thread.sleep(POLL.toMillis())
+        // No command of the test's causes the payment: it waits for the saga's, which no wait plan sees.
+        eventually("the order confirmed before the service started paid") {
+            payment.streams(ORDER.id).any { stream -> stream.events.any { it.name.endsWith("PaymentSucceeded") } }
         }
-        payment.state(ORDER.id).let { state ->
-            state["orderId"].asString().assert().isEqualTo(ORDER.id)
-            state["amount"].decimalValue().assert().isEqualByComparingTo("42.00")
-            state["status"].asString().assert().isEqualTo("SUCCEEDED")
+        payment.payment(ORDER.id)!!.let { state ->
+            state.orderId.assert().isEqualTo(ORDER.id)
+            state.amount.assert().isEqualByComparingTo("42.00")
+            state.status.assert().isEqualTo(PaymentStatus.SUCCEEDED)
         }
     }
 
-    /** Whether the payment of the order has succeeded: its stream holds the gateway's approval. */
-    private fun succeeded(): Boolean =
-        payment.streams(ORDER.id).any { stream -> stream.events.any { it.name.endsWith("PaymentSucceeded") } }
-
     companion object {
         val ORDER = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "order-early")
-        private val DEADLINE: Duration = Duration.ofSeconds(30)
-        private val POLL: Duration = Duration.ofMillis(100)
     }
 }
