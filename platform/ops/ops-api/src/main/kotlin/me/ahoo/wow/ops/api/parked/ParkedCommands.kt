@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.ops.api.parked
 
+import jakarta.validation.constraints.PositiveOrZero
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.ledger.Ledger
@@ -66,11 +67,12 @@ data class MarkRecoverable(val recoverable: String)
 /**
  * Applies a retry spec to the entry (`wow.ledger.ApplyRetrySpec`, 9.x `ApplyRetrySpec`): at most [maxRetries]
  * automatic retries, the first [initialBackoff] after the failure, each claiming the entry for [claimTtl] (`PT3M` or
- * `3m`). A member left out keeps the value the entry is retried by now.
+ * `3m`). A member left out keeps the value the entry is retried by now. The host refuses a negative count and a
+ * duration Kotlin cannot read at admission (`wow.command.invalid`, each under its member's path).
  */
 @Summary("Apply a retry spec to a parked entry")
 data class ApplyRetrySpec(
-    val maxRetries: Int? = null,
-    val initialBackoff: String? = null,
-    val claimTtl: String? = null,
+    @field:PositiveOrZero val maxRetries: Int? = null,
+    @field:RetryDuration val initialBackoff: String? = null,
+    @field:RetryDuration val claimTtl: String? = null,
 )

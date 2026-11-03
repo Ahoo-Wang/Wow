@@ -15,6 +15,7 @@ import type { Fetcher } from "@ahoo-wang/fetcher";
 import {
   CommandRejectedError,
   type CommandOptions,
+  type Violation,
   WaitPlan,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
@@ -96,48 +97,42 @@ export function problemText(error: unknown): string {
 }
 
 /**
- * The refusals of what was sent rather than of the entry: the ops
- * service's own check of an action's arguments (`ops.parked.invalid`,
- * 422), and the framework's of a body it cannot read or that breaks a
- * declared constraint (400).
+ * The refusals of what was sent rather than of the entry: the framework's
+ * of a body it cannot read as the command (`wow.command.malformed`) or that
+ * breaks one of its constraints (`wow.command.invalid`, each under its
+ * member's path) — a retry spec's count and durations among them
+ * (`ApplyRetrySpec`'s constraints).
  */
 const INPUT_REFUSALS: ReadonlySet<string> = new Set([
-  "ops.parked.invalid",
   "wow.command.invalid",
   "wow.command.malformed",
 ]);
 
-/** What a refusal came with: its code, its violations, its extension members. */
-function refusalOf(error: unknown):
-  | {
-      code?: string;
-      violations: readonly { path: string; message: string }[];
-      extensions: Readonly<Record<string, unknown>>;
-    }
-  | undefined {
+/** What a refusal came with: its code and its violations. */
+function refusalOf(
+  error: unknown,
+): { code?: string; violations: readonly Violation[] } | undefined {
   if (error instanceof CommandRejectedError) {
     if (error.cause instanceof WowProblemError) return refusalOf(error.cause);
     const info = error.result.error;
     return {
       ...(info?.code ? { code: info.code } : {}),
       violations: info?.violations ?? [],
-      extensions: info?.extensions ?? {},
     };
   }
   if (error instanceof WowProblemError)
     return {
       ...(error.code ? { code: error.code } : {}),
       violations: error.violations,
-      extensions: error.problem.extensions ?? {},
     };
   return undefined;
 }
 
 /**
- * Whether the service refused what the form sent, and why of each field it
- * names — a violation's path, or the field its rejection names (`field`) —
- * by the command's member, which is the form's field; `null` for any other
- * failure, which is the entry's or the request's.
+ * Whether the service refused what the form sent, and why of each member a
+ * violation names by its path — the command's member, which is the form's
+ * field; `null` for any other failure, which is the entry's or the
+ * request's.
  */
 export function refusedInput(error: unknown): Record<string, string> | null {
   const refusal = refusalOf(error);
@@ -145,8 +140,5 @@ export function refusedInput(error: unknown): Record<string, string> | null {
   const fields: Record<string, string> = {};
   for (const { path, message } of refusal.violations)
     if (path && !(path in fields)) fields[path] = message;
-  const field = refusal.extensions.field;
-  if (typeof field === "string" && field && !(field in fields))
-    fields[field] = problemText(error);
   return fields;
 }

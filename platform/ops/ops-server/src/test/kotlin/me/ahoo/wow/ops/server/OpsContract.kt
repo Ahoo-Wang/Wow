@@ -20,6 +20,7 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.RetryParked
 import me.ahoo.wow.api.ledger.SkipParked
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.ops.api.parked.EntryAggregate
 import me.ahoo.wow.ops.api.parked.EntryRetrySpec
 import me.ahoo.wow.ops.api.parked.ParkedEntry
@@ -219,6 +220,13 @@ abstract class OpsContract {
         // An invalid argument is the entry's rejection, and sends nothing.
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"maybe"}""", Who.OPERATOR)
             .assertProblem(UNPROCESSABLE, ParkedRejections.INVALID)
+        // A retry spec's input is refused at admission, each under its member (ApplyRetrySpecInputTest has the rest).
+        ops.post("/ops/parked/$id/apply-retry-spec", """{"maxRetries":-1,"initialBackoff":"PT1.5M"}""", Who.OPERATOR)
+            .assertProblem(BAD_REQUEST, FrameworkCodes.COMMAND_INVALID)
+            .json["violations"].values().map { it["path"].asString() }
+            .assert().containsExactlyInAnyOrder("maxRetries", "initialBackoff")
+        ops.post("/ops/parked/$id/apply-retry-spec", """{"maxRetries":2147483648}""", Who.OPERATOR)
+            .assertProblem(BAD_REQUEST, FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test
@@ -308,6 +316,7 @@ abstract class OpsContract {
         const val SAGA = "PaymentGatewaySaga.onPaymentRequested"
         const val FAILED_AT = 1_760_000_000_000L
         const val HOUR = 3_600_000L
+        const val BAD_REQUEST = 400
         const val UNPROCESSABLE = 422
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403

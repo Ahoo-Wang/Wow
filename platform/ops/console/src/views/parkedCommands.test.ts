@@ -201,26 +201,32 @@ describe("a problem's words", () => {
 });
 
 describe("a refusal of what the form sent", () => {
-  /** The service's answer to an argument it refuses, as it answered (UI-13). */
-  const invalid = (extensions: Record<string, unknown> = {}) =>
-    new WowProblemError({
-      type: "urn:wow:error:ops.parked.invalid",
-      title: "The action's arguments are not valid.",
-      status: 422,
-      detail: "Not a duration (PT3M, 3m): 'PT1.5M'.",
-      code: "ops.parked.invalid",
-      ...extensions,
-    });
+  /** The service's answer to a retry spec its constraints refuse (UI-13). */
+  const invalid = new WowProblemError({
+    type: "urn:wow:error:wow.command.invalid",
+    title: "Invalid command",
+    status: 400,
+    code: "wow.command.invalid",
+    violations: [
+      {
+        path: "initialBackoff",
+        code: "RetryDuration",
+        message: "must be a duration such as PT3M, 3m or 1h 30m, not negative",
+      },
+      { path: "maxRetries", code: "PositiveOrZero", message: "Not below 0." },
+      { path: "maxRetries", code: "Max", message: "Ignored: one per field." },
+    ],
+  });
 
-  it("is the service's check of the arguments, naming no field unless it says one", () => {
-    expect(refusedInput(invalid())).toEqual({});
-    expect(refusedInput(invalid({ field: "initialBackoff" }))).toEqual({
+  it("is each violation under the member its path names", () => {
+    expect(refusedInput(invalid)).toEqual({
       initialBackoff:
-        "Not a duration (PT3M, 3m): 'PT1.5M'. (ops.parked.invalid)",
+        "must be a duration such as PT3M, 3m or 1h 30m, not negative",
+      maxRetries: "Not below 0.",
     });
   });
 
-  it("is the framework's of a body it cannot read or a constraint it breaks, each violation under its member", () => {
+  it("is a body the framework cannot read as the command, naming no field", () => {
     const malformed = new WowProblemError({
       type: "urn:wow:error:wow.command.malformed",
       title: "Malformed command",
@@ -229,17 +235,6 @@ describe("a refusal of what the form sent", () => {
       code: "wow.command.malformed",
     });
     expect(refusedInput(malformed)).toEqual({});
-    const constrained = new WowProblemError({
-      type: "urn:wow:error:wow.command.invalid",
-      title: "Invalid command",
-      status: 400,
-      code: "wow.command.invalid",
-      violations: [
-        { path: "maxRetries", code: "PositiveOrZero", message: "Not below 0." },
-        { path: "maxRetries", code: "Max", message: "At most 9." },
-      ],
-    });
-    expect(refusedInput(constrained)).toEqual({ maxRetries: "Not below 0." });
   });
 
   it("reads a rejection as the problem it came in, else as its result", () => {
@@ -249,27 +244,33 @@ describe("a refusal of what the form sent", () => {
         { status: CommandResultStatus.REJECTED },
       ),
       error: {
-        code: "ops.parked.invalid",
-        message: "maxRetries is never negative: -1.",
-        extensions: { field: "maxRetries" },
+        code: "wow.command.invalid",
+        message: "Invalid command",
+        violations: [
+          {
+            path: "claimTtl",
+            code: "RetryDuration",
+            message: "Not a duration.",
+          },
+        ],
       },
     };
     expect(refusedInput(new CommandRejectedError(result))).toEqual({
-      maxRetries: "maxRetries is never negative: -1. (ops.parked.invalid)",
+      claimTtl: "Not a duration.",
     });
-    const problem = invalid();
     expect(
       refusedInput(
         new CommandRejectedError(result, {
-          problem: problem.problem,
-          cause: problem,
+          problem: invalid.problem,
+          cause: invalid,
         }),
       ),
-    ).toEqual({});
+    ).toEqual(refusedInput(invalid));
   });
 
   it("is nothing else: the entry's refusals and the request's", () => {
     for (const code of [
+      "ops.parked.invalid",
       "ops.parked.resolved",
       "ops.parked.stale",
       "wow.auth.forbidden",
