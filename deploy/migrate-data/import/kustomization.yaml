@@ -1,0 +1,13 @@
+# migrate-data import, the full import, resuming from its checkpoint: kubectl create -k deploy/migrate-data/import
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../job
+nameSuffix: -import
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["import", "--config", "/config/migrate-data.json"]

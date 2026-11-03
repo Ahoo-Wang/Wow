@@ -15,7 +15,7 @@ mongodb://mongodb-0.mongodb:27017,mongodb-1.mongodb:27017,mongodb-2.mongodb:2701
 | `service.yaml` | `mongodb`, the headless service that names the members `mongodb-<n>.mongodb` |
 | `init-job.yaml` | Initiates the replica set once its members answer; harmless when it already is |
 | `pdb.yaml` | One member at a time in a voluntary disruption |
-| `networkpolicy.yaml` | Only the members, the initiation, and the pods labelled `app.kubernetes.io/part-of: eshop` or `wow-platform` reach the members |
+| `networkpolicy.yaml` | Only the members, the initiation, a migration into them ([`deploy/migrate-data`](../migrate-data/README.md)), and the pods labelled `app.kubernetes.io/part-of: eshop` or `wow-platform` reach the members |
 
 ```bash
 kubectl apply -k deploy/mongodb

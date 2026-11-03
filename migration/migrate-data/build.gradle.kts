@@ -18,6 +18,9 @@ dependencies {
     // The PostgreSQL target's connection pool (version from the Spring Boot BOM): one connection per call would exhaust
     // the client's ports on a large log (R4-Q2c).
     implementation("com.zaxxer:HikariCP")
+    // The node's own assembly of a service's Manifest from its modules' fragments (ManifestLoader), for a configuration
+    // that names no manifests: the services' libs on the class path are all a Kubernetes Job copies in.
+    implementation(project(":runtime"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation(project(":manifest"))
     integrationTestImplementation(project(":tck-containers"))

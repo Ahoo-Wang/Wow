@@ -21,14 +21,14 @@
 #                renamed, shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the
 #                9.x compensation service's database with unresolved CartSaga executions
 #   1b. offline  the offline cut-over, into its own database (offline): 9.x stops (the write stop starts), import,
-#                compare, snapshot and backfill-tags, and the V10 hosts start and serve (the write stop ends); their
+#                compare and snapshot, and the V10 hosts start and serve (the write stop ends); their
 #                sampled states equal 9.x's before it stopped. They stop and 9.x starts again for the online cut-over
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL (database example)
 #   3. dual-run  the V10 hosts start on standby (wow.node.standby): they serve reads and refuse commands while 9.x keeps
 #                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
-#                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags; the operator
+#                or import --restart with FINAL_PASS=restart), compare and snapshot; the operator
 #                activates the V10 hosts on their internal ports, and they serve writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states (orders, views) equal V10's; then the cut-over again
@@ -40,11 +40,17 @@
 #   8. refusal   V10 creates orders and views (OrderCreated and ViewCreated at revision 2, which 9.x cannot read)
 #                and export --dry-run refuses
 #
+# MIGRATE_IN says where migrate-data and the stores run: runner (the default), the stores in containers (compose.yml)
+# and the tool from MIGRATE_HOME; or kind, the stores in the kind cluster the workflow created and every command run by
+# the wow-migrate-data image inside it as deploy/migrate-data runs it (kind/kind.sh), then the same import timed by
+# where it runs after the offline cut-over (where_timings).
+#
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # VIEWS_HOME (:view-store-server's installDist), MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal
 # host's Manifest), VIEWS_MANIFEST (the view store service's Manifest), WORK (an empty directory); ORDERS (200),
 # VIEWS (ORDERS / 4), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE
-# (every n-th order and view compared, 1), FINAL_PASS (final: import --final; restart: import --restart).
+# (every n-th order and view compared, 1), FINAL_PASS (final: import --final; restart: import --restart), MIGRATE_IN
+# (runner).
 set -euo pipefail
 
 REHEARSAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -59,6 +65,7 @@ CONCURRENCY="${CONCURRENCY:-32}"
 EXECUTIONS="${EXECUTIONS:-$((ORDERS / 20 > 0 ? ORDERS / 20 : 1))}"
 SAMPLE="${SAMPLE:-1}"
 FINAL_PASS="${FINAL_PASS:-final}"
+MIGRATE_IN="${MIGRATE_IN:-runner}"
 MONGO_PORT="${REHEARSAL_MONGO_PORT:-27017}"
 POSTGRES_PORT="${REHEARSAL_POSTGRES_PORT:-5432}"
 NINEX_PORT="${NINEX_PORT:-18080}"
@@ -85,6 +92,12 @@ log() { echo "[rehearsal] $*" >&2; }
 now_ms() { python3 -c 'import time; print(int(time.time() * 1000))'; }
 compose() { docker compose -f "$REHEARSAL/compose.yml" "$@"; }
 mongosh_run() { docker exec wow-rehearsal-mongo mongosh --quiet "$@"; }
+stores_up() {
+  compose down -v >/dev/null 2>&1 || true
+  compose up -d --wait
+}
+stores_down() { compose down -v >/dev/null 2>&1 || true; }
+createdb() { docker exec wow-rehearsal-postgres createdb -U postgres "$1"; }
 
 # record NAME START_MS EXIT [JSON]: one line of steps.jsonl.
 record() {
@@ -163,6 +176,12 @@ PY
 java_home() { echo "${JAVA_HOME:?JAVA_HOME (JDK 21)}"; }
 driver() { "$(java_home)/bin/java" -cp "$V10_HOME/lib/*" me.ahoo.wow.rehearsal.driver.RehearsalDriverKt "$@" --concurrency="$CONCURRENCY"; }
 migrate() { JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" "$1" --config "$WORK/migrate-data-$TARGET_DB.json" "${@:2}"; }
+# The tail, until tail_stop; its log in $WORK/tail.log.
+tail_start() {
+  JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data-example.json" >"$WORK/tail.log" 2>&1 &
+  echo $! >"$WORK/tail.pid"
+}
+tail_stop() { stop_pid tail; }
 
 await_http() {
   local url="$1" name="$2"
@@ -298,12 +317,12 @@ views_traffic_join() {
 }
 
 cleanup() {
-  stop_pid tail || true
+  tail_stop || true
   stop_pid views-traffic || true
   stop_pid v10 || true
   stop_pid views || true
   stop_pid ninex || true
-  if [ "${KEEP_STORES:-false}" != "true" ]; then compose down -v >/dev/null 2>&1 || true; fi
+  if [ "${KEEP_STORES:-false}" != "true" ]; then stores_down; fi
 }
 trap cleanup EXIT
 
@@ -337,10 +356,14 @@ write_config() {
 EOF
 }
 
-log "stores up"
-compose down -v >/dev/null 2>&1 || true
-compose up -d --wait
-docker exec wow-rehearsal-postgres createdb -U postgres offline
+if [ "$MIGRATE_IN" = kind ]; then
+  # shellcheck source=kind/kind.sh
+  source "$REHEARSAL/kind/kind.sh"
+fi
+
+log "stores up ($MIGRATE_IN)"
+stores_up
+createdb offline
 write_config example
 write_config offline
 
@@ -361,7 +384,6 @@ stop_pid ninex
 step offline-import 0 migrate import
 compared offline-compare migrate compare
 step offline-snapshot 0 migrate snapshot
-step offline-backfill-tags 0 migrate backfill-tags
 step offline-start 0 start_hosts
 record offline-write-stop "$offline_started" 0
 step offline-v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-offline.json"
@@ -370,6 +392,9 @@ step offline-v10-views-states 0 driver views states --version=v10 --base="$VIEWS
 step offline-views-compare 0 driver compare "$WORK/v10-views-offline.json" "$WORK/9x-views-offline.json"
 stop_hosts
 TARGET_DB=example
+if [ "$MIGRATE_IN" = kind ]; then
+  where_timings
+fi
 start_ninex
 
 # 2. import
@@ -378,15 +403,14 @@ step import 0 migrate import
 # 3. dual-run
 start_hosts standby
 step standby-refuses 0 standby_refuses
-JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data-example.json" >"$WORK/tail.log" 2>&1 &
-echo $! >"$WORK/tail.pid"
+tail_start
 views_traffic_start 9x "$NINEX_URL" "$DUAL_RUN_SECONDS" dual-run-views
 step dual-run-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds="$DUAL_RUN_SECONDS" --touched="$WORK/dual-run-touched.tsv"
 views_traffic_join dual-run-views
 writes_stopped="$(now_ms)"
 step dual-run-lag 0 driver await --base="$V10_URL" --touched="$WORK/dual-run-touched.tsv"
 step dual-run-views-lag 0 driver views await --base="$VIEWS_URL" --touched="$WORK/dual-run-views-touched.tsv"
-stop_pid tail
+tail_stop
 
 # 4. cut-over: the write stop runs from 9.x stopping to V10 serving
 cutover_started="$(now_ms)"
@@ -394,7 +418,6 @@ stop_pid ninex
 step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
-step backfill-tags 0 migrate backfill-tags
 step activate 0 activate_hosts
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"

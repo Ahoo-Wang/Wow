@@ -35,6 +35,7 @@ import kotlin.system.exitProcess
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
  * migrate-data snapshot --config <file> [--restart]
  * migrate-data export   --config <file> [--dry-run] [--restart]
+ * migrate-data --help
  * ```
  *
  * - `draft-map` drafts `migration-map.json` from the event and command names the 9.x store holds and the V10 Manifest
@@ -97,6 +98,10 @@ internal class MigrateData(
      * error, 3 the comparison found differences.
      */
     fun run(args: List<String>): Int {
+        if (args.firstOrNull() in HELP) {
+            out.println(USAGE)
+            return OK
+        }
         val command = args.firstOrNull()?.takeIf { it in COMMANDS }
         val options = args.drop(1)
         val configPath = valueOf(options, CONFIG)
@@ -110,34 +115,99 @@ internal class MigrateData(
             return USAGE_ERROR
         }
         val config = MigrationConfig.read(Path.of(configPath))
-        val manifest = readManifests(config.manifests)
-        if (command == DRAFT_MAP) {
-            return reported { connect(config).use { draftMap(config, manifest, it, options) } }
-        }
-        val plan = MigrationPlan(MigrationMap.read(Files.readString(Path.of(config.map))), manifest)
         return reported {
-            connect(config).use { connections ->
-                runBlocking { run(command, plan, config, connections, options, sample) }
+            if (command == DRAFT_MAP) {
+                val manifest = manifestOf(config, null)
+                connect(config).use { draftMap(config, manifest, it, options) }
+            } else {
+                val map = MigrationMap.read(Files.readString(Path.of(config.map)))
+                val plan = MigrationPlan(map, manifestOf(config, map))
+                val line = (listOf(command) + options.filter { it.startsWith("--") && it != CONFIG }).joinToString(" ")
+                connect(config).use { connections ->
+                    runBlocking { run(command, plan, config, Checkpoints(config, connections, line), options, sample) }
+                }
             }
         }
     }
 
+    /**
+     * The Manifests the configuration names, or, when it names none, those assembled from the fragments of the
+     * modules on its class path ([classpathManifests]), which must hold every context [map] imports into.
+     */
+    private fun manifestOf(config: MigrationConfig, map: MigrationMap?): Manifest {
+        if (config.manifests.isNotEmpty()) {
+            return readManifests(config.manifests)
+        }
+        return classpathManifests(config.classpath, MigrateData::class.java.classLoader).also { manifest ->
+            map?.let { requireContexts(manifest, it, config.classpath) }
+        }
+    }
+
+    /**
+     * Where a run of the command line [line] keeps its progress: the checkpoint file or the target
+     * ([MigrationConfig.checkpoint]), and the keys its reservation import confirmed beside them. [holding] runs a
+     * command that writes them holding its roles ([CheckpointRole]), so no other run of its roles writes them at once.
+     */
+    private inner class Checkpoints(
+        val config: MigrationConfig,
+        val connections: MigrationConnections,
+        private val line: String,
+    ) {
+        suspend fun <T> holding(
+            roles: Set<CheckpointRole>,
+            block: suspend (CheckpointRepository, ImportedKeys) -> T
+        ): T {
+            val holder = CheckpointHolder.of(line)
+            val name = config.checkpointName
+            if (name == null) {
+                val file = Path.of(config.checkpoint)
+                return FileCheckpointLocks(file, holder).holding(roles) {
+                    block(
+                        FileCheckpointRepository(file),
+                        FileImportedKeys(Path.of("${config.checkpoint}$IMPORTED_KEYS"))
+                    )
+                }
+            }
+            val table = connections.checkpointTable()
+            return TargetCheckpointLeases(connections.leaseStore(), name, holder, report = out::println)
+                .holding(roles) { lock ->
+                    block(TargetCheckpointRepository(table, name, lock), TargetImportedKeys(table, name, lock))
+                }
+        }
+    }
+
     /** Runs [command], one that reads the map, with its [options]. */
-    @Suppress("LongParameterList") // A command's inputs.
     private suspend fun run(
         command: String,
         plan: MigrationPlan,
         config: MigrationConfig,
-        connections: MigrationConnections,
+        checkpoints: Checkpoints,
         options: List<String>,
         sample: Int?,
-    ): Int = when (command) {
-        CHECK -> if (DECODE in options) decodeCheck(plan, config, connections) else check(plan, connections)
-        IMPORT -> import(plan, config, connections, options)
-        TAIL -> tail(plan, config, connections, ONCE in options)
-        COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
-        EXPORT -> export(plan, config, connections, DRY_RUN in options, RESTART in options)
-        else -> snapshot(plan, config, connections, RESTART in options)
+    ): Int {
+        val connections = checkpoints.connections
+        val restart = RESTART in options
+        return when (command) {
+            CHECK -> if (DECODE in options) decodeCheck(plan, config, connections) else check(plan, connections)
+            IMPORT -> import(plan, checkpoints, options)
+            TAIL -> checkpoints.holding(setOf(CheckpointRole.IMPORT)) { repository, _ ->
+                tail(plan, config, connections, repository, ONCE in options)
+            }
+            COMPARE -> checkpoints.holding(setOf(CheckpointRole.COMPARE)) { repository, keys ->
+                compare(plan, config, connections, repository, keys, sample ?: CompareOptions.ALL, restart)
+            }
+            // The export writes into the 9.x store the import and the tail read, so it never runs beside them.
+            EXPORT -> {
+                val dryRun = DRY_RUN in options
+                val roles = if (dryRun) emptySet() else setOf(CheckpointRole.EXPORT, CheckpointRole.IMPORT)
+                checkpoints.holding(roles) { repository, _ ->
+                    export(plan, config, connections, repository, dryRun, restart)
+                }
+            }
+            else -> checkpoints.holding(setOf(CheckpointRole.SNAPSHOT)) { repository, _ ->
+                snapshot(plan, config, connections, repository, restart)
+            }
+        }
     }
 
     /** Runs [step]; a [MigrationException] it throws is printed as `FAILED`, and fails the run. */
@@ -254,24 +324,39 @@ internal class MigrateData(
         return FAILED
     }
 
-    private suspend fun import(
+    /**
+     * The import ([importAll]) or its final pass ([finalPass]), once the check passed, holding the import's role, and
+     * the snapshot writing's too with `--snapshots`; a dry run holds none and keeps its checkpoints in memory.
+     */
+    private suspend fun import(plan: MigrationPlan, checkpoints: Checkpoints, options: List<String>): Int {
+        val connections = checkpoints.connections
+        if (check(plan, connections) != OK) {
+            return FAILED
+        }
+        val config = checkpoints.config
+        if (DRY_RUN in options) {
+            return importAll(plan, config, connections, options, InMemoryCheckpointRepository(), InMemoryImportedKeys())
+        }
+        val roles = setOfNotNull(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT.takeIf { SNAPSHOTS in options })
+        return checkpoints.holding(roles) { repository, keys ->
+            if (FINAL in options) {
+                finalPass(plan, config, connections, repository, keys, SNAPSHOTS in options)
+            } else {
+                importAll(plan, config, connections, options, repository, keys)
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // A command's inputs.
+    private suspend fun importAll(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
         options: List<String>,
+        checkpoints: CheckpointRepository,
+        keys: ImportedKeys,
     ): Int {
-        if (check(plan, connections) != OK) {
-            return FAILED
-        }
-        if (FINAL in options) {
-            return finalPass(plan, config, connections, SNAPSHOTS in options)
-        }
         val dryRun = DRY_RUN in options
-        val checkpoints = if (dryRun) {
-            InMemoryCheckpointRepository()
-        } else {
-            FileCheckpointRepository(Path.of(config.checkpoint))
-        }
         val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
         passedOver(plan.aggregates.keys.map { importer.importAll(it) })?.let(out::println)
         if (!dryRun) {
@@ -286,7 +371,7 @@ internal class MigrateData(
             options = config.options(dryRun, RESTART in options),
             progress = { out.println(it.render()) },
             report = out::println,
-            imported = if (dryRun) InMemoryImportedKeys() else importedKeys(config),
+            imported = keys,
         )
         plan.reservations.keys.forEach { reservations.importAll(it) }
         connections.compensation?.let { compensation ->
@@ -302,7 +387,7 @@ internal class MigrateData(
             ).importAll()
         }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
-        return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
+        return if (SNAPSHOTS in options) snapshot(plan, config, connections, checkpoints, RESTART in options) else OK
     }
 
     /**
@@ -311,13 +396,15 @@ internal class MigrateData(
      * from the first. It refuses, writing nothing, when an aggregate's tail did not follow 9.x continuously: the final
      * pass is then `import --restart`.
      */
+    @Suppress("LongParameterList") // A command's inputs.
     private suspend fun finalPass(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
+        keys: ImportedKeys,
         snapshots: Boolean,
     ): Int {
-        val checkpoints = FileCheckpointRepository(Path.of(config.checkpoint))
         val importer = importer(
             plan,
             config.options().copy(lookbackMillis = config.final.lookbackMillis),
@@ -341,7 +428,7 @@ internal class MigrateData(
             options = config.options(restart = true),
             progress = { out.println(it.render()) },
             report = out::println,
-            imported = importedKeys(config),
+            imported = keys,
         ).let { reservations -> plan.reservations.keys.forEach { reservations.importAll(it) } }
         connections.compensation?.let { compensation ->
             CompensationImporter(
@@ -358,13 +445,16 @@ internal class MigrateData(
         out.println(
             "Final pass done: the tail from its checkpoint, the reservations and the compensation walked again."
         )
-        return if (snapshots) snapshot(plan, config, connections, restart = true) else OK
+        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = true) else OK
     }
 
+    @Suppress("LongParameterList") // A command's inputs.
     private suspend fun compare(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
+        keys: ImportedKeys,
         sample: Int,
         restart: Boolean,
     ): Int {
@@ -378,7 +468,7 @@ internal class MigrateData(
             plan = plan,
             models = models(config),
             logOf = connections::logOf,
-            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            checkpoints = checkpoints,
             options = CompareOptions(config.pageSize, config.concurrency, sample, restart),
             report = out::println,
         )
@@ -390,7 +480,7 @@ internal class MigrateData(
             store = connections::reservationStore,
             pageSize = config.pageSize,
             report = out::println,
-            imported = importedKeys(config),
+            imported = keys,
         )
         val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
         val executions = compareCompensation(plan, config, connections)
@@ -447,6 +537,7 @@ internal class MigrateData(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
         restart: Boolean,
     ): Int {
         val writer = SnapshotWriter(
@@ -455,7 +546,7 @@ internal class MigrateData(
             models = models(config),
             logOf = connections::logOf,
             storeOf = connections::snapshotStoreOf,
-            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            checkpoints = checkpoints,
             options = config.options(restart = restart),
             progress = { out.println(it.render()) },
             report = out::println,
@@ -474,10 +565,12 @@ internal class MigrateData(
     }
 
     /** Exports to 9.x what V10 wrote after the cut-over: scan, then write, then count. */
+    @Suppress("LongParameterList") // A command's inputs.
     private suspend fun export(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
         dryRun: Boolean,
         restart: Boolean,
     ): Int {
@@ -485,7 +578,7 @@ internal class MigrateData(
             plan = plan,
             logOf = connections::logOf,
             target = connections.nineXTarget,
-            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            checkpoints = checkpoints,
             options = ExportOptions(config.pageSize, config.concurrency, dryRun, restart),
             progress = { out.println(it.render()) },
         )
@@ -512,7 +605,13 @@ internal class MigrateData(
         return DIFFERS
     }
 
-    private suspend fun tail(plan: MigrationPlan, config: MigrationConfig, connections: MigrationConnections, once: Boolean): Int {
+    private suspend fun tail(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        checkpoints: CheckpointRepository,
+        once: Boolean,
+    ): Int {
         val source = connections.source
         if (source is CommitTimeIndexed) {
             if (config.source.createCommitTimeIndex) {
@@ -524,12 +623,7 @@ internal class MigrateData(
                 return FAILED
             }
         }
-        val importer = importer(
-            plan,
-            config.options(),
-            connections,
-            FileCheckpointRepository(Path.of(config.checkpoint)),
-        )
+        val importer = importer(plan, config.options(), connections, checkpoints)
         do {
             plan.aggregates.keys.forEach { importer.tailOnce(it) }
             recordCutover(plan, connections)
@@ -567,10 +661,6 @@ internal class MigrateData(
         out.println(recorder.render(recorder.record()))
     }
 
-    /** The keys the reservation import confirmed, beside the checkpoint file. */
-    private fun importedKeys(config: MigrationConfig): ImportedKeys =
-        FileImportedKeys(Path.of("${config.checkpoint}$IMPORTED_KEYS"))
-
     private fun importer(
         plan: MigrationPlan,
         options: ImportOptions,
@@ -607,6 +697,7 @@ internal class MigrateData(
         private const val FORCE = "--force"
         private const val OUT = "--out"
         private const val DECODE = "--decode"
+        private val HELP = setOf("--help", "-h", "help")
 
         /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
         const val IMPORTED_KEYS = ".reservations.jsonl"
@@ -637,6 +728,7 @@ internal class MigrateData(
               snapshot  [--restart]  writes the V10 snapshot of every imported instance
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
                         for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
+              --help    prints this
             Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison or the export's count found differences.
         """.trimIndent()
     }
