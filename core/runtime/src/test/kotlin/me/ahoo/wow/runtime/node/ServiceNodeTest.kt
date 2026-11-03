@@ -19,6 +19,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -54,6 +55,7 @@ import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.ContractFixtures
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -66,7 +68,10 @@ import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.AfterEach
@@ -108,6 +113,7 @@ class ServiceNodeTest {
         listener: (ServiceNode.Step) -> Unit = {},
         address: String? = "$name.internal:9090",
         peers: List<ManifestFragment> = emptyList(),
+        observer: Observer = Observer.NONE,
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         name,
@@ -121,6 +127,7 @@ class ServiceNodeTest {
         subscriptions = subscriptions,
         listener = listener,
         contracts = ContractDirectory(accountsManifest(*contexts), peers),
+        observer = observer,
     ).also {
         nodes[name] = it
         if (it.hasAddress) {
@@ -192,6 +199,43 @@ class ServiceNodeTest {
         node.stop()
         node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
     }
+
+    @Test
+    fun `another node's commit drops the owner's cached state, so its next command decides once`(): Unit =
+        runBlocking {
+            val backends = InMemoryBackends()
+            val decided = CopyOnWriteArrayList<String>()
+            val stale = CopyOnWriteArrayList<ObservedEvent.StateCache>()
+            val observer = object : Observer {
+                override fun observed(event: ObservedEvent) {
+                    if (event is ObservedEvent.StateCache && event.outcome == ObservedEvent.StateCache.Outcome.STALE) {
+                        stale += event
+                    }
+                }
+            }
+            val options = fastNodeOptions().copyWith(handoff = HandoffOptions(probeInterval = 50.milliseconds))
+            val node = node("node-1", backends = backends, decided = decided, options = options, observer = observer)
+            node.start()
+            val first = node.gateway.execute(deposit(id = "a-1"))
+            first.version.assert().isEqualTo(1)
+
+            // Another node commits the aggregate's next version without the partition's lease (a command it ran
+            // locally): straight to the log, which hands it to no tail of this node.
+            val log = backends.opened.getValue(BANK).log
+            val committed = log.read(first.ref, 1, 1).toList().single()
+            log.append(
+                committed.copyWith(version = 2, commandId = "foreign-2", requestId = "foreign-2"),
+                null,
+            ).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            eventually { stale.isNotEmpty() }
+
+            val next = node.gateway.execute(deposit(id = "a-1"))
+            next.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            next.version.assert().isEqualTo(3)
+            // Decided on the log, once: a stale state would have conflicted and been decided again.
+            decided.assert().containsExactly(first.commandId, next.commandId)
+            stale.map { it.context }.assert().containsExactly(BANK)
+        }
 
     @Test
     fun `each context of a node has its own log, lease group and endpoint`(): Unit = runBlocking {
