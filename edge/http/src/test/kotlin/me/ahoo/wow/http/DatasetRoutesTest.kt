@@ -40,8 +40,6 @@ import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.memory.InMemoryDatasetStorage
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -81,7 +79,6 @@ class DatasetRoutesTest {
         tenant("tenant_id")
         owner("owner_id")
         identity("id")
-        tag("region", "region")
         title(title)
         storage(InMemoryDatasetStorage.binding("sales"))
         listOf("id", "tenant_id", "owner_id", "region").forEach { name ->
@@ -143,7 +140,6 @@ class DatasetRoutesTest {
     private fun datasetNode(
         datasets: QueryDatasets,
         visibility: DatasetVisibility = DatasetVisibility.DEFAULT,
-        abac: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     ): HttpNode {
         val catalog = QuerySchemaCatalog(
             storages = QueryBackendStorages(datasetBindings = storage, datasets = datasets),
@@ -154,7 +150,7 @@ class DatasetRoutesTest {
             datasets,
             catalog,
             storage,
-            policies = listOf(ScopeQueryPolicy(), AbacQueryPolicy(abac)),
+            policies = listOf(ScopeQueryPolicy()),
         )
         return HttpNode(manifest = queryManifest()) {
             HttpQueries(datasets = gateways, datasetVisibility = visibility)
@@ -331,22 +327,10 @@ class DatasetRoutesTest {
     }
 
     @Test
-    fun `required ABAC tags should hide a tagged dataset from a caller without one`() {
-        val abac = AbacQueryOptions(enabled = true, requirePrincipalTags = true)
-        val visibility = DatasetVisibility.of(abac)
-        val strict = datasetNode(QueryDatasets(listOf(salesDataset())), visibility, abac)
-        strict.get("/wow/dataset", "alice").body!!.values().assert().isEmpty()
-        strict.query("""{"kind":"count","filter":{"op":"match-all"}}""").status.assert().isEqualTo(404)
-        val tagged = QueryCaller(
-            Caller(tenantId = TENANT, attributes = mapOf("abac.region" to listOf("east"))),
-            entry = QueryEntry.HTTP,
-        )
-        visibility.visible(salesDataset(), tagged).assert().isTrue()
-        visibility.visible(
-            regionsDataset(),
-            QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)
-        ).assert().isFalse()
-        DatasetVisibility.of(AbacQueryOptions(enabled = true)).assert().isSameAs(DatasetVisibility.DEFAULT)
+    fun `the scope should decide which datasets a caller sees`() {
+        val tenant = QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)
+        DatasetVisibility.DEFAULT.visible(salesDataset(), tenant).assert().isTrue()
+        DatasetVisibility.DEFAULT.visible(regionsDataset(), tenant).assert().isFalse()
         // A cross-tenant caller sees the platform-level dataset when it reads the platform tenant (decision D254 ⑦).
         val operator = Caller(tenantId = TENANT, crossScope = true)
         DatasetVisibility.DEFAULT.visible(

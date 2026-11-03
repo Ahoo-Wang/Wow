@@ -67,7 +67,7 @@ fun interface EventVisibility {
 
         /**
          * An aggregate the snapshot queries of its type hide from the caller is hidden from the events model too,
-         * under the gateway [snapshots] gives for its type, so the caller scope, ABAC and the
+         * under the gateway [snapshots] gives for its type, so the caller scope and the
          * application's query policies hide the same aggregates from both models whichever entry asks. That gateway is
          * the type's snapshot query gateway, or, for a type whose snapshots are not queried, a
          * [me.ahoo.wow.query.state.SnapshotPolicyGateway] that evaluates the same policies on the state alone.

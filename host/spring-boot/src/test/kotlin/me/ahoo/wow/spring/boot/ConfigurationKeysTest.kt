@@ -158,9 +158,14 @@ class ConfigurationKeysTest {
 
     @Test
     fun `a key of an earlier version refuses the startup, pointing at the migration guide`() {
-        val environment = environment("wow.cluster.router" to "local", "wow.ops.enabled" to "true")
+        val environment = environment(
+            "wow.cluster.router" to "local",
+            "wow.ops.enabled" to "true",
+            "wow.query.abac.enabled" to "true",
+        )
         val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
-        failure.message.assert().contains("wow.cluster.router", "wow.ops.enabled", ConfigurationKeys.MIGRATION)
+        failure.message.assert()
+            .contains("wow.cluster.router", "wow.ops.enabled", "wow.query.abac.enabled", ConfigurationKeys.MIGRATION)
     }
 
     @Test

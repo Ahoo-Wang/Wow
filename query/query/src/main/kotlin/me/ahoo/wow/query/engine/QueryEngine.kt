@@ -36,8 +36,6 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.QueryObserver
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryOwnership
@@ -61,9 +59,8 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  * reads a state through. A host only maps its configuration onto a [Builder]; the security rules are the builder's:
  *
  * - every gateway runs the scope policy (the tenant, the owner of the aggregates their owners hold)
- * and ABAC first, then the application's policies, and is observed by the query log and the application's
- *   observers;
- * - when ABAC or an application's policy may hide an aggregate from a caller of its scope, a type whose snapshots are
+ *   first, then the application's policies, and is observed by the query log and the application's observers;
+ * - when an application's policy may hide an aggregate from a caller of its scope, a type whose snapshots are
  *   not queried still has its policies evaluated on its states ([SnapshotPolicyGateway]), so its state
  *   reads and its events fail closed;
  * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too;
@@ -121,7 +118,7 @@ class QueryEngine private constructor(
 
     /**
      * What a host gives the engine of [manifest], each from its configuration or the application: the [contexts] the
-     * node hosts, the backends of the models, the schema sources and masks, the tenant and ABAC options, the
+     * node hosts, the backends of the models, the schema sources and masks, the tenant options, the
      * application's policies, filters and observers, the count caches, the committed states and how events are read.
      */
     @InternalWowApi
@@ -140,7 +137,6 @@ class QueryEngine private constructor(
         private var masks: PayloadMasks? = null
         private var tenants: TenantPolicy = TenantPolicy.CALLERS
         private var crossTenant: Boolean = false
-        private var abac: AbacQueryOptions = AbacQueryOptions.DEFAULT
         private var policies: List<QueryPolicy> = emptyList()
         private var filters: List<QueryFilter> = emptyList()
         private var observers: List<QueryObserver> = emptyList()
@@ -171,7 +167,7 @@ class QueryEngine private constructor(
             datasetBackend = backend
         }
 
-        /** Which datasets a caller sees; by default, by scope and ABAC ([DatasetVisibility.of]). */
+        /** Which datasets a caller sees; by default, by scope ([DatasetVisibility.DEFAULT]). */
         fun datasetVisibility(visibility: DatasetVisibility?) = apply { datasetVisibility = visibility }
 
         /** The schema sources beyond the Manifest's state schemas, the application's. */
@@ -195,10 +191,7 @@ class QueryEngine private constructor(
          */
         fun crossTenant(enabled: Boolean) = apply { crossTenant = enabled }
 
-        /** The ABAC options (`wow.query.abac`). */
-        fun abac(abac: AbacQueryOptions) = apply { this.abac = abac }
-
-        /** The application's query policies, after the scope and ABAC ones. */
+        /** The application's query policies, after the scope one. */
         fun policies(policies: List<QueryPolicy>) = apply { this.policies = policies }
 
         /** The application's query filters. */
@@ -241,9 +234,9 @@ class QueryEngine private constructor(
             val ownerships = QueryOwnership.of(manifest)
             val gatewayPolicies = scopePolicies(ownerships) + policies
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only ABAC and the application's policies hide an aggregate from a caller of its scope: a state read
-            // checks them through the policy gateway of a type whose snapshots are not queried.
-            val restricts = abac.enabled || policies.isNotEmpty()
+            // Only the application's policies hide an aggregate from a caller of its scope: a state read checks them
+            // through the policy gateway of a type whose snapshots are not queried.
+            val restricts = policies.isNotEmpty()
             // Only a pinned one hides an aggregate's streams beyond its filter on them.
             val hides = gatewayPolicies.any { it.events == EventsMode.PINNED }
             val queried = snapshots.map { it.aggregateType }.toSet()
@@ -287,7 +280,7 @@ class QueryEngine private constructor(
                 events,
                 policyGateways,
                 datasetGateways,
-                datasetVisibility ?: DatasetVisibility.of(abac),
+                datasetVisibility ?: DatasetVisibility.DEFAULT,
                 masks,
                 observer,
                 tenants,
@@ -367,12 +360,11 @@ class QueryEngine private constructor(
         }
 
         /**
-         * The scope and ABAC policies every gateway runs first, the owner applying to the aggregates
-         * the Manifest says belong to their owners.
+         * The scope policy every gateway runs first, the owner applying to the aggregates the Manifest says belong to
+         * their owners.
          */
         private fun scopePolicies(ownerships: QueryOwnership): List<QueryPolicy> = listOf(
             ScopeQueryPolicy(tenants, ownerships = ownerships, crossTenant = crossTenant),
-            AbacQueryPolicy(abac),
         )
     }
 

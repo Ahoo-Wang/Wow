@@ -47,7 +47,6 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.policy.AbacQueryOptions
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
@@ -160,29 +159,6 @@ class HostQueryTest {
     }
 
     @Test
-    fun `without a snapshot query gateway the events model should stay under ABAC`() {
-        startHost(
-            "wow.query.memory.enabled" to false,
-            "wow.query.abac.enabled" to true,
-            "wow.query.abac.match-missing-tag-key" to false,
-            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
-        ).use { host ->
-            val id = host.openAccount("mona")
-            val queries = host.context.getBean(HttpQueries::class.java)
-            queries.snapshots(ACCOUNT).assert().isNull()
-            queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
-            val events = queries.events(ACCOUNT)!!
-            fun eventsOf(caller: Caller) = runBlocking {
-                events.list(ListQuery(AggregateIdFilter(id), limit = 10), QueryCaller(caller)).toList()
-            }
-            // Review R3.3-3: the account has no tags (D390), so a caller of a tier, a key missing on the account,
-            // reads none of its events; a caller without ABAC attributes is not restricted.
-            eventsOf(Caller(attributes = mapOf("abac.$TIER" to listOf("gold")))).assert().isEmpty()
-            eventsOf(Caller()).map { it["version"].asInt() }.assert().containsExactly(1)
-        }
-    }
-
-    @Test
     fun `the events model should leave out a stored TagsApplied, and the aggregate still take commands`() {
         startHost(
             "wow.query.memory.enabled" to false,
@@ -238,7 +214,7 @@ class HostQueryTest {
     }
 
     @Test
-    fun `an application's query policy should hide events without a snapshot query gateway, ABAC off`() {
+    fun `an application's query policy should hide events without a snapshot query gateway`() {
         startHost(
             "wow.query.memory.enabled" to false,
             sources = listOf(HostTestApp::class.java, ScannedEvents::class.java, HideFromMallory::class.java),
@@ -261,7 +237,7 @@ class HostQueryTest {
     }
 
     @Test
-    fun `without ABAC or a query policy no snapshot policy gateway is built`() {
+    fun `without a query policy no snapshot policy gateway is built`() {
         startHost(
             "wow.query.memory.enabled" to false,
             sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
@@ -282,7 +258,6 @@ class HostQueryTest {
             "wow.query.budgets.http.default-list-size" to 2,
             "wow.query.budgets.http.count-limit" to 50,
             "wow.query.budgets.http.timeout" to "5s",
-            "wow.query.abac.enabled" to true,
             // The events of the log in memory are scanned (review R3.4-1).
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
         ).use { host ->
@@ -478,7 +453,6 @@ class HostQueryTest {
         policy.http.allowExactCount.assert().isFalse()
         policy.inProcessTimeout.assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
         policy.requireExplicitEntry.assert().isFalse()
-        properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
         // Unset: on wherever the store is in memory.
         properties.memory.enabled.assert().isTrue()

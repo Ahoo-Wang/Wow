@@ -81,7 +81,7 @@ class QueryCountCacheOptions @InternalWowApi constructor(
  * another node's write.
  *
  * - **Key**: the aggregate type, the admitted filter (the query as admission rewrote it, with every value and the
- *   scope, tenant and ABAC conditions the policies appended: the full query fingerprint, not its value-free shape)
+ *   scope and tenant conditions the policies appended: the full query fingerprint, not its value-free shape)
  *   and the bound (`null` for an exact count), with the caller's tenant (or cross-tenant reach), owner, space and
  *   stated scope besides. A count is never served to another scope or tenant, and a count and a paged total of one
  *   filter and bound share an entry.

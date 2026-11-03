@@ -93,7 +93,7 @@ class AggregationQueryTest {
     }
 
     @Test
-    fun `query should append an ABAC filter`() {
+    fun `query should append a filter`() {
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))
 
         query.appendFilter(TenantIdFilter("tenant")).filter.assert().isEqualTo(TenantIdFilter("tenant"))

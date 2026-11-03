@@ -66,9 +66,9 @@ internal class ClickHouseTableMetadata(
  * What a dataset's table proves about its declaration,
  * from `system.columns`. The declaration is the contract and the table only confirms it: every declared field must be
  * a root column of a supported type whose family matches the declared types, a non-null declaration needs a
- * non-`Nullable` column, and the scope and identity columns must be neither `Nullable` nor arrays (an ABAC tag column
- * may be an array). `FINAL` needs an engine that merges rows. Any mismatch fails the compile, so the Catalog keeps
- * the previous schema and reports it; a column the declaration does not name is never exposed.
+ * non-`Nullable` column, and the scope and identity columns must be neither `Nullable` nor arrays. `FINAL` needs an
+ * engine that merges rows. Any mismatch fails the compile, so the Catalog keeps the previous schema and reports it; a
+ * column the declaration does not name is never exposed.
  */
 internal class ClickHouseQuerySchemaAdapter(
     private val dataset: QueryDataset,
@@ -98,7 +98,6 @@ internal class ClickHouseQuerySchemaAdapter(
             throw invalid("deduplicates with FINAL, but table [${table.name}] has engine [${table.engine}]")
         }
         val keys = dataset.scope.fields + listOfNotNull(dataset.identity)
-        val records = (dataset.scope.fields - dataset.scope.tags.values.toSet()) + listOfNotNull(dataset.identity)
         // An array column's elements are part of the column: their path ends in an item segment.
         val paths = logicalSchema.values.filterKeys { it.segments.isNotEmpty() && it.segments.last() != ITEM }
         if (paths.keys.any { it.segments.size > 1 }) {
@@ -109,8 +108,10 @@ internal class ClickHouseQuerySchemaAdapter(
             val column = table.columns[name]
                 ?: throw invalid("declares [$name], which table [${table.name}] has no column for")
             column.requireDeclared(value)
-            if (column.nullable && QueryField(name) in keys) throw invalid("keys on the Nullable column [$name]")
-            if (column.array && QueryField(name) in records) throw invalid("keys on the array column [$name]")
+            if (QueryField(name) in keys) {
+                if (column.nullable) throw invalid("keys on the Nullable column [$name]")
+                if (column.array) throw invalid("keys on the array column [$name]")
+            }
             val native = QueryFieldBindingTemplate(path, setOf(QueryStorageType(column.family.name)))
             QueryValueBindings(column.capabilities().associateWith { native }, path, path)
         }

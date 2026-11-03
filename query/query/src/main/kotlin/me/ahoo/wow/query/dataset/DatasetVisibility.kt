@@ -15,8 +15,6 @@ package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.policy.AbacQueryOptions
-import me.ahoo.wow.query.policy.AbacQueryPolicy
 
 /**
  * Which datasets a caller sees: those `GET /wow/dataset` lists, and those whose routes answer it; the
@@ -45,20 +43,6 @@ fun interface DatasetVisibility {
             tenant &&
                 (caller.principal.ownerId == null || scope.owner != null) &&
                 (caller.principal.spaceId == null || scope.space != null)
-        }
-
-        /**
-         * [DEFAULT], and, when [abac] requires the caller's tags, a dataset that binds tag columns is not seen by a
-         * caller without an ABAC tag ([AbacQueryPolicy.tagsOf]): its queries would be forbidden.
-         */
-        @JvmStatic
-        fun of(abac: AbacQueryOptions): DatasetVisibility {
-            if (!abac.enabled || !abac.requirePrincipalTags) return DEFAULT
-            val policy = AbacQueryPolicy(abac)
-            return DatasetVisibility { dataset, caller ->
-                DEFAULT.visible(dataset, caller) &&
-                    (dataset.scope.tags.isEmpty() || policy.tagsOf(caller.attributes).isNotEmpty())
-            }
         }
     }
 }

@@ -52,7 +52,7 @@ import tools.jackson.databind.node.ObjectNode
  *   "title": "Orders",
  *   "identity": "id",
  *   "eventTime": "commit_time",
- *   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id", "tags": { "region": "region" } },
+ *   "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
  *   "storage": { "table": "db.shop_order_state_flat" },
  *   "fields": {
  *     "id": { "types": ["string"], "nullable": false },
@@ -75,7 +75,6 @@ internal object QueryDatasetProperties {
     const val PLATFORM = "platform"
     const val OWNER = "owner"
     const val SPACE = "space"
-    const val TAGS = "tags"
     const val STORAGE = "storage"
     const val FIELDS = "fields"
     const val SENSITIVE = "sensitive"
@@ -95,7 +94,7 @@ internal object QueryDatasetProperties {
     const val VALUES = "values"
 
     internal val ROOT = setOf(TITLE, IDENTITY, EVENT_TIME, SCOPE, STORAGE, FIELDS)
-    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, TAGS, PLATFORM)
+    internal val SCOPE_PROPERTIES = setOf(TENANT, OWNER, SPACE, PLATFORM)
     internal val SENSITIVE_PROPERTIES = setOf(LEVEL, KEEP_PREFIX, KEEP_SUFFIX)
     internal val FIELD_PROPERTIES =
         setOf(KIND, TYPES, NULLABLE, ENUM, SEMANTIC, DESCRIPTION, PROPERTIES, ITEMS, VALUES)
@@ -142,7 +141,6 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
             platform = platform,
             owner = scope.fieldOf(QueryDatasetProperties.OWNER),
             space = scope.fieldOf(QueryDatasetProperties.SPACE),
-            tags = scope.tagsOf(),
         ),
         declaration = QuerySchemaDeclaration(
             fields.properties().associate { (field, declaration) ->
@@ -158,16 +156,6 @@ internal fun parseDatasetDocument(name: AggregateType, json: String): QueryDatas
         },
         storage = storage,
     )
-}
-
-private fun ObjectNode.tagsOf(): Map<String, QueryField<*>> {
-    val tags = get(QueryDatasetProperties.TAGS) ?: return emptyMap()
-    val path = "${QueryDatasetProperties.SCOPE}.${QueryDatasetProperties.TAGS}"
-    require(tags is ObjectNode) { "Dataset [$path] must be an object." }
-    return tags.properties().associate { (key, field) ->
-        require(field.isString) { "Dataset [$path.$key] must name a field." }
-        key to QueryField(field.stringValue())
-    }
 }
 
 private fun ObjectNode.fieldOf(name: String): QueryField<*>? = get(name)?.let {

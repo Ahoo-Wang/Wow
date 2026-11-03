@@ -58,7 +58,7 @@ class StateNotFoundException(val ref: AggregateRef, val reason: Reason, detail: 
         /** The state is outside the caller's scope: an owner or a space the caller names and the state does not have. */
         OUT_OF_SCOPE,
 
-        /** The query policies of its type (ABAC, the application's) hide it from the caller. */
+        /** The query policies of its type (the application's) hide it from the caller. */
         HIDDEN,
     }
 

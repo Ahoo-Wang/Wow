@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 280 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 276 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -443,17 +443,6 @@ The query plane's configuration, `wow.query.*`, read by QueryAutoConfiguration: 
 | `wow.query.require-authenticated-scope` | `Boolean` | `false` | Whether an HTTP query of a built-in model is refused unless the caller's authenticated scope pins its tenant; off, a declared scope, such as a tenant header, is trusted. |
 | `wow.query.require-explicit-entry` | `Boolean` | `false` | Whether a query must say whether it comes over HTTP or in process; off, a query that does not say is taken as in-process. |
 | `wow.query.unbounded-timeout` | `Duration` | `PT30S` | The timeout of a trusted in-process query that dropped its budget (`NodeQueryApi.trusted().unbounded()`); `0` for none. |
-
-## `wow.query.abac`
-
-Attribute-based access control of the queries: the caller's tags matched against the snapshots' `tags`.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.query.abac.attribute-prefix` | `String` | `abac.` | The prefix of the caller attributes that are ABAC tags: the attribute `abac.region` is the tag `region`. |
-| `wow.query.abac.enabled` | `Boolean` | `false` | Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted. |
-| `wow.query.abac.match-missing-tag-key` | `Boolean` | `true` | Whether a resource that lacks one of the caller's tag keys, or has it empty, matches as a public resource. |
-| `wow.query.abac.require-principal-tags` | `Boolean` | `false` | Whether an HTTP query whose caller has no ABAC tags is refused, instead of matching every resource; in-process queries are never refused for this. |
 
 ## `wow.query.adaptive`
 

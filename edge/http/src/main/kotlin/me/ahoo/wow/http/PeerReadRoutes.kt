@@ -72,7 +72,7 @@ import org.springframework.web.reactive.function.server.coRouter
  * [permits] does not let the service read
  * ([CallPermits.readRefusal]). The read then runs as the root context's caller: its tenant (the aggregate type's fixed
  * one, when it has one), its owner and space, its operator as the subject and its application (`app_id` of the root
- * request's facts) as the caller's [app][Caller.app], so the scope policy, ABAC and the application's query policies
+ * request's facts) as the caller's [app][Caller.app], so the scope policy and the application's query policies
  * restrict it as they would the root request's, and it is masked alike. Its command id and causation say nothing
  * here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
  * OpenAPI document: they are the services' own. The streamed answers are produced in [scope], as
