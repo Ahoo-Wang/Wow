@@ -5,11 +5,11 @@
     "ops/client.ts": "fcf3561857ba9fec92c12caa937c890710dc3e7e8e15b324fb7b2688dc94c9b0",
     "ops/contract.ts": "a8c136ecc8d16bfd1fbf511d601fe541b6928101a5ac1046f46e81f5a52f20ab",
     "ops/index.ts": "f2121f9db18076911b430dae06a60a4663089682852422c1c4d5a1fdf240497d",
-    "ops/manifest.ts": "0115a56339b2536827b7cde0651187b5da573fc802032513a0e7518d34255793",
-    "ops/parked/aggregate.ts": "676396e31a9f2121c3068b4a6ca5a4808713eeee6f03100cbacfe869ca50b829",
-    "ops/parked/commandClient.ts": "68cd2ed6e6755e8265369cb56d6be4d7713c40d1d0df934fc3c066265b7e76cd",
+    "ops/manifest.ts": "25cbe3a2cc6280cc4e383780319de360afd2b9f6bbf47dd82842cac8d98e7304",
+    "ops/parked/aggregate.ts": "cc9613fadf1dd820247ea6c5c5f901590cd9775bc505348e1ae404b4fcaefdf6",
+    "ops/parked/commandClient.ts": "80f7f9430ecd9dc118cce4e863540420b0253c5cbfff1437dfc85263a99d952f",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",
-    "ops/types.ts": "c575912a74ff080473fa0c4646ead4798e6547e7869bd8c1761760ca704b7a32"
+    "ops/types.ts": "bf09d4c0d39b467eacdd381a36b9a313f7686b7da4dcb64c1ac7a8e0ecb8ce39"
   }
 }

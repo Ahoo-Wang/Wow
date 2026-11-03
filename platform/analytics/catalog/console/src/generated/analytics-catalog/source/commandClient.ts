@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { AnalyticsCatalogManifest } from '../manifest.js';
-import type { ApproveSensitivityChange, ApproveSource, DraftSource, MarkSourceReviewed, ReviewSourceSensitivity, ReviseSource, SyncSource } from '../types.js';
+import type { ApproveSensitivityChange, ApproveSource, DraftSource, MarkSourceReviewed, ReviewSourceSensitivity, ReviseSource } from '../types.js';
 
 /** Sends the commands of `analytics-catalog.source` by its service's routes (`AnalyticsCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class SourceCommandClient {
@@ -96,20 +96,5 @@ export class SourceCommandClient {
   /** `ReviseSource`, answered as one result per hop of its wait (`text/event-stream`). */
   reviseSourceStream(id: string, body: ReviseSource = {}, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'analytics-catalog.source.ReviseSource', body, id });
-  }
-
-  /**
-   * Bring a source up to date with the warehouse
-   * `SyncSource`: `POST /analytics-catalog/source/{id}/sync-source`, `POST /analytics-catalog/source/sync-source`.
-   * Creates the aggregate, or acts on the one that exists.
-   * Produces `SourceTableChanged`, `SourceTableMissing`, `WowEnrichmentAdopted`, `WowEnrichmentLost`, `WowEnrichmentRefused`.
-   */
-  syncSource(body: SyncSource, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.source.SyncSource', body });
-  }
-
-  /** `SyncSource`, answered as one result per hop of its wait (`text/event-stream`). */
-  syncSourceStream(body: SyncSource, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.source.SyncSource', body });
   }
 }

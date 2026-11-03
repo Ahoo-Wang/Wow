@@ -14,9 +14,7 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
           commands: [
             { name: 'ApproveDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/approve-dataset-publication' }] },
             { name: 'DraftDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/draft-dataset' }, { method: 'POST', path: '/analytics-catalog/dataset/draft-dataset' }] },
-            { name: 'DropDatasetViews', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/drop-dataset-views' }] },
             { name: 'PublishDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/publish-dataset' }] },
-            { name: 'RecompileDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/recompile-dataset' }] },
             { name: 'RefuseDatasetPublication', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/refuse-dataset-publication' }] },
             { name: 'RetireDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/retire-dataset' }] },
             { name: 'ReviseDataset', routes: [{ method: 'POST', path: '/analytics-catalog/dataset/{id}/revise-dataset' }] },
@@ -32,7 +30,6 @@ export const AnalyticsCatalogManifest: RoutingManifest = {
             { name: 'MarkSourceReviewed', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/mark-source-reviewed' }] },
             { name: 'ReviewSourceSensitivity', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/review-source-sensitivity' }] },
             { name: 'ReviseSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/revise-source' }] },
-            { name: 'SyncSource', routes: [{ method: 'POST', path: '/analytics-catalog/source/{id}/sync-source' }, { method: 'POST', path: '/analytics-catalog/source/sync-source' }] },
           ],
         },
       ],
