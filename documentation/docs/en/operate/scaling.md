@@ -41,6 +41,8 @@ A refusal with `Retry-After` is backpressure, not an error: clients retry later,
 
 A partition's subscriptions run on its owner, each at most `wow.subscription.max-in-flight` (1,024) entries ahead of its checkpoint. A subscription that falls behind does not take the node out of service: it shows as degraded health and a growing `wow.subscription.backlog`. Its handler's latency is usually the cause: a slow external call, or writes to a read model's store that need an index. More nodes spread its partitions; a faster handler helps more.
 
+After a backlog, a history migrate-data imported or a long stop, a node catches up at most `wow.subscription.max-catch-ups` (8) partitions at a time. A partition behind the head of its log waits for its turn at its checkpoint, so the commands the node takes meanwhile keep their connections to the store. On the migration rehearsal (50,000 orders, 64 partitions on PostgreSQL), the default caught up in 41 to 50 s and failed no command sent meanwhile; their worst one-second p99 was still 4 to 6.5 s. Without the bound, 772 to 2,495 of 6,000 commands, 50 a second, timed out. A lower value trades the catch-up's time for the commands' latency: at 2 the worst one-second p99 was 2.5 s and the catch-up took 64 s. A deployment sensitive to that latency lowers it; 0 removes the bound.
+
 ## What to watch
 
 | As load grows | Watch | Then |
