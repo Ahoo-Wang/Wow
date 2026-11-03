@@ -151,7 +151,7 @@ spring:
 2. 节点不再接收其分区的命令，在 `wow.cluster.drain-timeout`（10 秒）之内执行完在途的命令，保存订阅的检查点并释放租约。其他节点接管这些分区。
 3. 内部端口最后关闭。
 
-除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段调整到足够长。平台的终止宽限期至少要给这么多；eShop 的清单用的是 90 秒。
+除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段调整到足够长。平台的终止宽限期至少要给这么多；Wow 的 chart 用同样的时限推导它，默认 90 秒（[Kubernetes](./kubernetes#graceful-shutdown)）。
 
 类路径上有 Spring Boot Actuator 时，宿主把节点的健康状况加入就绪和存活分组：
 

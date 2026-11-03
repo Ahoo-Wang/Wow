@@ -382,4 +382,5 @@ tasks.register<JavaExec>("runLocal") {
 - **真实的服务。** [在已有服务中引入 Wow](./existing-project) 把服务按模块组织起来。
 - **指南。** [开发指南](../guide/)说明每项任务：Saga、投影、查询、测试。
 - **完整的示例。** [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) 是基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带有上下文之间的 Saga、定时命令、数据集和一个 Web 界面。
+- **部署它。**[Kubernetes](../operate/kubernetes) 用 Wow 的 Helm chart、构建生成的 values 和你自己的 values 安装一个服务。
 - **这个示例**就是 [`examples/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/examples/quickstart)，每次改动都会构建和测试。
