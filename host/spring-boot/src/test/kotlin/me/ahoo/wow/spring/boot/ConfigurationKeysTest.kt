@@ -98,6 +98,13 @@ class ConfigurationKeysTest {
         val discoveries = PeerDiscoveries.load(javaClass.classLoader)
         val keys = ConfigurationKeys.of(javaClass.classLoader, declared = ProviderOptionKeys.of(discoveries.declared))
         keys.unknown(environment("wow.peer.dns.name-template" to "_x._tcp.{service}")).assert().isEmpty()
+        keys.unknown(
+            environment(
+                "wow.peer.dns.namespace" to "shop",
+                "wow.peer.dns.namespaces.eshop-payment-service" to "payments",
+            ),
+        ).assert().isEmpty()
+        keys.unknown(variables("WOW_PEER_DNS_NAMESPACE" to "shop")).assert().isEmpty()
         keys.unknown(environment("wow.peer.dns.colour" to "red")).assert().containsExactly("wow.peer.dns.colour")
         // A third party's discovery (an application's bean) has no metadata: its options are known from it alone.
         val consul = object : PeerDiscovery {
