@@ -44,11 +44,65 @@ object Report {
         resources: Map<String, Any?>?,
         environment: Map<String, Any?>,
         meta: Map<String, String>,
-    ): Map<String, Any?> {
+    ): Map<String, Any?> = mapOf(
+        "schema" to "wow-e2e-bench/run/1",
+        "label" to label,
+        "scenario" to mix.label,
+        "scenarioDescription" to mix.description,
+        "startedAt" to startedAt.toString(),
+        "load" to mapOf(
+            "model" to "open loop, fixed arrival rate; latency from each operation's scheduled time",
+            "rate" to rate,
+            "warmUpSeconds" to warmUp,
+            "measureSeconds" to measure,
+            "seed" to seed,
+            "keys" to keys.describe(),
+            "targets" to targets.map { it.toString() },
+            // What bound the operations outstanding: a run that counts `generator-overload` hit this cap.
+            "inFlightCap" to inFlight.cap,
+            "inFlightBoundBy" to inFlight.boundBy,
+        ),
+        "results" to results(measured, measure),
+        "resources" to resources,
+        "environment" to environment,
+        "meta" to meta,
+    )
+
+    /** What the measured phase of [measure] seconds did: its operations, errors, latencies and seconds. */
+    private fun results(measured: OpenLoop.Measured, measure: Int): Map<String, Any?> {
         val ok = measured.latency.count
         val errors = measured.errors.mapValues { it.value.sum() }.toSortedMap()
         val failed = errors.values.sum()
-        val seconds = (0 until measure).mapNotNull { index ->
+        val seconds = perSecond(measured, measure)
+        val worstSecond = seconds.maxByOrNull { it["p99Ms"] as Double }
+        return mapOf(
+            "scheduled" to measured.scheduled.get(),
+            "ok" to ok,
+            "failed" to failed,
+            "errors" to errors,
+            "errorPercent" to percent(failed, ok + failed),
+            "throughput" to ok.toDouble() / measure,
+            "latencyMs" to latencies(measured.latency),
+            "worstSecondP99Ms" to worstSecond?.get("p99Ms"),
+            "worstSecond" to worstSecond?.get("second"),
+            "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
+            "rerouted" to measured.rerouted,
+            // The warm-up's too: every operation sent that reached its completion point, and every one that failed.
+            "sent" to mapOf("ok" to measured.sentOk.sum(), "failed" to measured.sentFailed.sum()),
+            "failedLatencyMs" to latencies(measured.errorLatency),
+            "byScenario" to byScenario(measured, measure),
+            "perSecond" to seconds,
+            "histogram" to mapOf(
+                "unit" to "microseconds",
+                "subBucketBits" to Histogram.SUB_BITS,
+                "buckets" to measured.latency.buckets(),
+            ),
+        )
+    }
+
+    /** Each measured second that completed an operation: its count, p50, p99 and max. */
+    private fun perSecond(measured: OpenLoop.Measured, measure: Int): List<Map<String, Any>> =
+        (0 until measure).mapNotNull { index ->
             measured.perSecond.get(index)?.let { histogram ->
                 mapOf(
                     "second" to index,
@@ -59,53 +113,6 @@ object Report {
                 )
             }
         }
-        val worstSecond = seconds.maxByOrNull { it["p99Ms"] as Double }
-        return mapOf(
-            "schema" to "wow-e2e-bench/run/1",
-            "label" to label,
-            "scenario" to mix.label,
-            "scenarioDescription" to mix.description,
-            "startedAt" to startedAt.toString(),
-            "load" to mapOf(
-                "model" to "open loop, fixed arrival rate; latency from each operation's scheduled time",
-                "rate" to rate,
-                "warmUpSeconds" to warmUp,
-                "measureSeconds" to measure,
-                "seed" to seed,
-                "keys" to keys.describe(),
-                "targets" to targets.map { it.toString() },
-                // What bound the operations outstanding: a run that counts `generator-overload` hit this cap.
-                "inFlightCap" to inFlight.cap,
-                "inFlightBoundBy" to inFlight.boundBy,
-            ),
-            "results" to mapOf(
-                "scheduled" to measured.scheduled.get(),
-                "ok" to ok,
-                "failed" to failed,
-                "errors" to errors,
-                "errorPercent" to percent(failed, ok + failed),
-                "throughput" to ok.toDouble() / measure,
-                "latencyMs" to latencies(measured.latency),
-                "worstSecondP99Ms" to worstSecond?.get("p99Ms"),
-                "worstSecond" to worstSecond?.get("second"),
-                "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
-                "rerouted" to measured.rerouted,
-                // The warm-up's too: every operation sent that reached its completion point, and every one that failed.
-                "sent" to mapOf("ok" to measured.sentOk.sum(), "failed" to measured.sentFailed.sum()),
-                "failedLatencyMs" to latencies(measured.errorLatency),
-                "byScenario" to byScenario(measured, measure),
-                "perSecond" to seconds,
-                "histogram" to mapOf(
-                    "unit" to "microseconds",
-                    "subBucketBits" to Histogram.SUB_BITS,
-                    "buckets" to measured.latency.buckets(),
-                ),
-            ),
-            "resources" to resources,
-            "environment" to environment,
-            "meta" to meta,
-        )
-    }
 
     /** A mix's scenarios, each apart: what completed, what failed, its latencies; null for one scenario. */
     private fun byScenario(measured: OpenLoop.Measured, measure: Int): Map<String, Any?>? =

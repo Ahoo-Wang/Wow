@@ -37,6 +37,7 @@
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
 #          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
 #          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
+#          --server-java=<JDK home> (the servers' JDK, 21 at least, for a runtime calibration; by default JAVA_HOME's),
 #          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --store-cpus=<list> and --bus-cpus=<list> (the store's and
@@ -53,8 +54,12 @@ set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HARNESS/../../.." && pwd)"
-JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 21.}"
+# The benchmark's JVMs run on JDK 25 (D393): the servers and the load generator; the build's bytecode stays Java 21.
+# On macOS: JAVA_HOME=$(/usr/libexec/java_home -v 25).
+JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 25.}"
 export JAVA_HOME
+# The servers' JDK: JAVA_HOME's, or --server-java's (check_java).
+SERVER_JAVA=$JAVA_HOME
 LOAD="$REPO/test/benchmarks/load/build/install/benchmark-load/bin/benchmark-load"
 PUBLIC_PORT=18080
 INTERNAL_PORT=19090
@@ -68,13 +73,31 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,51p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
 log() { echo "[bench] $*" >&2; }
 
 compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
+
+# The major version of the JDK at $1, from its release file; empty when it has none.
+java_major() { sed -n 's/^JAVA_VERSION="\([0-9]*\).*/\1/p' "$1/release" 2>/dev/null; }
+
+# Before any JVM starts: the load generator's JDK, JAVA_HOME, must be 25 or later (D393), and the servers' 21 or later
+# (the bytecode's): JAVA_HOME's, or --server-java's for a runtime calibration, which only the servers' JDK changes.
+check_java() {
+  local major
+  major=$(java_major "$JAVA_HOME")
+  if [ "${major:-0}" -lt 25 ]; then
+    log "JAVA_HOME ($JAVA_HOME) is JDK ${major:-unknown}: the benchmark runs on JDK 25 (D393)"; exit 2
+  fi
+  SERVER_JAVA=$(opt server-java "$JAVA_HOME")
+  major=$(java_major "$SERVER_JAVA")
+  if [ "${major:-0}" -lt 21 ]; then
+    log "--server-java ($SERVER_JAVA) is JDK ${major:-unknown}: the servers need 21 or later"; exit 2
+  fi
+}
 
 # Starts kafka and the store $1: with --tmpfs its data in memory (compose.tmpfs.yml), MongoDB's cache --mongo-cache-gb.
 stores_up() {
@@ -121,7 +144,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -204,7 +227,7 @@ start_node() {
   read -r -a extra <<<"$(opt server-args "")"
   pin server-cpus
   STARTED_AT+=("$(now_ms)")
-  JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$launcher" \
+  JAVA_HOME="$SERVER_JAVA" JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$launcher" \
     "${args[@]}" ${extra[@]+"${extra[@]}"} >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
@@ -230,6 +253,7 @@ await_node() {
 }
 
 setup() {
+  check_java
   BACKEND=$(opt backend mongo)
   NODES=$(opt nodes 1)
   HEAP=$(opt heap 1g)
@@ -298,8 +322,11 @@ setup() {
   PIDS=""
   for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
   PIDS=${PIDS%,}
-  local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
-  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
+  # The full versions of the servers' JDK and the load generator's.
+  local jvm load_jvm
+  jvm=$("$SERVER_JAVA/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
+  load_jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=kafka $store;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
   META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
   if [ "$UP" = true ]; then
@@ -317,9 +344,9 @@ setup() {
   fi
 }
 
-# What a reused run must match of the session: the backend, nodes, accounts, heap, install and server arguments.
+# What a reused run must match of the session: the backend, nodes, accounts, heap, install, server arguments and JDK.
 session_key() {
-  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "");args=$(opt server-args "")"
+  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "");args=$(opt server-args "");java=$(opt server-java "")"
 }
 
 # Takes up the session `up` left (--reuse): its servers and targets, once the nodes are quiet again.
@@ -357,7 +384,7 @@ dump_recordings() {
   [ "$(opt reuse false)" = true ] && [ "${S_JFR:-false}" = true ] || return 0
   local n
   for n in $(seq 1 "$NODES"); do
-    "$JAVA_HOME/bin/jcmd" "${SERVER_PIDS[$((n - 1))]}" JFR.dump filename="$OUT/node-$n.jfr" begin="-${1}s" \
+    "$SERVER_JAVA/bin/jcmd" "${SERVER_PIDS[$((n - 1))]}" JFR.dump filename="$OUT/node-$n.jfr" begin="-${1}s" \
       >/dev/null 2>&1 || log "no recording of node $n"
   done
 }
@@ -440,8 +467,8 @@ start_dumps() {
       sleep "$every"
       t=$((t + every))
       for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
-        "$JAVA_HOME/bin/jcmd" "$pid" Thread.print -l >"$OUT/dumps/$t-locks-$pid.txt" 2>&1 || true
-        "$JAVA_HOME/bin/jcmd" "$pid" Thread.dump_to_file -format=text "$OUT/dumps/$t-threads-$pid.txt" >/dev/null 2>&1 || true
+        "$SERVER_JAVA/bin/jcmd" "$pid" Thread.print -l >"$OUT/dumps/$t-locks-$pid.txt" 2>&1 || true
+        "$SERVER_JAVA/bin/jcmd" "$pid" Thread.dump_to_file -format=text "$OUT/dumps/$t-threads-$pid.txt" >/dev/null 2>&1 || true
       done
       case "${CONTAINERS:-}" in
         *postgres*) postgres_sql "$POSTGRES_SESSIONS" >"$OUT/dumps/$t-postgres.txt" 2>&1 || true ;;
@@ -475,6 +502,7 @@ saturate() {
 # has no ComponentBench (one older than it) exits 3.
 component() {
   parse "$@"
+  check_java
   BACKEND=$(opt backend mongo)
   local scenario; scenario=$(opt scenario E1)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-component-$BACKEND-$scenario")
@@ -483,7 +511,7 @@ component() {
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local jar
   for jar in "$install"/lib/benchmark-server*.jar "$install"/lib/e2e-bench-v10*.jar; do
-    if "$JAVA_HOME/bin/jar" tf "$jar" | grep -q 'ComponentBenchKt.class'; then break; fi
+    if "$SERVER_JAVA/bin/jar" tf "$jar" | grep -q 'ComponentBenchKt.class'; then break; fi
     jar=""
   done
   if [ -z "$jar" ]; then log "$install has no ComponentBench"; exit 3; fi
@@ -496,7 +524,7 @@ component() {
   pin_containers "$store"
   pin server-cpus
   log "component $scenario on $BACKEND"
-  ${PREFIX[@]+"${PREFIX[@]}"} "$JAVA_HOME/bin/java" -Xms"$(opt heap 1g)" -Xmx"$(opt heap 1g)" -XX:+UseG1GC \
+  ${PREFIX[@]+"${PREFIX[@]}"} "$SERVER_JAVA/bin/java" -Xms"$(opt heap 1g)" -Xmx"$(opt heap 1g)" -XX:+UseG1GC \
     -cp "$install/lib/*" me.ahoo.wow.benchmark.transfer.ComponentBenchKt --backend="$BACKEND" --scenario="$scenario" \
     --accounts="$(opt accounts 1000)" --ops="$(opt ops 20000)" --warm-up-ops="$(opt warm-up-ops 2000)" \
     --concurrency="$(opt concurrency 64)" --out="$OUT" 2>&1 | tee "$OUT/component.log" >&2
