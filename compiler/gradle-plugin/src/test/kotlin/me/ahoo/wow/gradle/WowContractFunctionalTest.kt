@@ -199,14 +199,7 @@ class WowContractFunctionalTest {
         aggregate("orders", "orders", "Order", "orders.api")
         broken()
         servers()
-        result = runner(
-            ":shop-api:publish",
-            ":billing-api:jar",
-            ":orders:${WowPlugin.MERGE_TASK}",
-            ":shop-server:${WowPlugin.MERGE_TASK}",
-            ":shop-domain:jar",
-            "--configuration-cache",
-        ).build()
+        result = runner(*BUILT, "--configuration-cache").build()
     }
 
     /** Servers that host the contexts of other modules, with no code of their own. */
@@ -307,6 +300,31 @@ class WowContractFunctionalTest {
         serviceOf("orders").assert().isEqualTo("orders")
     }
 
+    /** The chart's values the build of [module] wrote, without their header. */
+    private fun helmValuesOf(module: String): String =
+        File(projectDir, "$module/build/wow/helm/values.yaml").readLines().filterNot { it.startsWith("#") }
+            .joinToString("\n")
+
+    @Test
+    fun `the chart's values should name the service and the peers whose contracts are on its class path`() {
+        // The orders call the shop's contexts, whose api names the service hosting them.
+        helmValuesOf("orders").assert().isEqualTo(
+            """
+            service:
+              name: "orders"
+              peers:
+                - context: "audit"
+                  service: "shop-service"
+                - context: "shop"
+                  service: "shop-service"
+              manifest:
+                route: "/wow/manifest"
+            """.trimIndent(),
+        )
+        // The shop's server hosts the contexts of its api: they are no peers.
+        helmValuesOf("shop-server").assert().contains("  name: \"shop-service\"", "  peers: []")
+    }
+
     @Test
     fun `a service whose contexts' contracts name several should fail asking for its name`() {
         runner(":mixed-server:${WowPlugin.MERGE_TASK}").buildAndFail().output.assert().contains(
@@ -339,5 +357,16 @@ class WowContractFunctionalTest {
     private companion object {
         /** The service that hosts the shop's contexts, which its contract names (decision D330). */
         const val HOSTED = """wow { service = "shop-service" }"""
+
+        /** The tasks of the build the tests read. */
+        val BUILT = arrayOf(
+            ":shop-api:publish",
+            ":billing-api:jar",
+            ":orders:${WowPlugin.MERGE_TASK}",
+            ":shop-server:${WowPlugin.MERGE_TASK}",
+            ":orders:${WowPlugin.HELM_VALUES_TASK}",
+            ":shop-server:${WowPlugin.HELM_VALUES_TASK}",
+            ":shop-domain:jar",
+        )
     }
 }

@@ -155,6 +155,7 @@ dependencies {
 `me.ahoo.wow.service` 对服务器自己的源码（它的路由、Saga 和投影；没有则什么也不做）做 `me.ahoo.wow` 做的事，并且：
 
 - 把运行时类路径上的各部分合并成服务的 Manifest，即 `build/wow/manifest.json`（`mergeWowManifest`），并写出它的 OpenAPI 文档（`generateWowOpenApi`）；
+- 写出构建所知道的 `wow-service` Helm chart 的 values，即 `build/wow/helm/values.yaml`（`generateWowHelmValues`）：服务名、类路径上有契约的对端，以及 Manifest 的路由（[Kubernetes](../operate/kubernetes)）；
 - 每次构建都对照提交到仓库的基线检查 Manifest（`checkWowManifest`，属于 `check`；`updateWowManifestBaseline` 记录基线）；
 - 注册测试套件 `integrationTest`，供在容器上运行的测试使用，不属于 `check`（[在真实存储上运行](../guide/testing-services#run-it-on-real-stores)）。
 
