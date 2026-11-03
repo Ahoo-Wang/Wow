@@ -13,8 +13,6 @@ export const EshopPaymentManifest: RoutingManifest = {
           name: 'payment',
           commands: [
             { name: 'ChargebackNotified', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/chargeback-notified' }, { method: 'POST', path: '/eshop-payment/payment/chargeback-notified' }] },
-            { name: 'ConfirmPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/confirm-payment' }] },
-            { name: 'FailPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/fail-payment' }] },
             { name: 'RefundPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/refund-payment' }] },
             { name: 'RequestPayment', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/request-payment' }, { method: 'POST', path: '/eshop-payment/payment/request-payment' }] },
             { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-payment/payment/{id}/wow.lifecycle.apply-tags' }] },

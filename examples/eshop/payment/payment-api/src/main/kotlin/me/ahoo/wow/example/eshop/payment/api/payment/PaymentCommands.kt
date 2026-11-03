@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.payment.api.payment
 
 import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
 
@@ -34,13 +35,21 @@ data class RequestPayment(
     @field:Positive val amount: BigDecimal,
 )
 
-/** Records that the gateway approved the payment, under its [transactionId]. The gateway saga sends it. */
+// region internal
+/**
+ * Records that the gateway approved the payment, under its [transactionId]. The gateway saga sends it, and only it:
+ * the command is internal, so the public port serves no route of it, and a client cannot confirm a payment the gateway
+ * never charged.
+ */
+@InternalCommand
 @Summary("Confirm a payment")
 data class ConfirmPayment(
     val transactionId: String,
 )
+// endregion
 
-/** Records that the gateway declined the payment, for [reason]. The gateway saga sends it. */
+/** Records that the gateway declined the payment, for [reason]. The gateway saga sends it, and only it: internal too. */
+@InternalCommand
 @Summary("Fail a payment")
 data class FailPayment(
     val reason: String,

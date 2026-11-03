@@ -461,196 +461,6 @@
         }
       }
     },
-    "/eshop-payment/payment/{id}/confirm-payment" : {
-      "post" : {
-        "tags" : [ "eshop-payment.payment" ],
-        "summary" : "ConfirmPayment",
-        "description" : "Confirm a payment. Sends `eshop-payment.payment.ConfirmPayment`. Acts on an aggregate that exists. Produces `PaymentSucceeded`.",
-        "operationId" : "eshop-payment.payment.ConfirmPayment",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/eshop-payment.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/eshop-payment.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/eshop-payment.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/eshop-payment.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/eshop-payment.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/eshop-payment.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/eshop-payment.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/eshop-payment.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/eshop-payment.command.415"
-          },
-          "422" : {
-            "$ref" : "#/components/responses/eshop-payment.command.422"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/eshop-payment.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/eshop-payment.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/eshop-payment.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/eshop-payment.command.504"
-          }
-        },
-        "x-wow-command" : {
-          "type" : "eshop-payment.payment.ConfirmPayment",
-          "creation" : "none",
-          "produces" : [ "PaymentSucceeded" ]
-        }
-      }
-    },
-    "/eshop-payment/payment/{id}/fail-payment" : {
-      "post" : {
-        "tags" : [ "eshop-payment.payment" ],
-        "summary" : "FailPayment",
-        "description" : "Fail a payment. Sends `eshop-payment.payment.FailPayment`. Acts on an aggregate that exists. Produces `PaymentFailed`.",
-        "operationId" : "eshop-payment.payment.FailPayment",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.FailPayment"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/eshop-payment.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/eshop-payment.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/eshop-payment.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/eshop-payment.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/eshop-payment.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/eshop-payment.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/eshop-payment.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/eshop-payment.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/eshop-payment.command.415"
-          },
-          "422" : {
-            "$ref" : "#/components/responses/eshop-payment.command.422"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/eshop-payment.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/eshop-payment.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/eshop-payment.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/eshop-payment.command.504"
-          }
-        },
-        "x-wow-command" : {
-          "type" : "eshop-payment.payment.FailPayment",
-          "creation" : "none",
-          "produces" : [ "PaymentFailed" ]
-        }
-      }
-    },
     "/eshop-payment/payment/{id}/refund-payment" : {
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
@@ -2612,6 +2422,10 @@
             "type" : "boolean",
             "description" : "A system command (wow.*): a lifecycle command, a rebuild or a job command."
           },
+          "internal" : {
+            "type" : "boolean",
+            "description" : "An internal command: only the platform sends it, on the internal port; the public port does not serve its routes."
+          },
           "transformsTo" : {
             "type" : "array",
             "items" : {
@@ -3235,26 +3049,6 @@
         },
         "required" : [ "amount", "paymentId" ],
         "description" : "Pay the order"
-      },
-      "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
-        "type" : "object",
-        "properties" : {
-          "transactionId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "transactionId" ],
-        "description" : "Confirm a payment"
-      },
-      "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
-        "type" : "object",
-        "properties" : {
-          "reason" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "reason" ],
-        "description" : "Fail a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
         "type" : "object",

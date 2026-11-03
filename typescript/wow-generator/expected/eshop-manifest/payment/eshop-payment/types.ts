@@ -22,24 +22,6 @@ export interface ChargebackNotified {
 
 
 /**
- * Confirm a payment
- * - key: `me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment`
- */
-export interface ConfirmPayment {
-  transactionId: string;
-}
-
-
-/**
- * Fail a payment
- * - key: `me.ahoo.wow.example.eshop.payment.api.payment.FailPayment`
- */
-export interface FailPayment {
-  reason: string;
-}
-
-
-/**
  * The gateway declined a payment
  * - key: `me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed`
  */
