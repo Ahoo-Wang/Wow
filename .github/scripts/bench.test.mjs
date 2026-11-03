@@ -68,6 +68,7 @@ import {
   runSettings,
   runSuite,
   SAME,
+  sameRateBasis,
   SESSIONS,
   spread,
   SUITES,
@@ -1859,6 +1860,31 @@ test('the Axon comparison runs one session per arm ABBA: one rate for both, the 
     /\| Idempotency \| Each command stored with its request id/,
   );
   assert.equal(report.match(/\| Metrics and tracing \|/g).length, 1);
+  assert.match(
+    report,
+    /\| HTTP \| Spring Boot 4\.1\.2, WebFlux on Reactor Netty \| Spring Boot 3\.5\.16/,
+  );
+  // Each same rate beside the slower arm's sustainable rate: the fake Axon holds 800/s, under E1's 1,000/s.
+  assert.deepEqual(
+    sameRateBasis(suite).map(basis => [
+      basis.scenario,
+      basis.lowest.arm,
+      basis.lowest.throughput,
+      basis.above,
+    ]),
+    [
+      ['E1', 'axon', 800, true],
+      ['E3', 'axon', 800, false],
+    ],
+  );
+  assert.match(
+    report,
+    /- E1 at 1000\/s: 125% of the lowest sustainable rate a sweep found here \(axon, 800\/s\), \*\*above it\*\*\./,
+  );
+  assert.match(
+    report,
+    /- E3 at 300\/s: 38% of the lowest sustainable rate a sweep found here \(axon, 800\/s\)\./,
+  );
   assert.doesNotMatch(report, /Pairs at the calibrated rates|NaN/);
   const summary = readFileSync(join(out, 'summary.md'), 'utf8');
   assert.match(

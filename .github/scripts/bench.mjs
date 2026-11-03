@@ -1337,7 +1337,39 @@ export const AXON_PARITY = [
     "None: neither axon-micrometer nor Axon's tracing modules are on its classpath, so its monitors and spans are no-ops",
   ],
   ['Bus', 'None (wow.transport=none)', 'None (no Axon Server)'],
+  [
+    'HTTP',
+    'Spring Boot 4.1.2, WebFlux on Reactor Netty',
+    'Spring Boot 3.5.16, WebFlux on Reactor Netty (Axon Framework 4 runs on Spring Boot 3): other Spring, Reactor and Netty versions',
+  ],
 ];
+
+/**
+ * What a sessions suite's same-rate runs were set against: each rate beside the lowest sustainable rate a sweep of its
+ * scenario found in the suite, the slower arm's, and whether the rate is above it. A rate is fixed beforehand, from an
+ * earlier run (the suite's `rates`), so this tells whether this runner held it as that run did.
+ */
+export function sameRateBasis(suite) {
+  return (suite.fixedRates ?? []).map(({ scenario, rate }) => {
+    const held = (suite.sweeps ?? [])
+      .filter(
+        run =>
+          run.status === 'ok' &&
+          (run.label ?? run.scenario) === scenario &&
+          run.sustainable,
+      )
+      .map(run => ({ arm: run.arm, throughput: run.sustainable.throughput }));
+    if (held.length === 0) return { scenario, rate };
+    const lowest = held.reduce((a, b) => (b.throughput < a.throughput ? b : a));
+    return {
+      scenario,
+      rate,
+      lowest,
+      share: rate / lowest.throughput,
+      above: rate > lowest.throughput,
+    };
+  });
+}
 
 /** The load generator's cores and Kafka's together past which a sessions suite's report flags them (2 CPUs). */
 export const GENERATOR_WITH_KAFKA = 1.6;
@@ -2313,6 +2345,12 @@ function sessionTables(suite) {
     lines.push(
       '',
       `**Same rate**: for the same work, whose latency and cost are lower. Both arms at one rate, before the sweeps (${suite.warmUp} s warm-up, ${suite.measure} s measured), in session order; kept up: at most 1% failed and at least 97% of the rate completed.`,
+      '',
+      ...sameRateBasis(suite).map(basis =>
+        basis.lowest
+          ? `- ${basis.scenario} at ${num(basis.rate, 0)}/s: ${num(basis.share * 100, 0)}% of the lowest sustainable rate a sweep found here (${basis.lowest.arm}, ${num(basis.lowest.throughput, 0)}/s)${basis.above ? ', **above it**' : ''}.`
+          : `- ${basis.scenario} at ${num(basis.rate, 0)}/s: no sweep here found a sustainable rate to set it against.`,
+      ),
       '',
       ...viewTable(suite, SAME),
     );
