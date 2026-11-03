@@ -29,6 +29,10 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.StartsWithFilter
+import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
@@ -272,6 +276,30 @@ class MongoSnapshotQueryStorageTest {
     }
 
     @Test
+    fun `access filters use each attribute's index, a multikey one for a multiple attribute`(): Unit = runBlocking {
+        val type = seeded
+        val schema = schema(type)
+        val collection = database.getCollection(storage(type).collection(type.name))
+        fun plan(filter: FilterExpression): String {
+            val scoped = AndFilter(listOf(TenantIdFilter("t3"), DeletionFilter(DeletionState.ACTIVE), filter))
+            val admitted = QueryAdmission.Trusted.list(ListQuery(scoped, limit = 10), schema)
+            return collection.find(MongoMatchCompiler.compile(admitted.query.filter, admitted)).limit(10).explain()
+                .winningPlan()
+        }
+        val dept = "\"indexName\": \"${DEPT_INDEX.name}\""
+        val region = "\"indexName\": \"${REGION_INDEX.name}\""
+
+        plan(EqualFilter(DEPT, "D7")).assert().contains(dept)
+        plan(InFilter(DEPT, listOf("D7", "D8"))).assert().contains(dept)
+        plan(StartsWithFilter(DEPT, "D1")).assert().contains(dept)
+        plan(EqualFilter(REGION, "K7")).assert().contains(region)
+        plan(InFilter(REGION, listOf("K7", "K8"))).assert().contains(region)
+        plan(ContainsAllFilter(REGION, listOf("K7", "R7"))).assert().contains(region)
+        // A policy ORs its branches: each takes its own attribute's index.
+        plan(OrFilter(listOf(EqualFilter(DEPT, "D7"), EqualFilter(REGION, "K7")))).assert().contains(dept).contains(region)
+    }
+
+    @Test
     fun `a query of one tenant in the default order reads the key's index, the tenant's range of it`(): Unit = runBlocking {
         // Decision D277: no index but `_id_` holds the key; the backend bounds it to the tenant and sorts by it.
         val type = seeded
@@ -291,6 +319,10 @@ class MongoSnapshotQueryStorageTest {
         val STATUS = QueryField("state.status")
         val AMOUNT = QueryField("state.amount")
         val STATUS_INDEX = QueryIndexDeclaration("ix_order_state_status", listOf("state.status", "state.amount"))
+        val DEPT = QueryField("access.dept")
+        val REGION = QueryField("access.region")
+        val DEPT_INDEX = QueryIndexDeclaration("access_dept", listOf("access.dept"))
+        val REGION_INDEX = QueryIndexDeclaration("access_region", listOf("access.region"))
         const val DOCUMENTS = 200_000
         const val BATCH = 10_000
 
@@ -318,7 +350,10 @@ class MongoSnapshotQueryStorageTest {
                             .append("deleted", i % 20 == 0)
                             .append("first_event_time", 0L)
                             .append("last_event_time", i.toLong())
-                            .append("access", Document())
+                            .append(
+                                "access",
+                                Document("dept", "D${i % 40}").append("region", listOf("R${i % 30}", "K${i % 5000}")),
+                            )
                     },
                 )
             }
@@ -326,7 +361,13 @@ class MongoSnapshotQueryStorageTest {
                 QueryFixtures.schema(type, MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context).binding(type)!!.storage)
             }
             MongoSnapshotQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
-                .manageIndexes(MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(STATUS_INDEX))))
+                .manageIndexes(
+                    MongoQueryIndexes.plan(
+                        type.context,
+                        type.name,
+                        QueryIndexPlan.of(schema, listOf(STATUS_INDEX, DEPT_INDEX, REGION_INDEX)),
+                    ),
+                )
             type
         }
     }
