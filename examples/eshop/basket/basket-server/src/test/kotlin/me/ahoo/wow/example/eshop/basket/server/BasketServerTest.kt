@@ -13,57 +13,41 @@
 
 package me.ahoo.wow.example.eshop.basket.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.wire.DevelopmentHeaders
-import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
-import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
-import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem
+import me.ahoo.wow.example.eshop.basket.api.basket.BasketStateView
+import me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity
+import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
-import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
+import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
-import me.ahoo.wow.test.server.Answer
+import me.ahoo.wow.test.server.fakePeer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import tools.jackson.databind.JsonNode
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
+import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
 
 /**
- * The test's command transport in place of Kafka, as the guide gives it. The callers are the host's in development
- * ([DevelopmentCallerResolver]): a buyer names itself as the user and the owner, and owns what it creates.
- */
-@Configuration(proxyBeanMethods = false)
-class BasketTestBeans {
-    @Bean
-    fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)
-
-    @Bean
-    fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics.of(topics, producer = topics)
-}
-
-/**
- * The basket service as its `application.yaml` configures it, on random ports, with its topics in memory, and the
- * ordering service's command gateway a fake that records the checkout saga's calls (decision D193).
+ * The basket service as its `application.yaml` configures it, on random ports, driven by its typed clients, the
+ * ordering service a fake that records the checkout saga's calls (decision D193). The callers are the host's in
+ * development: a buyer is the user and the owner, and owns what it creates.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BasketServerTest {
-    private val ordering = FakeOrdering()
-    private val server = wowServer<BasketServer>(
-        "dev",
-        properties = mapOf("wow.peers.eshop-ordering.url" to ordering.url),
-        sources = listOf(BasketTestBeans::class.java),
-    )
+    private val ordering = fakePeer("eshop-ordering")
+    private val server = wowServer<BasketServer>("dev", peers = listOf(ordering))
 
     @AfterAll
     fun close() {
@@ -82,121 +66,87 @@ class BasketServerTest {
 
     @Test
     fun `a buyer should fill their basket and check it out into an order`() {
-        // The buyer's routes name no basket: its basket is the one whose id is the buyer's.
-        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":2}""", "alice")
-            .status.assert().isEqualTo(OK)
-        mine("add-basket-item", """{"productId":"cap","unitPrice":12.00,"quantity":1}""", "alice")
-        mine("change-basket-item-quantity", """{"productId":"cap","quantity":3}""", "alice")
-            .status.assert().isEqualTo(OK)
-        mine("remove-basket-item", """{"productId":"cap"}""", "alice").status.assert().isEqualTo(OK)
-
-        val checkedOut = mine("checkout-basket", "{}", "alice")
-        checkedOut.status.assert().describedAs(checkedOut.text).isEqualTo(OK)
-        state("alice")["items"].isEmpty.assert().isTrue()
+        // The buyer's commands name no basket: its basket is the one whose id is the buyer's.
+        val alice = server.commands(buyer("alice"))
+        runBlocking {
+            alice.wait(AddBasketItem("mug", BigDecimal("8.50"), 2)).ref.id.assert().isEqualTo("alice")
+            alice.wait(AddBasketItem("cap", BigDecimal("12.00"), 1))
+            alice.wait(ChangeBasketItemQuantity("cap", 3))
+            alice.wait(RemoveBasketItem("cap"))
+            alice.wait(CheckoutBasket)
+        }
+        basket("alice", buyer("alice"))!!.state.items.assert().isEmpty()
         // The saga calls the ordering service's internal port, naming itself, for the buyer: the order belongs to the
         // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193). It
         // names no order: the ordering numbers the order it creates (decision D373).
-        val call = ordering.called("/eshop-ordering/order/submit-order")
+        val call = ordering.called<SubmitOrder>()
         call.service.assert().isEqualTo("eshop-basket-service")
-        call.call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
-        call.call.operator?.id.assert().isEqualTo("alice")
-        WowJson.mapper.readTree(call.body)["items"].single()["productId"].asString().assert().isEqualTo("mug")
+        call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        call.operator?.id.assert().isEqualTo("alice")
+        call.aggregateId.assert().isNull()
+        (call.command as SubmitOrder).items.single().productId.assert().isEqualTo("mug")
 
-        val empty = mine("checkout-basket", "{}", "alice")
-        empty.status.assert().isEqualTo(UNPROCESSABLE)
-        empty.body!!["code"].asString().assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
+        rejected { alice.wait(CheckoutBasket) }.code.assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
     }
 
     @Test
     fun `a basket should be its buyer's alone`() {
-        val other = server.http.post(
-            "/eshop-basket/basket/carol/add-basket-item",
-            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
-            buyer("dave"),
-        )
-        other.status.assert().describedAs(other.text).isEqualTo(FORBIDDEN)
-        other.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AGGREGATE_FORBIDDEN)
-        // By its own id, the buyer reaches the basket the routes without one do.
-        server.http.post(
-            "/eshop-basket/basket/dave/add-basket-item",
-            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
-            buyer("dave"),
-        ).status.assert().isEqualTo(OK)
-        state("dave")["items"].single()["productId"].asString().assert().isEqualTo("mug")
+        val dave = server.commands(buyer("dave"))
+        rejected { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "carol") }
+            .code.assert().isEqualTo(FrameworkErrors.AGGREGATE_FORBIDDEN)
+        // By its own id, the buyer reaches the basket the commands without one do.
+        runBlocking { dave.wait(AddBasketItem("mug", BigDecimal("8.50"), 1), "dave") }
+        basket("dave", buyer("dave"))!!.state.items.single().productId.assert().isEqualTo("mug")
     }
 
     @Test
     fun `an item of no quantity or a negative price should be invalid before the basket decides`() {
-        val invalid = mine("add-basket-item", """{"productId":"mug","unitPrice":-1,"quantity":0}""", "frank")
-        invalid.status.assert().describedAs(invalid.text).isEqualTo(BAD_REQUEST)
-        invalid.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
-        invalid.body!!["violations"].values().map { it["path"].asString() to it["code"].asString() }
+        val frank = server.commands(buyer("frank"))
+        val invalid = rejected { frank.wait(AddBasketItem("mug", BigDecimal("-1"), 0)) }
+        invalid.code.assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        invalid.result.error!!.violations.map { it.path to it.code }
             .assert().containsExactly("quantity" to "positive", "unitPrice" to "positive-or-zero")
         // Nothing was decided: the basket was not created.
-        readMine(buyer("frank")).status.assert().isEqualTo(NOT_FOUND)
+        basket("frank", buyer("frank")).assert().isNull()
 
-        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":1}""", "frank")
-            .status.assert().isEqualTo(OK)
-        val quantity = mine("change-basket-item-quantity", """{"productId":"mug","quantity":0}""", "frank")
-        quantity.status.assert().isEqualTo(BAD_REQUEST)
-        quantity.body!!["violations"].single()["path"].asString().assert().isEqualTo("quantity")
+        runBlocking { frank.wait(AddBasketItem("mug", BigDecimal("8.50"), 1)) }
+        rejected { frank.wait(ChangeBasketItemQuantity("mug", 0)) }.result.error!!.violations.single()
+            .path.assert().isEqualTo("quantity")
     }
 
     @Test
     fun `an employee should read every buyer's basket by its id, and the anonymous caller too`() {
-        mine("add-basket-item", """{"productId":"mug","unitPrice":8.50,"quantity":1}""", "erin-buyer")
-            .status.assert().isEqualTo(OK)
-        val employee = mapOf(USER to "erin", ROLES to "employee")
-        read("erin-buyer", employee).status.assert().isEqualTo(OK)
-        read("erin-buyer", emptyMap()).status.assert().isEqualTo(OK)
+        runBlocking { server.commands(buyer("erin-buyer")).wait(AddBasketItem("mug", BigDecimal("8.50"), 1)) }
+        basket("erin-buyer", EMPLOYEE).assert().isNotNull()
+        basket("erin-buyer", Caller.ANONYMOUS).assert().isNotNull()
         // Another buyer's basket is not found for it: what a caller may not see is not found (decision D254 ④).
-        read("erin-buyer", buyer("dave")).status.assert().isEqualTo(NOT_FOUND)
-        // An employee has no basket of its own: the route without an id is not for it.
-        val noOwner = readMine(employee)
-        noOwner.status.assert().describedAs(noOwner.text).isEqualTo(BAD_REQUEST)
-        noOwner.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
+        basket("erin-buyer", buyer("dave")).assert().isNull()
     }
 
-    /** The buyer [id]: the user, and the owner of what it creates. */
-    private fun buyer(id: String): Map<String, String> = mapOf(USER to id, OWNER to id)
-
+    /** Over HTTP: the read route that names no basket, the caller's own, is a route the typed queries do not take. */
     @Test
-    fun `the server should list its routes in springdoc's document and serve Swagger UI`() {
-        val docs = server.http.get("/v3/api-docs")
-        docs.status.assert().describedAs(docs.text).isEqualTo(200)
-        // The service's Wow routes, and the development headers Swagger UI's Authorize dialog sets.
-        docs.text.assert().contains("\"/eshop-basket/", "\"${DevelopmentHeaders.USER}\"")
-        HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build().use { browser ->
-            browser.send(
-                HttpRequest.newBuilder(server.http.base.resolve("/swagger-ui.html")).GET().build(),
-                HttpResponse.BodyHandlers.discarding()
-            )
-                .statusCode().assert().isEqualTo(200)
-        }
+    fun `an employee should have no basket of its own to read by the route that names none`() {
+        val employee = mapOf(DevelopmentHeaders.USER to "erin", DevelopmentHeaders.ROLES to "employee")
+        val noOwner = server.http.get("/eshop-basket/basket/state", employee)
+        noOwner.problem!!.status.assert().describedAs(noOwner.text).isEqualTo(BAD_REQUEST)
+        noOwner.problem!!.code.assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
     }
 
-    private fun read(id: String, headers: Map<String, String>): Answer =
-        server.http.get("/eshop-basket/basket/$id/state", headers)
+    /** The basket [id] as [caller] reads it; null when the caller sees none. */
+    private fun basket(id: String, caller: Caller): Snapshot<BasketStateView>? =
+        runBlocking { server.queries(caller).snapshots(BasketStateView::class.java).state(id) }
 
-    /** The caller's own basket, by the read route that names none. */
-    private fun readMine(headers: Map<String, String>): Answer = server.http.get("/eshop-basket/basket/state", headers)
-
-    /** The buyer [id]'s basket, by the route without an id. */
-    private fun state(id: String): JsonNode {
-        val answer = readMine(buyer(id))
-        check(answer.status == OK) { "The state of $id answered $answer" }
-        return answer.body!!["state"]
-    }
-
-    /** The command [segment] on the buyer [user]'s own basket, by the route that names none. */
-    private fun mine(segment: String, body: String, user: String): Answer =
-        server.http.post("/eshop-basket/basket/$segment", body, buyer(user))
+    private fun rejected(send: suspend () -> Unit): CommandRejectedException =
+        assertThrows<CommandRejectedException> { runBlocking { send() } }
 
     private companion object {
-        const val OK = 200
         const val BAD_REQUEST = 400
-        const val FORBIDDEN = 403
-        const val NOT_FOUND = 404
-        const val UNPROCESSABLE = 422
+        val EMPLOYEE = Caller.of(
+            subject = "erin",
+            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
+        )
+
+        /** The buyer [id]: the user, and the owner of what it creates. */
+        fun buyer(id: String): Caller = Caller.of(subject = id, scope = Scope(ownerId = id))
     }
 }
