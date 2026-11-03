@@ -130,15 +130,24 @@ class CoSecCallerResolverTest {
     }
 
     @Test
-    fun `roles, policies and abac attributes are the caller's attributes`() {
-        callerOf("alice;acme;b,a;p2,p1;abac.dept=sales,name=Alice")!!.attributes.assert().isEqualTo(
+    fun `roles, policies and the principal's attributes are the caller's attributes, each by its own name`() {
+        callerOf("alice;acme;b,a;p2,p1;dept=sales,name=Alice,abac.region=eu")!!.attributes.assert().isEqualTo(
             mapOf(
                 CoSecCallerResolver.ROLES to listOf("a", "b"),
                 CoSecCallerResolver.POLICIES to listOf("p1", "p2"),
-                "abac.dept" to listOf("sales"),
+                "dept" to listOf("sales"),
+                "name" to listOf("Alice"),
+                "abac.region" to listOf("eu"),
             ),
         )
         callerOf("bob")!!.attributes.assert().isEmpty()
+    }
+
+    @Test
+    fun `an attribute of the principal named as one CoSec gives the caller is not a claim`() {
+        callerOf("alice;acme;editor;;roles=admin,policies=all,app=other,dept=")!!.attributes.assert().isEqualTo(
+            mapOf(CoSecCallerResolver.ROLES to listOf("editor")),
+        )
     }
 
     @Test
@@ -161,6 +170,5 @@ class CoSecCallerResolverTest {
     @Test
     fun `options are not blank`() {
         assertThrows<IllegalArgumentException> { CoSecCallerOptions(defaultTenant = " ") }
-        assertThrows<IllegalArgumentException> { CoSecCallerOptions(attributePrefix = "") }
     }
 }

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
@@ -57,6 +58,8 @@ class SnapshotPolicyGateway(
 
     override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
         admission.admitRecord(selection, record, schemaProvider.schema(), caller)
+
+    override suspend fun maskRecord(record: ObjectNode): ObjectNode = schemaProvider.schema().maskRecord(record)
 
     override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? = throw unqueried()
 

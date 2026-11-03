@@ -29,8 +29,29 @@ import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.node.ObjectNode
 
 /**
+ * The aggregate whose access policy decides which of a dataset's rows a caller reads: each row is of one [aggregate],
+ * the one whose id its [id] column holds. The rows are read as the aggregate's current access attributes let the
+ * caller read it, whatever the row recorded when it was written.
+ */
+@ExperimentalWowApi
+class QueryDatasetAccess @InternalWowApi constructor(val aggregate: AggregateType, val id: QueryField<*>) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryDatasetAccess && aggregate == other.aggregate && id == other.id
+
+    override fun hashCode(): Int = listOf(aggregate, id).hashCode()
+
+    override fun toString(): String = "QueryDatasetAccess(aggregate=$aggregate, id=$id)"
+
+    companion object {
+        /** A [QueryDatasetAccess] of the given values. */
+        @JvmStatic
+        fun of(aggregate: AggregateType, id: QueryField<*>): QueryDatasetAccess = QueryDatasetAccess(aggregate, id)
+    }
+}
+
+/**
  * Which columns of a dataset hold its caller scope: the [tenant] (or, for a [platform]-level dataset, none), the
- * [owner] and the [space]. A dataset either
+ * [owner] and the [space]; and, when its rows are an aggregate's, the [access] of that aggregate. A dataset either
  * names its tenant column or declares that it is platform-level, never both.
  */
 @ExperimentalWowApi
@@ -40,6 +61,8 @@ class QueryDatasetScope @InternalWowApi constructor(
     val space: QueryField<*>? = null,
     /** The dataset has no tenant column: every record belongs to [PLATFORM_TENANT]. */
     val platform: Boolean = false,
+    /** The aggregate whose access policy decides the rows a caller reads; null for none. */
+    val access: QueryDatasetAccess? = null,
 ) {
     init {
         require((tenant != null) != platform) {
@@ -53,7 +76,7 @@ class QueryDatasetScope @InternalWowApi constructor(
 
     /** Every column this scope names. */
     val fields: List<QueryField<*>>
-        get() = listOfNotNull(tenant, owner, space)
+        get() = listOfNotNull(tenant, owner, space, access?.id)
 
     companion object {
         /** The tenant of a platform-level dataset: the default tenant of a principal without one. */
@@ -67,7 +90,8 @@ class QueryDatasetScope @InternalWowApi constructor(
             owner: QueryField<*>? = null,
             space: QueryField<*>? = null,
             platform: Boolean = false,
-        ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, platform)
+            access: QueryDatasetAccess? = null,
+        ): QueryDatasetScope = QueryDatasetScope(tenant, owner, space, platform, access)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -76,9 +100,9 @@ class QueryDatasetScope @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "QueryDatasetScope(tenant=$tenant, owner=$owner, space=$space, platform=$platform)"
+        "QueryDatasetScope(tenant=$tenant, owner=$owner, space=$space, platform=$platform, access=$access)"
 
-    private fun valueFields(): List<Any?> = listOf(tenant, owner, space, platform)
+    private fun valueFields(): List<Any?> = listOf(tenant, owner, space, platform, access)
 }
 
 /**
@@ -177,6 +201,7 @@ class QueryDatasetBuilder(private val name: AggregateType) {
     private var platform: Boolean = false
     private var owner: QueryField<*>? = null
     private var space: QueryField<*>? = null
+    private var access: QueryDatasetAccess? = null
     private var identity: QueryField<*>? = null
     private var eventTime: QueryField<*>? = null
     private var title: String? = null
@@ -199,6 +224,11 @@ class QueryDatasetBuilder(private val name: AggregateType) {
 
     fun space(field: String) {
         space = QueryField(field)
+    }
+
+    /** The rows are of the aggregate [aggregate] (`context.aggregate`), whose id column [id] holds: its policy decides. */
+    fun access(aggregate: String, id: String) {
+        access = QueryDatasetAccess(QueryDataset.nameOf(aggregate), QueryField(id))
     }
 
     fun identity(field: String) {
@@ -249,6 +279,7 @@ class QueryDatasetBuilder(private val name: AggregateType) {
                 owner = owner,
                 space = space,
                 platform = platform,
+                access = access,
             ),
             declaration = QuerySchemaDeclaration(masked),
             identity = identity,

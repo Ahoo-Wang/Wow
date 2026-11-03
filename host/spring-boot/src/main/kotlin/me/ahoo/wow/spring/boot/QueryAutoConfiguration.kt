@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -81,7 +82,8 @@ import java.nio.file.Path
  *   any other log not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
  * - the [QueryEngine]: this maps `wow.query.*` (sensitivity, the entry gates, the count caches)
  *   and the application's beans (its `QueryBindings<QueryDataset>`, [MaskStrategyResolver], [QuerySchemaSource],
- *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
+ *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans, and the [AccessPolicy] of each
+ *   aggregate, which the engine checks against the Manifest) onto [QueryEngine.Builder], whose are
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
  *   of the types whose snapshots are not queried, the events' visibility and the state reads'
  *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
@@ -233,6 +235,7 @@ class QueryAutoConfiguration {
             reads: ObjectProvider<StateReads>,
             masks: PayloadMasks,
             stores: QueryStores,
+            wow: ObjectProvider<WowProperties>,
         ): QueryEngine = QueryEngine.Builder(manifest)
             .contexts(node.contexts.keys)
             .snapshots(backend.bindings, backend::serves)
@@ -247,6 +250,12 @@ class QueryAutoConfiguration {
             .tenants(node.gateway.tenants)
             .crossTenant(properties.allowCrossTenant)
             .policies(beans.policies.orderedStream().toList())
+            .accessPolicies(
+                beans.access.orderedStream().toList(),
+                node.aggregatesByState(),
+                // A node of some of the service's contexts leaves the policies of the others' aggregates to theirs.
+                strict = wow.ifAvailable?.contexts?.selection()?.isAll != false,
+            )
             .filters(beans.filters.orderedStream().toList())
             .observers(beans.observers.orderedStream().toList())
             .entryPolicy(entryPolicy)
@@ -365,6 +374,7 @@ class QueryAutoConfiguration {
             policies: ObjectProvider<QueryPolicy>,
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
+            access: ObjectProvider<AccessPolicy<*>>,
         ): QueryBeans = QueryBeans(
             datasetBindings,
             datasetVisibility,
@@ -372,7 +382,8 @@ class QueryAutoConfiguration {
             sources,
             policies,
             filters,
-            observers
+            observers,
+            access,
         )
 
         /** The engine's schema Catalog. */
@@ -510,10 +521,17 @@ class QueryBeans internal constructor(
     internal val policies: ObjectProvider<QueryPolicy>,
     internal val filters: ObjectProvider<QueryFilter>,
     internal val observers: ObjectProvider<QueryObserver>,
+    internal val access: ObjectProvider<AccessPolicy<*>>,
 )
 
 /** A class of wow-query, present only when the application has the module. */
 internal const val QUERY_MODULE = "me.ahoo.wow.query.QueryModule"
+
+/** The aggregate types this node serves whose state is of a class: what an access policy of that state governs. */
+private fun ServiceNode.aggregatesByState(): (Class<*>) -> List<AggregateType> {
+    val byState = registry.models.groupBy({ it.stateType }, { it.type })
+    return { stateType -> byState[stateType].orEmpty() }
+}
 
 /** The snapshot write checkpoint of [type] on this node, or null when its context is not hosted here. */
 private suspend fun ServiceNode.snapshotCheckpointOf(type: AggregateType): Long? =

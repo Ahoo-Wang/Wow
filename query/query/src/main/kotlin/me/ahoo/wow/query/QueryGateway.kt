@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
@@ -148,6 +149,12 @@ interface QueryGateway {
     suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? = record
 
     /**
+     * [record], the snapshot-shaped record of one aggregate, masked as this model's records are and admitted by no
+     * policy: a state of the history of an aggregate [admitRecord] admitted, read as the aggregate is now.
+     */
+    suspend fun maskRecord(record: ObjectNode): ObjectNode = record
+
+    /**
      * The batch form of [admitRecord], the events model's pinned check: the snapshot records of
      * the aggregates [ids] of [tenantId], read by one query of this gateway's backend without [caller]'s restrictions,
      * each admitted for [caller] in memory as [admitRecord] admits it. Null when this gateway queries no backend.
@@ -242,6 +249,8 @@ class DefaultQueryGateway(
 
     override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
         admission.admitRecord(selection, record, schemaProvider.schema(), caller)
+
+    override suspend fun maskRecord(record: ObjectNode): ObjectNode = schemaProvider.schema().maskRecord(record)
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)

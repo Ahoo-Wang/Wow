@@ -33,7 +33,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * - A principal is a tenant-level caller when it has one of [tenantRoles] or one of [tenantPolicies]: its caller has
  *   no owner, so it reads and writes every aggregate of its tenant, each action still authorized by CoSec. Any other
  *   principal is an owner-level caller, its own owner.
- * - The principal's attributes whose key starts with [attributePrefix] are its ABAC attributes.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -43,13 +42,11 @@ class CoSecCallerOptions @InternalWowApi constructor(
     val defaultTenant: String = Caller.DEFAULT_TENANT,
     val crossScopeRoles: Set<String> = emptySet(),
     val crossScopePolicies: Set<String> = emptySet(),
-    val attributePrefix: String = ABAC_PREFIX,
     val tenantRoles: Set<String> = emptySet(),
     val tenantPolicies: Set<String> = emptySet(),
 ) {
     init {
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
-        require(attributePrefix.isNotBlank()) { "The ABAC attribute prefix is not blank." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -59,22 +56,15 @@ class CoSecCallerOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "CoSecCallerOptions(defaultTenant=$defaultTenant, crossScopeRoles=$crossScopeRoles, " +
-            "crossScopePolicies=$crossScopePolicies, attributePrefix=$attributePrefix, tenantRoles=$tenantRoles, " +
-            "tenantPolicies=$tenantPolicies)"
+            "crossScopePolicies=$crossScopePolicies, tenantRoles=$tenantRoles, tenantPolicies=$tenantPolicies)"
 
     private fun valueFields(): List<Any?> = listOf(
         defaultTenant,
         crossScopeRoles,
         crossScopePolicies,
-        attributePrefix,
         tenantRoles,
         tenantPolicies,
     )
-
-    companion object {
-        /** The prefix of the principal attributes that are ABAC attributes, as 9.x wow-cosec reads them. */
-        const val ABAC_PREFIX: String = "abac."
-    }
 }
 
 /**
@@ -97,8 +87,10 @@ class CoSecCallerOptions @InternalWowApi constructor(
  * - **Cross scope**: [CoSecCallerOptions.crossScopeRoles] and [CoSecCallerOptions.crossScopePolicies].
  * - **Never a service identity**: a service names itself on the internal port (`Wow-Service`), never
  *   through CoSec, so no principal asserts a synchronous call's root command, whatever headers its request carries.
- * - **Attributes**: the principal's roles in its scope ([ROLES]), its policies ([POLICIES]), and its ABAC attributes,
- *   keyed with their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
+ * - **Attributes**: the principal's roles in its scope ([ROLES]), its policies ([POLICIES]), and every other attribute
+ *   of the principal under its own name, the claims an access policy reads (`caller.claims("departments")`); a value
+ *   is a list, an array or a comma-separated string. An attribute named as one of those the caller holds already
+ *   ([ROLES], [POLICIES], [Caller.APP]) is not a claim: CoSec's roles, policies and application win.
  */
 @ExperimentalWowApi
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
@@ -135,9 +127,7 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
         principal.policies.takeIf { it.isNotEmpty() }?.let { attributes[POLICIES] = it.sorted() }
         principal.attributes.forEach { (key, value) ->
             val values = valuesOf(value)
-            if (key.startsWith(options.attributePrefix) && key.length > options.attributePrefix.length &&
-                values.isNotEmpty()
-            ) {
+            if (key.isNotBlank() && key !in RESERVED && values.isNotEmpty()) {
                 attributes[key] = values
             }
         }
@@ -150,6 +140,9 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
 
         /** The attribute of a [Caller] listing its principal's CoSec policies. */
         const val POLICIES: String = "policies"
+
+        /** The attributes a caller holds from CoSec itself, which no attribute of the principal takes. */
+        private val RESERVED = setOf(ROLES, POLICIES, Caller.APP)
 
         /** The Wow tenant of [context]: its CoSec tenant, CoSec's default one being [defaultTenant]. */
         internal fun tenantOf(context: SecurityContext, defaultTenant: String): String =
