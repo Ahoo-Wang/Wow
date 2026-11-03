@@ -1,3 +1,35 @@
+public abstract class me/ahoo/wow/query/tck/AccessFilterSpec {
+	public fun <init> ()V
+	public final fun access filter matrix ()Ljava/util/List;
+	protected final fun accessTree (Lme/ahoo/wow/query/tck/AccessFilterSpec$AccessRecord;)Ltools/jackson/databind/node/ObjectNode;
+	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
+	protected fun fieldOf (Ljava/lang/String;)Lme/ahoo/wow/api/query/QueryField;
+	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	protected abstract fun store (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/query/tck/AccessFilterSpec$AccessRecord {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getId ()Ljava/lang/String;
+	public final fun getOwner ()Ljava/lang/String;
+	public final fun getSpace ()Ljava/lang/String;
+	public final fun getStamped ()Z
+	public final fun getValues ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/query/tck/AccessFilterSpec$Document {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/query/tck/AccessFilterSpec$Level : java/lang/Enum {
+	public static final field HIGH Lme/ahoo/wow/query/tck/AccessFilterSpec$Level;
+	public static final field LOW Lme/ahoo/wow/query/tck/AccessFilterSpec$Level;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/tck/AccessFilterSpec$Level;
+	public static fun values ()[Lme/ahoo/wow/query/tck/AccessFilterSpec$Level;
+}
+
 public final class me/ahoo/wow/query/tck/DatasetColumn {
 	public static final field Companion Lme/ahoo/wow/query/tck/DatasetColumn$Companion;
 	public fun equals (Ljava/lang/Object;)Z

@@ -1,0 +1,262 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.tck
+
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.access.AccessAttribute
+import me.ahoo.wow.api.access.AccessOperator
+import me.ahoo.wow.api.access.AccessPredicate
+import me.ahoo.wow.api.access.AccessPredicate.AllOf
+import me.ahoo.wow.api.access.AccessPredicate.Allowed
+import me.ahoo.wow.api.access.AccessPredicate.AnyOf
+import me.ahoo.wow.api.access.AccessPredicate.Comparison
+import me.ahoo.wow.api.access.AccessPredicate.Denied
+import me.ahoo.wow.api.access.AccessPredicate.Not
+import me.ahoo.wow.api.access.AccessPredicate.Unknown
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.SnapshotProperties
+import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.policy.AccessFilters
+import me.ahoo.wow.query.schema.BeanQuerySchemaSource
+import me.ahoo.wow.query.schema.DefaultQueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.schema.QuerySchemaDeclaration
+import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.querySchema
+import me.ahoo.wow.spi.json.WowJson
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
+import java.util.UUID
+
+/**
+ * The access filter contract: every snapshot query backend answers an access policy's filter ([AccessFilters]) as the
+ * kernel evaluates the policy ([AccessPredicate.allows]), so a policy grants the same aggregates whether a query, a
+ * point read or a command asks. A backend's test extends it, stores the records each test gives in [store], and
+ * supplies its binding of an aggregate type in [binding]; on the in-memory backend it is the matrix that holds the
+ * kernel's evaluator to the point reads', on the others the access attributes' push-down.
+ *
+ * Each record holds an aggregate's access attributes as its snapshot does: the built-in owner and space as `ownerId`
+ * and `spaceId`, each declared attribute under [fieldOf] it, `access.<name>` by default, its value as Jackson writes it
+ * ([accessTree]: an enum by its name, a multiple attribute an array), an absent one left out, and a record of no
+ * attribute at all (one not yet stamped) holding none. The matrix covers each operator of one value and of several,
+ * negated or not, on present, absent and unstamped values, with claims the caller holds and those it does not.
+ */
+abstract class AccessFilterSpec {
+    /** Stores [records], all of [type], where the backend under test reads them. */
+    protected abstract suspend fun store(type: AggregateType, records: List<AccessRecord>)
+
+    /** The query backend of [type]'s snapshots, with its storage adapter. */
+    protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
+
+    /** The field the attribute [name] is stored under: `access.<name>`. */
+    protected open fun fieldOf(name: String): QueryField<*> = QueryField("$ACCESS.$name")
+
+    /** The aggregate type of this test: a fresh context, so each test has its own records. */
+    protected val type: AggregateType =
+        AggregateType("tck_" + UUID.randomUUID().toString().replace("-", "").take(CONTEXT_SUFFIX), "document")
+
+    /**
+     * An aggregate's access attributes: its [id], its [owner] and [space], and the [values] of its declared
+     * attributes by name, an absent one left out (a multiple one's a collection, an enum's its constant);
+     * [stamped] false for a record holding no attribute at all.
+     */
+    class AccessRecord(
+        val id: String,
+        val owner: String? = null,
+        val space: String? = null,
+        val values: Map<String, Any?> = emptyMap(),
+        val stamped: Boolean = true,
+    )
+
+    /** [record]'s declared attributes as its snapshot's `access` holds them; null for a record not stamped. */
+    protected fun accessTree(record: AccessRecord): ObjectNode? {
+        if (!record.stamped) return null
+        val tree = WowJson.mapper.createObjectNode()
+        record.values.filterValues { it != null }.forEach { (name, value) -> tree.set(name, treeOf(value)) }
+        return tree
+    }
+
+    @TestFactory
+    fun `access filter matrix`(): List<DynamicTest> {
+        val schema = runBlocking {
+            store(type, RECORDS)
+            schemaOf(binding(type))
+        }
+        val backend = binding(type).backend
+        return CASES.map { (name, predicate) ->
+            DynamicTest.dynamicTest(name) {
+                val expected = RECORDS.filter { record -> predicate.allows { valueOf(record, it) } }.map { it.id }
+                val filter = AccessFilters.compile(predicate, ::fieldOf)
+                val actual = runBlocking {
+                    backend.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = RECORDS.size + 1), schema))
+                        .toList().map { it.path("aggregateId").stringValue() }
+                }
+                actual.toSet().assert().describedAs("$name as $filter").isEqualTo(expected.toSet())
+            }
+        }
+    }
+
+    /** The field of [attribute]: the built-ins' system fields, a declared one's [fieldOf]. */
+    private fun fieldOf(attribute: AccessAttribute<*, *>): QueryField<*> = when (attribute) {
+        AccessAttribute.OWNER -> SnapshotProperties.OWNER_ID
+        AccessAttribute.SPACE -> SnapshotProperties.SPACE_ID
+        else -> fieldOf(attribute.name)
+    }
+
+    private fun valueOf(record: AccessRecord, attribute: AccessAttribute<*, *>): Any? = when {
+        attribute == AccessAttribute.OWNER -> record.owner
+        attribute == AccessAttribute.SPACE -> record.space
+        !record.stamped -> null
+        attribute.multiple -> record.values[attribute.name] ?: emptySet<Any>()
+        else -> record.values[attribute.name]
+    }
+
+    private suspend fun schemaOf(binding: QueryBackendBinding<QueryBackend>): QueryModelSchema {
+        val context = QuerySchemaContext(type, QueryModel.SNAPSHOT)
+        return DefaultQueryModelSchemaProvider(
+            context,
+            listOf(BeanQuerySchemaSource(listOf(QuerySchemaRegistration(context, declaration())))),
+            binding.storage,
+        ).schema()
+    }
+
+    /** The declared attributes' fields, as the Manifest types them. */
+    private fun declaration(): QuerySchemaDeclaration = querySchema {
+        listOf(Attributes.DEPARTMENT, Attributes.ORG, Attributes.LEVEL).forEach {
+            field(fieldOf(it.name).path) { types(QueryValueType.STRING) }
+        }
+        field(fieldOf(Attributes.PAGES.name).path) { types(QueryValueType.INTEGER) }
+        field(fieldOf(Attributes.PUBLISHED.name).path) { types(QueryValueType.BOOLEAN) }
+        field(fieldOf(Attributes.SHARED_WITH.name).path) { items { types(QueryValueType.STRING) } }
+    }
+
+    /** The attributes of the matrix's documents. */
+    enum class Level { LOW, HIGH }
+
+    class Document
+
+    private object Attributes {
+        val DEPARTMENT = AccessAttribute.single<Document, String>("department", String::class.java)
+        val ORG = AccessAttribute.single<Document, String>("org", String::class.java)
+        val LEVEL = AccessAttribute.single<Document, Level>("level", Level::class.java)
+        val PAGES = AccessAttribute.single<Document, Int>("pages", Int::class.javaObjectType)
+        val PUBLISHED = AccessAttribute.single<Document, Boolean>("published", Boolean::class.javaObjectType)
+        val SHARED_WITH = AccessAttribute.multiple<Document, String>("sharedWith", String::class.java)
+    }
+
+    private companion object {
+        const val ACCESS = "access"
+        const val CONTEXT_SUFFIX = 12
+
+        val RECORDS = listOf(
+            AccessRecord(
+                "d1",
+                owner = "alice",
+                space = "s1",
+                values = mapOf(
+                    "department" to "sales",
+                    "org" to "/acme/sales/east",
+                    "level" to Level.HIGH,
+                    "pages" to 3,
+                    "published" to true,
+                    "sharedWith" to setOf("bob", "carol"),
+                ),
+            ),
+            AccessRecord(
+                "d2",
+                owner = "bob",
+                space = "s2",
+                values = mapOf(
+                    "department" to "hr",
+                    "org" to "/acme/hr",
+                    "level" to Level.LOW,
+                    "pages" to 10,
+                    "published" to false,
+                    "sharedWith" to setOf("bob"),
+                ),
+            ),
+            // Its single attributes absent, no one shared with.
+            AccessRecord("d3", owner = "alice", values = mapOf("sharedWith" to emptySet<String>())),
+            AccessRecord(
+                "d4",
+                space = "s1",
+                values = mapOf("department" to "sales", "org" to "/beta", "sharedWith" to setOf("dave"))
+            ),
+            // Written before the attributes were: no value of any.
+            AccessRecord("d5", owner = "carol", space = "s2", stamped = false),
+        )
+
+        fun eq(attribute: AccessAttribute<*, *>, value: Any) = Comparison(
+            attribute,
+            AccessOperator.EQUAL,
+            listOf(value)
+        )
+
+        fun treeOf(value: Any?): JsonNode = WowJson.mapper.valueToTree(value)
+
+        val SALES = eq(Attributes.DEPARTMENT, "sales")
+        val SHARED_WITH_BOB = Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS, listOf("bob"))
+
+        val CASES: List<Pair<String, AccessPredicate>> = listOf(
+            "allowed" to Allowed,
+            "denied" to Denied,
+            "unknown claim" to Unknown,
+            "not unknown claim" to Not(Unknown),
+            "eq" to SALES,
+            "not eq: absent and unstamped never" to Not(SALES),
+            "eq enum" to eq(Attributes.LEVEL, Level.HIGH),
+            "not eq enum" to Not(eq(Attributes.LEVEL, Level.HIGH)),
+            "eq integer" to eq(Attributes.PAGES, 10),
+            "eq boolean" to eq(Attributes.PUBLISHED, true),
+            "not eq boolean" to Not(eq(Attributes.PUBLISHED, true)),
+            "in" to Comparison(Attributes.DEPARTMENT, AccessOperator.IN, listOf("hr", "legal")),
+            "not in" to Not(Comparison(Attributes.DEPARTMENT, AccessOperator.IN, listOf("hr", "legal"))),
+            "in enum" to Comparison(Attributes.LEVEL, AccessOperator.IN, listOf(Level.LOW, Level.HIGH)),
+            "starts with" to Comparison(Attributes.ORG, AccessOperator.STARTS_WITH, listOf("/acme")),
+            "not starts with" to Not(Comparison(Attributes.ORG, AccessOperator.STARTS_WITH, listOf("/acme/sales"))),
+            "is null" to Comparison(Attributes.DEPARTMENT, AccessOperator.IS_NULL),
+            "not is null" to Not(Comparison(Attributes.DEPARTMENT, AccessOperator.IS_NULL)),
+            "contains" to SHARED_WITH_BOB,
+            "not contains: unstamped never" to Not(SHARED_WITH_BOB),
+            "contains any" to Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS_ANY, listOf("carol", "dave")),
+            "not contains any" to Not(Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS_ANY, listOf("carol", "dave"))),
+            "is empty: unstamped never" to Comparison(Attributes.SHARED_WITH, AccessOperator.IS_EMPTY),
+            "not is empty" to Not(Comparison(Attributes.SHARED_WITH, AccessOperator.IS_EMPTY)),
+            "owner" to eq(AccessAttribute.OWNER, "alice"),
+            "not owner: no owner never" to Not(eq(AccessAttribute.OWNER, "alice")),
+            "space in" to Comparison(AccessAttribute.SPACE, AccessOperator.IN, listOf("s1")),
+            "space is null" to Comparison(AccessAttribute.SPACE, AccessOperator.IS_NULL),
+            "all of" to AllOf(listOf(SALES, SHARED_WITH_BOB)),
+            "all of none" to AllOf(emptyList()),
+            "any of" to AnyOf(listOf(SALES, SHARED_WITH_BOB, Unknown)),
+            "any of none" to AnyOf(emptyList()),
+            "not all of" to Not(AllOf(listOf(SALES, SHARED_WITH_BOB))),
+            "not any of" to Not(AnyOf(listOf(SALES, SHARED_WITH_BOB))),
+            "not any of unknown and denied" to Not(AnyOf(listOf(Unknown, Denied))),
+            "nested" to AnyOf(listOf(AllOf(listOf(Not(SALES), eq(AccessAttribute.OWNER, "bob"))), Not(Not(SHARED_WITH_BOB)))),
+        )
+    }
+}

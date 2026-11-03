@@ -20,9 +20,12 @@ import org.junit.jupiter.api.Test
 class AccessAttributeTest {
     enum class Level { LOW, HIGH }
 
-    private object DocumentStateAccess : AccessAttributes() {
-        val DEPARTMENT = AccessAttribute.single("department", String::class.java)
-        val SHARED_WITH = AccessAttribute.multiple("sharedWith", String::class.java)
+    class DocumentState
+
+    private object DocumentStateAccess : AccessAttributes<DocumentState>() {
+        val DEPARTMENT: AccessAttribute.Single<DocumentState, String> = single("department")
+        val SHARED_WITH: AccessAttribute.Multiple<DocumentState, String> =
+            AccessAttribute.multiple("sharedWith", String::class.java)
     }
 
     @Test
@@ -37,12 +40,13 @@ class AccessAttributeTest {
 
     @Test
     fun `two references are equal when they name the same attribute alike`() {
-        AccessAttribute.single("department", String::class.java).assert().isEqualTo(DocumentStateAccess.DEPARTMENT)
-        AccessAttribute.single("department", String::class.java).hashCode()
-            .assert().isEqualTo(DocumentStateAccess.DEPARTMENT.hashCode())
-        AccessAttribute.multiple("department", String::class.java).assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
-        AccessAttribute.single("department", Level::class.java).assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
-        AccessAttribute.single("division", String::class.java).assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
+        single("department").assert().isEqualTo(DocumentStateAccess.DEPARTMENT)
+        single("department").hashCode().assert().isEqualTo(DocumentStateAccess.DEPARTMENT.hashCode())
+        single("division").assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
+        val several = AccessAttribute.multiple<DocumentState, String>("department", String::class.java)
+        several.assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
+        val level = AccessAttribute.single<DocumentState, Level>("department", Level::class.java)
+        level.assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)
     }
 
     @Test
@@ -50,9 +54,10 @@ class AccessAttributeTest {
         DocumentStateAccess.OWNER.assert().isSameAs(AccessAttribute.OWNER)
         DocumentStateAccess.SPACE.assert().isSameAs(AccessAttribute.SPACE)
         AccessAttribute.BUILT_IN.assert().containsExactly("owner", "space")
-        assertThrownBy<IllegalArgumentException> { AccessAttribute.single("owner", String::class.java) }
-            .hasMessageContaining("built in")
-        assertThrownBy<IllegalArgumentException> { AccessAttribute.multiple("space", String::class.java) }
+        assertThrownBy<IllegalArgumentException> { single("owner") }.hasMessageContaining("built in")
+        assertThrownBy<IllegalArgumentException> {
+            AccessAttribute.multiple<DocumentState, String>("space", String::class.java)
+        }
     }
 
     @Test
@@ -60,14 +65,23 @@ class AccessAttributeTest {
         listOf(String::class.java, Int::class.javaObjectType, Long::class.javaObjectType, Boolean::class.javaObjectType)
             .forEach { AccessAttribute.isValueType(it).assert().describedAs(it.name).isTrue() }
         AccessAttribute.isValueType(Level::class.java).assert().isTrue()
-        AccessAttribute.single("level", Level::class.java).type.assert().isEqualTo(Level::class.java)
+        val level = AccessAttribute.single<DocumentState, Level>("level", Level::class.java)
+        level.type.assert().isEqualTo(Level::class.java)
         listOf(Double::class.javaObjectType, java.math.BigDecimal::class.java, List::class.java, Any::class.java)
             .forEach { type ->
                 AccessAttribute.isValueType(type).assert().describedAs(type.name).isFalse()
                 @Suppress("UNCHECKED_CAST")
                 val values = type as Class<Any>
-                assertThrownBy<IllegalArgumentException> { AccessAttribute.multiple("values", values) }
-                    .hasMessageContaining(type.name)
+                assertThrownBy<IllegalArgumentException> { multipleOf(values) }.hasMessageContaining(type.name)
             }
+    }
+
+    private companion object {
+        /** The attribute [name] of a document, of one string. */
+        fun single(name: String): AccessAttribute.Single<DocumentState, String> =
+            AccessAttribute.single(name, String::class.java)
+
+        fun multipleOf(type: Class<Any>): AccessAttribute.Multiple<DocumentState, Any> =
+            AccessAttribute.multiple("values", type)
     }
 }
