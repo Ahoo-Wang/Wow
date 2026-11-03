@@ -19,13 +19,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
 import org.springframework.core.env.Environment
+import org.springframework.http.client.ReactorResourceFactory
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.measureTime
 
 /** An application with no domain module: the host alone. */
 @SpringBootConfiguration(proxyBeanMethods = false)
@@ -51,11 +50,13 @@ class WowServerTest {
 
     @Test
     fun `closing a test server should leave another one serving`() {
-        val quick = NAMED + ("spring.reactor.netty.shutdown-quiet-period" to "0s")
-        wowServer<EmptyApp>("dev", properties = quick).use { first ->
-            val second = wowServer<EmptyApp>("dev", properties = quick)
-            // Its loops stop without the default quiet period, two seconds.
-            measureTime { second.close() }.assert().isLessThan(2.seconds)
+        wowServer<EmptyApp>("dev", properties = NAMED).use { first ->
+            val second = wowServer<EmptyApp>("dev", properties = NAMED)
+            // Each server's public port runs on loops of its own, none on reactor-netty's global ones.
+            val loops = listOf(first, second).map { it.bean<ReactorResourceFactory>() }
+            loops.forEach { it.isUseGlobalResources.assert().isFalse() }
+            loops[0].loopResources.assert().isNotSameAs(loops[1].loopResources)
+            second.close()
             first.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
             first.internal.get("/").status.assert().isGreaterThanOrEqualTo(400)
         }
