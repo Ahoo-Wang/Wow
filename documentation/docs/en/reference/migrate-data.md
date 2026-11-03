@@ -43,7 +43,7 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `check` | `--decode` | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
-| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
+| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, checks that the log holds every stream 9.x committed since the import up to where the tail has read, then compares the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
@@ -69,7 +69,7 @@ An option a command does not take is a usage error.
 | `0` | Done. |
 | `1` | Failed: the check, a step that stopped, or `import --final` refused. |
 | `2` | Usage error. |
-| `3` | `compare` found differences, in this run or in earlier runs it resumed; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
+| `3` | `compare` found differences, in this run or in earlier runs it resumed, or a stream 9.x committed that the log does not hold; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
 
 ### Output
 
@@ -81,6 +81,7 @@ Lines that need attention start with a marker:
 | `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing; or `snapshot` could not write an instance's snapshot. |
 | `WARNING` | The check found something that does not stop it, such as a mapping nothing uses. |
 | `DIFFERS` | `compare` found a difference: a state, a reservation or a parked entry. |
+| `MISSING` | `compare` found a stream 9.x committed since the import, before where the tail has read, that the log does not hold at its version with its command. |
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
 | `RELEASED` | A reservation imported earlier was released, because 9.x no longer confirms it to that owner. |
 | `RESOLVED` | A parked entry imported earlier was resolved, because its 9.x execution is settled. |
@@ -320,7 +321,7 @@ It writes into the 9.x store of `source`, and only into a collection with 9.x's 
 
 The checkpoints, format 1, keep where each pass stands:
 
-- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing;
+- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing, and how far `compare` found every stream 9.x committed in the log;
 - per `PrepareKey`: the reservation import;
 - the compensation import;
 - per V10 aggregate type: the tags backfill;
