@@ -1,0 +1,2077 @@
+{
+  "schema": "wow-e2e-bench/suite/1",
+  "name": "axon-pg-segments",
+  "kind": "sessions",
+  "scenarios": [
+    "E1",
+    "E3"
+  ],
+  "distribution": "uniform",
+  "warmUp": 20,
+  "measure": 40,
+  "fixedRates": [
+    {
+      "scenario": "E3",
+      "rate": 300
+    }
+  ],
+  "sweepPlan": [
+    {
+      "scenario": "E1",
+      "distribution": "uniform",
+      "label": "E1",
+      "key": "e1"
+    },
+    {
+      "scenario": "E3",
+      "distribution": "uniform",
+      "label": "E3",
+      "key": "e3"
+    }
+  ],
+  "own": false,
+  "share": 0.5,
+  "sweep": {
+    "warmUp": 10,
+    "step": 30,
+    "growth": 4,
+    "maxConcurrency": 4096,
+    "gain": 0.05,
+    "limit": 16384
+  },
+  "sessions": [
+    {
+      "name": "1-axon-16",
+      "arm": "axon-16",
+      "round": 0,
+      "dir": "1-axon-16-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 6104,
+          "rssKb": 307704
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1349076
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 1693901,
+            "totalBytes": 822845440,
+            "indexBytes": 263651328
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 16,
+            "totalBytes": 630784,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 1693692,
+        "snapshots": 0,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 205945,
+          "AmountLocked": 205945,
+          "Confirmed": 205945,
+          "Deposited": 769912,
+          "Prepared": 205945
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "769912–769912",
+            "stored": 769912,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "205866–205945",
+            "stored": 205945,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "205945",
+            "stored": 205945,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "205945",
+            "stored": 205945,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "205945",
+            "stored": 205945,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    },
+    {
+      "name": "1-axon-2",
+      "arm": "axon-2",
+      "round": 0,
+      "dir": "1-axon-2-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 4785,
+          "rssKb": 306836
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1364428
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 1848886,
+            "totalBytes": 903168000,
+            "indexBytes": 289308672
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 2,
+            "totalBytes": 311296,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 1849517,
+        "snapshots": 0,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 244576,
+          "AmountLocked": 244576,
+          "Confirmed": 244576,
+          "Deposited": 771213,
+          "Prepared": 244576
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "771213–771213",
+            "stored": 771213,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "183407–244576",
+            "stored": 244576,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "244576",
+            "stored": 244576,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "244576",
+            "stored": 244576,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "244576",
+            "stored": 244576,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    },
+    {
+      "name": "2-axon-2",
+      "arm": "axon-2",
+      "round": 1,
+      "dir": "2-axon-2-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 4865,
+          "rssKb": 302016
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1353100
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 1866488,
+            "totalBytes": 911433728,
+            "indexBytes": 292413440
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 2,
+            "totalBytes": 303104,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 1866533,
+        "snapshots": 0,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 244690,
+          "AmountLocked": 244690,
+          "Confirmed": 244690,
+          "Deposited": 787773,
+          "Prepared": 244690
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "787773–787773",
+            "stored": 787773,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "181827–244690",
+            "stored": 244690,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "244690",
+            "stored": 244690,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "244690",
+            "stored": 244690,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "244690",
+            "stored": 244690,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    },
+    {
+      "name": "2-axon-16",
+      "arm": "axon-16",
+      "round": 1,
+      "dir": "2-axon-16-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 4837,
+          "rssKb": 303788
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1355024
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 1679616,
+            "totalBytes": 813907968,
+            "indexBytes": 258990080
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 16,
+            "totalBytes": 630784,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 1680148,
+        "snapshots": 0,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 204770,
+          "AmountLocked": 204770,
+          "Confirmed": 204770,
+          "Deposited": 761068,
+          "Prepared": 204770
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "761068–761068",
+            "stored": 761068,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "204353–204770",
+            "stored": 204770,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "204770",
+            "stored": 204770,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "204770",
+            "stored": 204770,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "204770",
+            "stored": 204770,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    }
+  ],
+  "repeats": 2,
+  "fraction": 0.8,
+  "p99LimitMs": 200,
+  "dataset": "100k",
+  "accounts": 100000,
+  "primed": true,
+  "cold": false,
+  "aa": false,
+  "arms": [
+    {
+      "id": "axon-16",
+      "backend": "postgres",
+      "install": "axon",
+      "sql": "test/benchmarks/axon-server/inspect.sql",
+      "props": {
+        "benchmark.axon.segments": 16
+      }
+    },
+    {
+      "id": "axon-2",
+      "backend": "postgres",
+      "install": "axon",
+      "sql": "test/benchmarks/axon-server/inspect.sql",
+      "props": {
+        "benchmark.axon.segments": 2
+      }
+    }
+  ],
+  "refs": {
+    "headRef": "3fd53490508888f6cbdca9535b7c82b919fdf0b5",
+    "headSha": "3fd53490508888f6cbdca9535b7c82b919fdf0b5",
+    "baseRef": "",
+    "baseSha": "",
+    "harness": "head",
+    "tier": "custom"
+  },
+  "runner": {
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cores": 4,
+    "memoryGb": 16,
+    "runner": "GitHub Actions 1000457789",
+    "jdk": "Eclipse Adoptium 25.0.5+8-LTS"
+  },
+  "cpus": {
+    "load": "2-3",
+    "server": "0-1",
+    "bus": "2-3"
+  },
+  "saturation": {},
+  "rates": {},
+  "runs": [
+    {
+      "name": "1-axon-16-e3",
+      "arm": "axon-16",
+      "round": 0,
+      "rate": 300,
+      "dir": "1-axon-16-e3",
+      "status": "ok",
+      "view": "same-rate",
+      "scenario": "E3",
+      "metrics": {
+        "rate": 300,
+        "throughput": 300,
+        "okSeries": [
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300
+        ],
+        "p50Series": [
+          5.727,
+          4.927,
+          3.615,
+          4.351,
+          3.823,
+          5.695,
+          5.279,
+          5.055,
+          3.535,
+          3.647,
+          4.607,
+          5.215,
+          4.703,
+          3.727,
+          3.551,
+          3.839,
+          5.471,
+          4.319,
+          3.551,
+          3.455,
+          3.663,
+          4.959,
+          4.863,
+          3.471,
+          3.471,
+          3.455,
+          5.247,
+          4.543,
+          3.519,
+          3.551,
+          3.503,
+          5.023,
+          5.247,
+          3.407,
+          3.471,
+          3.455,
+          5.247,
+          5.503,
+          3.503,
+          3.567
+        ],
+        "p99Series": [
+          20.479,
+          10.815,
+          30.975,
+          27.263,
+          11.071,
+          20.607,
+          11.071,
+          21.375,
+          5.503,
+          33.023,
+          12.927,
+          10.175,
+          27.903,
+          8.127,
+          8.959,
+          11.903,
+          11.583,
+          31.999,
+          9.279,
+          6.047,
+          9.919,
+          8.063,
+          17.151,
+          5.631,
+          36.607,
+          7.583,
+          13.055,
+          7.807,
+          7.839,
+          5.375,
+          7.487,
+          7.007,
+          45.823,
+          14.335,
+          7.199,
+          16.895,
+          14.911,
+          11.007,
+          6.079,
+          33.279
+        ],
+        "stability": {
+          "throughputChange": 0,
+          "p50Ratio": 0.8209919261822376
+        },
+        "loadGeneratorCores": 0.21914244258768206,
+        "loadGeneratorCpus": 2,
+        "bottleneck": {
+          "side": "postgres",
+          "cores": 0.8239493670886077
+        },
+        "weakSeconds": 0,
+        "minSecondOk": 300,
+        "ok": 12000,
+        "failed": 0,
+        "errors": {},
+        "busy": 0,
+        "inFlightCap": 2000,
+        "inFlightBoundBy": "per-target ceiling",
+        "p50": 4.127,
+        "p95": 8.191,
+        "p99": 16.255,
+        "primed": true,
+        "primeSeconds": 49,
+        "settleSeconds": 4,
+        "worstSecondP99": 45.823,
+        "serverCores": 0.7209686296092459,
+        "containers": {
+          "kafka": 57.134177215189865,
+          "postgres": 82.39493670886077
+        },
+        "containerCores": 1.3952911392405065,
+        "cpuMsPerOp": 7.054199229499174,
+        "allocatedBytesPerOp": 269471.4386666667,
+        "commitsPerOp": 6.645583333333334,
+        "sentOk": 18000,
+        "sentFailed": 0,
+        "walBytesPerOp": 3134.35175,
+        "gcShare": 0.003827487867113625,
+        "rssMaxMb": 1020.07421875
+      }
+    },
+    {
+      "name": "1-axon-2-e3",
+      "arm": "axon-2",
+      "round": 0,
+      "rate": 300,
+      "dir": "1-axon-2-e3",
+      "status": "ok",
+      "view": "same-rate",
+      "scenario": "E3",
+      "metrics": {
+        "rate": 300,
+        "throughput": 300,
+        "okSeries": [
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300
+        ],
+        "p50Series": [
+          4.895,
+          3.247,
+          3.007,
+          3.663,
+          3.535,
+          4.799,
+          4.671,
+          2.911,
+          3.007,
+          2.847,
+          4.767,
+          4.671,
+          3.487,
+          2.831,
+          2.879,
+          4.255,
+          4.511,
+          2.719,
+          2.831,
+          2.943,
+          4.447,
+          4.543,
+          2.975,
+          2.751,
+          2.799,
+          3.999,
+          4.319,
+          2.895,
+          2.879,
+          2.927,
+          3.407,
+          4.575,
+          3.471,
+          2.879,
+          2.719,
+          3.423,
+          4.607,
+          4.159,
+          2.783,
+          2.815
+        ],
+        "p99Series": [
+          20.223,
+          8.575,
+          7.327,
+          79.871,
+          8.511,
+          21.119,
+          27.007,
+          8.895,
+          6.559,
+          5.375,
+          11.199,
+          24.831,
+          84.479,
+          47.871,
+          6.879,
+          9.023,
+          17.919,
+          4.447,
+          7.871,
+          30.975,
+          10.559,
+          23.167,
+          113.151,
+          5.471,
+          6.687,
+          21.119,
+          11.967,
+          6.143,
+          5.855,
+          15.551,
+          12.735,
+          6.975,
+          92.159,
+          13.119,
+          5.311,
+          10.111,
+          9.407,
+          8.959,
+          11.263,
+          6.367
+        ],
+        "stability": {
+          "throughputChange": 0,
+          "p50Ratio": 0.9477279477279477
+        },
+        "loadGeneratorCores": 0.21361214637684786,
+        "loadGeneratorCpus": 2,
+        "bottleneck": {
+          "side": "postgres",
+          "cores": 0.8369800000000001
+        },
+        "weakSeconds": 0,
+        "minSecondOk": 300,
+        "ok": 12000,
+        "failed": 0,
+        "errors": {},
+        "busy": 0,
+        "inFlightCap": 2000,
+        "inFlightBoundBy": "per-target ceiling",
+        "p50": 3.375,
+        "p95": 7.775,
+        "p99": 29.055,
+        "primed": true,
+        "primeSeconds": 51,
+        "settleSeconds": 4,
+        "worstSecondP99": 113.151,
+        "serverCores": 0.5610445483879031,
+        "containers": {
+          "kafka": 57.35799999999996,
+          "postgres": 83.69800000000001
+        },
+        "containerCores": 1.4105599999999998,
+        "cpuMsPerOp": 6.572015161293009,
+        "allocatedBytesPerOp": 200950.814,
+        "commitsPerOp": 6.87075,
+        "sentOk": 18000,
+        "sentFailed": 0,
+        "walBytesPerOp": 3114.7369166666667,
+        "gcShare": 0.008104254733735213,
+        "rssMaxMb": 1288.63671875
+      }
+    },
+    {
+      "name": "2-axon-2-e3",
+      "arm": "axon-2",
+      "round": 1,
+      "rate": 300,
+      "dir": "2-axon-2-e3",
+      "status": "ok",
+      "view": "same-rate",
+      "scenario": "E3",
+      "metrics": {
+        "rate": 300,
+        "throughput": 300,
+        "okSeries": [
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300
+        ],
+        "p50Series": [
+          5.023,
+          3.183,
+          3.215,
+          3.327,
+          3.919,
+          4.863,
+          4.479,
+          3.727,
+          2.895,
+          3.039,
+          5.023,
+          4.287,
+          3.071,
+          2.751,
+          2.879,
+          4.895,
+          4.767,
+          2.943,
+          2.831,
+          2.767,
+          3.855,
+          4.319,
+          3.071,
+          2.703,
+          2.847,
+          3.519,
+          4.735,
+          3.327,
+          2.783,
+          2.831,
+          3.023,
+          4.383,
+          3.855,
+          2.751,
+          3.967,
+          3.231,
+          4.735,
+          4.223,
+          2.975,
+          2.991
+        ],
+        "p99Series": [
+          17.407,
+          12.159,
+          14.527,
+          10.367,
+          14.207,
+          22.783,
+          8.831,
+          47.359,
+          6.239,
+          7.903,
+          12.095,
+          26.495,
+          12.287,
+          3.999,
+          6.207,
+          50.943,
+          8.191,
+          40.703,
+          9.023,
+          5.279,
+          19.071,
+          7.263,
+          7.519,
+          4.639,
+          6.911,
+          10.623,
+          13.183,
+          49.407,
+          9.151,
+          4.735,
+          11.327,
+          17.151,
+          8.703,
+          5.119,
+          9.471,
+          11.711,
+          12.223,
+          40.191,
+          18.943,
+          26.111
+        ],
+        "stability": {
+          "throughputChange": 0,
+          "p50Ratio": 1.0024457352491594
+        },
+        "loadGeneratorCores": 0.21690183128189736,
+        "loadGeneratorCpus": 2,
+        "bottleneck": {
+          "side": "postgres",
+          "cores": 0.8263151898734169
+        },
+        "weakSeconds": 0,
+        "minSecondOk": 300,
+        "ok": 12000,
+        "failed": 0,
+        "errors": {},
+        "busy": 0,
+        "inFlightCap": 2000,
+        "inFlightBoundBy": "per-target ceiling",
+        "p50": 3.439,
+        "p95": 7.743,
+        "p99": 19.455,
+        "primed": true,
+        "primeSeconds": 54,
+        "settleSeconds": 4,
+        "worstSecondP99": 50.943,
+        "serverCores": 0.5621435004503151,
+        "containers": {
+          "kafka": 58.5410126582278,
+          "postgres": 82.63151898734169
+        },
+        "containerCores": 1.411725316455695,
+        "cpuMsPerOp": 6.579562723020034,
+        "allocatedBytesPerOp": 200556.144,
+        "commitsPerOp": 7.1258333333333335,
+        "sentOk": 18000,
+        "sentFailed": 0,
+        "walBytesPerOp": 3159.0445833333333,
+        "gcShare": 0.0037776443510457326,
+        "rssMaxMb": 1006.046875
+      }
+    },
+    {
+      "name": "2-axon-16-e3",
+      "arm": "axon-16",
+      "round": 1,
+      "rate": 300,
+      "dir": "2-axon-16-e3",
+      "status": "ok",
+      "view": "same-rate",
+      "scenario": "E3",
+      "metrics": {
+        "rate": 300,
+        "throughput": 300,
+        "okSeries": [
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300,
+          300
+        ],
+        "p50Series": [
+          5.759,
+          4.479,
+          3.919,
+          3.695,
+          3.631,
+          5.151,
+          5.247,
+          3.487,
+          3.487,
+          3.663,
+          5.311,
+          5.279,
+          3.631,
+          3.295,
+          3.439,
+          4.351,
+          5.535,
+          4.223,
+          3.311,
+          3.231,
+          3.327,
+          5.215,
+          4.607,
+          3.263,
+          3.391,
+          3.295,
+          4.895,
+          4.863,
+          3.247,
+          3.279,
+          3.279,
+          5.183,
+          5.087,
+          3.375,
+          3.263,
+          3.439,
+          5.407,
+          4.895,
+          5.247,
+          3.535
+        ],
+        "p99Series": [
+          27.519,
+          9.599,
+          79.871,
+          8.831,
+          16.127,
+          10.367,
+          24.703,
+          8.127,
+          8.191,
+          82.431,
+          25.599,
+          9.983,
+          9.791,
+          9.407,
+          6.367,
+          9.599,
+          8.831,
+          83.455,
+          7.743,
+          4.639,
+          6.815,
+          9.535,
+          7.935,
+          6.015,
+          78.847,
+          7.231,
+          10.175,
+          16.895,
+          4.511,
+          7.615,
+          4.607,
+          115.199,
+          10.495,
+          8.255,
+          7.711,
+          6.431,
+          89.599,
+          10.303,
+          93.695,
+          12.223
+        ],
+        "stability": {
+          "throughputChange": 0,
+          "p50Ratio": 0.9159443131074337
+        },
+        "loadGeneratorCores": 0.21609724375969191,
+        "loadGeneratorCpus": 2,
+        "bottleneck": {
+          "side": "postgres",
+          "cores": 0.8009774999999998
+        },
+        "weakSeconds": 0,
+        "minSecondOk": 300,
+        "ok": 12000,
+        "failed": 0,
+        "errors": {},
+        "busy": 0,
+        "inFlightCap": 2000,
+        "inFlightBoundBy": "per-target ceiling",
+        "p50": 3.983,
+        "p95": 8.575,
+        "p99": 48.383,
+        "primed": true,
+        "primeSeconds": 53,
+        "settleSeconds": 4,
+        "worstSecondP99": 115.199,
+        "serverCores": 0.7295783102396075,
+        "containers": {
+          "kafka": 57.08899999999998,
+          "postgres": 80.09774999999998
+        },
+        "containerCores": 1.3718674999999996,
+        "cpuMsPerOp": 7.004819367465356,
+        "allocatedBytesPerOp": 269429.0526666667,
+        "commitsPerOp": 6.6325,
+        "sentOk": 18000,
+        "sentFailed": 0,
+        "walBytesPerOp": 3200.60725,
+        "gcShare": 0.011330098544344957,
+        "rssMaxMb": 1139.8125
+      }
+    }
+  ],
+  "failures": 0,
+  "startedAt": "2026-11-03T17:12:43.790Z",
+  "sweeps": [
+    {
+      "name": "1-axon-16-e1-sweep",
+      "arm": "axon-16",
+      "round": 0,
+      "scenario": "E1",
+      "distribution": "uniform",
+      "label": "E1",
+      "dir": "1-axon-16-e1-sweep",
+      "status": "ok",
+      "end": "levelled",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 717.6666666666666,
+          "ok": 21530,
+          "errors": 0,
+          "sentOk": 27095,
+          "sentFailed": 0,
+          "p50": 1.255,
+          "p99": 3.279,
+          "generatorCores": 0.3373301206574859
+        },
+        {
+          "concurrency": 4,
+          "throughput": 1688.6666666666667,
+          "ok": 50660,
+          "errors": 0,
+          "sentOk": 66419,
+          "sentFailed": 0,
+          "p50": 2.191,
+          "p99": 5.055,
+          "generatorCores": 0.38233014007377036
+        },
+        {
+          "concurrency": 16,
+          "throughput": 2405.2,
+          "ok": 72156,
+          "errors": 0,
+          "sentOk": 95719,
+          "sentFailed": 0,
+          "p50": 5.535,
+          "p99": 26.879,
+          "generatorCores": 0.4506612659120118
+        },
+        {
+          "concurrency": 64,
+          "throughput": 2843.4,
+          "ok": 85302,
+          "errors": 0,
+          "sentOk": 113303,
+          "sentFailed": 0,
+          "p50": 18.687,
+          "p99": 76.799,
+          "generatorCores": 0.42899487263898234
+        },
+        {
+          "concurrency": 256,
+          "throughput": 2993.366666666667,
+          "ok": 89801,
+          "errors": 0,
+          "sentOk": 119300,
+          "sentFailed": 0,
+          "p50": 34.815,
+          "p99": 419.839,
+          "generatorCores": 0.4513287716330838
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 3067.5666666666666,
+          "ok": 92027,
+          "errors": 0,
+          "sentOk": 122253,
+          "sentFailed": 0,
+          "p50": 296.959,
+          "p99": 729.087,
+          "generatorCores": 0.510661030637048
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 3089.1666666666665,
+          "ok": 92675,
+          "errors": 0,
+          "sentOk": 125822,
+          "sentFailed": 0,
+          "p50": 1294.335,
+          "p99": 1875.967,
+          "generatorCores": 0.5793277720184534
+        }
+      ],
+      "peak": {
+        "throughput": 3089.1666666666665,
+        "concurrency": 4096,
+        "top": true,
+        "generatorCores": 0.5793277720184534,
+        "generatorCpus": 2,
+        "lowerBound": true
+      },
+      "sustainable": {
+        "throughput": 2843.4,
+        "concurrency": 64,
+        "p99": 76.799,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "1-axon-16-e3-sweep",
+      "arm": "axon-16",
+      "round": 0,
+      "scenario": "E3",
+      "distribution": "uniform",
+      "label": "E3",
+      "dir": "1-axon-16-e3-sweep",
+      "status": "ok",
+      "end": "peaked",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 255.13333333333333,
+          "ok": 7654,
+          "errors": 0,
+          "sentOk": 9924,
+          "sentFailed": 0,
+          "p50": 3.695,
+          "p99": 6.879,
+          "generatorCores": 0.1999980151730312
+        },
+        {
+          "concurrency": 4,
+          "throughput": 579,
+          "ok": 17370,
+          "errors": 0,
+          "sentOk": 22720,
+          "sentFailed": 0,
+          "p50": 6.559,
+          "p99": 12.671,
+          "generatorCores": 0.16933114786087347
+        },
+        {
+          "concurrency": 16,
+          "throughput": 759.7333333333333,
+          "ok": 22792,
+          "errors": 0,
+          "sentOk": 30389,
+          "sentFailed": 0,
+          "p50": 19.455,
+          "p99": 50.175,
+          "generatorCores": 0.18466484421547458
+        },
+        {
+          "concurrency": 64,
+          "throughput": 795.9666666666667,
+          "ok": 23879,
+          "errors": 0,
+          "sentOk": 31774,
+          "sentFailed": 0,
+          "p50": 70.655,
+          "p99": 225.279,
+          "generatorCores": 0.19432915738111514
+        },
+        {
+          "concurrency": 256,
+          "throughput": 797.9,
+          "ok": 23937,
+          "errors": 0,
+          "sentOk": 32151,
+          "sentFailed": 0,
+          "p50": 207.871,
+          "p99": 1679.359,
+          "generatorCores": 0.19799791558354377
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 793.6666666666666,
+          "ok": 23810,
+          "errors": 0,
+          "sentOk": 32743,
+          "sentFailed": 0,
+          "p50": 1318.911,
+          "p99": 2916.351,
+          "generatorCores": 0.20399819042045214
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 576.0333333333333,
+          "ok": 17281,
+          "errors": 79,
+          "sentOk": 28164,
+          "sentFailed": 79,
+          "p50": 6651.903,
+          "p99": 9895.935,
+          "generatorCores": 0.18932706449965706
+        }
+      ],
+      "peak": {
+        "throughput": 797.9,
+        "concurrency": 256,
+        "top": false,
+        "generatorCores": 0.19799791558354377,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 759.7333333333333,
+        "concurrency": 16,
+        "p99": 50.175,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "1-axon-2-e1-sweep",
+      "arm": "axon-2",
+      "round": 0,
+      "scenario": "E1",
+      "distribution": "uniform",
+      "label": "E1",
+      "dir": "1-axon-2-e1-sweep",
+      "status": "ok",
+      "end": "peaked",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 759.9333333333333,
+          "ok": 22798,
+          "errors": 0,
+          "sentOk": 28502,
+          "sentFailed": 0,
+          "p50": 1.151,
+          "p99": 3.247,
+          "generatorCores": 0.3336628254289993
+        },
+        {
+          "concurrency": 4,
+          "throughput": 1772.1666666666667,
+          "ok": 53165,
+          "errors": 0,
+          "sentOk": 69822,
+          "sentFailed": 0,
+          "p50": 2.047,
+          "p99": 4.895,
+          "generatorCores": 0.4183271861687192
+        },
+        {
+          "concurrency": 16,
+          "throughput": 2520.5666666666666,
+          "ok": 75617,
+          "errors": 0,
+          "sentOk": 99159,
+          "sentFailed": 0,
+          "p50": 5.279,
+          "p99": 23.935,
+          "generatorCores": 0.45965961810818495
+        },
+        {
+          "concurrency": 64,
+          "throughput": 2826.9666666666667,
+          "ok": 84809,
+          "errors": 0,
+          "sentOk": 113006,
+          "sentFailed": 0,
+          "p50": 18.303,
+          "p99": 88.575,
+          "generatorCores": 0.4286622084939661
+        },
+        {
+          "concurrency": 256,
+          "throughput": 2994.4333333333334,
+          "ok": 89833,
+          "errors": 0,
+          "sentOk": 119634,
+          "sentFailed": 0,
+          "p50": 30.719,
+          "p99": 423.935,
+          "generatorCores": 0.44599566823733905
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 2994.3,
+          "ok": 89829,
+          "errors": 0,
+          "sentOk": 120728,
+          "sentFailed": 0,
+          "p50": 307.199,
+          "p99": 765.951,
+          "generatorCores": 0.5023260535739321
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 2920.5333333333333,
+          "ok": 87616,
+          "errors": 0,
+          "sentOk": 120361,
+          "sentFailed": 0,
+          "p50": 1368.063,
+          "p99": 2039.807,
+          "generatorCores": 0.5566596518087326
+        }
+      ],
+      "peak": {
+        "throughput": 2994.4333333333334,
+        "concurrency": 256,
+        "top": false,
+        "generatorCores": 0.44599566823733905,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 2826.9666666666667,
+        "concurrency": 64,
+        "p99": 88.575,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "1-axon-2-e3-sweep",
+      "arm": "axon-2",
+      "round": 0,
+      "scenario": "E3",
+      "distribution": "uniform",
+      "label": "E3",
+      "dir": "1-axon-2-e3-sweep",
+      "extended": [
+        "1-axon-2-e3-sweep-16384"
+      ],
+      "status": "ok",
+      "end": "errors",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 285.3333333333333,
+          "ok": 8560,
+          "errors": 0,
+          "sentOk": 10671,
+          "sentFailed": 0,
+          "p50": 3.215,
+          "p99": 7.103,
+          "generatorCores": 0.19266499416111887
+        },
+        {
+          "concurrency": 4,
+          "throughput": 570.1,
+          "ok": 17103,
+          "errors": 0,
+          "sentOk": 22452,
+          "sentFailed": 0,
+          "p50": 6.751,
+          "p99": 13.887,
+          "generatorCores": 0.19033121945136633
+        },
+        {
+          "concurrency": 16,
+          "throughput": 616.8333333333334,
+          "ok": 18505,
+          "errors": 0,
+          "sentOk": 24675,
+          "sentFailed": 0,
+          "p50": 25.471,
+          "p99": 57.343,
+          "generatorCores": 0.1639940018155208
+        },
+        {
+          "concurrency": 64,
+          "throughput": 584.1333333333333,
+          "ok": 17524,
+          "errors": 0,
+          "sentOk": 23291,
+          "sentFailed": 0,
+          "p50": 101.887,
+          "p99": 247.807,
+          "generatorCores": 0.15166524573520143
+        },
+        {
+          "concurrency": 256,
+          "throughput": 576.9666666666667,
+          "ok": 17309,
+          "errors": 0,
+          "sentOk": 23373,
+          "sentFailed": 0,
+          "p50": 548.863,
+          "p99": 974.847,
+          "generatorCores": 0.15499835704324835
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 585.8333333333334,
+          "ok": 17575,
+          "errors": 0,
+          "sentOk": 24473,
+          "sentFailed": 0,
+          "p50": 1818.623,
+          "p99": 2457.599,
+          "generatorCores": 0.17633168061763493
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 679.6666666666666,
+          "ok": 20390,
+          "errors": 0,
+          "sentOk": 31190,
+          "sentFailed": 0,
+          "p50": 5799.935,
+          "p99": 6750.207,
+          "generatorCores": 0.22466294712444784
+        },
+        {
+          "concurrency": 16384,
+          "throughput": 106.96666666666667,
+          "ok": 3209,
+          "errors": 44785,
+          "sentOk": 5281,
+          "sentFailed": 61169,
+          "p50": 15269.887,
+          "p99": 16515.071,
+          "generatorCores": 0.5489941784108326
+        }
+      ],
+      "peak": {
+        "throughput": 679.6666666666666,
+        "concurrency": 4096,
+        "top": false,
+        "generatorCores": 0.22466294712444784,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 616.8333333333334,
+        "concurrency": 16,
+        "p99": 57.343,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-axon-2-e1-sweep",
+      "arm": "axon-2",
+      "round": 1,
+      "scenario": "E1",
+      "distribution": "uniform",
+      "label": "E1",
+      "dir": "2-axon-2-e1-sweep",
+      "status": "ok",
+      "end": "peaked",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 741.5666666666667,
+          "ok": 22247,
+          "errors": 0,
+          "sentOk": 27826,
+          "sentFailed": 0,
+          "p50": 1.183,
+          "p99": 3.535,
+          "generatorCores": 0.36132964272440676
+        },
+        {
+          "concurrency": 4,
+          "throughput": 1816.9333333333334,
+          "ok": 54508,
+          "errors": 0,
+          "sentOk": 71353,
+          "sentFailed": 0,
+          "p50": 2.015,
+          "p99": 4.767,
+          "generatorCores": 0.39966220652969625
+        },
+        {
+          "concurrency": 16,
+          "throughput": 2556.5,
+          "ok": 76695,
+          "errors": 0,
+          "sentOk": 101613,
+          "sentFailed": 0,
+          "p50": 5.311,
+          "p99": 22.143,
+          "generatorCores": 0.47932483535137227
+        },
+        {
+          "concurrency": 64,
+          "throughput": 2948.9333333333334,
+          "ok": 88468,
+          "errors": 0,
+          "sentOk": 117342,
+          "sentFailed": 0,
+          "p50": 18.047,
+          "p99": 72.703,
+          "generatorCores": 0.43625494489264405
+        },
+        {
+          "concurrency": 256,
+          "throughput": 3055.9,
+          "ok": 91677,
+          "errors": 0,
+          "sentOk": 121996,
+          "sentFailed": 0,
+          "p50": 31.743,
+          "p99": 417.791,
+          "generatorCores": 0.45199572466283916
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 3071.0666666666666,
+          "ok": 92132,
+          "errors": 0,
+          "sentOk": 123389,
+          "sentFailed": 0,
+          "p50": 299.007,
+          "p99": 712.703,
+          "generatorCores": 0.5209896774925891
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 3034.8333333333335,
+          "ok": 91045,
+          "errors": 0,
+          "sentOk": 124253,
+          "sentFailed": 0,
+          "p50": 1302.527,
+          "p99": 2146.303,
+          "generatorCores": 0.5626113153713949
+        }
+      ],
+      "peak": {
+        "throughput": 3071.0666666666666,
+        "concurrency": 1024,
+        "top": false,
+        "generatorCores": 0.5209896774925891,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 2948.9333333333334,
+        "concurrency": 64,
+        "p99": 72.703,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-axon-2-e3-sweep",
+      "arm": "axon-2",
+      "round": 1,
+      "scenario": "E3",
+      "distribution": "uniform",
+      "label": "E3",
+      "dir": "2-axon-2-e3-sweep",
+      "extended": [
+        "2-axon-2-e3-sweep-16384"
+      ],
+      "status": "ok",
+      "end": "errors",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 284,
+          "ok": 8520,
+          "errors": 0,
+          "sentOk": 10935,
+          "sentFailed": 0,
+          "p50": 3.279,
+          "p99": 6.239,
+          "generatorCores": 0.2093313739916728
+        },
+        {
+          "concurrency": 4,
+          "throughput": 545.5666666666667,
+          "ok": 16367,
+          "errors": 0,
+          "sentOk": 21466,
+          "sentFailed": 0,
+          "p50": 7.007,
+          "p99": 14.207,
+          "generatorCores": 0.18359747759615958
+        },
+        {
+          "concurrency": 16,
+          "throughput": 566.9,
+          "ok": 17007,
+          "errors": 0,
+          "sentOk": 22761,
+          "sentFailed": 0,
+          "p50": 27.903,
+          "p99": 62.719,
+          "generatorCores": 0.15566517548768466
+        },
+        {
+          "concurrency": 64,
+          "throughput": 571.8333333333334,
+          "ok": 17155,
+          "errors": 0,
+          "sentOk": 22990,
+          "sentFailed": 0,
+          "p50": 129.535,
+          "p99": 254.975,
+          "generatorCores": 0.15499858056949878
+        },
+        {
+          "concurrency": 256,
+          "throughput": 573.4666666666667,
+          "ok": 17204,
+          "errors": 0,
+          "sentOk": 23282,
+          "sentFailed": 0,
+          "p50": 544.767,
+          "p99": 974.847,
+          "generatorCores": 0.15999813053917653
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 580.7333333333333,
+          "ok": 17422,
+          "errors": 0,
+          "sentOk": 24352,
+          "sentFailed": 0,
+          "p50": 1802.239,
+          "p99": 2424.831,
+          "generatorCores": 0.1749985576735542
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 687.6666666666666,
+          "ok": 20630,
+          "errors": 0,
+          "sentOk": 31614,
+          "sentFailed": 0,
+          "p50": 5734.399,
+          "p99": 6651.903,
+          "generatorCores": 0.22966416377129895
+        },
+        {
+          "concurrency": 16384,
+          "throughput": 89.56666666666666,
+          "ok": 2687,
+          "errors": 46479,
+          "sentOk": 6426,
+          "sentFailed": 62863,
+          "p50": 14024.703,
+          "p99": 15466.495,
+          "generatorCores": 0.4606601185827004
+        }
+      ],
+      "peak": {
+        "throughput": 687.6666666666666,
+        "concurrency": 4096,
+        "top": false,
+        "generatorCores": 0.22966416377129895,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 566.9,
+        "concurrency": 16,
+        "p99": 62.719,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-axon-16-e1-sweep",
+      "arm": "axon-16",
+      "round": 1,
+      "scenario": "E1",
+      "distribution": "uniform",
+      "label": "E1",
+      "dir": "2-axon-16-e1-sweep",
+      "status": "ok",
+      "end": "peaked",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 716.7333333333333,
+          "ok": 21502,
+          "errors": 0,
+          "sentOk": 27106,
+          "sentFailed": 0,
+          "p50": 1.255,
+          "p99": 3.263,
+          "generatorCores": 0.3356639212826433
+        },
+        {
+          "concurrency": 4,
+          "throughput": 1671.0333333333333,
+          "ok": 50131,
+          "errors": 0,
+          "sentOk": 65273,
+          "sentFailed": 0,
+          "p50": 2.207,
+          "p99": 4.991,
+          "generatorCores": 0.40399642370245836
+        },
+        {
+          "concurrency": 16,
+          "throughput": 2385.5,
+          "ok": 71565,
+          "errors": 0,
+          "sentOk": 95027,
+          "sentFailed": 0,
+          "p50": 5.631,
+          "p99": 24.447,
+          "generatorCores": 0.45165900705684264
+        },
+        {
+          "concurrency": 64,
+          "throughput": 2780.5333333333333,
+          "ok": 83416,
+          "errors": 0,
+          "sentOk": 110760,
+          "sentFailed": 0,
+          "p50": 18.687,
+          "p99": 86.527,
+          "generatorCores": 0.427636980934215
+        },
+        {
+          "concurrency": 256,
+          "throughput": 2988.233333333333,
+          "ok": 89647,
+          "errors": 0,
+          "sentOk": 119149,
+          "sentFailed": 0,
+          "p50": 31.615,
+          "p99": 423.935,
+          "generatorCores": 0.4529955289643285
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 3039.733333333333,
+          "ok": 91192,
+          "errors": 0,
+          "sentOk": 122487,
+          "sentFailed": 0,
+          "p50": 303.103,
+          "p99": 704.511,
+          "generatorCores": 0.5099916345392197
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 2965.0333333333333,
+          "ok": 88951,
+          "errors": 0,
+          "sentOk": 121265,
+          "sentFailed": 0,
+          "p50": 1335.295,
+          "p99": 2097.151,
+          "generatorCores": 0.5489616038870457
+        }
+      ],
+      "peak": {
+        "throughput": 3039.733333333333,
+        "concurrency": 1024,
+        "top": false,
+        "generatorCores": 0.5099916345392197,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 2780.5333333333333,
+        "concurrency": 64,
+        "p99": 86.527,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-axon-16-e3-sweep",
+      "arm": "axon-16",
+      "round": 1,
+      "scenario": "E3",
+      "distribution": "uniform",
+      "label": "E3",
+      "dir": "2-axon-16-e3-sweep",
+      "status": "ok",
+      "end": "errors",
+      "steps": [
+        {
+          "concurrency": 1,
+          "throughput": 251.3,
+          "ok": 7539,
+          "errors": 0,
+          "sentOk": 9585,
+          "sentFailed": 0,
+          "p50": 3.775,
+          "p99": 7.455,
+          "generatorCores": 0.18133152827467952
+        },
+        {
+          "concurrency": 4,
+          "throughput": 568.8333333333334,
+          "ok": 17065,
+          "errors": 0,
+          "sentOk": 22487,
+          "sentFailed": 0,
+          "p50": 6.655,
+          "p99": 13.439,
+          "generatorCores": 0.17399841920116174
+        },
+        {
+          "concurrency": 16,
+          "throughput": 750.9666666666667,
+          "ok": 22529,
+          "errors": 0,
+          "sentOk": 30010,
+          "sentFailed": 0,
+          "p50": 19.711,
+          "p99": 48.639,
+          "generatorCores": 0.1826647677385407
+        },
+        {
+          "concurrency": 64,
+          "throughput": 796.7666666666667,
+          "ok": 23903,
+          "errors": 0,
+          "sentOk": 32053,
+          "sentFailed": 0,
+          "p50": 70.143,
+          "p99": 225.279,
+          "generatorCores": 0.19933122433589176
+        },
+        {
+          "concurrency": 256,
+          "throughput": 793.0333333333333,
+          "ok": 23791,
+          "errors": 0,
+          "sentOk": 32157,
+          "sentFailed": 0,
+          "p50": 217.087,
+          "p99": 1376.255,
+          "generatorCores": 0.19833136644150615
+        },
+        {
+          "concurrency": 1024,
+          "throughput": 773.4333333333333,
+          "ok": 23203,
+          "errors": 0,
+          "sentOk": 32135,
+          "sentFailed": 0,
+          "p50": 1294.335,
+          "p99": 3293.183,
+          "generatorCores": 0.22799754985473003
+        },
+        {
+          "concurrency": 4096,
+          "throughput": 554.2333333333333,
+          "ok": 16627,
+          "errors": 417,
+          "sentOk": 27925,
+          "sentFailed": 417,
+          "p50": 6979.583,
+          "p99": 9895.935,
+          "generatorCores": 0.18199752651408327
+        }
+      ],
+      "peak": {
+        "throughput": 796.7666666666667,
+        "concurrency": 64,
+        "top": false,
+        "generatorCores": 0.19933122433589176,
+        "generatorCpus": 2,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 750.9666666666667,
+        "concurrency": 16,
+        "p99": 48.639,
+        "lowerBound": false
+      }
+    }
+  ],
+  "finishedAt": "2026-11-03T18:11:13.836Z"
+}

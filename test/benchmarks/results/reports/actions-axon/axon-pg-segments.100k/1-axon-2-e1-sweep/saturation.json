@@ -1,0 +1,107 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2994.4333333333334,
+  "saturationConcurrency": 256,
+  "generatorCores": 0.44599566823733905,
+  "availableProcessors": 2,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 759.9333333333333,
+      "ok": 22798,
+      "errors": {},
+      "p50Ms": 1.151,
+      "p99Ms": 3.247,
+      "generatorCores": 0.3336628254289993,
+      "sentOk": 28502,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1772.1666666666667,
+      "ok": 53165,
+      "errors": {},
+      "p50Ms": 2.047,
+      "p99Ms": 4.895,
+      "generatorCores": 0.4183271861687192,
+      "sentOk": 69822,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 16,
+      "throughput": 2520.5666666666666,
+      "ok": 75617,
+      "errors": {},
+      "p50Ms": 5.279,
+      "p99Ms": 23.935,
+      "generatorCores": 0.45965961810818495,
+      "sentOk": 99159,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 64,
+      "throughput": 2826.9666666666667,
+      "ok": 84809,
+      "errors": {},
+      "p50Ms": 18.303,
+      "p99Ms": 88.575,
+      "generatorCores": 0.4286622084939661,
+      "sentOk": 113006,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 256,
+      "throughput": 2994.4333333333334,
+      "ok": 89833,
+      "errors": {},
+      "p50Ms": 30.719,
+      "p99Ms": 423.935,
+      "generatorCores": 0.44599566823733905,
+      "sentOk": 119634,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 2994.3,
+      "ok": 89829,
+      "errors": {},
+      "p50Ms": 307.199,
+      "p99Ms": 765.951,
+      "generatorCores": 0.5023260535739321,
+      "sentOk": 120728,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 4096,
+      "throughput": 2920.5333333333333,
+      "ok": 87616,
+      "errors": {},
+      "p50Ms": 1368.063,
+      "p99Ms": 2039.807,
+      "generatorCores": 0.5566596518087326,
+      "sentOk": 120361,
+      "sentFailed": 0
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "51",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/home/runner/work/_temp/results/axon-pg-segments.100k/1-axon-2-up"
+  }
+}
