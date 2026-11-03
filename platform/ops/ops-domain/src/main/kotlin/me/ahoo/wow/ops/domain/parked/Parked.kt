@@ -33,7 +33,6 @@ import me.ahoo.wow.ops.api.parked.RetryRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
 import java.time.Instant
-import kotlin.time.Duration
 
 /**
  * One service's entry of one parked aggregate, its id `<service>:<subscription>:<aggregate>`
@@ -118,17 +117,9 @@ class Parked(private val state: ParkedState) {
         return MarkRecoverableRequested(recoverable)
     }
 
+    /** Its count and durations are the command's input, checked at admission (`ApplyRetrySpec`'s constraints). */
     fun onCommand(command: ApplyRetrySpec): ApplyRetrySpecRequested {
         rejectResolved()
-        command.maxRetries?.takeIf { it < 0 }?.let {
-            reject(
-                ParkedRejections.INVALID,
-                "maxRetries is never negative: $it."
-            )
-        }
-        listOfNotNull(command.initialBackoff, command.claimTtl).firstOrNull { !isDuration(it) }?.let {
-            reject(ParkedRejections.INVALID, "Not a duration (PT3M, 3m): '$it'.")
-        }
         return ApplyRetrySpecRequested(command.maxRetries, command.initialBackoff, command.claimTtl)
     }
 
@@ -141,9 +132,5 @@ class Parked(private val state: ParkedState) {
 
     private companion object {
         val RECOVERABLES = listOf("recoverable", "unrecoverable", ParkedEntry.UNKNOWN)
-
-        fun isDuration(value: String): Boolean = Duration.parseOrNull(value.trim())?.let {
-            it.isFinite() && !it.isNegative()
-        } ?: false
     }
 }

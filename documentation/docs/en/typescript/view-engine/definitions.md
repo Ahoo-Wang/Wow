@@ -143,7 +143,7 @@ What is left out is a choice too: the tenant, the owner, the district, the balan
 | Question | Choice |
 | --- | --- |
 | Do readers read, filter or group by it? | List it if so, not otherwise. |
-| Is it how people name a record? | `cell: 'copyable'`, `analysis: false`; make it `record.rowKey` when it is unique and sortable. |
+| Is it how people name a record? | `cell: 'copyable'`, `analysis: false`; make it `record.rowKey` when it is unique and sortable, else `record.rowName`, which names the row's controls. |
 | Is it an id you count but never group by? | `analysis: { groups: [] }`: it still feeds a distinct count. |
 | Is it free text? | `cell: 'text'`, `sortable: false`, `analysis: false`; `operators: []` when nobody filters by it. |
 | Is it a category? | Word every value readers meet (`options`); a `tone` only for a value that is good, bad or waiting. |
@@ -237,6 +237,8 @@ The engine guards sensitive fields for you: a sensitive field stays out of analy
 ## 5. The fields a row must carry
 
 The row's identity, `record.rowKey`, defaults to the description's identity, `aggregateId` for a snapshot. It must be a listed, sortable field: every record query ends its sort on it, so pages neither repeat nor skip a row.
+
+Where that identity is an id nobody reads aloud, name the field a reader knows a row by in `record.rowName`, such as an order number. A screen reader then hears "Select SO-1002" and "Ship SO-1002" for the row's controls rather than a long key, and an action's question and outcome say it too.
 
 **The engine queries only what a view shows**: the visible columns, the card's fields, what the sort and summaries read, and the identity. A hidden column is not fetched. So when the host's code reads a field off a row, such as an action that checks the status, that field may be missing in a view that does not show it. List every field the host's code reads in `record.rowFields`:
 

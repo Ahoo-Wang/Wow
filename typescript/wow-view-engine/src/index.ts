@@ -474,6 +474,7 @@ export {
   type RecordActions,
   type RefusalGroup,
   actions,
+  ActionInputError,
   type ActionRefusal,
   type ActionRow,
 } from './runtime/actions.js';

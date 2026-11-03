@@ -13,6 +13,7 @@
 
 import type * as React from 'react';
 import type { RecordRow } from '../../record/index.js';
+import { rowNameOf } from '../../record/path.js';
 import type { RecordTableController } from '../../react/index.js';
 import { Checkbox } from '../components/checkbox.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
@@ -40,7 +41,7 @@ export function RowCheckbox({ table, row, hintId }: RowCheckboxProps) {
   return (
     <Checkbox
       aria-label={messages.label('label.record.select', {
-        key: String(row.key),
+        key: rowNameOf(row, table.rowName),
       })}
       aria-describedby={hintId}
       checked={table.isSelected(row.key)}

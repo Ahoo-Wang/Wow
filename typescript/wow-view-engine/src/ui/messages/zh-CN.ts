@@ -2439,6 +2439,9 @@ export const zhCN: Readonly<Record<string, string>> = {
   'definition.record.row-field-unknown': '行字段 {field} 不是已声明的字段。',
   'definition.record.row-field-not-a-path':
     '行字段 {field} 是搜索或元数据句柄，不是一行里的内容。',
+  'definition.record.row-name-unknown': '行名 {field} 不是已声明的字段。',
+  'definition.record.row-name-not-a-path':
+    '行名 {field} 是搜索或元数据句柄，不是一行里的内容。',
   'definition.record.row-key-unsortable':
     '行键 {field} 必须可排序：每一页最后都按它排，同一行才不会出现在两页上。',
   'definition.view.id-duplicate': '两个视图共用了 id {id}。',
@@ -2575,6 +2578,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   // 宿主声明的操作（host-integration.md 5）：引擎在命令周围说的话。命令本身
   // 的名字与拒绝理由是宿主的（`text(key)`）。
   'label.action.more': '{record} 的操作',
+  'label.action.row': '{action} {record}',
   'label.action.bulk': '{action} {count} 条',
   'label.action.bulk-able': '{action} {able}/{count} 条',
   'label.action.confirm': '对 {count} 条记录执行「{action}」？',

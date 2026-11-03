@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/alert-dialog.js';
+import { Alert, AlertDescription } from '../components/alert.js';
 import { Button } from '../components/button.js';
 import {
   Field,
@@ -38,7 +39,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
-import { focusIn, type FinalFocus } from '../kit/focus.js';
+import { focusIn, focusableIn, type FinalFocus } from '../kit/focus.js';
 import { AlertDialogContent } from '../kit/popups.js';
 import { DestructiveAction } from '../kit/variants.js';
 
@@ -104,8 +105,10 @@ export function ActionDialog({
   // selection where 3 can be read as 4 going, the body then saying 3.
   const sent = place === 'bulk' && able.length > 0 ? able : keys;
   const count = sent.length;
+  // What a record is called: its name where the definition gives rows one.
+  const nameOf = (key: RecordKey) => shown.names?.get(key) ?? String(key);
   // One record is named, not counted: the one that will be sent.
-  const record = count === 1 ? String(sent[0]) : null;
+  const record = count === 1 ? nameOf(sent[0]) : null;
   const values = {
     count,
     ...(record === null ? {} : { record }),
@@ -143,7 +146,10 @@ export function ActionDialog({
         })
       : answered;
   const danger = (confirm?.tone ?? action.tone) === 'danger';
-  const marked = tried === opening;
+  // A form the source handed back is marked from the start: what it
+  // refused is the first thing to read.
+  const returned = shown.returned;
+  const marked = tried === opening || returned !== undefined;
   const noneId = `${id}-none`;
   const Confirm = danger ? DestructiveAction : AlertDialogAction;
   // What keeps the answer from being sent: the blank, then the refused,
@@ -151,15 +157,16 @@ export function ActionDialog({
   const blocked = Object.keys(action.form ?? {}).filter(
     name => missing.includes(name) || name in invalid,
   );
+  // The first blank or refused field, by its name (a name is the host's,
+  // so it is matched, never written into a selector).
+  const firstBlocked = () =>
+    [...(form.current?.querySelectorAll('[data-field]') ?? [])].find(
+      field => field.getAttribute('data-field') === blocked[0],
+    );
   const press = () => {
     if (blocked.length > 0) {
       setTried(opening);
-      // The first blank or refused field, by its name (a name is the
-      // host's, so it is matched, never written into a selector).
-      const first = [
-        ...(form.current?.querySelectorAll('[data-field]') ?? []),
-      ].find(field => field.getAttribute('data-field') === blocked[0]);
-      focusIn(first);
+      focusIn(firstBlocked());
       return;
     }
     onConfirm();
@@ -184,12 +191,27 @@ export function ActionDialog({
         data-slot="action-dialog"
         data-action={action.id}
         role={danger && !shown.form ? 'alertdialog' : 'dialog'}
+        // Handed back, it opens on the first field the source refused.
+        {...(returned && blocked.length > 0
+          ? { initialFocus: () => focusableIn(firstBlocked()) ?? true }
+          : {})}
         {...(finalFocus ? { finalFocus } : {})}
       >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {body && <AlertDialogDescription>{body}</AlertDialogDescription>}
         </AlertDialogHeader>
+        {/* Why the source refused what was typed, where it named no field
+            of the form: above them all, said as it appears. */}
+        {returned?.reason && (
+          <Alert
+            variant="destructive"
+            data-slot="action-returned"
+            data-tone="danger"
+          >
+            <AlertDescription>{messages.say(returned.reason)}</AlertDescription>
+          </Alert>
+        )}
         {shown.form && action.form && (
           <FieldGroup ref={form} data-slot="action-form" onKeyDown={enter}>
             {Object.entries(action.form).map(([name, field], index) => (
@@ -231,7 +253,7 @@ export function ActionDialog({
                     })}
                   </span>{' '}
                   <span className="fve:break-all">
-                    {keysOf(group.keys, messages)}
+                    {keysOf(group.keys, messages, nameOf)}
                   </span>
                 </li>
               ))}
@@ -269,12 +291,13 @@ export function ActionDialog({
   );
 }
 
-/** A few of the refused by key, and how many more. */
+/** A few of the refused by name, and how many more. */
 function keysOf(
   keys: readonly RecordKey[],
   messages: MessageFormatters,
+  nameOf: (key: RecordKey) => string,
 ): string {
-  const first = keys.slice(0, KEYS_NAMED).map(String).join(', ');
+  const first = keys.slice(0, KEYS_NAMED).map(nameOf).join(', ');
   const more = keys.length - KEYS_NAMED;
   return more > 0
     ? messages.label('label.action.refused-keys-more', {

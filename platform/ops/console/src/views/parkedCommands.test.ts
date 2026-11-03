@@ -20,7 +20,7 @@ import {
 } from "@ahoo-wang/wow-client";
 import { commandResultOf } from "@ahoo-wang/wow-client/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parkedCommands, problemText } from "./parkedCommands.ts";
+import { parkedCommands, problemText, refusedInput } from "./parkedCommands.ts";
 
 const ID = "payment-service:Saga.onEvent:eshop-payment.payment:(0):p-1";
 
@@ -96,7 +96,10 @@ describe("the operator's commands", () => {
   it("mark the entry recoverable and apply a retry spec", async () => {
     const sent = service(OK);
     await commands().markRecoverable(ID, "unrecoverable");
-    await commands().applyRetrySpec(ID, { maxRetries: 5, initialBackoff: "1m" });
+    await commands().applyRetrySpec(ID, {
+      maxRetries: 5,
+      initialBackoff: "1m",
+    });
     expect(sent.map(({ url }) => url.split("/").pop())).toEqual([
       "mark-recoverable",
       "apply-retry-spec",
@@ -194,5 +197,95 @@ describe("a problem's words", () => {
     expect(problemText(new CommandRejectedError(result))).toBe(
       "Refused. (c.a.refused)",
     );
+  });
+});
+
+describe("a refusal of what the form sent", () => {
+  /** The service's answer to a retry spec its constraints refuse (UI-13). */
+  const invalid = new WowProblemError({
+    type: "urn:wow:error:wow.command.invalid",
+    title: "Invalid command",
+    status: 400,
+    code: "wow.command.invalid",
+    violations: [
+      {
+        path: "initialBackoff",
+        code: "RetryDuration",
+        message: "must be a duration such as PT3M, 3m or 1h 30m, not negative",
+      },
+      { path: "maxRetries", code: "PositiveOrZero", message: "Not below 0." },
+      { path: "maxRetries", code: "Max", message: "Ignored: one per field." },
+    ],
+  });
+
+  it("is each violation under the member its path names", () => {
+    expect(refusedInput(invalid)).toEqual({
+      initialBackoff:
+        "must be a duration such as PT3M, 3m or 1h 30m, not negative",
+      maxRetries: "Not below 0.",
+    });
+  });
+
+  it("is a body the framework cannot read as the command, naming no field", () => {
+    const malformed = new WowProblemError({
+      type: "urn:wow:error:wow.command.malformed",
+      title: "Malformed command",
+      status: 400,
+      detail: "The body is not a ops.parked.ApplyRetrySpec.",
+      code: "wow.command.malformed",
+    });
+    expect(refusedInput(malformed)).toEqual({});
+  });
+
+  it("reads a rejection as the problem it came in, else as its result", () => {
+    const result = {
+      ...commandResultOf(
+        { type: { context: "ops", name: "parked" }, tenantId: "(0)", id: ID },
+        { status: CommandResultStatus.REJECTED },
+      ),
+      error: {
+        code: "wow.command.invalid",
+        message: "Invalid command",
+        violations: [
+          {
+            path: "claimTtl",
+            code: "RetryDuration",
+            message: "Not a duration.",
+          },
+        ],
+      },
+    };
+    expect(refusedInput(new CommandRejectedError(result))).toEqual({
+      claimTtl: "Not a duration.",
+    });
+    expect(
+      refusedInput(
+        new CommandRejectedError(result, {
+          problem: invalid.problem,
+          cause: invalid,
+        }),
+      ),
+    ).toEqual(refusedInput(invalid));
+  });
+
+  it("is nothing else: the entry's refusals and the request's", () => {
+    for (const code of [
+      "ops.parked.invalid",
+      "ops.parked.resolved",
+      "ops.parked.stale",
+      "wow.auth.forbidden",
+      "wow.request.malformed",
+    ])
+      expect(
+        refusedInput(
+          new WowProblemError({
+            type: `urn:wow:error:${code}`,
+            title: "Refused",
+            status: 409,
+            code,
+          }),
+        ),
+      ).toBeNull();
+    expect(refusedInput(new Error("offline"))).toBeNull();
   });
 });

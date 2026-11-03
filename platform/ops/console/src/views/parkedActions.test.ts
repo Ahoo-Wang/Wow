@@ -12,10 +12,15 @@
  */
 
 import { WowProblemError } from "@ahoo-wang/wow-client";
-import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
+import {
+  ActionInputError,
+  text,
+  type RecordRow,
+} from "@ahoo-wang/wow-view-engine";
 import { actionHarness } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";
-import { isDuration, parkedActions, retrySpecOf } from "./parkedActions.ts";
+import { parkedActions, retrySpecOf } from "./parkedActions.ts";
+import { RETRY_SPEC_INPUTS } from "./fixtures/retrySpecInputs.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
 
 function row(key: string, status: string, recoverable = "unknown"): RecordRow {
@@ -178,24 +183,58 @@ describe("the retry spec of the form", () => {
 });
 
 describe("what the console checks before the service would refuse it", () => {
-  it("reads a duration as the service does: ISO-8601 or Kotlin's, never negative", () => {
-    for (const taken of ["PT3M", "P1DT2H", "3m", "1h 30m", "1.5s", "500ms"])
-      expect(isDuration(taken)).toBe(true);
-    for (const refused of ["soon", "-1m", "PT", "P", "INFINITE", "3 m"])
-      expect(isDuration(refused)).toBe(false);
-  });
-
-  it("refuses a negative or fractional retry count and an unreadable duration, in the form", () => {
+  it("refuses what the service refuses, in the form, and only that", () => {
     const apply = parkedActions(commands()).find(
       (action) => action.id === "applyRetrySpec",
     )!;
     const { maxRetries, initialBackoff, claimTtl } = apply.form!;
-    expect(maxRetries.check!(-1)).toBe(text("parkedActions.wholeNumber"));
-    expect(maxRetries.check!(1.5)).toBe(text("parkedActions.wholeNumber"));
-    expect(maxRetries.check!("3")).toBe(true);
-    expect(initialBackoff.check!("abc")).toBe(text("parkedActions.duration"));
-    expect(initialBackoff.check!("2m")).toBe(true);
-    expect(claimTtl.check!("PT5M")).toBe(true);
+    // The service's own table (ApplyRetrySpecInputTest holds it to it too).
+    const { durations, maxRetries: counts } = RETRY_SPEC_INPUTS;
+    const count = text("parkedActions.wholeNumber");
+    for (const taken of counts.taken) {
+      expect(maxRetries.check!(taken)).toBe(true);
+      expect(maxRetries.check!(String(taken))).toBe(true);
+    }
+    for (const refused of counts.refused)
+      expect(maxRetries.check!(refused)).toBe(count);
+    expect(maxRetries.check!(1.5)).toBe(count);
+    const duration = text("parkedActions.duration");
+    for (const field of [initialBackoff, claimTtl]) {
+      for (const taken of durations.taken)
+        expect(field.check!(taken)).toBe(true);
+      // A blank field is left out of the spec, never checked.
+      for (const refused of durations.refused.filter((text) => text.trim()))
+        expect(field.check!(refused)).toBe(duration);
+    }
+  });
+
+  it("hands the form back when the service refuses what it sent, the field it names marked", async () => {
+    const sent = commands();
+    sent.applyRetrySpec.mockRejectedValue(
+      new WowProblemError({
+        type: "urn:wow:error:wow.command.invalid",
+        title: "Invalid command",
+        status: 400,
+        code: "wow.command.invalid",
+        violations: [
+          {
+            path: "maxRetries",
+            code: "PositiveOrZero",
+            message: "must be greater than or equal to 0",
+          },
+        ],
+      }),
+    );
+    const harness = actionHarness(parkedActions(sent), ROWS);
+    const refused = await harness
+      .run("applyRetrySpec", "exhausted", { maxRetries: 1 })
+      .catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(ActionInputError);
+    expect(refused).toMatchObject({
+      reason:
+        "Invalid command must be greater than or equal to 0 (wow.command.invalid)",
+      fields: { maxRetries: "must be greater than or equal to 0" },
+    });
   });
 
   it("says an action was sent to the owning service, not done: the service runs it", () => {

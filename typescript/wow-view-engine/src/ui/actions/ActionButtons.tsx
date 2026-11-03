@@ -21,6 +21,7 @@ import {
 import { EllipsisVerticalIcon, TriangleAlertIcon } from 'lucide-react';
 import type { FieldOption } from '../../model/index.js';
 import type { RecordRow } from '../../record/index.js';
+import { rowNameOf } from '../../record/path.js';
 import type {
   ActionInput,
   ActionPlace,
@@ -204,6 +205,12 @@ function Reasoned({
 
 interface RowActionButtonsProps {
   row: RecordRow;
+  /**
+   * The field a reader names a row by (`RecordCapability.rowName`): the
+   * 「⋯」 menu is named after it, and so is the row's own button, beside its
+   * label. Absent, the menu is named by the key and the button by its label.
+   */
+  rowName?: string | undefined;
   views: readonly RowActionView[];
   place: 'row' | 'detail';
   /** A command is running on the surface: nothing else starts. */
@@ -223,6 +230,7 @@ interface RowActionButtonsProps {
  */
 export function RowActionButtons({
   row,
+  rowName,
   views,
   place,
   busy,
@@ -231,6 +239,12 @@ export function RowActionButtons({
   const messages = useViewMessages();
   const { say } = messages;
   const id = useId();
+  const name = rowNameOf(row, rowName);
+  // In a list, the row's button says which record it is for: a reader who
+  // tabs through the rows hears 「重试 pay-1b88」, not 「重试」 again and
+  // again. A key nobody reads aloud is left out — it is what made the names
+  // too long (UI walk UI-30) — and the detail is the record's own.
+  const named = rowName !== undefined && place === 'row';
   const more = useRef<HTMLButtonElement>(null);
   // The first primary is the row's button; a second one, a declaration's
   // mistake the binding check tells of, is drawn as any other action.
@@ -269,6 +283,14 @@ export function RowActionButtons({
                 data-action={view.action.id}
                 disabled={busy || !view.available}
                 focusableWhenDisabled
+                aria-label={
+                  named
+                    ? messages.label('label.action.row', {
+                        action: say(view.action.label),
+                        record: name,
+                      })
+                    : undefined
+                }
                 aria-describedby={reason ? reasonId : undefined}
                 onClick={event => onStart(view.action, {}, event.currentTarget)}
               >
@@ -282,7 +304,7 @@ export function RowActionButtons({
         <HandOffMenu>
           <IconTooltip
             label={messages.label('label.action.more', {
-              record: String(row.key),
+              record: name,
             })}
             render={
               <DropdownMenuTrigger

@@ -94,6 +94,10 @@ export const definitionMessages = {
     'The row field {field} is not a declared field.',
   'definition.record.row-field-not-a-path':
     'The row field {field} is a search or metadata handle, not a value a row holds.',
+  'definition.record.row-name-unknown':
+    'The row name {field} is not a declared field.',
+  'definition.record.row-name-not-a-path':
+    'The row name {field} is a search or metadata handle, not a value a row holds.',
   'definition.record.row-key-unsortable':
     'The row key {field} must be sortable: every page is ordered by it last, so a row never shows on two pages.',
   'definition.view.id-duplicate': 'Two views share the id {id}.',

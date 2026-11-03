@@ -547,7 +547,8 @@
         },
         "maxRetries" : {
           "type" : [ "integer", "null" ],
-          "format" : "int32"
+          "format" : "int32",
+          "minimum" : 0
         }
       },
       "description" : "Apply a retry spec to a parked entry",

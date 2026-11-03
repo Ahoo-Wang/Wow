@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { RecordKey } from '../model/index.js';
+
 /**
  * The value at a dot path in a row, or `undefined` where the path leads
  * nowhere: through `null` or `undefined`, through a primitive, or into an
@@ -36,4 +38,26 @@ export function readPath(row: unknown, path: string): unknown {
     }
   }
   return current ?? undefined;
+}
+
+/**
+ * What a reader calls a row (`RecordCapability.rowName`): the value of
+ * `field` where it is a string or a number with something in it, else the
+ * row's key.
+ */
+export function rowNameOf(
+  row: { key: RecordKey; data: unknown },
+  field: string | undefined,
+): string {
+  if (field !== undefined) {
+    const value = readPath(row.data, field);
+    const text =
+      typeof value === 'string'
+        ? value.trim()
+        : typeof value === 'number' && Number.isFinite(value)
+          ? String(value)
+          : '';
+    if (text !== '') return text;
+  }
+  return String(row.key);
 }

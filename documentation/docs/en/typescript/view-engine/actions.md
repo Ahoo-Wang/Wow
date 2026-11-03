@@ -295,7 +295,9 @@ When to ask is the engine's rule; the host declares the intent:
 
 Choose by what a mistake costs. Something lost, such as cancelling or refunding: the danger tone and a `confirm` that says the consequence. Routine but final, such as shipping: a `confirm` without danger. Undone as easily as done, such as a warehouse: `ask: 'bulk'`.
 
-A `confirm`'s words may hold `{count}`, `{value}` and `{record}`. A form's fields are `text`, `number` or `boolean`, or options, required unless `required: false`.
+A `confirm`'s words may hold `{count}`, `{value}` and `{record}`: one record's name where the definition gives rows one (`record.rowName`), else its key. A form's fields are `text`, `number` or `boolean`, or options, required unless `required: false`. A field's `check(value)` says what the service would refuse, such as a negative count, under the field before anything is sent; hold it to the service's own rule.
+
+When the service refuses what was typed anyway, `run` throws [`ActionInputError`](../../reference/typescript/wow-view-engine/host#api-ActionInputError) with the reason and the fields it names. The form comes back with what was typed, each named field marked and the keyboard on the first, so the reader corrects it instead of typing it all again.
 
 ## Bulk runs {#bulk}
 
@@ -306,7 +308,7 @@ A `confirm`'s words may hold `{count}`, `{value}` and `{record}`. A form's field
 | Outcome | When | Then |
 | --- | --- | --- |
 | Done | `run` resolved | The view is read again |
-| Failed | `run` rejected: the service refused the command | The service's reason is shown; the record stays selected |
+| Failed | `run` rejected: the service refused the command | The service's reason is shown; the record stays selected. Refused for what was typed (`ActionInputError`), the form comes back too |
 | Not run | The record no longer qualified when its turn came | The reason is shown; the record stays selected |
 | Unknown | No answer: a timeout, an abort, a dropped connection, the action's `timeout`, or **Stop waiting** | "Outcome unknown, refresh to check"; the record is deselected |
 

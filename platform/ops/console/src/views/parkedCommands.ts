@@ -15,14 +15,11 @@ import type { Fetcher } from "@ahoo-wang/fetcher";
 import {
   CommandRejectedError,
   type CommandOptions,
+  type Violation,
   WaitPlan,
   WowProblemError,
 } from "@ahoo-wang/wow-client";
-import {
-  OpsClient,
-  opsWait,
-  type ApplyRetrySpec,
-} from "@/generated/index.ts";
+import { OpsClient, opsWait, type ApplyRetrySpec } from "@/generated/index.ts";
 
 /**
  * An operator's actions on a parked entry (D141): each is recorded on the
@@ -97,4 +94,51 @@ export function problemText(error: unknown): string {
     return error.code ? `${said} (${error.code})` : said;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The refusals of what was sent rather than of the entry: the framework's
+ * of a body it cannot read as the command (`wow.command.malformed`) or that
+ * breaks one of its constraints (`wow.command.invalid`, each under its
+ * member's path) — a retry spec's count and durations among them
+ * (`ApplyRetrySpec`'s constraints).
+ */
+const INPUT_REFUSALS: ReadonlySet<string> = new Set([
+  "wow.command.invalid",
+  "wow.command.malformed",
+]);
+
+/** What a refusal came with: its code and its violations. */
+function refusalOf(
+  error: unknown,
+): { code?: string; violations: readonly Violation[] } | undefined {
+  if (error instanceof CommandRejectedError) {
+    if (error.cause instanceof WowProblemError) return refusalOf(error.cause);
+    const info = error.result.error;
+    return {
+      ...(info?.code ? { code: info.code } : {}),
+      violations: info?.violations ?? [],
+    };
+  }
+  if (error instanceof WowProblemError)
+    return {
+      ...(error.code ? { code: error.code } : {}),
+      violations: error.violations,
+    };
+  return undefined;
+}
+
+/**
+ * Whether the service refused what the form sent, and why of each member a
+ * violation names by its path — the command's member, which is the form's
+ * field; `null` for any other failure, which is the entry's or the
+ * request's.
+ */
+export function refusedInput(error: unknown): Record<string, string> | null {
+  const refusal = refusalOf(error);
+  if (!refusal?.code || !INPUT_REFUSALS.has(refusal.code)) return null;
+  const fields: Record<string, string> = {};
+  for (const { path, message } of refusal.violations)
+    if (path && !(path in fields)) fields[path] = message;
+  return fields;
 }
