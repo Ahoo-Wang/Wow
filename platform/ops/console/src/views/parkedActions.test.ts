@@ -15,7 +15,7 @@ import { WowProblemError } from "@ahoo-wang/wow-client";
 import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
 import { actionHarness } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";
-import { isDuration, parkedActions, retrySpecOf } from "./parkedActions.ts";
+import { parkedActions, retrySpecOf } from "./parkedActions.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
 
 function row(key: string, status: string, recoverable = "unknown"): RecordRow {
@@ -178,23 +178,26 @@ describe("the retry spec of the form", () => {
 });
 
 describe("what the console checks before the service would refuse it", () => {
-  it("reads a duration as the service does: ISO-8601 or Kotlin's, never negative", () => {
-    for (const taken of ["PT3M", "P1DT2H", "3m", "1h 30m", "1.5s", "500ms"])
-      expect(isDuration(taken)).toBe(true);
-    for (const refused of ["soon", "-1m", "PT", "P", "INFINITE", "3 m"])
-      expect(isDuration(refused)).toBe(false);
-  });
-
-  it("refuses a negative or fractional retry count and an unreadable duration, in the form", () => {
+  it("refuses what the service refuses, in the form: a count past its Int, a duration its Kotlin cannot read", () => {
     const apply = parkedActions(commands()).find(
       (action) => action.id === "applyRetrySpec",
     )!;
     const { maxRetries, initialBackoff, claimTtl } = apply.form!;
-    expect(maxRetries.check!(-1)).toBe(text("parkedActions.wholeNumber"));
-    expect(maxRetries.check!(1.5)).toBe(text("parkedActions.wholeNumber"));
+    const count = text("parkedActions.wholeNumber");
+    expect(maxRetries.check!(-1)).toBe(count);
+    expect(maxRetries.check!(1.5)).toBe(count);
+    // ApplyRetrySpec.maxRetries is an Int: one past it is a malformed body (400).
+    expect(maxRetries.check!(2_147_483_648)).toBe(count);
+    expect(maxRetries.check!("2147483647")).toBe(true);
     expect(maxRetries.check!("3")).toBe(true);
-    expect(initialBackoff.check!("abc")).toBe(text("parkedActions.duration"));
-    expect(initialBackoff.check!("2m")).toBe(true);
+    const duration = text("parkedActions.duration");
+    expect(initialBackoff.check!("abc")).toBe(duration);
+    // Each of these the service answered 422 while the form let it through.
+    expect(initialBackoff.check!("PT1.5M")).toBe(duration);
+    expect(claimTtl.check!("1m 1h")).toBe(duration);
+    // ...and refused this one, which the service takes.
+    expect(initialBackoff.check!("1h30m")).toBe(true);
+    expect(initialBackoff.check!(" 2m ")).toBe(true);
     expect(claimTtl.check!("PT5M")).toBe(true);
   });
 

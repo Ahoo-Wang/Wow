@@ -19,6 +19,7 @@ import {
 } from "@ahoo-wang/wow-view-engine";
 import type { ApplyRetrySpec } from "@/generated/index.ts";
 import { PARKED_WORDS } from "./parked.ts";
+import { isDuration } from "./kotlinDuration.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
 import { problemText } from "./parkedCommands.ts";
 import { textKeys, type Words } from "./words.ts";
@@ -57,8 +58,8 @@ export const PARKED_ACTION_WORDS = {
     alreadyMarked: "Already marked so.",
     sent: "{count} sent to the owning service",
     "sent-one": "{record} sent to the owning service",
-    wholeNumber: "A whole number, 0 or more.",
-    duration: "A duration such as PT3M, 3m or 1h 30m.",
+    wholeNumber: "A whole number from 0 to 2147483647.",
+    duration: "A duration such as PT3M, 3m or 1h 30m, not negative.",
   },
   "zh-CN": {
     retry: "重试",
@@ -88,8 +89,8 @@ export const PARKED_ACTION_WORDS = {
     alreadyMarked: "已经是这个标记。",
     sent: "{count} 项已发送给所属服务",
     "sent-one": "{record} 已发送给所属服务",
-    wholeNumber: "填 0 或更大的整数。",
-    duration: "填一个时长，例如 PT3M、3m 或 1h 30m。",
+    wholeNumber: "填 0 到 2147483647 之间的整数。",
+    duration: "填一个不为负的时长，例如 PT3M、3m 或 1h 30m。",
   },
 } satisfies Words;
 
@@ -155,30 +156,24 @@ export function retrySpecOf(input: ActionInput): ApplyRetrySpec {
   return spec;
 }
 
-/**
- * A duration the ops service takes (`Parked.isDuration`, Kotlin's
- * `Duration.parse`): ISO-8601 (`PT3M`, `P1DT2H`) or Kotlin's own (`3m`,
- * `1h 30m`, `1.5s`), never negative.
- */
-const ISO_DURATION =
-  /^P(?=\d|T\d)(?:\d+(?:\.\d+)?D)?(?:T(?=\d)(?:\d+(?:\.\d+)?H)?(?:\d+(?:\.\d+)?M)?(?:\d+(?:\.\d+)?S)?)?$/;
-const KOTLIN_DURATION =
-  /^\d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns)(?: \d+(?:\.\d+)?(?:d|h|m|s|ms|us|ns))*$/;
-
-export function isDuration(value: string): boolean {
-  const text = value.trim();
-  return ISO_DURATION.test(text) || KOTLIN_DURATION.test(text);
-}
-
 /** A duration field's check: what the service would refuse, said first. */
 function durationCheck(value: unknown): true | string {
-  return typeof value === "string" && isDuration(value) ? true : t.duration;
+  // The form sends the text trimmed (`textOf`), and the service reads that.
+  return typeof value === "string" && isDuration(value.trim())
+    ? true
+    : t.duration;
 }
 
-/** A retry count's check: a whole number, never negative. */
+/** The most retries the service reads: `ApplyRetrySpec.maxRetries` is an `Int`. */
+const MAX_RETRIES = 2_147_483_647;
+
+/** A retry count's check: a whole number from 0 to the service's `Int`. */
 function wholeNumberCheck(value: unknown): true | string {
   const number = typeof value === "string" ? Number(value.trim()) : value;
-  return typeof number === "number" && Number.isInteger(number) && number >= 0
+  return typeof number === "number" &&
+    Number.isInteger(number) &&
+    number >= 0 &&
+    number <= MAX_RETRIES
     ? true
     : t.wholeNumber;
 }
