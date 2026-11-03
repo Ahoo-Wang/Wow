@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.wire
 
+import me.ahoo.wow.api.caller.Caller
+
 /**
  * The identity headers of a development caller, which stand in for an identity provider: the host's development
  * callers read the caller from them in a development profile (`wow.dev-profiles`), with CoSec off and no
@@ -44,4 +46,21 @@ object DevelopmentHeaders {
 
     /** The caller attribute listing its roles, which [ROLES] gives, as CoSec's resolver names it. */
     const val ROLES_ATTRIBUTE: String = "roles"
+
+    /**
+     * [caller] as these headers: its subject, tenant, owner, roles (the attribute [ROLES_ATTRIBUTE]) and application
+     * ([Caller.app]). A caller without a subject is the anonymous caller of the host's default tenant, written with its
+     * application alone. The space, a cross-scope grant and every other attribute have no header: the host's
+     * development callers have none of them.
+     */
+    @JvmStatic
+    fun of(caller: Caller): Map<String, String> = buildMap {
+        caller.app?.let { put(APP, it) }
+        val subject = caller.subject ?: return@buildMap
+        put(USER, subject)
+        put(TENANT, caller.tenantId)
+        caller.scope.ownerId?.let { put(OWNER, it) }
+        caller.attributes[ROLES_ATTRIBUTE]?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
+            ?.let { put(ROLES, it.joinToString(",")) }
+    }
 }

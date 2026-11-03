@@ -126,8 +126,7 @@ class BasketServerTest {
     /** Over HTTP: the read route that names no basket, the caller's own, is a route the typed queries do not take. */
     @Test
     fun `an employee should have no basket of its own to read by the route that names none`() {
-        val employee = mapOf(DevelopmentHeaders.USER to "erin", DevelopmentHeaders.ROLES to "employee")
-        val noOwner = server.http.get("/eshop-basket/basket/state", employee)
+        val noOwner = server.http.get("/eshop-basket/basket/state", caller = EMPLOYEE)
         noOwner.problem!!.status.assert().describedAs(noOwner.text).isEqualTo(BAD_REQUEST)
         noOwner.problem!!.code.assert().isEqualTo(FrameworkErrors.QUERY_MALFORMED)
     }

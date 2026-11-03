@@ -27,7 +27,8 @@ val EVENTUALLY_POLL: Duration = 100.milliseconds
 
 /**
  * Polls [condition] until it holds, every [poll], for at most [timeout], and fails saying [what] was not reached, with
- * the last failure of [condition] as its cause: a condition that throws, an assertion among them, has not held yet.
+ * [detail] then, when one is given (the services' output, the state seen last), and the last failure of [condition]
+ * as its cause: a condition that throws, an assertion among them, has not held yet.
  *
  * A wait plan waits for what a command causes, to the end of a saga's chain (`CommandClient.wait`, `stream`), so a
  * test waits so first. This is for what no wait plan sees: a call a fake peer received, a scheduled command that
@@ -47,6 +48,7 @@ inline fun eventually(
     what: String,
     timeout: Duration = EVENTUALLY_TIMEOUT,
     poll: Duration = EVENTUALLY_POLL,
+    noinline detail: (() -> String)? = null,
     condition: () -> Boolean,
 ) {
     require(timeout.isPositive() && poll.isPositive()) { "The timeout and the poll of eventually are positive." }
@@ -65,7 +67,9 @@ inline fun eventually(
             false
         }
         if (held) return
-        if (deadline.hasPassedNow()) throw AssertionError("Not reached in $timeout: $what.", failure)
+        if (deadline.hasPassedNow()) {
+            throw AssertionError("Not reached in $timeout: $what." + detail?.let { " ${it()}" }.orEmpty(), failure)
+        }
         Thread.sleep(poll.inWholeMilliseconds)
     }
 }

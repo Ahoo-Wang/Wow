@@ -27,6 +27,8 @@ import org.testcontainers.utility.DockerImageName
 import tools.jackson.databind.JsonNode
 import java.sql.DriverManager
 import java.time.Duration
+import kotlin.time.toKotlinDuration
+import me.ahoo.wow.test.server.eventually as eventuallyWithin
 
 /**
  * The whole eShop (work package E.6): the catalog, basket, ordering, inventory and payment services, each in a JVM of
@@ -213,15 +215,12 @@ class EshopStack(
         deadline: Duration = DEADLINE,
         detail: () -> String = { "" },
         condition: () -> Boolean,
-    ) {
-        val until = System.nanoTime() + deadline.toNanos()
-        while (!condition()) {
-            if (System.nanoTime() > until) {
-                throw AssertionError("Not reached in $deadline: $what. ${detail()}\n${outputs()}")
-            }
-            Thread.sleep(POLL.toMillis())
-        }
-    }
+    ) = eventuallyWithin(
+        what,
+        deadline.toKotlinDuration(),
+        POLL.toKotlinDuration(),
+        detail = { "${detail()}\n${outputs()}" },
+    ) { condition() }
 
     /** The tail of every service's output, without the Kafka clients' configuration dumps and lease acquisitions. */
     fun outputs(): String = started.joinToString("\n") { service ->

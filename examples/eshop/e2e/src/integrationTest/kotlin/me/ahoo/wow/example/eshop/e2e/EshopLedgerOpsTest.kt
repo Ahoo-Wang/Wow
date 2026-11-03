@@ -28,6 +28,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.JsonNode
 import java.io.File
 import java.time.Duration
+import kotlin.time.toKotlinDuration
+import me.ahoo.wow.test.server.eventually as eventuallyWithin
 
 /**
  * The failure ledger across services end to end (work packages 6.3f and 7.1a, decision D141): the ordering,
@@ -183,18 +185,15 @@ class EshopLedgerOpsTest {
         return json.readTree(answer.body)["state"]["status"].asString()
     }
 
-    private fun eventually(what: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (!condition()) {
-            if (System.nanoTime() > deadline) {
-                throw AssertionError(
-                    "Not reached in $DEADLINE: $what.\n--- payment ---\n${payment.output().takeLast(TAIL)}" +
-                        "\n--- ops ---\n${ops.output().takeLast(TAIL)}",
-                )
-            }
-            Thread.sleep(POLL.toMillis())
-        }
-    }
+    /** Waits for [condition], with the services' output on a failure. */
+    private fun eventually(what: String, condition: () -> Boolean) = eventuallyWithin(
+        what,
+        DEADLINE.toKotlinDuration(),
+        POLL.toKotlinDuration(),
+        detail = {
+            "\n--- payment ---\n${payment.output().takeLast(TAIL)}\n--- ops ---\n${ops.output().takeLast(TAIL)}"
+        },
+    ) { condition() }
 
     private companion object {
         const val OK = 200

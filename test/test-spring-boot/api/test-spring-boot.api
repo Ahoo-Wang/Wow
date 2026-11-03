@@ -3,6 +3,7 @@ public final class me/ahoo/wow/test/server/Answer {
 	public final fun getBody ()Ltools/jackson/databind/JsonNode;
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getProblem ()Lme/ahoo/wow/http/problem/Problem;
+	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
 	public final fun getStatus ()I
 	public final fun getText ()Ljava/lang/String;
 	public final fun header (Ljava/lang/String;)Ljava/lang/String;
@@ -10,8 +11,8 @@ public final class me/ahoo/wow/test/server/Answer {
 }
 
 public final class me/ahoo/wow/test/server/EventuallyKt {
-	public static final fun eventually-vLdBGDU (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;)V
-	public static synthetic fun eventually-vLdBGDU$default (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public static final fun eventually-jKevqZI (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun eventually-jKevqZI$default (Ljava/lang/String;JJLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
 	public static final fun getEVENTUALLY_POLL ()J
 	public static final fun getEVENTUALLY_TIMEOUT ()J
 }
@@ -86,13 +87,13 @@ public final class me/ahoo/wow/test/server/WowHttp : java/lang/AutoCloseable {
 	public fun <init> (Ljava/net/URI;Ljava/time/Duration;)V
 	public synthetic fun <init> (Ljava/net/URI;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
-	public final fun get (Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
-	public static synthetic fun get$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+	public final fun get (Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun get$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
 	public final fun getBase ()Ljava/net/URI;
-	public final fun post (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
-	public static synthetic fun post$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
-	public final fun request (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/test/server/Answer;
-	public static synthetic fun request$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+	public final fun post (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun post$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
+	public final fun request (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/test/server/Answer;
+	public static synthetic fun request$default (Lme/ahoo/wow/test/server/WowHttp;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/api/caller/Caller;ILjava/lang/Object;)Lme/ahoo/wow/test/server/Answer;
 }
 
 public final class me/ahoo/wow/test/server/WowLocal : java/lang/AutoCloseable {
@@ -127,13 +128,15 @@ public final class me/ahoo/wow/test/server/WowServer : java/lang/AutoCloseable {
 	public fun <init> (Lorg/springframework/context/ConfigurableApplicationContext;)V
 	public final fun bean (Ljava/lang/Class;)Ljava/lang/Object;
 	public fun close ()V
-	public final fun commands (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
+	public final fun commands (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/api/client/CommandClient;
+	public static synthetic fun commands$default (Lme/ahoo/wow/test/server/WowServer;Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/client/UserCredential;ILjava/lang/Object;)Lme/ahoo/wow/api/client/CommandClient;
 	public final fun getContext ()Lorg/springframework/context/ConfigurableApplicationContext;
 	public final fun getHttp ()Lme/ahoo/wow/test/server/WowHttp;
 	public final fun getInternal ()Lme/ahoo/wow/test/server/WowHttp;
 	public final fun getInternalPort ()I
 	public final fun getPublicPort ()I
-	public final fun queries (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public final fun queries (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/api/read/Queries;
+	public static synthetic fun queries$default (Lme/ahoo/wow/test/server/WowServer;Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/client/UserCredential;ILjava/lang/Object;)Lme/ahoo/wow/api/read/Queries;
 }
 
 public final class me/ahoo/wow/test/server/WowServerKt {

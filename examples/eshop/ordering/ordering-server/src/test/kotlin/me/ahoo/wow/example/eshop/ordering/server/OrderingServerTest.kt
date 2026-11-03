@@ -192,20 +192,18 @@ class OrderingServerTest {
     }
 
     /**
-     * Over HTTP: the snapshot rebuild (`wow.snapshot.Rebuild`) is a system command, which the contract the typed
-     * clients send by names by no class of its own, so it goes to its route.
+     * Over HTTP: the snapshot rebuild's command class (`RebuildSnapshot`, of `:spi`) is internal to Wow, which an
+     * application does not opt in to, so the test sends it to its route.
      */
     @Test
     fun `the snapshot rebuild should be an employee's alone (UI-50)`() {
         val rebuild = "/eshop-ordering/order/wow.snapshot.rebuild"
-        val employee = mapOf(DevelopmentHeaders.USER to "erin", DevelopmentHeaders.ROLES to "employee")
-        val buyer = mapOf(DevelopmentHeaders.USER to "alice-rebuilds", DevelopmentHeaders.OWNER to "alice-rebuilds")
-        for (caller in listOf(emptyMap(), buyer)) {
-            val refused = server.http.post(rebuild, """{"ids":["order-1"]}""", caller).problem!!
+        for (caller in listOf(Caller.ANONYMOUS, buyer("alice-rebuilds"))) {
+            val refused = server.http.post(rebuild, """{"ids":["order-1"]}""", caller = caller).problem!!
             refused.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
             refused.detail.assert().contains("Only an employee sends wow.snapshot.Rebuild")
         }
-        server.http.post(rebuild, """{"ids":["order-1"]}""", employee).problem.assert().isNull()
+        server.http.post(rebuild, """{"ids":["order-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
     }
 
     private fun orders(caller: Caller = Caller.ANONYMOUS): CommandClient = server.commands(caller)

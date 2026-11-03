@@ -175,16 +175,14 @@ object ManifestMerger {
         jobs.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.forEach {
             add("job $it of context ${context.name} is declared twice, differently, in $source")
         }
-        if (jobs.isNotEmpty() && context.aggregates.any { it.name == JOB_AGGREGATE }) {
+        val jobAggregate = SystemCommands.JOB_AGGREGATE
+        if (jobs.isNotEmpty() && context.aggregates.any { it.name == jobAggregate }) {
             add(
-                "context ${context.name} in $source has jobs and an aggregate named $JOB_AGGREGATE, the name of its " +
+                "context ${context.name} in $source has jobs and an aggregate named $jobAggregate, the name of its " +
                     "built-in job aggregate",
             )
         }
     }
-
-    /** The name of a context's built-in job aggregate. */
-    private const val JOB_AGGREGATE = "schedule"
 
     /** A published stream of an aggregate the context does not declare, and an aggregate published twice. */
     private fun publishedConflicts(source: String, context: ContextManifest): List<String> = buildList {

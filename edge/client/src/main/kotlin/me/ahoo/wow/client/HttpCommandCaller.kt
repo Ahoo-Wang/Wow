@@ -33,7 +33,6 @@ import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wait.toWire
-import tools.jackson.core.JacksonException
 import java.net.URI
 import java.net.http.HttpClient
 import kotlin.time.Duration
@@ -119,11 +118,7 @@ class HttpCommandCaller internal constructor(
             throw failed("The call of ${command.id} to ${command.ref.type.context} failed: $failure", cause = failure)
         }
         return when (answer) {
-            is Answer.Ok -> try {
-                ClientJson.mapper.readValue(answer.value, CommandResult::class.java)
-            } catch (_: JacksonException) {
-                null
-            }
+            is Answer.Ok -> CommandResults.readOrNull(answer.value)
             // A problem without a result (a call the target refuses, a peer no node of which answered) is its own.
             is Answer.Problem ->
                 answer.problem.result

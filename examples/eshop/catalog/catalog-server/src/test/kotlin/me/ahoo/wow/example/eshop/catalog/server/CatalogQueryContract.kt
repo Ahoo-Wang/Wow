@@ -165,7 +165,8 @@ abstract class CatalogQueryContract {
         val described = catalog.get(PRODUCTS).assertOk()
         val tag = described.header(HttpHeaders.ETAG)
         tag.assert().isEqualTo("\"${described.json["version"].asString()}\"")
-        catalog.get(PRODUCTS, mapOf(HttpHeaders.IF_NONE_MATCH to tag!!)).status.assert().isEqualTo(NOT_MODIFIED)
+        val unchanged = catalog.get(PRODUCTS, headers = mapOf(HttpHeaders.IF_NONE_MATCH to tag!!))
+        unchanged.status.assert().isEqualTo(NOT_MODIFIED)
         val fields = described.json["fields"].values().associateBy { it["path"].asString() }
         fields.keys.assert().contains("state.categoryId", "state.brandId", "state.status", "state.price")
         fields.getValue("state.price")["types"].values().map { it.asString() }.assert().containsExactly("decimal")
@@ -299,7 +300,7 @@ abstract class CatalogQueryContract {
         catalog.post(
             "/eshop-catalog/product/$product/change-product-price",
             """{"price":3.50}""",
-            mapOf(USER to other, ROLES to "employee"),
+            headers = mapOf(USER to other, ROLES to "employee"),
         ).assertOk()
         val latest = storefront.query("""{"kind":"single","filter":{"op":"id","value":"$product"}}""").json
         latest["operator"].assertOperator(other)
@@ -383,7 +384,7 @@ class Storefront(private val catalog: CatalogNode) {
             """{"name":"Product at $price","price":$price,"brandId":"$brand","categoryId":"$category"}""",
             EMPLOYEE,
         ).assertOk().json["ref"]["id"].asString()
-        if (publish) catalog.post("/eshop-catalog/product/$id/publish-product", headers = EMPLOYEE).assertOk()
+        if (publish) catalog.post("/eshop-catalog/product/$id/publish-product", caller = EMPLOYEE).assertOk()
         return id
     }
 
