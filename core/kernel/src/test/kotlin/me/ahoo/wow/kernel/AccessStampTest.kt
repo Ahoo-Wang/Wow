@@ -45,9 +45,9 @@ class AccessStampTest {
 
     data class Stocked(val tier: Tier, val keepers: List<String>, val size: Int)
 
-    private val tier = AccessAttribute.single("tier", Tier::class.java)
-    private val keepers = AccessAttribute.multiple("keepers", String::class.java)
-    private val size = AccessAttribute.single("size", Int::class.javaObjectType)
+    private val tier = AccessAttribute.single<Shelf, Tier>("tier", Tier::class.java)
+    private val keepers = AccessAttribute.multiple<Shelf, String>("keepers", String::class.java)
+    private val size = AccessAttribute.single<Shelf, Int>("size", Int::class.javaObjectType)
 
     private val model = aggregate<Shelf>("store", "shelf") {
         initial { Shelf(it.id) }

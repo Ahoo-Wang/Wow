@@ -158,6 +158,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'Kafka', link: 'kafka'},
                 {text: 'ClickHouse', link: 'clickhouse'},
                 {text: 'Kubernetes', link: 'kubernetes'},
+                {text: 'Spring Cloud 服务发现', link: 'spring-cloud'},
                 {text: '健康、指标与追踪', link: 'observability'},
                 {text: '伸缩与容量', link: 'scaling'},
                 {text: 'Elasticsearch', link: 'elasticsearch'},
@@ -228,6 +229,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '发布与消费事件流', link: 'published-streams'},
                 {text: '调用其他服务', link: 'calling-services'},
+                {text: '从其他服务调用 Wow', link: 'calling-from-other-services'},
             ],
         },
         {

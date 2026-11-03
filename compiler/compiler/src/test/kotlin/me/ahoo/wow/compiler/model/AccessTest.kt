@@ -154,19 +154,7 @@ class AccessTest {
             .contains("access(sample.DocumentStateAccess.DEPARTMENT_NAME) { state -> state.departmentName }")
             .contains("access(sample.DocumentStateAccess.SHARED) { state -> state.shares() }")
             .contains("access(sample.DocumentStateAccess.ORG) { state -> state.path }")
-        val references = compiled.source("DocumentStateAccess.kt")
-        references.assert()
-            .contains("public object DocumentStateAccess : me.ahoo.wow.api.access.AccessAttributes() {")
-            .contains(
-                "public val DEPARTMENT_NAME: me.ahoo.wow.api.access.AccessAttribute.Single<kotlin.String> = " +
-                    "me.ahoo.wow.api.access.AccessAttribute.single(\"departmentName\", kotlin.String::class.javaObjectType)",
-            )
-            .contains(
-                "public val SHARED: me.ahoo.wow.api.access.AccessAttribute.Multiple<kotlin.String> = " +
-                    "me.ahoo.wow.api.access.AccessAttribute.multiple(\"shared\", kotlin.String::class.javaObjectType)",
-            )
-            .contains("public val CLEARANCE: me.ahoo.wow.api.access.AccessAttribute.Single<sample.Level>")
-            .contains("public val PAGES: me.ahoo.wow.api.access.AccessAttribute.Single<kotlin.Int>")
+        assertReferences(compiled.source("DocumentStateAccess.kt"))
         compiled.fragment().contexts.single().aggregates.single().access.assert().containsExactly(
             AccessAttributeManifest("departmentName", Type.STRING),
             AccessAttributeManifest("org", Type.STRING),
@@ -177,6 +165,25 @@ class AccessTest {
             AccessAttributeManifest("reviewers", Type.STRING, multiple = true),
             AccessAttributeManifest("shared", Type.STRING, multiple = true),
         )
+    }
+
+    /** The references of the attributes, typed by the state, in `<State>Access`. */
+    private fun assertReferences(references: String) {
+        val attribute = "me.ahoo.wow.api.access.AccessAttribute"
+        references.assert()
+            .contains(
+                "public object DocumentStateAccess : me.ahoo.wow.api.access.AccessAttributes<sample.DocumentState>() {"
+            )
+            .contains(
+                "public val DEPARTMENT_NAME: $attribute.Single<sample.DocumentState, kotlin.String> = " +
+                    "$attribute.single(\"departmentName\", kotlin.String::class.javaObjectType)",
+            )
+            .contains(
+                "public val SHARED: $attribute.Multiple<sample.DocumentState, kotlin.String> = " +
+                    "$attribute.multiple(\"shared\", kotlin.String::class.javaObjectType)",
+            )
+            .contains("public val CLEARANCE: $attribute.Single<sample.DocumentState, sample.Level>")
+            .contains("public val PAGES: $attribute.Single<sample.DocumentState, kotlin.Int>")
     }
 
     @Test
@@ -197,7 +204,9 @@ class AccessTest {
         )
         compiled.source("DocumentStateAccess.kt").assert()
             .contains("internal object DocumentStateAccess")
-            .contains("internal val TIER: me.ahoo.wow.api.access.AccessAttribute.Single<sample.Tier>")
+            .contains(
+                "internal val TIER: me.ahoo.wow.api.access.AccessAttribute.Single<sample.DocumentState, sample.Tier>"
+            )
     }
 
     @Test
@@ -255,9 +264,15 @@ class AccessTest {
             .contains("access(sample.DocumentStateAccess.READERS) { state -> state.readers.map { it.value } }")
             .contains("access(sample.DocumentStateAccess.GRADE) { state -> state.grade.level }")
         compiled.source("DocumentStateAccess.kt").assert()
-            .contains("public val DEPARTMENT_ID: me.ahoo.wow.api.access.AccessAttribute.Single<kotlin.String>")
-            .contains("public val READERS: me.ahoo.wow.api.access.AccessAttribute.Multiple<kotlin.String>")
-            .contains("public val GRADE: me.ahoo.wow.api.access.AccessAttribute.Single<sample.Level>")
+            .contains(
+                "public val DEPARTMENT_ID: me.ahoo.wow.api.access.AccessAttribute.Single<sample.DocumentState, kotlin.String>"
+            )
+            .contains(
+                "public val READERS: me.ahoo.wow.api.access.AccessAttribute.Multiple<sample.DocumentState, kotlin.String>"
+            )
+            .contains(
+                "public val GRADE: me.ahoo.wow.api.access.AccessAttribute.Single<sample.DocumentState, sample.Level>"
+            )
         compiled.fragment().contexts.single().aggregates.single().access.assert().containsExactly(
             AccessAttributeManifest("departmentId", Type.STRING),
             AccessAttributeManifest("reviewer", Type.STRING),
@@ -333,6 +348,33 @@ class AccessTest {
             @Access("orgpath2") fun other(): String = department
             """.trimIndent(),
         ).assert().contains("declares the access attributes orgPath2, orgpath2, whose names differ only in case")
+    }
+
+    @Test
+    fun `an access policy takes the references of its own state, and the built-ins of every state`() {
+        fun policies(extra: String) = SourceFile.kotlin(
+            "Policies.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.access.AccessAttribute
+            import me.ahoo.wow.api.access.accessPolicy
+
+            class NoteState
+
+            val documentAccess = accessPolicy<DocumentState> {
+                readWrite { caller -> DocumentStateAccess.DEPARTMENT_NAME eq caller.claim("department") }
+            }
+            val noteAccess = accessPolicy<NoteState> { readWrite { caller -> AccessAttribute.OWNER eq caller.subject } }
+            $extra
+            """.trimIndent(),
+        )
+        val state = document("@Access val departmentName: String get() = department")
+        compiled(state, policies(""))
+        val wrong = "val wrong = accessPolicy<NoteState> { readWrite { DocumentStateAccess.DEPARTMENT_NAME eq \"x\" } }"
+        val (_, result) = compileModel("generate", state, policies(wrong))
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("Policies.kt")
     }
 
     @Test

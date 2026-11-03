@@ -281,15 +281,15 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * version, as the log records them), by event class; the others are in [evolvers].
      */
     commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = emptyMap(),
-    access: Map<AccessAttribute<*>, (S) -> Any?> = emptyMap(),
+    access: Map<AccessAttribute<*, *>, (S) -> Any?> = emptyMap(),
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
 
-    private val access: Map<AccessAttribute<*>, (S) -> Any?> = LinkedHashMap(access)
+    private val access: Map<AccessAttribute<*, *>, (S) -> Any?> = LinkedHashMap(access)
 
     /** The aggregate's access attributes (`@Access`) in declaration order; the built-in ones are not among them. */
-    val accessAttributes: List<AccessAttribute<*>> = this.access.keys.toList()
+    val accessAttributes: List<AccessAttribute<*, *>> = this.access.keys.toList()
 
     /** The names of [accessAttributes]: the keys of [accessOf]. */
     val accessNames: Set<String> = accessAttributes.mapTo(LinkedHashSet()) { it.name }
@@ -453,7 +453,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         return values
     }
 
-    private fun valueOf(attribute: AccessAttribute<*>, value: Any?): Any? {
+    private fun valueOf(attribute: AccessAttribute<*, *>, value: Any?): Any? {
         if (!attribute.multiple) {
             check(value == null || attribute.type.isInstance(value)) {
                 "The access attribute ${attribute.name} of $type is a ${attribute.type.name}, not ${value!!.javaClass.name}."
