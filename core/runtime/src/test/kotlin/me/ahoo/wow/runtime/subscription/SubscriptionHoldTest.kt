@@ -114,25 +114,14 @@ class SubscriptionHoldTest {
     @Test
     fun `a partition's start should read outside the mutex, a second start of it and its stop waiting for it`(): Unit =
         runBlocking {
-            val gate = CompletableDeferred<Unit>()
-            val loading = AtomicBoolean()
-            val recorded = RecordingCheckpoints()
-            val checkpoints = object : CheckpointStore by recorded {
-                override suspend fun load(group: String, subscription: String, partition: Int): Long? {
-                    if (partition == 0) {
-                        loading.set(true)
-                        gate.await()
-                    }
-                    return recorded.load(group, subscription, partition)
-                }
-            }
+            val checkpoints = GatedCheckpoints()
             val runtime = runtime(checkpoints)
             appender.append(idIn(0))
             appender.append(idIn(1))
             runtime.start()
             try {
                 val first = launch { runtime.startPartition(0) }
-                eventually { loading.get() }
+                eventually { checkpoints.loading.get() }
                 val second = launch { runtime.startPartition(0) }
                 val stop = launch { runtime.stopPartition(0) }
                 // Partition 0 is reading its checkpoints: partition 1 starts and runs meanwhile.
@@ -144,7 +133,7 @@ class SubscriptionHoldTest {
                 second.isActive.assert().isTrue()
                 stop.isActive.assert().isTrue()
 
-                gate.complete(Unit)
+                checkpoints.gate.complete(Unit)
                 first.join()
                 second.join()
                 stop.join()
@@ -154,6 +143,71 @@ class SubscriptionHoldTest {
                 runtime.stop()
             }
         }
+
+    @Test
+    fun `a subscription added while a partition starts should run in it too`(): Unit = runBlocking {
+        val checkpoints = GatedCheckpoints()
+        val runtime = runtime(checkpoints)
+        val late = Handled()
+        val entry = appender.append(idIn(0))
+        runtime.start()
+        try {
+            val starting = launch { runtime.startPartition(0) }
+            eventually { checkpoints.loading.get() }
+            runtime.add(Subscription("late", SubscriptionFilter("shop")) { late.record(it) })
+
+            checkpoints.gate.complete(Unit)
+            starting.join()
+            eventually { late.size == 1 && handled.size == 1 && seen.size == 1 }
+            late.sequences().assert().containsExactly(entry)
+            runtime.positions().map { it.subscription }.assert().containsExactlyInAnyOrder(NAME, "other", "late")
+        } finally {
+            runtime.stop()
+        }
+    }
+
+    @Test
+    fun `a start that outlived a restart of its runtime should open the partition once, in the new runtime`(): Unit =
+        runBlocking {
+            val checkpoints = GatedCheckpoints()
+            val runtime = runtime(checkpoints)
+            val entry = appender.append(idIn(0))
+            runtime.start()
+            try {
+                val outlived = launch { runCatching { runtime.startPartition(0) } }
+                eventually { checkpoints.loading.get() }
+                runtime.stop()
+                runtime.start()
+                val again = launch { runtime.startPartition(0) }
+
+                checkpoints.gate.complete(Unit)
+                outlived.join()
+                again.join()
+                runtime.partitions.assert().containsExactly(0)
+                runtime.positions().map { it.subscription }.assert().containsExactlyInAnyOrder(NAME, "other")
+                eventually { handled.size == 1 && seen.size == 1 }
+                handled.sequences().assert().containsExactly(entry)
+                delay(SETTLE_MILLIS)
+                handled.size.assert().isEqualTo(1)
+            } finally {
+                runtime.stop()
+            }
+        }
+
+    /** Checkpoints whose loads of partition 0 wait for [gate]: a start of partition 0 hangs on them until then. */
+    private class GatedCheckpoints(private val recorded: RecordingCheckpoints = RecordingCheckpoints()) :
+        CheckpointStore by recorded {
+        val gate = CompletableDeferred<Unit>()
+        val loading = AtomicBoolean()
+
+        override suspend fun load(group: String, subscription: String, partition: Int): Long? {
+            if (partition == 0) {
+                loading.set(true)
+                gate.await()
+            }
+            return recorded.load(group, subscription, partition)
+        }
+    }
 
     private companion object {
         const val NAME = "projector"
