@@ -224,16 +224,12 @@ internal class PostgresFilterCompiler(
     }
 
     /**
-     * A containment of every operand: on many values one containment `@>` of each, ANDed, the form a GIN index of the
-     * key serves, which answers as the array form does whether the stored value is an array or a scalar; on one value,
-     * that value as an array holding them all.
+     * A containment of every operand, of a collection (the resolver refuses it on any other field; a filter has at
+     * least one operand): one containment `@>` of each, ANDed, the form a GIN index of the key serves, which answers
+     * as the array form does whether the stored value is an array or a scalar.
      */
     private fun containsAll(field: ResolvedField, operands: List<JsonNode>): String =
-        if (field.multiValued && operands.isNotEmpty()) {
-            operands.joinToString(" AND ", "(", ")") { "${node(field)} @> ${json(it)}" }
-        } else {
-            "(${asArray(node(field))} @> ${json(nodes.arrayNode().addAll(operands))})"
-        }
+        operands.joinToString(" AND ", "(", ")") { "${node(field)} @> ${json(it)}" }
 
     private fun range(field: ResolvedField, operator: String, operand: JsonNode): String =
         anyValue(field) { value, type -> "$value $operator ${scalar(type, operand)}" }
