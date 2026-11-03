@@ -131,6 +131,12 @@ class RetryPolicy @InternalWowApi constructor(
  *   parking the aggregates.
  * - [backpressure]: how a subscription retries an entry whose downstream asked it to come back later, and throttles
  *   its partition meanwhile.
+ * - [maxCatchUps]: the partitions a node reads behind their head at once, all its subscription runtimes together; 0
+ *   for no bound. A partition whose subscriptions start behind the head of its source (a history migrate-data
+ *   imported, a long stop) waits for one before it reads, in the order the partitions asked, and gives it back once
+ *   each of its subscriptions has taken every entry up to that head, paused on a systemic failure, or stalled; the
+ *   others stand at their checkpoints meanwhile. So a node catching up on a large backlog keeps its store for its
+ *   commands.
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -150,9 +156,11 @@ class SubscriptionOptions @InternalWowApi constructor(
     val retries: Map<SubscriptionId, HandlerRetry> = emptyMap(),
     val systemic: SystemicFailureOptions = SystemicFailureOptions(),
     val backpressure: BackpressureOptions = BackpressureOptions(),
+    val maxCatchUps: Int = DEFAULT_MAX_CATCH_UPS,
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
+        require(maxCatchUps >= 0) { "The partitions a node catches up at once are never negative; 0 bounds none." }
         require(checkpointInterval.isPositive()) { "The checkpoint interval is positive." }
         require(!stopTimeout.isNegative()) { "The stop timeout is never negative." }
     }
@@ -188,6 +196,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         retries: Map<SubscriptionId, HandlerRetry> = this.retries,
         systemic: SystemicFailureOptions = this.systemic,
         backpressure: BackpressureOptions = this.backpressure,
+        maxCatchUps: Int = this.maxCatchUps,
     ): SubscriptionOptions = SubscriptionOptions(
         maxInFlight,
         retry,
@@ -199,6 +208,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         retries,
         systemic,
         backpressure,
+        maxCatchUps,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -209,7 +219,7 @@ class SubscriptionOptions @InternalWowApi constructor(
     override fun toString(): String =
         "SubscriptionOptions(maxInFlight=$maxInFlight, retry=$retry, checkpointInterval=$checkpointInterval, " +
             "stopTimeout=$stopTimeout, readRetry=$readRetry, starts=$starts, parked=$parked, retries=$retries, " +
-            "systemic=$systemic, backpressure=$backpressure)"
+            "systemic=$systemic, backpressure=$backpressure, maxCatchUps=$maxCatchUps)"
 
     private fun valueFields(): List<Any?> = listOf(
         maxInFlight,
@@ -222,8 +232,12 @@ class SubscriptionOptions @InternalWowApi constructor(
         retries,
         systemic,
         backpressure,
+        maxCatchUps,
     )
 }
+
+/** The partitions a node catches up at once by default ([SubscriptionOptions.maxCatchUps]). */
+private const val DEFAULT_MAX_CATCH_UPS = 8
 
 /**
  * How a subscription answers backpressure: a failure classified

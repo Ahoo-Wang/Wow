@@ -25,6 +25,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -110,6 +111,8 @@ class TopicSubscriptions internal constructor(
     private val classification: FailureClassification = RuntimeFailures.DEFAULT,
     /** The node's membership in its service on [leases], shared with its other lease groups. */
     private val membership: ServiceMembership? = null,
+    /** The node's permits of partitions reading behind their head, shared by its runtimes; null for no bound. */
+    private val catchUps: Semaphore? = null,
 ) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -132,6 +135,7 @@ class TopicSubscriptions internal constructor(
         observer: Observer = Observer.NONE,
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         membership: ServiceMembership? = null,
+        catchUps: Semaphore? = null,
     ) : this(
         service,
         topic,
@@ -153,6 +157,7 @@ class TopicSubscriptions internal constructor(
         observer,
         classification,
         membership,
+        catchUps,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -278,6 +283,7 @@ class TopicSubscriptions internal constructor(
             notifier,
             observer,
             classification,
+            catchUps = catchUps,
         )
         val ownership = PartitionOwnership(
             group,

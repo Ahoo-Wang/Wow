@@ -94,6 +94,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     private val queries = wiring.queries
     private val peerEvents = wiring.peerEvents
     private val notifiers = wiring.notifiers
+    private val catchUps = wiring.catchUps
     private val classification = wiring.classification
     private val inFlight = wiring.inFlight
     private val timerLoop = wiring.timerLoop
@@ -126,6 +127,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 clock = clock,
                 // The default log group's runtime has the group's name and checkpoints too, and tells their orphans.
                 tellsOrphans = false,
+                catchUps = catchUps,
             )
         }
 
@@ -294,6 +296,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             classification = classification,
             clock = clock,
             cutover = ImportCutover.groupOf(context),
+            catchUps = catchUps,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }

@@ -27,6 +27,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -98,6 +99,11 @@ class SubscriptionRuntime internal constructor(
      * migrated has no row in it, so none of its entries is.
      */
     private val cutover: String? = null,
+    /**
+     * The node's permits of partitions reading behind their head ([SubscriptionOptions.maxCatchUps]), which every
+     * runtime of the node shares; null for no bound.
+     */
+    private val catchUps: Semaphore? = null,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -114,6 +120,7 @@ class SubscriptionRuntime internal constructor(
         observer: Observer = Observer.NONE,
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         cutover: String? = null,
+        catchUps: Semaphore? = null,
     ) : this(
         group,
         LogSource(log),
@@ -128,6 +135,7 @@ class SubscriptionRuntime internal constructor(
         observer,
         classification,
         cutover = cutover,
+        catchUps = catchUps,
     )
 
     private val lifecycle = Mutex()
@@ -641,7 +649,7 @@ class SubscriptionRuntime internal constructor(
      * One partition being read: its shared tail and catch-up reads, and its subscriptions' lanes, stopped together.
      * Its reads wait for [reads], when given ([startPartition]).
      */
-    private inner class PartitionRun(val partition: Int, run: Running, private val reads: Job?) {
+    private inner class PartitionRun(val partition: Int, run: Running, reads: Job?) {
         val readersJob = SupervisorJob(run.root)
         val lanesJob = SupervisorJob(run.root)
         val lanes = CoroutineScope(run.scope.coroutineContext + lanesJob)
@@ -651,11 +659,12 @@ class SubscriptionRuntime internal constructor(
             CoroutineScope(run.scope.coroutineContext + readersJob),
             options,
             reads,
+            catchUps,
         )
         val workers = ArrayList<SubscriptionWorker>()
 
-        /** Whether the partition reads: not held back, or no longer. */
-        val reading: Boolean get() = reads?.isCompleted ?: true
+        /** Whether the partition reads: not held back, nor waiting for a catch-up permit. */
+        val reading: Boolean get() = runner.reading
     }
 
     /**

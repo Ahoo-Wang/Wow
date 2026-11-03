@@ -54,6 +54,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
     private val topics = wiring.topics
     private val signals = wiring.signals
     private val notifiers = wiring.notifiers
+    private val catchUps = wiring.catchUps
     private val classification = wiring.classification
     private val inFlight = wiring.inFlight
 
@@ -121,6 +122,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 partitionRefresh = topics!!.partitionRefresh,
                 observer = observer,
                 classification = classification,
+                catchUps = catchUps,
             )
         }
     }
@@ -160,6 +162,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 partitionRefresh = sources.partitionRefresh,
                 observer = observer,
                 classification = classification,
+                catchUps = catchUps,
             )
         }.toMap()
     }
