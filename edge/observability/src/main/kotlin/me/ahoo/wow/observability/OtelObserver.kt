@@ -218,10 +218,10 @@ class OtelObserver(
     }
 
     private fun accessStamped(event: ObservedEvent.AccessStamped) {
-        val (context, aggregate) = event.type.context to event.type.name
-        cached.counter(WowMetrics.ACCESS_STAMPED, context, aggregate, event.cause.value).increment(event.streams.toDouble())
-        cached.timer(WowMetrics.ACCESS_STAMP_DURATION, context, aggregate, event.cause.value)
-            .record(event.millis, TimeUnit.MILLISECONDS)
+        val (context, aggregate, cause) = Triple(event.type.context, event.type.name, event.cause.value)
+        cached.counter(WowMetrics.ACCESS_STAMPED, context, aggregate, cause).increment(event.streams.toDouble())
+        val duration = cached.timer(WowMetrics.ACCESS_STAMP_DURATION, context, aggregate, cause)
+        duration.record(event.millis, TimeUnit.MILLISECONDS)
     }
 
     private fun tailRead(context: String, reason: String) {

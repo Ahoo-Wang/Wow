@@ -183,14 +183,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
         val ownership = ownershipOf(group, backends, logGroups, intake, states)
-        val executor = Executor(
-            kernel,
-            options.executor.laneCapacity,
-            options.executor.maxBatch,
-            views.forExecutor(),
-            inFlight,
-            clock = clock,
-        )
+        val executor = executorOf(kernel, views)
         return Parts(
             context,
             models,
@@ -214,6 +207,16 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             stamping.walking,
         )
     }
+
+    /** The context's executor over [kernel], its commands reading the shared states of [views]. */
+    private fun executorOf(kernel: Kernel, views: SharedStates): Executor = Executor(
+        kernel,
+        options.executor.laneCapacity,
+        options.executor.maxBatch,
+        views.forExecutor(),
+        inFlight,
+        clock = clock,
+    )
 
     /**
      * The built-in subscription `wow.access` of [context] and the context's access walks, in the lease [group]: each

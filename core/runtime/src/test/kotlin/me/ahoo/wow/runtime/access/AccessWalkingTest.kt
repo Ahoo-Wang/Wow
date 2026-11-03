@@ -79,8 +79,17 @@ class AccessWalkingTest {
 
     private fun heads(log: InMemoryEventLog) = runBlocking { (0 until log.partitions).associateWith { log.head(it) ?: 0L } }
 
-    private fun walking(log: InMemoryEventLog, leases: InMemoryLeaseStore = InMemoryLeaseStore()) =
-        AccessWalking("office", "service/office", "n-1", listOf(model), Kernel(log), { log }, leases, options, observer = observer)
+    private fun walking(log: InMemoryEventLog, leases: InMemoryLeaseStore = InMemoryLeaseStore()) = AccessWalking(
+        "office",
+        "service/office",
+        "n-1",
+        listOf(model),
+        Kernel(log),
+        { log },
+        leases,
+        options,
+        observer = observer,
+    )
 
     @Test
     fun `a walk stamps each aggregate's whole history with its current attributes, a page at a time, and completes`(): Unit =
@@ -124,8 +133,8 @@ class AccessWalkingTest {
             unstamped(log, listOf("d-1"), "sales")
             val older = "department:integer"
             log.claim(type, AccessWalk(older, heads(log), completed = true), expected = null)
-            val members = "service/office#access/document@${AccessSchema.hashOf(older)}"
-            leases.heartbeat(members, "n-0", "n-0", 30.seconds)
+            val members = "service/office#access"
+            leases.heartbeat(members, "n-0", "n-0", 30.seconds, setOf("document@${AccessSchema.hashOf(older)}"))
             val walking = walking(log, leases)
             walking.maintain()
             log.walk(type)!!.schema.assert().isEqualTo(older)

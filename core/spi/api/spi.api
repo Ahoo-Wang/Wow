@@ -716,6 +716,29 @@ public abstract class me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$AccessStamped : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getCause ()Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+	public final fun getMillis ()J
+	public final fun getStreams ()I
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause : java/lang/Enum {
+	public static final field CATCH_UP Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+	public static final field CHANGE Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+	public static final field WALK Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$AccessStamped$Cause;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$AccessWalked : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getAggregates ()I
+	public final fun getCompleted ()Z
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$Backpressured : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getGroup ()Ljava/lang/String;

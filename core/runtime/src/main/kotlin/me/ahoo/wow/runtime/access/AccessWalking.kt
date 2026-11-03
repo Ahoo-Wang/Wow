@@ -66,9 +66,10 @@ fun interface AccessSnapshots {
  *
  * - **Claims**: the type's log records one walk of the type ([AccessWalks.walk]), of an access schema, with the log's
  *   heads when it was claimed. A node claims its own schema's when none is recorded, and in place of another schema's
- *   once no node of that one is left (each node is a member of its schema of each type, in the lease group
- *   `<group>#access/<aggregate>@<schema hash>`): a rolling deployment that changes the schema starts the walk once the
- *   last node of the old one stopped, so the walk reaches what that node wrote.
+ *   once no node of that one is left (each node is a member of `<group>#access`, serving `<aggregate>@<schema hash>`
+ *   for its schema of each type): a rolling deployment that changes the schema starts the walk once the last node of
+ *   the old one stopped, so the walk reaches what that node wrote. A walk of this node's schema, once completed, is
+ *   not read again.
  * - **The walk**: the node that holds the type's walk lease (`<group>#access-walk/<aggregate>`) pages its aggregates
  *   ([AccessWalks.aggregates], [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with its
  *   current attributes ([stampCurrent]), at most [AccessStampOptions.walkRate] aggregates a second. After each page it
@@ -102,6 +103,10 @@ class AccessWalking(
     /** This node's access schema of each type whose log keeps walks. */
     private val schemas: Map<AggregateType, String> =
         this.models.filterKeys { walksOf(it) != null }.mapValues { (_, model) -> AccessSchema.of(model) }
+
+    /** The membership of the nodes of the context, each serving its schema of each type ([servedOf]). */
+    private val members = "$group#access"
+    private val served: Set<String> = schemas.mapTo(LinkedHashSet()) { (type, schema) -> servedOf(type, schema) }
 
     /** The walk of each type as last read or claimed. */
     private val walked = ConcurrentHashMap<AggregateType, AccessWalk>()
@@ -145,9 +150,9 @@ class AccessWalking(
     suspend fun stop() {
         loop?.cancel()
         loop = null
-        schemas.forEach { (type, schema) ->
-            leases.release(walkGroup(type), 0, node)
-            leases.leave(memberGroup(type, schema), node)
+        schemas.keys.forEach { leases.release(walkGroup(it), 0, node) }
+        if (schemas.isNotEmpty()) {
+            leases.leave(members, node)
         }
     }
 
@@ -216,16 +221,19 @@ class AccessWalking(
         return Stamped(head, access)
     }
 
-    /** Keeps this node a member of its schema of each type. */
+    /** Keeps this node a member of the context's walks, serving its schema of each type. */
     private suspend fun heartbeat() {
-        schemas.forEach { (type, schema) ->
-            leases.heartbeat(memberGroup(type, schema), node, address(), options.memberTtl)
+        if (schemas.isNotEmpty()) {
+            leases.heartbeat(members, node, address(), options.memberTtl, served)
         }
     }
 
     /** Reads the walk of each type, claiming it for this node's schema as the class says. */
     private suspend fun claims() {
         schemas.forEach { (type, schema) ->
+            if (walked[type]?.let { it.schema == schema && it.completed } == true) {
+                return@forEach
+            }
             val walks = checkNotNull(walksOf(type))
             val recorded = walks.walk(type)
             // Another schema's walk stays while a node of it is left.
@@ -287,7 +295,7 @@ class AccessWalking(
     }
 
     private suspend fun hasMembers(type: AggregateType, schema: String): Boolean =
-        leases.members(memberGroup(type, schema)).isNotEmpty()
+        leases.members(members).any { servedOf(type, schema) in it.groups }
 
     private suspend fun headsOf(type: AggregateType): Map<Int, Long> {
         val log = checkNotNull(logOf(type))
@@ -296,8 +304,7 @@ class AccessWalking(
 
     private fun walksOf(type: AggregateType): AccessWalks? = logOf(type) as? AccessWalks
 
-    private fun memberGroup(type: AggregateType, schema: String): String =
-        "$group#access/${type.name}@${AccessSchema.hashOf(schema)}"
+    private fun servedOf(type: AggregateType, schema: String): String = "${type.name}@${AccessSchema.hashOf(schema)}"
 
     private fun walkGroup(type: AggregateType): String = "$group#access-walk/${type.name}"
 

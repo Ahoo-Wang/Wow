@@ -50,6 +50,15 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.timer.delay` | Timer | `wow.context` | How late a timer fires after its due time |
 | `wow.subscription.offset.gaps` | Counter | `messaging.destination.name` | Reads of a topic that were to start from an offset its partition no longer holds: messages lost to its retention |
 
+### Access attributes
+
+| Metric | Type | Tags | Measures |
+| --- | --- | --- | --- |
+| `wow.access.stamped` | Counter | `wow.context`, `wow.aggregate.name`, `wow.reason` | Streams stamped with their aggregate's current access attributes: `change` (a commit changed them, so the streams before it take them), `walk` (the type's access walk), `catch-up` (`wow.access` read a stream without them after the walk's heads) |
+| `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | How long stamping one aggregate's history took: `change`, `walk`, `catch-up` |
+| `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | Aggregates the type's access walk stamped on this node |
+| `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 1 until the type's access walk completes, as its log records it, else 0: until then an events query under an access policy leaves out the streams the walk has not reached |
+
 ### Queries
 
 | Metric | Type | Tags | Measures |

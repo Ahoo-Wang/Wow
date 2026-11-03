@@ -45,7 +45,16 @@ Adding a snapshot target to an aggregate type (`wow.snapshot.stores`, or `wow.ag
 
 ## Access attributes
 
-Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. Streams appended before the log recorded them, by a 10.0 beta or by an import from 9.x, carry none: an access policy shows none of them until they are stamped. A Sink table of a version that recorded tags is refused at startup, naming it; it holds nothing the log does not, so drop it and reset the Sink's subscription, which fills it again from the log.
+Each stream records the aggregate's access attributes after its commit, its owner and space among them, and so do the snapshots and the Sinks' records. When a commit changes them, the built-in subscription `wow.access` stamps the new ones over the aggregate's earlier streams, so its whole history is authorized by what the aggregate is now.
+
+Streams appended before the log recorded them, by a 10.0 beta or by an import from 9.x, carry none, and neither do the snapshots a beta wrote: under an access policy, an events query leaves those streams out, and a snapshot query those snapshots, until they are stamped. The access walk of each aggregate type stamps them:
+
+- **When it runs.** A node claims the walk of a type when the type's log records none, or records one of another access schema (the attributes the model declares, the type of each and whether it holds many) and no node of that schema is left. So the first node of a version that records the attributes walks the log a beta wrote, and a rolling deployment that declares a new attribute walks it once the last node of the previous version has stopped.
+- **What it does.** One node at a time pages the type's aggregates and stamps each one's whole history with the attributes of its current state, and rewrites its snapshot, at most `wow.access.walk-rate` aggregates a second (500 by default). It reaches the streams up to the log's heads when it was claimed; `wow.access` stamps the aggregate of a stream without attributes after them, from a beta node still running or an import, when it reads it.
+- **Resuming.** After each page of `wow.access.walk-batch` aggregates (100 by default) the walk records how far it is in the log's registry, so a restart, or another node, goes on from there.
+- **Watching it.** `wow.access.walk.pending` reads 1 for a type until its walk completes; `wow.access.walked` counts the aggregates walked, and `wow.access.stamped` the streams stamped, by why ([Metrics](../reference/observability#metrics)). The registry holds each walk, its schema, heads, cursor, count and completion: on PostgreSQL `SELECT context, aggregate, access_walk FROM wow_log_aggregate`, on MongoDB the `access_walk` field of the `wow_log_aggregate` documents. The walking node logs `The access walk of <type> is completed: <n> aggregates stamped.` when it is done.
+
+A Sink table of a version that recorded tags is refused at startup, naming it; it holds nothing the log does not, so drop it and reset the Sink's subscription, which fills it again from the log.
 
 ## The warehouse
 

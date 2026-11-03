@@ -329,6 +329,18 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
     "defaultValue" : 1000
   }, {
+    "name" : "wow.access.walk-batch",
+    "type" : "java.lang.Integer",
+    "description" : "The aggregates a page of an access walk stamps; the walk records how far it is after each page.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "defaultValue" : 100
+  }, {
+    "name" : "wow.access.walk-rate",
+    "type" : "java.lang.Integer",
+    "description" : "The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk puts on the stores.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "defaultValue" : 500
+  }, {
     "name" : "wow.aggregates",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Aggregate>",
     "description" : "Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`).",

@@ -59,6 +59,8 @@ A new major version may change formats and protocols. Its nodes do not run besid
 
 ## From a 10.0.0 pre-release
 
-A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from a pre-release needs a fresh database; what an earlier pre-release wrote is not migrated or read.
+A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from an alpha needs a fresh database; what it wrote is not migrated or read.
+
+A log a released beta wrote still loads. Its streams and snapshots carry no access attributes, so under an access policy they stay hidden from events and snapshot queries until the access walk of each aggregate type has stamped them. The first node of the new version starts the walks on its own; they are done when `wow.access.walk.pending` reads 0 for every type ([Rebuild and Replay](./replay#access-attributes)).
 
 The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start; the refusal names the key and points at the migration guide's configuration page, which maps each earlier key to its new one or says why it is gone.
