@@ -181,7 +181,7 @@ class KernelRecentRequestsTest {
         kernel.commit(command(CreateCart("ahoo"), scope = owned))
         kernel.commit(command(AddItem("apple", 1), requestId = "same", scope = owned))
         val outsider = kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "same", scope = Scope("bob")))
-        (outsider as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        (outsider as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -263,7 +263,7 @@ class KernelRecentRequestsTest {
                 cartModel,
                 command(AddItem("apple", 1), requestId = "reused", target = other, scope = Scope("bob")),
             )
-            (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
 
     @Test

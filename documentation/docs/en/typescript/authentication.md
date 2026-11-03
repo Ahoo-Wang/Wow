@@ -52,7 +52,7 @@ export function onSignedIn(
 
 `applyTo` adds `Authorization: Bearer <access token>`, refreshes the token before it expires (once for concurrent requests), retries a request answered 401 after a refresh, and calls `onUnauthorized` on a 401 the refresh could not fix and `onForbidden` on a 403. It also sends `CoSec-App-Id`, a `CoSec-Device-Id` and a `CoSec-Request-Id`. The service records as the commit's `app_id` the app CoSec decided the request in: the host's own, or the `CoSec-App-Id` CoSec accepted, or behind a CoSec gateway the app the gateway forwarded.
 
-A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.unauthenticated`, 403 `wow.auth.forbidden`, or 403 `wow.aggregate.forbidden` for an aggregate outside the caller's scope.
+A request the service refuses rejects with a `WowProblemError`: 401 `wow.auth.unauthenticated`, 403 `wow.auth.forbidden`, or 403 `wow.aggregate.forbidden` for a creation of an aggregate outside the caller's scope. Any other command on such an aggregate is answered 404 `wow.aggregate.not-found`, as a missing one is.
 
 ## Spaces and scopes
 

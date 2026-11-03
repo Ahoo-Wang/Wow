@@ -218,9 +218,9 @@ class CommandGatewayTest {
             retried.ref.id.assert().isEqualTo("cart-n1")
             retried.duplicate.assert().isTrue()
             drawn.assert().isEqualTo(1)
-            // Another owner reusing the request id learns nothing of the cart: a new id, refused as a duplicate.
+            // Another owner reusing the request id learns nothing of the cart: a new id, answered as if nothing existed.
             val stranger = gateway.execute(open(caller = bob))
-            stranger.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            stranger.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
             stranger.ref.id.assert().isEqualTo("cart-n2")
             // Without a request id of its own, a request is new: it draws a new id.
             gateway.execute(open(requestId = null)).ref.id.assert().isEqualTo("cart-n3")

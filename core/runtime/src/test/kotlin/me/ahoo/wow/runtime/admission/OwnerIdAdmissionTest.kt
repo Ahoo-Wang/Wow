@@ -141,14 +141,20 @@ class OwnerIdAdmissionTest {
         }
 
     @Test
-    fun `an owner-level caller naming another's id is forbidden, its creation too`(): Unit = runBlocking {
+    fun `an owner-level caller naming another's id reaches nothing, creating it or not`(): Unit = runBlocking {
         opened(caller = bob)
         decided.clear()
-        gateway.execute(request(aggregateId = "bob")).assertRefused(FrameworkCodes.AGGREGATE_FORBIDDEN, "bob")
+        // Answered as if bob's basket did not exist, and a creation, which tells it anyway, as forbidden.
+        gateway.execute(request(aggregateId = "bob")).assertRefused(FrameworkCodes.AGGREGATE_NOT_FOUND, "bob")
         gateway.execute(
             request("Open", "{}", aggregateId = "bob")
         ).assertRefused(FrameworkCodes.AGGREGATE_FORBIDDEN, "bob")
         decided.assert().isEmpty()
+        // A basket of another owner's that does not exist yet is not created either: refused once decided.
+        gateway.execute(request("Open", "{}", aggregateId = "carol"))
+            .assertRefused(FrameworkCodes.AGGREGATE_FORBIDDEN, "carol")
+        gateway.execute(request(caller = clerk, aggregateId = "carol"))
+            .assertRefused(FrameworkCodes.AGGREGATE_NOT_FOUND, "carol")
     }
 
     @Test
@@ -158,7 +164,7 @@ class OwnerIdAdmissionTest {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.ref.assert().isEqualTo(basket.type.ref(TENANT, "alice"))
         gateway.execute(request(caller = admin, target = TargetScope(TENANT, Scope("alice")), aggregateId = "bob"))
-            .assertRefused(FrameworkCodes.AGGREGATE_FORBIDDEN, "bob")
+            .assertRefused(FrameworkCodes.AGGREGATE_NOT_FOUND, "bob")
     }
 
     @Test
