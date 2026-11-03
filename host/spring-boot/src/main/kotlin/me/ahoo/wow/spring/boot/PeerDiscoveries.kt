@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
@@ -81,33 +82,84 @@ internal object StaticPeerDiscovery : PeerDiscovery {
 
 /**
  * `wow.peer.discovery=dns`, the default: a peer service's nodes are the targets of the DNS SRV records
- * `name-template` names after it, `_internal._tcp.{service}-cluster` by default, each `http://<target>:<port>`.
- * Kubernetes publishes one such record per pod behind a headless Service, whose targets resolve to the pods' IPs, the
- * addresses their nodes advertise.
+ * `name-template` names after it, `_internal._tcp.{service}-cluster.{namespace}.svc` by default, each
+ * `http://<target>:<port>`. Kubernetes publishes one such record per pod behind a headless Service, whose targets
+ * resolve to the pods' IPs, the addresses their nodes advertise. A peer's `{namespace}` is its `namespaces.<service>`,
+ * else the node's own: `namespace`, else that of the pod's service account, from [namespaceFile].
  */
 @InternalWowApi
-class DnsPeerDiscovery(private val lookup: SrvLookup = JndiSrvLookup()) : PeerDiscovery {
+class DnsPeerDiscovery(
+    private val lookup: SrvLookup = JndiSrvLookup(),
+    private val namespaceFile: Path = SERVICE_ACCOUNT_NAMESPACE,
+) : PeerDiscovery {
     override val type: String = TYPE
 
-    override val options: List<ProviderOption<*>> = listOf(NAME_TEMPLATE)
+    override val options: List<ProviderOption<*>> = listOf(NAME_TEMPLATE, NAMESPACE, NAMESPACES)
 
-    override fun open(config: PeerDiscoveryConfig): PeerTargets = DnsPeerTargets(config.option(NAME_TEMPLATE), lookup)
+    override fun open(config: PeerDiscoveryConfig): PeerTargets {
+        val template = config.option(NAME_TEMPLATE)
+        val namespaces = config.options(NAMESPACES).mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
+        configCheck(
+            namespaces.isEmpty() || NAMESPACE_PLACEHOLDER in template,
+            "${config.key}.${NAMESPACES.key}",
+            null,
+            "Put $NAMESPACE_PLACEHOLDER in ${config.key}.${NAME_TEMPLATE.key} where a peer's namespace goes, as its " +
+                "default does: $DEFAULT_NAME_TEMPLATE.",
+        ) {
+            "${config.key}.${NAMESPACES.key} places peers ${namespaces.keys} in other namespaces, but " +
+                "${config.key}.${NAME_TEMPLATE.key}, $template, names no namespace."
+        }
+        return DnsPeerTargets(template, lookup, namespaces, config.option(NAMESPACE) ?: namespaceOf(namespaceFile))
+    }
 
     @InternalWowApi
     companion object {
         const val TYPE: String = "dns"
-        const val DEFAULT_NAME_TEMPLATE: String = "_internal._tcp.{service}-cluster"
+        const val DEFAULT_NAME_TEMPLATE: String = "_internal._tcp.{service}-cluster.{namespace}.svc"
+        private const val NAMESPACE_PLACEHOLDER = "{namespace}"
+
+        /** Where Kubernetes gives a pod the namespace of its service account. */
+        @JvmField
+        val SERVICE_ACCOUNT_NAMESPACE: Path = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 
         /** The SRV name of a peer service's internal port. */
         @JvmField
         val NAME_TEMPLATE: ProviderOption.Defaulted<String> = ProviderOption.string(
             "name-template",
-            "the SRV name of a peer service's internal port, {service} its name (spring.application.name): by " +
-                "default the headless Service <service>-cluster and its port named internal, the records Kubernetes " +
-                "publishes for them. A name without a trailing dot is tried as given, then under each search domain " +
-                "of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports.",
+            "the SRV name of a peer service's internal port, {service} its name (spring.application.name) and " +
+                "{namespace} its namespace: by default the headless Service <service>-cluster in that namespace and " +
+                "its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is " +
+                "tried as a resolver tries it: under each search domain of the node's /etc/resolv.conf and as given, " +
+                "as given first when it has at least the resolver's ndots dots; the records' targets are the nodes " +
+                "and their ports.",
             DEFAULT_NAME_TEMPLATE,
         )
+
+        /** The node's own namespace. */
+        @JvmField
+        val NAMESPACE: ProviderOption<String> = ProviderOption.string(
+            "namespace",
+            "the node's own namespace, the {namespace} of each peer that namespaces does not place elsewhere: on " +
+                "Kubernetes, the pod's metadata.namespace (the downward API), as the Wow chart sets it. Unset, the " +
+                "namespace of the pod's service account, from /var/run/secrets/kubernetes.io/serviceaccount/namespace; " +
+                "a call that needs a namespace when neither gives one fails, naming this key.",
+        )
+
+        /** The namespaces of peer services outside the node's own. */
+        @JvmField
+        val NAMESPACES: ProviderOption<Map<String, String>> = ProviderOption.map(
+            "namespaces",
+            "the namespaces of the peer services outside the node's own, by service name " +
+                "(wow.peer.dns.namespaces.<service>): the {namespace} of their SRV names. Set them in a YAML file or " +
+                "SPRING_APPLICATION_JSON: an environment variable loses the dashes of a service's name.",
+        )
+
+        /** The namespace in [file], the pod's service account's; null when there is none, as off Kubernetes. */
+        fun namespaceOf(file: Path): String? = try {
+            if (Files.isReadable(file)) Files.readString(file).trim().takeIf { it.isNotEmpty() } else null
+        } catch (_: IOException) {
+            null
+        }
     }
 }
 
@@ -125,11 +177,14 @@ data class SrvRecord(val priority: Int, val weight: Int, val port: Int, val targ
  * The SRV records of a peer service, cached for [REFRESH] (the TTL Kubernetes' DNS gives them): looked up on the
  * service's first request, again once that is past, the last records found kept while a lookup finds none or fails,
  * and again at once when every target failed to connect ([unreachable]), at most once per [REFRESH], so a rollout that
- * moves every node heals without waiting.
+ * moves every node heals without waiting. A peer's `{namespace}` is its entry of `namespaces`, else `namespace`, the
+ * node's own, needed only when a lookup's name has one.
  */
 internal class DnsPeerTargets(
     private val template: String,
     private val lookup: SrvLookup,
+    private val namespaces: Map<String, String> = emptyMap(),
+    private val namespace: String? = null,
     private val clock: TimeSource = TimeSource.Monotonic,
 ) : PeerTargets {
     private val peers = ConcurrentHashMap<String, Peer>()
@@ -158,7 +213,7 @@ internal class DnsPeerTargets(
         if (peer.fresh()) return peer.targets
         peer.lock.withLock {
             if (peer.fresh()) return peer.targets
-            val name = nameOf(service)
+            val name = nameOf(service, context)
             val found = try {
                 lookup.srv(name)
             } catch (failure: NamingException) {
@@ -173,7 +228,8 @@ internal class DnsPeerTargets(
                 peer.warned = true
                 logger.warn {
                     "No SRV record of $name, the internal port of peer $service (context $context): set " +
-                        "wow.peers.$context.url, or wow.peer.dns.name-template to the records' name."
+                        "wow.peer.dns.namespaces.$service when it runs in another namespace, wow.peers.$context.url, " +
+                        "or wow.peer.dns.name-template to the records' name."
                 }
             }
             peer.looked = clock.markNow()
@@ -188,12 +244,26 @@ internal class DnsPeerTargets(
         peer.looked = null
     }
 
-    /** The SRV name of [service]. */
-    fun nameOf(service: String): String = template.replace(SERVICE, service)
+    /**
+     * The SRV name of [service], which serves [context]; a misuse, naming the keys that give one, when the name needs
+     * a namespace and none is known (off Kubernetes, with nothing configured).
+     */
+    fun nameOf(service: String, context: String = service): String {
+        val name = template.replace(SERVICE, service)
+        if (NAMESPACE !in name) return name
+        val namespace = namespaces[service] ?: namespace
+        checkUse(namespace != null) {
+            "Peer $service (context $context) is looked up by the SRV name $template, and no namespace is known for " +
+                "its $NAMESPACE: set wow.peer.dns.namespace to the node's own (on Kubernetes, the pod's " +
+                "metadata.namespace), wow.peer.dns.namespaces.$service to the peer's, or wow.peers.$context.url."
+        }
+        return name.replace(NAMESPACE, namespace)
+    }
 
     companion object {
         private val logger = KotlinLogging.logger {}
         private const val SERVICE = "{service}"
+        private const val NAMESPACE = "{namespace}"
 
         /** How long a peer's records are kept before they are looked up again. */
         val REFRESH: Duration = 30.seconds
@@ -202,8 +272,10 @@ internal class DnsPeerTargets(
 
 /**
  * The SRV lookup of the JDK's DNS provider (JNDI), with the search domains of the node's resolver: a [name] without a
- * trailing dot is tried as given, then under each `search` domain of [resolvConf] (read once; none when the file is
- * absent, as on a developer's machine), the first that has records answering; a name with one is absolute.
+ * trailing dot is tried under each `search` domain of [resolvConf] and as given, the first that has records answering,
+ * as given first when it has at least the resolver's `ndots` dots (`options ndots:n`, 1 by default; Kubernetes gives
+ * its pods 5); a name with one is absolute. [resolvConf] is read once; it is absent on a developer's machine, where a
+ * name is tried as given alone.
  */
 @InternalWowApi
 class JndiSrvLookup(
@@ -211,6 +283,7 @@ class JndiSrvLookup(
     private val query: (name: String) -> List<SrvRecord> = Companion::records,
 ) : SrvLookup {
     private val search: List<String> = searchDomains(resolvConf)
+    private val ndots: Int = ndots(resolvConf)
 
     override fun srv(name: String): List<SrvRecord> {
         for (candidate in candidates(name)) {
@@ -220,9 +293,12 @@ class JndiSrvLookup(
         return emptyList()
     }
 
-    /** The names [name] is tried as. */
-    fun candidates(name: String): List<String> =
-        if (name.endsWith('.')) listOf(name) else listOf(name) + search.map { "$name.$it" }
+    /** The names [name] is tried as, in order. */
+    fun candidates(name: String): List<String> {
+        if (name.endsWith('.')) return listOf(name)
+        val searched = search.map { "$name.$it" }
+        return if (name.count { it == '.' } >= ndots) listOf(name) + searched else searched + name
+    }
 
     @InternalWowApi
     companion object {
@@ -259,16 +335,33 @@ class JndiSrvLookup(
         }
 
         /** The `search` domains of [resolvConf], in order; none when the file is absent or unreadable. */
-        fun searchDomains(resolvConf: Path): List<String> = try {
-            if (!Files.isReadable(resolvConf)) {
-                emptyList()
-            } else {
+        fun searchDomains(resolvConf: Path): List<String> = lines(resolvConf)
+            .filter { it.startsWith("search ") || it.startsWith("domain ") }
+            .flatMap { it.split(Regex("\\s+")).drop(1) }
+            .filter { it.isNotBlank() }
+            .map { it.trimEnd('.') }
+            .distinct()
+
+        /**
+         * The `ndots` of [resolvConf]'s `options`, the last one given, at most [MAX_NDOTS] as the resolver caps it:
+         * the dots a name needs to be tried as given before the search domains; [DEFAULT_NDOTS] when none is given.
+         */
+        fun ndots(resolvConf: Path): Int = lines(resolvConf)
+            .filter { it.startsWith("options ") }
+            .flatMap { it.split(Regex("\\s+")).drop(1) }
+            .filter { it.startsWith("ndots:") }
+            .mapNotNull { it.removePrefix("ndots:").toIntOrNull() }
+            .lastOrNull()?.coerceIn(0, MAX_NDOTS) ?: DEFAULT_NDOTS
+
+        private const val DEFAULT_NDOTS = 1
+        private const val MAX_NDOTS = 15
+
+        /** The lines of [resolvConf] without their comments; none when the file is absent or unreadable. */
+        private fun lines(resolvConf: Path): List<String> = try {
+            if (Files.isReadable(resolvConf)) {
                 Files.readAllLines(resolvConf).map { it.substringBefore('#').trim() }
-                    .filter { it.startsWith("search ") || it.startsWith("domain ") }
-                    .flatMap { it.split(Regex("\\s+")).drop(1) }
-                    .filter { it.isNotBlank() }
-                    .map { it.trimEnd('.') }
-                    .distinct()
+            } else {
+                emptyList()
             }
         } catch (_: IOException) {
             emptyList()

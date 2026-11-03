@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 278 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 280 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动，并指向迁移指南中旧版本键的页面。Wow 分组下的环境变量（`WOW_KAFKA_…`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`；每个映射自己的键列在它下面，条目写作 `<name>` 或 `[<context>.<aggregate>]`。[模块配置项](./module-configuration)列出平台服务、wow-cosid 与 wow-cocache 的键。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -395,7 +395,9 @@ The settings of the dns peer discovery.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.peer.dns.name-template` | `String` | `_internal._tcp.{service}-cluster` | The SRV name of a peer service's internal port, {service} its name (spring.application.name): by default the headless Service &lt;service&gt;-cluster and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports. |
+| `wow.peer.dns.name-template` | `String` | `_internal._tcp.{service}-cluster.{namespace}.svc` | The SRV name of a peer service's internal port, {service} its name (spring.application.name) and {namespace} its namespace: by default the headless Service &lt;service&gt;-cluster in that namespace and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as a resolver tries it: under each search domain of the node's /etc/resolv.conf and as given, as given first when it has at least the resolver's ndots dots; the records' targets are the nodes and their ports. |
+| `wow.peer.dns.namespace` | `String` |  | The node's own namespace, the {namespace} of each peer that namespaces does not place elsewhere: on Kubernetes, the pod's metadata.namespace (the downward API), as the Wow chart sets it. Unset, the namespace of the pod's service account, from /var/run/secrets/kubernetes.io/serviceaccount/namespace; a call that needs a namespace when neither gives one fails, naming this key. |
+| `wow.peer.dns.namespaces` | `Map<String,String>` |  | The namespaces of the peer services outside the node's own, by service name (wow.peer.dns.namespaces.&lt;service&gt;): the {namespace} of their SRV names. Set them in a YAML file or SPRING_APPLICATION_JSON: an environment variable loses the dashes of a service's name. |
 
 ## `wow.peer.retry`
 
