@@ -310,6 +310,25 @@ public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/w
 	public fun wait (Lme/ahoo/wow/api/client/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/runtime/cluster/CallerWire {
+	public static final field Companion Lme/ahoo/wow/runtime/cluster/CallerWire$Companion;
+	public final fun caller ()Lme/ahoo/wow/api/caller/Caller;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getCrossScope ()Z
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getService ()Z
+	public final fun getSubject ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/cluster/CallerWire;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/cluster/CallerWire$Companion {
+	public final fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/runtime/cluster/CallerWire;
+}
+
 public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public synthetic fun <init> (JJJJJJJIJIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z

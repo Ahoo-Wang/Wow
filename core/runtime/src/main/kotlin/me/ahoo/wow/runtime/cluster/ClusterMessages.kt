@@ -114,10 +114,10 @@ class CommandWire @InternalWowApi constructor(
 
 /**
  * Who sent a command, in its wire form ([CommandWire.caller]): the fields of a [Caller], `{tenantId, scope, subject,
- * crossScope, attributes, service}`, and nothing else: no credential, token or request header.
+ * crossScope, attributes, service}`, and nothing else: no credential, token or request header. Its [toString] leaves
+ * the [attributes] out, the caller's claims.
  */
-@InternalWowApi
-data class CallerWire(
+class CallerWire @InternalWowApi constructor(
     val tenantId: String = Caller.DEFAULT_TENANT,
     val scope: Scope = Scope.NONE,
     val subject: String? = null,
@@ -128,19 +128,27 @@ data class CallerWire(
     /** The caller this wire form holds. */
     fun caller(): Caller = Caller.of(tenantId, scope, subject, crossScope, attributes, service)
 
-    @InternalWowApi
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CallerWire && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CallerWire(tenantId=$tenantId, scope=$scope, subject=$subject, crossScope=$crossScope, service=$service)"
+
+    private fun valueFields(): List<Any?> = listOf(tenantId, scope, subject, crossScope, attributes, service)
+
     companion object {
         /** [caller] in its wire form. */
         @JvmStatic
-        fun of(caller: Caller): CallerWire =
-            CallerWire(
-                caller.tenantId,
-                caller.scope,
-                caller.subject,
-                caller.crossScope,
-                caller.attributes,
-                caller.service
-            )
+        fun of(caller: Caller): CallerWire = CallerWire(
+            caller.tenantId,
+            caller.scope,
+            caller.subject,
+            caller.crossScope,
+            caller.attributes,
+            caller.service,
+        )
     }
 }
 
