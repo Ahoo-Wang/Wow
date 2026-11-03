@@ -139,9 +139,11 @@ outline: deep
 | Kafka 传输 | 替代 | 发布事件流的 Sink、对其他上下文事件流的订阅、命令主题与回执。 |
 | Kafka 主题前缀与主题管理 | 保留 | — |
 | 分开的生产者与消费者设置 | 10.x | 在此之前只有一个 `wow.kafka.properties`。 |
-| BI 同步脚本（`/wow/bi/script`） | 替代 | ClickHouse Sink 直接写数仓，并为数据集提供展平的视图。 |
+| BI 同步脚本（`/wow/bi/script`） | 替代 | ClickHouse Sink 直接写数仓，并为数据集提供展平的视图。它只建单机表：在集群上，按公布的列手工建表（[在集群上运行](../operate/clickhouse#run-it-on-a-cluster)）。 |
+| ClickHouse 命令表（`<ctx>_<agg>_command`） | 放弃 | Sink 写入的是提交，不是命令。提交保留着它的命令的 id、类型和操作者；命令历史见[命令不写入](../operate/clickhouse#commands-are-not-written)。 |
 | BI 表中状态的嵌套展开 | 10.x | — |
 | 9.x 主题的外部消费者 | 放弃 | 切换时把每个消费者改到 V10 发布的事件流。没有 9.x 格式的 Sink。 |
+| 往 9.x 命令主题发命令的外部生产者 | 替代 | V10 读取 `wow.<context>.commands`，不读 9.x 的命令记录。切换时改每个生产者，最好改成调用命令路由（[迁移外部命令生产者](./cutover#move-the-external-command-producers)）。 |
 
 ## 租户与安全 {#tenancy-and-security}
 

@@ -1,12 +1,12 @@
 ---
 title: ClickHouse
-description: 用数仓 Sink 把每个聚合的提交写入 ClickHouse，它保存的表、去重与保留、wow_catalog，以及从中提供数据集。
+description: 用数仓 Sink 把每个聚合的提交写入 ClickHouse，它保存的表与列及其 DDL、集群的建表方式、去重与保留、wow_catalog，以及从中提供数据集。
 outline: deep
 ---
 
 # ClickHouse
 
-ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复制进去，ClickHouse 从中推出当前状态和每个事件一行，服务的数据集也在那里查询。日志仍然是唯一的事实：数仓可以删掉，再从日志重新填充。本页连接一个服务，并介绍这些表。
+ClickHouse 是 Wow 的数仓。一个 Sink 把每个发布的聚合的提交复制进去，ClickHouse 从中推出当前状态和每个事件一行，服务的数据集也在那里查询。日志仍然是唯一的事实：数仓可以删掉，再从日志重新填充。本页连接一个服务，介绍这些表和它们的列，并说明怎样在集群上运行它们。
 
 ## 连接服务 {#connect-a-service}
 
@@ -59,6 +59,179 @@ fun analyticsCatalogClickHouseClient(environment: Environment): Client {
 
 `wow.aggregates.[<context>.<aggregate>].clickhouse.history.enabled: false` 只保留当前状态：Sink 随后直接写 `_state`，也就没有 `_state_events` 和 `_events`。`...history.ttl` 则让历史保留一段时间，而不是永久保留。
 
+## 列与 DDL {#the-columns-and-the-ddl}
+
+`wow.clickhouse.ddl: auto`（默认）时，Sink 在第一次写入之前运行下面这些语句。它们是 `shop` 上下文的 `order` 聚合在 `default` 数据库中的表，历史不设 TTL。一个测试把这个文件与 Sink 实际运行的语句比对，所以本页不会与代码走样：
+
+<!-- sample: backends/clickhouse/src/test/resources/sink/shop_order.sql -->
+
+```sql
+CREATE TABLE IF NOT EXISTS `default`.`wow_catalog`
+(
+    `format` UInt32,
+    `database` String,
+    `table` String,
+    `table_uuid` UUID,
+    `role` LowCardinality(String),
+    `service` String,
+    `context` String,
+    `aggregate` String,
+    `ownership` LowCardinality(String),
+    `tenant_column` String,
+    `owner_column` String,
+    `space_column` String,
+    `sensitive` Array(Tuple(path String, level String, mask String, event String, revision UInt32)),
+    `references` Array(Tuple(path String, context String, aggregate String)),
+    `event_revisions` Map(String, UInt32),
+    `fingerprint` String,
+    `columns_hash` String,
+    `written_at` DateTime64(3, 'UTC') DEFAULT now64(3),
+    `writer` String MATERIALIZED currentUser()
+)
+ENGINE = ReplacingMergeTree(written_at)
+ORDER BY (`database`, `table`, fingerprint);
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events`
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `deleted` Bool,
+    `tags` Map(String, Array(String)),
+    `correlation_id` String,
+    `causation_id` String,
+    `headers` Map(String, String),
+    `operator_id` String,
+    `operator_tenant_id` String,
+    `operator_cross_scope` Bool,
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
+    `state` String,
+    `state_fingerprint` String,
+    `state_numbers` Map(String, String)
+)
+ENGINE = ReplacingMergeTree
+PARTITION BY toYYYYMM(commit_time)
+ORDER BY (tenant_id, aggregate_id, version)
+SETTINGS non_replicated_deduplication_window = 1000;
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state`
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `deleted` Bool,
+    `tags` Map(String, Array(String)),
+    `correlation_id` String,
+    `causation_id` String,
+    `headers` Map(String, String),
+    `operator_id` String,
+    `operator_tenant_id` String,
+    `operator_cross_scope` Bool,
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
+    `state` String,
+    `state_fingerprint` String,
+    `state_numbers` Map(String, String)
+)
+ENGINE = ReplacingMergeTree(version)
+ORDER BY (tenant_id, aggregate_id)
+SETTINGS non_replicated_deduplication_window = 1000;
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_events`
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `sequence` UInt32,
+    `event_name` LowCardinality(String),
+    `event_revision` UInt32,
+    `payload` String,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `correlation_id` String,
+    `causation_id` String
+)
+ENGINE = ReplacingMergeTree
+PARTITION BY toYYYYMM(commit_time)
+ORDER BY (tenant_id, aggregate_id, version, sequence)
+SETTINGS non_replicated_deduplication_window = 1000;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` TO `default`.`shop_order_state` AS
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events`;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` TO `default`.`shop_order_events` AS
+SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+FROM `default`.`shop_order_state_events`
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+
+CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` AS
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+FROM `default`.`shop_order_state` FINAL
+COMMENT 'wow-sink-flat:a699c6d81110f884';
+```
+
+排序键就是一行的身份：键与先前某行相同的行，在 ClickHouse 合并时替换它。
+
+| 表 | 引擎 | 分区 | 排序键 |
+| --- | --- | --- | --- |
+| `_state_events` | `ReplacingMergeTree` | `commit_time` 所在的月 | `(tenant_id, aggregate_id, version)` |
+| `_state` | `ReplacingMergeTree(version)`：同一个键保留版本最高的行 | 无 | `(tenant_id, aggregate_id)` |
+| `_events` | `ReplacingMergeTree` | `commit_time` 所在的月 | `(tenant_id, aggregate_id, version, sequence)` |
+| `wow_catalog` | `ReplacingMergeTree(written_at)` | 无 | `(database, table, fingerprint)` |
+
+聚合的每张表都带 `SETTINGS non_replicated_deduplication_window = N`，N 即 `wow.clickhouse.sink.deduplication-window`。`...history.ttl` 会给 `_state_events` 和 `_events` 加上 `TTL toDateTime(commit_time) + toIntervalSecond(<秒数>)`。不保留历史时只有 `_state` 和 `_state_flat`。
+
+**`_state_events` 与 `_state`**，每次提交一行：
+
+| 列 | 保存 |
+| --- | --- |
+| `id` | 提交的 id，`<聚合引用>@<版本>` |
+| `tenant_id`、`aggregate_id` | 聚合的租户和 id；它的上下文和名称是表名的一部分 |
+| `version` | 提交之后聚合的版本 |
+| `command_id`、`request_id`、`command_type` | 产生这次提交的命令：它的 id、幂等键和类型 |
+| `commit_time` | 提交的时间，UTC，精确到毫秒 |
+| `owner_id`、`space_id` | 提交之后聚合的作用域，没有则为空 |
+| `deleted`、`tags` | 聚合是否已删除，以及它的标签 |
+| `correlation_id`、`causation_id` | 根命令的 id 和直接原因；调用方直接发出的命令则为空 |
+| `headers` | 命令携带的请求事实 |
+| `operator_id`、`operator_tenant_id`、`operator_cross_scope` | 谁提交的；没有时为空和 false |
+| `events` | 这次提交的事件，每个是 `(name, revision, payload)`，payload 为 JSON 文本 |
+| `state`、`state_fingerprint` | 提交之后的状态（JSON 文本）和它的 schema 的指纹；不发布状态的聚合为空 |
+| `state_numbers` | 状态每个顶层数字的原文，`_state_flat` 从中读取小数 |
+
+**`_events`**，每个事件一行：`sequence`（事件在它所属提交中的位置，从 1 开始）、`event_name`、`event_revision` 和 `payload`，以及这次提交的 `id`、`tenant_id`、`aggregate_id`、`version`、`command_id`、`request_id`、`command_type`、`commit_time`、`owner_id`、`space_id`、`correlation_id` 和 `causation_id`。
+
+**`_state_flat`** 以 `id`、`tenant_id`、`aggregate_id`、`version`、`commit_time`、`owner_id`、`space_id`、`deleted` 和 `tags` 开头，随后是状态 schema 的每个顶层标量属性各一列，顺序与 schema 相同：
+
+| 属性 | 它的列 |
+| --- | --- |
+| `string`、枚举 | `String` |
+| `integer` | `Int64` |
+| 带 `x-wow-decimal` 或 `x-wow-money` 的 `number` | `Decimal(38, scale)`：scale 取关键字给出的值，否则取币种的默认小数位数，再否则为 18 |
+| 其他 `number` | `Float64` |
+| `boolean` | `Bool` |
+
+允许 `null` 的属性是 `Nullable`。对象、数组、引用和组合不生成列；用 ClickHouse 的 JSON 函数从 `state` 读取。与九个系统列重名的属性加前缀 `state_`，示例中的 `version` 就是如此。
+
 ## 投递一次，读取一次 {#delivered-once-read-once}
 
 Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、重放、交接。有两个机制让数仓保持精确：
@@ -73,6 +246,139 @@ Sink 是一个订阅，所以一次提交可能不止一次到达它：重试、
 `wow.clickhouse.ddl` 决定 Sink 在第一次写入之前以及之后不时怎样对待它的表：`auto`（默认）创建缺失的部分并校验其余部分；`validate` 只检查；`none` 两者都不做。被删除或被修改过的表会让写入失败，订阅会重试，直到它恢复成 Sink 期望的样子。
 
 滚动升级期间，一个服务的两个版本可能同时写入两种状态 schema。展平视图记住创建它所用的定义的指纹，写入者只会用更新的定义替换它，所以重启的旧节点不会撤销新节点的视图。
+
+## 在集群上运行 {#run-it-on-a-cluster}
+
+Wow 9.x 默认用 `ON CLUSTER '{cluster}'` 建表：复制的 `_local` 表，前面是一张按租户和聚合 id 分片的分布式表。Wow 10 的 Sink 只建单机表。上面的每条语句只在 Sink 的端点所连的那个节点上运行，没有任何设置能让 Sink 写 `ON CLUSTER`、复制引擎或分布式表。生成集群的 DDL 是 10.x 的候选，不在 10.0 之内。在集群上，请自己用上面的列、视图和键建表，并让 Sink 检查它们。
+
+Sink 按上面的名字插入和读取它的表，所以这些名字是分布式表，每个分片上它们背后是复制的 `_local` 表。视图在每个节点上运行，读取并写入自己分片的本地表。下面的语句是 Sink 的语句，改写成适合定义了宏 `{cluster}`、`{shard}` 和 `{replica}` 的集群，仍是同一个 `shop` 订单：
+
+<!-- sample: backends/clickhouse/src/test/resources/sink/shop_order.cluster.sql -->
+
+```sql
+-- Run on any node of the cluster; {cluster}, {shard}, {replica} and {database} are the macros ClickHouse defines for it.
+-- The Sink inserts into and reads the Distributed tables, which carry the names it expects; a _local table is one shard's replicated copy.
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events_local` ON CLUSTER '{cluster}'
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `deleted` Bool,
+    `tags` Map(String, Array(String)),
+    `correlation_id` String,
+    `causation_id` String,
+    `headers` Map(String, String),
+    `operator_id` String,
+    `operator_tenant_id` String,
+    `operator_cross_scope` Bool,
+    `events` Array(Tuple(name LowCardinality(String), revision UInt32, payload String)),
+    `state` String,
+    `state_fingerprint` String,
+    `state_numbers` Map(String, String)
+)
+ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
+PARTITION BY toYYYYMM(commit_time)
+ORDER BY (tenant_id, aggregate_id, version)
+SETTINGS replicated_deduplication_window = 1000;
+
+-- _state has the columns of _state_events.
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_local` ON CLUSTER '{cluster}'
+AS `default`.`shop_order_state_events_local`
+ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}', version)
+ORDER BY (tenant_id, aggregate_id)
+SETTINGS replicated_deduplication_window = 1000;
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_events_local` ON CLUSTER '{cluster}'
+(
+    `id` String,
+    `tenant_id` String,
+    `aggregate_id` String,
+    `version` UInt32,
+    `sequence` UInt32,
+    `event_name` LowCardinality(String),
+    `event_revision` UInt32,
+    `payload` String,
+    `command_id` String,
+    `request_id` String,
+    `command_type` LowCardinality(String),
+    `commit_time` DateTime64(3, 'UTC'),
+    `owner_id` String,
+    `space_id` String,
+    `correlation_id` String,
+    `causation_id` String
+)
+ENGINE = ReplicatedReplacingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
+PARTITION BY toYYYYMM(commit_time)
+ORDER BY (tenant_id, aggregate_id, version, sequence)
+SETTINGS replicated_deduplication_window = 1000;
+
+-- Every commit of an aggregate goes to one shard: the sharding key is its tenant and id.
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state_events` ON CLUSTER '{cluster}'
+AS `default`.`shop_order_state_events_local`
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_events_local`, sipHash64(tenant_id, aggregate_id));
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_state` ON CLUSTER '{cluster}'
+AS `default`.`shop_order_state_local`
+ENGINE = Distributed('{cluster}', `default`, `shop_order_state_local`, sipHash64(tenant_id, aggregate_id));
+
+CREATE TABLE IF NOT EXISTS `default`.`shop_order_events` ON CLUSTER '{cluster}'
+AS `default`.`shop_order_events_local`
+ENGINE = Distributed('{cluster}', `default`, `shop_order_events_local`, sipHash64(tenant_id, aggregate_id));
+
+-- The views run on every node, from its own shard's local tables.
+CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_state_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_state_local` AS
+SELECT id, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, owner_id, space_id, deleted, tags, correlation_id, causation_id, headers, operator_id, operator_tenant_id, operator_cross_scope, events, state, state_fingerprint, state_numbers
+FROM `default`.`shop_order_state_events_local`;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS `default`.`shop_order_events_mv` ON CLUSTER '{cluster}' TO `default`.`shop_order_events_local` AS
+SELECT id, tenant_id, aggregate_id, version, toUInt32(sequence) AS sequence, event.name AS event_name, event.revision AS event_revision, event.payload AS payload, command_id, request_id, command_type, commit_time, owner_id, space_id, correlation_id, causation_id
+FROM `default`.`shop_order_state_events_local`
+ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence;
+
+CREATE OR REPLACE VIEW `default`.`shop_order_state_flat` ON CLUSTER '{cluster}' AS
+SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, `tags`, JSONExtractString(state, 'status') AS `status`, JSONExtract(state, 'note', 'Nullable(String)') AS `note`, JSONExtract(state, 'quantity', 'Int64') AS `quantity`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`, toDecimal128OrZero(state_numbers['price'], 0) AS `price`, toDecimal128OrNull(state_numbers['discount'], 18) AS `discount`, JSONExtract(state, 'rate', 'Float64') AS `rate`, JSONExtract(state, 'paid', 'Bool') AS `paid`, JSONExtract(state, 'version', 'Int64') AS `state_version`
+FROM `default`.`shop_order_state` FINAL
+COMMENT 'wow-sink-flat:a699c6d81110f884';
+```
+
+- **设置 `wow.clickhouse.ddl: validate`。** 此时 Sink 不创建任何东西，期望的表或视图缺失、或列不同时拒绝写入，并指出是哪一个。分布式表能通过，因为 ClickHouse 报告它们的列与本地表相同。`auto` 会在端点所连的那一个节点上把缺失的表建成单机表；`none` 什么也不检查。
+- **按聚合分片。** 分片键是 `sipHash64(tenant_id, aggregate_id)`，与 9.x 相同，所以一个聚合的所有提交都在同一个分片上：`_state` 保留同一个键版本最高的行，历史表按各自的键合并掉重放的行，两者都只在一个分片之内生效。
+- **每个分片一个副本接收写入。** 在集群的分片上设置 `<internal_replication>true</internal_replication>`，与任何复制表一样：分布式插入于是只写分片的一个副本，由副本互相复制。
+- **同步插入。** 默认情况下，ClickHouse 对分布式表的插入在行落到接收节点的磁盘后就应答，之后才把它们发往各分片。Sink 把应答当作提交已在数仓中，并推进它的检查点。让 Sink 的用户同步插入，这样应答就表示各分片已收到这些行：
+
+  ```sql
+  CREATE SETTINGS PROFILE IF NOT EXISTS wow_sink ON CLUSTER '{cluster}' SETTINGS insert_distributed_sync = 1 TO wow;
+  ```
+
+  `wow` 是 `wow.clickhouse.username` 中的用户。
+
+- **去重。** `non_replicated_deduplication_window` 对复制表不适用，对应的设置是 `replicated_deduplication_window`；示例把它设为 Sink 的默认值。`wow.clickhouse.sink.deduplication-window` 只设置 Sink 自己创建的表。
+- **展平视图** 就是 Sink 的语句加上 `ON CLUSTER`。它的列来自聚合的状态 schema：要得到另一个聚合的语句，让 Sink 先对一个单机 ClickHouse 创建一次，再读取 `SHOW CREATE VIEW <ctx>_<agg>_state_flat`。
+- **`wow_catalog`** 不在示例中。分析目录读取它，Sink 通过端点所连的节点写入它。没有它时，Sink 记录写入失败并继续；要使用分析目录，就按上面的语句，在 Sink 和分析目录都能访问到的地方创建它。
+
+## 命令不写入 {#commands-are-not-written}
+
+Wow 9.x 的 BI 同步还会创建一张命令表 `<ctx>_<agg>_command`，由命令主题填充。Wow 10 不往 ClickHouse 写命令：Sink 复制的是提交，所以被拒绝的命令、或没有产生变化的命令不会留下任何一行。提交对它的命令保留的内容在 `_state_events` 中：`command_id`、`request_id` 和 `command_type`；操作者 `operator_id`、`operator_tenant_id` 和 `operator_cross_scope`；`correlation_id` 和 `causation_id`（Saga 的命令对应它所处理的那次提交）；`headers` 中的请求事实；以及这个命令产生的事件和它们的 payload。命令的正文不保存。要得到命令的历史：
+
+- **从提交中读取**，看哪个命令在什么时候、为谁改变了一个聚合：
+
+  ```sql
+  SELECT version, command_type, commit_time, operator_id, request_id
+  FROM shop_order_state_events FINAL
+  WHERE tenant_id = 't1' AND aggregate_id = 'order-1'
+  ORDER BY version
+  ```
+
+- **把审计需要的命令信息放进事件。** 命令的业务数据通常会进入事件的 payload，`_events.payload` 按事件保存它。
+- **拒绝在发生之处读取**，而不是在数仓中：`wow.command.rejections` 统计它们，拒绝日志列出它们（[健康、指标与追踪](./observability)）。
 
 ## wow_catalog {#wow-catalog}
 

@@ -33,6 +33,7 @@ Record, for every store and stream:
 - the 9.x stores (the MongoDB event store, the `PrepareKey` collections, the compensation database) and the V10 targets (the log, the snapshots, the reservations, the failure ledger);
 - the streams and aggregates per aggregate type, and the share with a 9.x snapshot;
 - every writer and reader of the 9.x data and how each is stopped, and every external consumer of the 9.x event bus, with the V10 Kafka stream it moves to;
+- every external producer of commands on the 9.x command topics (`wow.<context>.<aggregate>.command`), found from the topics' ACLs, the brokers' producer client ids and the code that names them, with how it moves ([Move the external command producers](#move-the-external-command-producers));
 - the 9.x topics and the V10 topics, and their brokers. A 9.x state topic is named `wow.<context>.<aggregate>.state`, as a V10 published stream is by default: on a broker 9.x used, give V10 a `wow.kafka.topics.prefix`. Without it, a V10 subscription stops at the first 9.x record it reads, logging the topic and the prefix to set, and after a rollback 9.x meets V10's records;
 - the backup of each 9.x store, and a restore that was tested;
 - what the 9.x side must provide: the `(createTime, _id)` index the tail reads each event stream collection by, created by the store's owner (`check` warns of each one missing), the 9.x services' time zone, and the state of their CosId segments;
@@ -65,14 +66,14 @@ The first such write in production ends the rollback window. Either accept that 
 
 ## The offline switch
 
-1. **Announce the window, stop 9.x's writes.** Stop ingress to the 9.x services, drain their command queues, and stop the compensation service with them. Check that no 9.x writer is left.
+1. **Announce the window, stop 9.x's writes.** Stop ingress to the 9.x services, external command producers included, drain their command queues, and stop the compensation service with them. Check that no 9.x writer is left.
 2. **Take and verify the backup** of the 9.x stores.
 3. **Import:** `check`, then `import`.
 4. **Gate:** `compare` shows only the signed-off kinds of difference, and no unexplained unresolved key or execution. Otherwise stop here and restart 9.x: V10 has written nothing.
 5. **Prepare the read side:** `snapshot`, and `backfill-tags` where ABAC reads the events model.
 6. **Start the V10 services** and probe the critical paths: a command on a migrated aggregate, a read, a query, a subscription, the parked entries.
 7. **Move the external consumers** of the 9.x bus to V10's published streams.
-8. **Switch traffic to V10**, then scale it out. Keep 9.x stopped, not deleted.
+8. **Switch traffic to V10**, the external command producers with it ([below](#move-the-external-command-producers)), then scale it out. Keep 9.x stopped, not deleted.
 9. **Observe** the agreed signals: errors and problem codes, latency, waits, subscription lag, parked aggregates and the consumers. The rollback decision is taken on them.
 
 ## The online switch
@@ -86,8 +87,21 @@ From the first import until the switch, 9.x serves and V10 waits: `tail` follows
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**
 7. **Activate every V10 node:** `POST /wow/node/activate` on each node's internal port, with `Wow-Service: <the node's service>` and `{"by": "<operator>", "reason": "<why>"}`. The node joins its groups, starts its work and then admits commands. The activation ends the write stop; `GET /wow/node/standby` shows each node's record of it.
-8. **Switch traffic to V10**, then scale it out. Keep 9.x stopped.
+8. **Switch traffic to V10**, the external command producers with it, then scale it out. Keep 9.x stopped.
 9. **Observe**, as offline does.
+
+## Move the external command producers
+
+A producer outside the 9.x services that writes commands to a Kafka command topic, such as a batch job, a gateway or another system's connector, does not move with the data: V10 reads no 9.x command record, and 9.x reads none of V10's. The producer changes with its service, in the same window, in four things:
+
+- **The topic.** 9.x had a command topic per aggregate, `wow.<context>.<aggregate>.command`. V10 has one per context, `wow.<context>.commands`, after the topic prefix when `wow.kafka.topics.prefix` is set, with exactly as many partitions as the context's log. The service reads it when it takes other contexts' commands (`wow.kafka.command-intake.enabled: true`) or routes an aggregate type through it ([Kafka](../operate/kafka#durable-command-intake)).
+- **The record.** A record is a Kafka envelope of kind `command`, `{format, kind, id, type, payload, transport}`, whose `payload` is the command's wire form, `CommandWire`: the command type, id and request id, the aggregate reference, the body, the expected version, the scope, operator, headers and causation. [Commands on a topic](../reference/protocols#commands-on-a-topic) lists the fields and shows a record. A record in the 9.x form is not executed: it is logged as an error, and when its key names an aggregate that aggregate is parked in the failure ledger at its offset, otherwise the record is passed over.
+- **The key and the partition.** The key is the aggregate reference as text, and the record goes to the partition the log's partitioner gives that aggregate, not to the one Kafka's default partitioner picks: the node that owns the partition runs the command, so a record in another partition reaches a node that does not own its aggregate. [Commands on a topic](../reference/protocols#commands-on-a-topic) gives the hash.
+- **No admission.** The intake executes what the record says. Its operator, tenant and scope are the producer's claims, and no authentication or route check runs; only the command's validation does. Whoever can write the topic can name any operator, so restrict it ([Restrict the command topics](../operate/security#restrict-the-command-topics)).
+
+Prefer leaving the topic. A producer that only needs to send commands can call the command route over HTTP, which authenticates and admits it ([HTTP and TypeScript Clients](./http-and-clients#routes)), or, from a JVM application that is not a Wow service, `WowClient` ([Calling Other Services](../guide/calling-services#outside-a-wow-host)). Keep a Kafka producer for one that must write to a topic, and have it write the V10 record.
+
+In the switch the producers are traffic. They stop with the 9.x ingress in the first step, stay stopped through the import, the gate and the probes, and restart on V10's form with the traffic switch, step 8 of either path (online, after step 7 has activated every node). Never earlier against a V10 node: a command it executes is V10's first write, after which the way back is the export. A producer that cannot change by then stays stopped, since its 9.x records reach no V10 service and nothing translates them. An estate's producers move with the estate ([One window](#one-window)).
 
 ## Roll back
 
@@ -96,7 +110,7 @@ Two paths, never confused:
 - **V10 has not written yet:** stopped at the gate, still on standby, or switched back before the first V10 commit. Stop V10, switch traffic back, and restart 9.x on its untouched stores. Nothing to reconcile.
 - **V10 has written.** 9.x does not have V10's streams, so restarting it alone loses them. Stop V10's writes, keep 9.x stopped, and run `migrate-data export --dry-run`. Per context it prints a verdict: switch back, export N streams, the window closed at a given time, or 9.x was written after the cut-over, which a person resolves first. Then `export` writes the streams V10 added back to the 9.x store by the map read backwards, resumable and idempotent, checks that every 9.x aggregate holds as many streams as V10 holds of its type, and 9.x starts again. In the rehearsal, 16,914 order and 16,815 view commands written by V10 were exported and checked in 52.9 s.
 
-Only event streams go back: reservations V10 made, entries it parked and its projections' views have no 9.x form, and are reconciled by hand. 9.x's snapshots show the state before the exported streams until 9.x writes the instance again or regenerates them. Redeploying 9.x is not a rollback once V10 has written.
+Only event streams go back: reservations V10 made, entries it parked and its projections' views have no 9.x form, and are reconciled by hand. The external command producers go back with the traffic, to the 9.x topics and the 9.x record: keep each one's 9.x build or configuration until the cut-over is final. 9.x's snapshots show the state before the exported streams until 9.x writes the instance again or regenerates them. Redeploying 9.x is not a rollback once V10 has written.
 
 Cutting over again after a rollback by export imports what 9.x wrote since and records the cut-over again, past the streams V10 wrote in its first window. A stream of that window the transport sink had not published before V10 stopped then goes out marked imported, and peers' sagas pass over it. Before stopping V10 for the rollback, let every subscription's backlog reach zero (`wow.subscription.backlog`).
 
@@ -169,7 +183,7 @@ The estate shares one write stop. Each service still chooses [offline or online]
 5. **Start every V10 node on standby**, the offline services' too (`wow.node.standby=true`), and probe each service's reads and queries against the imported data.
 6. **Move the external consumers** of every service's 9.x topics to the V10 published streams.
 7. **Activate every node of every service** with `POST /wow/node/activate`, as [the online switch](#the-online-switch) does. Jobs and sagas start at the activation, and a node on standby refuses commands, a synchronous call among them: activate a service before the services that call it synchronously (`SagaContext.call`, the `CommandClient` and `QueryApi` over `wow.peers`) where those calls have no cycle. A command sent on a command topic waits there until its context is activated.
-8. **Switch the estate's traffic to V10** once every node of every service is active, front ends and gateways with it, then scale out. Keep every 9.x service stopped.
+8. **Switch the estate's traffic to V10** once every node of every service is active, front ends, gateways and external command producers with it, then scale out. Keep every 9.x service stopped.
 9. **Observe** every service, and the flows that cross them: an order paid, its stock reserved.
 
 ### Rehearse the estate

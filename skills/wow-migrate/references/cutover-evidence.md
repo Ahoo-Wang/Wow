@@ -12,6 +12,7 @@ For every store and stream, recorded in the migration matrix:
 - the 9.x store (MongoDB event store, `PrepareKey` collections, the compensation database) and the V10 target (PostgreSQL or MongoDB log, snapshots, reservations, failure ledger);
 - streams, aggregates and size per aggregate type, and the share with a 9.x snapshot;
 - every writer and reader of the 9.x data, how each is stopped, and every external consumer of the 9.x event bus with the V10 Kafka Sink it moves to;
+- every external producer of commands on the 9.x command topics (`wow.<context>.<aggregate>.command`), found from the topics' ACLs, the brokers' producer client ids and the code that names them, with how it moves (*External command producers* below);
 - the backup of each 9.x store and a restore that was tested;
 - what the 9.x side provides: the `(createTime, _id)` index the tail reads each event stream collection by (created by the store's owner; `check` warns of each one missing), the 9.x services' time zone, and the CosId segments' state to carry over;
 - the map (`migration-map.json`) and the V10 Manifests it was checked against.
@@ -41,14 +42,14 @@ Each such type, once V10 writes it in production, makes the export refuse (decis
 
 ## The offline switch (default)
 
-1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
+1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services, external command producers included, and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
 2. **Take and verify the backup** of the 9.x stores.
 3. **Import:** `check`, then `import` (the streams, then the reservations and the unresolved executions; resumable from its checkpoint if it stops).
 4. **Gate:** `compare` shows only the signed-off kinds; no unexplained `UNRESOLVED` key or execution. Otherwise stop here and restart 9.x: V10 has written nothing.
 5. **Prepare the read side:** `snapshot`, and `backfill-tags` where ABAC reads the `events` model.
 6. **Start the V10 services** against the production target and probe the critical paths: a command on a migrated aggregate, a read, a query, a subscription, the ops service's parked entries.
 7. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
-8. **Switch traffic to V10**, then scale V10 out. Keep 9.x stopped, not deleted.
+8. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
 9. **Observe** the agreed signals: errors and problem codes, latency, command waits, subscription lag and parked aggregates, and the consumers. The rollback decision is taken on them.
 
 No `tail`, no standby and no final pass: they exist only to shorten the stop, and offline does not need them.
@@ -63,7 +64,7 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 
 ### The switch
 
-1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
+1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services, external command producers included, and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
 2. **Take and verify the final backup** of the 9.x stores.
 3. **Final pass**, then `compare`, `snapshot`, and `backfill-tags` where ABAC reads the `events` model:
    - **`import --final`** when `tail` followed 9.x continuously until it stopped. It first checks that every mapped aggregate's full import completed and that its tail's last pass ended within `final.maxTailAgeMillis` (10 minutes by default); otherwise it writes nothing, says why and exits `1`, and the final pass is `import --restart`. It then runs one tail pass from the checkpoint, reading again `final.lookbackMillis` before it (60 s by default; size it as twice the larger of the 9.x nodes' clock skew and the slowest 9.x commit latency), then the reservations and the unresolved executions again. Its cost is what 9.x committed since the tail last read.
@@ -72,8 +73,19 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 5. **Probe the standby nodes** against the production target: reads and queries of migrated aggregates, the ops service's parked entries.
 6. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
 7. **Activate every V10 node:** `POST /wow/node/activate` on each node's internal port, naming the node's service in `Wow-Service`, with a body `{"by": "<operator>", "reason": "<why>"}` (`by` is required: without it the node answers 400). The node joins its groups, starts the rest of its work and then admits commands; the activation ends the write stop. A subscription that starts at the end of its stream starts where the stream ends at the activation. Each activation is recorded (node, time, operator, reason) and returned by `GET /wow/node/standby` (also naming the service in `Wow-Service`); check every node reports it. An activation that fails stops the node: start it again on standby, find the cause in its log, and activate it before the switch; a node that is not on standby treats an activation as a no-op.
-8. **Switch traffic to V10**, then scale V10 out. Keep 9.x stopped, not deleted.
+8. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
 9. **Observe** as offline does.
+
+## External command producers
+
+A producer outside the 9.x services that writes commands to a 9.x Kafka command topic (a batch job, a gateway, another system's connector) does not move with the data: V10 reads no 9.x command record and 9.x reads none of V10's (review M-6). The site's Cut Over page, section *Move the external command producers*, is the procedure; check it at the pinned target. For each producer the agent records and changes:
+
+- **The topic:** `wow.<context>.<aggregate>.command` (9.x, one per aggregate) becomes `wow.<context>.commands` (V10, one per context, after `wow.kafka.topics.prefix` when set, with exactly as many partitions as the context's log). The receiving service needs `wow.kafka.command-intake.enabled: true`, or the aggregate type routed through the topic (`wow.aggregates.[<context>.<aggregate>].routing: topic`).
+- **The record:** a Kafka envelope of kind `command` whose `payload` is `CommandWire`; the fields and a sample record are in the site's Wire Protocols page, *Commands on a topic*. A 9.x record is logged as an error and not executed (parked at its offset when its key names an aggregate, else passed over).
+- **The key and the partition:** the key is the aggregate reference as text and the record goes to the log partitioner's partition (64-bit FNV-1a of `context.aggregate/tenant/id`, low bits), not Kafka's default one; the same page gives the hash.
+- **Admission:** none. The operator, tenant and scope on the record are the producer's claims, so restrict write access to the topic (Secure a Deployment › Restrict the command topics). Prefer moving the producer off the topic to the command route over HTTP, or to `WowClient` from a JVM application: both authenticate and admit.
+
+Order: the producers stop with the 9.x ingress, stay stopped through the import, the gate and the probes, and restart on the V10 form with the traffic switch (step 8 of either path, online after the activation). Never against a V10 node before the gate decides: a command it executes is V10's first write. A producer that cannot change by the switch stays stopped; nothing translates its 9.x records. They go back with the traffic on a rollback, so keep each one's 9.x build or configuration until the cut-over is final. A producer found only after the switch is `MISSING EVIDENCE` for the inventory.
 
 ## Rollback
 
@@ -87,7 +99,7 @@ Two paths, never confused:
   - `no rollback by export: 9.x was written after the cut-over`: a `CONFLICT`, which a person resolves before anything else.
 
   Then `export`: it writes the missing streams by the map read backwards, resumable and idempotent, and checks that each 9.x aggregate holds as many streams as V10 holds of its type (`EQUAL`, or `DIFFERS` with exit `3`). Then start 9.x. It needs 9.x's unique `(aggregateId, version)` index on each stream collection and stops, printing the command, without it.
-  - Only event streams go back. Reservations V10 made, entries it parked and its projections' views have no 9.x form: list them and reconcile them by hand.
+  - Only event streams go back. Reservations V10 made, entries it parked and its projections' views have no 9.x form: list them and reconcile them by hand. External command producers go back with the traffic, to the 9.x topics and record.
   - 9.x's snapshots, which its queries read, show the state before the exported streams until 9.x writes the instance again or regenerates its snapshots; a 9.x consumer of the event bus does not see the exported streams.
   - `export` is a newer command of the tool. Confirm the pinned `wow-migrate-data` lists it; where it does not, there is no rollback after V10 writes: record `MISSING EVIDENCE` and say the cut-over is one-way.
 
@@ -101,9 +113,9 @@ Two paths, never confused:
 - **One write stop**, drained: stop ingress estate-wide, wait until no 9.x consumer group lags, then stop every 9.x node and compensation service; record the stop instant. Each service picks offline or online on its own; every `migrate-data` run (one per V10 log store) passes its own gate, and one failed gate sends the whole estate back to 9.x.
 - **Imported history reaches peers marked** (X-38): each appending pass records the cut-over (`CUTOVER` line; checkpoint rows `wow.migrate/<context>` / `cutover` in the target), and an activated service's transport sink publishes every record up to it with `imported: true`. A peer's saga or reactor passes over those records, its projection builds from them; nothing to configure. Size the published topics' retention for the whole history. Confirm the pinned target prints `CUTOVER`; an older one does not mark the history, and a cross-context saga then acts on all of it again: record it, and set those subscriptions' `start` to the write stop.
 - **V10 topics apart from 9.x topics**: a 9.x state topic and a V10 published stream share `wow.<context>.<aggregate>.state`; on a shared broker V10 needs `wow.kafka.topics.prefix`, else a V10 topic subscription stops at the first 9.x record (the read fails, logged with the topic and the prefix; nothing parks).
-- **Start every node on standby, activate together**, callees of synchronous calls first; switch traffic only once every node is active.
+- **Start every node on standby, activate together**, callees of synchronous calls first; switch traffic, front ends, gateways and external command producers with it, only once every node is active.
 - **Roll back the whole estate or none**: every service's `export --dry-run` verdict must allow it, so the earliest window to close closes the estate's.
 
 ## Report
 
-Offline or online and why, for an estate its services, links and stop instant, the inventory, the rehearsal's evidence (each command with its exit code and counts), the signed-off difference kinds, the list of types with no way back and the user's decision on them, the window's timings, the switch's steps as done, and every gap as `MISSING EVIDENCE`. State separately: data imported and compared, V10 serving, external consumers moved, rollback rehearsed; none implies the next.
+Offline or online and why, for an estate its services, links and stop instant, the inventory, the rehearsal's evidence (each command with its exit code and counts), the signed-off difference kinds, the list of types with no way back and the user's decision on them, the window's timings, the switch's steps as done, and every gap as `MISSING EVIDENCE`. State separately: data imported and compared, V10 serving, external consumers and command producers moved, rollback rehearsed; none implies the next.
