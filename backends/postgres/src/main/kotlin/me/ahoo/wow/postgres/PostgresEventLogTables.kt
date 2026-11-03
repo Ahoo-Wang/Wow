@@ -143,7 +143,7 @@ internal class PostgresEventLogTables(val context: String) {
     fun appendGroup(partition: Int, tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
             "($ord, $branch, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, ?::jsonb, ?::text, " +
-                "?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb)"
+                "?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb, ?::integer)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
@@ -201,7 +201,8 @@ internal class PostgresEventLogTables(val context: String) {
     fun appendGroupAcross(tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
             "($ord, $branch, ?::integer, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, " +
-                "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb)"
+                "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb, " +
+                "?::integer)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
@@ -270,9 +271,11 @@ internal class PostgresEventLogTables(val context: String) {
  * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_cross_scope`, all null for an anonymous
  * caller. The schedules are among the events. The aggregate's access attributes are a nullable `jsonb` column,
  * `{name: value | [values]}` in their stored form ([me.ahoo.wow.spi.access.AccessValues]): null for a stream not
- * stamped (appended before format 1 learned them, or imported without them). The operator and the access attributes
- * are columns added within format 1, so a table created before them gets them on its next ensure ([additions]); a
- * table of a version that recorded tags keeps its `tags` column, nullable, which nothing writes or reads. The transport is its own nullable `bytea`
+ * stamped (appended before format 1 learned them, or imported without them); `access_version` the version they are
+ * of, the stream's own when appended with them, a later one's once a stamp wrote them ([stamp]). The operator and the
+ * access attributes are columns added within format 1, so a table created before them gets them on its next ensure
+ * ([additions]); a table of a version that recorded tags keeps its `tags` column, nullable, which nothing writes or
+ * reads. The transport is its own nullable `bytea`
  * column: the bytes the runtime encoded, stored and given back unchanged; only the
  * tail and the recovery read return it. The table has no aggregate name column: the table is
  * the aggregate type. Its keys are the position `(partition, sequence)`, the version `(aggregate_id, tenant_id,
@@ -305,6 +308,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             operator_tenant_id text,
             operator_cross_scope boolean,
             access jsonb,
+            access_version integer,
             PRIMARY KEY (partition, sequence),
             CONSTRAINT "$versionKey" UNIQUE (aggregate_id, tenant_id, version),
             CONSTRAINT "$requestKey" UNIQUE (tenant_id, request_id)
@@ -315,7 +319,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     val additions = "ALTER TABLE $log ADD COLUMN IF NOT EXISTS operator_id text, " +
         "ADD COLUMN IF NOT EXISTS operator_tenant_id text, " +
         "ADD COLUMN IF NOT EXISTS operator_cross_scope boolean, " +
-        "ADD COLUMN IF NOT EXISTS access jsonb"
+        "ADD COLUMN IF NOT EXISTS access jsonb, ADD COLUMN IF NOT EXISTS access_version integer"
 
     /**
      * The whole append as one autocommitted statement, so it costs one round trip and holds the partition row's lock
@@ -340,8 +344,8 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         )
         INSERT INTO $log (partition, sequence, tenant_id, aggregate_id, version, command_id, request_id,
             command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport,
-            operator_id, operator_tenant_id, operator_cross_scope, access)
-        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::bytea, ?, ?, ?, ?::jsonb
+            operator_id, operator_tenant_id, operator_cross_scope, access, access_version)
+        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::bytea, ?, ?, ?, ?::jsonb, ?
         FROM bump
         RETURNING sequence
     """.trimIndent()
@@ -395,19 +399,26 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     val position = "SELECT partition, sequence FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version = ?"
 
+    /**
+     * Stamps the access attributes over a range of an aggregate's versions, by the version key, on the streams not
+     * stamped as of a later version ([me.ahoo.wow.spi.access.AccessStamps]).
+     */
+    val stamp = "UPDATE $log SET access = ?::jsonb, access_version = ? WHERE aggregate_id = ? AND tenant_id = ? " +
+        "AND version >= ? AND version < ? AND (access_version IS NULL OR access_version <= ?)"
+
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
     companion object {
         /** The columns [additions] adds. */
-        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope", "access")
+        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope", "access", "access_version")
 
         /** The columns a stream is written to besides its position, in the order of its parameters. */
         const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +
-            "operator_tenant_id, operator_cross_scope, access"
+            "operator_tenant_id, operator_cross_scope, access, access_version"
 
         /** The parameters of one stream in [PostgresEventLogTables.appendGroup]: one per column of [COLUMNS]. */
-        const val STREAM_PARAMETERS = 18
+        const val STREAM_PARAMETERS = 19
 
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +

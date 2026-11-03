@@ -15,6 +15,20 @@ public final class me/ahoo/wow/runtime/StateCacheOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/runtime/access/AccessStampOptions {
+	public static final field Companion Lme/ahoo/wow/runtime/access/AccessStampOptions$Companion;
+	public static final field DEFAULT_BATCH I
+	public static final field DEFAULT_CAPACITY I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBatch ()I
+	public final fun getCapacity ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/access/AccessStampOptions$Companion {
+}
+
 public abstract interface class me/ahoo/wow/runtime/admission/Authorization {
 }
 
@@ -630,6 +644,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNode$Step : java/lang/Enum {
 
 public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccess ()Lme/ahoo/wow/runtime/access/AccessStampOptions;
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
 	public final fun getExecutor ()Lme/ahoo/wow/runtime/ExecutorOptions;

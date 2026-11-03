@@ -31,6 +31,7 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.StateCacheOptions
+import me.ahoo.wow.runtime.access.AccessStampOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
@@ -203,6 +204,12 @@ class WowProperties {
 
     /** Where the snapshots are by default, and how the snapshot maintenance runs: `wow.snapshot.*`. */
     var snapshot: Snapshot = Snapshot()
+
+    /**
+     * How each context's built-in subscription `wow.access` stamps an aggregate's access attributes over its history
+     * when a commit changes them: `wow.access.*`.
+     */
+    var access: Access = Access()
 
     /** The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`. */
     var health: Health = Health()
@@ -446,6 +453,22 @@ class WowProperties {
 
         /** The store of `wow.stores` the type's `events` queries read; its log store when not set. */
         var store: String? = null
+    }
+
+    /**
+     * How the built-in subscription `wow.access` stamps the access attributes over a history: in stamps of a bounded
+     * number of streams, remembering the last attributes of a bounded number of aggregates.
+     */
+    @InternalWowApi
+    class Access {
+        /** The most streams one stamp writes: a long history is stamped in statements of at most this many. */
+        var stampBatch: Int = AccessStampOptions.DEFAULT_BATCH
+
+        /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
+        var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY
+
+        /** The node's stamping options. */
+        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity)
     }
 
     /**

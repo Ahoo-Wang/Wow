@@ -4,6 +4,11 @@
     "type" : "me.ahoo.wow.spring.boot.WowProperties",
     "description" : "The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other contexts. The defaults are the runtime's own. The query plane, Kafka, ClickHouse and OpenTelemetry have their own classes (QueryProperties, KafkaProperties, ClickHouseProperties, ObservabilityProperties). Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
   }, {
+    "name" : "wow.access",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "description" : "How each context's built-in subscription `wow.access` stamps an aggregate's access attributes over its history when a commit changes them: `wow.access.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
     "name" : "wow.clickhouse",
     "type" : "me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider",
     "description" : "The settings of ClickHouse: the connection the Sink and the dataset backend share, the Sink's and the datasets'."
@@ -312,6 +317,18 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   } ],
   "properties" : [ {
+    "name" : "wow.access.capacity",
+    "type" : "java.lang.Integer",
+    "description" : "The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "defaultValue" : 100000
+  }, {
+    "name" : "wow.access.stamp-batch",
+    "type" : "java.lang.Integer",
+    "description" : "The most streams one stamp writes: a long history is stamped in statements of at most this many.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "defaultValue" : 1000
+  }, {
     "name" : "wow.aggregates",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Aggregate>",
     "description" : "Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`).",

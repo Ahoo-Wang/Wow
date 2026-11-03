@@ -20,6 +20,7 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoAccess
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS
+import me.ahoo.wow.mongo.log.MongoEventLog.Companion.ACCESS_VERSION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.AGGREGATE_ID
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION
 import me.ahoo.wow.mongo.log.MongoEventLog.Companion.CAUSATION_ID
@@ -76,8 +77,8 @@ internal class MongoLogDocuments(private val context: String) {
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
-        // The access attributes: absent when not stamped.
-        .apply { stream.access?.let { append(ACCESS, Document(it)) } }
+        // The access attributes and the version they are of, its own: both absent when not stamped.
+        .apply { stream.access?.let { append(ACCESS, Document(it)).append(ACCESS_VERSION, stream.version) } }
         .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
 
     /** The transport bytes as stored: the driver reads generic binary data as a byte array, other subtypes as [Binary]. */

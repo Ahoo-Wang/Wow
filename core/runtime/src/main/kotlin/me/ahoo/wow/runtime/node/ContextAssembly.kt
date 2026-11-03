@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.KernelOptions
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.access.AccessStamping
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.ForwardEndpoint
 import me.ahoo.wow.runtime.cluster.LeaseGroup
@@ -50,6 +51,7 @@ import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
@@ -151,7 +153,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     ): Parts {
         val states = stateCacheOf(context, codec)
         // Each group's own commits reach its tails in memory; its sequences are its own.
-        val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log, states)) }
+        val parts = logGroupsOf(context, models, backends)
+        val groups = parts.map { it.withLog(handoffOf(context, it.log, states)) }
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
@@ -169,7 +172,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val group = LeaseGroup(service, context)
         val progress = progressOf(group, groups)
         val maintenance = snaps.maintenance(group.name, node, backends.leases, progress, options.snapshots) { address }
-        val builtIns = snapshots.map { it.subscription } +
+        val builtIns = snapshots.map { it.subscription } + stampingOf(context, models, kernel, parts).subscription +
             listOfNotNull(maintenance?.rebuildSubscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
             logGroupOf(context, progress[index].group, part, builtIns, timersOf(context, part, firing))
@@ -206,6 +209,20 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             logGroups,
             names,
         )
+    }
+
+    /**
+     * The built-in subscription `wow.access` of [context]: each type's history is stamped on its log group's own log
+     * ([parts], before the hand-over wraps it), when that log keeps stamps.
+     */
+    private fun stampingOf(
+        context: String,
+        models: List<AggregateModel<*>>,
+        kernel: Kernel,
+        parts: List<GroupParts>,
+    ): AccessStamping {
+        val stamps = parts.flatMap { part -> part.types.map { it to (part.log as? AccessStamps) } }.toMap()
+        return AccessStamping(context, models, kernel, stamps::get, options.access)
     }
 
     /**

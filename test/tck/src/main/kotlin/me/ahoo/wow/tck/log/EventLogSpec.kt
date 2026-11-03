@@ -29,6 +29,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -243,6 +244,45 @@ abstract class EventLogSpec {
             log.readEntries(appended.ref, 1, 1).toList().single().stream.access.assert().isEqualTo(appended.access)
         }
     }
+
+    @Test
+    fun `a stamp writes the attributes over its range but the streams stamped later, however often it runs`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessStamps, "This log keeps no stamps.")
+            val stamps = log as AccessStamps
+            fun access(region: String) = linkedMapOf<String, Any?>(
+                "owner" to "owner",
+                "space" to null,
+                "region" to region
+            )
+            val (east, west, north) = listOf(access("east"), access("west"), access("north"))
+            // The first stream was appended without them (imported, or by a node of an earlier version).
+            val history = listOf(
+                stream("a", 1),
+                stream("a", 2, access = east),
+                stream("a", 3, access = east),
+                stream("a", 4, access = west),
+            )
+            history.forEach { (log.append(it) is AppendOutcome.Committed).assert().isTrue() }
+            val ref = type.ref("tenant", "a")
+            fun stamped() = runBlocking { log.read(ref).toList().map { it.access } }
+
+            // The commit at 4 changed them: the streams before it take them, the unstamped one too.
+            stamps.stamp(ref, west, asOf = 4, from = 1, until = 4).assert().isEqualTo(3)
+            stamped().assert().containsExactly(west, west, west, west)
+            // A replay of the earlier change writes nothing over a later stamp.
+            stamps.stamp(ref, east, asOf = 2, from = 1, until = 2).assert().isEqualTo(0)
+            // A stamp as of the same version writes again: a model of other attributes derives them anew.
+            stamps.stamp(ref, north, asOf = 4, from = 1, until = 3).assert().isEqualTo(2)
+            stamped().assert().containsExactly(north, north, west, west)
+            // A range past the history, and an aggregate without one, hold nothing to write.
+            stamps.stamp(ref, east, asOf = 9, from = 5, until = 9).assert().isEqualTo(0)
+            stamps.stamp(type.ref("tenant", "b"), east, asOf = 2, from = 1, until = 2).assert().isEqualTo(0)
+            // The entries and the request keys read what the stamp wrote.
+            log.readEntries(ref, 1, 1).toList().single().stream.access.assert().isEqualTo(north)
+            checkNotNull(log.findByRequestId(type, "tenant", history[0].requestId)).access.assert().isEqualTo(north)
+        }
 
     @Test
     fun `the schedule system events read back as appended, alone or with the events`(): Unit = runBlocking {

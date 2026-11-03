@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -36,16 +37,22 @@ import me.ahoo.wow.spi.log.Partitioner
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
- * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created.
+ * aggregate type. Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created. It keeps each stream's
+ * stamp and stamps the access attributes over a history ([AccessStamps]) as the durable logs do.
  */
 @InternalWowApi
-class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : EventLog {
+class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
+    EventLog,
+    AccessStamps {
     init {
         Partitioner.requirePartitions(partitions)
     }
 
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
+
+    /** The version each stream's access attributes are of, by version; null for a stream not stamped. */
+    private val stamps = HashMap<AggregateRef, MutableList<Int?>>()
 
     /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
@@ -67,6 +74,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
             return AppendOutcome.Conflict(current)
         }
         aggregate += stream
+        stamps.getOrPut(stream.ref) { ArrayList() } += stream.version.takeIf { stream.access != null }
         requests.getOrPut(request) { ArrayList() } += stream
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val log = entries[partition]
@@ -76,6 +84,29 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
         appended[partition].value = position.sequence
         AppendOutcome.Committed(position)
     }
+
+    /** Replaces each stream it stamps wherever the log keeps it: by aggregate, by request and in its partition. */
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
+        lock.withLock {
+            val aggregate = streams[ref] ?: return@withLock 0
+            val stamped = checkNotNull(stamps[ref])
+            var written = 0
+            for (version in from.coerceAtLeast(1) until minOf(until, aggregate.size + 1)) {
+                val stamp = stamped[version - 1]
+                if (stamp != null && stamp > asOf) continue
+                val stream = aggregate[version - 1]
+                val restamped = stream.copyWith(access = access)
+                aggregate[version - 1] = restamped
+                stamped[version - 1] = asOf
+                requests[ref.tenantId to stream.requestId]?.replaceAll { if (it === stream) restamped else it }
+                val entry = checkNotNull(aggregateEntries[ref])[version - 1]
+                val moved = entry.copyWith(stream = restamped)
+                checkNotNull(aggregateEntries[ref])[version - 1] = moved
+                entries[entry.position.partition][(entry.position.sequence - 1).toInt()] = moved
+                written++
+            }
+            written
+        }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val snapshot = lock.withLock { streams[ref]?.toList().orEmpty() }

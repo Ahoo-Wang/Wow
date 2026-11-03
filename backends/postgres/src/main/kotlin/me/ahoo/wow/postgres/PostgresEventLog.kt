@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AggregateTail
@@ -108,7 +109,8 @@ class PostgresEventLog(
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the log's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
-) : EventLog {
+) : EventLog,
+    AccessStamps {
     private val tables = PostgresEventLogTables(context)
 
     /** Validates the partition count first: a log of another count is refused when it is built. */
@@ -315,7 +317,9 @@ class PostgresEventLog(
         } else {
             statement.setBoolean(index++, operator.crossScope)
         }
-        statement.setNullableString(index, stream.access?.let(AccessValues::text))
+        statement.setNullableString(index++, stream.access?.let(AccessValues::text))
+        // Appended with its attributes, a stream is stamped as of its own version.
+        if (stream.access == null) statement.setNull(index, Types.INTEGER) else statement.setInt(index, stream.version)
     }
 
     /**
@@ -544,6 +548,28 @@ class PostgresEventLog(
             }
         }
         streams.forEach { emit(it) }
+    }
+
+    /** One statement by the version key, autocommitted: a stamp of a range writes it whole or not at all. */
+    @InternalWowApi
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
+        if (from >= until) return 0
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                withTable(connection, ref.type) { table ->
+                    connection.prepareStatement(table.stamp).use { update ->
+                        update.setString(1, AccessValues.text(access))
+                        update.setInt(2, asOf)
+                        update.setString(3, ref.id)
+                        update.setString(4, ref.tenantId)
+                        update.setInt(5, from)
+                        update.setInt(6, until)
+                        update.setInt(7, asOf)
+                        update.executeUpdate()
+                    }
+                }
+            }
+        }
     }
 
     /** One statement: the tail and the earlier request keys, both by the version key. */

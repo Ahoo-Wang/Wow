@@ -45,6 +45,7 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -149,7 +150,8 @@ class MongoEventLog(
     sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
-) : EventLog {
+) : EventLog,
+    AccessStamps {
     /** Validates the partition count first: a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
@@ -300,6 +302,27 @@ class MongoEventLog(
                 .toList()
         }
         streams.forEach { emit(it) }
+    }
+
+    /**
+     * One update of the range by the version key, on the streams not stamped as of a later version. A stream not
+     * stamped has no `access_version`, which `$lte` does not match, so the guard names its absence too; the count is of
+     * the streams it matched, as a stamp that writes the same attributes again still counts them.
+     */
+    @InternalWowApi
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
+        if (from >= until) return 0
+        return dispatcher.mongo {
+            collections.of(ref.type).log.updateMany(
+                Filters.and(
+                    lookups.refFilter(ref),
+                    Filters.gte(VERSION, from),
+                    Filters.lt(VERSION, until),
+                    Filters.or(Filters.exists(ACCESS_VERSION, false), Filters.lte(ACCESS_VERSION, asOf)),
+                ),
+                Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
+            ).matchedCount.toInt()
+        }
     }
 
     /**
@@ -713,6 +736,7 @@ class MongoEventLog(
         const val HEADERS = "headers"
         const val OPERATOR = "operator"
         const val ACCESS = "access"
+        const val ACCESS_VERSION = "access_version"
         const val TRANSPORT = "transport"
         const val CONTEXT = "context"
         const val EVENTS = "events"
