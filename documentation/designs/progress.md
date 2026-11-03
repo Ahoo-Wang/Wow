@@ -2,7 +2,7 @@
 
 日期：2026-11-02。状态：持续维护（每次合并或定下决定后更新）。上位文档：[路线图](roadmap.md)。
 
-本文记录 Wow 10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D390 已定），工作包定义在[路线图](roadmap.md)，已登记、未排期的事项在[路线图](roadmap.md) §6；已合并的明细以 `git log origin/main` 为准。
+本文记录 Wow 10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D391 已定），工作包定义在[路线图](roadmap.md)，已登记、未排期的事项在[路线图](roadmap.md) §6；已合并的明细以 `git log origin/main` 为准。
 
 ## 1. 位置
 
@@ -55,7 +55,7 @@
 - **GA 前**：行业对比 Axon Framework 4 + PostgreSQL 本机已测（[报告](../../test/benchmarks/results/reports/v10-vs-axon.md)：单节点 E1 峰值 Wow 关闭 Kafka 为 Axon 的 4.2～4.5 倍、开启 Kafka 3.4～3.5 倍，E3 约 5 倍；Axon 连接池加到 32 后仍为 3.2～3.4 倍与 4.1～4.3 倍；M4 Pro 复测：E1 峰值 4.3～4.9 倍、E3 4.5～5.6 倍，定速下节点每条命令的 CPU 两者相同、PostgreSQL 的 Axon 高 1.4～1.7 倍；M5 Max 以 `wow.transport=none` 重跑（#5334，待改后合并）：1 GB 堆时 E1 峰值 Wow 关闭 Kafka 为 Axon 的 ≥ 8.0 倍、Axon 32 连接的 ≥ 4.9 倍（Wow 落在最高一步，倍数是下界），E3 为 7.0～7.2 倍与 4.9～5.1 倍，8 GB 堆相近；定速下节点每条命令的 CPU E1 相差 15% 以内、E3 在 8 GB 堆时 Wow 高 14～23%，PostgreSQL 的 CPU Axon 高 1.2～1.6 倍；各为一两次会话）；M4 Pro 第二次快照已测（[报告](../../test/benchmarks/results/reports/v10-m4pro-snapshot-2.md)：E3 峰值 PostgreSQL ≥ 7,099/s（+62%）、MongoDB ≥ 5,781/s（+82%），扫描后缓存不再失效，定速的失败是 Docker 磁盘镜像 fsync 停顿后的 `wow.command.busy`）；rc 前在 Actions 上重跑 L3、L4（第 19 项）。
 - **GA 前的文档细节完善**（路线图 9.3f，[文档方案](docs-plan.md) §11）：PR 1～4 已合并或在合并（#4990、#5004、#5012、#5018、#5027），含一致性核对；剩余各 DG 项在清点。
 - **GA 前的 eShop 集群端到端验证**（路线图 9.3g，D317，[台账](reviews.md) §9）：框架（#4961）与 G.1 清单（#4997）已合并，每晚运行；mongo 臂全绿（平台服务在 MongoDB 上，主节点切换 0 ms），postgres 臂在 main 上首次全绿；F10～F22 已修或在合并中；待合并 #5008（ES 场景与 D305 的证明）。
-- **基准**：日常改动只对当前 `main` 做 ABAB（长期运行的效应用老化后的定速段）；里程碑时 M4 Pro 快照与 Actions L3、L4。
+- **基准**：结果目录只留当前的证据，历史的以永久链接保留（D391，2026-11-03 清理）；日常改动只对当前 `main` 做 ABAB（长期运行的效应用老化后的定速段）；里程碑时 M4 Pro 快照与 Actions L3、L4。
 - **之后**：rc 的时间由用户决定（9.4）。
 
 ## 全面审查结论（M7.5，D221；用户 2026-10-16 确认通过）
