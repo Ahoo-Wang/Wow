@@ -240,7 +240,19 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
 }) => {
   await open(page, OPERATOR);
   const entry = row(page, unrecoverable);
-  await entry.getByRole("button", { name: /^Actions for/ }).click();
+  // A row's controls are named by the aggregate it parks, not the ops id.
+  await expect(
+    entry.getByRole("checkbox", {
+      name: `Select ${unrecoverable.aggregateId}`,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await entry
+    .getByRole("button", {
+      name: `Actions for ${unrecoverable.aggregateId}`,
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("menuitem", { name: "Recoverable", exact: true })
     .click();
@@ -253,16 +265,20 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   await entry.getByRole("button", { name: /^Actions for/ }).click();
   await page.getByRole("menuitem", { name: "Apply retry spec" }).click();
   const dialog = page.getByRole("dialog");
-  // What the service would refuse is refused in the form, which stays.
-  await dialog.getByLabel("Max retries").fill("-1");
-  await dialog.getByLabel("Initial backoff").fill("soon");
+  // What the service would refuse is refused in the form, which stays: a
+  // count past its Int, a duration its Kotlin cannot read (PT1.5M was a 422).
+  await dialog.getByLabel("Max retries").fill("2147483648");
+  await dialog.getByLabel("Initial backoff").fill("PT1.5M");
   await dialog.getByRole("button", { name: "Apply retry spec" }).click();
-  await expect(dialog.getByText("A whole number, 0 or more.")).toBeVisible();
   await expect(
-    dialog.getByText("A duration such as PT3M, 3m or 1h 30m."),
+    dialog.getByText("A whole number from 0 to 2147483647."),
   ).toBeVisible();
+  await expect(
+    dialog.getByText("A duration such as PT3M, 3m or 1h 30m, not negative."),
+  ).toBeVisible();
+  // And what it takes is sent, Kotlin's 1h30m among it.
   await dialog.getByLabel("Max retries").fill("5");
-  await dialog.getByLabel("Initial backoff").fill("2m");
+  await dialog.getByLabel("Initial backoff").fill("1h30m");
   await dialog.getByRole("button", { name: "Apply retry spec" }).click();
   await expect(dialog).toHaveCount(0);
 
@@ -281,7 +297,7 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
     );
   const sent = await ledgerCommands(request, context);
   const spec = sent.find((it) => it.type === "wow.ledger.ApplyRetrySpec");
-  expect(spec?.body).toMatchObject({ maxRetries: 5, initialBackoff: "2m" });
+  expect(spec?.body).toMatchObject({ maxRetries: 5, initialBackoff: "1h30m" });
 });
 
 test("at a phone's width the bar and a confirm dialog keep every control in reach", async ({
