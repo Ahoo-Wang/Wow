@@ -19,6 +19,8 @@ import org.axonframework.common.jdbc.ConnectionProvider
 import org.axonframework.common.jdbc.PersistenceExceptionResolver
 import org.axonframework.common.transaction.TransactionManager
 import org.axonframework.config.Configuration as AxonConfig
+import org.axonframework.config.ConfigurerModule
+import org.axonframework.eventhandling.PropagatingErrorHandler
 import org.axonframework.eventhandling.tokenstore.TokenStore
 import org.axonframework.eventhandling.tokenstore.jdbc.JdbcTokenStore
 import org.axonframework.eventhandling.tokenstore.jdbc.PostgresTokenTableFactory
@@ -55,8 +57,21 @@ import javax.sql.DataSource
 class AxonServer
 
 fun main(args: Array<String>) {
-    runApplication<AxonServer>(*args)
+    runApplication<AxonServer>(*args) {
+        setDefaultProperties(mapOf(SEGMENTS to segmentsFor(Runtime.getRuntime().availableProcessors())))
+    }
 }
+
+/** The property that sets the transfer processor's segments and threads (`application.yaml`); [segmentsFor] else. */
+const val SEGMENTS = "benchmark.axon.segments"
+
+private const val MAX_SEGMENTS = 16
+
+/**
+ * The transfer processor's segments and threads unless [SEGMENTS] sets them: one per CPU of the node, at most 16. On a
+ * runner's two CPUs the suite axon-pg-segments found 2 cheaper than 16 in CPU and memory per command.
+ */
+fun segmentsFor(processors: Int): Int = minOf(MAX_SEGMENTS, processors)
 
 /**
  * Axon Framework's configuration for production without Axon Server, as its reference guide recommends it: the JDBC
@@ -64,7 +79,7 @@ fun main(args: Array<String>) {
  * and snapshot (`application.yaml`), the account's repository with a cache of strong references that holds every
  * account ([BoundedCache], [ACCOUNT_CACHE_CAPACITY]) and a snapshot every [SNAPSHOT_THRESHOLD] events taken on threads
  * of its own ([SNAPSHOT_THREADS]), not on the thread that committed, and the transfer's reactions in a tracking
- * processor of 16 segments (`application.yaml`).
+ * processor of a segment per CPU ([segmentsFor]), retried when they fail ([transferErrors]).
  */
 @Configuration
 class AxonConfiguration {
@@ -87,13 +102,31 @@ class AxonConfiguration {
     fun accountCache(): BoundedCache = BoundedCache(ACCOUNT_CACHE_CAPACITY)
 
     /**
+     * The transfer's reactions retried, not skipped, when one fails (a lock or a connection that timed out, a handler
+     * interrupted at its timeout): Axon's default `LoggingErrorHandler` logs the failure and goes on with the next
+     * event, so the transfer stops half done (an entry never confirmed). With `PropagatingErrorHandler` the failure
+     * rolls the processor's unit of work back, and the tracking processor releases its segment and retries the event
+     * after a pause, doubled at each failure up to 60 s.
+     */
+    @Bean
+    fun transferErrors(): ConfigurerModule = ConfigurerModule { configurer ->
+        configurer.eventProcessing()
+            .registerListenerInvocationErrorHandler(TransferReactions.GROUP) { PropagatingErrorHandler.instance() }
+    }
+
+    /**
      * What a run checks of Axon's side from the node log, every [STATS_SECONDS]: the account cache's entries, hits and
      * misses; the snapshots taken and the threads they ran on; the connection pool's connections in use and idle and
-     * the threads waiting for one; the routes' commands in flight ([CommandsInFlight]). `axon-stats` lines at INFO
-     * (`application.yaml`).
+     * the threads waiting for one; the routes' commands in flight ([CommandsInFlight]) and those queued for a thread
+     * ([CommandSenders]). `axon-stats` lines at INFO (`application.yaml`).
      */
     @Bean(destroyMethod = "shutdownNow")
-    fun axonStats(cache: BoundedCache, dataSource: DataSource, inFlight: CommandsInFlight): ScheduledExecutorService {
+    fun axonStats(
+        cache: BoundedCache,
+        dataSource: DataSource,
+        inFlight: CommandsInFlight,
+        senders: CommandSenders,
+    ): ScheduledExecutorService {
         val hikari = dataSource.takeIf { it.isWrapperFor(HikariDataSource::class.java) }
             ?.unwrap(HikariDataSource::class.java)
         return Executors.newSingleThreadScheduledExecutor { task -> Thread(task, "axon-stats").apply { isDaemon = true } }
@@ -103,7 +136,7 @@ class AxonConfiguration {
                         val pool = hikari?.hikariPoolMXBean
                         log.info(
                             "axon-stats cache entries={} hits={} misses={}; snapshots={} on {}; " +
-                                "pool active={} idle={} waiting={}; commands in flight={}",
+                                "pool active={} idle={} waiting={}; commands in flight={} queued={}",
                             cache.size,
                             cache.hits,
                             cache.misses,
@@ -113,6 +146,7 @@ class AxonConfiguration {
                             pool?.idleConnections,
                             pool?.threadsAwaitingConnection,
                             inFlight.current,
+                            senders.queued,
                         )
                     },
                     STATS_SECONDS,

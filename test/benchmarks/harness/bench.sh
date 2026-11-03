@@ -436,7 +436,7 @@ start_dumps() {
   mkdir -p "$OUT/dumps"
   (
     t=0
-    while kill -0 "$" 2>/dev/null; do
+    while kill -0 "$$" 2>/dev/null; do
       sleep "$every"
       t=$((t + every))
       for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do

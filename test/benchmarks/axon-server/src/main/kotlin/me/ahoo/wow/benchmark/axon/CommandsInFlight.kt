@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The commands the routes sent and that are not done, those whose request already timed out (504 after 10 s) among
- * them: a closed-loop client sends its next request once one times out, so these can outnumber the clients. The node
- * log reports them (`axon-stats`).
+ * The commands the routes sent that a thread of [CommandSenders] handles now, those whose request already timed out
+ * (504 after 10 s) among them: a closed-loop client sends its next request once one times out, so these and those
+ * queued ([CommandSenders.queued]) can outnumber the clients. The node log reports them (`axon-stats`).
  */
 @Component
 class CommandsInFlight {

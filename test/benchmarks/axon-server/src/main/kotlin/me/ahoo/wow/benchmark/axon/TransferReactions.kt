@@ -20,7 +20,6 @@ import org.axonframework.messaging.unitofwork.CurrentUnitOfWork
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
-import java.util.concurrent.Executors
 
 /**
  * The transfer's reactions, the Wow benchmark's `TransferSaga` (test/benchmarks/server): `Prepared` → `Entry` on the
@@ -29,20 +28,21 @@ import java.util.concurrent.Executors
  * `application.yaml`) rather than an Axon saga, which would store an instance per transfer.
  *
  * A command it sends is handled in the processor's unit of work (`benchmark.axon.reactions` `nested`, the default): its
- * events are committed with the processor's token, and the target's lock is held until then. With `separate` each
- * reaction is a unit of work of its own, on a virtual thread, and the processor goes on without waiting for it: the
- * diagnostic that tells the nested units of work apart (axon-pg-e3-reactions). Either way the transfer's waiter learns
- * of the entry once it is committed.
+ * events are committed with the processor's token, and the target's lock is held until then; a reaction that fails
+ * rolls it back and the processor retries the event ([AxonConfiguration.transferErrors]). With `separate` each
+ * reaction is a unit of work of its own, on a thread of [CommandSenders], and the processor goes on without waiting
+ * for it, nor retries one that failed: the diagnostic that tells the nested units of work apart
+ * (axon-pg-e3-reactions). Either way the transfer's waiter learns of the entry once it is committed.
  */
 @Component
 @ProcessingGroup(TransferReactions.GROUP)
 class TransferReactions(
     private val commands: CommandGateway,
     private val waits: TransferWaits,
+    private val senders: CommandSenders,
     @Value("\${benchmark.axon.reactions:nested}") reactions: String,
 ) {
     private val separate = reactions == "separate"
-    private val senders = Executors.newVirtualThreadPerTaskExecutor()
 
     @EventHandler
     fun on(event: Prepared) = react {
@@ -60,7 +60,7 @@ class TransferReactions(
         commands.sendAndWait<Long?>(UnlockAmount(event.sourceId, event.amount))
     }
 
-    /** Runs [reaction] here, in the processor's unit of work, or with `separate` on a virtual thread of its own. */
+    /** Runs [reaction] here, in the processor's unit of work, or with `separate` on a thread of [CommandSenders]. */
     private fun react(reaction: () -> Unit) {
         if (!separate) return reaction()
         senders.execute {

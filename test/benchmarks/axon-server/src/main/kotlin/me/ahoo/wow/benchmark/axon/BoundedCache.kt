@@ -31,10 +31,9 @@ import java.util.function.UnaryOperator
  * entry, its creation, its update, its removal and its eviction (`onEntryExpired`).
  *
  * A [ConcurrentHashMap] holds the entries, so a read takes no lock: a lock every command's load took would be a
- * bottleneck of the benchmark's own making at thousands of concurrent commands, and would pin a virtual thread to its
- * carrier. Past [capacity] the entries put first leave first, as [order] keeps them; a key removed and put again keeps
- * its first place there, so the order is approximate. The comparison's capacity is above its data set, so nothing is
- * evicted there.
+ * bottleneck of the benchmark's own making at thousands of concurrent commands. Past [capacity] the entries put first
+ * leave first, as [order] keeps them; a key removed and put again keeps its first place there, so the order is
+ * approximate. The comparison's capacity is above its data set, so nothing is evicted there.
  */
 class BoundedCache(private val capacity: Int) : Cache {
     private val entries = ConcurrentHashMap<Any, Any>()

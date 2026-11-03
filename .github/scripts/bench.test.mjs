@@ -2199,12 +2199,8 @@ test("the segments suite puts Axon's 16 segments against 2, set when each sessio
     ['up', 'run', 'saturate', 'saturate', 'inspect', 'down'],
   );
   const ups = calls.filter(call => call.startsWith('up '));
-  assert.ok(ups[0].endsWith(' props='));
-  assert.ok(
-    ups[1].endsWith(
-      ' props={"axon.eventhandling.processors.transfer.thread-count":2,"axon.eventhandling.processors.transfer.initial-segment-count":2}',
-    ),
-  );
+  assert.ok(ups[0].endsWith(' props={"benchmark.axon.segments":16}'));
+  assert.ok(ups[1].endsWith(' props={"benchmark.axon.segments":2}'));
   assert.deepEqual(
     suite.runs.map(run => [run.name, run.scenario, run.rate]),
     [

@@ -28,7 +28,6 @@ import reactor.core.publisher.Mono
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -41,16 +40,15 @@ import java.util.concurrent.TimeoutException
  * readiness probe.
  *
  * The command bus handles a command on the thread that sends it and blocks on JDBC, so each command is sent from a
- * virtual thread of its own, never from Netty's event loop.
+ * thread of [CommandSenders], never from Netty's event loop.
  */
 @Configuration
 class AccountRoutes(
     private val commands: CommandGateway,
     private val waits: TransferWaits,
     private val inFlight: CommandsInFlight,
+    private val senders: CommandSenders,
 ) {
-    private val senders = Executors.newVirtualThreadPerTaskExecutor()
-
     @Bean
     fun accountRouter(): RouterFunction<ServerResponse> = router {
         GET("/wow/manifest") { ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue("{}") }
