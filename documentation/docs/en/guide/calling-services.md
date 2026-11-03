@@ -76,7 +76,17 @@ peers:
     url: http://127.0.0.1:9093
 ```
 
-Without a `url`, the client finds the peer's nodes by DNS (`wow.peer.discovery: dns`, the default): it looks up the SRV records `wow.peer.dns.name-template` names after the peer's service, `_internal._tcp.{service}-cluster`, the headless Service of its internal port on Kubernetes, `{service}` being the service its contract on the class path names, which its domain module declares (`wow { service }`); a contract that names none leaves the peer to its `url`. The requests go to its nodes in turn; a node that does not take the connection, or that answers it is shutting down or on standby, is passed over for the next one in the same attempt. The records are looked up again every 30 seconds, and at once when no node takes a connection. `wow.peer.discovery: static` takes the `url`s alone; off Kubernetes, `wow.peer.discovery: spring-cloud` finds them in a Spring Cloud service registry ([Spring Cloud Discovery](../operate/spring-cloud)), and a community provider of `PeerDiscovery` may find them otherwise. A saga's call needs no listing either: a context whose contract is on the class path is found the same way.
+Without a `url`, the client finds the peer's nodes by DNS (`wow.peer.discovery: dns`, the default): it looks up the SRV records `wow.peer.dns.name-template` names after the peer's service, `_internal._tcp.{service}-cluster.{namespace}.svc`, the headless Service of its internal port on Kubernetes, `{service}` being the service its contract on the class path names, which its domain module declares (`wow { service }`); a contract that names none leaves the peer to its `url`. `{namespace}` is the node's own namespace, `wow.peer.dns.namespace` (the Wow chart sets it from the pod's `metadata.namespace`), else its service account's; a peer that runs in another namespace is placed there by its service's name:
+
+```yaml
+wow:
+  peer:
+    dns:
+      namespaces:
+        eshop-payment-service: payments
+```
+
+Set these in a YAML file or `SPRING_APPLICATION_JSON`: an environment variable loses the dashes of the service's name. A call that needs a namespace when none is known, as off Kubernetes with nothing set, fails, naming these keys and the peer's `url`. The requests go to its nodes in turn; a node that does not take the connection, or that answers it is shutting down or on standby, is passed over for the next one in the same attempt. The records are looked up again every 30 seconds, and at once when no node takes a connection. `wow.peer.discovery: static` takes the `url`s alone; off Kubernetes, `wow.peer.discovery: spring-cloud` finds them in a Spring Cloud service registry ([Spring Cloud Discovery](../operate/spring-cloud)), and a community provider of `PeerDiscovery` may find them otherwise. A saga's call needs no listing either: a context whose contract is on the class path is found the same way.
 
 `wow.peer.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.peer.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains what a peer accepts from a service that names itself.
 

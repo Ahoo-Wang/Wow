@@ -59,6 +59,10 @@ class ManifestSchemaTest {
                 ownership = Ownership.TENANT,
                 retired = listOf("CartDropped"),
                 idSource = AggregateIdSource.OWNER,
+                access = listOf(
+                    AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                    AccessAttributeManifest("sharedWith", AccessAttributeManifest.Type.STRING, multiple = true),
+                ),
                 commands = aggregate.commands.mapIndexed { index, command ->
                     if (index == 0) {
                         command.copyWith(mounted = true, transformsTo = listOf("shop.cart.PutItem"), description = "d")

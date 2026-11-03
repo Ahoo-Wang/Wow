@@ -87,7 +87,7 @@ A topic transport and a Sink are found the same way as stores. A `TransportProvi
 
 A provider of type `<type>` declares the options it reads (`options`, as a store provider does), and the host hands it the keys under `wow.<type>` that it declares, relative to that prefix (`bootstrap-servers`, `properties.linger.ms`); a key no provider declares fails the start. Its `available` says whether they configure it. A topic transport declares only its own options: the settings every topic transport has (`TopicTransportOptions`: `topics.prefix`, `command-intake.enabled`, `ddl`, `topics.partition-refresh`) are joined to them. A node runs at most one transport and every Sink that is configured. A setting a provider refuses with an `IllegalArgumentException` fails the startup naming the key. `TopicTransportSpec` and `SinkSpec` check that a provider reads only the options it declares.
 
-A peer discovery (`PeerDiscovery`, `me.ahoo.wow.spi.peer`), which finds the internal ports of a peer service's nodes, follows the same rule under `wow.peer.<type>`: declared options only, each read through the config (`PeerDiscoveryConfig.option(option)`). Wow's `dns` discovery declares `name-template`.
+A peer discovery (`PeerDiscovery`, `me.ahoo.wow.spi.peer`), which finds the internal ports of a peer service's nodes, follows the same rule under `wow.peer.<type>`: declared options only, each read through the config (`PeerDiscoveryConfig.option(option)`). Wow's `dns` discovery declares `name-template`, `namespace` and the map `namespaces`.
 
 ## The contract tests
 

@@ -69,6 +69,7 @@ public final class me/ahoo/wow/test/EventEnvelope {
 }
 
 public final class me/ahoo/wow/test/Expectations {
+	public final fun expectAccess (Ljava/util/Map;)V
 	public final fun expectDeleted ()V
 	public final fun expectError (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Throwable;
 	public static synthetic fun expectError$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Throwable;

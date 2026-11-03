@@ -64,6 +64,10 @@ internal data class AggregateBinding(
      * without a dot within the aggregate.
      */
     val retiredEvents: List<String> = emptyList(),
+    /** The state's access attributes (`@Access`), properties before functions, each in declaration order. */
+    val access: List<AccessBinding> = emptyList(),
+    /** The qualified name of the state's generated `<State>Access`, which holds the references to [access]. */
+    val accessObject: String = "",
     /** What compiles but is likely wrong, reported as warnings, such as `@Blocking` on a Reactor function. */
     val warnings: List<String> = emptyList(),
     /** Whether the root or its state is `internal`, so the generated factory is too. */

@@ -63,6 +63,7 @@ fun AggregateManifest.copyWith(
     ownership: Ownership = this.ownership,
     retired: List<String> = this.retired,
     idSource: AggregateIdSource = this.idSource,
+    access: List<AccessAttributeManifest> = this.access,
 ): AggregateManifest =
     AggregateManifest(
         name,
@@ -76,6 +77,7 @@ fun AggregateManifest.copyWith(
         ownership,
         retired,
         idSource,
+        access,
     )
 
 @InternalWowApi

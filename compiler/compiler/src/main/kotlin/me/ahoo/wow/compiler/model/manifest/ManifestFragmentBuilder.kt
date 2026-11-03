@@ -26,6 +26,7 @@ import me.ahoo.wow.compiler.model.subscription.HandlerBinding
 import me.ahoo.wow.compiler.model.subscription.Receipt
 import me.ahoo.wow.compiler.model.subscription.SendsBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -247,6 +248,9 @@ internal object ManifestFragmentBuilder {
             ownership = Ownership.valueOf(binding.ownership),
             retired = binding.retiredEvents.sorted(),
             idSource = AggregateIdSource.valueOf(binding.idSource),
+            access = binding.access.map {
+                AccessAttributeManifest(it.name, AccessAttributeManifest.Type.valueOf(it.type), it.multiple)
+            },
         )
     }
 

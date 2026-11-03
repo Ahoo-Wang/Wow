@@ -2240,6 +2240,33 @@
             "type" : "string",
             "enum" : [ "assigned", "owner" ],
             "description" : "Where an aggregate's id comes from; assigned when absent."
+          },
+          "access" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.AccessAttribute"
+            },
+            "description" : "The aggregate's access attributes; none when absent."
+          }
+        }
+      },
+      "wow.Manifest.AccessAttribute" : {
+        "type" : "object",
+        "description" : "An access attribute of an aggregate: its name, the type of its values, and whether it holds several.",
+        "required" : [ "name", "type" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "pattern" : "^[a-z][A-Za-z0-9]*$",
+            "maxLength" : 40
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "boolean" ]
+          },
+          "multiple" : {
+            "type" : "boolean",
+            "description" : "Whether it holds several values; one when absent."
           }
         }
       },
