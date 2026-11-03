@@ -100,9 +100,10 @@ const CATALOG_CONSOLE_PATH =
 // ci.yml's axon-server job: the unit tests and the distribution of the
 // industry comparison's Axon Framework server (test/benchmarks/axon-server, a
 // Gradle build of its own, outside the repository's and so outside JVM_PATH).
-// Decided apart from RULES, by AXON_SERVER_PATH: its own paths alone.
+// Decided apart from RULES, by AXON_SERVER_PATH: its own paths and the workflow.
 const AXON_SERVER = 'axonServer';
-const AXON_SERVER_PATH = /^test\/benchmarks\/axon-server\//;
+const AXON_SERVER_PATH =
+  /^(?:test\/benchmarks\/axon-server\/|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.

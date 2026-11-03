@@ -74,6 +74,7 @@ test('ci.yml runs every job it defines, and the static checks', () => {
       ci.viewStoreContract &&
       ci.opsConsole &&
       ci.catalogConsole &&
+      ci.axonServer &&
       ci.package,
   );
   // Scheduled and dispatched only: nothing it defines runs on a pull request.
@@ -614,6 +615,8 @@ test("the Axon server's own paths alone run its job, and nothing else", () => {
     'test/benchmarks/axon-server/src/main/kotlin/me/ahoo/wow/benchmark/axon/BoundedCache.kt',
     'test/benchmarks/axon-server/src/test/kotlin/me/ahoo/wow/benchmark/axon/BoundedCacheTest.kt',
     'test/benchmarks/axon-server/inspect.sql',
+    // The workflow runs every job it defines.
+    '.github/workflows/ci.yml',
     'new-directory/index.ts',
   ])
     assert.ok(scopes([path]).axonServer, path);
@@ -623,6 +626,7 @@ test("the Axon server's own paths alone run its job, and nothing else", () => {
     'test/benchmarks/README.md',
     'core/kernel/src/main/kotlin/A.kt',
     'README.md',
+    '.github/workflows/bench.yml',
   ])
     assert.ok(!scopes([path]).axonServer, path);
   // Outside the repository's Gradle build: no TypeScript scope, and not the JVM jobs.
