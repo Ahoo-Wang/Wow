@@ -25,11 +25,10 @@ import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.json.WowJson
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.builder.SpringApplicationBuilder
-import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
-import org.springframework.context.support.GenericApplicationContext
 import org.springframework.http.client.ReactorResourceFactory
 import tools.jackson.databind.JsonNode
 import java.net.URI
@@ -39,7 +38,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Duration
-import java.util.function.Supplier
 
 /**
  * Starts the Wow application [App] for a test, with [profiles] active, as [wowServer] of its class does.
@@ -139,22 +137,23 @@ private const val TRANSPORT = "wow.transport"
 private const val MEMORY = "memory"
 
 /**
- * Gives the server's public port event loops of its own, which closing it disposes, after the quiet period Spring Boot
- * reads (`spring.reactor.netty.shutdown-quiet-period`). Spring Boot's default, reactor-netty's global loops, are every
- * server's of the JVM, and closing one disposes them: a test that closed one server would stop every other one's ports,
- * a peer's or a long-lived fixture's.
+ * Gives the server's public port event loops of its own, which closing it disposes: Spring Boot's `ReactorResourceFactory`
+ * stops using reactor-netty's global loops before it initializes, and keeps every other setting it binds (its
+ * `spring.reactor.netty.shutdown-quiet-period` among them). The global loops are every server's of the JVM, and closing
+ * one disposes them: a test that closed one server would stop every other one's ports, a peer's or a long-lived
+ * fixture's.
  */
 private val OWN_EVENT_LOOPS = ApplicationContextInitializer<ConfigurableApplicationContext> { context ->
-    val own = Supplier {
-        ReactorResourceFactory().apply {
-            isUseGlobalResources = false
-            Binder.get(context.environment).bind(QUIET_PERIOD, Duration::class.java).ifBound(::setShutdownQuietPeriod)
-        }
-    }
-    (context as GenericApplicationContext).registerBean(ReactorResourceFactory::class.java, own)
+    context.beanFactory.addBeanPostProcessor(OwnEventLoops)
 }
 
-private const val QUIET_PERIOD = "spring.reactor.netty.shutdown-quiet-period"
+/** Turns off the global resources of every `ReactorResourceFactory` before it initializes ([OWN_EVENT_LOOPS]). */
+private object OwnEventLoops : BeanPostProcessor {
+    override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
+        if (bean is ReactorResourceFactory) bean.isUseGlobalResources = false
+        return bean
+    }
+}
 
 /**
  * A Wow application a test started ([wowServer]): its [context], the [publicPort] and [internalPort] it bound, and
