@@ -82,7 +82,7 @@ namespace (service.peers[].namespace) as wow.peer.dns.namespaces.<service>.
 {{- if $settings -}}{{- toJson $settings -}}{{- end -}}
 {{- end -}}
 
-{{/* Refuses values that cannot work together. */}}
+{{/* Refuses values that cannot work together; each template that renders them includes it, so one rendered alone (helm template -s) refuses them too. */}}
 {{- define "wow-service.validate" -}}
 {{- if and .Values.autoscaling.hpa.enabled .Values.autoscaling.keda.enabled -}}
 {{- fail "autoscaling.hpa.enabled and autoscaling.keda.enabled are both true: KEDA creates the HPA of its ScaledObject itself, so enable one of them" -}}

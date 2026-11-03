@@ -1,3 +1,4 @@
+{{- include "wow-service.validate" . -}}
 {{- if .Values.autoscaling.keda.enabled }}
 {{- $keda := .Values.autoscaling.keda -}}
 {{- $name := include "wow-service.name" . -}}

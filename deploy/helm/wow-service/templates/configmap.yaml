@@ -1,3 +1,4 @@
+{{- include "wow-service.validate" . -}}
 {{- $name := include "wow-service.name" . -}}
 # The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.log.partitions is
 # WOW_LOG_PARTITIONS). They override the application.yaml in the image, its profiles included; settings with map keys

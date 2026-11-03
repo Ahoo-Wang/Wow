@@ -1,3 +1,4 @@
+{{- include "wow-service.validate" . -}}
 {{- if .Values.metrics.serviceMonitor.enabled }}
 {{- $name := include "wow-service.name" . -}}
 {{- $monitor := .Values.metrics.serviceMonitor -}}

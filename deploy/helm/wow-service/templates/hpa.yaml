@@ -1,3 +1,4 @@
+{{- include "wow-service.validate" . -}}
 {{- if .Values.autoscaling.hpa.enabled }}
 {{- $hpa := .Values.autoscaling.hpa -}}
 # Scaling moves partitions: each node that joins or leaves hands partitions over through the leases, which drains their

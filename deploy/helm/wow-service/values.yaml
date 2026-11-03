@@ -1,5 +1,6 @@
 # The values of one Wow service. values.schema.json holds them to these keys: a key that is not here fails the install.
 
+# region generated
 # The service, as its build describes it: the Wow Gradle plugin's generateWowHelmValues writes this block from the
 # service's contract (build/wow/helm/values.yaml). Pass that file first and your own after it.
 service:
@@ -19,6 +20,7 @@ service:
   manifest:
     route: /wow/manifest
 
+# endregion
 # The ports of a node; the chart sets SERVER_PORT and WOW_INTERNAL_PORT to them, so the image's configuration cannot
 # disagree. The peers learn the internal port from the SRV records.
 ports:
@@ -65,6 +67,7 @@ envFrom: []
 # More environment variables of the container, after the chart's own.
 env: []
 
+# region shutdown
 # The node's shutdown: the grace period is their sum, and the chart sets wow.wait.max-timeout and
 # wow.cluster.drain-timeout from them.
 shutdown:
@@ -77,6 +80,7 @@ shutdown:
   # Room for the checkpoints to be saved and the JVM to exit.
   marginSeconds: 15
 
+# endregion
 probes:
   startup:
     periodSeconds: 5
@@ -95,6 +99,7 @@ resources:
   limits:
     memory: 1Gi
 
+# region disruption
 podDisruptionBudget:
   enabled: true
   # Or minAvailable, which wins when given.
@@ -107,6 +112,8 @@ topologySpread:
   maxSkew: 1
   whenUnsatisfiable: ScheduleAnyway
 
+# endregion
+# region network
 networkPolicy:
   enabled: true
   public:
@@ -127,12 +134,14 @@ networkPolicy:
           matchLabels:
             app.kubernetes.io/name: prometheus
 
+# endregion
 publicService:
   type: ClusterIP
   port: 80
   annotations: {}
 
 autoscaling:
+# region hpa
   # A HorizontalPodAutoscaler on CPU, and metrics of your own. Exclusive with keda.
   hpa:
     enabled: false
@@ -153,6 +162,8 @@ autoscaling:
           - type: Pods
             value: 1
             periodSeconds: 300
+# endregion
+# region keda
   # A KEDA ScaledObject on the subscriptions' backlog, through Prometheus; needs KEDA installed. Exclusive with hpa.
   keda:
     enabled: false
@@ -180,6 +191,8 @@ autoscaling:
             value: 1
             periodSeconds: 300
 
+# endregion
+# region metrics
 # Where Prometheus scrapes a node: the OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
 # port 9464, /metrics), or Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus).
 metrics:
@@ -194,6 +207,7 @@ metrics:
     interval: 30s
     labels: {}
 
+# endregion
 serviceAccount:
   create: true
   # The ServiceAccount's name: the service's when empty.
