@@ -63,7 +63,9 @@ internal data class CompareCheckpoint(
  * Where the snapshot writing of one 9.x aggregate stands (`snapshot`, `import --snapshots`): [after] is the last
  * instance whose V10 snapshot is written, in the import's id order, and [completed] is set once every one is. [failed]
  * counts the instances whose snapshot could not be written: a walk that ends with one is not completed, and starts
- * again from the first instance.
+ * again from the first instance. [heads] is where the V10 log ended, by partition, when the walk started, or when the
+ * last catch-up of a completed walk did: what the log holds after them is what a catch-up writes. A checkpoint an
+ * earlier version wrote has none.
  */
 internal data class SnapshotCheckpoint(
     val after: NineXAggregateId? = null,
@@ -71,6 +73,7 @@ internal data class SnapshotCheckpoint(
     val written: Long = 0,
     val skipped: Long = 0,
     val failed: Long = 0,
+    val heads: Map<Int, Long>? = null,
 )
 
 /**

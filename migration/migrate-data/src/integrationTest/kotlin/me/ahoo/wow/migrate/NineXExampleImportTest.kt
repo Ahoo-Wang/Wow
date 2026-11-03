@@ -165,6 +165,17 @@ class NineXExampleImportTest {
             .contains("example-service.order done: 1 instances, 0 streams imported, 1 skipped")
             .contains("Final pass done")
         kernel.stateAt(NineXExample.orderModel, orderRef, 5)!!.version.assert().isEqualTo(5)
+
+        // The snapshots written before catch up on what the tail brought in since: the received order alone.
+        run("snapshot", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert()
+            .contains(
+                "example-service.order snapshots caught up: 1 instances the V10 log changed since, 1 V10 snapshots " +
+                    "written, 0 already there",
+            )
+            .contains("example-service.cart snapshots caught up: 0 instances the V10 log changed since")
+        store.load(orderRef)!!.version.assert().isEqualTo(5)
     }
 
     @Test

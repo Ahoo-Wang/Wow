@@ -71,8 +71,10 @@ import kotlin.system.exitProcess
  *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
  *   and execution that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
- *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped). Each
- *   instance whose snapshot it cannot write is printed, and it fails once it has walked every aggregate.
+ *   from its checkpoint; once a walk has completed, it catches up instead: it writes the snapshots of the instances
+ *   the V10 log changed since, so a walk during the dual-run leaves the cut-over only those. `--restart` walks every
+ *   instance again (the snapshots already written are skipped). Each instance whose snapshot it cannot write is
+ *   printed, and it fails once it has walked every aggregate.
  *
  * - `export` writes back to the 9.x store what V10 wrote after the cut-over, for a rollback after V10 has written
  *   ([EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
@@ -446,7 +448,7 @@ internal class MigrateData(
         out.println(
             "Final pass done: the tail from its checkpoint, the reservations and the compensation walked again."
         )
-        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = true) else OK
+        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = false) else OK
     }
 
     @Suppress("LongParameterList") // A command's inputs.
@@ -557,7 +559,8 @@ internal class MigrateData(
             out.println(
                 "FAILED ${failed.sumOf { it.failed }} instances of ${failed.map { it.aggregate }} have no V10 " +
                     "snapshot, each printed above: fix them, then run snapshot again, which walks every instance of " +
-                    "those aggregates again and passes over the snapshots written.",
+                    "those aggregates again, or reads again what the log changed when it was catching up, and " +
+                    "passes over the snapshots written.",
             )
             return FAILED
         }
@@ -726,7 +729,8 @@ internal class MigrateData(
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
                         from the log at its version; exits with 3 when one differs
-              snapshot  [--restart]  writes the V10 snapshot of every imported instance
+              snapshot  [--restart]  writes the V10 snapshot of every imported instance; once done, of those the
+                        V10 log changed since
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
                         for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
               --help    prints this

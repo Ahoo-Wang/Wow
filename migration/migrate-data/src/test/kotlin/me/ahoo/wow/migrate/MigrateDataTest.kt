@@ -490,8 +490,8 @@ class MigrateDataTest {
         )
             .contains(
                 "FAILED 1 instances of [example-service.cart] have no V10 snapshot, each printed above: fix them, then " +
-                    "run snapshot again, which walks every instance of those aggregates again and passes over the " +
-                    "snapshots written.",
+                    "run snapshot again, which walks every instance of those aggregates again, or reads again what " +
+                    "the log changed when it was catching up, and passes over the snapshots written.",
             )
             .doesNotContain("Snapshots done.")
     }
