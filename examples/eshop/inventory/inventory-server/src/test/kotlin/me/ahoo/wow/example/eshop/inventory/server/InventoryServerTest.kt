@@ -15,11 +15,16 @@ package me.ahoo.wow.example.eshop.inventory.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
+import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.schedule.DisableJob
+import me.ahoo.wow.api.schedule.EnableJob
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
@@ -74,25 +79,18 @@ class InventoryServerTest {
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
-    /**
-     * Over HTTP: a context's job commands (`wow.schedule.Disable`, `Enable`) are no command of its contract, which the
-     * typed clients send by, so they go to the job's routes themselves.
-     */
     @Test
     fun `the scheduled job's commands should be an employee's alone (UI-50)`() {
-        val disable = "/eshop-inventory/wow.schedule/receive-deliveries/disable"
-        for (caller in listOf(emptyMap(), BUYER_HEADERS)) {
-            val refused = server.http.post(disable, "{}", caller)
-            refused.problem!!.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
-            refused.problem!!.detail.assert().contains("Only an employee sends wow.schedule.Disable")
+        val disable = CommandRequest.of(DisableJob, id = RECEIVE_DELIVERIES, type = JOBS)
+        for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
+            rejected { server.commands(caller).wait(disable) }.result.error!!.message.assert()
+                .contains("Only an employee sends wow.schedule.Disable")
         }
-        server.http.post(disable, "{}", EMPLOYEE_HEADERS).problem.assert().isNull()
-        val enable = server.http.post(
-            "/eshop-inventory/wow.schedule/receive-deliveries/enable",
-            """{"job":"receive-deliveries"}""",
-            EMPLOYEE_HEADERS,
-        )
-        enable.problem.assert().describedAs(enable.text).isNull()
+        runBlocking { server.commands(EMPLOYEE).wait(disable) }
+            .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val enable = CommandRequest.of(EnableJob.of(RECEIVE_DELIVERIES), id = RECEIVE_DELIVERIES, type = JOBS)
+        runBlocking { server.commands(EMPLOYEE).wait(enable) }
+            .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
     private fun rejected(send: suspend () -> Unit): CommandRejectedException =
@@ -104,7 +102,9 @@ class InventoryServerTest {
             subject = "erin",
             attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee"))
         )
-        val BUYER_HEADERS = mapOf(DevelopmentHeaders.USER to "alice", DevelopmentHeaders.OWNER to "alice")
-        val EMPLOYEE_HEADERS = mapOf(DevelopmentHeaders.USER to "erin", DevelopmentHeaders.ROLES to "employee")
+        const val RECEIVE_DELIVERIES = "receive-deliveries"
+
+        /** The inventory's job aggregate, whose instances are its jobs by their names. */
+        val JOBS = AggregateType("eshop-inventory", ScheduleJobs.AGGREGATE)
     }
 }

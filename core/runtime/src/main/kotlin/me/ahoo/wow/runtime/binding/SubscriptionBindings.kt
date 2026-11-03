@@ -451,8 +451,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
 
         /**
-         * The [StateEvent] of [entry], a record read from another context's topic: its facts, the aggregate's tags
-         * after the commit among them, its published events, and its published state decoded into the [handler]'s
+         * The [StateEvent] of [entry], a record read from another context's topic: its facts, its published events, and its published state decoded into the [handler]'s
          * state type (the JSON tree for `StateEvent<*>`), or null when the record carries none: published without
          * it, which a handler of a state that is not nullable cannot take.
          */
@@ -481,7 +480,6 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 causation = record.causation,
                 headers = record.headers,
                 operator = record.operator,
-                tags = record.tags,
             ) { view?.let { if (type == null) it.state else context.codec.decodeTree(it.state, type) } }
         }
 
@@ -498,8 +496,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         /**
          * The [StateEvent] of [entry]: the stream's identity, command, commit time, scope
          * (the aggregate's after the commit), causation, headers and operator, its decoded events, and, from its
-         * view, the aggregate's tags after the commit and its state decoded afresh, so no handler sees another's
-         * changes nor the live instance.
+         * view, its state decoded afresh, so no handler sees another's changes nor the live instance.
          */
         private suspend fun stateEventOf(entry: SubscribedEntry, context: ContextNode): StateEvent<Any> {
             val stream = entry.stream
@@ -519,7 +516,6 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 causation = stream.causation,
                 headers = stream.headers,
                 operator = stream.operator,
-                tags = view.tags,
             ) { context.codec.decodeState(model, view.state) }
         }
     }

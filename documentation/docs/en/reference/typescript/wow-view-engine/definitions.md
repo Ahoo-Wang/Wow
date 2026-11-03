@@ -127,6 +127,8 @@ A page of records asks its source for the fields the view shows (the row key, th
 
 This is the commonest surprise when wiring a host: an action that reads `state.status` to decide whether an order can ship stays disabled in every view that does not show the status column, until the definition says `rowFields: ['state.status']`. There is no "fetch everything when there are actions": the whole document is what once made a page of failed executions 808 KB.
 
+`record.rowName` is the field a reader knows a row by — an order number, an aggregate's id — where the row key is an id nobody reads aloud. The row's controls are named after it ("Select SO-1002", "Actions for SO-1002", and the row's own action button, "Ship SO-1002"), and an action's question and outcome say it as `{record}`. Every page fetches it, as `rowFields`. Left out, or blank in a row, the key names the row and the row's action button is named by its label alone.
+
 ```ts
 export interface RecordCapability {
   defaults?: Partial<RecordViewConfig>;
@@ -138,6 +140,7 @@ export interface RecordCapability {
   requiresFilter?: boolean;
   rowFields?: string[];
   rowKey: string;
+  rowName?: string;
 }
 ```
 

@@ -167,8 +167,8 @@ The fields `available` reads must be in the row: a page of records fetches only 
 | `available(row, context)` | `true` when the record takes the command now, else why not. Asked with the input where one is known, so a choice can refuse one option and offer the rest |
 | `hidden(row, context)` | The record does not show the action at all — the reader may not do it — as against `available`, which shows it disabled with why |
 | `changesAt(row, context)` | When `available` next changes on its own, as a `Date`; the engine asks again then, so the host keeps no timer |
-| `confirm` | Ask first; may be a function of the input. Its words are said with `{count}` (how many records, with a `-one` form where a language says one apart), `{value}` (a choice's option) and `{record}` (the record's key when it is one record). `ask: 'always'` (the default) asks for one record too; `'bulk'` asks for a selection only. A selection always asks |
-| `form` | What the command needs besides the record. A form of one field with options is a choice: its options are offered in the menu, and the one picked is the input |
+| `confirm` | Ask first; may be a function of the input. Its words are said with `{count}` (how many records, with a `-one` form where a language says one apart), `{value}` (a choice's option) and `{record}` (when it is one record: its name, the definition's `record.rowName`, else its key). `ask: 'always'` (the default) asks for one record too; `'bulk'` asks for a selection only. A selection always asks |
+| `form` | What the command needs besides the record. A form of one field with options is a choice: its options are offered in the menu, and the one picked is the input. A field's `check(value)` refuses a value the service would refuse, under the field, before anything is sent |
 | `moves` | The record field this command sets, for a kanban view laid out by it: a card dropped on another lane runs the command with that lane's value as its input, `{ [moves]: value }`, and `available` is asked with that input, so a rule can shut one stage. With a form of that one field (the stages as options) the card's menu offers the same move — the keyboard's way to move a card. A form asking for anything else is refused by `actions()` |
 | `on` | Where it is offered: `row`, `bulk`, `detail`; every place by default |
 | `primary` | The one a reader presses most: a button in the row, not in the menu |
@@ -203,11 +203,24 @@ export interface ActionConfirm {
 }
 
 export interface ActionFormField {
+  check?(value: unknown): Availability;
   initial?: string | number | boolean;
   input?: 'text' | 'number' | 'boolean';
   label: string;
   options?: readonly FieldOption[];
   required?: boolean;
+}
+```
+
+### When the service refuses what was typed {#api-ActionInputError}
+
+A `check` says before sending what the service is known to refuse; the service keeps the last word. When it refuses the input rather than the record — a value it cannot read, a number past its range — `run` throws `ActionInputError` with its reason and, where it can tell, the fields it refused. The form comes back over the records it was refused for, with what was typed: each named field is marked with its reason, which holds while the field keeps the value refused, and the keyboard is on the first; a reason naming no field of the form is said above the fields. Any other failure closes the form and is reported on the outcome line. A choice draws no form, so it never comes back.
+
+```ts
+export declare class ActionInputError extends Error {
+  constructor(reason: string, fields?: Readonly<Record<string, string>>);
+  readonly fields: Readonly<Record<string, string>>;
+  readonly reason: string;
 }
 ```
 

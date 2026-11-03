@@ -126,6 +126,8 @@ export interface FieldSpec {
 
 这是接入时最常见的坑：一个读 `state.status` 判断能否发货的操作，在不显示状态列的视图里会一直禁用，直到定义写上 `rowFields: ['state.status']`。没有「有操作就取整份文档」这回事——整份文档正是一页失败执行曾经变成 808 KB 的原因。
 
+`record.rowName` 是读者认一行用的字段——订单号、聚合的 ID——用在行键是没人念出来的 ID 的时候。行上的控件按它命名（「选择 SO-1002」「SO-1002 的操作」，以及行自己的操作按钮「发货 SO-1002」），操作的问句与结果用它说 `{record}`。每一页都取回它，和 `rowFields` 一样。不写，或者某行里为空，就用行键称呼这一行，行自己的操作按钮只用它的标签命名。
+
 ```ts
 export interface RecordCapability {
   defaults?: Partial<RecordViewConfig>;
@@ -137,6 +139,7 @@ export interface RecordCapability {
   requiresFilter?: boolean;
   rowFields?: string[];
   rowKey: string;
+  rowName?: string;
 }
 ```
 

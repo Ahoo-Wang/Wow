@@ -277,6 +277,18 @@ public final class me/ahoo/wow/ops/api/parked/Retry {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface annotation class me/ahoo/wow/ops/api/parked/RetryDuration : java/lang/annotation/Annotation {
+	public abstract fun groups ()[Ljava/lang/Class;
+	public abstract fun message ()Ljava/lang/String;
+	public abstract fun payload ()[Ljava/lang/Class;
+}
+
+public final class me/ahoo/wow/ops/api/parked/RetryDuration$Validator : jakarta/validation/ConstraintValidator {
+	public fun <init> ()V
+	public synthetic fun isValid (Ljava/lang/Object;Ljakarta/validation/ConstraintValidatorContext;)Z
+	public fun isValid (Ljava/lang/String;Ljakarta/validation/ConstraintValidatorContext;)Z
+}
+
 public final class me/ahoo/wow/ops/api/parked/RetryRequested {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/String;Ljava/lang/Long;)V

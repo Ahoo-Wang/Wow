@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopCatalogManifest } from '../manifest.js';
-import type { ApplyTags, CreateCategory, RenameCategory, TransferSpace } from '../types.js';
+import type { CreateCategory, RenameCategory, TransferSpace } from '../types.js';
 
 /** Sends the commands of `eshop-catalog.category` by its service's routes (`EshopCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class CategoryCommandClient {
@@ -40,14 +40,6 @@ export class CategoryCommandClient {
   /** `RenameCategory`, answered as one result per hop of its wait (`text/event-stream`). */
   renameCategoryStream(id: string, body: RenameCategory, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-catalog.category.RenameCategory', body, id });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-catalog', name: 'category' }, id, body });
   }
 
   /**

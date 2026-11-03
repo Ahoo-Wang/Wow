@@ -332,6 +332,33 @@ describe('RecordCapability.rowFields admission', () => {
   });
 });
 
+describe('RecordCapability.rowName', () => {
+  const codes = (rowName: string) =>
+    validateDefinition(definition({ rowName }), builtinFieldKinds).map(
+      found => [found.code, found.path],
+    );
+
+  it('is fetched on every page, shown or not', () => {
+    expect(include(definition({ rowName: 'state.error.stackTrace' }))).toEqual([
+      'state.id',
+      'state.status',
+      'state.error.errorCode',
+      'eventTime',
+      'state.error.stackTrace',
+    ]);
+  });
+
+  it('refuses a field nobody declared, and a handle that is no path', () => {
+    expect(codes('state.status')).toEqual([]);
+    expect(codes('state.recoverable')).toEqual([
+      ['definition.record.row-name-unknown', ['record', 'rowName']],
+    ]);
+    expect(codes('keyword')).toEqual([
+      ['definition.record.row-name-not-a-path', ['record', 'rowName']],
+    ]);
+  });
+});
+
 describe('the query a view runs', () => {
   function open(source: ViewSource) {
     const engine = new ViewEngine({

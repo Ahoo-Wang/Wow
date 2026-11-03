@@ -884,9 +884,19 @@
   }, {
     "name" : "wow.peer.dns.name-template",
     "type" : "java.lang.String",
-    "description" : "The SRV name of a peer service's internal port, {service} its name (spring.application.name): by default the headless Service <service>-cluster and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as given, then under each search domain of the node's /etc/resolv.conf, as a resolver does; the records' targets are the nodes and their ports.",
+    "description" : "The SRV name of a peer service's internal port, {service} its name (spring.application.name) and {namespace} its namespace: by default the headless Service <service>-cluster in that namespace and its port named internal, the records Kubernetes publishes for them. A name without a trailing dot is tried as a resolver tries it: under each search domain of the node's /etc/resolv.conf and as given, as given first when it has at least the resolver's ndots dots; the records' targets are the nodes and their ports.",
     "sourceType" : "me.ahoo.wow.spring.boot.DnsPeerDiscovery",
-    "defaultValue" : "_internal._tcp.{service}-cluster"
+    "defaultValue" : "_internal._tcp.{service}-cluster.{namespace}.svc"
+  }, {
+    "name" : "wow.peer.dns.namespace",
+    "type" : "java.lang.String",
+    "description" : "The node's own namespace, the {namespace} of each peer that namespaces does not place elsewhere: on Kubernetes, the pod's metadata.namespace (the downward API), as the Wow chart sets it. Unset, the namespace of the pod's service account, from /var/run/secrets/kubernetes.io/serviceaccount/namespace; a call that needs a namespace when neither gives one fails, naming this key.",
+    "sourceType" : "me.ahoo.wow.spring.boot.DnsPeerDiscovery"
+  }, {
+    "name" : "wow.peer.dns.namespaces",
+    "type" : "java.util.Map<java.lang.String,java.lang.String>",
+    "description" : "The namespaces of the peer services outside the node's own, by service name (wow.peer.dns.namespaces.<service>): the {namespace} of their SRV names. Set them in a YAML file or SPRING_APPLICATION_JSON: an environment variable loses the dashes of a service's name.",
+    "sourceType" : "me.ahoo.wow.spring.boot.DnsPeerDiscovery"
   }, {
     "name" : "wow.peer.forwarded-headers",
     "type" : "java.util.List<java.lang.String>",

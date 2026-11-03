@@ -15,6 +15,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import {
+  ActionInputError,
   actions,
   systemInstanceId,
   type Issue,
@@ -52,7 +53,8 @@ const slowly = (ms: number) =>
  * The warehouse's commands on an order. 「发货」 is the everyday one; an
  * order under 1,000 goes to a manual review first, and a cancelled one never
  * ships. 「取消订单」 costs the customer their order, so it asks. 「设优先级」
- * is a choice; 「备注」 a form.
+ * is a choice; 「备注」 a form, whose reminder the warehouse takes up to a
+ * day ahead and refuses beyond, naming the field.
  */
 function orderActions(delay = 300, opensAt?: number): RecordActions {
   return actions([
@@ -111,7 +113,13 @@ function orderActions(delay = 300, opensAt?: number): RecordActions {
         text: { label: '备注内容' },
         minutes: { label: '提醒（分钟后）', input: 'number', initial: 30 },
       },
-      run: () => slowly(delay),
+      run: async (_row, { minutes }) => {
+        await slowly(delay);
+        if (Number(minutes) > 1440)
+          throw new ActionInputError('提醒最多提前一天', {
+            minutes: '最多 1440 分钟',
+          });
+      },
     },
   ]);
 }
@@ -423,6 +431,54 @@ export const FormInput: Story = {
         }),
       ),
     );
+  },
+};
+
+/**
+ * The service refuses what was typed (UI walk UI-13): the form comes back
+ * with it, the field it named marked with its words and the keyboard on
+ * it, rather than closing on a failure line and the input lost.
+ */
+export const FormReturned: Story = {
+  name: '表单被服务拒绝后带着输入回来',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await loaded(canvas);
+    const menu = await openMenu(canvas, 'SO-1001');
+    await userEvent.click(menu.getByRole('menuitem', { name: '备注' }));
+    const asked = within(
+      await body().findByRole('dialog', { name: '备注：SO-1001' }),
+    );
+    await userEvent.type(asked.getByLabelText('备注内容'), '先电话确认地址');
+    const minutes = asked.getByLabelText('提醒（分钟后）');
+    await userEvent.clear(minutes);
+    await userEvent.type(minutes, '2000');
+    await userEvent.click(asked.getByRole('button', { name: '备注' }));
+    await expect(await line(canvasElement, 'settled')).toHaveTextContent(
+      '备注 · SO-1001 失败：提醒最多提前一天',
+    );
+    const back = within(
+      await body().findByRole('dialog', { name: '备注：SO-1001' }),
+    );
+    const refused = back.getByLabelText('提醒（分钟后）');
+    await waitFor(() => expect(document.activeElement).toBe(refused));
+    // The number as typed, drawn with its grouping.
+    await expect((refused as HTMLInputElement).value.replace(/\D/g, '')).toBe(
+      '2000',
+    );
+    await expect(refused).toHaveAttribute('aria-invalid', 'true');
+    await expect(refused).toHaveAccessibleDescription('最多 1440 分钟');
+    await expect(back.getByLabelText('备注内容')).toHaveValue('先电话确认地址');
+    await userEvent.clear(refused);
+    await userEvent.type(refused, '60');
+    await expect(refused).not.toHaveAttribute('aria-invalid', 'true');
+    await userEvent.click(back.getByRole('button', { name: '备注' }));
+    await waitFor(() =>
+      expect(
+        canvasElement.querySelector('[data-slot="bulk-status"]'),
+      ).toHaveTextContent('备注 · SO-1001 已完成'),
+    );
+    await waitFor(() => expect(body().queryByRole('dialog')).toBeNull());
   },
 };
 

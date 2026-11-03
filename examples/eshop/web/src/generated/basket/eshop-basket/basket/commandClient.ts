@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopBasketManifest } from '../manifest.js';
-import type { AddBasketItem, ApplyTags, ChangeBasketItemQuantity, CheckoutBasket, ClearBasket, RemoveBasketItem, TransferSpace } from '../types.js';
+import type { AddBasketItem, ChangeBasketItemQuantity, CheckoutBasket, ClearBasket, RemoveBasketItem, TransferSpace } from '../types.js';
 import { BasketAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-basket.basket` by its service's routes (`EshopBasketManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -163,23 +163,6 @@ export class BasketCommandClient {
   /** `RemoveBasketItem` to the caller's own aggregate, answered as one result per hop of its wait (`text/event-stream`). */
   removeBasketItemOwnStream(body: RemoveBasketItem, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-basket.basket.RemoveBasketItem', body });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   * By id, for a caller with no owner; `applyTagsOwn` sends it to the caller's own.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-basket', name: 'basket' }, id, body });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`, to the caller's own aggregate, whose id is the caller's owner.
-   */
-  applyTagsOwn(body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-basket', name: 'basket' }, body });
   }
 
   /**

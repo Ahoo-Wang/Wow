@@ -13,20 +13,29 @@
 
 package me.ahoo.wow.example.eshop.ordering.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.runtime.identity.IdentityCodec
 import me.ahoo.cosec.spi.identity.Identity
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.wait
+import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.cosec.CoSecCallerResolver
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStateView
+import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -37,8 +46,8 @@ import java.util.UUID
  * buyer owns the orders it submits and reads only its own; an employee, a tenant-level caller, reads every order; a
  * request without the header is anonymous and answered 401, whatever else it carries, a token included, since the
  * service verifies none. Outside development, a node without CoSec does not start: it would take its callers from
- * headers any client sets. Over HTTP: the caller is the gateway's `CoSec-Identity` header, the contract this test is
- * about, which the typed clients, sending the development identity headers, do not write.
+ * headers any client sets. The typed clients send as the gateway forwards a caller: its `CoSec-Identity`
+ * ([GATEWAY]); a request without it goes over HTTP, its headers the point.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingCoSecTest {
@@ -71,22 +80,33 @@ class OrderingCoSecTest {
         server.bean<CallerResolver>().assert().isInstanceOf(CoSecCallerResolver::class.java)
     }
 
+    /** The credential the gateway forwards: the caller as the principal it verified, with the roles it has. */
+    private val gateway = UserCredential { caller ->
+        signedIn(caller.subject!!, *caller.attributes[ROLES_ATTRIBUTE].orEmpty().toTypedArray())
+    }
+
     @Test
     fun `a buyer should own the order it submits, and an employee read it`() {
-        val alice = signedIn("alice")
-        submit("cosec-alice-1", alice).status.assert().isEqualTo(OK)
-        val answer = read("cosec-alice-1", alice)
-        answer.status.assert().describedAs(answer.text).isEqualTo(OK)
-        answer.body!!["ownerId"].asString().assert().isEqualTo("alice")
-        read("cosec-alice-1", signedIn("bob")).status.assert().isEqualTo(NOT_FOUND)
-        read("cosec-alice-1", signedIn("erin", "employee")).status.assert().isEqualTo(OK)
+        val alice = Caller.of(subject = "alice")
+        val items = listOf(OrderItem("mug", BigDecimal("8.50"), 2))
+        runBlocking { server.commands(alice, gateway).wait(SubmitOrder(items), "cosec-alice-1") }
+        read("cosec-alice-1", alice)!!.scope.ownerId.assert().isEqualTo("alice")
+        read("cosec-alice-1", Caller.of(subject = "bob")).assert().isNull()
+        read("cosec-alice-1", Caller.of(subject = "erin", attributes = mapOf(ROLES_ATTRIBUTE to listOf("employee"))))
+            .assert().isNotNull()
     }
 
     @Test
     fun `a request without the gateway's identity should be answered 401, whatever headers it names`() {
         val headers = mapOf(USER to "mallory", ROLES to "employee", "Authorization" to "Bearer not-verified-here")
-        submit("cosec-mallory-1", headers).status.assert().isEqualTo(UNAUTHORIZED)
-        read("cosec-mallory-1", headers).status.assert().isEqualTo(UNAUTHORIZED)
+        val submitted = server.http.post(
+            "/eshop-ordering/order/cosec-mallory-1/submit-order",
+            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
+            headers,
+        )
+        submitted.problem!!.status.assert().isEqualTo(UNAUTHORIZED)
+        server.http.get("/eshop-ordering/order/cosec-mallory-1/state", headers).problem!!.status
+            .assert().isEqualTo(UNAUTHORIZED)
     }
 
     @Test
@@ -98,23 +118,12 @@ class OrderingCoSecTest {
             .assert().contains("No durable backend", "A development profile")
     }
 
-    private fun submit(id: String, headers: Map<String, String>): Answer = post(
-        "/eshop-ordering/order/$id/submit-order",
-        """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
-        headers,
-    )
-
-    private fun read(id: String, headers: Map<String, String>): Answer =
-        server.http.get("/eshop-ordering/order/$id/state", headers)
-
-    private fun post(path: String, body: String, headers: Map<String, String>): Answer =
-        server.http.post(path, body, headers)
+    private fun read(id: String, caller: Caller): Snapshot<OrderStateView>? =
+        runBlocking { server.queries(caller, gateway).snapshots(OrderStateView::class.java).state(id) }
 
     private companion object {
         const val DEFAULT_TENANT = "(0)"
         val TOKEN_TTL: Duration = Duration.ofHours(1)
-        const val OK = 200
         const val UNAUTHORIZED = 401
-        const val NOT_FOUND = 404
     }
 }

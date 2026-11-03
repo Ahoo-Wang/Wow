@@ -23,7 +23,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
@@ -188,17 +187,39 @@ class SinkSubscriptionTest {
     }
 
     @Test
-    fun `a stream published without its state should still carry the deleted mark and tags`(): Unit = runBlocking {
+    fun `a stored TagsApplied of the tags Wow no longer has should be left out as a retired event`(): Unit =
+        runBlocking {
+            val tagsApplied = EventRecord("wow.lifecycle.TagsApplied", 1, """{"tags":{"region":["eu"]}}""")
+            fun stream(version: Int, vararg events: EventRecord) = EventStreamRecord(
+                ref = ref,
+                version = version,
+                commandId = "c-$version",
+                requestId = "r-$version",
+                commandType = "shop.order.SetPrice",
+                commitTime = version.toLong(),
+                events = events.toList(),
+                scope = Scope.NONE,
+            )
+            val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+            log.append(stream(1, priced, tagsApplied)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream(2, tagsApplied)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val sink = sink()
+            log.read(ref).collect { handle(sink, it) }
+            val record = written.single()
+            record.version.assert().isEqualTo(1)
+            record.events.map { it.name }.assert().containsExactly("shop.order.Priced")
+        }
+
+    @Test
+    fun `a stream published without its state should still carry the deleted mark`(): Unit = runBlocking {
         val sink = sink(includeState = false)
-        val tags = mapOf("tier" to listOf("gold"))
         handle(sink, commit(SetPrice(BigDecimal.ONE)))
-        handle(sink, commit(ApplyTags(tags)))
         handle(sink, commit(DeleteAggregate))
         written.map { it.state }.assert().containsOnlyNulls()
-        written.map { it.version }.assert().containsExactly(1, 2, 3)
-        written[1].tags.assert().isEqualTo(tags)
-        written[2].deleted.assert().isTrue()
-        written[2].events.single().name.assert().isEqualTo("wow.lifecycle.AggregateDeleted")
+        written.map { it.version }.assert().containsExactly(1, 2)
+        written[0].deleted.assert().isFalse()
+        written[1].deleted.assert().isTrue()
+        written[1].events.single().name.assert().isEqualTo("wow.lifecycle.AggregateDeleted")
     }
 
     @Test

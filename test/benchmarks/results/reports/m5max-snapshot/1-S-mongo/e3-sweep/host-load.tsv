@@ -1,0 +1,25 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793694010	19.35	10.11	9.09	72	WindowServer 24, sysmond 8, Claude Helper 7	cosec-redis 0.31%	86	0		
+1793694023	17.98	10.12	9.10	49	WindowServer 19, Claude Helper 7, sysmond 5	cosec-redis 0.13%	128	2		
+1793694035	14.60	9.76	8.99	3	Stats 1, claude 1, WindowServer 0	cosec-redis 0.14%	284	1		
+1793694047	12.50	9.47	8.90	6	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 1	cosec-redis 0.14%	145	1		
+1793694059	10.73	9.19	8.80	39	sysmond 12, Stats 8, Activity Monitor 6	cosec-redis 0.15%	143	2		
+1793694071	8.86	8.85	8.69	14	Stats 4, WindowServer 2, configd 2	cosec-redis 0.14%	209	2		
+1793694084	8.02	8.67	8.63	10	sysmond 3, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 2, Stats 2	cosec-redis 0.17%	199	1		
+1793694096	7.46	8.51	8.57	5	claude 2, Stats 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.14%	324	4		
+1793694108	7.94	8.59	8.60	5	sysmond 3, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 0	cosec-redis 0.13%	446	4		
+1793694120	7.42	8.43	8.54	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, claude 1, WindowServer 0	cosec-redis 0.13%	392	4		
+1793694132	6.89	8.29	8.49	11	Stats 3, sysmond 3, WindowServer 1	cosec-redis 0.14%	359	4		
+1793694144	6.51	8.16	8.44	6	Stats 2, WindowServer 1, configd 1	cosec-redis 0.15%	556	6		
+1793694157	5.74	7.91	8.34	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Stats 1, AppleCentauriAlpha 1	cosec-redis 0.12%	432	6		
+1793694169	5.60	7.81	8.30	5	claude 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 1	cosec-redis 0.13%	590	5		
+1793694181	7.22	8.08	8.39	3	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, sysmond 1, AppleCentauriAlpha 0	cosec-redis 0.14%	845	7		
+1793694193	6.26	7.84	8.30	21	Stats 8, sysmond 4, WindowServer 2	cosec-redis 0.16%	710	6		
+1793694205	7.47	8.06	8.37	6	Stats 2, WindowServer 1, configd 1	cosec-redis 0.14%	740	8		
+1793694218	10.21	8.64	8.58	13	sysmond 3, dasd 2, WindowServer 1	cosec-redis 0.16%	950	11		
+1793694230	12.45	9.21	8.78	6	sysmond 4, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, AppleCentauriAlpha 0	cosec-redis 0.16%	857	4		
+1793694242	13.88	9.61	8.92	4	MacPacketTunnel 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WeChat 0	cosec-redis 0.16%	894	9		
+1793694254	12.68	9.49	8.89	16	sysmond 6, Activity Monitor 3, Stats 2	cosec-redis 0.24%	1562	47		
+1793694267	19.02	11.02	9.45	8	Stats 1, WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.66%	1393	29		
+1793694279	19.73	11.43	9.61	30	mds 23, Activity Monitor 2, mds_stores 2	cosec-redis 0.16%	1382	21		
+1793694291	21.32	12.19	9.91	9	Stats 4, configd 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.17%	1521	3		

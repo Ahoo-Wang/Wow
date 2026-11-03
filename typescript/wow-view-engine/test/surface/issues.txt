@@ -1,4 +1,4 @@
-# Issue codes — 529.
+# Issue codes — 531.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -321,6 +321,8 @@ definition.record.row-field-not-a-path
 definition.record.row-field-unknown
 definition.record.row-key-unknown
 definition.record.row-key-unsortable
+definition.record.row-name-not-a-path
+definition.record.row-name-unknown
 definition.search.reference-label
 definition.source.unregistered
 definition.text.fallback

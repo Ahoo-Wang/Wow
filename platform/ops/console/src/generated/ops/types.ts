@@ -141,35 +141,6 @@ export interface ParkedState {
 
 
 /**
- * Record an action the owning service refused
- * - key: `me.ahoo.wow.ops.api.parked.RecordActionRefused`
- */
-export interface RecordActionRefused {
-  action: string;
-  code: string;
-  reason: string;
-}
-
-
-/**
- * Record a parked entry
- * - key: `me.ahoo.wow.ops.api.parked.RecordParked`
- */
-export interface RecordParked {
-  entry: ParkedEntry;
-}
-
-
-/**
- * Record a resolved entry
- * - key: `me.ahoo.wow.ops.api.parked.RecordResolved`
- */
-export interface RecordResolved {
-  resolution: { aggregate: EntryAggregate; context: string; failedAt?: string | null; outcome: string; resolvedAt: string; service: string; subscription: string; };
-}
-
-
-/**
  * Retry a parked entry
  * - key: `me.ahoo.wow.ops.api.parked.Retry`
  */

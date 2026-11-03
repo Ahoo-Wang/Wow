@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 454 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 455 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 type  AbsoluteDateTimeValue
@@ -7,6 +7,7 @@ type  ActionContext
 type  ActionForm
 type  ActionFormField
 type  ActionInput
+value ActionInputError
 type  ActionPlace
 type  ActionRefusal
 type  ActionRow

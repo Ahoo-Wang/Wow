@@ -18,9 +18,9 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
@@ -104,13 +104,13 @@ class ModelProviderTest {
         package sample.ledger
 
         import me.ahoo.wow.api.annotation.AggregateRoot
-        import me.ahoo.wow.api.lifecycle.ApplyTags
         import me.ahoo.wow.api.lifecycle.DeleteAggregate
+        import me.ahoo.wow.api.lifecycle.TransferSpace
 
         data class Post(val note: String)
         data class Posted(val note: String)
 
-        @AggregateRoot(lifecycle = [DeleteAggregate::class, ApplyTags::class, DeleteAggregate::class])
+        @AggregateRoot(lifecycle = [DeleteAggregate::class, TransferSpace::class, DeleteAggregate::class])
         class Ledger(val id: String) {
             fun onCommand(command: Post): Posted = Posted(command.note)
             fun onSourcing(event: Posted) = Unit
@@ -221,11 +221,11 @@ class ModelProviderTest {
             result
         ).models(Dependencies.NONE).single().lifecycleCommands.assert().containsExactlyInAnyOrder(
             DeleteAggregate::class.java,
-            ApplyTags::class.java,
+            TransferSpace::class.java,
         )
         generated(compilation, "LedgerModel.kt")!!.readText().assert().contains(
-            "lifecycle(me.ahoo.wow.api.lifecycle.ApplyTags::class.java, " +
-                "me.ahoo.wow.api.lifecycle.DeleteAggregate::class.java)",
+            "lifecycle(me.ahoo.wow.api.lifecycle.DeleteAggregate::class.java, " +
+                "me.ahoo.wow.api.lifecycle.TransferSpace::class.java)",
         )
         val (allCompilation, _) = compile(account, ledger)
         generated(allCompilation, "AccountModel.kt")!!.readText().assert().doesNotContain("lifecycle(")
@@ -233,7 +233,7 @@ class ModelProviderTest {
         aggregates.assert().isEqualTo(
             mapOf(
                 "account" to Lifecycle.COMMANDS.keys.sorted(),
-                "ledger" to listOf(Lifecycle.APPLY_TAGS, Lifecycle.DELETE_AGGREGATE),
+                "ledger" to listOf(Lifecycle.DELETE_AGGREGATE, Lifecycle.TRANSFER_SPACE),
             ),
         )
     }
@@ -287,8 +287,7 @@ class ModelProviderTest {
         result.messages.assert()
             .contains(
                 "@AggregateRoot(lifecycle) lists me.ahoo.wow.api.lifecycle.AggregateDeleted, which is not a " +
-                    "lifecycle command: one of ApplyTags, DeleteAggregate, RestoreAggregate, TransferOwner, " +
-                    "TransferSpace",
+                    "lifecycle command: one of DeleteAggregate, RestoreAggregate, TransferOwner, TransferSpace",
             )
             .contains("@AggregateRoot(lifecycle) lists sample.Post, which is not a lifecycle command")
     }

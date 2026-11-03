@@ -635,6 +635,10 @@ export const parked: DataViewDefinition = {
   ],
   record: {
     rowKey: "aggregateId",
+    // The ops id (`service:context:subscription:…:id`) is near a hundred
+    // characters: a reader knows an entry by the aggregate it parks, and
+    // the row's controls are named so ("Select pay-1b88e0d4").
+    rowName: "state.aggregate.id",
     paging: "paged",
     layouts: ["table", "card"],
     // What the actions read to decide what an entry takes, whichever

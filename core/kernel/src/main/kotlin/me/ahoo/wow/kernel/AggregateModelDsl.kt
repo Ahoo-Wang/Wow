@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -73,8 +74,8 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var idSource: AggregateIdSource = AggregateIdSource.ASSIGNED
     private var stateRevision: Int = 1
     private val retired = ArrayList<String>()
-    private var tags: ((S) -> Map<String, Collection<String>>)? = null
     private val aggregateIds = LinkedHashMap<Class<*>, (Any) -> String?>()
+    private val access = LinkedHashMap<AccessAttribute<*>, (S) -> Any?>()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -332,15 +333,28 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * Derives the aggregate's tags from its state (9.x `StateAggregateTagsExtractor`): the keys [derive]
-     * returns override the applied tags (`ApplyTags`) per key, and a key it returns with no value removes that key. The
-     * kernel calls it after every commit and every load, so it is pure and cheap; it should return every key it owns
-     * on every call, with an empty collection for none, since a key it stops returning keeps its last derived value.
-     * A state member marked `@Tags` calls it in a generated model.
+     * Declares the access attribute [attribute], one value of the state that [read] gives, null for none: a fact the
+     * aggregate's access policies compare with a caller's claims ([AggregateModel.accessOf]). [read] is a pure, cheap
+     * function of the state, derived on each commit: it reads the state alone, does no I/O, reads no clock and draws
+     * no random number. A state member marked `@Access` calls it in a generated model, a value class unwrapped.
      */
-    fun tags(derive: (S) -> Map<String, Collection<String>>) {
-        require(tags == null) { "$type declares two tags functions." }
-        tags = derive
+    fun <V : Any> access(attribute: AccessAttribute.Single<V>, read: (S) -> V?) {
+        declare(attribute, read)
+    }
+
+    /**
+     * Declares the access attribute [attribute], several values of the state that [read] gives, as
+     * [access] of one value does.
+     */
+    fun <V : Any> access(attribute: AccessAttribute.Multiple<V>, read: (S) -> Collection<V>) {
+        declare(attribute, read)
+    }
+
+    private fun declare(attribute: AccessAttribute<*>, read: (S) -> Any?) {
+        require(access.keys.none { it.name == attribute.name }) {
+            "$type declares the access attribute ${attribute.name} twice."
+        }
+        access[attribute] = read
     }
 
     /**
@@ -444,9 +458,9 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         ownership = ownership,
         stateRevision = stateRevision,
         retiredEvents = retired.toList(),
-        tags = tags,
         idSource = idSource,
         aggregateIds = aggregateIds.toMap(),
+        access = access.toMap(),
     )
 
     /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */

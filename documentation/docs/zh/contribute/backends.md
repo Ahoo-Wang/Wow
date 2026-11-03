@@ -87,7 +87,7 @@ topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:sp
 
 类型为 `<type>` 的提供者声明它读取的选项（`options`，与存储提供者相同），宿主把 `wow.<type>` 下它声明的键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`）；没有任何提供者声明的键会使启动失败。由它的 `available` 说明这些键是否配置了它。主题传输只声明自己的选项：每个主题传输都有的设置（`TopicTransportOptions`：`topics.prefix`、`command-intake.enabled`、`ddl`、`topics.partition-refresh`）会与之合并。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。`TopicTransportSpec` 和 `SinkSpec` 检查提供者只读取它声明的选项。
 
-节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`。
+节点发现（`PeerDiscovery`，`me.ahoo.wow.spi.peer`）用于找到对端服务各节点的内部端口，它在 `wow.peer.<type>` 下遵循同样的规则：只能读已声明的选项，并通过配置读取（`PeerDiscoveryConfig.option(option)`）。Wow 的 `dns` 发现声明了 `name-template`、`namespace` 与映射 `namespaces`。
 
 ## 契约测试 {#the-contract-tests}
 

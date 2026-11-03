@@ -21,6 +21,9 @@
 export const actionsMessages = {
   // The row's overflow menu, named by the record it acts on.
   'label.action.more': 'Actions for {record}',
+  // The row's own button, where the definition names rows: its label, then
+  // which record.
+  'label.action.row': '{action} {record}',
   // The selection's primary action counts what it is for.
   'label.action.bulk': '{action} {count}',
   // …and how many of them take it, where not all do.

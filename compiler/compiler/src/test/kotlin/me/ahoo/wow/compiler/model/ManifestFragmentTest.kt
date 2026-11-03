@@ -229,7 +229,6 @@ class ManifestFragmentTest {
                                     routes = listOf(RouteManifest("POST", "/shop/cart/{id}/put-item")),
                                 ),
                             ) + listOf(
-                                "wow.lifecycle.ApplyTags",
                                 "wow.lifecycle.DeleteAggregate",
                                 "wow.lifecycle.RestoreAggregate",
                                 "wow.lifecycle.TransferOwner",
@@ -289,7 +288,7 @@ class ManifestFragmentTest {
             ),
         )
         read(fragment).assert().isEqualTo(expected)
-        read(fragment).unresolvedSchemaRefs.assert().hasSize(17)
+        read(fragment).unresolvedSchemaRefs.assert().hasSize(16)
     }
 
     private val order = SourceFile.kotlin(

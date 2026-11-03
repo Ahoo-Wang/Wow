@@ -143,7 +143,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     /**
      * The snapshot of [state], which folds [ref]'s event streams up to [version]; [scope] is the aggregate's, the
      * scope of the last of them, and [firstEventTime] and [lastEventTime] are the commit times of the
-     * first and the last. [deleted], [tags] and [schedules] are the aggregate's after them, evolved by the lifecycle
+     * first and the last. [deleted] and [schedules] are the aggregate's after them, evolved by the lifecycle
      * and schedule events; a state the kernel loaded holds them ([CachedState]). [operator] and [firstOperator] are the
      * operators of the last and the first of them.
      */
@@ -157,7 +157,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         firstEventTime: Long,
         lastEventTime: Long,
         deleted: Boolean = false,
-        tags: Map<String, List<String>> = emptyMap(),
         operator: Operator? = null,
         firstOperator: Operator? = null,
         schedules: Map<String, ScheduleRule> = emptyMap(),
@@ -170,7 +169,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         firstEventTime,
         lastEventTime,
         deleted,
-        tags,
         operator,
         firstOperator,
         schedules,
@@ -191,7 +189,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         firstEventTime: Long,
         lastEventTime: Long,
         deleted: Boolean = false,
-        tags: Map<String, List<String>> = emptyMap(),
         operator: Operator? = null,
         firstOperator: Operator? = null,
         schedules: Map<String, ScheduleRule> = emptyMap(),
@@ -207,7 +204,6 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             deleted = deleted,
             firstEventTime = firstEventTime,
             lastEventTime = lastEventTime,
-            tags = tags,
             operator = operator,
             firstOperator = firstOperator,
             schedules = schedules,

@@ -16,7 +16,6 @@ package me.ahoo.wow.rehearsal.example
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.annotation.Tags
 import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -39,13 +38,6 @@ class OrderState {
     /** What remains to pay. */
     val payable: BigDecimal
         get() = totalAmount.minus(paidAmount)
-
-    /** The 9.x order's ABAC tags (its `StateAggregateTagsExtractor`): where it is shipped to. */
-    @Tags
-    fun tags(): Map<String, List<String>> = mapOf(
-        "address-country" to listOfNotNull(address?.country),
-        "address-province" to listOfNotNull(address?.province),
-    )
 
     fun onSourcing(event: OrderCreated) {
         items = event.items

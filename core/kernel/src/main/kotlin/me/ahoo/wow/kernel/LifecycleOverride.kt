@@ -17,13 +17,11 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
 import me.ahoo.wow.api.lifecycle.AggregateRestored
-import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.OwnerTransferred
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.SpaceTransferred
-import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 
@@ -40,7 +38,6 @@ internal object LifecycleOverride {
         RestoreAggregate::class.java to AggregateRestored::class.java,
         TransferOwner::class.java to OwnerTransferred::class.java,
         TransferSpace::class.java to SpaceTransferred::class.java,
-        ApplyTags::class.java to TagsApplied::class.java,
     )
 
     private val EVENTS: Set<Class<*>> = Lifecycle.EVENTS.values.toSet()

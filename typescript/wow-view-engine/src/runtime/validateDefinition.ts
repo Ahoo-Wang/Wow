@@ -266,6 +266,20 @@ function validateRecordCapability(definition: DataViewDefinition): Issue[] {
         issue('definition.record.row-field-not-a-path', at, { field: name }),
       );
   });
+  // The row's name is read off every row the same way.
+  if (capability.rowName !== undefined) {
+    const name = capability.rowName;
+    const field = byName.get(name);
+    const at: IssuePath = ['record', 'rowName'];
+    if (!field)
+      issues.push(
+        issue('definition.record.row-name-unknown', at, { field: name }),
+      );
+    else if (isFieldlessKind(field.kind))
+      issues.push(
+        issue('definition.record.row-name-not-a-path', at, { field: name }),
+      );
+  }
 
   return issues;
 }

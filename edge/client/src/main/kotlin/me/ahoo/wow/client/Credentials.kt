@@ -42,26 +42,12 @@ fun interface UserCredential {
             UserCredential { currentCoroutineContext()[ForwardedHeaders]?.headers.orEmpty() }
 
         /**
-         * Writes the caller itself as the development identity headers ([DevelopmentHeaders]), which a host reads in a
-         * development profile alone, with no identity provider: its subject, tenant, owner, roles (the attribute
-         * [DevelopmentHeaders.ROLES_ATTRIBUTE]) and application ([Caller.app]). A caller without a subject is the
-         * anonymous caller of the peer's default tenant, sent with its application alone. The space, a cross-scope
-         * grant and every other attribute have no header: the peer's development callers have none of them. For a
-         * test or a service tried out on one machine (a test server's typed clients); a deployment's peer never
-         * reads them.
+         * Writes the caller itself as the development identity headers ([DevelopmentHeaders.of]), which a host reads in
+         * a development profile alone, with no identity provider. For a test or a service tried out on one machine (a
+         * test server's typed clients); a deployment's peer never reads them.
          */
         @JvmField
-        val DEVELOPMENT: UserCredential = UserCredential { caller -> developmentHeaders(caller) }
-
-        private fun developmentHeaders(caller: Caller): Map<String, String> = buildMap {
-            caller.app?.let { put(DevelopmentHeaders.APP, it) }
-            val subject = caller.subject ?: return@buildMap
-            put(DevelopmentHeaders.USER, subject)
-            put(DevelopmentHeaders.TENANT, caller.tenantId)
-            caller.scope.ownerId?.let { put(DevelopmentHeaders.OWNER, it) }
-            caller.attributes[DevelopmentHeaders.ROLES_ATTRIBUTE]?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
-                ?.let { put(DevelopmentHeaders.ROLES, it.joinToString(",")) }
-        }
+        val DEVELOPMENT: UserCredential = UserCredential { caller -> DevelopmentHeaders.of(caller) }
     }
 }
 

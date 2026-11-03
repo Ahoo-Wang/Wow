@@ -1,0 +1,25 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793692951	11.52	10.88	9.94	12	sysmond 3, bash 1, WindowServer 1	cosec-redis 0.27%	166	0	0.0	
+1793692963	9.75	10.52	9.82	34	Stats 15, sysmond 6, configd 4	cosec-redis 0.14%	119	2	0.0	
+1793692975	7.74	10.04	9.66	14	Stats 6, configd 4, WindowServer 2	cosec-redis 0.13%	98	17	0.0	
+1793692987	6.93	9.79	9.58	10	sysmond 4, Stats 2, WindowServer 1	cosec-redis 0.16%	116	1	0.0	
+1793693000	5.86	9.41	9.44	14	sysmond 5, Activity Monitor 2, MacPacketTunnel 2	cosec-redis 0.15%	191	4	0.0	
+1793693012	5.26	9.16	9.36	4	Stats 1, Shadowrocket 0, WindowServer 0	cosec-redis 0.14%	184	4	0.0	
+1793693024	4.53	8.81	9.23	2	Activity Monitor 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, claude 0	cosec-redis 0.14%	359	4	0.0	
+1793693036	4.44	8.65	9.17	17	Stats 6, configd 3, WindowServer 3	cosec-redis 0.14%	326	7	0.0	
+1793693048	4.79	8.58	9.13	14	sysmond 3, WindowServer 3, claude 3	cosec-redis 0.13%	356	6	0.0	
+1793693061	6.64	8.77	9.19	7	WindowServer 2, Stats 2, Shadowrocket 1	cosec-redis 0.15%	315	7	0.0	
+1793693073	6.69	8.71	9.16	15	sysmond 6, claude 3, launchd 1	cosec-redis 0.15%	318	8	0.0	
+1793693085	6.74	8.63	9.13	4	Activity Monitor 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, claude 1	cosec-redis 0.15%	468	11	0.0	
+1793693097	8.52	8.96	9.24	15	Stats 7, WindowServer 3, configd 3	cosec-redis 0.14%	517	10	0.0	
+1793693109	8.65	8.98	9.24	13	sysmond 4, WindowServer 3, Stats 2	cosec-redis 0.12%	694	11	0.0	
+1793693122	10.81	9.41	9.39	5	Stats 1, WindowServer 1, configd 1	cosec-redis 0.15%	737	18	0.0	
+1793693134	10.37	9.36	9.37	7	claude 3, Activity Monitor 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.15%	729	19	0.0	
+1793693146	10.81	9.50	9.42	8	sysmond 4, claude 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.13%	790	16	0.0	
+1793693158	10.44	9.46	9.41	17	Stats 6, WindowServer 3, configd 3	cosec-redis 0.17%	998	23	0.0	
+1793693171	10.00	9.41	9.39	11	WindowServer 3, Stats 2, configd 1	cosec-redis 0.14%	980	22	0.0	
+1793693183	11.79	9.81	9.53	4	wifip2pd 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Stats 0	cosec-redis 0.15%	1030	19	0.0	
+1793693195	15.14	10.66	9.84	35	symptomsd 8, sysmond 6, mdworker_shared 4	cosec-redis 0.16%	1262	17	0.0	
+1793693207	14.19	10.60	9.83	17	Stats 4, sysmond 4, WindowServer 3	cosec-redis 0.16%	1258	22	0.0	
+1793693219	16.65	11.29	10.08	16	sysmond 4, WindowServer 2, Stats 2	cosec-redis 0.15%	1123	25	0.0	
+1793693232	20.33	12.26	10.44	8	sysmond 4, AppleCentauriAlpha 1, Activity Monitor 1	cosec-redis 0.16%	1155	22	0.0	

@@ -22,8 +22,6 @@ export const ParkedAggregate = {
       'ops.parked.SkipRequested': { failedAt: true },
     },
     commands: {
-      RecordParked: { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
-      RecordResolved: { resolution: { failedAt: true, resolvedAt: true } },
       Retry: { failedAt: true },
       Skip: { failedAt: true },
     },

@@ -114,7 +114,6 @@ class SharedStatesTest {
                         committed.state,
                         committed.results,
                         committed.deleted,
-                        committed.tags,
                         committed.schedules,
                         committed.first,
                     )

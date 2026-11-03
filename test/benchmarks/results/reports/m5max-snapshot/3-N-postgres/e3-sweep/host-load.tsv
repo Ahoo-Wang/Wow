@@ -1,0 +1,26 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793694674	31.61	20.80	14.26	18	sysmond 11, bash 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.16%	816	2		
+1793694686	28.25	20.58	14.29	3	Stats 0, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 0, AppleCentauriAlpha 0	cosec-redis 0.25%	21	0		
+1793694698	25.04	20.15	14.21	5	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Activity Monitor 1, WindowServer 1	cosec-redis 0.13%	233	3		
+1793694710	20.53	19.39	14.05	6	sysmond 2, Activity Monitor 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.14%	285	25		
+1793694722	18.59	19.01	13.98	23	Stats 11, sysmond 4, configd 3	cosec-redis 0.13%	515	1		
+1793694734	17.11	18.68	13.92	8	WindowServer 2, Shadowrocket 2, Stats 1	cosec-redis 0.15%	724	14		
+1793694747	15.84	18.32	13.87	11	sysmond 3, WindowServer 2, Activity Monitor 1	cosec-redis 0.16%	716	4		
+1793694759	14.25	17.90	13.77	4	M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, WindowServer 1, Activity Monitor 0	cosec-redis 0.17%	702	4		
+1793694771	16.26	18.14	13.93	19	Stats 6, WindowServer 4, sysmond 4	cosec-redis 0.16%	1065	8		
+1793694783	15.23	17.85	13.88	23	MacPacketTunnel 5, sysmond 4, WindowServer 3	cosec-redis 0.14%	1036	9		
+1793694796	19.15	18.56	14.19	9	sysmond 4, WindowServer 1, claude 1	cosec-redis 0.16%	1001	9		
+1793694808	21.82	19.12	14.44	16	duetexpertd 6, sysmond 5, WindowServer 1	cosec-redis 0.14%	1065	10		
+1793694820	23.79	19.69	14.72	16	Stats 6, WindowServer 3, configd 3	cosec-redis 0.23%	1104	11		
+1793694833	20.60	19.14	14.59	12	WindowServer 2, Stats 2, Shadowrocket 2	cosec-redis 0.17%	1131	12		
+1793694845	19.48	18.95	14.57	6	WindowServer 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Claude 1	cosec-redis 0.19%	1258	13		
+1793694857	28.67	21.03	15.40	5	claude 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1, Activity Monitor 0	cosec-redis 0.17%	1362	13		
+1793694869	29.82	21.55	15.65	56	WindowServer 13, Claude 10, Claude Helper (Renderer) 8	cosec-redis 0.15%	1350	12		
+1793694882	36.01	23.27	16.36	9	Stats 3, configd 1, claude 1	cosec-redis 0.16%	1375	11		
+1793694894	33.65	23.19	16.41	9	sysmond 4, Activity Monitor 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.21%	1422	14		
+1793694906	35.78	24.13	16.86	8	Stats 2, WindowServer 2, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.20%	1417	14		
+1793694918	37.00	24.74	17.16	18	Stats 4, WindowServer 3, node 2	cosec-redis 0.30%	1391	12		
+1793694931	33.44	24.58	17.24	7	WindowServer 1, AppleCentauriAlpha 1, M-dM-<M^AM-dM-8M^ZM-eM->M-.M-dM-?M-! 1	cosec-redis 0.16%	1379	7		
+1793694943	33.15	24.79	17.40	14	sysmond 4, Activity Monitor 2, claude 1	cosec-redis 0.20%	1163	5		
+1793694955	30.53	24.64	17.47	127	Claude Helper (Renderer) 74, WindowServer 15, biomesyncd 6	cosec-redis 0.17%	1415	7		
+1793694967	30.38	24.78	17.61	38	WindowServer 11, UniversalControl 5, sysmond 4	cosec-redis 0.16%	1347	6		

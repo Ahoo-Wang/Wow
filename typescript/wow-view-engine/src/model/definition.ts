@@ -251,6 +251,15 @@ export function isSystemInstanceId(id: string): boolean {
 export interface RecordCapability {
   /** Field holding each row's identity. */
   rowKey: string;
+  /**
+   * The field a reader names a row by — an order number, an aggregate's id
+   * — where the key is an id nobody reads aloud. The row's controls are
+   * named after it (「选择 SO-1002」, the 「⋯」 menu, the row's own action
+   * button), and an action's sentences say it as `{record}`. Every page
+   * fetches it, as `rowFields`. Left out, or blank in a row, the key names
+   * the row.
+   */
+  rowName?: string;
   /** Decides whether the runtime calls `source.paged` or `source.cursor`. */
   paging: RecordPagingMode;
   /**

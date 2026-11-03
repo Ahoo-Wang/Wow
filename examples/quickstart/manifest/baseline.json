@@ -53,16 +53,6 @@
         } ],
         "description" : "Withdraw money"
       }, {
-        "name" : "wow.lifecycle.ApplyTags",
-        "aliases" : [ ],
-        "schema" : "#/$defs/wow.lifecycle.ApplyTags",
-        "creation" : "none",
-        "routes" : [ {
-          "method" : "POST",
-          "path" : "/bank/account/{id}/wow.lifecycle.apply-tags"
-        } ],
-        "system" : true
-      }, {
         "name" : "wow.lifecycle.DeleteAggregate",
         "aliases" : [ ],
         "schema" : "#/$defs/wow.lifecycle.DeleteAggregate",
@@ -433,23 +423,6 @@
       "required" : [ "amount" ],
       "description" : "Money was withdrawn",
       "x-wow-class" : "me.ahoo.wow.example.quickstart.Withdrawn"
-    },
-    "wow.lifecycle.ApplyTags" : {
-      "type" : "object",
-      "properties" : {
-        "tags" : {
-          "type" : "object",
-          "additionalProperties" : {
-            "type" : "array",
-            "items" : {
-              "type" : "string"
-            }
-          }
-        }
-      },
-      "required" : [ "tags" ],
-      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
-      "x-wow-class" : "me.ahoo.wow.api.lifecycle.ApplyTags"
     },
     "wow.lifecycle.DeleteAggregate" : {
       "type" : "object",

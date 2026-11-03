@@ -611,7 +611,7 @@ class ManifestTreeTest {
         fragment.unresolvedSchemaRefs.assert().containsExactly(
             "#/\$defs/sample.CreateCart",
             "#/\$defs/sample.AddItem",
-            "#/\$defs/wow.lifecycle.ApplyTags",
+            "#/\$defs/wow.lifecycle.TransferSpace",
             "#/\$defs/wow.lifecycle.DeleteAggregate",
             "#/\$defs/sample.CartCreated",
             "#/\$defs/sample.ItemAdded",

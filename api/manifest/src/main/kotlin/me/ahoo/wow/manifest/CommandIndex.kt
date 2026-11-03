@@ -19,9 +19,11 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * The commands of [manifests] by their schemas, the one rule that names a command class: the
  * command of the schema `#/$defs/<binary name>` in whichever context decides it is `<context>.<aggregate>.<Command>`;
  * and their routes by their full type names, the only routes a client sends a command to ([routeOf]).
- * A mounted command is only an edge's, which no one sends, and is left out; a system command has no class of its own
- * and is named by its routes alone. On a conflict the first Manifest's wins. A node's contract directory and
- * `wow-client` both name commands through it.
+ * A mounted command is only an edge's, which no one sends, and is left out. A system command ([SystemCommands]) is
+ * named by its system name on its target ([systemCommandTypeOf]): an aggregate's lifecycle commands and snapshot
+ * rebuild, and a context's schedule job commands, whose target is the context's job aggregate
+ * (`<context>.schedule`). On a conflict the first Manifest's wins. A node's contract directory and `wow-client` both
+ * name commands through it.
  */
 @InternalWowApi
 class CommandIndex(manifests: List<Manifest>) {
@@ -30,20 +32,34 @@ class CommandIndex(manifests: List<Manifest>) {
     private val aggregatesBySchema = HashMap<String, MutableSet<String>>()
     private val routesByCommand = HashMap<String, List<RouteManifest>>()
     private val idPropertiesByCommand = HashMap<String, String>()
+    private val systemByTarget = HashMap<String, MutableMap<String, String>>()
+    private val internalCommands = HashSet<String>()
 
     init {
         manifests.forEach { manifest ->
             manifest.contexts.forEach { context ->
                 context.aggregates.forEach { aggregate ->
                     aggregate.commands.filterNot { it.mounted }.forEach { command ->
-                        val type = "${context.name}.${aggregate.name}.${command.name}"
+                        val target = "${context.name}.${aggregate.name}"
+                        val type = "$target.${command.name}"
                         routesByCommand.putIfAbsent(type, command.routes)
                         command.idProperty?.let { idPropertiesByCommand.putIfAbsent(type, it) }
-                        if (command.system) return@forEach
+                        if (command.system) {
+                            systemByTarget.getOrPut(target, ::HashMap).putIfAbsent(command.name, type)
+                            return@forEach
+                        }
+                        if (command.internal) internalCommands += type
                         commandsBySchema.putIfAbsent(command.schema, type)
-                        aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) += "${context.name}.${aggregate.name}"
+                        aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) += target
                         schemasByCommand[type] = command.schema
                     }
+                }
+                // The context's schedule job commands, each to the job its route's id names.
+                val jobs = "${context.name}.${SystemCommands.JOB_AGGREGATE}"
+                context.commands.filter { it.system }.forEach { command ->
+                    val type = "$jobs.${command.name}"
+                    routesByCommand.putIfAbsent(type, command.routes)
+                    systemByTarget.getOrPut(jobs, ::HashMap).putIfAbsent(command.name, type)
                 }
             }
         }
@@ -67,6 +83,19 @@ class CommandIndex(manifests: List<Manifest>) {
      */
     fun commandTypeOf(target: String, type: Class<*>): String? =
         commandTypeOf(Manifest.schemaRef(type.name))?.takeIf { it.startsWith("$target.") }
+
+    /**
+     * The full type name of the system command [name] (`wow.lifecycle.DeleteAggregate`, a [SystemCommands] name) on the
+     * aggregate type [target] (`context.aggregate`, `context.schedule` for a job command); null when its contract
+     * lists none there.
+     */
+    fun systemCommandTypeOf(target: String, name: String): String? = systemByTarget[target]?.get(name)
+
+    /**
+     * Whether the command type [commandType] (`ctx.agg.Command`) is internal ([CommandManifest.internal]): taken on its
+     * service's internal port alone, from another service, never on the public routes.
+     */
+    fun isInternal(commandType: String): Boolean = commandType in internalCommands
 
     /** The aggregate types (`context.aggregate`) that list a command of the schema [schema], a mounted one left out. */
     fun aggregatesOf(schema: String): List<String> = aggregatesBySchema[schema].orEmpty().toList()

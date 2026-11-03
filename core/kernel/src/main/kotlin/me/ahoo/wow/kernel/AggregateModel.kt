@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateIdSource
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -246,14 +247,18 @@ class CommandType @InternalWowApi constructor(
  * class is gone, but the log still holds records under the name. Such a record is skipped, never decoded: replaying
  * the stream applies nothing for it, though the stream still counts as a version, and a subscription passes over it.
  * A name that is neither an event's nor retired still fails to read. A retired name is not blank, is listed once, and
- * is none of the model's event or command names, current or former.
- *
- * [tags] derives tags from the state (`@Tags`; 9.x `StateAggregateTagsExtractor`): the keys it returns
- * override the applied tags ([tagsOf]), and the kernel derives them again after every commit and every load.
+ * is none of the model's event or command names, current or former. Every model also retires the lifecycle events Wow
+ * no longer has ([KernelLifecycle.RETIRED_EVENTS], such as `wow.lifecycle.TagsApplied`), which [retiredEvents] does
+ * not list: a log a released version wrote still loads.
  *
  * [aggregateIds] reads, by command class, the id of the aggregate a command acts on from its body (`@AggregateId`):
  * such a command's request need not name its aggregate ([aggregateIdOf]). A command decided here takes one, not an
  * aggregate whose id is its owner's.
+ *
+ * [access] are the aggregate's access attributes (`@Access`), each with the function that reads it from the state:
+ * the facts its access policies compare with a caller's claims, derived from the state alone ([accessOf]) by pure,
+ * cheap functions, since they run on each commit. Their names differ even ignoring case, and none is a built-in
+ * attribute's ([AccessAttribute.BUILT_IN]).
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
@@ -269,7 +274,6 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     val ownership: Ownership = Ownership.OWNER,
     val stateRevision: Int = 1,
     retiredEvents: Collection<String> = emptyList(),
-    private val tags: ((S) -> Map<String, Collection<String>>)? = null,
     val idSource: AggregateIdSource = AggregateIdSource.ASSIGNED,
     private val aggregateIds: Map<Class<*>, (Any) -> String?> = emptyMap(),
     /**
@@ -277,9 +281,15 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * version, as the log records them), by event class; the others are in [evolvers].
      */
     commitEvolvers: Map<Class<*>, (S, Any, EventStream) -> S> = emptyMap(),
+    access: Map<AccessAttribute<*>, (S) -> Any?> = emptyMap(),
 ) {
     /** The stored names of the events this aggregate retired: their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
+
+    private val access: Map<AccessAttribute<*>, (S) -> Any?> = LinkedHashMap(access)
+
+    /** The aggregate's access attributes (`@Access`) in declaration order; the built-in ones are not among them. */
+    val accessAttributes: List<AccessAttribute<*>> = this.access.keys.toList()
 
     /** Whether the aggregate's owner is fixed: it has none ([Ownership.TENANT]), or its id is its owner's. */
     private val ownerFixed: Boolean = ownership == Ownership.TENANT || idSource == AggregateIdSource.OWNER
@@ -291,7 +301,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     private val deciders: Map<Class<*>, DecideFunction<S>> =
         systemCommands.filterNot { it in deciders }
-            .associateWith { KernelLifecycle.decider(it, ::tagsOf, ::decides) } + deciders
+            .associateWith { KernelLifecycle.decider<S>(it, ::decides) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
@@ -395,6 +405,13 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
                 "$type names ${typeClass.name} $name: only the lifecycle types have names in ${Lifecycle.NAMESPACE}."
             }
         }
+        val sameIgnoringCase = accessAttributes.map { it.name }.groupBy { it.lowercase() }.values.filter { it.size > 1 }
+        require(sameIgnoringCase.isEmpty()) {
+            "$type declares access attributes whose names differ only in case: $sameIgnoringCase"
+        }
+        accessAttributes.filter { it.name in AccessAttribute.BUILT_IN }.let { builtIn ->
+            require(builtIn.isEmpty()) { "$type declares the built-in access attributes ${builtIn.map { it.name }}." }
+        }
     }
 
     private fun isSystemName(name: String): Boolean = KernelLifecycle.isSystemName(name)
@@ -420,22 +437,30 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()
 
     /**
-     * The aggregate's tags in [state] with the tags [applied]: [applied], each key the state derives
-     * replaced by its derived values, or removed when it derives none. Without a tags function, [applied] as is. The
-     * derived values are copied, so a mutable state evolving further does not change them.
+     * The values of the aggregate's access attributes in [state], by name, in declaration order: a single attribute's
+     * value or null, a multiple one's values as a set, copied, so a mutable state evolving further does not change
+     * them. Empty when it declares none. A value that is not of its attribute's type fails, naming the attribute.
      */
-    @InternalWowApi
-    fun tagsOf(state: S, applied: Map<String, List<String>>): Map<String, List<String>> {
-        val derive = tags ?: return applied
-        val derived = derive(state)
-        if (derived.isEmpty()) {
-            return applied
+    fun accessOf(state: S): Map<String, Any?> {
+        if (access.isEmpty()) {
+            return emptyMap()
         }
-        val effective = LinkedHashMap(applied)
-        derived.forEach { (key, values) ->
-            if (values.isEmpty()) effective.remove(key) else effective[key] = values.toList()
+        val values = LinkedHashMap<String, Any?>(access.size * 2)
+        access.forEach { (attribute, read) -> values[attribute.name] = valueOf(attribute, read(state)) }
+        return values
+    }
+
+    private fun valueOf(attribute: AccessAttribute<*>, value: Any?): Any? {
+        if (!attribute.multiple) {
+            check(value == null || attribute.type.isInstance(value)) {
+                "The access attribute ${attribute.name} of $type is a ${attribute.type.name}, not ${value!!.javaClass.name}."
+            }
+            return value
         }
-        return effective
+        check(value is Collection<*> && value.all { attribute.type.isInstance(it) }) {
+            "The access attribute ${attribute.name} of $type is a collection of ${attribute.type.name}, not $value."
+        }
+        return value.toSet()
     }
 
     /**
@@ -496,8 +521,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** Whether [name] is the stored name of an event this aggregate retired ([retiredEvents]). */
-    fun isRetired(name: String): Boolean = name in retiredEvents
+    /**
+     * Whether [name] is the stored name of an event this aggregate retired ([retiredEvents]), or of a lifecycle event
+     * Wow no longer has ([KernelLifecycle.RETIRED_EVENTS]).
+     */
+    fun isRetired(name: String): Boolean = name in retiredEvents || name in KernelLifecycle.RETIRED_EVENTS
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
     fun findEventType(name: String): EventType? = eventsByName[name]

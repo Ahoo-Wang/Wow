@@ -560,93 +560,6 @@
         }
       }
     },
-    "/eshop-catalog/brand/{id}/wow.lifecycle.apply-tags" : {
-      "post" : {
-        "tags" : [ "eshop-catalog.brand" ],
-        "summary" : "ApplyTags",
-        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`.",
-        "operationId" : "eshop-catalog.brand.wow.lifecycle.ApplyTags",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
-        }
-      }
-    },
     "/eshop-catalog/brand/{id}" : {
       "delete" : {
         "tags" : [ "eshop-catalog.brand" ],
@@ -1752,93 +1665,6 @@
           "type" : "eshop-catalog.category.RenameCategory",
           "creation" : "none",
           "produces" : [ "CategoryRenamed" ]
-        }
-      }
-    },
-    "/eshop-catalog/category/{id}/wow.lifecycle.apply-tags" : {
-      "post" : {
-        "tags" : [ "eshop-catalog.category" ],
-        "summary" : "ApplyTags",
-        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`.",
-        "operationId" : "eshop-catalog.category.wow.lifecycle.ApplyTags",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
         }
       }
     },
@@ -3330,93 +3156,6 @@
         }
       }
     },
-    "/eshop-catalog/product/{id}/wow.lifecycle.apply-tags" : {
-      "post" : {
-        "tags" : [ "eshop-catalog.product" ],
-        "summary" : "ApplyTags",
-        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags`.",
-        "operationId" : "eshop-catalog.product.wow.lifecycle.ApplyTags",
-        "parameters" : [ {
-          "$ref" : "#/components/parameters/id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Request-Id"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Scope"
-        }, {
-          "$ref" : "#/components/parameters/Wow-Space"
-        }, {
-          "$ref" : "#/components/parameters/traceparent"
-        }, {
-          "$ref" : "#/components/parameters/tracestate"
-        }, {
-          "$ref" : "#/components/parameters/baggage"
-        }, {
-          "$ref" : "#/components/parameters/If-Match"
-        } ],
-        "requestBody" : {
-          "description" : "The command's body; an empty body is `{}`.",
-          "required" : false,
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
-              }
-            }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "$ref" : "#/components/responses/wow.command.200"
-          },
-          "202" : {
-            "$ref" : "#/components/responses/wow.command.202"
-          },
-          "400" : {
-            "$ref" : "#/components/responses/wow.command.400"
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.command.401"
-          },
-          "403" : {
-            "$ref" : "#/components/responses/wow.command.403"
-          },
-          "404" : {
-            "$ref" : "#/components/responses/wow.command.404"
-          },
-          "406" : {
-            "$ref" : "#/components/responses/wow.command.406"
-          },
-          "409" : {
-            "$ref" : "#/components/responses/wow.command.409"
-          },
-          "410" : {
-            "$ref" : "#/components/responses/wow.command.410"
-          },
-          "412" : {
-            "$ref" : "#/components/responses/wow.command.412"
-          },
-          "415" : {
-            "$ref" : "#/components/responses/wow.command.415"
-          },
-          "429" : {
-            "$ref" : "#/components/responses/wow.command.429"
-          },
-          "500" : {
-            "$ref" : "#/components/responses/wow.command.500"
-          },
-          "503" : {
-            "$ref" : "#/components/responses/wow.command.503"
-          },
-          "504" : {
-            "$ref" : "#/components/responses/wow.command.504"
-          }
-        }
-      }
-    },
     "/eshop-catalog/product/{id}" : {
       "delete" : {
         "tags" : [ "eshop-catalog.product" ],
@@ -4831,6 +4570,33 @@
             "type" : "string",
             "enum" : [ "assigned", "owner" ],
             "description" : "Where an aggregate's id comes from; assigned when absent."
+          },
+          "access" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Manifest.AccessAttribute"
+            },
+            "description" : "The aggregate's access attributes; none when absent."
+          }
+        }
+      },
+      "wow.Manifest.AccessAttribute" : {
+        "type" : "object",
+        "description" : "An access attribute of an aggregate: its name, the type of its values, and whether it holds several.",
+        "required" : [ "name", "type" ],
+        "properties" : {
+          "name" : {
+            "type" : "string",
+            "pattern" : "^[a-z][A-Za-z0-9]*$",
+            "maxLength" : 40
+          },
+          "type" : {
+            "type" : "string",
+            "enum" : [ "string", "integer", "boolean" ]
+          },
+          "multiple" : {
+            "type" : "boolean",
+            "description" : "Whether it holds several values; one when absent."
           }
         }
       },
@@ -5840,22 +5606,6 @@
           "name" : "ix_product_state_status_state_price",
           "keys" : [ "state.status", "state.price" ]
         } ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ],
-        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
       },
       "wow.lifecycle.DeleteAggregate" : {
         "type" : "object",

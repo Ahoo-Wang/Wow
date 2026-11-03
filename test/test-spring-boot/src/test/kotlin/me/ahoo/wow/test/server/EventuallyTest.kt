@@ -63,6 +63,15 @@ class EventuallyTest {
     }
 
     @Test
+    fun `a failure should say the detail given, read when it fails`() {
+        var reads = 0
+        val failure = assertThrows<AssertionError> {
+            eventually("the impossible", timeout = 10.milliseconds, detail = { "seen ${++reads} times" }) { false }
+        }
+        failure.message.assert().isEqualTo("Not reached in 10ms: the impossible. seen 1 times")
+    }
+
+    @Test
     fun `a suspending condition should run in the coroutine`() {
         var polls = 0
         runBlocking {

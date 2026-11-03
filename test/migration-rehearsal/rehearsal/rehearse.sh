@@ -117,12 +117,10 @@ step() {
 }
 
 # The kinds of difference compare may report, by aggregate, each explained and signed off (design 07 §3 step 4):
-# - example-service.order:$tags: 9.x merged the tags its extractor derived into the stored ones, so a changed address
-#   kept the old province; V10's @Tags replaces each key it derives (decision D220). An intended change.
 # - view-store.dataset_wording:@deleted, every difference of a wording 9.x deleted: 9.x's ClearDatasetWording was a
 #   DeleteAggregate, which kept the wording's last values and let it never be set again; V10 clears it
 #   (DatasetWordingCleared, mapped from the 9.x deletion), keeps it, and sets it again. An intended change.
-EXPLAINED_KINDS="${EXPLAINED_KINDS:-example-service.order:\$tags view-store.dataset_wording:@deleted}"
+EXPLAINED_KINDS="${EXPLAINED_KINDS:-view-store.dataset_wording:@deleted}"
 
 # compared NAME CMD…: a comparison that passes, or whose every DIFFERS line differs only in what EXPLAINED_KINDS
 # explains for its aggregate: a field (aggregate:field), or anything of an instance 9.x deleted (aggregate:@deleted).

@@ -22,7 +22,9 @@ import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.client.Problems
+import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.example.quickstart.AccountState
 import me.ahoo.wow.example.quickstart.BankServer
 import me.ahoo.wow.example.quickstart.Deposit
@@ -186,6 +188,37 @@ class TypedClientsTest {
         }
         read[0].assert().isEqualTo(7L)
         read[1].assert().isEqualTo(0L)
+    }
+
+    @Test
+    fun `a credential of its own should write the caller as the server reads it`() {
+        // A credential that names its own user, whatever the caller: the server reads the caller it writes.
+        val henry = UserCredential { mapOf(DevelopmentHeaders.USER to "henry") }
+        runBlocking { server.commands(Caller.of(subject = "ignored"), henry).wait(OpenAccount("Henry"), "henry") }
+        val account = runBlocking {
+            server.queries(Caller.ANONYMOUS, henry).snapshots(AccountState::class.java).state("henry")!!
+        }
+        account.operator!!.id.assert().isEqualTo("henry")
+    }
+
+    @Test
+    fun `a request over HTTP should name its caller as the typed clients do, and read the result it answers`() {
+        val ivy = Caller.of(subject = "ivy")
+        val opened = server.http.post("/bank/account/ivy/open-account", """{"owner":"Ivy"}""", caller = ivy)
+        opened.result!!.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        opened.result!!.ref.id.assert().isEqualTo("ivy")
+        operatorOf("ivy").assert().isEqualTo("ivy")
+        server.http.get("/bank/account/ivy/state", caller = ivy).result.assert().isNull()
+        val refused = server.http.post("/bank/account/ivy/withdraw", """{"amount":1}""", caller = ivy)
+        refused.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        // A header the request names wins over the caller's.
+        val jack = mapOf(DevelopmentHeaders.USER to "jack")
+        server.http.post("/bank/account/kim/open-account", """{"owner":"Kim"}""", jack, ivy).result.assert().isNotNull()
+        operatorOf("kim").assert().isEqualTo("jack")
+    }
+
+    private fun operatorOf(account: String): String? = runBlocking {
+        server.queries(Caller.ANONYMOUS).snapshots(AccountState::class.java).state(account)!!.operator?.id
     }
 
     @Test

@@ -246,18 +246,33 @@ class HttpCommandClient internal constructor(
             }
             val declared = described.commandOf(command, type, caller, call)
             val name = "$type.${declared.name}"
+            requireSendable(name, declared.internal)
             return Declared(name, declared.idProperty) { CommandRoutes.routeOf(declared.routes, it) }
         }
         checkUse(!manifestPeer) {
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
                 "the command object ${command.javaClass.name}."
         }
-        val name = names.commandTypeOf(type.toString(), command.javaClass) ?: throw Misuse.Argument(
-            "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
-                "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type name to a " +
-                "peer described by its Manifest.",
-        )
+        val name = names.commandTypeOf(type.toString(), command.javaClass)
+            ?: SystemCommandNames.of(command.javaClass)?.let { names.systemCommandTypeOf(type.toString(), it) }
+            ?: throw Misuse.Argument(
+                "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
+                    "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type " +
+                    "name to a peer described by its Manifest.",
+            )
+        requireSendable(name, names.isInternal(name))
         return Declared(name, names.idPropertyOf(name)) { names.routeOf(name, it) }
+    }
+
+    /**
+     * Refuses an [internal] command [name] in user mode, before it is sent: the peer takes it on its internal port
+     * alone, from a service, and its public routes do not serve it.
+     */
+    private fun requireSendable(name: String, internal: Boolean) {
+        requireUse(!internal || transport.mode !is ClientMode.User) {
+            "$name is an internal command, which its service takes on its internal port alone: a user-mode client " +
+                "does not send it; a service sends it in service mode."
+        }
     }
 
     /** [route], the route of the command [name], or why its contract lists none. */
@@ -303,7 +318,7 @@ class HttpCommandClient internal constructor(
          * request id may be sent again for.
          */
         fun decode(what: String, body: ByteArray): CommandResult = try {
-            ClientJson.mapper.readValue(body, CommandResult::class.java)
+            CommandResults.read(body)
         } catch (invalid: JacksonException) {
             throw PeerProblem.of(
                 FrameworkErrors.COMMAND_UNKNOWN,

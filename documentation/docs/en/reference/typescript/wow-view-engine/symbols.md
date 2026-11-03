@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 454 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 44 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 455 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 45 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -21,6 +21,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 454 — with its kind and th
 | `ActionForm` | type | An action's form, by field name: what `run` receives as its input. | — |
 | `ActionFormField` | interface | One field of an action's form, drawn by the condition editor's own value controls (`FilterValueEditor`): a list of options, a number, a yes/no or a line of text. | [Host Wiring](./host#api-actions) |
 | `ActionInput` | type | What a form (or a choice) gave, by field name. | — |
+| `ActionInputError` | class | What an action's `run` throws when the source refused what the form gave — a value it cannot read, a number past its range — rather than the record. | [Host Wiring](./host#api-ActionInputError) |
 | `ActionPlace` | type | Where a declared action is offered. | — |
 | `ActionRefusal` | interface | One record the command will not be sent to, and why. | — |
 | `ActionRow` | type | A record as an action is handed it: its key and its data. | — |

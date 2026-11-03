@@ -27,7 +27,9 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * The commands no caller of the ops context's gateway may send, whoever it is: the records,
  * `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`. The owning services' ledgers publish the
  * first two through `wow.ops.commands`, whose intake no authorizer guards, and the saga derives the last from an owning
- * service's refusal: none may be forged. Every other command it has no objection to, as one of the node's authorizers
+ * service's refusal: none may be forged. They are internal commands too (`@InternalCommand`), so the public port serves
+ * none of their routes; this refuses them on the internal port. Every other command it has no objection to, as one of
+ * the node's authorizers
  * (each must allow a command): an operator's action on an entry (`ops.parked.Retry`, `Skip`, `MarkRecoverable`,
  * `ApplyRetrySpec`) and the framework's own system commands (`wow.*`) are decided by who the operators are, CoSec's
  * policies of their actions where CoSec decides the commands, else [OperatorRole].

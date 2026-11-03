@@ -1,3 +1,40 @@
+public abstract class me/ahoo/wow/api/access/AccessAttribute {
+	public static final field BUILT_IN Ljava/util/Set;
+	public static final field Companion Lme/ahoo/wow/api/access/AccessAttribute$Companion;
+	public static final field OWNER Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public static final field SPACE Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Class;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public abstract fun getMultiple ()Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/Class;
+	public fun hashCode ()I
+	public static final fun isValueType (Ljava/lang/Class;)Z
+	public static final fun multiple (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Multiple;
+	public static final fun single (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Companion {
+	public final fun isValueType (Ljava/lang/Class;)Z
+	public final fun multiple (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Multiple;
+	public final fun single (Ljava/lang/String;Ljava/lang/Class;)Lme/ahoo/wow/api/access/AccessAttribute$Single;
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Multiple : me/ahoo/wow/api/access/AccessAttribute {
+	public fun getMultiple ()Z
+}
+
+public final class me/ahoo/wow/api/access/AccessAttribute$Single : me/ahoo/wow/api/access/AccessAttribute {
+	public fun getMultiple ()Z
+}
+
+public abstract class me/ahoo/wow/api/access/AccessAttributes {
+	public final field OWNER Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	public final field SPACE Lme/ahoo/wow/api/access/AccessAttribute$Single;
+	protected fun <init> ()V
+}
+
 public final class me/ahoo/wow/api/aggregate/AggregateIdSource : java/lang/Enum {
 	public static final field ASSIGNED Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public static final field OWNER Lme/ahoo/wow/api/aggregate/AggregateIdSource;
@@ -78,6 +115,10 @@ public final class me/ahoo/wow/api/aggregate/Scope {
 }
 
 public final class me/ahoo/wow/api/aggregate/Scope$Companion {
+}
+
+public abstract interface annotation class me/ahoo/wow/api/annotation/Access : java/lang/annotation/Annotation {
+	public abstract fun name ()Ljava/lang/String;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/AfterCommand : java/lang/annotation/Annotation {
@@ -231,9 +272,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/ServiceRou
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Summary : java/lang/annotation/Annotation {
 	public abstract fun value ()Ljava/lang/String;
-}
-
-public abstract interface annotation class me/ahoo/wow/api/annotation/Tags : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Unaddressed : java/lang/annotation/Annotation {
@@ -712,19 +750,6 @@ public final class me/ahoo/wow/api/lifecycle/AggregateRestored {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/api/lifecycle/ApplyTags {
-	public static final field Companion Lme/ahoo/wow/api/lifecycle/ApplyTags$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getTags ()Ljava/util/Map;
-	public fun hashCode ()I
-	public static final fun of (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/ApplyTags;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/lifecycle/ApplyTags$Companion {
-	public final fun of (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/ApplyTags;
-}
-
 public final class me/ahoo/wow/api/lifecycle/DeleteAggregate {
 	public static final field INSTANCE Lme/ahoo/wow/api/lifecycle/DeleteAggregate;
 	public fun equals (Ljava/lang/Object;)Z
@@ -735,7 +760,6 @@ public final class me/ahoo/wow/api/lifecycle/DeleteAggregate {
 public final class me/ahoo/wow/api/lifecycle/Lifecycle {
 	public static final field AGGREGATE_DELETED Ljava/lang/String;
 	public static final field AGGREGATE_RESTORED Ljava/lang/String;
-	public static final field APPLY_TAGS Ljava/lang/String;
 	public static final field COMMANDS Ljava/util/Map;
 	public static final field DELETE_AGGREGATE Ljava/lang/String;
 	public static final field EVENTS Ljava/util/Map;
@@ -744,7 +768,6 @@ public final class me/ahoo/wow/api/lifecycle/Lifecycle {
 	public static final field OWNER_TRANSFERRED Ljava/lang/String;
 	public static final field RESTORE_AGGREGATE Ljava/lang/String;
 	public static final field SPACE_TRANSFERRED Ljava/lang/String;
-	public static final field TAGS_APPLIED Ljava/lang/String;
 	public static final field TRANSFER_OWNER Ljava/lang/String;
 	public static final field TRANSFER_SPACE Ljava/lang/String;
 	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
@@ -781,19 +804,6 @@ public final class me/ahoo/wow/api/lifecycle/SpaceTransferred {
 
 public final class me/ahoo/wow/api/lifecycle/SpaceTransferred$Companion {
 	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/SpaceTransferred;
-}
-
-public final class me/ahoo/wow/api/lifecycle/TagsApplied {
-	public static final field Companion Lme/ahoo/wow/api/lifecycle/TagsApplied$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getTags ()Ljava/util/Map;
-	public fun hashCode ()I
-	public static final fun of (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/TagsApplied;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/lifecycle/TagsApplied$Companion {
-	public final fun of (Ljava/util/Map;)Lme/ahoo/wow/api/lifecycle/TagsApplied;
 }
 
 public final class me/ahoo/wow/api/lifecycle/TransferOwner {
@@ -1755,7 +1765,6 @@ public abstract interface class me/ahoo/wow/api/subscribe/StateEvent {
 	public abstract fun getRequestId ()Ljava/lang/String;
 	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public abstract fun getState ()Ljava/lang/Object;
-	public abstract fun getTags ()Ljava/util/Map;
 	public abstract fun getVersion ()I
 }
 
@@ -1790,6 +1799,7 @@ public final class me/ahoo/wow/api/wire/DevelopmentHeaders {
 	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public static final field USER Ljava/lang/String;
+	public static final fun of (Lme/ahoo/wow/api/caller/Caller;)Ljava/util/Map;
 }
 
 public final class me/ahoo/wow/api/wire/ScopeHeader {

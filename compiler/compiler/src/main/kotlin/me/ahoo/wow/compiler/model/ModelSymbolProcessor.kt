@@ -43,6 +43,7 @@ import me.ahoo.wow.compiler.model.aggregate.UpgradeResolver
 import me.ahoo.wow.compiler.model.manifest.ManifestFragmentBuilder
 import me.ahoo.wow.compiler.model.route.ServiceRouteBinding
 import me.ahoo.wow.compiler.model.route.ServiceRouteResolver
+import me.ahoo.wow.compiler.model.source.AccessSource
 import me.ahoo.wow.compiler.model.source.ModelProviderSource
 import me.ahoo.wow.compiler.model.source.ModelSource
 import me.ahoo.wow.compiler.model.source.QueryPropertiesSource
@@ -171,6 +172,9 @@ internal class ModelSymbolProcessor(
 
     /** The states whose `<State>Properties` were generated. */
     private val propertiesOf = mutableSetOf<String>()
+
+    /** The states whose `<State>Access` this processor wrote ([AccessSource]). */
+    private val accessOf = mutableSetOf<String>()
 
     /** The packages of the module's aggregate roots and subscription processors, where its binding index goes. */
     private val packages = sortedSetOf<String>()
@@ -604,8 +608,10 @@ internal class ModelSymbolProcessor(
             binding.packageName,
             "${binding.rootSimpleName}Model",
         ).bufferedWriter().use { it.write(ModelSource.render(binding, context())) }
+        val state = RootStateResolver.stateOf(root)
+        AccessSource.generate(codeGenerator, state, binding.access, binding.internal, accessOf)
         if (queryApi == true) {
-            QueryPropertiesSource.generate(codeGenerator, RootStateResolver.stateOf(root), propertiesOf)
+            QueryPropertiesSource.generate(codeGenerator, state, propertiesOf)
                 .forEach { logger.error("${binding.root}: $it", root) }
         }
     }

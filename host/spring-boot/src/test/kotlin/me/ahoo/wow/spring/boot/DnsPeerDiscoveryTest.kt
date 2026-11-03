@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
@@ -62,27 +63,54 @@ class DnsPeerDiscoveryTest {
         return records[name.trimEnd('.')].orEmpty()
     }
 
-    private fun lookup(dir: Path): JndiSrvLookup {
-        val resolvConf = dir.resolve("resolv.conf").apply {
-            writeText("# a pod's\nsearch default.svc.cluster.local svc.cluster.local cluster.local\noptions ndots:5\n")
+    /** The resolver of a pod in [namespace], as Kubernetes writes its `resolv.conf`: three search domains, ndots 5. */
+    private fun lookup(dir: Path, namespace: String = "default"): JndiSrvLookup {
+        val resolvConf = dir.resolve("resolv-$namespace.conf").apply {
+            writeText(
+                "# a pod's\nsearch $namespace.svc.cluster.local svc.cluster.local cluster.local\noptions ndots:5\n"
+            )
         }
         return JndiSrvLookup(resolvConf) { failing.let { _ -> query(it) } }
     }
 
+    /** The service account's namespace file of a pod in [namespace]. */
+    private fun namespaceFile(dir: Path, namespace: String = "default"): Path =
+        dir.resolve("namespace-$namespace").apply { writeText("$namespace\n") }
+
     @Test
     fun `a pod's search domains should find the records, a trailing dot should not search`(@TempDir dir: Path) {
         val lookup = lookup(dir)
+        // Fewer dots than ndots (5): the search domains first, as the pod's resolver tries them.
         lookup.candidates("_internal._tcp.ops-cluster").assert().containsExactly(
-            "_internal._tcp.ops-cluster",
             "_internal._tcp.ops-cluster.default.svc.cluster.local",
             "_internal._tcp.ops-cluster.svc.cluster.local",
             "_internal._tcp.ops-cluster.cluster.local",
+            "_internal._tcp.ops-cluster",
         )
         lookup.srv("_internal._tcp.ops-cluster").map { it.port }.assert().containsExactly(9098, 9098)
+        queries.get().assert().isEqualTo(1)
+        // The default name, namespace-qualified: found under the last search domain, the cluster's.
+        lookup.candidates("_internal._tcp.ops-cluster.default.svc").assert().containsExactly(
+            "_internal._tcp.ops-cluster.default.svc.default.svc.cluster.local",
+            "_internal._tcp.ops-cluster.default.svc.svc.cluster.local",
+            "_internal._tcp.ops-cluster.default.svc.cluster.local",
+            "_internal._tcp.ops-cluster.default.svc",
+        )
+        lookup.srv("_internal._tcp.ops-cluster.default.svc").map { it.port }.assert().containsExactly(9098, 9098)
+        queries.get().assert().isEqualTo(4)
         lookup.candidates("_internal._tcp.ops-cluster.").assert().containsExactly("_internal._tcp.ops-cluster.")
         lookup.srv("_internal._tcp.ops-cluster.").assert().isEmpty()
+        // As many dots as ndots, or more: as given first. Without options, ndots is 1.
+        val plain = dir.resolve("plain.conf").apply { writeText("search corp.example\n") }
+        JndiSrvLookup.ndots(plain).assert().isEqualTo(1)
+        JndiSrvLookup(plain).candidates("_internal._tcp.ops-cluster").assert()
+            .containsExactly("_internal._tcp.ops-cluster", "_internal._tcp.ops-cluster.corp.example")
+        JndiSrvLookup(plain).candidates("ops").assert().containsExactly("ops.corp.example", "ops")
+        val options = dir.resolve("options.conf").apply { writeText("options ndots:2 timeout:1\noptions ndots:3\n") }
+        JndiSrvLookup.ndots(options).assert().isEqualTo(3)
         JndiSrvLookup(dir.resolve("absent")).candidates("x").assert().containsExactly("x")
         JndiSrvLookup.searchDomains(dir.resolve("absent")).assert().isEmpty()
+        JndiSrvLookup.ndots(dir.resolve("absent")).assert().isEqualTo(1)
         JndiSrvLookup.parse("0 50 9093 a.b.").assert().isEqualTo(SrvRecord(0, 50, 9093, "a.b."))
         JndiSrvLookup.parse("0 50 x a.b.").assert().isNull()
         JndiSrvLookup.parse("0 50 9093").assert().isNull()
@@ -93,7 +121,12 @@ class DnsPeerDiscoveryTest {
         @TempDir dir: Path
     ): Unit = runBlocking {
         val clock = TestTimeSource()
-        val targets = DnsPeerTargets(DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE, lookup(dir), clock)
+        val targets = DnsPeerTargets(
+            DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE,
+            lookup(dir),
+            namespace = "default",
+            clock = clock,
+        )
         // Run 6's headless Services are named after the context: the service name stands in for it.
         val ordering = targets.targetsOf("eshop-ordering", "eshop-ordering")
         ordering.assert().containsExactlyInAnyOrder(
@@ -120,7 +153,39 @@ class DnsPeerDiscoveryTest {
         queries.get().assert().isEqualTo(again)
         targets.unreachable("unknown", "unknown")
         targets.targetsOf("payment", "payment").assert().isEmpty()
-        targets.nameOf("eshop-ordering-service").assert().isEqualTo("_internal._tcp.eshop-ordering-service-cluster")
+        targets.nameOf("eshop-ordering-service").assert()
+            .isEqualTo("_internal._tcp.eshop-ordering-service-cluster.default.svc")
+    }
+
+    @Test
+    fun `a peer in another namespace should be found by its namespace, the others in the node's own`(
+        @TempDir dir: Path
+    ): Unit = runBlocking {
+        // A node in shop; run 6's services are in default. The ordering is placed there, the payment is not.
+        val targets = DnsPeerTargets(
+            DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE,
+            lookup(dir, "shop"),
+            namespaces = mapOf("eshop-ordering" to "default"),
+            namespace = "shop",
+        )
+        targets.nameOf("eshop-ordering").assert().isEqualTo("_internal._tcp.eshop-ordering-cluster.default.svc")
+        targets.nameOf("eshop-payment").assert().isEqualTo("_internal._tcp.eshop-payment-cluster.shop.svc")
+        targets.targetsOf("eshop-ordering", "eshop-ordering").assert().containsExactlyInAnyOrder(
+            URI.create("http://192-168-131-224.eshop-ordering-cluster.default.svc.cluster.local:9093"),
+            URI.create("http://192-168-131-225.eshop-ordering-cluster.default.svc.cluster.local:9093"),
+        )
+        targets.targetsOf("eshop-payment", "eshop-payment").assert().isEmpty()
+        // A template without {namespace} needs none.
+        DnsPeerTargets("_internal._tcp.{service}-cluster", lookup(dir)).targetsOf("eshop-ordering", "eshop-ordering")
+            .assert().hasSize(2)
+        // No namespace known, as off Kubernetes: a call that needs one fails, naming what gives one.
+        val nowhere = DnsPeerTargets(DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE, lookup(dir))
+        assertThrows<Misuse.State> { runBlocking { nowhere.targetsOf("eshop-ordering-service", "eshop-ordering") } }
+            .message.assert().contains(
+                "wow.peer.dns.namespace ",
+                "wow.peer.dns.namespaces.eshop-ordering-service",
+                "wow.peers.eshop-ordering.url",
+            )
     }
 
     @Test
@@ -134,8 +199,9 @@ class DnsPeerDiscoveryTest {
             }
             peers["eshop-ordering"] = WowProperties.PeerTarget()
         }
+        // The node's namespace from its service account, as Kubernetes mounts it.
         val discoveries = PeerDiscoveries(
-            mapOf("dns" to DnsPeerDiscovery(lookup(dir)), "static" to StaticPeerDiscovery)
+            mapOf("dns" to DnsPeerDiscovery(lookup(dir), namespaceFile(dir)), "static" to StaticPeerDiscovery)
         )
         val services = mapOf("eshop-ordering" to "eshop-ordering", "eshop-payment" to "eshop-payment")
         PeerEndpoints.of(properties, discoveries, { emptyMap() }, services::get).use { endpoints ->
@@ -161,14 +227,43 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
-    fun `the name template should be its declared option, its default when unset`() {
-        val dns = DnsPeerDiscovery()
-        dns.options.map { it.key }.assert().containsExactly("name-template")
+    fun `the name template and the namespaces should be its declared options, their defaults when unset`(
+        @TempDir dir: Path
+    ) {
+        val dns = DnsPeerDiscovery(namespaceFile = namespaceFile(dir, "shop"))
+        dns.options.map { it.key }.assert().containsExactly("name-template", "namespace", "namespaces")
         val set = PeerDiscoveryConfig.of("dns", mapOf("name-template" to "_api._tcp.{service}.mesh."))
         (dns.open(set) as DnsPeerTargets).nameOf("bank").assert().isEqualTo("_api._tcp.bank.mesh.")
         set.optionsRead.assert().isSubsetOf(dns.options.map { it.key })
+        // The node's namespace: the service account's, unless set.
         (dns.open(PeerDiscoveryConfig.of("dns")) as DnsPeerTargets).nameOf("bank").assert()
-            .isEqualTo("_internal._tcp.bank-cluster")
+            .isEqualTo("_internal._tcp.bank-cluster.shop.svc")
+        val placed = PeerDiscoveryConfig.of(
+            "dns",
+            mapOf("namespace" to "payments", "namespaces.mail" to " mail ", "namespaces.blank" to " "),
+        )
+        (dns.open(placed) as DnsPeerTargets).run {
+            nameOf("bank").assert().isEqualTo("_internal._tcp.bank-cluster.payments.svc")
+            nameOf("mail").assert().isEqualTo("_internal._tcp.mail-cluster.mail.svc")
+            nameOf("blank").assert().isEqualTo("_internal._tcp.blank-cluster.payments.svc")
+        }
+        placed.optionsRead.assert().isSubsetOf(dns.options.map { it.key })
+        // Off Kubernetes, nothing set: the start goes on, and only a call that needs the namespace fails.
+        val nowhere = DnsPeerDiscovery(namespaceFile = dir.resolve("absent")).open(PeerDiscoveryConfig.of("dns"))
+        assertThrows<Misuse.State> { (nowhere as DnsPeerTargets).nameOf("bank", "bank") }
+        DnsPeerDiscovery.namespaceOf(dir.resolve("absent")).assert().isNull()
+        DnsPeerDiscovery.namespaceOf(dir.resolve("empty").apply { writeText("\n") }).assert().isNull()
+        // A namespace for a peer that a custom template has no place for refuses the start.
+        val refused = assertThrows<WowConfigurationException> {
+            dns.open(
+                PeerDiscoveryConfig.of(
+                    "dns",
+                    mapOf("name-template" to "_internal._tcp.{service}-cluster", "namespaces.mail" to "mail"),
+                ),
+            )
+        }
+        refused.key.assert().isEqualTo("wow.peer.dns.namespaces")
+        refused.message.assert().contains("[mail]", DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE)
     }
 
     @Test

@@ -111,6 +111,8 @@ export interface RecordCapability {
   // 宿主代码要从行上读、视图未必显示的字段（行动作、批量动作、自定义单元格）；
   // 一页只要视图显示的字段（kernels.md「一页要哪些字段」），这里说的每页都另要
   rowFields?: string[];
+  // 读者认一行用的字段：行控件与动作的 {record} 按它说，没有就用行键
+  rowName?: string;
   defaults?: Partial<RecordViewConfig>;
 }
 

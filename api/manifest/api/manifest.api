@@ -1,3 +1,30 @@
+public final class me/ahoo/wow/manifest/AccessAttributeManifest {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMultiple ()Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/AccessAttributeManifest$Type : java/lang/Enum {
+	public static final field BOOLEAN Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+	public static final field INTEGER Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+	public static final field STRING Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+	public static fun values ()[Lme/ahoo/wow/manifest/AccessAttributeManifest$Type;
+}
+
+public final class me/ahoo/wow/manifest/AccessAttributeName {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/AccessAttributeName;
+	public static final field MAX_LENGTH I
+	public final fun getBUILT_IN ()Ljava/util/Set;
+	public final fun getPATTERN ()Lkotlin/text/Regex;
+	public final fun isValid (Ljava/lang/String;)Z
+	public final fun problem (Ljava/lang/String;)Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/manifest/AggregateIdSource : java/lang/Enum {
 	public static final field ASSIGNED Lme/ahoo/wow/manifest/AggregateIdSource;
 	public static final field OWNER Lme/ahoo/wow/manifest/AggregateIdSource;
@@ -8,6 +35,7 @@ public final class me/ahoo/wow/manifest/AggregateIdSource : java/lang/Enum {
 
 public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccess ()Ljava/util/List;
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun getDomainCommands ()Ljava/util/List;

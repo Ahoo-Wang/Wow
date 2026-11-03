@@ -14,6 +14,7 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -54,7 +55,7 @@ class ManifestCompatibilityTest {
         private const val CONTEXT = "contexts[shop]"
         private const val CART = "$CONTEXT.aggregates[cart]"
         private const val DELETE = "wow.lifecycle.DeleteAggregate"
-        private const val APPLY_TAGS = "wow.lifecycle.ApplyTags"
+        private const val TRANSFER_SPACE = "wow.lifecycle.TransferSpace"
         private val STRING = mapOf("type" to "string")
         private val ROUTE = RouteManifest("POST", "/shop/cart/{id}/add-item")
         private val ERROR = ErrorManifest("shop.cart.full", 409)
@@ -421,10 +422,10 @@ class ManifestCompatibilityTest {
                 "lifecycle command added",
                 BASELINE.cart {
                     it.copyWith(
-                        commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS)
+                        commands = it.commands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE)
                     )
                 },
-                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added",
+                "ADDITIVE $CART.commands[$TRANSFER_SPACE]: command added",
             ),
             row(
                 "query model removed",
@@ -606,6 +607,31 @@ class ManifestCompatibilityTest {
     }
 
     @Test
+    fun `an access attribute removed, renamed, retyped or changed in multiplicity should break, one added should not`() {
+        fun changes(baseline: Manifest, current: Manifest) =
+            ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        fun access(name: String, type: AccessAttributeManifest.Type, multiple: Boolean = false) =
+            BASELINE.cart { it.copyWith(access = listOf(AccessAttributeManifest(name, type, multiple))) }
+
+        val region = access("region", AccessAttributeManifest.Type.STRING)
+        val multiple = access("region", AccessAttributeManifest.Type.STRING, multiple = true)
+        val removed = "BREAKING $CART.access[region]: access attribute removed"
+
+        changes(BASELINE, region).assert().containsExactly("ADDITIVE $CART.access[region]: access attribute added")
+        changes(region, BASELINE).assert().containsExactly(removed)
+        changes(region, region).assert().isEmpty()
+        changes(region, access("area", AccessAttributeManifest.Type.STRING))
+            .assert().containsExactly(removed, "ADDITIVE $CART.access[area]: access attribute added")
+        changes(region, access("region", AccessAttributeManifest.Type.INTEGER)).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute type changed from STRING to INTEGER")
+        changes(region, multiple).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute made multiple")
+        changes(multiple, region).assert()
+            .containsExactly("BREAKING $CART.access[region]: access attribute made single")
+    }
+
+    @Test
     fun `the reverse changes should be classified too`() {
         fun changes(baseline: Manifest, current: Manifest) =
             ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
@@ -763,12 +789,12 @@ class ManifestCompatibilityTest {
     @Test
     fun `the report should list the breaking changes first`() {
         val current = BASELINE.cart {
-            it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+            it.copyWith(commands = it.domainCommands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE))
         }
         ManifestCompatibility.compare(BASELINE, current).render().assert().isEqualTo(
             "Manifest against its baseline: 1 breaking, 1 additive\n" +
                 "BREAKING $CART.commands[$DELETE]: command removed\n" +
-                "ADDITIVE $CART.commands[$APPLY_TAGS]: command added\n",
+                "ADDITIVE $CART.commands[$TRANSFER_SPACE]: command added\n",
         )
     }
 
@@ -803,7 +829,7 @@ class ManifestCompatibilityTest {
             ManifestJson.write(manifest.copyWith(service = ServiceInfo("shop-service", version)), current)
         val broken = BASELINE.cart { it.copyWith(commands = it.commands - ADD_ITEM) }
         val additive = BASELINE.cart {
-            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", APPLY_TAGS))
+            it.copyWith(commands = it.commands + SystemCommands.lifecycle("shop", "cart", TRANSFER_SPACE))
         }
 
         build(BASELINE, "10.1.0")

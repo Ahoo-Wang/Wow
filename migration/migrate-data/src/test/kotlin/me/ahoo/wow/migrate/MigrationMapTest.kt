@@ -94,14 +94,15 @@ class MigrationMapTest {
             Lifecycle.AGGREGATE_RESTORED,
             Lifecycle.OWNER_TRANSFERRED,
             Lifecycle.SPACE_TRANSFERRED,
-            Lifecycle.TAGS_APPLIED,
         )
         assertThrows<IllegalArgumentException> { LifecycleMapping("example.order.OrderCancelled") }
         assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.DELETE_AGGREGATE) }
         assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.OWNER_TRANSFERRED) }
-        assertThrows<IllegalArgumentException> { LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf(" " to "tags")) }
         assertThrows<IllegalArgumentException> {
-            LifecycleMapping(Lifecycle.TAGS_APPLIED, mapOf("tags" to "tags", "note" to " "))
+            LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf(" " to "ownerId"))
+        }
+        assertThrows<IllegalArgumentException> {
+            LifecycleMapping(Lifecycle.OWNER_TRANSFERRED, mapOf("toOwnerId" to "ownerId", "note" to " "))
         }
         EventMapping("e", to = "E", lifecycle = null).lifecycle.assert().isNull()
         assertThrows<IllegalArgumentException> { EventMapping("e", drop = true, lifecycle = transfer) }

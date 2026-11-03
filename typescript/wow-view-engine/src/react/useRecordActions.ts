@@ -14,7 +14,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FieldOption, RecordKey } from '../model/index.js';
 import type { RecordRow } from '../record/index.js';
+import { rowNameOf } from '../record/path.js';
 import {
+  ActionInputError,
   actionState,
   asksFirst,
   choiceOf,
@@ -50,6 +52,11 @@ export interface RecordActionTable {
   selectedRows: readonly RecordRow[];
   select(keys: readonly RecordKey[]): void;
   refresh(): void;
+  /**
+   * The field a reader names a row by (`RecordCapability.rowName`), which
+   * the dialog and the outcome line say a record as; its key where absent.
+   */
+  rowName?: string;
 }
 
 export interface RecordActionsOptions {
@@ -133,10 +140,26 @@ export interface PendingAction {
   refused: readonly RefusalGroup[];
   /** Required fields still blank, by name. */
   missing: readonly string[];
-  /** Fields whose value their `check` refuses, by name, with why. */
+  /**
+   * Fields whose value their `check` refuses, by name, with why — and,
+   * on a form that came back, those the source refused while they keep the
+   * value it was sent.
+   */
   invalid: Readonly<Record<string, string>>;
   /** The option a choice picked, as the words `{value}` is said with. */
   value: string | null;
+  /**
+   * Set on a form that came back because the source refused what was typed
+   * (`ActionInputError`): its `reason` where it named none of the form's
+   * fields, said above them, else `null`, the reasons standing under the
+   * fields it named (`invalid`).
+   */
+  returned?: { reason: string | null };
+  /**
+   * What each record is called, where the definition names rows
+   * (`RecordCapability.rowName`); the key where absent.
+   */
+  names?: ReadonlyMap<RecordKey, string>;
 }
 
 /**
@@ -193,6 +216,17 @@ interface Pressed {
   input: ActionInput;
   /** The records as they were pressed, where the table no longer has them. */
   rows: readonly RecordRow[];
+  /** What the source refused of the input this form was sent with. */
+  returned?: Returned;
+}
+
+/** A form handed back: the source's refusal of the input it was sent. */
+interface Returned {
+  reason: string;
+  /** The form's fields it named, with why. */
+  fields: Readonly<Record<string, string>>;
+  /** The input it refused, which a field's reason holds for. */
+  input: ActionInput;
 }
 
 const NO_ROWS: readonly RecordRow[] = [];
@@ -233,6 +267,43 @@ function useAskedAt(
   return [current.at, setNow];
 }
 
+/**
+ * The form a run hands back: the records whose input the source refused,
+ * in the order they were pressed, and why — the first refusal's reason, and
+ * each field of the form any of them named. Nothing where none was, or
+ * where the action draws no form to come back to (a choice).
+ */
+function handBack(
+  pressed: Pressed,
+  refusals: ReadonlyMap<RecordKey, ActionInputError>,
+): Pressed | null {
+  const { action, keys, rows, input } = pressed;
+  const [first] = refusals.values();
+  if (!first || !action.form || choiceOf(action)) return null;
+  const fields: Record<string, string> = {};
+  for (const refusal of refusals.values())
+    for (const [name, reason] of Object.entries(refusal.fields))
+      if (name in action.form && !(name in fields)) fields[name] = reason;
+  return {
+    ...pressed,
+    keys: keys.filter(key => refusals.has(key)),
+    rows: rows.filter(row => refusals.has(row.key)),
+    returned: { reason: first.reason, fields, input },
+  };
+}
+
+/** The fields the source refused that still hold the value it was sent. */
+function stillRefused(
+  returned: Returned | undefined,
+  input: ActionInput,
+): Record<string, string> {
+  const refused: Record<string, string> = {};
+  if (!returned) return refused;
+  for (const [name, reason] of Object.entries(returned.fields))
+    if (Object.is(input[name], returned.input[name])) refused[name] = reason;
+  return refused;
+}
+
 /** The words a choice's `{value}` is said with: the option picked. */
 function valueOf(action: RecordAction, input: ActionInput): string | null {
   const choice = choiceOf(action);
@@ -246,28 +317,20 @@ function valueOf(action: RecordAction, input: ActionInput): string | null {
     : null;
 }
 
-export function useRecordActions({
-  actions,
-  table,
-  refresh,
-  also = NO_ROWS,
-  concurrency,
-  onError,
-  environment: clock = SYSTEM_CLOCK,
-}: RecordActionsOptions): RecordActionsController {
-  const runner = useActionRunner({
-    ...(concurrency === undefined ? {} : { concurrency }),
-    ...(onError ? { onError } : {}),
-  });
-  const [now, setNow] = useAskedAt(clock);
-  const [pressed, setPressed] = useState<Pressed | null>(null);
-  const reread = refresh ?? table.refresh;
-  const { rows, selection, selectedRows, select } = table;
-
-  // The next moment any record on screen changes on its own, and a timer
-  // that moves the clock there. A clock left behind while rows came in is
-  // only ever early: a rule asked too early refuses, and says when it will
-  // change, which is at once.
+/**
+ * The next moment any record on screen changes on its own, and a timer
+ * that moves the clock there. A clock left behind while rows came in is
+ * only ever early: a rule asked too early refuses, and says when it will
+ * change, which is at once.
+ */
+function useRulesClock(
+  actions: RecordActions | undefined,
+  rows: readonly RecordRow[],
+  also: readonly RecordRow[],
+  now: Date,
+  clock: Pick<RuntimeEnvironment, 'now'>,
+  setNow: (at: Date) => void,
+): void {
   const next = useMemo(
     () => nextChange(actions, [...rows, ...also], now),
     [actions, rows, also, now],
@@ -285,85 +348,21 @@ export function useRecordActions({
     );
     return () => clearTimeout(timer);
   }, [nextAt, clock, setNow]);
+}
 
-  const known = useMemo(() => {
-    const map = new Map<RecordKey, RecordRow>();
-    for (const row of [...(pressed?.rows ?? []), ...also, ...rows])
-      map.set(row.key, row);
-    return map;
-  }, [pressed, also, rows]);
-  const rowOf = useCallback((key: RecordKey) => known.get(key), [known]);
-
-  const busy = runner.running !== null;
-  const { run } = runner;
-
-  const execute = useCallback(
-    ({ action, place, keys, input }: Pressed) => {
-      const confirm = confirmOf(action, input);
-      const value = valueOf(action, input);
-      run(
-        {
-          keys,
-          // A record's own command leaves the selection as it found it.
-          ...(place === 'bulk' ? { select } : {}),
-          refresh: reread,
-        },
-        {
-          title: confirm?.action ?? action.label,
-          ...(value === null ? {} : { values: { value } }),
-          operation: action.id,
-          ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
-          ...(action.done === undefined ? {} : { done: action.done }),
-          each: (key, options) =>
-            runOne(action, rowOf(key), input, clock.now(), options),
-        },
-      );
-    },
-    [run, select, reread, rowOf, clock],
-  );
-
-  const start = useCallback(
-    (id: string, place: ActionPlace, row?: RecordRow, given?: ActionInput) => {
-      if (busy) return;
-      const action = actions?.find(each => each.id === id);
-      if (!action) return;
-      if (place !== 'bulk' && !row) return;
-      const input = { ...initialInput(action), ...given };
-      const target: Pressed = {
-        action,
-        place,
-        keys: place === 'bulk' ? [...selection] : [row!.key],
-        input,
-        rows: place === 'bulk' ? selectedRows : [row!],
-      };
-      if (target.keys.length === 0) return;
-      setNow(clock.now());
-      if (asksFirst(action, place, input)) setPressed(target);
-      else execute(target);
-    },
-    [actions, busy, selection, selectedRows, execute, clock, setNow],
-  );
-
-  const pending = useMemo<PendingAction | null>(() => {
-    if (!pressed) return null;
-    const { action, place, keys, input } = pressed;
-    const split = splitFor(action, keys, rowOf, { now, input });
-    const choice = choiceOf(action);
-    return {
-      action,
-      place,
-      keys,
-      input,
-      confirm: confirmOf(action, input),
-      form: action.form !== undefined && choice === null,
-      able: split.able,
-      refused: refusalsByReason(split.refused),
-      missing: missingInput(action, input),
-      invalid: invalidInput(action, input),
-      value: valueOf(action, input),
-    };
-  }, [pressed, rowOf, now]);
-
+/**
+ * What a record and the selection are offered at the moment the rules are
+ * asked at: each record's actions with whether it takes them and why not,
+ * a choice's options each asked with its value; the selection's, counted
+ * by how many take them.
+ */
+function useActionViews(
+  actions: RecordActions | undefined,
+  now: Date,
+  selection: readonly RecordKey[],
+  selectedRows: readonly RecordRow[],
+  rowOf: (key: RecordKey) => RecordRow | undefined,
+): Pick<RecordActionsController, 'forRow' | 'forSelection'> {
   const forRow = useCallback(
     (row: RecordRow, place: 'row' | 'detail'): RowActionView[] =>
       offeredAt(actions, place).flatMap(action => {
@@ -416,6 +415,164 @@ export function useRecordActions({
           };
         }),
     [actions, selectedRows, selection, rowOf, now],
+  );
+  return { forRow, forSelection };
+}
+
+export function useRecordActions({
+  actions,
+  table,
+  refresh,
+  also = NO_ROWS,
+  concurrency,
+  onError,
+  environment: clock = SYSTEM_CLOCK,
+}: RecordActionsOptions): RecordActionsController {
+  const runner = useActionRunner({
+    ...(concurrency === undefined ? {} : { concurrency }),
+    ...(onError ? { onError } : {}),
+  });
+  const [now, setNow] = useAskedAt(clock);
+  const [pressed, setPressed] = useState<Pressed | null>(null);
+  const reread = refresh ?? table.refresh;
+  const { rows, selection, selectedRows, select, rowName } = table;
+
+  useRulesClock(actions, rows, also, now, clock, setNow);
+
+  const known = useMemo(() => {
+    const map = new Map<RecordKey, RecordRow>();
+    for (const row of [...(pressed?.rows ?? []), ...also, ...rows])
+      map.set(row.key, row);
+    return map;
+  }, [pressed, also, rows]);
+  const rowOf = useCallback((key: RecordKey) => known.get(key), [known]);
+  // What the dialog and the outcome line call the records a command is for.
+  const namesOf = useCallback(
+    (keys: readonly RecordKey[]) =>
+      rowName === undefined
+        ? undefined
+        : new Map(
+            keys.map(key => [
+              key,
+              rowNameOf(rowOf(key) ?? { key, data: {} }, rowName),
+            ]),
+          ),
+    [rowName, rowOf],
+  );
+
+  const busy = runner.running !== null;
+  const { run } = runner;
+
+  const execute = useCallback(
+    (pressed: Pressed) => {
+      const { action, place, keys, input } = pressed;
+      const confirm = confirmOf(action, input);
+      const value = valueOf(action, input);
+      const names = namesOf(keys);
+      // The records whose input the source refused, which the form comes
+      // back over once the run has settled — the runner's refresh.
+      const refusals = new Map<RecordKey, ActionInputError>();
+      run(
+        {
+          keys,
+          // A record's own command leaves the selection as it found it.
+          ...(place === 'bulk' ? { select } : {}),
+          refresh: () => {
+            reread();
+            const back = handBack(pressed, refusals);
+            if (back) setPressed(back);
+          },
+        },
+        {
+          title: confirm?.action ?? action.label,
+          ...(value === null ? {} : { values: { value } }),
+          operation: action.id,
+          ...(action.timeout === undefined ? {} : { timeout: action.timeout }),
+          ...(action.done === undefined ? {} : { done: action.done }),
+          ...(names ? { names } : {}),
+          each: async (key, options) => {
+            try {
+              return await runOne(
+                action,
+                rowOf(key),
+                input,
+                clock.now(),
+                options,
+              );
+            } catch (error) {
+              if (error instanceof ActionInputError) refusals.set(key, error);
+              throw error;
+            }
+          },
+        },
+      );
+    },
+    [run, select, reread, rowOf, namesOf, clock],
+  );
+
+  const start = useCallback(
+    (id: string, place: ActionPlace, row?: RecordRow, given?: ActionInput) => {
+      if (busy) return;
+      const action = actions?.find(each => each.id === id);
+      if (!action) return;
+      if (place !== 'bulk' && !row) return;
+      const input = { ...initialInput(action), ...given };
+      const target: Pressed = {
+        action,
+        place,
+        keys: place === 'bulk' ? [...selection] : [row!.key],
+        input,
+        rows: place === 'bulk' ? selectedRows : [row!],
+      };
+      if (target.keys.length === 0) return;
+      setNow(clock.now());
+      if (asksFirst(action, place, input)) setPressed(target);
+      else execute(target);
+    },
+    [actions, busy, selection, selectedRows, execute, clock, setNow],
+  );
+
+  const pending = useMemo<PendingAction | null>(() => {
+    if (!pressed) return null;
+    const { action, place, keys, input, returned } = pressed;
+    const split = splitFor(action, keys, rowOf, { now, input });
+    const choice = choiceOf(action);
+    const names = namesOf(keys);
+    return {
+      action,
+      place,
+      keys,
+      input,
+      confirm: confirmOf(action, input),
+      form: action.form !== undefined && choice === null,
+      able: split.able,
+      refused: refusalsByReason(split.refused),
+      missing: missingInput(action, input),
+      invalid: {
+        ...stillRefused(returned, input),
+        ...invalidInput(action, input),
+      },
+      value: valueOf(action, input),
+      ...(names ? { names } : {}),
+      ...(returned
+        ? {
+            returned: {
+              reason:
+                Object.keys(returned.fields).length > 0
+                  ? null
+                  : returned.reason,
+            },
+          }
+        : {}),
+    };
+  }, [pressed, rowOf, namesOf, now]);
+
+  const { forRow, forSelection } = useActionViews(
+    actions,
+    now,
+    selection,
+    selectedRows,
+    rowOf,
   );
 
   const setInput = useCallback(

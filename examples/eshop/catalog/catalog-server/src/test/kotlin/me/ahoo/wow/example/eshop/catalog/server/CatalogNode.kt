@@ -14,9 +14,9 @@
 package me.ahoo.wow.example.eshop.catalog.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
-import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
-import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
@@ -51,14 +51,20 @@ fun Answer.assertOk(): Answer {
 class CatalogNode(private val server: WowServer) : AutoCloseable {
     val context: ConfigurableApplicationContext get() = server.context
 
-    fun post(path: String, body: String = "{}", headers: Map<String, String> = emptyMap()): Answer =
-        server.http.post(path, body, headers)
+    fun post(
+        path: String,
+        body: String = "{}",
+        caller: Caller? = null,
+        headers: Map<String, String> = emptyMap(),
+    ): Answer = server.http.post(path, body, headers, caller)
 
-    fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = server.http.get(path, headers)
+    fun get(path: String, caller: Caller? = null, headers: Map<String, String> = emptyMap()): Answer =
+        server.http.get(path, headers, caller)
 
     /** POSTs [body] to [path] asking for server-sent events: each event's name and data, in the order they came. */
-    fun stream(path: String, body: String, headers: Map<String, String> = emptyMap()): List<Pair<String, String>> {
-        val answer = post(path, body, headers + (HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)).assertOk()
+    fun stream(path: String, body: String, caller: Caller? = null): List<Pair<String, String>> {
+        val accept = mapOf(HttpHeaders.ACCEPT to MediaType.TEXT_EVENT_STREAM_VALUE)
+        val answer = post(path, body, caller, accept).assertOk()
         MediaType.parseMediaType(
             answer.header(HttpHeaders.CONTENT_TYPE)!!
         ).isCompatibleWith(MediaType.TEXT_EVENT_STREAM)
@@ -76,10 +82,10 @@ class CatalogNode(private val server: WowServer) : AutoCloseable {
 }
 
 /** An employee of the default tenant, a tenant-level caller ([DevelopmentCallerResolver]): it changes the catalog. */
-val EMPLOYEE: Map<String, String> = mapOf(USER to "erin", ROLES to "employee")
+val EMPLOYEE: Caller = Caller.of(subject = "erin", attributes = mapOf(ROLES_ATTRIBUTE to listOf("employee")))
 
 /** A buyer of the default tenant, an owner-level caller ([DevelopmentCallerResolver]): it reads the catalog. */
-val BUYER: Map<String, String> = mapOf(USER to "alice", OWNER to "alice")
+val BUYER: Caller = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
 
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,
