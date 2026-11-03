@@ -85,24 +85,32 @@ internal class MongoLogAppender(
         error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
     }
 
-    /** One stream of a group, encoded, at the sequence allocated to it. */
+    /**
+     * One stream of a group, encoded, at the sequence allocated to it: the [depth]th of its aggregate's streams in the
+     * group, from 0.
+     */
     private class Member(
         val index: Int,
         val stream: EventStreamRecord,
         val collection: AggregateCollection,
         val document: Document,
         val sequence: Long,
+        val depth: Int,
     )
 
     /**
-     * [streams] encoded and sequenced, each in its partition, then inserted with one `insertMany` per collection. An
-     * aggregate's later streams follow the sequence its previous one in the group took, and are not appended once one
-     * did not commit ([EventLog.appendAll]).
+     * [streams] encoded and sequenced, each in its partition, then inserted in rounds: each aggregate's first stream,
+     * then its next one once the one before it landed, a round with one unordered `insertMany` per collection. A stream
+     * the store refuses (a version another node took, a request committed before) so fails alone, and costs the other
+     * streams no write. An aggregate's later streams follow the sequence its previous one in the group took, and are
+     * not appended once one did not commit ([EventLog.appendAll]). The sequences no stream took get their
+     * placeholders with one write per collection.
      */
     fun appendGroup(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
+        val depths = HashMap<AggregateRef, Int>()
         val members = ArrayList<Member>(streams.size)
         streams.forEachIndexed { index, (stream, transport) ->
             failed[stream.ref]?.let {
@@ -131,17 +139,14 @@ internal class MongoLogAppender(
             document[SEQUENCE] = allocation.sequence
             document[ID] = positionId(partition, allocation.sequence)
             previous[stream.ref] = allocation.sequence
-            members += Member(index, stream, collection, document, allocation.sequence)
+            val depth = depths.getOrDefault(stream.ref, 0)
+            depths[stream.ref] = depth + 1
+            members += Member(index, stream, collection, document, allocation.sequence, depth)
         }
-        // By partition (stable, so an aggregate's streams keep their order): the ordered insert stops at its first
-        // failure, and the members after it are appended again alone; sorted, they are its own partition's and the
-        // later partitions', not every partition's.
-        members.groupBy { it.collection }.forEach { (collection, group) ->
-            insertGroup(collection, group.sortedBy { lookups.partitionOf(it.stream.ref) })
-                .forEach { (index, outcome) -> outcomes[index] = outcome }
-        }
-        // A member whose position was taken (its block sealed), or that its insert did not reach, has no outcome yet:
-        // it is appended again, alone, in order, unless one of its aggregate's did not commit.
+        insertRounds(members, outcomes)
+        // A member whose position was taken (its block sealed), one after it of its aggregate, or one a too-large
+        // document's insert did not reach, has no outcome yet: it is appended again, alone, in order, unless one of
+        // its aggregate's did not commit.
         failed.clear()
         return outcomes.mapIndexed { index, outcome ->
             val (stream, transport) = streams[index]
@@ -152,51 +157,79 @@ internal class MongoLogAppender(
     }
 
     /**
-     * Inserts [group], members of one collection, with one ordered `insertMany`: each member's outcome by its index,
-     * none for a member whose position was taken or that the insert did not reach. It stops at its first failure, so
-     * an aggregate's streams land as a prefix.
+     * Inserts [members] round by round, by their depth, into [outcomes]; a member whose aggregate's previous stream in
+     * the group did not land is not tried, and its sequence takes a placeholder. The placeholders are written once the
+     * rounds are done, or before a failure the store answered is thrown, for every member without an outcome then.
      */
-    private fun insertGroup(collection: AggregateCollection, group: List<Member>): Map<Int, AppendOutcome?> {
-        val failures: Map<Int, WriteError> = try {
-            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(true))
-            emptyMap()
-        } catch (bulk: MongoBulkWriteException) {
-            if (bulk.writeConcernError != null) {
-                return group.associate { it.index to unknown(it, bulk) }
-            }
-            bulk.writeErrors.associate { it.index to it }
-        } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
-            // went: a member that landed is committed, the others are appended alone, so it fails alone.
-            return group.associate { member ->
-                if (landed(collection, member)) {
-                    member.index to outcomeOf(collection, member, null)
-                } else {
-                    fill(collection, lookups.partitionOf(member.stream.ref), member.sequence, GAP_FAILED)
-                    member.index to null
+    private fun insertRounds(members: List<Member>, outcomes: Array<AppendOutcome?>) {
+        val gaps = Gaps()
+        val stopped = HashSet<AggregateRef>()
+        try {
+            members.groupBy { it.depth }.toSortedMap().values.forEach { round ->
+                val (held, tried) = round.partition { it.stream.ref in stopped }
+                held.forEach { gaps.add(it, GAP_FAILED) }
+                tried.groupBy { it.collection }.forEach { (collection, group) ->
+                    insertRound(collection, group, gaps).forEach { (member, outcome) ->
+                        outcomes[member.index] = outcome
+                        if (outcome !is AppendOutcome.Committed) stopped += member.stream.ref
+                    }
                 }
             }
         } catch (failure: MongoException) {
-            if (!MongoFailures.isWriteUnknown(failure)) {
-                group.forEach { fill(collection, lookups.partitionOf(it.stream.ref), it.sequence, GAP_FAILED) }
-                throw failure
-            }
-            return group.associate { it.index to unknown(it, failure) }
+            // Answered by the store, the round's insert wrote nothing: no member without an outcome lands now.
+            members.filter { outcomes[it.index] == null && it !in gaps }.forEach { gaps.add(it, GAP_FAILED) }
+            gaps.write()
+            throw failure
         }
-        // Ordered: the members after the first failure were not tried; a placeholder takes each one's sequence.
-        val stopped = failures.keys.minOrNull() ?: group.size
-        return group.withIndex().associate { (at, member) ->
-            if (at > stopped) {
-                fill(collection, lookups.partitionOf(member.stream.ref), member.sequence, GAP_FAILED)
-                member.index to null
-            } else {
-                member.index to outcomeOf(collection, member, failures[at])
-            }
-        }
+        gaps.write()
     }
 
-    /** [member]'s outcome after its insert, which failed with [error] when there is one. */
-    private fun outcomeOf(collection: AggregateCollection, member: Member, error: WriteError?): AppendOutcome? {
+    /**
+     * Inserts [group], one round's members of one collection, with one unordered `insertMany`: each member's outcome,
+     * none for a member whose position was taken or that a too-large document's insert did not reach. Each member
+     * that did not land adds its sequence to [gaps].
+     */
+    private fun insertRound(
+        collection: AggregateCollection,
+        group: List<Member>,
+        gaps: Gaps,
+    ): List<Pair<Member, AppendOutcome?>> {
+        val failures: Map<Int, WriteError> = try {
+            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(false))
+            emptyMap()
+        } catch (bulk: MongoBulkWriteException) {
+            if (bulk.writeConcernError != null) {
+                return group.map { it to unknown(it, bulk, gaps) }
+            }
+            bulk.writeErrors.associateBy { it.index }
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
+            // went: a member that landed is committed, the others are appended alone, so it fails alone.
+            return group.map { member ->
+                if (landed(collection, member)) {
+                    member to outcomeOf(collection, member, null, gaps)
+                } else {
+                    gaps.add(member, GAP_FAILED)
+                    member to null
+                }
+            }
+        } catch (failure: MongoException) {
+            if (!MongoFailures.isWriteUnknown(failure)) throw failure
+            return group.map { it to unknown(it, failure, gaps) }
+        }
+        return group.mapIndexed { at, member -> member to outcomeOf(collection, member, failures[at], gaps) }
+    }
+
+    /**
+     * [member]'s outcome after its insert, which failed with [error] when there is one; its sequence goes to [gaps]
+     * when it holds no stream.
+     */
+    private fun outcomeOf(
+        collection: AggregateCollection,
+        member: Member,
+        error: WriteError?,
+        gaps: Gaps,
+    ): AppendOutcome? {
         val partition = lookups.partitionOf(member.stream.ref)
         val stream = member.stream
         if (error == null) {
@@ -210,7 +243,7 @@ internal class MongoLogAppender(
             return null
         }
         lastSequences.remove(stream.ref)
-        fill(collection, partition, member.sequence, GAP_FAILED)
+        gaps.add(member, GAP_FAILED)
         return when {
             error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
                 MongoException(error.code, error.message)
@@ -242,11 +275,76 @@ internal class MongoLogAppender(
             ?.getString(REQUEST_ID) == member.stream.requestId
     }
 
-    /** [member]'s outcome when its group's write is unknown: a placeholder takes its sequence unless it landed. */
-    private fun unknown(member: Member, failure: MongoException): AppendOutcome {
+    /**
+     * [member]'s outcome when its round's write is unknown: its sequence goes to [gaps], whose placeholder the stream
+     * keeps out if it landed.
+     */
+    private fun unknown(member: Member, failure: MongoException, gaps: Gaps): AppendOutcome {
         lastSequences.remove(member.stream.ref)
-        fill(member.collection, lookups.partitionOf(member.stream.ref), member.sequence, GAP_UNKNOWN)
+        gaps.add(member, GAP_UNKNOWN)
         return AppendOutcome.Unknown(failure)
+    }
+
+    /**
+     * The sequences of a group that hold no stream, by collection: written as placeholders with one unordered
+     * `insertMany` per collection ([fillAll]) once the group's inserts are done.
+     */
+    private inner class Gaps {
+        private val byCollection = LinkedHashMap<AggregateCollection, MutableList<Gap>>()
+        private val members = HashSet<Int>()
+
+        operator fun contains(member: Member): Boolean = member.index in members
+
+        fun add(member: Member, reason: String) {
+            members += member.index
+            val gap = Gap(lookups.partitionOf(member.stream.ref), member.sequence, reason)
+            byCollection.getOrPut(member.collection) { ArrayList() } += gap
+        }
+
+        fun write() {
+            byCollection.forEach { (collection, gaps) -> fillAll(collection, gaps) }
+            byCollection.clear()
+        }
+    }
+
+    /** A sequence of [partition] that holds no stream, and why. */
+    private class Gap(val partition: Int, val sequence: Long, val reason: String)
+
+    /**
+     * Writes a placeholder at each of [gaps] in [collection] with one unordered `insertMany`, and settles each: a stream
+     * that landed at its position takes it first, and settles it as well. A placeholder that cannot be written now is
+     * left to the tail, as [fill] leaves it.
+     */
+    private fun fillAll(collection: AggregateCollection, gaps: List<Gap>) {
+        if (gaps.size == 1) {
+            return gaps.single().let { fill(collection, it.partition, it.sequence, it.reason) }
+        }
+        val unwritten: Set<Int> = try {
+            collection.appends.insertMany(
+                gaps.map { placeholder(it.partition, it.sequence, it.reason) },
+                InsertManyOptions().ordered(false),
+            )
+            emptySet()
+        } catch (bulk: MongoBulkWriteException) {
+            // A write concern that failed leaves every placeholder unknown: filled again later, a duplicate then.
+            if (bulk.writeConcernError != null) {
+                gaps.indices.toSet()
+            } else {
+                bulk.writeErrors.filterNot { it.category == ErrorCategory.DUPLICATE_KEY }.mapTo(HashSet()) { it.index }
+            }
+        } catch (
+            @Suppress("SwallowedException") // Each sequence is left to the tail, which fills it again.
+            failure: MongoException,
+        ) {
+            gaps.indices.toSet()
+        }
+        gaps.forEachIndexed { at, gap ->
+            if (at in unwritten) {
+                sequencer.unfilled(gap.partition, gap.sequence, collection.name)
+            } else {
+                sequencer.settle(gap.partition, gap.sequence)
+            }
+        }
     }
 
     /** Whether a duplicate key [message] is the position's: another writer's entry, or a placeholder, took it. */

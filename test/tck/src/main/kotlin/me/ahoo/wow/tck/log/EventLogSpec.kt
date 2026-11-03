@@ -77,6 +77,12 @@ abstract class EventLogSpec {
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
     /**
+     * Whether [createLog] called again with one context opens the same log, as another node of the service does. False,
+     * the default, for a backend whose every log is a store of its own, which skips the cases of two writers.
+     */
+    protected open val opensOneStorePerContext: Boolean = false
+
+    /**
      * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails:
      * one in the log's database where the backend has one. Null, the default, skips those cases.
      */
@@ -789,6 +795,30 @@ abstract class EventLogSpec {
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }.map { it.stream.ref.id }
             .assert().isEqualTo(listOf(taken, first, last))
     }
+
+    @Test
+    fun `appendAll fails alone a stream whose version another writer took since, and commits the others in order`():
+        Unit = runBlocking {
+            // Another node committed a command without the partition's lease: this log still remembers the version
+            // before it, so only the store's version key finds the conflict.
+            Assumptions.assumeTrue(opensOneStorePerContext, "This backend's logs are stores of their own.")
+            val log = createLog(partitions = 4)
+            val ids = idsInPartitionZero(4, 4)
+            val firsts = ids.map { stream(it, 1) }
+            log.appendAll(firsts.map { it to null })
+            createLog(partitions = 4).append(stream(ids[1], 2, requestId = "elsewhere"))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val outcomes = log.appendAll(ids.map { stream(it, 2) to null })
+            outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(2))
+            val committed = listOf(outcomes[0], outcomes[2], outcomes[3])
+                .map { (it as AppendOutcome.Committed).position.sequence }
+            committed.assertIncreasingAfter(ids.size.toLong())
+            log.read(type.ref("tenant", ids[1])).toList().map { it.requestId }.assert()
+                .containsExactly(firsts[1].requestId, "elsewhere")
+            // Where the other writer's stream lies among them is the backend's sequencing.
+            withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(8).toList() }.map { it.stream.ref.id to it.stream.version }
+                .assert().containsExactlyInAnyOrderElementsOf(ids.map { it to 1 } + ids.map { it to 2 })
+        }
 
     @Test
     fun `appendAll commits an aggregate's consecutive streams together, in order`(): Unit = runBlocking {
