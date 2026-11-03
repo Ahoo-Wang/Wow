@@ -63,7 +63,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
             execute("ALTER TABLE \"$tags\" ALTER COLUMN tags DROP DEFAULT")
             assertThrownBy<IllegalStateException> {
                 PostgresSnapshotStore(PostgresFixture.dataSource, context, ddl = Ddl.VALIDATE).createTable(type.name)
-            }.message.assert().contains("DROP COLUMN IF EXISTS tags").contains("ddl validate")
+            }.hasMessageContaining("DROP COLUMN IF EXISTS tags").hasMessageContaining("ddl validate")
             val saved = snapshot("a", 1).copyWith(ref = type.ref("tenant", "a"))
             PostgresFixture.snapshotStore(context).save(saved).assert().isTrue()
             PostgresFixture.snapshotStore(context).load(saved.ref).assert().isEqualTo(saved)
