@@ -1539,7 +1539,7 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   );
   assert.ok(
     calls.includes(
-      `run --backend=postgres --install=/builds/axon-server --reuse --scenario=E3 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --rate=150.0 --warm-up=20 --measure=40 --label=axon-pg-1-axon-e3 --out=${join(out, '1-axon-e3')} props=`,
+      `run --backend=postgres --install=/builds/axon-server --reuse --scenario=E3 --distribution=uniform --accounts=100000 --load-cpus=2-3 --server-cpus=0-1 --rate=300.0 --warm-up=20 --measure=40 --label=axon-pg-1-axon-e3 --out=${join(out, '1-axon-e3')} props=`,
     ),
   );
   assert.ok(
@@ -1580,15 +1580,15 @@ test('the Axon comparison runs one session per arm ABBA: fixed rates, then sweep
   );
   assert.match(
     report,
-    /\| E1 \| 500\/s \| Node CPU ms\/op \| 1\.000, 1\.000 \| 1\.200, 1\.200 \|/,
+    /\| E1 \| 1000\/s \| Node CPU ms\/op \| 0\.500, 0\.500 \| 0\.600, 0\.600 \|/,
   );
   assert.match(
     report,
-    /\| E3 \| 150\/s \| PostgreSQL CPU ms\/op \| 1\.667, 1\.667 \| 2\.667, 2\.667 \|/,
+    /\| E3 \| 300\/s \| PostgreSQL CPU ms\/op \| 0\.833, 0\.833 \| 1\.333, 1\.333 \|/,
   );
   assert.match(
     report,
-    /\| E1 \| 500\/s \| PostgreSQL commits\/op \| 1\.50, 1\.50 \| 2\.00, 2\.00 \|/,
+    /\| E1 \| 1000\/s \| PostgreSQL commits\/op \| 1\.50, 1\.50 \| 2\.00, 2\.00 \|/,
   );
   assert.match(report, /\| axon-pg@100k \| .* \| generator 2-3 · node 0-1 \|/);
   assert.doesNotMatch(report, /Pairs at the calibrated rates|NaN/);

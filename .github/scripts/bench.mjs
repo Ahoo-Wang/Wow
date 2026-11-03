@@ -902,11 +902,13 @@ export const SATURATION = {
 // for two rounds). `bench.sh up` seeds and primes the data set; on that session each fixed rate runs in open loop, 20 s
 // warm-up and 40 s measured, then each scenario's closed-loop sweep runs every step, 10 s warm-up and 30 s measured,
 // the concurrency growing fourfold from 1 to the paired suites' cap (V10 still gained past 1,024 on GitHub's 4-core
-// runners); then `down`. The fixed rates are the runner's, which both servers keep up with on its two server CPUs.
+// runners); then `down`. The fixed rates are about half of Axon's closed-loop peaks on a runner's two server CPUs, so
+// both servers run loaded: E1 1,911–2,140/s and E3 681–688/s there (EPYC 9V45, run 41568172064, which ran the fixed
+// rates at 500/s and 150/s, a quarter of them).
 export const SESSIONS = {
   rates: [
-    { scenario: 'E1', rate: 500 },
-    { scenario: 'E3', rate: 150 },
+    { scenario: 'E1', rate: 1000 },
+    { scenario: 'E3', rate: 300 },
   ],
   warmUp: 20,
   measure: 40,
