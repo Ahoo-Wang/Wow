@@ -63,6 +63,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
 
+    override val opensOneStorePerContext: Boolean = true
+
     override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(PostgresFixture.dataSource, context)
 
 
