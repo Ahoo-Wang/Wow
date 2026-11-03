@@ -90,6 +90,8 @@ object Report {
                 "worstSecond" to worstSecond?.get("second"),
                 "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
                 "rerouted" to measured.rerouted,
+                // The warm-up's too: every operation sent that reached its completion point, and every one that failed.
+                "sent" to mapOf("ok" to measured.sentOk.sum(), "failed" to measured.sentFailed.sum()),
                 "failedLatencyMs" to latencies(measured.errorLatency),
                 "byScenario" to byScenario(measured, measure),
                 "perSecond" to seconds,

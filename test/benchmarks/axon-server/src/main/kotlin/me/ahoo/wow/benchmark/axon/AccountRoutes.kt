@@ -28,7 +28,6 @@ import reactor.core.publisher.Mono
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -41,12 +40,15 @@ import java.util.concurrent.TimeoutException
  * readiness probe.
  *
  * The command bus handles a command on the thread that sends it and blocks on JDBC, so each command is sent from a
- * virtual thread of its own, never from Netty's event loop.
+ * thread of [CommandSenders], never from Netty's event loop.
  */
 @Configuration
-class AccountRoutes(private val commands: CommandGateway, private val waits: TransferWaits) {
-    private val senders = Executors.newVirtualThreadPerTaskExecutor()
-
+class AccountRoutes(
+    private val commands: CommandGateway,
+    private val waits: TransferWaits,
+    private val inFlight: CommandsInFlight,
+    private val senders: CommandSenders,
+) {
     @Bean
     fun accountRouter(): RouterFunction<ServerResponse> = router {
         GET("/wow/manifest") { ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue("{}") }
@@ -65,16 +67,24 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
 
     private val ServerRequest.id: String get() = pathVariable("id")
 
-    /** Sends the command [of] gives and answers once it is handled, with the aggregate's version. */
+    /**
+     * Sends the command [of] gives and answers once it is handled, with the aggregate's version; after
+     * [WAIT_TIMEOUT_SECONDS] it answers 504 `timeout` instead, as Wow answers a wait that timed out, while the
+     * command goes on.
+     */
     private fun command(id: String, of: () -> Any): Mono<ServerResponse> =
-        answer(CompletableFuture.supplyAsync({ commands.sendAndWait<Long?>(of()) }, senders).thenApply { id to it })
+        answer(
+            CompletableFuture.supplyAsync({ inFlight.around { commands.sendAndWait<Long?>(of()) } }, senders)
+                .orTimeout(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .thenApply { id to it },
+        )
 
     /** Sends the transfer's `Prepare` and answers once the target's entry is stored. */
     private fun transfer(source: String, body: PrepareBody): Mono<ServerResponse> {
         val transferId = UUID.randomUUID().toString()
         val entered = waits.await(transferId)
         val prepared = CompletableFuture.supplyAsync(
-            { commands.sendAndWait<Long?>(Prepare(source, body.to, body.amount, transferId)) },
+            { inFlight.around { commands.sendAndWait<Long?>(Prepare(source, body.to, body.amount, transferId)) } },
             senders,
         )
         val chain = prepared.thenCompose { entered }

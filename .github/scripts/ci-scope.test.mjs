@@ -19,8 +19,8 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
-// `documentedQueries`, `viewStoreContract`, `opsConsole`, `catalogConsole` and `migrateDataImage` are decided apart
-// from the rules; each has its own tests.
+// `documentedQueries`, `viewStoreContract`, `opsConsole`, `catalogConsole`, `axonServer`, `migrateDataImage`, `helm`
+// and `deployKeys` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
@@ -29,7 +29,10 @@ const KOTLIN_GATES = new Set([
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
+  'axonServer',
   'migrateDataImage',
+  'helm',
+  'deployKeys',
 ]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
@@ -74,6 +77,7 @@ test('ci.yml runs every job it defines, and the static checks', () => {
       ci.viewStoreContract &&
       ci.opsConsole &&
       ci.catalogConsole &&
+      ci.axonServer &&
       ci.migrateDataImage &&
       ci.package,
   );
@@ -609,6 +613,35 @@ test('the catalog console, the catalog service and what the console builds with 
   );
 });
 
+test("the Axon server's own paths alone run its job, and nothing else", () => {
+  for (const path of [
+    'test/benchmarks/axon-server/build.gradle.kts',
+    'test/benchmarks/axon-server/src/main/kotlin/me/ahoo/wow/benchmark/axon/BoundedCache.kt',
+    'test/benchmarks/axon-server/src/test/kotlin/me/ahoo/wow/benchmark/axon/BoundedCacheTest.kt',
+    'test/benchmarks/axon-server/inspect.sql',
+    // The workflow runs every job it defines.
+    '.github/workflows/ci.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).axonServer, path);
+  for (const path of [
+    'test/benchmarks/server/build.gradle.kts',
+    'test/benchmarks/harness/bench.sh',
+    'test/benchmarks/README.md',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+    '.github/workflows/bench.yml',
+  ])
+    assert.ok(!scopes([path]).axonServer, path);
+  // Outside the repository's Gradle build: no TypeScript scope, and not the JVM jobs.
+  const server = scopes(['test/benchmarks/axon-server/src/main/kotlin/A.kt']);
+  assert.deepEqual(
+    on(['test/benchmarks/axon-server/src/main/kotlin/A.kt']),
+    [],
+  );
+  assert.ok(!server.jvm && !server.architecture);
+});
+
 test('the migrate-data tool, its Kubernetes recipe and the workflow run the image job', () => {
   for (const path of [
     'migration/migrate-data/Dockerfile',
@@ -702,7 +735,10 @@ test('the command reads the diff and runs everything without a base', () => {
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
+      `axonServer=${value}\n` +
       `migrateDataImage=${value}\n` +
+      `helm=${value}\n` +
+      `deployKeys=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
@@ -1035,4 +1071,51 @@ test('every source a TypeScript test reads selects its job', () => {
   }
   assert.ok(reads >= 5, `only ${reads} reads found; the scan broke`);
   assert.deepEqual(problems, []);
+});
+
+test('the chart, its CI fixtures and ci.yml run the chart jobs', () => {
+  for (const path of [
+    'deploy/helm/wow-service/templates/deployment.yaml',
+    'deploy/helm/wow-service/values.schema.json',
+    'deploy/helm/wow-service/README.md',
+    '.github/helm/chart.sh',
+    '.github/helm/umbrella/values.yaml',
+    '.github/workflows/ci.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).helm, path);
+  for (const path of [
+    'deploy/eshop-ordering/deployment.yaml',
+    'deploy/mongodb/README.md',
+    '.github/ga-e2e/cluster.sh',
+    '.github/workflows/package-deploy.yml',
+    'host/spring-boot/src/main/kotlin/A.kt',
+  ])
+    assert.ok(!scopes([path]).helm, path);
+  // The chart alone turns on no other job's scope.
+  assert.deepEqual(
+    on(['deploy/helm/wow-service/templates/deployment.yaml']),
+    [],
+  );
+  assert.ok(!scopes(['deploy/helm/wow-service/templates/deployment.yaml']).jvm);
+});
+
+test('the YAML of deploy/ checks its WOW_ variables, unless the JVM jobs run', () => {
+  for (const path of [
+    'deploy/helm/wow-service/templates/configmap.yaml',
+    'deploy/eshop-ordering/configmap.yaml',
+  ])
+    assert.ok(scopes([path]).deployKeys, path);
+  for (const path of [
+    'deploy/helm/wow-service/README.md',
+    'deploy/helm/wow-service/values.schema.json',
+    '.github/ga-e2e/services/ops/config.yaml',
+  ])
+    assert.ok(!scopes([path]).deployKeys, path);
+  assert.ok(
+    !scopes([
+      'deploy/eshop-ordering/configmap.yaml',
+      'host/spring-boot/src/main/kotlin/A.kt',
+    ]).deployKeys,
+  );
 });

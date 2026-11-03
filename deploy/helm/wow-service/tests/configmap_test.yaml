@@ -1,0 +1,75 @@
+suite: the shared settings
+templates:
+  - templates/configmap.yaml
+set:
+  service.name: eshop-basket-service
+  image.repository: ghcr.io/example/eshop-basket-server
+tests:
+  - it: holds the JVM's options, the service's name for OpenTelemetry and the shutdown's bounds
+    asserts:
+      - equal:
+          path: metadata.name
+          value: eshop-basket-service-config
+      - equal:
+          path: data
+          value:
+            JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+            OTEL_SERVICE_NAME: eshop-basket-service
+            WOW_WAIT_MAXTIMEOUT: 60s
+            WOW_CLUSTER_DRAINTIMEOUT: 10s
+
+  - it: gives every config value as text
+    set:
+      config:
+        SPRING_PROFILES_ACTIVE: mongo,kafka
+        WOW_LOG_PARTITIONS: 64
+        WOW_KAFKA_COMMANDINTAKE_ENABLED: true
+    asserts:
+      - equal:
+          path: data.WOW_LOG_PARTITIONS
+          value: "64"
+      - equal:
+          path: data.WOW_KAFKA_COMMANDINTAKE_ENABLED
+          value: "true"
+      - equal:
+          path: data.SPRING_PROFILES_ACTIVE
+          value: mongo,kafka
+
+  - it: places the peers of other namespaces with the settings, as SPRING_APPLICATION_JSON
+    release:
+      namespace: shop
+    set:
+      service.peers:
+        - context: eshop-ordering
+          service: eshop-ordering-service
+          namespace: orders
+        - context: eshop-catalog
+          service: eshop-catalog-service
+          namespace: shop
+        - context: mail
+      settings:
+        wow:
+          subscriptions:
+            "[eshop-basket.CheckoutSaga.onEvent]":
+              parked:
+                max-retries: 0
+    asserts:
+      - equal:
+          path: data.SPRING_APPLICATION_JSON
+          value: '{"wow":{"peer":{"dns":{"namespaces":{"eshop-ordering-service":"orders"}}},"subscriptions":{"[eshop-basket.CheckoutSaga.onEvent]":{"parked":{"max-retries":0}}}}}'
+
+  - it: sets no SPRING_APPLICATION_JSON when there is nothing to place
+    set:
+      service.peers:
+        - context: eshop-ordering
+          service: eshop-ordering-service
+    asserts:
+      - notExists:
+          path: data.SPRING_APPLICATION_JSON
+
+  - it: refuses SPRING_APPLICATION_JSON among the config
+    set:
+      config.SPRING_APPLICATION_JSON: "{}"
+    asserts:
+      - failedTemplate:
+          errorPattern: "put those keys under settings"

@@ -18,6 +18,9 @@ first, naming every breaking pull request.
   `ahoowang/wow-ops-server`, `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server`, and the data
   migration tool `ahoowang/wow-migrate-data` (also on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`).
   Run the services behind your gateway; the view store service does no authentication.
+- **Helm**, the `wow-service` chart of version `VERSION`, pushed by `chart-deploy.yml`:
+  `helm install <release> oci://ghcr.io/ahoo-wang/wow-service --version VERSION` (also on `registry-1.docker.io/ahoowang`
+  and `registry.cn-shanghai.aliyuncs.com/ahoo`).
 
 ## What is in it
 

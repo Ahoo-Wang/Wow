@@ -1,0 +1,2 @@
+{{- /* The umbrella renders nothing of its own: a templates directory, as a platform chart has, which helm lint --strict asks for. */ -}}
+The shop: {{ .Values.ordering.service.name }} and {{ .Values.basket.service.name }}, a release of the wow-service chart each.

@@ -58,6 +58,12 @@ class KeyChooserTest {
     }
 
     @Test
+    fun `the zipf choosers of a sweep's clients should share one table`() {
+        KeyChooser.sharedZipfCumulative(1000, 1.1).assert().isSameAs(KeyChooser.sharedZipfCumulative(1000, 1.1))
+        KeyChooser.sharedZipfCumulative(1000, 1.1).assert().isNotSameAs(KeyChooser.sharedZipfCumulative(1000, 1.2))
+    }
+
+    @Test
     fun `a transfer's target should be another account`() {
         val chooser = KeyChooser(KeyChooser.HOT, 3, seed = 1, hotFraction = 0.9)
         repeat(1000) { (chooser.nextOtherThan(0) != 0).assert().isTrue() }

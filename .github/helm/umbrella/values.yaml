@@ -1,0 +1,18 @@
+# Each service's values under its alias, and a global value the subcharts receive and do not read.
+global:
+  imageRegistry: registry.example.com
+ordering:
+  service:
+    name: eshop-ordering-service
+  image:
+    repository: ghcr.io/example/eshop-ordering-server
+  partOf: eshop
+basket:
+  service:
+    name: eshop-basket-service
+    peers:
+      - context: eshop-ordering
+        service: eshop-ordering-service
+  image:
+    repository: ghcr.io/example/eshop-basket-server
+  partOf: eshop

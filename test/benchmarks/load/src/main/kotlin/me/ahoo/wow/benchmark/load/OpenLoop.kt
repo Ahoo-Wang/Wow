@@ -67,6 +67,13 @@ class OpenLoop(
         /** The operations of the run a refused connection moved to another node ([Targets.rerouted]). */
         var rerouted = 0L
 
+        /**
+         * Every operation sent, the warm-up's too, that reached its completion point, and every one that failed: what
+         * the run asked the servers to store, which a check of the store afterwards counts against.
+         */
+        val sentOk = LongAdder()
+        val sentFailed = LongAdder()
+
         /** Each scenario's latencies and failures, apart (a mix's). */
         val byScenario = ConcurrentHashMap<Scenario, Histogram>()
         val failedByScenario = ConcurrentHashMap<Scenario, LongAdder>()
@@ -135,6 +142,7 @@ class OpenLoop(
             outstanding.incrementAndGet()
             val second = ((offset - warmUpEnd) / NANOS_PER_SECOND).toInt()
             nodes.run(scenario, client, i, account, other).handle { error, failure ->
+                if (error == null && failure == null) measured.sentOk.increment() else measured.sentFailed.increment()
                 if (inMeasure) measured.complete(second, scheduled, error, failure, scenario.takeIf { mix.mixed })
                 outgoing.decrementAndGet()
                 if (outstanding.decrementAndGet() == 0L) done.countDown()

@@ -22,7 +22,8 @@
 # wow-dependencies, the only projects the build has (D262). A pre-release
 # (`-alpha.n`, `-beta.n`, `-rc.n`) goes to npm under `alpha`/`beta`/`next`,
 # never `latest` (publish-npm.mjs); image-deploy.yml pushes its server images
-# under the version alone; its GitHub pre-release carries the notes of
+# under the version alone, and chart-deploy.yml the Helm chart (every release
+# under its version alone); its GitHub pre-release carries the notes of
 # .github/release-notes/prerelease.md. A stable release goes to npm under
 # `latest` when it is the latest line (`release-<x.y>` otherwise), its images
 # also get `<x.y>` and, on the latest line, `latest`, and its GitHub release
@@ -378,6 +379,16 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/image-deploy.yml
+    secrets: inherit
+
+  # The wow-service Helm chart at the release's version, as an OCI chart where
+  # the images go, beside them.
+  chart:
+    needs: npm-deploy
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/chart-deploy.yml
     secrets: inherit
 
   # The GitHub release of the tag: created from the plan's notes template

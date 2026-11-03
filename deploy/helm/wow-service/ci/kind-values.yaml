@@ -1,0 +1,25 @@
+# The chart's install on kind in ci.yml: the eShop catalog's image built from the commit, on the memory backend in the
+# dev profile (one node's data in memory, its callers from the Wow-* headers: no store, no gateway), two nodes on one
+# runner.
+service:
+  name: eshop-catalog-service
+image:
+  repository: wow-eshop-catalog-server
+  tag: local
+  pullPolicy: Never
+ports:
+  http: 8081
+  internal: 9091
+config:
+  SPRING_PROFILES_ACTIVE: dev
+javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 768Mi
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 60

@@ -1,0 +1,20 @@
+# KEDA on the backlog, the metrics on Actuator's endpoint of the HTTP port, the network policies off.
+service:
+  name: ops-service
+image:
+  repository: ghcr.io/ahoo-wang/wow-ops-server
+ports:
+  http: 8088
+  internal: 9098
+autoscaling:
+  keda:
+    enabled: true
+    prometheus:
+      serverAddress: http://prometheus.monitoring:9090
+metrics:
+  port: 8088
+  path: /actuator/prometheus
+  podMonitor:
+    enabled: true
+networkPolicy:
+  enabled: false
