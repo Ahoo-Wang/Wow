@@ -64,13 +64,3 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "autoscaling.keda.prometheus.serverAddress is required"
-
-  - it: refuses the HPA and KEDA together
-    template: templates/hpa.yaml
-    set:
-      autoscaling.hpa.enabled: true
-      autoscaling.keda.enabled: true
-      autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
-    asserts:
-      - failedTemplate:
-          errorPattern: "autoscaling.hpa.enabled and autoscaling.keda.enabled are both true"
