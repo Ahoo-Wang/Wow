@@ -44,7 +44,11 @@ import java.util.concurrent.TimeoutException
  * virtual thread of its own, never from Netty's event loop.
  */
 @Configuration
-class AccountRoutes(private val commands: CommandGateway, private val waits: TransferWaits) {
+class AccountRoutes(
+    private val commands: CommandGateway,
+    private val waits: TransferWaits,
+    private val inFlight: CommandsInFlight,
+) {
     private val senders = Executors.newVirtualThreadPerTaskExecutor()
 
     @Bean
@@ -72,7 +76,7 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
      */
     private fun command(id: String, of: () -> Any): Mono<ServerResponse> =
         answer(
-            CompletableFuture.supplyAsync({ commands.sendAndWait<Long?>(of()) }, senders)
+            CompletableFuture.supplyAsync({ inFlight.around { commands.sendAndWait<Long?>(of()) } }, senders)
                 .orTimeout(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .thenApply { id to it },
         )
@@ -82,7 +86,7 @@ class AccountRoutes(private val commands: CommandGateway, private val waits: Tra
         val transferId = UUID.randomUUID().toString()
         val entered = waits.await(transferId)
         val prepared = CompletableFuture.supplyAsync(
-            { commands.sendAndWait<Long?>(Prepare(source, body.to, body.amount, transferId)) },
+            { inFlight.around { commands.sendAndWait<Long?>(Prepare(source, body.to, body.amount, transferId)) } },
             senders,
         )
         val chain = prepared.thenCompose { entered }

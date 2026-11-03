@@ -17,7 +17,10 @@ import org.axonframework.commandhandling.gateway.CommandGateway
 import org.axonframework.config.ProcessingGroup
 import org.axonframework.eventhandling.EventHandler
 import org.axonframework.messaging.unitofwork.CurrentUnitOfWork
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.util.concurrent.Executors
 
 /**
  * The transfer's reactions, the Wow benchmark's `TransferSaga` (test/benchmarks/server): `Prepared` → `Entry` on the
@@ -25,26 +28,48 @@ import org.springframework.stereotype.Component
  * no state of its own, so it is an event handler of a tracking processor (group [GROUP], its tokens in PostgreSQL,
  * `application.yaml`) rather than an Axon saga, which would store an instance per transfer.
  *
- * A command it sends is handled in the processor's unit of work, its events committed with the processor's token; the
- * transfer's waiter learns of the entry once that commits.
+ * A command it sends is handled in the processor's unit of work (`benchmark.axon.reactions` `nested`, the default): its
+ * events are committed with the processor's token, and the target's lock is held until then. With `separate` each
+ * reaction is a unit of work of its own, on a virtual thread, and the processor goes on without waiting for it: the
+ * diagnostic that tells the nested units of work apart (axon-pg-e3-reactions). Either way the transfer's waiter learns
+ * of the entry once it is committed.
  */
 @Component
 @ProcessingGroup(TransferReactions.GROUP)
-class TransferReactions(private val commands: CommandGateway, private val waits: TransferWaits) {
+class TransferReactions(
+    private val commands: CommandGateway,
+    private val waits: TransferWaits,
+    @Value("\${benchmark.axon.reactions:nested}") reactions: String,
+) {
+    private val separate = reactions == "separate"
+    private val senders = Executors.newVirtualThreadPerTaskExecutor()
+
     @EventHandler
-    fun on(event: Prepared) {
+    fun on(event: Prepared) = react {
         val entered = commands.sendAndWait<Long?>(Entry(event.to, event.sourceId, event.amount, event.transferId))
         afterCommit { waits.entered(event.transferId, event.to, entered) }
     }
 
     @EventHandler
-    fun on(event: AmountEntered) {
+    fun on(event: AmountEntered) = react {
         commands.sendAndWait<Long?>(Confirm(event.sourceId, event.amount))
     }
 
     @EventHandler
-    fun on(event: EntryFailed) {
+    fun on(event: EntryFailed) = react {
         commands.sendAndWait<Long?>(UnlockAmount(event.sourceId, event.amount))
+    }
+
+    /** Runs [reaction] here, in the processor's unit of work, or with `separate` on a virtual thread of its own. */
+    private fun react(reaction: () -> Unit) {
+        if (!separate) return reaction()
+        senders.execute {
+            try {
+                reaction()
+            } catch (failure: RuntimeException) {
+                log.warn("A transfer reaction failed", failure)
+            }
+        }
     }
 
     private fun afterCommit(action: () -> Unit) {
@@ -57,5 +82,6 @@ class TransferReactions(private val commands: CommandGateway, private val waits:
 
     companion object {
         const val GROUP = "transfer"
+        private val log = LoggerFactory.getLogger(TransferReactions::class.java)
     }
 }

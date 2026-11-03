@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.benchmark.axon
 
+import com.zaxxer.hikari.HikariDataSource
 import org.axonframework.common.caching.Cache
 import org.axonframework.common.jdbc.ConnectionProvider
 import org.axonframework.common.jdbc.PersistenceExceptionResolver
@@ -48,6 +49,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.LongAdder
+import javax.sql.DataSource
 
 @SpringBootApplication
 class AxonServer
@@ -86,21 +88,31 @@ class AxonConfiguration {
 
     /**
      * What a run checks of Axon's side from the node log, every [STATS_SECONDS]: the account cache's entries, hits and
-     * misses, and the snapshots taken and the threads they ran on (`axon-stats` lines at INFO, `application.yaml`).
+     * misses; the snapshots taken and the threads they ran on; the connection pool's connections in use and idle and
+     * the threads waiting for one; the routes' commands in flight ([CommandsInFlight]). `axon-stats` lines at INFO
+     * (`application.yaml`).
      */
     @Bean(destroyMethod = "shutdownNow")
-    fun axonStats(cache: BoundedCache): ScheduledExecutorService =
-        Executors.newSingleThreadScheduledExecutor { task -> Thread(task, "axon-stats").apply { isDaemon = true } }
+    fun axonStats(cache: BoundedCache, dataSource: DataSource, inFlight: CommandsInFlight): ScheduledExecutorService {
+        val hikari = dataSource.takeIf { it.isWrapperFor(HikariDataSource::class.java) }
+            ?.unwrap(HikariDataSource::class.java)
+        return Executors.newSingleThreadScheduledExecutor { task -> Thread(task, "axon-stats").apply { isDaemon = true } }
             .also { stats ->
                 stats.scheduleAtFixedRate(
                     {
+                        val pool = hikari?.hikariPoolMXBean
                         log.info(
-                            "axon-stats cache entries={} hits={} misses={}; snapshots={} on {}",
+                            "axon-stats cache entries={} hits={} misses={}; snapshots={} on {}; " +
+                                "pool active={} idle={} waiting={}; commands in flight={}",
                             cache.size,
                             cache.hits,
                             cache.misses,
                             snapshots.sum(),
                             snapshotThreads.sorted(),
+                            pool?.activeConnections,
+                            pool?.idleConnections,
+                            pool?.threadsAwaitingConnection,
+                            inFlight.current,
                         )
                     },
                     STATS_SECONDS,
@@ -108,6 +120,7 @@ class AxonConfiguration {
                     TimeUnit.SECONDS,
                 )
             }
+    }
 
     /**
      * The snapshotter of Axon's Spring Boot configuration, with an executor: Axon's takes each snapshot on the thread
