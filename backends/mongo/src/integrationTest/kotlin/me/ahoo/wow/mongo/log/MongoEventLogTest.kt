@@ -781,9 +781,8 @@ class MongoEventLogTest : EventLogSpec() {
                     if (faulted) {
                         insert(documents)
                     } else {
-                        // An unordered insert writes the members around its failure.
+                        // The group's ordered insert stops at its failure: the members after it are not written.
                         faulted = true
-                        insert(documents.drop(1))
                         throw bulk(documents, BulkWriteError(code, "failed", BsonDocument(), 0), null)
                     }
                 })
@@ -815,9 +814,10 @@ class MongoEventLogTest : EventLogSpec() {
 
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(2))
         listOf(0, 2, 3).forEach { outcomes[it].assert().isInstanceOf(AppendOutcome.Committed::class.java) }
-        // The group's one insert and the conflicting stream's placeholder: no member was inserted again alone.
+        // The group's ordered insert, which stops at the conflict, one insert of the two streams it did not reach,
+        // and the conflicting stream's placeholder: no member was inserted again alone.
         sent.filter { it.name == "insert" }.map { it.collection }.assert()
-            .containsExactly(collection(context, "order"), collection(context, "order"))
+            .containsExactly(collection(context, "order"), collection(context, "order"), collection(context, "order"))
         tailed(owner, 8).map { it.stream.ref.id to it.stream.version }.assert()
             .containsExactlyInAnyOrderElementsOf(ids.map { it to 1 } + ids.map { it to 2 })
     }
@@ -847,12 +847,90 @@ class MongoEventLogTest : EventLogSpec() {
         outcomes[0].assert().isEqualTo(AppendOutcome.Conflict(2))
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(2))
         outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        // The first round's insert, then one write of both placeholders; the next stream was never inserted.
-        sent.filter { it.name == "insert" }.size.assert().isEqualTo(2)
+        // The group's ordered insert, which stops at the conflict, the other aggregate's stream it did not reach, then
+        // one write of both placeholders; the conflicting aggregate's next stream was never inserted.
+        sent.filter { it.name == "insert" }.size.assert().isEqualTo(3)
         owner.read(type.ref("tenant", "hot")).toList().map { it.requestId }.last().assert().isEqualTo("elsewhere")
         tailed(owner, 4).map { it.stream.ref.id to it.stream.version }.assert()
             .containsExactlyInAnyOrder("hot" to 1, "cold" to 1, "hot" to 2, "cold" to 2)
     }
+
+    @Test
+    fun `a group the store refuses nothing of is one insert, whatever its aggregates' chains`(): Unit = runBlocking {
+        // X-68: a contended aggregate hands the queue a chain of consecutive versions, which goes with the others.
+        val context = MongoLogFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        log.appendAll(listOf("a", "b", "c").map { stream(it, 1, aggregate = type) to null })
+            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        val chains = listOf("a" to 2..5, "b" to 2..2, "c" to 2..4)
+            .flatMap { (id, versions) -> versions.map { stream(id, it, aggregate = type) to null } }
+
+        val (outcomes, sent) = CountedMongo.commandsOf { runBlocking { log.appendAll(chains) } }
+
+        outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        sent.filter { it.name == "insert" }.assert()
+            .containsExactly(CountedMongo.Sent("insert", collection(context, "order")))
+        tailed(log, 11).map { it.stream.ref.id to it.stream.version }.assert()
+            .containsExactlyElementsOf(
+                listOf("a" to 1, "b" to 1, "c" to 1) + chains.map { (stream, _) -> stream.ref.id to stream.version },
+            )
+    }
+
+    @Test
+    fun `a conflict in a group of chains stops its own aggregate, and the others land with two more inserts`(): Unit =
+        runBlocking {
+            // X-68 with X-60: the group's ordered insert stops at the conflict; the streams it did not reach go on
+            // with one unordered insert of each aggregate's next stream and one ordered insert of the later ones.
+            val context = MongoLogFixture.newContext()
+            val type = AggregateType(context, "order")
+            val inserts = CopyOnWriteArrayList<List<String>>()
+            val client = faulty(many = { documents, insert ->
+                inserts += documents.map { if (it.containsKey(MongoEventLog.GAP)) "gap" else it.label() }
+                insert(documents)
+            })
+            val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val ids = listOf("a", "b", "c", "d")
+            owner.appendAll(ids.map { stream(it, 1, aggregate = type) to null })
+                .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            MongoLogFixture.log(1, context).append(stream("b", 2, requestId = "elsewhere", aggregate = type))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            inserts.clear()
+            val chains = ids.flatMap { id -> (2..4).map { stream(id, it, aggregate = type) to null } }
+
+            val outcomes = owner.appendAll(chains)
+
+            chains.map { it.first }.zip(outcomes).forEach { (stream, outcome) ->
+                if (stream.ref.id == "b") {
+                    outcome.assert().isEqualTo(AppendOutcome.Conflict(2))
+                } else {
+                    outcome.assert().isInstanceOf(AppendOutcome.Committed::class.java)
+                }
+            }
+            // No stream was inserted alone, nor any twice: three inserts of streams, one of the placeholders.
+            inserts.assert().containsExactly(
+                chains.map { (stream, _) -> "${stream.ref.id}@${stream.version}" },
+                listOf("c@2", "d@2"),
+                listOf("c@3", "c@4", "d@3", "d@4"),
+                listOf("gap", "gap", "gap"),
+            )
+            // Each of the group's sequences holds a stream or, for b's three, a placeholder: the log has no gap.
+            val written = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection(collection(context, "order"))
+                .find(Filters.lte(MongoEventLog.SEQUENCE, MongoEventLog.BLOCK)).toList()
+            written.map { it.getLong(MongoEventLog.SEQUENCE) }.assert()
+                .containsExactlyInAnyOrderElementsOf((1L..ids.size + chains.size.toLong()).toList())
+            written.filter { it.containsKey(MongoEventLog.GAP) }.map { it.getString(MongoEventLog.GAP) }.assert()
+                .containsExactly(MongoEventLog.GAP_FAILED, MongoEventLog.GAP_FAILED, MongoEventLog.GAP_FAILED)
+            tailed(owner, ids.size * 4 - 2).map { it.stream.ref.id to it.stream.version }.assert()
+                .containsExactlyInAnyOrderElementsOf(
+                    ids.map { it to 1 } + ("b" to 2) +
+                        chains.filter { (stream, _) -> stream.ref.id != "b" }
+                            .map { (stream, _) -> stream.ref.id to stream.version },
+                )
+        }
+
+    private fun Document.label() = "${getString(MongoEventLog.AGGREGATE_ID)}@${getInteger(MongoEventLog.VERSION)}"
 
     @Test
     fun `placeholders of a group that cannot be written are left to the tail, which fills them`(): Unit = runBlocking {

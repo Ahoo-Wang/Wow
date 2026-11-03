@@ -262,9 +262,14 @@ class MongoEventLog(
     /**
      * Appends [streams], of one partition or of several, with one ordered `insertMany` per aggregate collection (group
      * commit): each stream takes its own partition's sequence, and gets the outcome [append]
-     * would give it. A stream the store refuses alone fails alone; a sequence no stream took gets its placeholder; a
-     * stream whose position another node sealed is appended again alone. A group whose write is unknown is unknown for
-     * each stream it held.
+     * would give it. A stream the store refuses alone fails alone, with its aggregate's later streams; a sequence no
+     * stream took gets its placeholder; a stream whose position another node sealed is appended again alone. A group
+     * whose write is unknown is unknown for each stream it held.
+     *
+     * Per collection, a group the store refuses nothing of is one insert. With a refusal, the streams of the other
+     * aggregates that insert did not reach take at most two more (each aggregate's next stream unordered, then its
+     * later ones ordered), so at most three inserts of streams, and each refusal in a later ordered insert two more;
+     * the placeholders then take one write more.
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
