@@ -336,7 +336,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 其他主体在这个主题上都没有 `Write` ACL。启用授权器并且 `allow.everyone.if.no.acl.found=false`（代理的默认值）时，没有 ACL 的主体会被拒绝。[Kafka](kafka#topics) 列出了每个上下文拥有的主题以及谁写它们。
 
-记录还说明命令是否由提交派生（`causation`），派生的命令像 Saga 的命令一样受信任；不是派生的，记录说明是谁发送的（`caller`），目标的访问策略比较其中的声明。能写这个主题的一方写这两者和写操作者一样容易，所以边界在 ACL。在访问策略下，两者都没有的记录被拒绝。调用方的声明在主题保留期内留在主题的记录里（[主题上的命令](../reference/protocols#commands-on-a-topic)）。
+记录还说明命令是否由提交派生（`causation`）：写上它就是声称这是服务端派生的命令，像 Saga 的命令一样受信任。不是派生的，记录说明是谁发送的（`caller`），目标的访问策略比较其中的声明。能写这个主题的一方写这两者和写操作者一样容易，所以主题的 ACL 是唯一的边界。在访问策略下，两者都没有的记录被拒绝。调用方的声明在主题保留期内留在主题的记录里（[主题上的命令](../reference/protocols#commands-on-a-topic)）。
 
 ## 写错的设置 {#mistyped-settings}
 

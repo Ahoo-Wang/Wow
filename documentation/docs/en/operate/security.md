@@ -336,7 +336,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 Every other principal gets no `Write` ACL on the topic. With an authorizer and `allow.everyone.if.no.acl.found=false`, the broker's default, a principal without an ACL is refused. [Kafka](kafka#topics) lists the topics each context owns and who writes them.
 
-A record also says whether a commit derived the command (`causation`), which makes it trusted as a saga's is, and, for one no commit derived, who sent it (`caller`), whose claims the target's access policy compares. A writer of the topic writes either as easily as an operator, so the ACLs are the boundary. Under an access policy, a record with neither is refused. The callers' claims stay in the topic's records for its retention ([Commands on a topic](../reference/protocols#commands-on-a-topic)).
+A record also says whether a commit derived the command (`causation`): writing one asserts a command the server derived, trusted as a saga's is. One no commit derived says who sent it (`caller`), whose claims the target's access policy compares. A writer of the topic writes either as easily as an operator, so the topic's ACLs are the only boundary. Under an access policy, a record with neither is refused. The callers' claims stay in the topic's records for its retention ([Commands on a topic](../reference/protocols#commands-on-a-topic)).
 
 ## Mistyped settings
 

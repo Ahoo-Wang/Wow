@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -107,6 +108,26 @@ class ClusterCodecTest {
         read.transport!!.wait.assert().isEqualTo(wait)
         val decoded = ClusterCodec.command(model, read.command)!!
         decoded.assert().isEqualTo(command.copyWith())
+    }
+
+    @Test
+    fun `a command's caller travels with it, its fields alone, and an older writer's command has none`() {
+        val caller = Caller.of(
+            "t1",
+            Scope("owner-1"),
+            "alice",
+            crossScope = true,
+            attributes = mapOf("departments" to listOf("sales", "hr"), "roles" to listOf("teller")),
+        )
+        val sent = command.copyWith(causation = null, caller = caller)
+        val wire = ClusterCodec.wire(model, sent)
+        val json = ClusterCodec.mapper.readTree(ClusterCodec.encode(ForwardCommand(command = wire, deadline = 500L)))
+        json["command"]["caller"].propertyNames().toList().assert()
+            .containsExactlyInAnyOrder("tenantId", "scope", "subject", "crossScope", "attributes", "service")
+        val read = ClusterCodec.decodeCommand(ClusterCodec.encode(ForwardCommand(command = wire, deadline = 500L)))
+        ClusterCodec.command(model, read.command)!!.caller.assert().isEqualTo(caller)
+        // A writer of the version before sends no caller: the command arrives without one.
+        ClusterCodec.command(model, wire.copyWith(caller = null))!!.caller.assert().isNull()
     }
 
     @Test
