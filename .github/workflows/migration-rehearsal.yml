@@ -22,6 +22,10 @@
 # wow-migrate-data image built from the commit, as deploy/migrate-data runs it (rehearsal/kind/kind.sh), with the
 # import timed by where it runs, in the cluster or on the runner.
 #
+# `mode: bench` (the kind arm alone) seeds the 9.x store, then times the import of two migrate-data images and nothing
+# else: `baseline_ref`'s (A; the commit's own when empty, an A/A run) against the commit's (B), A B B A, each into a
+# fresh database (rehearsal/kind/kind.sh bench_imports); `views` sizes the view store's share of the seed.
+#
 # A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the
 # defaults below, over which `test/migration-rehearsal/rehearsal/run.json` at the pushed commit may set `orders`,
 # `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `final_pass`, `nine_x_ref` and `migrate_in`. Delete the
@@ -65,6 +69,19 @@ on:
         type: choice
         options: ['runner', 'kind', 'both']
         default: 'runner'
+      mode:
+        description: 'rehearsal (the cut-overs and rollbacks) or bench (the import of two images, A B B A, on kind)'
+        type: choice
+        options: ['rehearsal', 'bench']
+        default: 'rehearsal'
+      baseline_ref:
+        description: 'bench: the ref of the baseline image (A); empty for the commit itself, an A/A run'
+        type: string
+        default: ''
+      views:
+        description: 'Views the 9.x example is seeded with; empty for a quarter of the orders'
+        type: string
+        default: ''
   push:
     branches: ['ci-repro/migration-rehearsal/**']
 
@@ -93,6 +110,9 @@ jobs:
       final_pass: ${{ steps.settings.outputs.final_pass }}
       nine_x_ref: ${{ steps.settings.outputs.nine_x_ref }}
       arms: ${{ steps.settings.outputs.arms }}
+      mode: ${{ steps.settings.outputs.mode }}
+      baseline_ref: ${{ steps.settings.outputs.baseline_ref }}
+      views: ${{ steps.settings.outputs.views }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -109,12 +129,16 @@ jobs:
           FINAL_PASS: ${{ inputs.final_pass }}
           NINE_X_REF: ${{ inputs.nine_x_ref }}
           MIGRATE_IN: ${{ inputs.migrate_in }}
+          MODE: ${{ inputs.mode }}
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+          VIEWS: ${{ inputs.views }}
         run: |
           python3 - <<'EOF' >>"$GITHUB_OUTPUT"
           import json, os, re
           defaults = {"orders": "50000", "dual_run_seconds": "120", "v10_seconds": "60", "concurrency": "64",
                       "sample": "10", "final_pass": "final",
-                      "nine_x_ref": "v10-9x-baseline", "migrate_in": "runner"}
+                      "nine_x_ref": "v10-9x-baseline", "migrate_in": "runner", "mode": "rehearsal",
+                      "baseline_ref": "", "views": ""}
           settings = dict(defaults)
           if os.environ["EVENT"] == "push":
               path = "test/migration-rehearsal/rehearsal/run.json"
@@ -122,13 +146,14 @@ jobs:
                   settings.update({key: str(value) for key, value in json.load(open(path)).items() if key in defaults})
           else:
               settings.update({key: os.environ[key.upper()] for key in defaults if os.environ.get(key.upper())})
-          patterns = {"nine_x_ref": r"[A-Za-z0-9._/-]+", "migrate_in": r"runner|kind|both"}
+          patterns = {"nine_x_ref": r"[A-Za-z0-9._/-]+", "migrate_in": r"runner|kind|both", "mode": r"rehearsal|bench",
+                      "baseline_ref": r"[A-Za-z0-9._/-]*", "views": r"[0-9]*"}
           for key, value in settings.items():
               if not re.fullmatch(patterns.get(key, r"[0-9]+|final|restart"), value):
                   raise SystemExit(f"{key}: {value!r} is not a valid setting")
               if key != "migrate_in":
                   print(f"{key}={value}")
-          arm = settings["migrate_in"]
+          arm = "kind" if settings["mode"] == "bench" else settings["migrate_in"]
           print("arms=" + json.dumps(["runner", "kind"] if arm == "both" else [arm]))
           EOF
 
@@ -136,7 +161,7 @@ jobs:
     name: Rehearse (${{ matrix.migrate_in }})
     needs: settings
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: ${{ needs.settings.outputs.mode == 'bench' && 300 || 150 }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +195,24 @@ jobs:
           docker build -q -t wow-view-store-server:local platform/view-store/view-store-server
           docker build -q -f test/migration-rehearsal/rehearsal/kind/Dockerfile -t wow-migration-rehearsal:local \
             test/migration-rehearsal
+      # bench: the baseline image (A), from baseline_ref, or the commit's own for an A/A run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.settings.outputs.mode == 'bench' && needs.settings.outputs.baseline_ref != ''
+        with:
+          ref: ${{ needs.settings.outputs.baseline_ref }}
+          path: baseline
+          persist-credentials: false
+      - name: Build the baseline image
+        if: needs.settings.outputs.mode == 'bench'
+        env:
+          BASELINE_REF: ${{ needs.settings.outputs.baseline_ref }}
+        run: |
+          if [ -z "$BASELINE_REF" ]; then
+            docker tag wow-migrate-data:local wow-migrate-data:baseline
+          else
+            (cd baseline && ./gradlew :migrate-data:installDist --stacktrace)
+            docker build -q -t wow-migrate-data:baseline baseline/migration/migrate-data
+          fi
       - name: Create the kind cluster
         if: matrix.migrate_in == 'kind'
         uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
@@ -180,7 +223,12 @@ jobs:
           wait: 120s
       - name: Load the images
         if: matrix.migrate_in == 'kind'
-        run: kind load docker-image --name wow-rehearsal wow-migrate-data:local wow-view-store-server:local wow-migration-rehearsal:local
+        env:
+          MODE: ${{ needs.settings.outputs.mode }}
+        run: |
+          images=(wow-migrate-data:local wow-view-store-server:local wow-migration-rehearsal:local)
+          if [ "$MODE" = bench ]; then images+=(wow-migrate-data:baseline); fi
+          kind load docker-image --name wow-rehearsal "${images[@]}"
       - name: Rehearse
         env:
           NINEX_HOME: ${{ github.workspace }}/ninex/example/example-server/build/install/example-server
@@ -197,6 +245,8 @@ jobs:
           SAMPLE: ${{ needs.settings.outputs.sample }}
           FINAL_PASS: ${{ needs.settings.outputs.final_pass }}
           MIGRATE_IN: ${{ matrix.migrate_in }}
+          MODE: ${{ needs.settings.outputs.mode }}
+          VIEWS: ${{ needs.settings.outputs.views }}
         run: test/migration-rehearsal/rehearsal/rehearse.sh
       - name: Collect the cluster's diagnostics
         if: always() && matrix.migrate_in == 'kind'

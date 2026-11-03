@@ -45,6 +45,9 @@
 # the wow-migrate-data image inside it as deploy/migrate-data runs it (kind/kind.sh), then the same import timed by
 # where it runs after the offline cut-over (where_timings).
 #
+# MODE=bench (kind only) seeds and checks, stops 9.x, then times the import of two migrate-data images, a baseline and
+# a candidate, A B B A (bench_imports), and ends there: the cut-overs and rollbacks do not run.
+#
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # VIEWS_HOME (:view-store-server's installDist), MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal
 # host's Manifest), VIEWS_MANIFEST (the view store service's Manifest), WORK (an empty directory); ORDERS (200),
@@ -66,6 +69,11 @@ EXECUTIONS="${EXECUTIONS:-$((ORDERS / 20 > 0 ? ORDERS / 20 : 1))}"
 SAMPLE="${SAMPLE:-1}"
 FINAL_PASS="${FINAL_PASS:-final}"
 MIGRATE_IN="${MIGRATE_IN:-runner}"
+MODE="${MODE:-rehearsal}"
+if [ "$MODE" = bench ] && [ "$MIGRATE_IN" != kind ]; then
+  echo "MODE=bench runs on the kind arm alone (MIGRATE_IN=kind)" >&2
+  exit 1
+fi
 MONGO_PORT="${REHEARSAL_MONGO_PORT:-27017}"
 POSTGRES_PORT="${REHEARSAL_POSTGRES_PORT:-5432}"
 NINEX_PORT="${NINEX_PORT:-18080}"
@@ -374,6 +382,14 @@ step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv"
 step seed-compensation 0 mongosh_run --eval "var count = $EXECUTIONS, example = 'wow_example_db', compensation = 'compensation_db'" /rehearsal/seed-compensation.js
 step ninex-seeded 0 ninex_streams
 step check 0 migrate check
+if [ "$MODE" = bench ]; then
+  stop_pid ninex
+  bench_imports
+  log "done: $STEPS"
+  python3 "$REHEARSAL/report.py" "$WORK" >"$WORK/report.md"
+  cat "$WORK/report.md"
+  exit 0
+fi
 
 # 1b. offline: the write stop runs from 9.x stopping to V10 serving, with no tail and no standby
 step offline-9x-states 0 driver states --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/9x-offline.json"
