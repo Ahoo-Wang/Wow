@@ -35,6 +35,113 @@ public abstract class me/ahoo/wow/api/access/AccessAttributes {
 	protected fun <init> ()V
 }
 
+public final class me/ahoo/wow/api/access/AccessOperator : java/lang/Enum {
+	public static final field CONTAINS Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field CONTAINS_ANY Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field EQUAL Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field IN Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field IS_EMPTY Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field IS_NULL Lme/ahoo/wow/api/access/AccessOperator;
+	public static final field STARTS_WITH Lme/ahoo/wow/api/access/AccessOperator;
+	public final fun getCompares ()Z
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getMultiple ()Z
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/api/access/AccessOperator;
+	public static fun values ()[Lme/ahoo/wow/api/access/AccessOperator;
+}
+
+public final class me/ahoo/wow/api/access/AccessPolicy {
+	public final fun getAggregate ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun getStateType ()Ljava/lang/Class;
+	public final fun read (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public fun toString ()Ljava/lang/String;
+	public final fun write (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/access/AccessPredicate;
+}
+
+public final class me/ahoo/wow/api/access/AccessPolicyBuilder {
+	public final fun read (Lkotlin/jvm/functions/Function2;)V
+	public final fun readWrite (Lkotlin/jvm/functions/Function2;)V
+	public final fun write (Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class me/ahoo/wow/api/access/AccessPolicyKt {
+	public static final fun accessPolicy (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/access/AccessPolicy;
+	public static synthetic fun accessPolicy$default (Ljava/lang/Class;Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/api/access/AccessPolicy;
+}
+
+public abstract interface class me/ahoo/wow/api/access/AccessPredicate {
+	public fun allows (Lkotlin/jvm/functions/Function1;)Z
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$AllOf : me/ahoo/wow/api/access/AccessPredicate {
+	public fun <init> (Ljava/util/List;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPredicates ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$Allowed : me/ahoo/wow/api/access/AccessPredicate {
+	public static final field INSTANCE Lme/ahoo/wow/api/access/AccessPredicate$Allowed;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$AnyOf : me/ahoo/wow/api/access/AccessPredicate {
+	public fun <init> (Ljava/util/List;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPredicates ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$Comparison : me/ahoo/wow/api/access/AccessPredicate {
+	public fun <init> (Lme/ahoo/wow/api/access/AccessAttribute;Lme/ahoo/wow/api/access/AccessOperator;Ljava/util/List;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/access/AccessAttribute;Lme/ahoo/wow/api/access/AccessOperator;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttribute ()Lme/ahoo/wow/api/access/AccessAttribute;
+	public final fun getOperator ()Lme/ahoo/wow/api/access/AccessOperator;
+	public final fun getValues ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$Denied : me/ahoo/wow/api/access/AccessPredicate {
+	public static final field INSTANCE Lme/ahoo/wow/api/access/AccessPredicate$Denied;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$Not : me/ahoo/wow/api/access/AccessPredicate {
+	public fun <init> (Lme/ahoo/wow/api/access/AccessPredicate;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPredicate ()Lme/ahoo/wow/api/access/AccessPredicate;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessPredicate$Unknown : me/ahoo/wow/api/access/AccessPredicate {
+	public static final field INSTANCE Lme/ahoo/wow/api/access/AccessPredicate$Unknown;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/access/AccessScope {
+	public final fun allOf ([Lme/ahoo/wow/api/access/AccessPredicate;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun allowAll ()Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun allowIf (Z)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun anyOf ([Lme/ahoo/wow/api/access/AccessPredicate;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun claim (Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Ljava/lang/String;
+	public final fun claims (Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Ljava/util/List;
+	public final fun contains (Lme/ahoo/wow/api/access/AccessAttribute$Multiple;Ljava/lang/Object;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun containsAny (Lme/ahoo/wow/api/access/AccessAttribute$Multiple;Ljava/util/Collection;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun denyAll ()Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun eq (Lme/ahoo/wow/api/access/AccessAttribute$Single;Ljava/lang/Object;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun hasRole (Lme/ahoo/wow/api/caller/Caller;Ljava/lang/String;)Z
+	public final fun isEmpty (Lme/ahoo/wow/api/access/AccessAttribute$Multiple;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun isIn (Lme/ahoo/wow/api/access/AccessAttribute$Single;Ljava/util/Collection;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun isNull (Lme/ahoo/wow/api/access/AccessAttribute$Single;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun not (Lme/ahoo/wow/api/access/AccessPredicate;)Lme/ahoo/wow/api/access/AccessPredicate;
+	public final fun startsWith (Lme/ahoo/wow/api/access/AccessAttribute$Single;Ljava/lang/String;)Lme/ahoo/wow/api/access/AccessPredicate;
+}
+
 public final class me/ahoo/wow/api/aggregate/AggregateIdSource : java/lang/Enum {
 	public static final field ASSIGNED Lme/ahoo/wow/api/aggregate/AggregateIdSource;
 	public static final field OWNER Lme/ahoo/wow/api/aggregate/AggregateIdSource;
