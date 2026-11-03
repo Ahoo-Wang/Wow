@@ -38,6 +38,7 @@
 #          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
 #          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
 #          --server-java=<JDK home> (the servers' JDK, 21 at least, for a runtime calibration; by default JAVA_HOME's),
+#          --no-bus (no Kafka: for servers that use none, such as a Wow node with --wow.transport=none, and Axon's),
 #          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --store-cpus=<list> and --bus-cpus=<list> (the store's and
@@ -73,7 +74,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,51p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -99,11 +100,28 @@ check_java() {
   fi
 }
 
-# Starts kafka and the store $1: with --tmpfs its data in memory (compose.tmpfs.yml), MongoDB's cache --mongo-cache-gb.
+# Whether the servers use Kafka: unless --no-bus.
+uses_bus() { [ "$(opt no-bus false)" != true ]; }
+
+# Starts the store $1, and Kafka unless --no-bus: with --tmpfs their data in memory (compose.tmpfs.yml), MongoDB's cache
+# --mongo-cache-gb.
 stores_up() {
   local files=(-f "$HARNESS/compose.yml")
   if [ "$(opt tmpfs false)" = true ]; then files+=(-f "$HARNESS/compose.tmpfs.yml"); fi
-  WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait kafka "$1" >/dev/null
+  local services=("$1")
+  if uses_bus; then services=(kafka "$1"); fi
+  WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait "${services[@]}" >/dev/null
+}
+
+# What the load generator samples of the containers beside the servers (its --containers and --kafka): the store's
+# $1, and Kafka's unless --no-bus.
+containers() {
+  CONTAINERS="wow-e2e-bench-$1"
+  KAFKA_OPTION=()
+  if uses_bus; then
+    CONTAINERS="wow-e2e-bench-kafka,$CONTAINERS"
+    KAFKA_OPTION=(--kafka=wow-e2e-bench-kafka)
+  fi
 }
 
 build() {
@@ -144,7 +162,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -179,7 +197,7 @@ pin_containers() {
   local store; store=$(opt store-cpus "$server")
   local bus; bus=$(opt bus-cpus "$server")
   if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "wow-e2e-bench-$1" >/dev/null; fi
-  if [ -n "$bus" ]; then docker update --cpuset-cpus "$bus" wow-e2e-bench-kafka >/dev/null; fi
+  if [ -n "$bus" ] && uses_bus; then docker update --cpuset-cpus "$bus" wow-e2e-bench-kafka >/dev/null; fi
 }
 
 # The load generator, on the --load-cpus.
@@ -273,12 +291,12 @@ setup() {
   down
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
-  log "starting kafka and $store"
+  if uses_bus; then log "starting kafka and $store"; else log "starting $store (no bus)"; fi
   # A profiled PostgreSQL run loads pg_stat_statements, for the statements behind the tails (postgres_stats).
   if [ "$(opt jfr false)" = true ] && [ "$store" = postgres ]; then export WOW_BENCH_PG_PRELOAD=pg_stat_statements; fi
   stores_up "$store"
   pin_containers "$store"
-  CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$store"
+  containers "$store"
   STORE_OPTION="--$store=wow-e2e-bench-$store"
   local n
   for n in $(seq 1 "$NODES"); do
@@ -326,7 +344,9 @@ setup() {
   local jvm load_jvm
   jvm=$("$SERVER_JAVA/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
   load_jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
-  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=kafka $store;primed=$primed"
+  local stores=$store
+  if uses_bus; then stores="kafka $store"; fi
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=$stores;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
   META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
   if [ "$UP" = true ]; then
@@ -344,9 +364,10 @@ setup() {
   fi
 }
 
-# What a reused run must match of the session: the backend, nodes, accounts, heap, install, server arguments and JDK.
+# What a reused run must match of the session: the backend, nodes, accounts, heap, install, server arguments, JDK and
+# bus.
 session_key() {
-  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "");args=$(opt server-args "");java=$(opt server-java "")"
+  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "");args=$(opt server-args "");java=$(opt server-java "");bus=$(opt no-bus false)"
 }
 
 # Takes up the session `up` left (--reuse): its servers and targets, once the nodes are quiet again.
@@ -364,7 +385,7 @@ resume() {
     if ! kill -0 "$pid" 2>/dev/null; then log "--reuse: the session's server $pid is gone; run bench.sh up again"; exit 2; fi
   done
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
-  CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$S_STORE"
+  containers "$S_STORE"
   STORE_OPTION="--$S_STORE=wow-e2e-bench-$S_STORE"
   local n
   PIDS=""
@@ -438,7 +459,7 @@ run() {
   setup
   log "running $(opt scenario ?) at $(opt rate ?)/s"
   load run --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
-    --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
+    --pids="$PIDS" --containers="$CONTAINERS" ${KAFKA_OPTION[@]+"${KAFKA_OPTION[@]}"} "$STORE_OPTION" --repository="$REPO" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   dump_recordings "$(( $(opt warm-up 30) + $(opt measure 60) + 5 ))"
   if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ] || { [ "${S_STORE:-}" = postgres ] && [ "${S_JFR:-false}" = true ]; }; then

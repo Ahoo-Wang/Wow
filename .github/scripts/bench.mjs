@@ -61,6 +61,13 @@ const AXON = {
   install: 'axon',
   sql: 'test/benchmarks/axon-server/inspect.sql',
 };
+/**
+ * Whether an arm's servers use Kafka: not Axon's, which has no bus, nor a Wow node without a topic transport
+ * (`--wow.transport=none`). bench.sh starts Kafka only for an arm that does (`--no-bus` otherwise).
+ */
+export const usesBus = arm =>
+  arm.install !== 'axon' &&
+  !/(^|\s)--wow\.transport=none(\s|$)/.test(arm.serverArgs ?? '');
 // Axon's transfer reactions in its tracking processor of 16 segments and threads, axon-server's own, against 2, the
 // server's CPUs on a runner, set when the session starts: the segments suite.
 const AXON_16 = {
@@ -183,10 +190,13 @@ export function cpuLayout(definition, total) {
   if (!(total >= 4)) return {};
   if (!['paired', 'sessions'].includes(definition.kind))
     return cpuSplit(total, 1);
-  // Kafka, which neither server of the Axon comparison uses, idles on the generator's CPUs rather than the servers'.
+  // Kafka, when an arm uses it, on the generator's CPUs rather than the servers'; neither server of the Axon comparison
+  // uses it, so it does not run there.
   if (definition.kind === 'sessions') {
     const split = cpuSplit(total, PAIRED_LOAD_CPUS);
-    return split.load ? { ...split, bus: split.load } : split;
+    return split.load && definition.arms.some(usesBus)
+      ? { ...split, bus: split.load }
+      : split;
   }
   if (!definition.arms.every(arm => arm.backend === 'mongo'))
     return cpuSplit(total, PAIRED_LOAD_CPUS);
@@ -1514,11 +1524,21 @@ export const GENERATOR_WITH_KAFKA = 1.6;
 /**
  * A sessions suite's load generator at its sweeps' peaks with Kafka on the same CPUs: the generator's most cores at
  * a peak, Kafka's most in an open-loop run (no sweep measures it), and their sum, or no Kafka when no open-loop run ran.
+ * Without a bus (`bus` false: no arm uses Kafka, usesBus) the generator alone.
  */
 export function generatorWithKafka(suite) {
   const peaks = (suite.sweeps ?? []).filter(run => run.status === 'ok');
   if (peaks.length === 0) return undefined;
   const generator = Math.max(...peaks.map(run => run.peak.generatorCores ?? 0));
+  if (!suite.arms.some(usesBus)) {
+    return {
+      generator,
+      cpus: peaks[0].peak.generatorCpus,
+      bus: false,
+      total: generator,
+      over: generator > GENERATOR_WITH_KAFKA,
+    };
+  }
   const runs = (suite.runs ?? []).filter(run => run.status === 'ok');
   const kafka =
     runs.length > 0
@@ -2480,9 +2500,11 @@ function sessionTables(suite) {
   ];
   if (generator) {
     lines.push(
-      generator.kafka === undefined
-        ? `The load generator used at most ${num(generator.generator, 2)} of its ${generator.cpus} CPUs at a peak; Kafka, on the same CPUs, was not measured (no open-loop run in this suite).`
-        : `The load generator used at most ${num(generator.generator, 2)} of its ${generator.cpus} CPUs at a peak, and Kafka, idle on the same CPUs, at most ${num(generator.kafka, 2)} cores in an open-loop run: ${num(generator.total, 2)} cores together${generator.over ? `, **more than ${GENERATOR_WITH_KAFKA}**` : ''}.`,
+      generator.bus === false
+        ? `The load generator used at most ${num(generator.generator, 2)} of its ${generator.cpus} CPUs at a peak${generator.over ? `, **more than ${GENERATOR_WITH_KAFKA}**` : ''}; no Kafka ran, as neither server uses one.`
+        : generator.kafka === undefined
+          ? `The load generator used at most ${num(generator.generator, 2)} of its ${generator.cpus} CPUs at a peak; Kafka, on the same CPUs, was not measured (no open-loop run in this suite).`
+          : `The load generator used at most ${num(generator.generator, 2)} of its ${generator.cpus} CPUs at a peak, and Kafka, idle on the same CPUs, at most ${num(generator.kafka, 2)} cores in an open-loop run: ${num(generator.total, 2)} cores together${generator.over ? `, **more than ${GENERATOR_WITH_KAFKA}**` : ''}.`,
       '',
     );
   }
@@ -3195,6 +3217,7 @@ export function runSuite(name, options) {
     ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
     ...(arm.serverArgs ? [`--server-args=${arm.serverArgs}`] : []),
     ...(arm.java ? [`--server-java=${javaHome(arm.java, env)}`] : []),
+    ...(usesBus(arm) ? [] : ['--no-bus']),
   ];
   const seedConcurrency = definition.seedConcurrency ?? data.seedConcurrency;
   const pins = [
