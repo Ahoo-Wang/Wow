@@ -35,11 +35,11 @@ import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
-import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.admission.QueryBudget
 import me.ahoo.wow.query.admission.QueryOperation
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.backend.PositionedRecord
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.aggregate

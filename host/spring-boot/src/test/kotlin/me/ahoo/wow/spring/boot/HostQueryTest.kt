@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -258,17 +259,29 @@ class HostQueryTest {
 
     @Test
     fun `an access policy bean should govern its aggregate's reads, and one of no aggregate refuse the start`() {
-        startHost(sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java)).use { host ->
-            host.openAccount("mona")
+        // The development profile: a request's headers name its caller.
+        startHost(
+            "spring.profiles.active" to "dev",
+            sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
             val engine = host.context.getBean(QueryEngine::class.java)
             engine.access.governs(ACCOUNT).assert().isTrue()
             fun accounts(caller: Caller) = runBlocking {
                 engine.snapshots(ACCOUNT)!!.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller(caller)).toList()
             }
-            val teller = Caller.of(subject = "tom", attributes = mapOf("roles" to listOf("teller")))
-            eventually { accounts(teller).size == 1 }
+            val tom = Caller.of(subject = "tom", attributes = mapOf("roles" to listOf("teller")))
+            eventually { accounts(tom).size == 1 }
             // Not by its owner: the policy alone decides.
             accounts(Caller.of(subject = "mona", scope = Scope("mona"))).assert().isEmpty()
+            // A state read alike: a teller who is an owner of none of them reads it, no one else.
+            val teller = mapOf(
+                DevelopmentHeaders.USER to "tom",
+                DevelopmentHeaders.OWNER to "tom",
+                DevelopmentHeaders.ROLES to "teller",
+            )
+            host.get("/bank/account/$id/state", teller).status.assert().isEqualTo(200)
+            host.get("/bank/account/$id/state").status.assert().isEqualTo(404)
         }
         val refused = assertThrows<Exception> {
             startHost(sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java)).close()

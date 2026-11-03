@@ -61,7 +61,7 @@ class AccessPolicies private constructor(
     /** Whether [type] reads by a policy of its own rather than by the default rule. */
     fun governs(type: AggregateType): Boolean = type in policies
 
-    /** Whether [dataset]'s rows are an aggregate's that reads by a policy of its own: its scope binds that aggregate. */
+    /** Whether [dataset]'s rows are those of an aggregate that reads by a policy of its own, which its scope binds. */
     fun governs(dataset: QueryDataset): Boolean = dataset.scope.access?.let { governs(it.aggregate) } == true
 
     /** Whether the node has [type]: one of the Manifest's aggregates. */
@@ -174,20 +174,22 @@ class AccessPolicies private constructor(
  * it does not govern is left to the default rule ([ScopeQueryPolicy]).
  *
  * - **Who it reads for.** A caller as it is ([QueryCaller.caller]): its subject, scope and claims are what the
- *   predicate compares. Trusted in-process code (no caller) and a [service][Caller.service] reading as itself (D298,
- *   bounded by the models `wow.callers.<service>.reads` lets it read) are read by no access policy; the tenant still
- *   bounds them.
+ *   predicate compares. Trusted in-process code (no caller) and a [service][Caller.service] reading as itself are read
+ *   by no access policy: a service is trusted, bounded by the models `wow.callers.<service>.reads` lets it read. The
+ *   tenant still bounds them.
  * - **Snapshots.** Each declared attribute is compared on `access.<name>`, [AccessAttribute.OWNER] and
  *   [AccessAttribute.SPACE] on the snapshot's owner and space, and a snapshot whose access attributes are not recorded
  *   (`access` absent) is never read.
- * - **State reads.** The same filter, evaluated on the state's latest record ([me.ahoo.wow.query.QueryGateway.admitRecord]):
- *   its history, a version or a trace, is read by its current attributes.
- * - **Events.** None of its own until each stream records its aggregate's current attributes (D390 B3): the engine
- *   pins the events queries of a governed aggregate, so an aggregate's streams show when its snapshot does
+ * - **State reads.** The same filter, evaluated on the state's latest record
+ *   ([me.ahoo.wow.query.QueryGateway.admitRecord]): its history, a version or a trace, is read by its current
+ *   attributes.
+ * - **Events.** None of its own until each stream records its aggregate's current attributes: the engine pins the
+ *   events queries of a governed aggregate, so an aggregate's streams show when its snapshot does
  *   ([me.ahoo.wow.query.events.EventVisibility]).
  * - **Datasets.** A dataset whose scope binds a governed aggregate ([QueryDataset.scope]) reads none of its rows but
  *   for a predicate that grants every aggregate, until its rows are filtered through the aggregate's current
- *   attributes (D390 C4). A dataset bound to no governed aggregate is left to the default rule.
+ *   attributes, which the dataset's storage does not keep yet. A dataset bound to no governed aggregate is left to
+ *   the default rule.
  *
  * An attribute the aggregate does not have ([AccessPolicies.declares]) matches nothing, and is logged once: the policy
  * fails closed.
@@ -212,7 +214,7 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         if (profile is DatasetQueryModelProfile) {
             val bound = profile.dataset.scope.access?.aggregate ?: return MatchAllFilter
             val policy = access.of(bound) ?: return MatchAllFilter
-            // D390 C4: compared through the aggregate's current attributes; until then only a grant of every one reads.
+            // The rows are not yet filtered through the aggregate's current attributes: only a grant of all reads.
             return AccessFilters.compile(policy.read(acting)) { null }
         }
         val type = context.aggregateType

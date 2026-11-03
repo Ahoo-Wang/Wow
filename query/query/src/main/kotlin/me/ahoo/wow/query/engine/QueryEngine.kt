@@ -73,7 +73,7 @@ import me.ahoo.wow.spi.tenant.TenantPolicy
  *   reads and its events fail closed;
  * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too: the events
  *   queries of an aggregate with an access policy name their aggregates until the streams record their current
- *   access attributes (D390 B3);
+ *   access attributes;
  * - every query of the snapshots and the events runs under its store's [QueryBulkhead], whichever entry
  *   asks, and an events query that names no aggregate is refused where [UnpinnedEvents.REFUSE] says so.
  */
@@ -269,21 +269,12 @@ class QueryEngine private constructor(
             val gatewayPolicies = scope + accessPolicy(access) + policies
             datasets.requireAccess(access)
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only the access and the application's policies hide an aggregate from a caller of its scope: a state
-            // read checks them through the policy gateway of a type whose snapshots are not queried.
-            val restricts = policies.isNotEmpty() || access.governed.isNotEmpty()
             // Only a pinned one hides an aggregate's streams beyond its filter on them; an access policy, those of
             // the aggregate it governs.
             val pinned = (scope + policies).any { it.events == EventsMode.PINNED }
             val hides = { type: AggregateType -> pinned || access.governs(type) }
             val queried = snapshots.map { it.aggregateType }.toSet()
-            val policyGateways = if (restricts) {
-                ManifestTypes.hosted(manifest, contexts).filterNot(queried::contains).map { type ->
-                    SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
-                }
-            } else {
-                emptyList()
-            }
+            val policyGateways = policyGateways(catalog, queried, gatewayPolicies, access)
             val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
             val eventVisibility = EventVisibility.of(
                 byType::get,
@@ -325,6 +316,24 @@ class QueryEngine private constructor(
                 crossTenant,
                 access,
             )
+        }
+
+        /**
+         * The policy gateways of the types whose snapshots are not [queried], when an access or an application's
+         * policy may hide an aggregate from a caller of its scope: a state read checks them through one.
+         */
+        private fun policyGateways(
+            catalog: QuerySchemaCatalog,
+            queried: Set<AggregateType>,
+            gatewayPolicies: List<QueryPolicy>,
+            access: AccessPolicies,
+        ): List<QueryGateway> {
+            if (policies.isEmpty() && access.governed.isEmpty()) {
+                return emptyList()
+            }
+            return ManifestTypes.hosted(manifest, contexts).filterNot(queried::contains).map { type ->
+                SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
+            }
         }
 
         /** The gateway of each dataset over the dataset backend; none without one, with a warning if any is declared. */

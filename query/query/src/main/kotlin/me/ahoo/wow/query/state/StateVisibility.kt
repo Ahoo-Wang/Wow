@@ -67,7 +67,11 @@ object StateVisibility {
      * The tree of [state] masked as the snapshot queries of its type mask it, no policy evaluated: with a [gateway],
      * by the schema its queries are masked by ([QueryGateway.maskRecord]), else by [masks].
      */
-    suspend fun masked(gateway: QueryGateway?, state: Snapshot<JsonNode>, masks: PayloadMasks = PayloadMasks.NONE): JsonNode {
+    suspend fun masked(
+        gateway: QueryGateway?,
+        state: Snapshot<JsonNode>,
+        masks: PayloadMasks = PayloadMasks.NONE,
+    ): JsonNode {
         gateway ?: return masks.state(state.ref.type, state.state)
         return gateway.maskRecord(state.toRecord()).get(SnapshotFields.STATE)
     }

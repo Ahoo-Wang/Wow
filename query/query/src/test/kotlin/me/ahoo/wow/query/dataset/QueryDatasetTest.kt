@@ -326,9 +326,10 @@ class QueryDatasetTest {
         dataset.scope.access.assert().isEqualTo(access)
         dataset.scope.fields.assert().containsExactly(QueryField("t"), QueryField("order_id"))
         dataset.scope.toString().assert().contains("access=QueryDatasetAccess(aggregate=shop.order, id=order_id)")
-        access.hashCode().assert().isEqualTo(QueryDatasetAccess.of(AggregateType("shop", "order"), QueryField("order_id")).hashCode())
+        val order = AggregateType("shop", "order")
+        access.hashCode().assert().isEqualTo(QueryDatasetAccess.of(order, QueryField("order_id")).hashCode())
         access.assert().isNotEqualTo(QueryDatasetAccess.of(AggregateType("shop", "cart"), QueryField("order_id")))
-        access.assert().isNotEqualTo(QueryDatasetAccess.of(AggregateType("shop", "order"), QueryField("t")))
+        access.assert().isNotEqualTo(QueryDatasetAccess.of(order, QueryField("t")))
         access.assert().isNotEqualTo("shop.order")
         val built = QueryDataset.of(ORDERS) {
             tenant("t")

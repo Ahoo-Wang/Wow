@@ -34,7 +34,7 @@ With `wow-cosec` and CoSec's starter and WebFlux module (`me.ahoo.cosec:cosec-sp
 - **Owner.** A principal is an owner-level caller, acting on its own aggregates, unless it has one of the roles or policies of `wow.cosec.tenant-level`: then it is a tenant-level caller, acting on every aggregate of its tenant, such as a member of staff who ships every buyer's orders.
 - **Space** is the space of CoSec's scope. The client names it in `CoSec-Space-Id`, and CoSec accepts it only when the principal has a role in that space; without it, the request is in CoSec's default space, which is no Wow space. A CoSec host takes no space from `Wow-Space`: a request whose `Wow-Space` names another space than CoSec's is answered 403 `wow.auth.forbidden`.
 - **Application.** The caller's application (`Caller.app`), recorded as the commit's request fact `app_id`, is the app of CoSec's scope: the host's own (`cosec.authorization.scope.app-id`), else the `CoSec-App-Id` the request declared and CoSec accepted, else, behind a CoSec gateway, the app the gateway forwarded. A scope without an app gives the caller none.
-- **Roles and attributes.** The caller's `roles` attribute lists the principal's roles in the scope's space, `policies` its policies, and its principal attributes whose key starts with `abac.` are its ABAC attributes. Behind a CoSec gateway a principal has no policies, so only the roles of `wow.cosec.tenant-level` and `wow.cosec.cross-scope` match there, and the ABAC attributes come from the claims the gateway forwards (`cosec.gateway.identity.claims`).
+- **Roles and attributes.** The caller's `roles` attribute lists the principal's roles in the scope's space, `policies` its policies, and each of its other principal attributes is a claim under its own name, which an access policy reads (`caller.claims("departments")`). Behind a CoSec gateway a principal has no policies, so only the roles of `wow.cosec.tenant-level` and `wow.cosec.cross-scope` match there, and the claims are those the gateway forwards (`cosec.gateway.identity.claims`).
 - **Acting elsewhere.** Only a principal with a role or policy of `wow.cosec.cross-scope` may name another tenant or scope in `Wow-Scope`.
 - **Services.** A CoSec principal is never a service identity. A service names itself on the internal port alone ([Close the internal port](#close-the-internal-port)).
 
@@ -118,7 +118,7 @@ class ReaderRole : QueryPolicy {
 }
 ```
 
-Register it as a bean of type `QueryPolicy`; the host runs every one, in bean order, after the scope and ABAC policies, and ANDs their filters. Three things to get right:
+Register it as a bean of type `QueryPolicy`; the host runs every one, in bean order, after the scope and access policies, and ANDs their filters. Three things to get right:
 
 - **A refusal is 403.** Throw `QueryRequestException` with `problem = FrameworkCodes.AUTH_FORBIDDEN` to answer `wow.auth.forbidden`; without it the refusal reads as a malformed query, 400. A filter that hides an aggregate makes its state read 404 `wow.aggregate.not-found`, as if it were not there, while a refusal answers 403 there too.
 - **Say how it treats event streams.** A policy's `events` defaults to `EventsMode.PINNED`, which assumes its rule reads the state and so makes every events query name its aggregates. A role check reads no state: give it `EventsMode.NONE`.

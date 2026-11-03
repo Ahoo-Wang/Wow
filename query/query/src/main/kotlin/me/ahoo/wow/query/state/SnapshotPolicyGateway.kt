@@ -26,11 +26,11 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.policy.QueryEntryPolicy

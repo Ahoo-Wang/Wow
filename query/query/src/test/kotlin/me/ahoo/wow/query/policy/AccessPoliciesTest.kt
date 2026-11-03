@@ -15,13 +15,14 @@ package me.ahoo.wow.query.policy
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.dataset.QueryDatasetAccess
-import me.ahoo.wow.query.dataset.QueryDatasetTest
-import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasetAccess
+import me.ahoo.wow.query.dataset.QueryDatasetScope
+import me.ahoo.wow.query.dataset.QueryDatasetTest
 import me.ahoo.wow.query.policy.AccessFixtures.DEPARTMENT
 import me.ahoo.wow.query.policy.AccessFixtures.DOCUMENT
 import me.ahoo.wow.query.policy.AccessFixtures.DocumentState
@@ -39,10 +40,21 @@ import org.junit.jupiter.api.assertThrows
 /** The startup check of the access policies against the Manifest (D390 B2). */
 class AccessPoliciesTest {
     private val notes = accessPolicy<NoteState> { readWrite { allowAll() } }
+    private val missing = AggregateType("docs", "missing")
 
     private class UnknownState
 
     private class SharedState
+
+    private enum class Level { LOW }
+
+    /** [policies] of the documents' service on a node of [contexts], each of the aggregates [aggregatesOf] gives. */
+    private fun of(
+        vararg policies: AccessPolicy<*>,
+        contexts: Set<String> = setOf("docs"),
+        strict: Boolean = true,
+        aggregatesOf: (Class<*>) -> List<AggregateType> = AccessFixtures::aggregatesOf,
+    ): AccessPolicies = AccessPolicies.of(MANIFEST, contexts, policies.toList(), aggregatesOf, strict)
 
     @Test
     fun `an aggregate that declares access attributes should not start without a policy`() {
@@ -66,14 +78,11 @@ class AccessPoliciesTest {
         val unknown = accessPolicy<UnknownState> { readWrite { allowAll() } }
         assertThrows<IllegalStateException> { policies(documents, unknown) }.message.assert()
             .contains("is of no aggregate of this node")
-        val partial = AccessPolicies.of(MANIFEST, setOf("docs"), listOf(documents, unknown), AccessFixtures::aggregatesOf, strict = false)
-        partial.governed.assert().containsExactly(DOCUMENT)
+        of(documents, unknown, strict = false).governed.assert().containsExactly(DOCUMENT)
         // A node of none of the documents' contexts leaves their policy to the node that hosts them.
-        AccessPolicies.of(MANIFEST, emptySet(), listOf(documents), AccessFixtures::aggregatesOf, strict = false)
-            .governed.assert().isEmpty()
-        val named = accessPolicy<UnknownState>(aggregate = AggregateType("docs", "missing")) { readWrite { allowAll() } }
-        AccessPolicies.of(MANIFEST, setOf("docs"), listOf(documents, named), AccessFixtures::aggregatesOf, strict = false)
-            .governed.assert().containsExactly(DOCUMENT)
+        of(documents, contexts = emptySet(), strict = false).governed.assert().isEmpty()
+        val named = accessPolicy<UnknownState>(aggregate = missing) { readWrite { allowAll() } }
+        of(documents, named, strict = false).governed.assert().containsExactly(DOCUMENT)
     }
 
     @Test
@@ -82,16 +91,14 @@ class AccessPoliciesTest {
             if (type == SharedState::class.java) listOf(NOTE, LEDGER) else AccessFixtures.aggregatesOf(type)
         }
         val shared = accessPolicy<SharedState> { readWrite { allowAll() } }
-        assertThrows<IllegalStateException> {
-            AccessPolicies.of(MANIFEST, setOf("docs"), listOf(documents, shared), aggregatesOf)
-        }.message.assert().contains("is of the state of several aggregates").contains("accessPolicy(aggregate = …)")
+        assertThrows<IllegalStateException> { of(documents, shared, aggregatesOf = aggregatesOf) }.message.assert()
+            .contains("is of the state of several aggregates")
+            .contains("accessPolicy(aggregate = …)")
         val ledgers = accessPolicy<SharedState>(aggregate = LEDGER) { readWrite { allowAll() } }
-        AccessPolicies.of(MANIFEST, setOf("docs"), listOf(documents, ledgers), aggregatesOf)
-            .of(LEDGER).assert().isSameAs(ledgers)
+        of(documents, ledgers, aggregatesOf = aggregatesOf).of(LEDGER).assert().isSameAs(ledgers)
         val wrong = accessPolicy<SharedState>(aggregate = DOCUMENT) { readWrite { allowAll() } }
-        assertThrows<IllegalStateException> {
-            AccessPolicies.of(MANIFEST, setOf("docs"), listOf(documents, wrong), aggregatesOf)
-        }.message.assert().contains("names docs.document, which is not an aggregate of this node whose state is")
+        assertThrows<IllegalStateException> { of(documents, wrong, aggregatesOf = aggregatesOf) }.message.assert()
+            .contains("names docs.document, which is not an aggregate of this node whose state is")
     }
 
     @Test
@@ -106,40 +113,38 @@ class AccessPoliciesTest {
         val access = policies(documents)
         access.declares(DOCUMENT, DEPARTMENT).assert().isTrue()
         access.declares(DOCUMENT, LEVEL).assert().isTrue()
-        access.declares(DOCUMENT, AccessAttribute.single<DocumentState, Long>("level", Long::class.javaObjectType))
-            .assert().isTrue()
+        access.declares(DOCUMENT, single<Long>("level", Long::class.javaObjectType)).assert().isTrue()
         access.declares(DOCUMENT, REGION).assert().isFalse()
         access.declares(DOCUMENT, AccessAttribute.multiple<DocumentState, String>("department", String::class.java))
             .assert().isFalse()
-        access.declares(DOCUMENT, AccessAttribute.single<DocumentState, Boolean>("department", Boolean::class.javaObjectType))
-            .assert().isFalse()
-        access.declares(DOCUMENT, AccessAttribute.single<DocumentState, Level>("department", Level::class.java))
-            .assert().isTrue()
+        access.declares(DOCUMENT, single<Boolean>("department", Boolean::class.javaObjectType)).assert().isFalse()
+        // An enum is written as a string.
+        access.declares(DOCUMENT, single<Level>("department", Level::class.java)).assert().isTrue()
         access.declares(NOTE, AccessAttribute.OWNER).assert().isTrue()
         access.declares(LEDGER, AccessAttribute.OWNER).assert().isFalse()
         access.declares(LEDGER, AccessAttribute.SPACE).assert().isTrue()
-        access.declares(AggregateType("docs", "missing"), AccessAttribute.SPACE).assert().isFalse()
+        access.declares(missing, AccessAttribute.SPACE).assert().isFalse()
         access.has(DOCUMENT).assert().isTrue()
-        access.has(AggregateType("docs", "missing")).assert().isFalse()
+        access.has(missing).assert().isFalse()
     }
 
     @Test
     fun `a dataset bound to a governed aggregate should be governed by its policy`() {
         val access = policies(documents)
         val orders = QueryDatasetTest.orders()
-        access.governs(orders).assert().isFalse()
-        val bound = QueryDataset(
+        fun bound(aggregate: AggregateType) = QueryDataset(
             orders.name,
             QueryDatasetScope.of(
                 tenant = orders.scope.tenant,
-                access = QueryDatasetAccess.of(DOCUMENT, QueryField("order_id")),
+                access = QueryDatasetAccess.of(aggregate, QueryField("order_id")),
             ),
             orders.declaration,
         )
-        access.governs(bound).assert().isTrue()
-        access.governs(QueryDataset(orders.name, QueryDatasetScope.of(tenant = orders.scope.tenant, access = QueryDatasetAccess.of(NOTE, QueryField("order_id"))), orders.declaration))
-            .assert().isFalse()
+        access.governs(orders).assert().isFalse()
+        access.governs(bound(DOCUMENT)).assert().isTrue()
+        access.governs(bound(NOTE)).assert().isFalse()
     }
 
-    private enum class Level { LOW }
+    private fun <V : Any> single(name: String, type: Class<V>): AccessAttribute.Single<DocumentState, V> =
+        AccessAttribute.single(name, type)
 }

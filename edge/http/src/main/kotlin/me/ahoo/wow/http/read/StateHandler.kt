@@ -92,10 +92,11 @@ import java.time.format.DateTimeParseException
  * the aggregate type's tenant is fixed: then it is that tenant, and a `Wow-Scope` that names another
  * is 400 `wow.query.malformed`, as on the query routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is:
  * a state outside the caller's scope (an owner or a space it names and the state does not have; the
- * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say), and one the
+ * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say, and neither is checked for one
+ * an access policy of its own governs, whose policy decides them), and one the
  * snapshot queries of its type hide from the caller (its access policy, the application's query policies). A state
  * at a version or a time, and a trace, are the aggregate's history, which is read as the aggregate is now: the
- * caller is checked on its latest state alone, whatever the history recorded (D390 §4.5). Only the audit learns why. Every state,
+ * caller is checked on its latest state alone, whatever the history recorded. Only the audit learns why. Every state,
  * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike:
  * both through the [ReadFacade] of `:query`, the one read path of every entry, which observes and
  * audits each read as a query of type `STATE` or `TRACE`. A deleted aggregate's state is read as
@@ -109,7 +110,7 @@ internal class StateHandler(
     private val statuses: ErrorStatuses,
     private val targets: QueryTargets = QueryTargets.DEFAULT,
     private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
-    queries: HttpQueries = HttpQueries.NONE,
+    private val queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks.NONE,
 ) {
     /** The one read path of the state reads: the query engine's, else over [queries] and [masks]. */
@@ -183,7 +184,8 @@ internal class StateHandler(
         val target = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
         val queryCaller = answering(type) { targets.of(type, caller, target) }
         val acting = checkNotNull(queryCaller.caller)
-        val scope = ownerships(type).scopeOf(acting.scope)
+        // An aggregate's own access policy decides its owner and space, as its snapshot queries' policy does.
+        val scope = if (queries.access.governs(type)) Scope.NONE else ownerships(type).scopeOf(acting.scope)
         val tenant = acting.tenantId
         // By no id, the caller's own aggregate of a type whose id is its owner's.
         val id = request.pathVariables()[CommandHandler.ID] ?: acting.scope.ownerId ?: throw ProblemException(

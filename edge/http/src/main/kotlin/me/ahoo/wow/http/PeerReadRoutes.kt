@@ -76,10 +76,10 @@ import org.springframework.web.reactive.function.server.coRouter
  * request's facts) as the caller's [app][Caller.app], so the scope policy, the access policies and the application's
  * query policies restrict it as they would the root request's, and it is masked alike. A root no end user sent, one
  * whose operator is a service (`service:<name>`) or a framework component (`system:<component>`), reads as that
- * service: a [service][Caller.service] identity, which no access policy restricts (D298), bounded by the models
- * [permits] let the calling service read. The root carries its end user's identity and scope, not the claims the
- * end user's credential holds: an access policy reads such a root's claims as missing, and denies on them. Its command id and causation say nothing
- * here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
+ * service: a [service][Caller.service] identity, trusted, which no access policy restricts, bounded by the models
+ * [permits] let the calling service read. The root carries its end user's identity and scope, not the claims the end
+ * user's credential holds: an access policy reads such a root's claims as missing, and denies on them. Its command id
+ * and causation say nothing here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
  * OpenAPI document: they are the services' own. The streamed answers are produced in [scope], as
  * [wowRoutes]'s are.
  */
