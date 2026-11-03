@@ -44,7 +44,7 @@ An internal command (`@InternalCommand`, `"internal": true` in the Manifest) has
 
 | Method and path | Answers |
 | --- | --- |
-| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`) |
+| `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`), its internal commands among them, marked `internal` |
 | `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them |
 
 A context's own service routes, the handlers its code declares, are served as its Manifest lists them. `wow.http.ops.enabled: true` (off by default) also serves the operator's routes: the parked entries under `/wow/ops/parked` and the read of the node's subscriptions, `GET /wow/ops/subscriptions` ([Ops Console](../operate/ops-console)).

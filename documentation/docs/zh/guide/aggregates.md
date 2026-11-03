@@ -128,6 +128,8 @@ data class ConfirmPayment(
 
 内部命令只由平台发送：本服务的 Saga 与定时器、进程内的 `CommandClient`，以及别的服务经内部端口的调用；后者与任何命令一样，受 [`wow.callers.<service>.commands`](../reference/configuration#wow-callers-service) 的许可约束（[调用其他服务](./calling-services)）。Manifest 把它记为 `"internal": true`，路由与同类命令一样照写，内部端口按相同路径受理。公开端口不挂这些路由：在公开端口请求 `POST /eshop-payment/payment/{id}/confirm-payment` 答 `404`，与任何未知路径的 problem 相同，不透露这条命令存在。公开端口的 OpenAPI 文档与 `wow-generator` 生成的客户端都不含这条命令，也不含只有它用到的类型。内部端口受理的每次调用仍由命令授权器裁决。
 
+404 让探测分不清内部命令与未知路径；契约本身仍是公开的。公开端口的 `GET /wow/manifest` 与列出其他命令一样列出它，并标注 `"internal": true`：按名字调用服务的工具从那里读取契约，Saga 的 `derives` 与等待链也指向这条命令。不想公开契约的部署，用 [`wow.http.manifest.enabled: false`](../reference/configuration#wow-http-manifest) 关闭这个端点。
+
 eShop 的 `ConfirmPayment` 与 `FailPayment` 是内部命令：网关 Saga 用它们记录网关的答复；买家若能发送 `ConfirmPayment`，就能不付款而完成支付。把公开命令改为内部会删去它的公开路由，兼容检查把它报告为破坏；把内部命令改为公开则增加路由，是加法（[Manifest 与兼容性](./manifest#the-compatibility-check)）。系统命令（包括生命周期命令）从不是内部命令。
 
 ## 编写根 {#write-the-root}

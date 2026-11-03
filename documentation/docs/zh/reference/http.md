@@ -44,7 +44,7 @@ outline: deep
 
 | 方法和路径 | 返回 |
 | --- | --- |
-| `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`） |
+| `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`），其中包括内部命令，标注为 `internal` |
 | `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`）：其中没有内部命令 |
 
 上下文自己的服务路由（它的代码声明的处理函数）按 Manifest 列出的样子提供。`wow.http.ops.enabled: true`（默认关闭）还提供运维人员的路由：`/wow/ops/parked` 下的停放条目，以及读取节点订阅的 `GET /wow/ops/subscriptions`（[运维控制台](../operate/ops-console)）。
