@@ -1,0 +1,24 @@
+{{- $name := include "wow-service.name" . -}}
+# The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.log.partitions is
+# WOW_LOG_PARTITIONS). They override the application.yaml in the image, its profiles included; settings with map keys
+# (a peer's namespace, a subscription's options) come as SPRING_APPLICATION_JSON, which overrides them in turn.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-config
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+data:
+  {{- with .Values.javaOpts }}
+  JAVA_OPTS: {{ . | quote }}
+  {{- end }}
+  OTEL_SERVICE_NAME: {{ $name | quote }}
+  # The shutdown's bounds, which terminationGracePeriodSeconds counts (shutdown.*).
+  WOW_WAIT_MAXTIMEOUT: {{ printf "%ds" (int .Values.shutdown.waitMaxTimeoutSeconds) | quote }}
+  WOW_CLUSTER_DRAINTIMEOUT: {{ printf "%ds" (int .Values.shutdown.drainTimeoutSeconds) | quote }}
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
+  {{- with include "wow-service.settings" . }}
+  SPRING_APPLICATION_JSON: {{ . | quote }}
+  {{- end }}

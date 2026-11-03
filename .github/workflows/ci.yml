@@ -70,6 +70,8 @@ jobs:
       view-store-contract: ${{ steps.scope.outputs.viewStoreContract }}
       ops-console: ${{ steps.scope.outputs.opsConsole }}
       catalog-console: ${{ steps.scope.outputs.catalogConsole }}
+      helm: ${{ steps.scope.outputs.helm }}
+      deploy-keys: ${{ steps.scope.outputs.deployKeys }}
       # The eShop web UI builds on the JVM services and the client packages.
       web: ${{ steps.scope.outputs.jvm == 'true' || steps.scope.outputs.sdk == 'true' }}
     steps:
@@ -164,7 +166,7 @@ jobs:
   architecture:
     name: Architecture rules and query examples
     needs: scope
-    if: (needs.scope.outputs.architecture == 'true' || needs.scope.outputs.documented-queries == 'true') && needs.scope.outputs.jvm != 'true'
+    if: (needs.scope.outputs.architecture == 'true' || needs.scope.outputs.documented-queries == 'true' || needs.scope.outputs.deploy-keys == 'true') && needs.scope.outputs.jvm != 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:
@@ -186,6 +188,10 @@ jobs:
       - name: Check the documented query examples
         if: needs.scope.outputs.documented-queries == 'true'
         run: ./gradlew :http:test --tests '*DocumentedQueriesTest' --stacktrace
+      # The WOW_ variables of deploy/ (the chart's templates, the services' values) are keys the host knows.
+      - name: Check the deployment keys
+        if: needs.scope.outputs.deploy-keys == 'true'
+        run: ./gradlew :spring-boot:test --tests '*ConfigurationKeysTest' --stacktrace
 
   integration:
     name: Integration Test (${{ matrix.shard }})
@@ -653,6 +659,82 @@ jobs:
       - name: Lint workflows
         run: |
           "$RUNNER_TEMP/actionlint" -color
+
+  # The wow-service Helm chart (deploy/helm/wow-service, D395) on Helm 3 and 4: helm lint --strict of every CI value
+  # set, its unit tests (helm-unittest), the schema's refusals, every rendered set validated by kubeconform against the
+  # oldest Kubernetes the chart supports and kind's, the CRDs' schemas included, and the chart twice in an umbrella
+  # chart (.github/helm/chart.sh). The tools are pinned: the action by commit, Helm by version, helm-unittest and
+  # kubeconform by version and SHA-256.
+  helm:
+    name: Helm chart / Helm ${{ matrix.helm }}
+    needs: scope
+    if: needs.scope.outputs.helm == 'true'
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        helm: [v3.22.1, v4.3.1]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: ${{ matrix.helm }}
+      - name: Install helm-unittest and kubeconform
+        run: .github/helm/chart.sh tools
+      - name: Lint, test and validate the chart
+        run: .github/helm/chart.sh check
+      - name: Render the chart in an umbrella chart
+        run: .github/helm/chart.sh umbrella
+
+  # The chart installed on kind: the eShop catalog's image built from the commit, two nodes on the memory backend
+  # (ci/kind-values.yaml), until they are ready; then the SRV records of the internal port's headless Service, the
+  # disruption budget and a rolling restart. The nightly GA end-to-end run deploys every service with the chart.
+  helm-kind:
+    name: Helm chart / kind
+    needs: scope
+    if: needs.scope.outputs.helm == 'true'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
+      - name: Build the catalog's image
+        run: |
+          ./gradlew --stacktrace :eshop-catalog-server:installDist
+          docker build -q -f deploy/eshop-catalog/Dockerfile -t wow-eshop-catalog-server:local \
+            examples/eshop/catalog/catalog-server
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: Create the kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.33.0
+          cluster_name: wow-chart
+      - name: Install the chart
+        run: .github/helm/chart.sh smoke
+      - name: Collect the cluster's state
+        if: failure()
+        run: |
+          kubectl get all,networkpolicy,poddisruptionbudget -o wide || true
+          kubectl get events --sort-by=.lastTimestamp || true
+          kubectl describe pods || true
+          for pod in $(kubectl get pods -o name); do kubectl logs "$pod" --all-containers || true; done
 
   # The view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
   # against the view store service (platform/view-store) built from this
@@ -1323,6 +1405,8 @@ jobs:
         package-docs,
         docs,
         workflow-lint,
+        helm,
+        helm-kind,
         view-store-contract,
         storybook-build,
         storybook-interactions,

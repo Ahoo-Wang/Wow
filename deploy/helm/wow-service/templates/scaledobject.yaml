@@ -1,0 +1,32 @@
+{{- if .Values.autoscaling.keda.enabled }}
+{{- $keda := .Values.autoscaling.keda -}}
+{{- $name := include "wow-service.name" . -}}
+# KEDA (installed apart, keda.sh/v1alpha1) scales the nodes on the subscriptions' backlog, wow.subscription.backlog:
+# the entries of the partitions after each subscription's position, as Prometheus scrapes them (metrics.*). KEDA makes
+# the HPA itself, with the same slow scale-down as autoscaling.hpa.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ $name }}
+  minReplicaCount: {{ $keda.minReplicas }}
+  maxReplicaCount: {{ $keda.maxReplicas }}
+  pollingInterval: {{ $keda.pollingInterval }}
+  cooldownPeriod: {{ $keda.cooldownPeriod }}
+  {{- with $keda.behavior }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: {{ required "autoscaling.keda.prometheus.serverAddress is required: the Prometheus KEDA queries" $keda.prometheus.serverAddress | quote }}
+        query: {{ $keda.prometheus.query | default (printf "sum(wow_subscription_backlog{namespace=%q, pod=~%q})" .Release.Namespace (printf "%s-.*" $name)) | quote }}
+        threshold: {{ $keda.prometheus.threshold | toString | quote }}
+{{- end }}

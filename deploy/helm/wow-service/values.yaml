@@ -1,0 +1,228 @@
+# The values of one Wow service. values.schema.json holds them to these keys: a key that is not here fails the install.
+
+# The service, as its build describes it: the Wow Gradle plugin's generateWowHelmValues writes this block from the
+# service's contract (build/wow/helm/values.yaml). Pass that file first and your own after it.
+service:
+  # The service's spring.application.name. Every object is named after it: the Deployment, the Service and the
+  # PodDisruptionBudget <name>, the headless Service <name>-cluster that the peers' SRV lookups find, the ConfigMap
+  # <name>-config and the NetworkPolicies <name>-public and <name>-internal.
+  name: ""
+  # The peer contexts the service calls, each with the service that hosts it. A peer in another namespace takes a
+  # namespace: the node looks it up there (wow.peer.dns.namespaces) and the internal NetworkPolicy admits its pods
+  # from there, for the wait signals it sends back.
+  peers: []
+  #  - context: eshop-ordering
+  #    service: eshop-ordering-service
+  #    namespace: shop
+  # Where every node serves the service's Manifest, on either port; given to the pods as the wow.ahoo.me/manifest
+  # annotation.
+  manifest:
+    route: /wow/manifest
+
+# The ports of a node; the chart sets SERVER_PORT and WOW_INTERNAL_PORT to them, so the image's configuration cannot
+# disagree. The peers learn the internal port from the SRV records.
+ports:
+  http: 8080
+  internal: 9093
+
+image:
+  repository: ""
+  # The chart's appVersion, the Wow version it was released with, when empty.
+  tag: ""
+  # sha256:..., which wins over the tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# The nodes, without an autoscaler.
+replicas: 2
+revisionHistoryLimit: 10
+
+rollout:
+  # A new node joins before an old one leaves; maxUnavailable is always 0.
+  maxSurge: 1
+
+# app.kubernetes.io/part-of of every object and pod: the platform the service belongs to. The internal port admits the
+# pods of the same platform, in the release's namespace.
+partOf: ""
+
+# Environment variables of every node, in the ConfigMap <name>-config: Spring and Wow keys in their canonical form
+# (wow.log.partitions is WOW_LOG_PARTITIONS), profiles, the OpenTelemetry agent's settings.
+config: {}
+
+# Spring keys whose map keys an environment variable cannot carry (dashes, dots), as a tree; rendered as
+# SPRING_APPLICATION_JSON in the ConfigMap.
+settings: {}
+
+# The JVM's options (JAVA_OPTS of the image's start script).
+javaOpts: -XX:MaxRAMPercentage=75.0
+
+# The Secrets and ConfigMaps of the store addresses and credentials, as the container's envFrom.
+envFrom: []
+#  - secretRef:
+#      name: eshop-ordering-service-mongo
+
+# More environment variables of the container, after the chart's own.
+env: []
+
+# The node's shutdown: the grace period is their sum, and the chart sets wow.wait.max-timeout and
+# wow.cluster.drain-timeout from them.
+shutdown:
+  # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
+  preStopSeconds: 5
+  # The longest wait the public server finishes before it stops (wow.wait.max-timeout).
+  waitMaxTimeoutSeconds: 60
+  # How long a hand-off waits for its partition's commands in flight (wow.cluster.drain-timeout).
+  drainTimeoutSeconds: 10
+  # Room for the checkpoints to be saved and the JVM to exit.
+  marginSeconds: 15
+
+probes:
+  startup:
+    periodSeconds: 5
+    failureThreshold: 36
+  readiness:
+    periodSeconds: 5
+    failureThreshold: 2
+  liveness:
+    periodSeconds: 10
+    failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    memory: 1Gi
+
+podDisruptionBudget:
+  enabled: true
+  # Or minAvailable, which wins when given.
+  maxUnavailable: 1
+  # AlwaysAllow lets a drain evict a node that is not ready, which a budget would otherwise hold.
+  unhealthyPodEvictionPolicy: AlwaysAllow
+
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  whenUnsatisfiable: ScheduleAnyway
+
+networkPolicy:
+  enabled: true
+  public:
+    # Who reaches the public port: the gateway's pods by default, in any namespace.
+    from:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/component: gateway
+  internal:
+    # More pods that reach the internal port, besides the service's own, its platform's and its peers'.
+    from: []
+  metrics:
+    # Who scrapes the metrics port, when it is one of its own: Prometheus' pods, as kube-prometheus-stack labels them.
+    from:
+      - namespaceSelector: {}
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: prometheus
+
+publicService:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+autoscaling:
+  # A HorizontalPodAutoscaler on CPU, and metrics of your own. Exclusive with keda.
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 8
+    cpuUtilization: 70
+    metrics: []
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 60
+      scaleDown:
+        stabilizationWindowSeconds: 600
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+  # A KEDA ScaledObject on the subscriptions' backlog, through Prometheus; needs KEDA installed. Exclusive with hpa.
+  keda:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 8
+    pollingInterval: 30
+    cooldownPeriod: 300
+    prometheus:
+      serverAddress: ""
+      # sum(wow_subscription_backlog{namespace="<namespace>", pod=~"<name>-.*"}) when empty.
+      query: ""
+      # The backlog per node above which a node is added.
+      threshold: 1000
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 60
+      scaleDown:
+        stabilizationWindowSeconds: 600
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+
+# Where Prometheus scrapes a node: the OpenTelemetry Java agent's Prometheus exporter (OTEL_METRICS_EXPORTER=prometheus,
+# port 9464, /metrics), or Actuator's endpoint on the HTTP port (port: the HTTP port, path: /actuator/prometheus).
+metrics:
+  port: 9464
+  path: /metrics
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+  podMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+serviceAccount:
+  create: true
+  # The ServiceAccount's name: the service's when empty.
+  name: ""
+  # The nodes call no Kubernetes API.
+  automount: false
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+priorityClassName: ""
+nodeSelector: {}
+tolerations: []
+affinity: {}
+extraVolumes: []
+extraVolumeMounts: []
+
+# Values an umbrella chart shares with all its subcharts; this chart reads none.
+global: {}

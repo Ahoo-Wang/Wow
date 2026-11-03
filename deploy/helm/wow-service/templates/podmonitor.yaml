@@ -1,0 +1,21 @@
+{{- if .Values.metrics.podMonitor.enabled }}
+{{- $monitor := .Values.metrics.podMonitor -}}
+# The nodes' metrics for the Prometheus Operator (monitoring.coreos.com/v1), scraped from each pod directly.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "wow-service.name" . }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+    {{- with $monitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: {{ include "wow-service.metricsPort" . }}
+      path: {{ .Values.metrics.path }}
+      interval: {{ $monitor.interval }}
+{{- end }}

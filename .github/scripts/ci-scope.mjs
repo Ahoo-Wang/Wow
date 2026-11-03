@@ -86,6 +86,15 @@ const VIEW_STORE_CONTRACT_PATH =
 // OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
 // client is generated from, its routes the suite runs against), the workspace
 // packages and files the console builds with, and the workflow itself.
+// The wow-service Helm chart: its lint, unit tests, schema checks and an install
+// on kind. The chart and its CI fixtures, and the workflow that defines the jobs.
+const HELM = 'helm';
+const HELM_PATH = /^(?:deploy\/helm\/|\.github\/helm\/|\.github\/workflows\/ci\.yml$)/;
+// The WOW_ variables the files of deploy/ set (the chart's templates, the
+// services' values) are keys the host knows: ConfigurationKeysTest, which the
+// JVM jobs run, and the architecture job runs on their behalf otherwise.
+const DEPLOY_KEYS = 'deployKeys';
+const DEPLOY_KEYS_PATH = /^deploy\/.+\.yaml$/;
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
   /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
@@ -337,6 +346,8 @@ export function scopes(paths) {
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
+    HELM,
+    DEPLOY_KEYS,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -372,6 +383,11 @@ export function scopes(paths) {
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   // And the analytics catalog console's.
   result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
+  // And the chart's.
+  result[HELM] = paths.some(path => HELM_PATH.test(path));
+  // And the deployment keys', unless the JVM jobs already run them.
+  result[DEPLOY_KEYS] =
+    !result[JVM] && paths.some(path => DEPLOY_KEYS_PATH.test(path));
   return result;
 }
 

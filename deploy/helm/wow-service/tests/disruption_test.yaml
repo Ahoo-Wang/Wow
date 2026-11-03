@@ -1,0 +1,50 @@
+suite: the disruption budget and the service account
+templates:
+  - templates/pdb.yaml
+  - templates/serviceaccount.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: lets a voluntary disruption take one node at a time, and a node that is not ready be evicted
+    template: templates/pdb.yaml
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec
+          value:
+            maxUnavailable: 1
+            unhealthyPodEvictionPolicy: AlwaysAllow
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: eshop-ordering-service
+
+  - it: takes minAvailable over maxUnavailable
+    template: templates/pdb.yaml
+    set:
+      podDisruptionBudget.minAvailable: 2
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - notExists:
+          path: spec.maxUnavailable
+
+  - it: renders no budget when disabled
+    template: templates/pdb.yaml
+    set:
+      podDisruptionBudget.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates a service account that mounts no token
+    template: templates/serviceaccount.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: eshop-ordering-service
+      - equal:
+          path: automountServiceAccountToken
+          value: false

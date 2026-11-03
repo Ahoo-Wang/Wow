@@ -19,8 +19,8 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `architecture`,
-// `documentedQueries`, `viewStoreContract`, `opsConsole` and `catalogConsole` are decided apart from the rules;
-// each has its own tests.
+// `documentedQueries`, `viewStoreContract`, `opsConsole`, `catalogConsole`, `helm` and `deployKeys` are decided
+// apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
@@ -29,6 +29,8 @@ const KOTLIN_GATES = new Set([
   'viewStoreContract',
   'opsConsole',
   'catalogConsole',
+  'helm',
+  'deployKeys',
 ]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
@@ -674,6 +676,8 @@ test('the command reads the diff and runs everything without a base', () => {
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
+      `helm=${value}\n` +
+      `deployKeys=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
@@ -1006,4 +1010,51 @@ test('every source a TypeScript test reads selects its job', () => {
   }
   assert.ok(reads >= 5, `only ${reads} reads found; the scan broke`);
   assert.deepEqual(problems, []);
+});
+
+test('the chart, its CI fixtures and ci.yml run the chart jobs', () => {
+  for (const path of [
+    'deploy/helm/wow-service/templates/deployment.yaml',
+    'deploy/helm/wow-service/values.schema.json',
+    'deploy/helm/wow-service/README.md',
+    '.github/helm/chart.sh',
+    '.github/helm/umbrella/values.yaml',
+    '.github/workflows/ci.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).helm, path);
+  for (const path of [
+    'deploy/eshop-ordering/deployment.yaml',
+    'deploy/mongodb/README.md',
+    '.github/ga-e2e/cluster.sh',
+    '.github/workflows/package-deploy.yml',
+    'host/spring-boot/src/main/kotlin/A.kt',
+  ])
+    assert.ok(!scopes([path]).helm, path);
+  // The chart alone turns on no other job's scope.
+  assert.deepEqual(
+    on(['deploy/helm/wow-service/templates/deployment.yaml']),
+    [],
+  );
+  assert.ok(!scopes(['deploy/helm/wow-service/templates/deployment.yaml']).jvm);
+});
+
+test('the YAML of deploy/ checks its WOW_ variables, unless the JVM jobs run', () => {
+  for (const path of [
+    'deploy/helm/wow-service/templates/configmap.yaml',
+    'deploy/eshop-ordering/configmap.yaml',
+  ])
+    assert.ok(scopes([path]).deployKeys, path);
+  for (const path of [
+    'deploy/helm/wow-service/README.md',
+    'deploy/helm/wow-service/values.schema.json',
+    '.github/ga-e2e/services/ops/config.yaml',
+  ])
+    assert.ok(!scopes([path]).deployKeys, path);
+  assert.ok(
+    !scopes([
+      'deploy/eshop-ordering/configmap.yaml',
+      'host/spring-boot/src/main/kotlin/A.kt',
+    ]).deployKeys,
+  );
 });

@@ -1,0 +1,76 @@
+suite: the autoscalers
+templates:
+  - templates/hpa.yaml
+  - templates/scaledobject.yaml
+release:
+  namespace: shop
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: renders neither by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: scales on CPU, one node up a minute and one down every five, after ten quiet minutes
+    template: templates/hpa.yaml
+    set:
+      autoscaling.hpa.enabled: true
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: eshop-ordering-service
+      - equal:
+          path: spec.metrics[0].resource
+          value:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: 70
+      - equal:
+          path: spec.behavior.scaleDown.stabilizationWindowSeconds
+          value: 600
+
+  - it: scales on the subscriptions' backlog through KEDA
+    template: templates/scaledobject.yaml
+    set:
+      autoscaling.keda.enabled: true
+      autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+    asserts:
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.triggers[0]
+          value:
+            type: prometheus
+            metadata:
+              serverAddress: http://prometheus.monitoring:9090
+              query: sum(wow_subscription_backlog{namespace="shop", pod=~"eshop-ordering-service-.*"})
+              threshold: "1000"
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.stabilizationWindowSeconds
+          value: 600
+
+  - it: needs the Prometheus KEDA queries
+    template: templates/scaledobject.yaml
+    set:
+      autoscaling.keda.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: "autoscaling.keda.prometheus.serverAddress is required"
+
+  - it: refuses the HPA and KEDA together
+    template: templates/hpa.yaml
+    set:
+      autoscaling.hpa.enabled: true
+      autoscaling.keda.enabled: true
+      autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+    asserts:
+      - failedTemplate:
+          errorPattern: "autoscaling.hpa.enabled and autoscaling.keda.enabled are both true"
