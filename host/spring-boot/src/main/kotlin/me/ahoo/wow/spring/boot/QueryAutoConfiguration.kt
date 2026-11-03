@@ -193,6 +193,7 @@ class QueryAutoConfiguration {
                 store = { type -> storeOf(type)?.takeIf { byStore[it] != null } },
                 prepare = { type -> indexed(type)?.prepare(type) },
                 indexes = { type, plan -> indexed(type)?.manageIndexes(type, plan) ?: QueryIndexReport.NONE },
+                manages = { type -> indexed(type) != null },
             ) { type -> storeOf(type)?.let(byStore::get)?.binding(type) }
             val unserved = ManifestTypes.events(manifest, node.contexts.keys)
                 .filter { backend.binding(it) == null }

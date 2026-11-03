@@ -153,10 +153,18 @@ class EventQueryBackend(
     private val store: (AggregateType) -> String? = { null },
     private val prepare: (AggregateType) -> Unit = {},
     private val indexes: ((AggregateType, QueryIndexPlan) -> QueryIndexReport)? = null,
+    /** Whether the store of [AggregateType]'s events queries manages their indexes: any, when [indexes] are given. */
+    private val manages: (AggregateType) -> Boolean = { indexes != null },
     val bindings: QueryBindings<AggregateType>,
 ) {
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
     val managesIndexes: Boolean get() = indexes != null
+
+    /**
+     * Whether the host manages the indexes of [type]'s log: its events queries run on a store that manages them, not
+     * an index a Sink writes (Elasticsearch's), whose mapping indexes the attributes itself.
+     */
+    fun managesIndexes(type: AggregateType): Boolean = managesIndexes && manages(type)
 
     /** The binding of [type]'s events backend, or null when none serves them. */
     fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = bindings.binding(type)
@@ -314,7 +322,8 @@ class QueryIndexesLifecycle(
             }
         }
         if (events.managesIndexes) {
-            eventReports = eventTypes.filter { events.binding(it) != null }.associateWith(::manageEventIndexes)
+            eventReports = eventTypes.filter { events.binding(it) != null && events.managesIndexes(it) }
+                .associateWith(::manageEventIndexes)
         }
         refuseUnmanaged(reports, backend::storeOf)
         refuseUnmanaged(eventReports, events::storeOf)

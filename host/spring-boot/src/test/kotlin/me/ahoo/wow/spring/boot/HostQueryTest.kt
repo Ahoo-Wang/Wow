@@ -524,6 +524,25 @@ class HostQueryTest {
     }
 
     @Test
+    fun `an events backend should manage the indexes of the logs on the stores that manage them only`() {
+        EventQueryBackend.NONE.managesIndexes.assert().isFalse()
+        EventQueryBackend.NONE.managesIndexes(ACCOUNT).assert().isFalse()
+        val prepared = ArrayList<AggregateType>()
+        val created = QueryIndexReport(created = listOf("access_owner"))
+        val backend = EventQueryBackend(
+            prepare = { prepared += it },
+            indexes = { _, _ -> created },
+            manages = { it == ACCOUNT },
+        ) { null }
+        backend.managesIndexes(ACCOUNT).assert().isTrue()
+        backend.managesIndexes(AggregateType(BANK, "other")).assert().isFalse()
+        backend.prepare(ACCOUNT)
+        prepared.assert().containsExactly(ACCOUNT)
+        backend.manageIndexes(ACCOUNT, QueryIndexPlan.of(runBlocking { catalogSchema() }, emptyList()))
+            .assert().isEqualTo(created)
+    }
+
+    @Test
     fun `a backend without index management should report nothing`() {
         SnapshotQueryBackend.NONE.managesIndexes.assert().isFalse()
         SnapshotQueryBackend(InMemoryQueryStorage()).managesIndexes.assert().isFalse()
