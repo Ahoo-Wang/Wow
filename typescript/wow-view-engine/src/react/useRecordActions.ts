@@ -298,8 +298,9 @@ function stillRefused(
   input: ActionInput,
 ): Record<string, string> {
   const refused: Record<string, string> = {};
-  for (const [name, reason] of Object.entries(returned?.fields ?? {}))
-    if (Object.is(input[name], returned!.input[name])) refused[name] = reason;
+  if (!returned) return refused;
+  for (const [name, reason] of Object.entries(returned.fields))
+    if (Object.is(input[name], returned.input[name])) refused[name] = reason;
   return refused;
 }
 
