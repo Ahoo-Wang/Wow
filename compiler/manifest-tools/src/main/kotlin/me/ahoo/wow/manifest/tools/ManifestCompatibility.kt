@@ -425,11 +425,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest, owned: Side?) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         list += schemas.compare("$path.schema", baseline.schema, current.schema)
-        if (current.internal && !baseline.internal) {
-            breaking("$path.internal", "the command was made internal: the public port no longer serves its routes")
-        } else if (baseline.internal && !current.internal) {
-            additive("$path.internal", "the command was made public: the public port serves its routes")
-        }
+        compareInternal("$path.internal", baseline.internal, current.internal)
         if (baseline.creation != current.creation) {
             val change = "creation changed from ${baseline.creation} to ${current.creation}"
             if (current.creation == Creation.ALLOWED) {
@@ -454,6 +450,15 @@ private class Changes(val schemas: SchemaCompatibility) {
             if (owned == Side.BASELINE) baseline.routes.filterNot { it.isOwn(current.routes) } else baseline.routes,
             if (owned == Side.CURRENT) current.routes.filterNot { it.isOwn(baseline.routes) } else current.routes,
         )
+    }
+
+    /** A command made internal, whose public routes go, or made public, whose public routes come. */
+    private fun compareInternal(path: String, baseline: Boolean, current: Boolean) {
+        if (current && !baseline) {
+            breaking(path, "the command was made internal: the public port no longer serves its routes")
+        } else if (baseline && !current) {
+            additive(path, "the command was made public: the public port serves its routes")
+        }
     }
 
     /**

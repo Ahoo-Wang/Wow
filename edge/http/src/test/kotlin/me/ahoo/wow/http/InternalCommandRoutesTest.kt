@@ -32,8 +32,8 @@ import org.springframework.test.web.reactive.server.WebTestClient
 class InternalCommandRoutesTest {
     private val manifest = cartManifest(internal = setOf("Checkout"))
     private val node = HttpNode(manifest = manifest)
-    private val internal: WebTestClient =
-        WebTestClient.bindToRouterFunction(callRoutes(manifest, node.gateway, DeclaredServices.resolver(TENANT))).build()
+    private val calls = callRoutes(manifest, node.gateway, DeclaredServices.resolver(TENANT))
+    private val internal: WebTestClient = WebTestClient.bindToRouterFunction(calls).build()
 
     private fun call(path: String, body: String): Answer = internal.post().uri(path)
         .header(WowHeaders.SERVICE, SERVICE)
