@@ -17,8 +17,8 @@
 # every run (partition pauses, store fallbacks of the tails, error spikes, dips, long tails) so a run surfaces defects.
 # The head is the pushed or dispatched ref; the baseline is `base_ref`, else the newest v10.* release tag that has the
 # benchmark (without either, the baseline suites are skipped). The harness and the load generator come from the head.
-# Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them into report.md
-# and the run summary.
+# Each suite runs in a job of its own, and a sessions suite of several sweeps a job a sweep (partsOf); steps:
+# .github/scripts/bench.mjs. The report job combines them into report.md and the run summary.
 #
 # A run starts when a branch `bench-run/**` is pushed (`git push origin main:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
@@ -216,15 +216,25 @@ jobs:
         with:
           ref: ${{ matrix.sha }}
           persist-credentials: false
+      # A commit's distributions are the same whichever run builds them: an earlier run's, kept by commit, spare the
+      # build (a run again of one head, an A/A). The key's version changes with the Build step's tasks.
+      - id: dist
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/dist
+          key: bench-dist-v1-${{ matrix.sha }}
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        if: steps.dist.outputs.cache-hit != 'true'
         with:
           java-version: '21'
           distribution: 'temurin'
       # The refs are inputs, so the Gradle cache is only read here, never written.
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        if: steps.dist.outputs.cache-hit != 'true'
         with:
           cache-read-only: true
       - name: Build
+        if: steps.dist.outputs.cache-hit != 'true'
         env:
           SIDE: ${{ matrix.side }}
         run: |
@@ -247,6 +257,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dist"
           tar -C "$server/build/install" -czf "$RUNNER_TEMP/dist/server.tgz" .
           if [ -d "$load/build/install" ]; then tar -C "$load/build/install" -czf "$RUNNER_TEMP/dist/load.tgz" .; fi
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.dist.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/dist
+          key: ${{ steps.dist.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bench-dist-${{ matrix.side }}
@@ -328,6 +343,14 @@ jobs:
       # per suite (cpuSplit: one for the generator, two for the PostgreSQL suites').
       - name: Count the CPUs
         run: echo "CPUS=$(nproc)" >> "$GITHUB_ENV"
+      # The Axon server's distribution (axonInstall), which a suite that runs it builds in its own job: kept by its
+      # sources, so a later job of the same sources measures without building and testing it again (CI's axon-server
+      # job tests every change of them). Another suite finds none and builds nothing.
+      - id: axon
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: repo/test/benchmarks/axon-server/build/install/axon-server
+          key: bench-axon-v1-${{ hashFiles('repo/test/benchmarks/axon-server/*.kts', 'repo/test/benchmarks/axon-server/src/main/**') }}
       - name: Measure
         env:
           HARNESS: head
@@ -342,6 +365,11 @@ jobs:
           export BENCH="$GITHUB_WORKSPACE/repo/test/benchmarks/harness/bench.sh"
           export OUT="$RUNNER_TEMP/results/$JOB"
           node steps/.github/scripts/bench.mjs suite "$JOB"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: always() && steps.axon.outputs.cache-hit != 'true' && hashFiles('repo/test/benchmarks/axon-server/build/install/axon-server/bin/axon-server') != ''
+        with:
+          path: repo/test/benchmarks/axon-server/build/install/axon-server
+          key: ${{ steps.axon.outputs.cache-primary-key }}
       - name: Summarize
         if: always()
         env:
