@@ -15,14 +15,12 @@ package me.ahoo.wow.example.eshop.catalog.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.wait
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.read.Snapshot
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
@@ -114,14 +112,14 @@ class CatalogEndToEndTest {
 
     @Test
     fun `an employee should change the catalog, a buyer only read it (D189)`() {
-        val id = send { catalog(EMPLOYEE_CALLER).wait(CreateProduct("Wow cap", BigDecimal("12"))) }.ref.id
-        rejected { catalog(BUYER_CALLER).wait(CreateProduct("Mine", BigDecimal.ONE)) }
+        val id = send { catalog(EMPLOYEE).wait(CreateProduct("Wow cap", BigDecimal("12"))) }.ref.id
+        rejected { catalog(BUYER).wait(CreateProduct("Mine", BigDecimal.ONE)) }
             .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
         // The product belongs to the tenant: it records no owner, and the buyer reads it.
-        product(id, BUYER_CALLER)!!.scope.ownerId.assert().isNull()
-        rejected { catalog(BUYER_CALLER).wait(ChangeProductPrice(BigDecimal("13")), id) }
+        product(id, BUYER)!!.scope.ownerId.assert().isNull()
+        rejected { catalog(BUYER).wait(ChangeProductPrice(BigDecimal("13")), id) }
             .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
-        send { catalog(EMPLOYEE_CALLER).wait(ChangeProductPrice(BigDecimal("13")), id) }
+        send { catalog(EMPLOYEE).wait(ChangeProductPrice(BigDecimal("13")), id) }
     }
 
     /** Over HTTP: a rejection is answered as an RFC 9457 problem, `urn:wow:error:<code>`, the wire's own contract. */
@@ -137,17 +135,17 @@ class CatalogEndToEndTest {
     }
 
     /**
-     * Over HTTP: the snapshot rebuild (`wow.snapshot.Rebuild`) is a system command, which the contract the typed
-     * clients send by names by no class of its own, so it goes to its route.
+     * Over HTTP: the snapshot rebuild's command class (`RebuildSnapshot`, of `:spi`) is internal to Wow, which an
+     * application does not opt in to, so the test sends it to its route.
      */
     @Test
     fun `the snapshot rebuild should be an employee's alone, not the anonymous caller's nor a buyer's (UI-50)`() {
         val rebuild = "/eshop-catalog/product/wow.snapshot.rebuild"
-        for (caller in listOf(emptyMap(), BUYER)) {
-            server.http.post(rebuild, """{"ids":["p-1"]}""", caller).problem!!
+        for (caller in listOf(Caller.ANONYMOUS, BUYER)) {
+            server.http.post(rebuild, """{"ids":["p-1"]}""", caller = caller).problem!!
                 .code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
         }
-        server.http.post(rebuild, """{"ids":["p-1"]}""", EMPLOYEE).problem.assert().isNull()
+        server.http.post(rebuild, """{"ids":["p-1"]}""", caller = EMPLOYEE).problem.assert().isNull()
     }
 
     @Test
@@ -178,10 +176,5 @@ class CatalogEndToEndTest {
     private companion object {
         const val CONFLICT = 409
         const val BRAND_NAME_TAKEN = "eshop-catalog.brand.name-taken"
-        val EMPLOYEE_CALLER = Caller.of(
-            subject = "erin",
-            attributes = mapOf(DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee")),
-        )
-        val BUYER_CALLER = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
     }
 }

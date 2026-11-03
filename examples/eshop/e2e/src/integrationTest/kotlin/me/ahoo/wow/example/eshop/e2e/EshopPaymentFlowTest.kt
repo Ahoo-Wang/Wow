@@ -33,6 +33,8 @@ import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.JsonNode
 import java.time.Duration
+import kotlin.time.toKotlinDuration
+import me.ahoo.wow.test.server.eventually as eventuallyWithin
 
 /**
  * The payment of an order end to end (work package E.5): the ordering, inventory and payment services, each in a JVM
@@ -207,19 +209,17 @@ class EshopPaymentFlowTest {
     private fun cachedStatus(id: String): OrderStatus? =
         runCatching { runBlocking { orders.get(DEFAULT_TENANT, id) } }.getOrNull()?.status
 
-    private fun eventually(what: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (!condition()) {
-            if (System.nanoTime() > deadline) {
-                throw AssertionError(
-                    "Not reached in $DEADLINE: $what.\n--- ordering ---\n${ordering.output().takeLast(TAIL)}" +
-                        "\n--- inventory ---\n${inventory.output().takeLast(TAIL)}" +
-                        "\n--- payment ---\n${payment.output().takeLast(TAIL)}",
-                )
-            }
-            Thread.sleep(POLL.toMillis())
-        }
-    }
+    /** Waits for [condition], with the services' output on a failure. */
+    private fun eventually(what: String, condition: () -> Boolean) = eventuallyWithin(
+        what,
+        DEADLINE.toKotlinDuration(),
+        POLL.toKotlinDuration(),
+        detail = {
+            "\n--- ordering ---\n${ordering.output().takeLast(TAIL)}" +
+                "\n--- inventory ---\n${inventory.output().takeLast(TAIL)}" +
+                "\n--- payment ---\n${payment.output().takeLast(TAIL)}"
+        },
+    ) { condition() }
 
     private companion object {
         const val OK = 200

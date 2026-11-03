@@ -16,6 +16,9 @@ package me.ahoo.wow.test.server
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.client.CommandResults
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.Problems
 import me.ahoo.wow.client.UserCredential
@@ -38,6 +41,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Starts the Wow application [App] for a test, with [profiles] active, as [wowServer] of its class does.
@@ -187,33 +191,41 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
         get() = internalHttp ?: WowHttp(URI.create("http://$LOOPBACK:$internalPort")).also { internalHttp = it }
 
     /**
-     * The typed clients of the public port, made on first use: they name the commands and models of the contracts the
-     * node read, and send to its own contexts alone.
+     * The typed clients of the public port, one per credential, each made on first use: they name the commands and
+     * models of the contracts the node read, and send to its own contexts alone.
      */
-    private val client: Lazy<WowClient> = lazy {
+    private val clients = ConcurrentHashMap<UserCredential, WowClient>()
+
+    private fun clientOf(credential: UserCredential): WowClient = clients.computeIfAbsent(credential) {
         val contracts = bean<ContractDirectory>()
         WowClient.builder()
             .endpoints(EndpointResolver.of(contracts.localContexts.associateWith { http.base }))
-            .user(UserCredential.DEVELOPMENT)
+            .user(credential)
             .contracts(contracts.fragments)
             .build()
     }
 
     /**
      * The command client of the public port, sending as [caller]: the `wow-client` a peer calls with, in user mode. It
-     * sends the commands of the contexts the server serves as objects, waits as their wait plans say, and throws a
-     * rejection as a `CommandRejectedException`, any other problem as a `WowProblemException`, each with its error
-     * code; a command of another context fails, as no endpoint is known for it. The caller goes as the development
-     * identity headers ([UserCredential.DEVELOPMENT]), so the server runs a development profile (`dev`) with no
-     * `CallerResolver` of the application's and CoSec off; [Caller.ANONYMOUS] sends none.
+     * sends the commands of the contexts the server serves as objects, system commands among them (a lifecycle
+     * command, a snapshot rebuild, a job's command), waits as their wait plans say, and throws a rejection as a
+     * `CommandRejectedException`, any other problem as a `WowProblemException`, each with its error code; a command of
+     * another context fails, as no endpoint is known for it.
+     *
+     * The caller goes as [credential] writes it: the development identity headers by default
+     * ([UserCredential.DEVELOPMENT]), which the host reads in a development profile (`dev`) with no `CallerResolver` of
+     * the application's and CoSec off; for a server that authenticates otherwise, the credential it reads (a CoSec
+     * identity, a test's own header). Each credential has a client of its own: pass the same one to reuse it.
      */
-    fun commands(caller: Caller): CommandClient = client.value.commands.of(caller)
+    fun commands(caller: Caller, credential: UserCredential = UserCredential.DEVELOPMENT): CommandClient =
+        clientOf(credential).commands.of(caller)
 
     /**
-     * The queries of the public port as [caller], sent as [commands] sends: the states, snapshots, events and datasets
-     * of the contexts the server serves, by their state classes, read as that caller may.
+     * The queries of the public port as [caller], sent as [commands] sends, with [credential]: the states, snapshots,
+     * events and datasets of the contexts the server serves, by their state classes, read as that caller may.
      */
-    fun queries(caller: Caller): Queries = client.value.queries.of(caller)
+    fun queries(caller: Caller, credential: UserCredential = UserCredential.DEVELOPMENT): Queries =
+        clientOf(credential).queries.of(caller)
 
     /** The application's bean of [type]. */
     fun <T : Any> bean(type: Class<T>): T = context.getBean(type)
@@ -227,7 +239,7 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
         } finally {
             http.close()
             internalHttp?.close()
-            if (client.isInitialized()) client.value.close()
+            clients.values.forEach { it.close() }
         }
     }
 }
@@ -239,19 +251,35 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
 class WowHttp(val base: URI, private val timeout: Duration = Duration.ofSeconds(30)) : AutoCloseable {
     private val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(timeout).build()
 
-    /** `GET` [path] with [headers]. */
-    fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = request("GET", path, null, headers)
+    /** `GET` [path] with [headers], as [caller] when one is given. */
+    fun get(path: String, headers: Map<String, String> = emptyMap(), caller: Caller? = null): Answer =
+        request("GET", path, null, headers, caller)
 
-    /** `POST` [json] to [path] with [headers]; an empty object by default. */
-    fun post(path: String, json: String? = "{}", headers: Map<String, String> = emptyMap()): Answer =
-        request("POST", path, json, headers)
+    /** `POST` [json] to [path] with [headers], as [caller] when one is given; an empty object by default. */
+    fun post(
+        path: String,
+        json: String? = "{}",
+        headers: Map<String, String> = emptyMap(),
+        caller: Caller? = null,
+    ): Answer = request("POST", path, json, headers, caller)
 
-    /** [method] [path] with [headers], sending [json] as `application/json` when it is not null. */
-    fun request(method: String, path: String, json: String? = null, headers: Map<String, String> = emptyMap()): Answer {
+    /**
+     * [method] [path] with [headers], sending [json] as `application/json` when it is not null. A [caller] goes as the
+     * development identity headers ([DevelopmentHeaders.of], as `UserCredential.DEVELOPMENT` writes them), which
+     * [headers] of the same name override.
+     */
+    fun request(
+        method: String,
+        path: String,
+        json: String? = null,
+        headers: Map<String, String> = emptyMap(),
+        caller: Caller? = null,
+    ): Answer {
+        val sent = caller?.let(DevelopmentHeaders::of).orEmpty() + headers
         val body = json?.let { HttpRequest.BodyPublishers.ofString(it) } ?: HttpRequest.BodyPublishers.noBody()
         val request = HttpRequest.newBuilder(base.resolve(path)).timeout(timeout).method(method, body).apply {
             if (json != null) header("Content-Type", "application/json")
-            headers.forEach { (name, value) -> header(name, value) }
+            sent.forEach { (name, value) -> header(name, value) }
         }.build()
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         return Answer(response.statusCode(), response.headers().map(), response.body())
@@ -264,7 +292,7 @@ class WowHttp(val base: URI, private val timeout: Duration = Duration.ofSeconds(
 
 /**
  * A server's answer: its [status], [headers] and body, as [text] and, when it is JSON, as [body]; when it is an RFC 9457
- * problem, as [problem] too.
+ * problem, as [problem] too, and when it answers a command, as its [result].
  */
 class Answer(val status: Int, val headers: Map<String, List<String>>, val text: String) {
     /** The body as JSON; null when it is empty or not JSON. */
@@ -287,6 +315,15 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
     val problem: Problem? by lazy {
         body?.takeIf { it.isObject && header(CONTENT_TYPE)?.contains(PROBLEM_JSON, ignoreCase = true) == true }
             ?.let { problemOf() }
+    }
+
+    /**
+     * The result of the command the answer answers: a success's body, or the result of the problem it answered with
+     * ([Problem.result]); read as `wow-client` reads a peer's. Null when the answer holds none: a query's, say, or a
+     * problem met before the command had a ref.
+     */
+    val result: CommandResult? by lazy {
+        problem?.result ?: body?.takeIf { it.isObject }?.let { CommandResults.readOrNull(text.toByteArray()) }
     }
 
     /** The first value of the header [name], whatever its case; null when the answer has none. */

@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStateView
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
@@ -53,7 +53,7 @@ class PaymentNode(vararg sources: Class<*>, topics: InMemoryTopics? = null) : Au
     fun chargeback(body: String, user: String? = null): Answer = server.http.post(
         "/eshop-payment/payment/chargeback-notified",
         body,
-        user?.let { mapOf(DevelopmentHeaders.USER to it) }.orEmpty(),
+        caller = user?.let { Caller.of(subject = it) },
     )
 
     /** The payment [id]'s state; null before it is requested. */
@@ -101,9 +101,10 @@ class PaymentTransformationTest {
         // The gateway knows the payment by its reference only: the callback goes to the route without an id.
         val callback = """{"merchantReference":"order-disputed","disputeId":"dispute-7","reason":"Not received"}"""
         val answer = payment.chargeback(callback)
-        answer.problem.assert().describedAs(answer.text).isNull()
-        answer.body!!["ref"]["id"].asString().assert().isEqualTo("order-disputed")
-        answer.body!!["transformedFrom"]["command"].asString().assert().isEqualTo(CHARGEBACK)
+        val result = answer.result!!
+        result.status.assert().describedAs(answer.text).isEqualTo(CommandResult.Status.SUCCEEDED)
+        result.ref.id.assert().isEqualTo("order-disputed")
+        result.transformedFrom!!.command.assert().isEqualTo(CHARGEBACK)
         payment.payment("order-disputed")!!.let { state ->
             state.status.assert().isEqualTo(PaymentStatus.REFUNDED)
             state.reason.assert().isEqualTo("Chargeback dispute-7: Not received")

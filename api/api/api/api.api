@@ -1790,6 +1790,7 @@ public final class me/ahoo/wow/api/wire/DevelopmentHeaders {
 	public static final field ROLES_ATTRIBUTE Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public static final field USER Ljava/lang/String;
+	public static final fun of (Lme/ahoo/wow/api/caller/Caller;)Ljava/util/Map;
 }
 
 public final class me/ahoo/wow/api/wire/ScopeHeader {

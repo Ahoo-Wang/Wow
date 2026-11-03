@@ -24,6 +24,8 @@ import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.JsonNode
 import java.time.Duration
+import kotlin.time.toKotlinDuration
+import me.ahoo.wow.test.server.eventually as eventuallyWithin
 
 /**
  * The basket, ordering and inventory services end to end (work packages E.2 to E.4), each in a JVM of its own as its
@@ -242,19 +244,17 @@ class EshopOrderFlowTest {
     private fun stock(product: String): JsonNode =
         checkNotNull(inventory.state("/eshop-inventory/stock/$product/state")) { "No stock of $product." }
 
-    private fun eventually(what: String, condition: () -> Boolean) {
-        val deadline = System.nanoTime() + DEADLINE.toNanos()
-        while (!condition()) {
-            if (System.nanoTime() > deadline) {
-                throw AssertionError(
-                    "Not reached in $DEADLINE: $what.\n--- basket ---\n${basket.output().takeLast(TAIL)}" +
-                        "\n--- ordering ---\n${ordering.output().takeLast(TAIL)}" +
-                        "\n--- inventory ---\n${inventory.output().takeLast(TAIL)}",
-                )
-            }
-            Thread.sleep(POLL.toMillis())
-        }
-    }
+    /** Waits for [condition], with the services' output on a failure. */
+    private fun eventually(what: String, condition: () -> Boolean) = eventuallyWithin(
+        what,
+        DEADLINE.toKotlinDuration(),
+        POLL.toKotlinDuration(),
+        detail = {
+            "\n--- basket ---\n${basket.output().takeLast(TAIL)}" +
+                "\n--- ordering ---\n${ordering.output().takeLast(TAIL)}" +
+                "\n--- inventory ---\n${inventory.output().takeLast(TAIL)}"
+        },
+    ) { condition() }
 
     private companion object {
         const val OK = 200

@@ -31,6 +31,9 @@ object SystemCommands {
     /** The rebuild of an aggregate type's snapshots, the ids in its body. */
     const val REBUILD: String = "wow.snapshot.Rebuild"
 
+    /** The name of a context's built-in job aggregate, `:api`'s `ScheduleJobs.AGGREGATE`. */
+    internal const val JOB_AGGREGATE: String = "schedule"
+
     /** The commands of a context's schedule jobs, each to the job its route's id names. */
     val JOBS: List<String> = listOf("wow.schedule.Enable", "wow.schedule.Reschedule", "wow.schedule.Disable")
 
