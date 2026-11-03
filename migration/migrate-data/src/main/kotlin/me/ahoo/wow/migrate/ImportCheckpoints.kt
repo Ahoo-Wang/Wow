@@ -48,6 +48,12 @@ internal data class AggregateCheckpoint(
  * was compared, in snapshot order, [completed] is set once every one is, and the counts are those of every run since
  * it started, so a resumed comparison reports, and exits on, the differences an earlier run found. [sample] is the
  * percentage of the instances it compares; another sample starts it over.
+ *
+ * What a comparison again ([StateComparison]) compares since: [heads], where the V10 log ended by partition, and
+ * [startedAt], the tool's clock, both read when the full comparison started, or the last comparison again; the
+ * [fingerprint] of what the result depends on ([ComparisonFingerprint]); and [differs], the instances found
+ * differing, by 9.x aggregate id, each with its kinds of difference, null once more than
+ * [StateComparison.MAX_RECORDED] did. A checkpoint an earlier version wrote has none of them.
  */
 internal data class CompareCheckpoint(
     val sample: Int = 100,
@@ -57,6 +63,10 @@ internal data class CompareCheckpoint(
     val compared: Long = 0,
     val differing: Long = 0,
     val kinds: Map<String, Long> = emptyMap(),
+    val heads: Map<Int, Long>? = null,
+    val startedAt: Long? = null,
+    val fingerprint: String? = null,
+    val differs: Map<String, List<String>>? = null,
 )
 
 /**

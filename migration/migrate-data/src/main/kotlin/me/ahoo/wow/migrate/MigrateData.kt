@@ -63,8 +63,10 @@ import kotlin.system.exitProcess
  *   it create the index itself. That index and the rollback `export`, which writes streams back, are the tool's only
  *   writes to a 9.x store.
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
- *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
- *   ones on every run, and `--restart` compares from the first again. It first prints the time zone it runs in, the
+ *   ([StateComparison]), resuming from its checkpoint; once that has completed, it compares again only the instances
+ *   changed on either side since and those that differed, unless what the result depends on changed, which it says;
+ *   `--sample` compares that percentage of the instances, the same ones on every run, and `--restart` compares from
+ *   the first again. It first prints the time zone it runs in, the
  *   one a state that turns a date into an instant with the system's zone rebuilds in. It then checks that every confirmed 9.x
  *   `PrepareKey` key is reserved in V10 for the same owner and every key it imported is still confirmed to that
  *   owner in 9.x ([ReservationComparison], every key on every run), and that every unresolved 9.x execution is
@@ -468,11 +470,12 @@ internal class MigrateData(
         )
         val comparison = StateComparison(
             snapshots = connections.snapshots,
+            events = connections.source,
             plan = plan,
             models = models(config),
             logOf = connections::logOf,
             checkpoints = checkpoints,
-            options = CompareOptions(config.pageSize, config.concurrency, sample, restart),
+            options = compareOptions(config, sample, restart),
             report = out::println,
         )
         val differing = plan.aggregates.keys.map { comparison.compare(it) }.filterNot { it.passed }
@@ -519,6 +522,19 @@ internal class MigrateData(
         }
         return DIFFERS
     }
+
+    /**
+     * The options of a comparison of [sample] percent: compared again since the last comparison, it reads 9.x
+     * from before then by the final pass's look-back window, which sizes the 9.x nodes' clock skew.
+     */
+    private fun compareOptions(config: MigrationConfig, sample: Int, restart: Boolean) = CompareOptions(
+        pageSize = config.pageSize,
+        concurrency = config.concurrency,
+        sample = sample,
+        restart = restart,
+        fingerprint = ComparisonFingerprint.of(config, sample),
+        lookbackMillis = config.final.lookbackMillis,
+    )
 
     /** Compares the unresolved 9.x executions with the V10 parked entries; null without a compensation database. */
     private suspend fun compareCompensation(
@@ -728,7 +744,7 @@ internal class MigrateData(
                         stops: the tail from its checkpoint, then the reservations and compensation walked again
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
-                        from the log at its version; exits with 3 when one differs
+                        from the log at its version; once done, those changed since; exits with 3 when one differs
               snapshot  [--restart]  writes the V10 snapshot of every imported instance; once done, of those the
                         V10 log changed since
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,

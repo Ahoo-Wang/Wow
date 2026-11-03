@@ -32,6 +32,7 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.postgresql.ds.PGSimpleDataSource
+import tools.jackson.databind.node.ObjectNode
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -176,6 +177,27 @@ class NineXExampleImportTest {
             )
             .contains("example-service.cart snapshots caught up: 0 instances the V10 log changed since")
         store.load(orderRef)!!.version.assert().isEqualTo(5)
+
+        // Compared after the broken mapping's comparison, the map is not the one it ran with, so it compares in full;
+        // compared again, only what changed since: a differing snapshot 9.x takes since is found.
+        run("compare", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert().contains(
+            "example-service.order is compared in full again: the map, a Manifest, the classpath (the V10 models), " +
+                "the sample, the time zone or the tool changed since the last comparison.",
+        )
+        val taken = WowJson.mapper.readTree(NineXExample.resource("order-snapshot.json")) as ObjectNode
+        (taken.get("state") as ObjectNode).put("status", "PAID")
+        taken.put("snapshotTime", System.currentTimeMillis())
+        NineXMongoStore.saveSnapshot(nineX, taken.toString())
+        run("compare", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains(
+                "example-service.order compared again: 1 instances changed since the last comparison or differing " +
+                    "then, 1 compared; 1 differ in all; differing fields: status (1)",
+            )
+            .contains("example-service.cart compared again: 0 instances changed")
     }
 
     @Test

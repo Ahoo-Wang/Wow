@@ -18,12 +18,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -126,7 +123,7 @@ internal class SnapshotWriter(
                     "log to catch up from, so every instance is walked again.",
             )
         }
-        var checkpoint = saved?.takeUnless { it.completed } ?: SnapshotCheckpoint(heads = headsOf(target.log))
+        var checkpoint = saved?.takeUnless { it.completed } ?: SnapshotCheckpoint(heads = target.log.heads())
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = withContext(Dispatchers.IO) {
@@ -168,8 +165,8 @@ internal class SnapshotWriter(
         checkpoint: SnapshotCheckpoint,
         recorded: Map<Int, Long>,
     ): SnapshotProgress {
-        val heads = headsOf(target.log)
-        val changed = changedSince(target.log, target.plan.target, recorded, heads)
+        val heads = target.log.heads()
+        val changed = target.log.changedSince(target.plan.target, recorded, heads)
             .filterNot { plan.excludes(target.aggregate, it.id) }
         val permits = Semaphore(options.concurrency)
         val written = coroutineScope {
@@ -196,37 +193,6 @@ internal class SnapshotWriter(
             )
         }
         return progress
-    }
-
-    /** Where [log] ends, by partition: the empty ones left out. */
-    private suspend fun headsOf(log: EventLog): Map<Int, Long> =
-        (0 until log.partitions).mapNotNull { partition -> log.head(partition)?.let { partition to it } }.toMap()
-
-    /**
-     * The instances of [type] [log] holds entries of after [from] up to [to], by partition: each partition whose head
-     * moved read from the sequence after its old head (from its first entry when it had none) until the entry at its
-     * new head, as the tail does not end by itself.
-     */
-    private suspend fun changedSince(
-        log: EventLog,
-        type: AggregateType,
-        from: Map<Int, Long>,
-        to: Map<Int, Long>,
-    ): Set<AggregateRef> {
-        val refs = LinkedHashSet<AggregateRef>()
-        for ((partition, head) in to) {
-            val after = from[partition]
-            if (after != null && after >= head) {
-                continue
-            }
-            log.tail(partition, after)
-                .transformWhile { entry ->
-                    emit(entry)
-                    entry.position.sequence < head
-                }
-                .collect { entry -> entry.stream.ref.takeIf { it.type == type }?.let(refs::add) }
-        }
-        return refs
     }
 
     /**

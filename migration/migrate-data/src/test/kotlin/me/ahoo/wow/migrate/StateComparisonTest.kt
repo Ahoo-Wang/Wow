@@ -44,6 +44,7 @@ class StateComparisonTest {
         options: CompareOptions = CompareOptions(),
     ) = StateComparison(
         InMemoryNineXSnapshotSource(snapshots, events),
+        events,
         plan,
         models,
         { log },
@@ -145,6 +146,7 @@ class StateComparisonTest {
         }
         val report = StateComparison(
             InMemoryNineXSnapshotSource(listOf(snapshot), source),
+            source,
             plan,
             models,
             { log },
@@ -195,13 +197,116 @@ class StateComparisonTest {
         printed.assert().anyMatch { it.startsWith("example-service.order: 1 of 1 instances") }
         checkpoints.load().comparisonOf(order)!!.completed.assert().isTrue()
 
+        // Compared again, the instance found differing is compared again, and still differs.
         printed.clear()
-        comparison(snapshots).compare(order).differing.assert().isEqualTo(1)
-        printed.none { it.startsWith("DIFFERS") }.assert().isTrue()
+        comparison(snapshots).compare(order).also {
+            it.changed.assert().isEqualTo(1)
+            it.differing.assert().isEqualTo(1)
+        }
+        printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
 
+        printed.clear()
         comparison(snapshots, options = CompareOptions(restart = true)).compare(order).differing.assert().isEqualTo(1)
         printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `compared again, only the instances changed on either side since are compared, and those that differed`() =
+        runTest {
+            imported()
+            val source = InMemoryNineXSnapshotSource(NineXExample.snapshots(), events)
+            fun comparison() = StateComparison(source, events, NineXExample.plan, models, { log }, checkpoints, report = {
+                printed += it
+            })
+            comparison().compare(order).passed.assert().isTrue()
+            comparison().compare(order).render().assert().isEqualTo(
+                "example-service.order compared again: 0 instances changed since the last comparison or differing " +
+                    "then, 0 compared; 0 differ in all",
+            )
+            // 9.x takes a snapshot that differs: compared again, it is found.
+            val original = NineXExample.snapshot("order-snapshot.json")
+            source.put(
+                changed("order-snapshot.json") { node ->
+                    (node.get("state") as ObjectNode).put("status", "PAID")
+                    node.put("snapshotTime", System.currentTimeMillis())
+                },
+            )
+            comparison().compare(order).also {
+                it.changed.assert().isEqualTo(1)
+                it.recompared.assert().isEqualTo(1)
+                it.differing.assert().isEqualTo(1)
+                it.kinds.assert().isEqualTo(mapOf("status" to 1L))
+            }
+            // The snapshot is put back with its old time: compared again as found differing, it equals.
+            source.put(original)
+            comparison().compare(order).also {
+                it.changed.assert().isEqualTo(1)
+                it.passed.assert().isTrue()
+            }
+            comparison().compare(order).changed.assert().isEqualTo(0)
+            // The tail brings in a stream 9.x committed since: the instance is compared again, at its snapshot's
+            // version.
+            val last = NineXExample.streams().last { it.aggregate == order }
+            val late = last.copy(
+                id = "late",
+                version = last.version + 1,
+                commandId = "late",
+                requestId = "late",
+                createTime = System.currentTimeMillis(),
+            )
+            events.add(late)
+            EventStreamImporter(events, NineXExample.plan, { log }, checkpoints).tailOnce(order)
+            comparison().compare(order).also {
+                it.changed.assert().isEqualTo(1)
+                it.recompared.assert().isEqualTo(1)
+                it.passed.assert().isTrue()
+            }
+            comparison().compare(cart).changed.assert().isNull()
+        }
+
+    @Test
+    fun `a comparison is compared in full again when what it depends on changed, or it recorded no position`() =
+        runTest {
+            imported()
+            comparison(options = CompareOptions(fingerprint = "a")).compare(order)
+            comparison(options = CompareOptions(fingerprint = "b")).compare(order).changed.assert().isNull()
+            printed.assert().contains(
+                "example-service.order is compared in full again: the map, a Manifest, the classpath (the V10 " +
+                    "models), the sample, the time zone or the tool changed since the last comparison.",
+            )
+            checkpoints.update { it.with(order, it.comparisonOf(order)!!.copy(heads = null)) }
+            comparison(options = CompareOptions(fingerprint = "b")).compare(order).changed.assert().isNull()
+            printed.assert().contains(
+                "example-service.order is compared in full again: the last comparison ran with an earlier version, " +
+                    "which recorded no position to compare again from.",
+            )
+            checkpoints.update { it.with(order, it.comparisonOf(order)!!.copy(differs = null)) }
+            comparison(options = CompareOptions(fingerprint = "b")).compare(order).changed.assert().isNull()
+            printed.assert().contains(
+                "example-service.order is compared in full again: more than 1000 instances differed, too many to " +
+                    "record.",
+            )
+            val unindexed = object : NineXEventSource by events, CommitTimeIndexed {
+                override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>) =
+                    aggregates.associate { it.name + "_event_stream" to "create it" }
+
+                override fun ensureCommitTimeIndex(aggregate: NineXAggregate) = Unit
+            }
+            StateComparison(
+                InMemoryNineXSnapshotSource(NineXExample.snapshots(), events),
+                unindexed,
+                NineXExample.plan,
+                models,
+                { log },
+                checkpoints,
+                CompareOptions(fingerprint = "b"),
+                { printed += it },
+            ).compare(order).changed.assert().isNull()
+            printed.assert().contains(
+                "example-service.order is compared in full again: the 9.x store has no commit-time index to read what " +
+                    "9.x committed since (the tail creates it).",
+            )
+        }
 
     @Test
     fun `a sample compares the same share of the instances on every run`() = runTest {
@@ -222,6 +327,7 @@ class StateComparisonTest {
         imported()
         val without = StateComparison(
             InMemoryNineXSnapshotSource(),
+            events,
             NineXExample.plan,
             MigrationModels(emptyList()),
             { log },

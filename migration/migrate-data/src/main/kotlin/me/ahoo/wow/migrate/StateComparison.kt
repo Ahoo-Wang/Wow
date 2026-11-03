@@ -32,18 +32,23 @@ import tools.jackson.databind.JsonNode
 
 /**
  * The options of a comparison: [pageSize] snapshots per page, [concurrency] of them at a time, [sample] the percentage
- * of the instances compared (100 for all), and [restart] to compare again from the first instance.
+ * of the instances compared (100 for all), and [restart] to compare again from the first instance. [fingerprint] is
+ * what the result depends on ([ComparisonFingerprint]); [lookbackMillis] how far before the last comparison started
+ * a comparison again reads what 9.x wrote: 9.x nodes' clocks differ from the tool's.
  */
 internal data class CompareOptions(
     val pageSize: Int = 500,
     val concurrency: Int = 8,
     val sample: Int = ALL,
     val restart: Boolean = false,
+    val fingerprint: String = "",
+    val lookbackMillis: Long = 60_000,
 ) {
     init {
         require(pageSize >= 1) { "A page holds at least one snapshot." }
         require(concurrency >= 1) { "At least one snapshot at a time." }
         require(sample in 1..ALL) { "A sample is 1 to 100 percent of the instances, not $sample." }
+        require(lookbackMillis >= 0) { "The look-back window is never negative." }
     }
 
     /**
@@ -60,7 +65,9 @@ internal data class CompareOptions(
 /**
  * The comparison of one 9.x aggregate so far: of its [instances] in the 9.x store, [snapshots] have a 9.x snapshot,
  * [compared] of those were compared (the sample) and [differing] differ, by the [kinds] of difference
- * ([FieldDifference.kind]) with the number of instances that have each.
+ * ([FieldDifference.kind]) with the number of instances that have each. A comparison again gives [changed], the
+ * instances changed on either side since the last comparison or found differing then, of which [recompared] had a
+ * snapshot in the sample and were compared; [differing] and [kinds] are then those of every instance.
  */
 internal data class ComparisonReport(
     val aggregate: NineXAggregate,
@@ -70,14 +77,21 @@ internal data class ComparisonReport(
     val differing: Long,
     val kinds: Map<String, Long>,
     val done: Boolean,
+    val changed: Long? = null,
+    val recompared: Long = 0,
 ) {
     /** Whether every instance compared equals its 9.x snapshot. */
     val passed: Boolean get() = differing == 0L
 
     fun render(): String = buildString {
-        append("$aggregate${if (done) " compared" else ""}: $snapshots of $instances instances have a 9.x snapshot")
-        append(" (${"%.1f".format(snapshots * PERCENT / instances.coerceAtLeast(1))}%), ")
-        append("$compared compared, $differing differ")
+        if (changed != null) {
+            append("$aggregate compared again: $changed instances changed since the last comparison or differing ")
+            append("then, $recompared compared; $differing differ in all")
+        } else {
+            append("$aggregate${if (done) " compared" else ""}: $snapshots of $instances instances have a 9.x snapshot")
+            append(" (${"%.1f".format(snapshots * PERCENT / instances.coerceAtLeast(1))}%), ")
+            append("$compared compared, $differing differ")
+        }
         if (kinds.isNotEmpty()) {
             append("; differing fields: ")
             append(kinds.entries.sortedBy { it.key }.joinToString(", ") { "${it.key} (${it.value})" })
@@ -104,12 +118,23 @@ internal data class ComparisonReport(
  * - **Paging and checkpoints.** Snapshots are read [CompareOptions.pageSize] at a time in aggregate id order, compared
  *   [CompareOptions.concurrency] at a time, and the checkpoint ([CompareCheckpoint]) moves after each page, its
  *   counts kept, so a stopped comparison resumes and still reports what it found before.
+ * - **Again, only what changed.** A full comparison records, before its first snapshot, where the V10 log ends
+ *   ([EventLog.head]), the tool's clock, and the [CompareOptions.fingerprint]; as it goes, the instances that differ. Once it
+ *   has completed, `compare` compares again only: the 9.x snapshots taken since, less [CompareOptions.lookbackMillis]
+ *   ([NineXSnapshotSource.takenSince]); the instances 9.x committed streams of since, on the commit-time index
+ *   ([NineXEventSource.committedSince]); those the V10 log holds entries of after the heads ([changedSince]); and those
+ *   found differing. Every other instance compares as it did: one comparison reads the instance's 9.x snapshot, its V10
+ *   log up to that version, which only grows, and what the fingerprint holds. Its result then stands for every
+ *   instance, and it records where it started, as the full comparison did. It compares in full instead, saying why,
+ *   when the checkpoint holds no positions (an earlier version's), the fingerprint changed, more than [MAX_RECORDED]
+ *   instances differed, or the 9.x store lacks the commit-time index ([CommitTimeIndexed]).
  *
  * The full import of the aggregate must be complete. Nothing is written but the checkpoint.
  */
 @Suppress("LongParameterList")
 internal class StateComparison(
     private val snapshots: NineXSnapshotSource,
+    private val events: NineXEventSource,
     private val plan: MigrationPlan,
     private val models: MigrationModels,
     private val logOf: (String) -> EventLog,
@@ -117,44 +142,40 @@ internal class StateComparison(
     private val options: CompareOptions = CompareOptions(),
     private val report: (String) -> Unit = {},
     private val codec: EventCodec = EventCodec(),
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    /** Compares the 9.x snapshots of [aggregate] not yet compared; the report of every run since it started. */
+    /**
+     * Compares the 9.x snapshots of [aggregate] not yet compared, or, once a full comparison has completed, those changed
+     * since; the report of every instance.
+     */
     suspend fun compare(aggregate: NineXAggregate): ComparisonReport {
         val aggregatePlan = plan.of(aggregate)
         if (checkpoints.load().of(aggregate)?.completed != true) {
             throw MigrationException("The full import of $aggregate has not completed: run the import before compare.")
         }
-        val model = models.of(aggregatePlan.target)
         val log = logOf(aggregatePlan.target.context)
-        val kernel = Kernel(log, codec)
+        val target = Target(aggregatePlan, models.of(aggregatePlan.target), Kernel(log, codec), log)
         val instances = blocking { snapshots.instances(aggregate) }
-        var checkpoint = checkpoints.load().comparisonOf(aggregate)
+        val saved = checkpoints.load().comparisonOf(aggregate)
             ?.takeUnless { options.restart || it.sample != options.sample }
-            ?: CompareCheckpoint(sample = options.sample)
+        if (saved?.completed == true) {
+            val inFull = inFull(aggregate, saved) ?: return again(target, instances, saved).also { report(it.render()) }
+            report("$aggregate is compared in full again: $inFull.")
+        }
+        var checkpoint = saved?.takeUnless { it.completed } ?: CompareCheckpoint(
+            sample = options.sample,
+            heads = log.heads(),
+            startedAt = clock(),
+            fingerprint = options.fingerprint,
+            differs = emptyMap(),
+        )
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = blocking { snapshots.snapshots(aggregate, checkpoint.after, options.pageSize) }
-            if (page.isEmpty()) {
-                checkpoint = checkpoint.copy(completed = true)
+            checkpoint = if (page.isEmpty()) {
+                checkpoint.copy(completed = true)
             } else {
-                // An instance the map excludes has no V10 state to compare.
-                val sampled = page.filter {
-                    !plan.excludes(aggregate, it.aggregateId.id) && options.sampled(it.aggregateId)
-                }
-                val differences = coroutineScope {
-                    sampled.map { snapshot ->
-                        async { permits.withPermit { compare(aggregatePlan, model, kernel, log, snapshot) } }
-                    }.awaitAll()
-                }.filter { it.isNotEmpty() }
-                val kinds = differences.flatMap { found -> found.map { it.kind }.distinct() }
-                    .fold(checkpoint.kinds) { counts, kind -> counts + (kind to (counts[kind] ?: 0) + 1) }
-                checkpoint = checkpoint.copy(
-                    after = page.last().aggregateId,
-                    snapshots = checkpoint.snapshots + page.size,
-                    compared = checkpoint.compared + sampled.size,
-                    differing = checkpoint.differing + differences.size,
-                    kinds = kinds,
-                )
+                comparedPage(target, page, permits, checkpoint)
             }
             checkpoints.update { it.with(aggregate, checkpoint) }
             if (!checkpoint.completed) {
@@ -164,22 +185,150 @@ internal class StateComparison(
         return reportOf(aggregate, instances, checkpoint).also { report(it.render()) }
     }
 
+    /** [checkpoint] moved past [page], its snapshots in the sample compared [CompareOptions.concurrency] at a time. */
+    private suspend fun comparedPage(
+        target: Target,
+        page: List<NineXSnapshot>,
+        permits: Semaphore,
+        checkpoint: CompareCheckpoint,
+    ): CompareCheckpoint {
+        // An instance the map excludes has no V10 state to compare.
+        val sampled = page.filter {
+            !plan.excludes(target.plan.source, it.aggregateId.id) && options.sampled(it.aggregateId)
+        }
+        val differences = coroutineScope {
+            sampled.map { snapshot ->
+                async { permits.withPermit { snapshot.aggregateId.id to compare(target, snapshot) } }
+            }.awaitAll()
+        }.filter { it.second.isNotEmpty() }
+        val kinds = differences.flatMap { (_, found) -> kindsOf(found) }
+            .fold(checkpoint.kinds) { counts, kind -> counts + (kind to (counts[kind] ?: 0) + 1) }
+        return checkpoint.copy(
+            after = page.last().aggregateId,
+            snapshots = checkpoint.snapshots + page.size,
+            compared = checkpoint.compared + sampled.size,
+            differing = checkpoint.differing + differences.size,
+            kinds = kinds,
+            differs = checkpoint.differs?.plus(differences.associate { (id, found) -> id to kindsOf(found) })
+                ?.takeIf { it.size <= MAX_RECORDED },
+        )
+    }
+
+    /**
+     * Why the completed comparison [saved] of [aggregate] cannot be compared again from where it started, or null when
+     * it can.
+     */
+    private fun inFull(aggregate: NineXAggregate, saved: CompareCheckpoint): String? = when {
+        saved.heads == null || saved.startedAt == null || saved.fingerprint == null ->
+            "the last comparison ran with an earlier version, which recorded no position to compare again from"
+
+        saved.fingerprint != options.fingerprint ->
+            "the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed since " +
+                "the last comparison"
+
+        saved.differs == null -> "more than $MAX_RECORDED instances differed, too many to record"
+        (events as? CommitTimeIndexed)?.missingCommitTimeIndexes(listOf(aggregate)).orEmpty().isNotEmpty() ->
+            "the 9.x store has no commit-time index to read what 9.x committed since (the tail creates it)"
+
+        else -> null
+    }
+
+    /**
+     * Compares again the instances of [saved]'s aggregate changed on either side since it started, and those it found
+     * differing, then records where this comparison started and what differs now.
+     */
+    private suspend fun again(target: Target, instances: Long, saved: CompareCheckpoint): ComparisonReport {
+        val aggregate = target.plan.source
+        val startedAt = clock()
+        val heads = target.log.heads()
+        val from = checkNotNull(saved.startedAt) - options.lookbackMillis
+        val taken = takenSince(aggregate, from)
+        val ids = LinkedHashSet(taken.keys)
+        ids += committedSince(aggregate, from)
+        target.log.changedSince(target.plan.target, checkNotNull(saved.heads), heads).forEach { ids += it.id }
+        val recorded = checkNotNull(saved.differs)
+        ids += recorded.keys
+        val changed = ids.filterNot { plan.excludes(aggregate, it) }
+        val permits = Semaphore(options.concurrency)
+        val compared = coroutineScope {
+            changed.map { id ->
+                async {
+                    permits.withPermit {
+                        val snapshot = taken[id] ?: blocking { snapshots.snapshot(aggregate, id) }
+                        snapshot?.takeIf { options.sampled(it.aggregateId) }
+                            ?.let { id to compare(target, it) }
+                    }
+                }
+            }.awaitAll()
+        }.filterNotNull()
+        val differs = recorded - changed.toSet() +
+            compared.filter { it.second.isNotEmpty() }.associate { (id, found) -> id to kindsOf(found) }
+        val kinds = differs.values.flatten().groupingBy { it }.eachCount().mapValues { it.value.toLong() }
+        checkpoints.update {
+            it.with(
+                aggregate,
+                saved.copy(
+                    differing = differs.size.toLong(),
+                    kinds = kinds,
+                    heads = heads,
+                    startedAt = startedAt,
+                    differs = differs.takeIf { found -> found.size <= MAX_RECORDED },
+                ),
+            )
+        }
+        return ComparisonReport(
+            aggregate = aggregate,
+            instances = instances,
+            snapshots = saved.snapshots,
+            compared = saved.compared,
+            differing = differs.size.toLong(),
+            kinds = kinds,
+            done = true,
+            changed = changed.size.toLong(),
+            recompared = compared.size.toLong(),
+        )
+    }
+
+    /** The 9.x snapshots of [aggregate] taken at or after [from], by aggregate id. */
+    private suspend fun takenSince(aggregate: NineXAggregate, from: Long): Map<String, NineXSnapshot> {
+        val taken = LinkedHashMap<String, NineXSnapshot>()
+        var after: String? = null
+        while (true) {
+            val page = blocking { snapshots.takenSince(aggregate, from, after, options.pageSize) }
+            if (page.isEmpty()) {
+                return taken
+            }
+            page.forEach { taken[it.aggregateId.id] = it }
+            after = page.last().aggregateId.id
+        }
+    }
+
+    /** The ids of [aggregate]'s instances 9.x committed streams of at or after [from]. */
+    private suspend fun committedSince(aggregate: NineXAggregate, from: Long): Set<String> {
+        val ids = LinkedHashSet<String>()
+        var after: NineXPosition? = null
+        while (true) {
+            val page = blocking { events.committedSince(aggregate, from, after, options.pageSize) }
+            if (page.isEmpty()) {
+                return ids
+            }
+            page.forEach { ids += it.aggregateId.id }
+            after = page.last().let { NineXPosition(it.createTime, it.id) }
+        }
+    }
+
+    private fun kindsOf(differences: List<FieldDifference>): List<String> = differences.map { it.kind }.distinct()
+
     /** The differences of [snapshot] from the V10 state at its version; empty when equal. */
-    private suspend fun compare(
-        plan: AggregatePlan,
-        model: AggregateModel<Any>,
-        kernel: Kernel,
-        log: EventLog,
-        snapshot: NineXSnapshot,
-    ): List<FieldDifference> {
-        val ref = plan.target.ref(snapshot.aggregateId.tenantId, snapshot.aggregateId.id)
-        val streams = log.read(ref, 1, snapshot.version).toList()
+    private suspend fun compare(target: Target, snapshot: NineXSnapshot): List<FieldDifference> {
+        val ref = target.plan.target.ref(snapshot.aggregateId.tenantId, snapshot.aggregateId.id)
+        val streams = target.log.read(ref, 1, snapshot.version).toList()
         val rebuilt = streams.takeIf { it.lastOrNull()?.version == snapshot.version }
-            ?.let { kernel.replayed(model, ref, it) }
+            ?.let { target.kernel.replayed(target.model, ref, it) }
         val differences = if (rebuilt == null) {
             listOf(FieldDifference(VERSION, node(snapshot.version), streams.lastOrNull()?.version?.let(::node)))
         } else {
-            differencesOf(plan, snapshot, rebuilt)
+            differencesOf(target.plan, snapshot, rebuilt)
         }
         if (differences.isNotEmpty()) {
             report(
@@ -217,10 +366,18 @@ internal class StateComparison(
 
     private suspend fun <T> blocking(read: () -> T): T = withContext(Dispatchers.IO) { read() }
 
-    private companion object {
-        const val VERSION = "\$version"
-        const val DELETED = "\$deleted"
-        const val OWNER_ID = "\$ownerId"
-        const val SPACE_ID = "\$spaceId"
+    /** What one aggregate's states are rebuilt from and compared with: its plan, its V10 model and its log. */
+    private class Target(val plan: AggregatePlan, val model: AggregateModel<Any>, val kernel: Kernel, val log: EventLog)
+
+    companion object {
+        /**
+         * The most differing instances a comparison records, by id, to compare them again: the checkpoint is written
+         * after every page, so a comparison that finds more compares in full the next time.
+         */
+        const val MAX_RECORDED: Int = 1000
+        private const val VERSION = "\$version"
+        private const val DELETED = "\$deleted"
+        private const val OWNER_ID = "\$ownerId"
+        private const val SPACE_ID = "\$spaceId"
     }
 }
