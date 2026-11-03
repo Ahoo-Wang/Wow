@@ -43,13 +43,13 @@ import { ESHOP_LOCAL_GC_LOG, ESHOP_LOCAL_LOG, ESHOP_LOCAL_PID, jdkTool } from ".
 const WEB = fileURLToPath(new URL("..", import.meta.url));
 const CLASSPATH = join(WEB, "../e2e/build/eshop-local/classpath.txt");
 const MAIN = "me.ahoo.wow.example.eshop.e2e.EshopLocalKt";
-const READY = /eshop-local ready (\{.*\})/;
+const READY = /wow-local ready (\{.*\})/;
 const START_DEADLINE_MS = 3 * 60_000;
 const STOP_DEADLINE_MS = 20_000;
 /** The last output kept for a failure's message. */
 const TAIL = 6_000;
 
-/** Starts the services, their output written to [log] and their GC and safepoints to [gcLog]; answers their public ports by context. */
+/** Starts the services, their output written to [log] and their GC and safepoints to [gcLog]; answers their public ports by service. */
 function startServices(
   log: string,
   gcLog: string,
@@ -67,8 +67,8 @@ function startServices(
     [
       "-Xmx768m",
       `-Xlog:gc,safepoint:file=${gcLog}:uptime,time`,
-      "-Deshop.local.ports=random",
-      "-Deshop.local.exit-on-stdin-eof=true",
+      "-Dwow-local.ports=random",
+      "-Dwow-local.exit-on-stdin-eof=true",
       "-cp",
       readFileSync(CLASSPATH, "utf8").trim(),
       MAIN,
@@ -117,8 +117,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env[ESHOP_LOCAL_PID] = String(child.pid);
   process.env[ESHOP_LOCAL_LOG] = log;
   process.env[ESHOP_LOCAL_GC_LOG] = gcLog;
-  for (const [context, port] of Object.entries(ports))
+  // The ready line names each service (`eshop-<context>-service`); the dev server takes each context's URL.
+  for (const [service, port] of Object.entries(ports)) {
+    const context = service.replace(/^eshop-/, "").replace(/-service$/, "");
     process.env[`ESHOP_${context.toUpperCase()}_URL`] = `http://127.0.0.1:${port}`;
+  }
   const server = await createServer({
     root: WEB,
     configFile: join(WEB, "vite.config.ts"),

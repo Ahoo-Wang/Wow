@@ -245,7 +245,7 @@ Work package E.7: `examples/eshop/web`, a React app (Vite, shadcn) on the client
 - **Problems.** A refusal or rejection shows its title, status, code, detail and violations. A service that did not answer is named, with a button to try again.
 - **Users.** Switching user starts each page afresh: nothing of the last user's checkout or problems shows.
 
-The dev server forwards each context's routes (`/eshop-<context>/`) to its service on the ports of [Running](#running) (`ESHOP_<CONTEXT>_URL` overrides one). Without Kafka, run the whole shop in one JVM, in memory: `EshopLocal` shares one set of in-memory topics among the five services ([G27](DX-GAPS.md)).
+The dev server forwards each context's routes (`/eshop-<context>/`) to its service on the ports of [Running](#running) (`ESHOP_<CONTEXT>_URL` overrides one). Without Kafka, run the whole shop in one JVM, in memory: `EshopLocal` runs the five services with `runWowLocal` of `wow-test-spring-boot`, sharing one set of in-memory topics among them ([G27](DX-GAPS.md); [Run several services locally](https://wow.ahoo.me/start/quickstart#run-several-services-locally)). `-Dwow-local.ports=random` binds every port at 0, and it prints `wow-local ready {…}` with the public ports once they listen.
 
 ```bash
 ./gradlew :eshop-e2e:eshopLocal          # the five services, ports 8081 to 8085
@@ -253,7 +253,7 @@ pnpm --filter wow-eshop-web... build                     # once: the workspace p
 pnpm --filter wow-eshop-web dev                          # http://localhost:5173
 ```
 
-`pnpm test` runs the component tests. `pnpm test:e2e` is the end-to-end test: it starts `EshopLocal` on ports bound to 0, the dev server against them, and drives the UI in Chromium from the catalog to a shipped order, with a short stock and a declined payment. Build its class path first with `./gradlew :eshop-e2e:eshopLocalClasspath` (JDK 21). Set `ESHOP_WEB_BROWSER_CHANNEL=chrome` to run it in an installed Chrome.
+`pnpm test` runs the component tests. `pnpm test:e2e` is the end-to-end test: it starts `EshopLocal` on ports bound to 0 (`-Dwow-local.ports=random`, stopping when its standard input closes: `-Dwow-local.exit-on-stdin-eof=true`), the dev server against them, and drives the UI in Chromium from the catalog to a shipped order, with a short stock and a declined payment. Build its class path first with `./gradlew :eshop-e2e:eshopLocalClasspath` (JDK 21). Set `ESHOP_WEB_BROWSER_CHANNEL=chrome` to run it in an installed Chrome.
 
 ## Tests
 
