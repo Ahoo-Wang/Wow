@@ -317,6 +317,19 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `a collection without the index the import walks it in should fail with the command that creates it`() {
+        val report = MappingCheck(NineXExample.plan).check(
+            example,
+            walkIndexes = mapOf("cart_event_stream" to "db.getCollection(\"cart_event_stream\").createIndex(…)"),
+        )
+        report.passed.assert().isFalse()
+        report.problems.assert().containsExactly(
+            "the 9.x collection cart_event_stream has no (aggregateId, version) index, which 9.x creates and the " +
+                "import walks it in: create it on the 9.x side, db.getCollection(\"cart_event_stream\").createIndex(…)",
+        )
+    }
+
+    @Test
     fun `an excluded 9x aggregate or PrepareKey should warn with its reason instead of failing`() {
         val payment = NineXInventory(NineXAggregate("example-service", "payment"), 3, emptyMap(), emptyMap())
         val map = NineXExample.map.copy(

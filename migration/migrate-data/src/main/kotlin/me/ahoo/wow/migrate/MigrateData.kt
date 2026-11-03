@@ -284,6 +284,7 @@ internal class MigrateData(
             connections.source::tenantsOf,
             (connections.source as? CommitTimeIndexed)?.missingCommitTimeIndexes(plan.aggregates.keys).orEmpty(),
             connections.snapshots::deleted,
+            connections.source.missingWalkIndexes(plan.aggregates.keys),
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED

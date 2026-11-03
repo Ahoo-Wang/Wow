@@ -138,8 +138,8 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 | `compensation.database` | | 9.x 补偿服务的数据库。不配置 `compensation` 时，不读取补偿服务的任何内容。 |
 | `compensation.uri` | 与来源相同 | 该数据库所在的服务器。 |
 | `compensation.service` | | 接收未解决执行的 V10 服务，其失败台账会收到它们：填它的 `wow.service` 或 `spring.application.name`。 |
-| `pageSize` | `500` | 两个检查点之间导入的实例数；追尾一次读取的流数。 |
-| `streamBatch` | `200` | 一次从 9.x 存储读取的同一实例的流数。 |
+| `pageSize` | `500` | 两个检查点之间导入的实例数，这些实例连同它们的流在一次扫描中读出，每页最多按每个实例十条流计：实例较大时一页的实例更少。也是追尾一次读取的流数。 |
+| `streamBatch` | `200` | 一页只读到一部分的实例，其余的流每次从 9.x 存储读取的条数。 |
 | `concurrency` | `8` | 同时导入的实例数。 |
 | `lookbackMillis` | `300000` | 追尾在它读到的最后提交时间之前，再往回扫描多远。 |
 | `pollIntervalMillis` | `1000` | 两轮追尾之间的间隔。 |

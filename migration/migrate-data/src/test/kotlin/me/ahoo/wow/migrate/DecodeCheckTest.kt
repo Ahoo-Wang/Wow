@@ -104,6 +104,10 @@ class DecodeCheckTest {
     fun `an instance whose streams do not parse should be reported, and the walk go on`() = runTest {
         val broken = NineXExample.cartRemoving("cart-broken", "[null]")
         val source = object : NineXEventSource by InMemoryNineXEventSource(NineXExample.streams() + broken) {
+            // A page reads each instance with streams below, as a store without a scan of its own does.
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                super<NineXEventSource>.instances(aggregate, after, limit, maxStreams)
+
             override fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int) =
                 if (id.id == "cart-broken") {
                     throw MigrationException("9.x stream s-broken has no commandId.")

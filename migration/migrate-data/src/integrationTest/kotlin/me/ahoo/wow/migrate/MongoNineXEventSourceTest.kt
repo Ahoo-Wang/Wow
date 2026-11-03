@@ -86,6 +86,7 @@ class MongoNineXEventSourceTest {
 
     @Test
     fun `the inventory should list the instances whose id V10 refuses, an absent or null id as the empty one`() {
+        NineXMongoStore.collidable(database, order.name)
         val text = NineXExample.resource("order-stream-v1.json")
         fun insert(stream: String, aggregateId: String?, tenantId: String = "(0)") = NineXMongoStore.insert(
             database,
@@ -117,6 +118,7 @@ class MongoNineXEventSourceTest {
 
     @Test
     fun `the inventory should count the streams that record no tenant, by their id`() {
+        NineXMongoStore.collidable(database, order.name)
         val text = NineXExample.resource("order-stream-v1.json")
         fun insert(stream: String, id: String, tenant: String?) = NineXMongoStore.insert(
             database,

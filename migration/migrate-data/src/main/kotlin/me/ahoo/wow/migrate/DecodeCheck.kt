@@ -103,16 +103,18 @@ internal class DecodeCheck(
         val permits = Semaphore(options.concurrency)
         var after: NineXAggregateId? = null
         while (true) {
-            val page = withContext(Dispatchers.IO) { source.aggregateIds(aggregate, after, options.pageSize) }
+            val page = withContext(Dispatchers.IO) {
+                source.instances(aggregate, after, options.pageSize, options.pageStreams)
+            }
             if (page.isEmpty()) {
                 break
             }
             coroutineScope {
-                page.filterNot { plan.excludes(aggregate, it.id) }
-                    .map { id -> async { permits.withPermit { decodeInstance(aggregate, model, id, stats) } } }
+                page.filterNot { plan.excludes(aggregate, it.id.id) }
+                    .map { async { permits.withPermit { decodeInstance(aggregate, model, it, stats) } } }
                     .awaitAll()
             }
-            after = page.last()
+            after = page.last().id
         }
         return DecodeReport(
             aggregate,
@@ -123,13 +125,27 @@ internal class DecodeCheck(
         )
     }
 
+    /** Decodes [instance] as its page read it, then the rest of its streams when the page read it in part. */
+    private suspend fun decodeInstance(
+        aggregate: NineXAggregate,
+        model: AggregateModel<Any>,
+        instance: NineXInstance,
+        stats: Stats,
+    ) {
+        instance.streams.forEach { decodeStream(model, it, stats) }
+        if (!instance.complete) {
+            decodeInstance(aggregate, model, instance.id, (instance.streams.lastOrNull()?.version ?: 0) + 1, stats)
+        }
+    }
+
     private suspend fun decodeInstance(
         aggregate: NineXAggregate,
         model: AggregateModel<Any>,
         id: NineXAggregateId,
+        fromVersion: Int,
         stats: Stats,
     ) {
-        var next = 1
+        var next = fromVersion
         while (true) {
             val batch = try {
                 withContext(Dispatchers.IO) { source.streams(aggregate, id, next, options.streamBatch) }

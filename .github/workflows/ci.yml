@@ -829,7 +829,7 @@ jobs:
           heap="$(sed -n 's/.*Heap Max Capacity: \([0-9]*\)M.*/\1/p' help.txt)"
           echo "Heap Max Capacity: ${heap}M"
           [ "$heap" -ge 700 ] && [ "$heap" -le 800 ]
-      - name: Write one 9.x cart stream into the MongoDB
+      - name: Write one 9.x cart stream into the MongoDB, with the index 9.x creates
         env:
           MONGO: ${{ job.services.mongo.id }}
         run: |
@@ -840,6 +840,7 @@ jobs:
             delete stream.id;
             stream.size = stream.body.length;
             stream.createTime = Long.fromNumber(stream.createTime);
+            db.cart_event_stream.createIndex({ aggregateId: 1, version: 1 }, { unique: true });
             db.cart_event_stream.insertOne(stream);'
       - name: Run check against the fixture
         run: |

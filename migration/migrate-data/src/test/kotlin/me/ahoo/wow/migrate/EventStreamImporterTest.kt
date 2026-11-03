@@ -112,6 +112,27 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `an instance its page read in part is read on from 9x, and one read whole is not read again`(): Unit = runTest {
+        val inMemory = InMemoryNineXEventSource(NineXExample.streams())
+        val reads = mutableListOf<Int>()
+        val source = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(aggregate, after, limit, if (aggregate == order) 1 else maxStreams)
+
+            override fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int) =
+                inMemory.streams(aggregate, id, fromVersion, limit).also { reads += fromVersion }
+        }
+        importer(source, ImportOptions(streamBatch = 2)).also {
+            it.importAll(order).imported.assert().isEqualTo(4)
+            it.importAll(cart).imported.assert().isEqualTo(4)
+        }
+        reads.assert().containsExactly(2, 4, 5)
+        log.read(NineXExample.orderModel.type.ref("(0)", NineXExample.stream("order-stream-v1.json").aggregateId.id))
+            .toList().map { it.version }.assert().containsExactly(1, 2, 3, 4)
+        ImportOptions(pageSize = 3).pageStreams.assert().isEqualTo(30)
+    }
+
+    @Test
     fun `a dry run converts every stream and appends none`(): Unit = runTest {
         importer(InMemoryNineXEventSource(NineXExample.streams()), ImportOptions(dryRun = true)).importAll(order)
             .imported.assert().isEqualTo(4)
