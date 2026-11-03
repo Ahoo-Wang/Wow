@@ -86,7 +86,12 @@ render() {
   python3 - "$WORK/kind-templates.json" "$@" <<'PY'
 import json, sys
 templates, kind, name, args = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4:]
-item = next(item for item in json.load(open(templates))["items"] if item["kind"] == kind)
+# kubectl writes the objects one after the other.
+text, decoder, position, items = open(templates).read(), json.JSONDecoder(), 0, []
+while text[position:].strip():
+    item, position = decoder.raw_decode(text, len(text) - len(text[position:].lstrip()))
+    items.append(item)
+item = next(item for item in items if item["kind"] == kind)
 if kind == "Job":
     item["metadata"]["name"] = name
 item["spec"]["template"]["spec"]["containers"][0]["args"] = args
@@ -104,7 +109,10 @@ container_state() {
 kind_job() {
   KIND_JOBS=$((KIND_JOBS + 1))
   local name="migrate-data-$KIND_JOBS-$1" pod="" state="" code
-  render Job "$name" "$@" | kubectl create -f - >/dev/null
+  if ! render Job "$name" "$@" | kubectl create -f - >/dev/null; then
+    echo "The Job $name could not be created."
+    return 1
+  fi
   for _ in $(seq 1 600); do
     pod="$(kubectl get pods -l "job-name=$name" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
     state="$([ -n "$pod" ] && container_state "$pod" || true)"
