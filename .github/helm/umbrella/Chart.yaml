@@ -1,0 +1,16 @@
+# An umbrella chart of two Wow services, as a user's platform chart holds them: the wow-service chart twice, under an
+# alias each, from this checkout. ci.yml builds its dependencies and renders it (.github/helm/chart.sh umbrella).
+apiVersion: v2
+name: shop
+description: Two Wow services in one release, for the wow-service chart's CI.
+type: application
+version: 0.0.0
+dependencies:
+  - name: wow-service
+    version: ">=0.0.0-0"
+    repository: file://../../../deploy/helm/wow-service
+    alias: ordering
+  - name: wow-service
+    version: ">=0.0.0-0"
+    repository: file://../../../deploy/helm/wow-service
+    alias: basket

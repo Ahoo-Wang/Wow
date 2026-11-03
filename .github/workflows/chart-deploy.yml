@@ -1,0 +1,113 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The Helm chart of a release (D395): deploy/helm/wow-service packaged at the
+# release's version, its Chart.yaml's version and appVersion (which
+# project-version.mjs holds to gradle.properties and the tag), and pushed as an
+# OCI chart where the server images go: GHCR (oci://ghcr.io/ahoo-wang), Docker
+# Hub (oci://registry-1.docker.io/ahoowang) and Aliyun
+# (oci://registry.cn-shanghai.aliyuncs.com/ahoo), with the images'
+# credentials. package-deploy.yml calls it beside image-deploy.yml once npm is
+# published; it can also be dispatched on a release tag to push the chart
+# again. An OCI chart has no moving tags: pre-releases and stable releases alike
+# are pushed under their version alone.
+name: Helm Chart Deploy
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  chart-deploy:
+    name: Push wow-service
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Require a release tag
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/tags/v*) echo "Pushing the chart of $REF" ;;
+            *)
+              echo "::error::The chart is pushed from a v* release tag, not $REF."
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.22.2
+
+      # gradle.properties, every package.json, the chart and the release tag agree.
+      - name: Verify release versions
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node .github/scripts/project-version.mjs check
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+
+      - name: Package the chart
+        id: package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          helm lint --strict deploy/helm/wow-service -f deploy/helm/wow-service/ci/minimal-values.yaml
+          helm package deploy/helm/wow-service --destination "$RUNNER_TEMP/chart"
+          chart="$RUNNER_TEMP/chart/wow-service-${TAG#v}.tgz"
+          test -f "$chart"
+          echo "chart=$chart" >> "$GITHUB_OUTPUT"
+
+      - name: Push to GHCR
+        env:
+          CHART: ${{ steps.package.outputs.chart }}
+          USERNAME: ${{ github.repository_owner }}
+          PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          helm registry login ghcr.io --username "$USERNAME" --password-stdin <<<"$PASSWORD"
+          helm push "$CHART" oci://ghcr.io/ahoo-wang
+
+      - name: Push to DockerHub
+        env:
+          CHART: ${{ steps.package.outputs.chart }}
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          helm registry login registry-1.docker.io --username "$USERNAME" --password-stdin <<<"$PASSWORD"
+          helm push "$CHART" oci://registry-1.docker.io/ahoowang
+
+      - name: Push to AliyunCR
+        env:
+          CHART: ${{ steps.package.outputs.chart }}
+          USERNAME: ${{ secrets.ALIYUN_CR_USERNAME }}
+          PASSWORD: ${{ secrets.ALIYUN_CR_TOKEN }}
+        run: |
+          helm registry login registry.cn-shanghai.aliyuncs.com --username "$USERNAME" --password-stdin <<<"$PASSWORD"
+          helm push "$CHART" oci://registry.cn-shanghai.aliyuncs.com/ahoo

@@ -53,16 +53,24 @@ fun main(args: Array<String>) {
         .executor(executor)
         .build()
     val client = Client(http)
-    val status = when (command) {
-        "seed" -> seed(client, targets, options)
-        "check" -> check(client, targets, options)
-        "prime" -> prime(client, targets, options)
-        "settle" -> settle(options)
-        "run" -> run(client, targets, options)
-        "saturate" -> saturate(client, targets, options)
-        else -> usage()
+    // A failure, an OutOfMemoryError among them, ends the process too: the client's threads would keep it alive, and
+    // the harness waiting on it, until the job's timeout.
+    val status = try {
+        when (command) {
+            "seed" -> seed(client, targets, options)
+            "check" -> check(client, targets, options)
+            "prime" -> prime(client, targets, options)
+            "settle" -> settle(options)
+            "run" -> run(client, targets, options)
+            "saturate" -> saturate(client, targets, options)
+            else -> usage()
+        }
+    } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+        System.err.println(failure.stackTraceToString())
+        1
+    } finally {
+        executor.shutdownNow()
     }
-    executor.shutdownNow()
     exitProcess(status)
 }
 
@@ -401,6 +409,8 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
                 "p50Ms" to step.latency.percentile(50.0) / MICROS_PER_MILLI,
                 "p99Ms" to step.latency.percentile(99.0) / MICROS_PER_MILLI,
                 "generatorCores" to step.generatorCores,
+                "sentOk" to step.sentOk,
+                "sentFailed" to step.sentFailed,
             )
         },
         "meta" to options.meta(),

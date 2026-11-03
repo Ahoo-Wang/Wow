@@ -14,6 +14,7 @@
 package me.ahoo.wow.benchmark.load
 
 import java.util.SplittableRandom
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Which of the [accounts] seeded accounts a request targets: `uniform`, `zipf` (rank `k` drawn with a
@@ -30,14 +31,8 @@ class KeyChooser(
     private val hotKeys: Int = 1,
 ) {
     private val random = SplittableRandom(seed)
-    private val zipfCumulative: DoubleArray? = if (distribution == ZIPF) {
-        zipfCumulative(
-            accounts,
-            zipfExponent
-        )
-    } else {
-        null
-    }
+    private val zipfCumulative: DoubleArray? =
+        if (distribution == ZIPF) sharedZipfCumulative(accounts, zipfExponent) else null
 
     init {
         require(accounts > 0) { "At least one account." }
@@ -89,6 +84,14 @@ class KeyChooser(
         val DISTRIBUTIONS = setOf(UNIFORM, ZIPF, HOT)
         const val DEFAULT_ZIPF_EXPONENT = 1.1
         const val DEFAULT_HOT_FRACTION = 0.5
+
+        // A sweep's every client has a chooser of its own: each a table of its own would be 800 KB a client at 100,000
+        // accounts, 3.3 GB at 4,096 clients, past the load generator's heap. Read-only once built, so one serves all.
+        private val zipfTables = ConcurrentHashMap<Pair<Int, Double>, DoubleArray>()
+
+        /** [zipfCumulative] of [n] and [s], built once and shared by every chooser that draws from it. */
+        fun sharedZipfCumulative(n: Int, s: Double): DoubleArray =
+            zipfTables.computeIfAbsent(n to s) { zipfCumulative(n, s) }
 
         /** The cumulative probabilities of the ranks 1 to [n] under Zipf's law with exponent [s]. */
         fun zipfCumulative(n: Int, s: Double): DoubleArray {

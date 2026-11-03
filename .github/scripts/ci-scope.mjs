@@ -83,6 +83,16 @@ const VIEW_STORE_CONTRACT_PATH =
 // ci.yml's ops-console jobs: the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope. Decided apart from RULES, by
+// The wow-service Helm chart: its lint, unit tests, schema checks and an
+// install on kind. The chart, its CI fixtures, and the workflow of the jobs.
+const HELM = 'helm';
+const HELM_PATH =
+  /^(?:deploy\/helm\/|\.github\/helm\/|\.github\/workflows\/ci\.yml$)/;
+// The WOW_ variables the files of deploy/ set (the chart's templates, the
+// services' values) are keys the host knows: ConfigurationKeysTest, which the
+// JVM jobs run, and the architecture job runs on their behalf otherwise.
+const DEPLOY_KEYS = 'deployKeys';
+const DEPLOY_KEYS_PATH = /^deploy\/.+\.yaml$/;
 // OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
 // client is generated from, its routes the suite runs against), the workspace
 // packages and files the console builds with, and the workflow itself.
@@ -97,6 +107,13 @@ const OPS_CONSOLE_PATH =
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
   /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's axon-server job: the unit tests and the distribution of the
+// industry comparison's Axon Framework server (test/benchmarks/axon-server, a
+// Gradle build of its own, outside the repository's and so outside JVM_PATH).
+// Decided apart from RULES, by AXON_SERVER_PATH: its own paths and the workflow.
+const AXON_SERVER = 'axonServer';
+const AXON_SERVER_PATH =
+  /^(?:test\/benchmarks\/axon-server\/|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's migrate-data-image job: the wow-migrate-data image built from the
 // commit's distribution, never pushed, then run as a user runs it (its usage,
 // and check over a 9.x store of one stream). Decided apart from RULES, by
@@ -345,7 +362,10 @@ export function scopes(paths) {
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
+    AXON_SERVER,
     MIGRATE_DATA_IMAGE,
+    HELM,
+    DEPLOY_KEYS,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -381,10 +401,17 @@ export function scopes(paths) {
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   // And the analytics catalog console's.
   result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
+  // And the Axon server's.
+  result[AXON_SERVER] = paths.some(path => AXON_SERVER_PATH.test(path));
   // And the migrate-data image's.
   result[MIGRATE_DATA_IMAGE] = paths.some(path =>
     MIGRATE_DATA_IMAGE_PATH.test(path),
   );
+  // And the chart's.
+  result[HELM] = paths.some(path => HELM_PATH.test(path));
+  // And the deployment keys', unless the JVM jobs already run them.
+  result[DEPLOY_KEYS] =
+    !result[JVM] && paths.some(path => DEPLOY_KEYS_PATH.test(path));
   return result;
 }
 

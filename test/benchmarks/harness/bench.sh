@@ -22,6 +22,7 @@
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
+#   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
 #   bench.sh compare <root>   (an ABAB's tables: sessions <root>/<round>-<arm>-<backend>/<phase>, by arm and round,
 #                              each arm's ratio to the first; .github/scripts/bench-compare.mjs)
@@ -42,7 +43,8 @@
 #          Kafka's containers on CPUs of their own, else on the --server-cpus), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
-#          --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
+#          --dump-every=<s> (saturate, a diagnostic: every <s> seconds of the sweep, each server's threads and the store's
+#          sessions into $OUT/dumps), --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
 #          a baseline keeps the disk), --mongo-cache-gb=2 (MongoDB's WiredTiger cache),
 #          and any other --name=value of the load generator's run or saturate, passed through (`saturate --growth=4`
 #          steps the concurrency 1, 4, 16, 64, 256, 1024: six steps for a sweep to 1,024 instead of eleven).
@@ -58,12 +60,15 @@ PUBLIC_PORT=18080
 INTERNAL_PORT=19090
 SERVER_PIDS=()
 TARGETS=()
+# Each node's launch (ms since the epoch), and what it was like once it answered: startup.json's entries.
+STARTED_AT=()
+READY=()
 # The session `up` leaves for runs with --reuse: its settings, servers and targets.
 SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,46p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,50p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -116,7 +121,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -170,6 +175,15 @@ server_launcher() {
   echo "$1/bin/benchmark-server"
 }
 
+# Milliseconds since the epoch: GNU date has %N, BSD date (macOS) has not, and gives whole seconds there.
+now_ms() {
+  local ns; ns=$(date +%s%N)
+  case "$ns" in
+    *N) echo $(( $(date +%s) * 1000 )) ;;
+    *) echo $(( ns / 1000000 )) ;;
+  esac
+}
+
 # Starts node $1 (1-based); its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
 # records is the server JVM's.
 start_node() {
@@ -189,25 +203,30 @@ start_node() {
   local extra
   read -r -a extra <<<"$(opt server-args "")"
   pin server-cpus
+  STARTED_AT+=("$(now_ms)")
   JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$launcher" \
     "${args[@]}" ${extra[@]+"${extra[@]}"} >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
 }
 
-# Waits until node $1 answers on its public port; fails when it exits first.
+# Waits until node $1 answers on its public port, probing five times a second, at most 120 s; fails when it exits
+# first. Once it answers, READY gets how long it took from its launch and its RSS then.
 await_node() {
   local n=$1
   local url=${TARGETS[$((n - 1))]} pid=${SERVER_PIDS[$((n - 1))]} probe=/wow/manifest
   local attempt
-  for attempt in $(seq 1 120); do
+  for attempt in $(seq 1 600); do
     if ! kill -0 "$pid" 2>/dev/null; then
       log "node $n exited:"; tail -40 "$OUT/node-$n.log" >&2; return 1
     fi
-    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url$probe")" = 200 ]; then return 0; fi
-    sleep 1
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url$probe")" = 200 ]; then
+      READY+=("{\"node\":$n,\"readyMs\":$(( $(now_ms) - ${STARTED_AT[$((n - 1))]} )),\"rssKb\":$(ps -o rss= -p "$pid" | tr -d ' ')}")
+      return 0
+    fi
+    sleep 0.2
   done
-  log "node $n did not start in ${attempt}s"; tail -40 "$OUT/node-$n.log" >&2; return 1
+  log "node $n did not start in 120s"; tail -40 "$OUT/node-$n.log" >&2; return 1
 }
 
 setup() {
@@ -246,6 +265,7 @@ setup() {
   local settle=2
   if [ "$NODES" -gt 1 ]; then settle=15; fi
   settle=$(opt settle "$settle")
+  printf '{"nodes":[%s]}\n' "$(IFS=,; echo "${READY[*]}")" >"$OUT/startup.json"
   log "nodes up; settling ${settle}s"
   sleep "$settle"
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
@@ -369,6 +389,23 @@ postgres_stats() {
   } >"$OUT/postgres-stats.txt" 2>&1 || true
 }
 
+# A session after its runs (`inspect --reuse`, with the session's options): once the nodes are quiet, each server's RSS
+# and, with --sql, the one JSON value that SQL file selects from the session's PostgreSQL (its tables' sizes, the
+# events it stored), into $OUT/inspect.json.
+inspect() {
+  parse "$@"
+  setup
+  local rss="" pid
+  for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do rss="$rss$(ps -o rss= -p "$pid" | tr -d ' '),"; done
+  local sql store=""
+  sql=$(opt sql "")
+  if [ -n "$sql" ] && [ "${S_STORE:-}" = postgres ]; then
+    store=$(docker exec -i wow-e2e-bench-postgres psql -U postgres -d transfer -XqtA <"$sql")
+  fi
+  printf '{"rssKb":[%s],"store":%s}\n' "${rss%,}" "${store:-null}" >"$OUT/inspect.json"
+  log "the session inspected: $OUT/inspect.json"
+}
+
 run() {
   parse "$@"
   setup
@@ -383,11 +420,53 @@ run() {
   log "results in $OUT"
 }
 
+# With --dump-every=<s>, a diagnostic: every <s> seconds while the load runs, each server's platform threads with the
+# locks they hold (jcmd Thread.print -l) and every thread, the virtual ones too (Thread.dump_to_file), and on PostgreSQL
+# its sessions, what each waits on and which pids block it (pg_stat_activity, pg_blocking_pids), into $OUT/dumps.
+# The dumper stops with the load, or when this script is gone.
+DUMPER=""
+POSTGRES_SESSIONS="select now()::time(0) as at, pid, state, wait_event_type, wait_event,
+  round(extract(epoch from now() - xact_start)::numeric, 1) as xact_s,
+  round(extract(epoch from now() - query_start)::numeric, 1) as query_s,
+  pg_blocking_pids(pid) as blocked_by, left(regexp_replace(query, '\s+', ' ', 'g'), 100) as query
+  from pg_stat_activity where datname = 'transfer' and pid <> pg_backend_pid() order by xact_start nulls last"
+start_dumps() {
+  local every; every=$(opt dump-every "")
+  [ -n "$every" ] || return 0
+  mkdir -p "$OUT/dumps"
+  (
+    t=0
+    while kill -0 "$$" 2>/dev/null; do
+      sleep "$every"
+      t=$((t + every))
+      for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
+        "$JAVA_HOME/bin/jcmd" "$pid" Thread.print -l >"$OUT/dumps/$t-locks-$pid.txt" 2>&1 || true
+        "$JAVA_HOME/bin/jcmd" "$pid" Thread.dump_to_file -format=text "$OUT/dumps/$t-threads-$pid.txt" >/dev/null 2>&1 || true
+      done
+      case "${CONTAINERS:-}" in
+        *postgres*) postgres_sql "$POSTGRES_SESSIONS" >"$OUT/dumps/$t-postgres.txt" 2>&1 || true ;;
+      esac
+    done
+  ) &
+  DUMPER=$!
+}
+stop_dumps() {
+  if [ -n "$DUMPER" ]; then
+    kill "$DUMPER" 2>/dev/null || true
+    wait "$DUMPER" 2>/dev/null || true
+    DUMPER=""
+  fi
+}
+
 saturate() {
   parse "$@"
   setup
+  start_dumps
+  local status=0
   load saturate --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
-    --meta="$META" ${PASS[@]+"${PASS[@]}"}
+    --meta="$META" ${PASS[@]+"${PASS[@]}"} || status=$?
+  stop_dumps
+  [ "$status" = 0 ] || exit "$status"
   log "results in $OUT"
 }
 
@@ -433,6 +512,7 @@ case "$command" in
   saturate) saturate "$@" ;;
   component) component "$@" ;;
   up) up "$@" ;;
+  inspect) inspect "$@" ;;
   down) down ;;
   # The tables of an ABAB: a directory of sessions named <round>-<arm>-<backend>, a phase directory in each.
   compare)

@@ -1,0 +1,195 @@
+{{- include "wow-service.validate" . -}}
+{{- $name := include "wow-service.name" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+spec:
+  {{- if not (or .Values.autoscaling.hpa.enabled .Values.autoscaling.keda.enabled) }}
+  # The nodes share the partitions through leases in the service's database: no ZooKeeper, no consumer group.
+  replicas: {{ .Values.replicas }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
+  # region rollout
+  # A new node joins before an old one leaves: the partitions move to it through the leases, and none is left without
+  # an owner while the rollout runs.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollout.maxSurge }}
+      maxUnavailable: 0
+  # endregion
+  template:
+    metadata:
+      labels:
+        {{- include "wow-service.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # A change of the shared settings rolls the nodes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.service.manifest }}
+        {{- with .route }}
+        # Where every node serves the service's Manifest, on either port.
+        wow.ahoo.me/manifest: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "wow-service.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      # No service environment variables: a Service named cosec-gateway in the namespace would give the pod
+      # COSEC_GATEWAY_* variables, which Spring reads as cosec.gateway.* keys, and CoSec refuses keys it does not read.
+      enableServiceLinks: false
+      # region shutdown
+      # The preStop pause, the waits the public server finishes (shutdown.waitMaxTimeoutSeconds, wow.wait.max-timeout),
+      # the hand-off of the partitions after their commands in flight (shutdown.drainTimeoutSeconds,
+      # wow.cluster.drain-timeout) and a margin: the chart sets both keys from the same values.
+      terminationGracePeriodSeconds: {{ include "wow-service.terminationGracePeriodSeconds" . }}
+      # endregion
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- if .Values.topologySpread.enabled }}
+      # The nodes spread over zones and hosts, so a zone or a host lost takes few of them, and their partitions move to
+      # the others; ScheduleAnyway keeps a small cluster schedulable.
+      topologySpreadConstraints:
+        {{- range $key := list "topology.kubernetes.io/zone" "kubernetes.io/hostname" }}
+        - maxSkew: {{ $.Values.topologySpread.maxSkew }}
+          topologyKey: {{ $key }}
+          whenUnsatisfiable: {{ $.Values.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "wow-service.selectorLabels" $ | nindent 14 }}
+          matchLabelKeys:
+            - pod-template-hash
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "wow-service.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ports.http }}
+              protocol: TCP
+            - name: internal
+              containerPort: {{ .Values.ports.internal }}
+              protocol: TCP
+            {{- if and (include "wow-service.metricsEnabled" .) (eq (include "wow-service.metricsPort" .) "metrics") }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}-config
+            {{- with .Values.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # region node
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # The ports the Services and the probes name: the chart's, whatever the image's configuration says.
+            - name: SERVER_PORT
+              value: {{ .Values.ports.http | quote }}
+            - name: WOW_INTERNAL_PORT
+              value: {{ .Values.ports.internal | quote }}
+            # The node id is the pod's name: a replaced pod is a new member.
+            - name: WOW_NODE_ID
+              value: $(POD_NAME)
+            # The internal port binds the pod's private address only, and the node advertises that address: a
+            # Deployment's pods have no DNS name of their own.
+            - name: WOW_INTERNAL_HOST
+              value: $(POD_IP)
+            # The namespace a peer's SRV name is in, unless wow.peer.dns.namespaces places the peer elsewhere.
+            - name: WOW_PEER_DNS_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # endregion
+          # Actuator's probe groups on the HTTP port; the internal port stays cluster-only. The readiness fails until
+          # the node runs, while its log or lease store is down, while it owns none of its partitions past the hand-over
+          # grace, or while a topic it reads is still joining. The liveness fails only when the node is stuck, never for
+          # a storage outage, and not while the node drains: no restart storm.
+          # region probes
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          # endregion
+          # region prestop
+          lifecycle:
+            # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
+            preStop:
+              exec:
+                command: ["sleep", "{{ .Values.shutdown.preStopSeconds }}"]
+          # endregion
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

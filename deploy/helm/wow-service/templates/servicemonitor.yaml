@@ -1,0 +1,43 @@
+{{- include "wow-service.validate" . -}}
+{{- if .Values.metrics.serviceMonitor.enabled }}
+{{- $name := include "wow-service.name" . -}}
+{{- $monitor := .Values.metrics.serviceMonitor -}}
+# The nodes' metrics for the Prometheus Operator (monitoring.coreos.com/v1), through a headless Service of their own,
+# which lists the nodes that are not ready too: a node that starts or drains is still measured.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-metrics
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+    wow.ahoo.me/metrics: "true"
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "wow-service.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: {{ include "wow-service.metricsPort" . }}
+      port: {{ .Values.metrics.port }}
+      targetPort: {{ include "wow-service.metricsPort" . }}
+      protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "wow-service.labels" . | nindent 4 }}
+    {{- with $monitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
+      wow.ahoo.me/metrics: "true"
+  endpoints:
+    - port: {{ include "wow-service.metricsPort" . }}
+      path: {{ .Values.metrics.path }}
+      interval: {{ $monitor.interval }}
+{{- end }}

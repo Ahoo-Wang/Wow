@@ -1,0 +1,5 @@
+# Not packaged: the chart's tests and CI values.
+tests/
+ci/
+*.md.orig
+.DS_Store

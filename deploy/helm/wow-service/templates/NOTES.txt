@@ -1,0 +1,10 @@
+{{- $name := include "wow-service.name" . -}}
+{{ $name }} runs as the Deployment {{ $name }} in {{ .Release.Namespace }}.
+
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ $name }}
+
+Clients reach its public port through the Service {{ $name }} (port {{ .Values.publicService.port }}).
+Its peers find its nodes by the SRV records _internal._tcp.{{ $name }}-cluster.{{ .Release.Namespace }}.svc.
+{{- if .Values.networkPolicy.enabled }}
+Only the pods of networkPolicy.public.from reach the public port; the internal port admits its own nodes{{ with .Values.partOf }}, the pods of {{ . }}{{ end }} and its peers.
+{{- end }}

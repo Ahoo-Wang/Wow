@@ -1,0 +1,55 @@
+suite: the monitors
+templates:
+  - templates/servicemonitor.yaml
+  - templates/podmonitor.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: renders none by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: scrapes the agent's exporter through a headless Service of its own
+    template: templates/servicemonitor.yaml
+    set:
+      metrics.serviceMonitor.enabled: true
+      metrics.serviceMonitor.labels:
+        release: kube-prometheus-stack
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        equal:
+          path: spec.ports
+          value:
+            - name: metrics
+              port: 9464
+              targetPort: metrics
+              protocol: TCP
+      - documentIndex: 1
+        equal:
+          path: spec.endpoints
+          value:
+            - port: metrics
+              path: /metrics
+              interval: 30s
+      - documentIndex: 1
+        equal:
+          path: metadata.labels.release
+          value: kube-prometheus-stack
+
+  - it: scrapes Actuator's endpoint on the HTTP port
+    template: templates/podmonitor.yaml
+    set:
+      metrics.podMonitor.enabled: true
+      metrics.port: 8080
+      metrics.path: /actuator/prometheus
+    asserts:
+      - equal:
+          path: spec.podMetricsEndpoints
+          value:
+            - port: http
+              path: /actuator/prometheus
+              interval: 30s

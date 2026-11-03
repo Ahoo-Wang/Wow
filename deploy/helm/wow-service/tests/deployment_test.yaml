@@ -1,0 +1,248 @@
+suite: the nodes
+templates:
+  - templates/deployment.yaml
+  - templates/configmap.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: names the Deployment and its container after the service, and selects its pods by that name alone
+    template: templates/deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: eshop-ordering-service
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: eshop-ordering-service
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: eshop-ordering-service
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: rolls a new node in before an old one leaves
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.rollingUpdate
+          value:
+            maxSurge: 1
+            maxUnavailable: 0
+
+  - it: gives the shutdown the preStop pause, the waits, the hand-off and the margin
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 90
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command
+          value: ["sleep", "5"]
+
+  - it: derives the grace period from the shutdown values, and sets the node's bounds from the same ones
+    set:
+      shutdown.preStopSeconds: 10
+      shutdown.waitMaxTimeoutSeconds: 120
+      shutdown.drainTimeoutSeconds: 30
+      shutdown.marginSeconds: 20
+    asserts:
+      - template: templates/deployment.yaml
+        equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 180
+      - template: templates/configmap.yaml
+        equal:
+          path: data.WOW_WAIT_MAXTIMEOUT
+          value: 120s
+      - template: templates/configmap.yaml
+        equal:
+          path: data.WOW_CLUSTER_DRAINTIMEOUT
+          value: 30s
+
+  - it: binds the ports the Services name, the node id and address from the pod, and the namespace from the downward API
+    template: templates/deployment.yaml
+    set:
+      ports.http: 8083
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: http
+            containerPort: 8083
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: internal
+            containerPort: 9093
+            protocol: TCP
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVER_PORT
+            value: "8083"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WOW_INTERNAL_PORT
+            value: "9093"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WOW_NODE_ID
+            value: $(POD_NAME)
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WOW_INTERNAL_HOST
+            value: $(POD_IP)
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WOW_PEER_DNS_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      - equal:
+          path: spec.template.spec.enableServiceLinks
+          value: false
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: probes the node's readiness and liveness on the HTTP port
+    template: templates/deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet
+          value:
+            path: /actuator/health/readiness
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value:
+            path: /actuator/health/readiness
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          value:
+            path: /actuator/health/liveness
+            port: http
+
+  - it: tags the image with the chart's appVersion unless given a tag, and pins a digest over both
+    template: templates/deployment.yaml
+    chart:
+      appVersion: 10.0.0-test.1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/example/eshop-ordering-server:10.0.0-test.1
+
+  - it: takes a digest over the tag
+    template: templates/deployment.yaml
+    set:
+      image.tag: local
+      image.digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/example/eshop-ordering-server@sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+  - it: spreads the nodes over zones and hosts
+    template: templates/deployment.yaml
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.topologySpreadConstraints
+          count: 2
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: topology.kubernetes.io/zone
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[1].topologyKey
+          value: kubernetes.io/hostname
+
+  - it: rolls the nodes when the shared settings change, and says where the Manifest is
+    template: templates/deployment.yaml
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+      - equal:
+          path: spec.template.metadata.annotations["wow.ahoo.me/manifest"]
+          value: /wow/manifest
+
+  - it: leaves the replicas to the autoscaler
+    template: templates/deployment.yaml
+    set:
+      autoscaling.hpa.enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: adds the metrics port of its own, and none when the metrics share the HTTP port
+    template: templates/deployment.yaml
+    set:
+      metrics.podMonitor.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 9464
+            protocol: TCP
+
+  - it: declares no metrics port when the metrics are on the HTTP port
+    template: templates/deployment.yaml
+    set:
+      metrics.podMonitor.enabled: true
+      metrics.port: 8080
+      metrics.path: /actuator/prometheus
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers[0].ports
+          count: 2
+
+  - it: refuses a service without a name, naming the values that give it
+    template: templates/deployment.yaml
+    set:
+      service.name: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "service.name is required.*generateWowHelmValues"
+
+  - it: refuses an image without a repository
+    template: templates/deployment.yaml
+    set:
+      image.repository: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "image.repository is required"
+
+  - it: refuses a setting the chart owns
+    template: templates/deployment.yaml
+    set:
+      config.WOW_INTERNAL_PORT: "9999"
+    asserts:
+      - failedTemplate:
+          errorPattern: "config.WOW_INTERNAL_PORT is set by the chart itself"
+
+  - it: refuses a wait bound the grace period would not count
+    template: templates/deployment.yaml
+    set:
+      config.WOW_WAIT_MAXTIMEOUT: 5m
+    asserts:
+      - failedTemplate:
+          errorPattern: "set shutdown.waitMaxTimeoutSeconds instead"
+
+  - it: refuses metrics on the internal port
+    template: templates/deployment.yaml
+    set:
+      metrics.serviceMonitor.enabled: true
+      metrics.port: 9093
+    asserts:
+      - failedTemplate:
+          errorPattern: "metrics.port is the internal port"

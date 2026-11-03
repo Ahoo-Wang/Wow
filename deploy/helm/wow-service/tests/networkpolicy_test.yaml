@@ -1,0 +1,100 @@
+suite: the network policies
+templates:
+  - templates/networkpolicy.yaml
+release:
+  namespace: shop
+set:
+  service.name: eshop-basket-service
+  image.repository: ghcr.io/example/eshop-basket-server
+tests:
+  - it: admits the gateway's pods alone to the public port
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-public
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - namespaceSelector: {}
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/component: gateway
+              ports:
+                - port: http
+                  protocol: TCP
+
+  - it: admits the service's own nodes, its platform, its peers in their namespaces and more to the internal port
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-internal
+    set:
+      partOf: eshop
+      service.peers:
+        - context: eshop-ordering
+          service: eshop-ordering-service
+        - context: eshop-payment
+          service: eshop-payment-service
+          namespace: payments
+        - context: mail
+      networkPolicy.internal.from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ops-service
+    asserts:
+      - equal:
+          path: spec.ingress[0].from
+          value:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: eshop-basket-service
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: eshop
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: eshop-ordering-service
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: eshop-payment-service
+              namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: payments
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: ops-service
+      - equal:
+          path: spec.ingress[0].ports
+          value:
+            - port: internal
+              protocol: TCP
+
+  - it: admits Prometheus to a metrics port of its own
+    documentSelector:
+      path: metadata.name
+      value: eshop-basket-service-public
+    set:
+      metrics.serviceMonitor.enabled: true
+    asserts:
+      - lengthEqual:
+          path: spec.ingress
+          count: 2
+      - equal:
+          path: spec.ingress[1].ports
+          value:
+            - port: metrics
+              protocol: TCP
+
+  - it: renders none when disabled
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: refuses a public port open to every pod
+    set:
+      networkPolicy.public.from: []
+    asserts:
+      - failedTemplate:
+          errorPattern: "networkPolicy.public.from is empty"

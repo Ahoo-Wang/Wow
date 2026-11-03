@@ -1,0 +1,45 @@
+suite: the Services
+templates:
+  - templates/service.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: serves the public port as the service's name
+    documentSelector:
+      path: metadata.name
+      value: eshop-ordering-service
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports
+          value:
+            - name: http
+              port: 80
+              targetPort: http
+              protocol: TCP
+
+  - it: publishes every node of the internal port, ready or not, as the peers' SRV records name them
+    documentSelector:
+      path: metadata.name
+      value: eshop-ordering-service-cluster
+    asserts:
+      - equal:
+          path: spec.clusterIP
+          value: None
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+      - equal:
+          path: spec.ports
+          value:
+            - name: internal
+              port: 9093
+              targetPort: internal
+              protocol: TCP
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: eshop-ordering-service

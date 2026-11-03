@@ -1,0 +1,17 @@
+# A suite of its own: with both autoscalers on, the HPA's and the ScaledObject's templates both refuse, and a suite
+# that renders both attributes the failure to one of them only.
+suite: the autoscalers together
+templates:
+  - templates/hpa.yaml
+set:
+  service.name: eshop-ordering-service
+  image.repository: ghcr.io/example/eshop-ordering-server
+tests:
+  - it: refuses the HPA and KEDA together
+    set:
+      autoscaling.hpa.enabled: true
+      autoscaling.keda.enabled: true
+      autoscaling.keda.prometheus.serverAddress: http://prometheus.monitoring:9090
+    asserts:
+      - failedTemplate:
+          errorPattern: "autoscaling.hpa.enabled and autoscaling.keda.enabled are both true"

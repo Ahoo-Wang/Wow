@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
+  CHARTS,
+  chartVersions,
   compareVersions,
   parseVersion,
   readProjectVersion,
@@ -48,6 +50,13 @@ function workspace(version = '9.1.5', overrides = {}) {
   }
   // A directory without package.json (like a stray folder) is ignored.
   mkdirSync(join(root, 'typescript', 'notes'));
+  for (const chart of CHARTS) {
+    mkdirSync(join(root, chart, '..'), { recursive: true });
+    writeFileSync(
+      join(root, chart),
+      `apiVersion: v2\nname: wow-service\n# The Wow version.\nversion: ${version}\nappVersion: ${version}\nkubeVersion: ">=1.27.0-0"\n`,
+    );
+  }
   return root;
 }
 
@@ -82,8 +91,14 @@ test('a drifted package or a wrong release tag is a mismatch', () => {
 test('set writes gradle.properties and every package.json, keeping layout', () => {
   const root = workspace();
   const before = readFileSync(join(root, 'documentation/package.json'), 'utf8');
+  const chart = readFileSync(join(root, CHARTS[0]), 'utf8');
   const changed = setProjectVersion('9.2.0', root);
-  assert.equal(changed.length, 6);
+  assert.equal(changed.length, 7);
+  assert.ok(changed.includes(CHARTS[0]));
+  assert.equal(
+    readFileSync(join(root, CHARTS[0]), 'utf8'),
+    chart.replaceAll('9.1.5', '9.2.0'),
+  );
   assert.equal(readProjectVersion(root), '9.2.0');
   assert.match(
     readFileSync(join(root, 'gradle.properties'), 'utf8'),
@@ -127,4 +142,26 @@ test('versions parse strictly and order with prereleases first', () => {
     '9.10.0',
     '10.0.0',
   ]);
+});
+
+test("a chart's version and appVersion follow the project's", () => {
+  assert.deepEqual(
+    chartVersions('name: x\nversion: 1.0.0\nappVersion: 1.0.0-beta.1\n'),
+    { version: '1.0.0', appVersion: '1.0.0-beta.1' },
+  );
+  // Only top-level fields: a dependency's version is not the chart's.
+  assert.deepEqual(
+    chartVersions('dependencies:\n  - name: y\n    version: 2.0.0\n'),
+    {},
+  );
+  const root = workspace();
+  writeFileSync(
+    join(root, CHARTS[0]),
+    'apiVersion: v2\nversion: 9.1.5\nappVersion: 9.1.4\n',
+  );
+  assert.deepEqual(versionMismatches(root), [
+    `${CHARTS[0]} appVersion: 9.1.4 != 9.1.5 (gradle.properties)`,
+  ]);
+  writeFileSync(join(root, CHARTS[0]), 'apiVersion: v2\nversion: 9.1.5\n');
+  assert.throws(() => setProjectVersion('9.2.0', root), /appVersion/);
 });
