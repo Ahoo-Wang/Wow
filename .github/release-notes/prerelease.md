@@ -22,8 +22,8 @@ body when none exists, replacing VERSION; edit the "What is in it" section after
   `@ahoo-wang/wow-generator`, `@ahoo-wang/wow-view-engine`, `@ahoo-wang/wow-view-store`, `@ahoo-wang/wow-react`; the
   package roots are Wow 10.
 - **Docker**, tag `VERSION` only, never `latest`, pushed by `image-deploy.yml`: `ahoowang/wow-ops-server`,
-  `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server` (also on `ghcr.io/ahoo-wang/` and
-  `registry.cn-shanghai.aliyuncs.com/ahoo/`).
+  `ahoowang/wow-view-store-server`, `ahoowang/wow-analytics-catalog-server`, and the data migration tool
+  `ahoowang/wow-migrate-data` (also on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`).
 
 9.x stays the stable line: `latest` on npm and Docker, and the 9.x Maven modules, do not move.
 

@@ -1,0 +1,5 @@
+# migrate-data tail, the online path's follower of 9.x until the cut-over: kubectl apply -k deploy/migrate-data/tail
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml

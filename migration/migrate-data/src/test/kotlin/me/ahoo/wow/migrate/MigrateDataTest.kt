@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.migrate.example.NineXCompensationExample
@@ -34,6 +35,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
+import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -63,6 +65,9 @@ class MigrateDataTest {
     private var nineXCompensation: NineXCompensationSource? = null
     private val ledger = InMemoryFailureLedger()
     private val exportTarget = InMemoryNineXEventTarget(source)
+    private val checkpointTable = InMemoryCheckpointTable()
+    private val leaseClock = MovableClock(System.currentTimeMillis())
+    private val leaseStore = InMemoryLeaseStore(leaseClock)
 
     private val connections = object : MigrationConnections {
         override val source: NineXEventSource get() = nineX
@@ -85,6 +90,10 @@ class MigrateDataTest {
 
         override val nineXTarget: NineXEventTarget get() = exportTarget
 
+        override fun checkpointTable(): CheckpointTable = checkpointTable
+
+        override fun leaseStore(): LeaseStore = leaseStore
+
         override fun close() {
             closed = true
         }
@@ -102,7 +111,12 @@ class MigrateDataTest {
         }
     }
 
-    private fun config(map: String = NineXExample.MAP_TEXT, createIndex: Boolean = false): Path {
+    private fun config(
+        map: String = NineXExample.MAP_TEXT,
+        createIndex: Boolean = false,
+        checkpoint: String = "migrate-data.checkpoint.json",
+        manifests: String = "\"manifests\": [\"manifest.json\"],",
+    ): Path {
         Files.writeString(directory.resolve("migration-map.json"), map)
         Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
         return directory.resolve("migrate-data.json").also {
@@ -111,7 +125,8 @@ class MigrateDataTest {
                 """
                 {
                   "map": "migration-map.json",
-                  "manifests": ["manifest.json"],
+                  $manifests
+                  "checkpoint": "$checkpoint",
                   "source": { "uri": "mongodb://localhost:27017", "database": "example_db",
                               "createCommitTimeIndex": $createIndex },
                   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow" },
@@ -498,6 +513,8 @@ class MigrateDataTest {
 
     @Test
     fun `usage errors print the usage`() {
+        run("--help").assert().isEqualTo(MigrateData.OK)
+        printed.assert().startsWith("Usage: migrate-data <command> --config <file>").contains("--help    prints this")
         run().assert().isEqualTo(MigrateData.USAGE_ERROR)
         run("migrate", "--config", "x").assert().isEqualTo(MigrateData.USAGE_ERROR)
         run("check").assert().isEqualTo(MigrateData.USAGE_ERROR)
@@ -754,6 +771,143 @@ class MigrateDataTest {
         val path = directory.resolve("manifest.json")
         Files.writeString(path, NineXExample.MANIFEST_TEXT)
         readManifests(listOf(path.toString(), path.toString())).contexts.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `import and the tail keep their checkpoints in the target under the name target gives, and no file`(): Unit =
+        runBlocking {
+            val config = config(checkpoint = "target:example").toString()
+            run("import", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            run("tail", "--config", config, "--once").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            run("compare", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            val stored = checkpointTable.load("example")!!
+            stored.checkpoints.of(NineXAggregate("example-service", "cart"))!!.tailedAt.assert().isNotNull()
+            stored.checkpoints.comparisonOf(NineXAggregate("example-service", "order"))!!.completed.assert().isTrue()
+            stored.fences.assert().isEqualTo(mapOf("import" to 2L, "compare" to 1L))
+            Files.list(directory).use { files -> files.map { it.fileName.toString() }.toList() }
+                .filter { it.contains("checkpoint") }.assert().isEmpty()
+            // Every lease was released when its run ended.
+            leaseStore.owners("${TargetCheckpointLeases.GROUP_PREFIX}example").assert().isEmpty()
+            MigrationConfig.read(Path.of(config)).checkpoint.assert().isEqualTo("target:example")
+        }
+
+    @Test
+    fun `a dry-run export reads the checkpoints kept in the target, and takes no lease`(): Unit = runBlocking {
+        val config = config(checkpoint = "target:example").toString()
+        run("import", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        val before = checkpointTable.load("example")!!
+        run("export", "--config", config, "--dry-run").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("Dry run done")
+        checkpointTable.load("example").assert().isEqualTo(before)
+        // The export role was never taken: its first acquisition is at epoch 1.
+        leaseStore.acquire(
+            "${TargetCheckpointLeases.GROUP_PREFIX}example",
+            CheckpointRole.EXPORT.partition,
+            "probe",
+            TargetCheckpointLeases.TTL
+        )!!
+            .epoch.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a run that paused past its lease, which another run took and wrote, should stop at its next write`() {
+        val config = config(checkpoint = "target:example").toString()
+        var loads = 0
+        checkpointTable.beforeLoad = {
+            if (++loads == 3) {
+                // The import pauses here; its lease expires by the store's clock, and another run takes it and writes.
+                leaseClock.millis += TargetCheckpointLeases.TTL.inWholeMilliseconds + 1
+                val other = runBlocking {
+                    leaseStore.acquire("${TargetCheckpointLeases.GROUP_PREFIX}example", 0, "tail on other", TargetCheckpointLeases.TTL)
+                }!!
+                val stored = checkpointTable.load("example")
+                checkpointTable.write(
+                    "example",
+                    stored?.version ?: 0,
+                    stored?.checkpoints ?: ImportCheckpoints(),
+                    stored?.fences.orEmpty() + ("import" to other.epoch),
+                )
+            }
+        }
+        run("import", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.lines().last { it.isNotBlank() }.assert().isEqualTo(
+            "FAILED This run lost its import lease of the checkpoint target:example to another run, which has " +
+                "written the checkpoint since (lease epoch 2, this run's 1). It stops without writing.",
+        )
+        printed.assert().doesNotContain("Import done.")
+    }
+
+    @Test
+    fun `a second run of a role on a checkpoint file should be refused, naming the first, beside a run of another`(): Unit =
+        runBlocking {
+            val config = config().toString()
+            run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+            val file = directory.resolve("migrate-data.checkpoint.json")
+            FileCheckpointLocks(
+                file,
+                CheckpointHolder("tail", "migrate-tail-0", 7, "run-a")
+            ).holding(setOf(CheckpointRole.IMPORT)) {
+                run("export", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+                printed.assert().contains(
+                    "FAILED The checkpoint $file is in use: tail on migrate-tail-0 (pid 7, run run-a), since ",
+                ).contains("holds its import lock")
+                run("compare", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            }
+        }
+
+    @Test
+    fun `without manifests, the Manifests should be the class path's fragments, which must hold every mapped context`() {
+        val lib = Files.createDirectories(directory.resolve("lib/META-INF/wow/manifest")).also {
+            Files.writeString(it.resolve("ninex-example.json"), NineXExample.MANIFEST_TEXT)
+        }.parent.parent.parent
+        val config = config(manifests = "\"classpath\": [\"lib\"],").toString()
+        MigrationConfig.read(Path.of(config)).manifests.assert().isEmpty()
+        run("check", "--config", config).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("Mapping check passed.")
+        classpathManifests(listOf(lib.toString()), javaClass.classLoader).contexts.map { it.name }
+            .assert().containsExactly(NineXExample.CONTEXT)
+
+        // draft-map reads them the same way, with no map to hold them to.
+        run("draft-map", "--config", config, "--dry-run").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+
+        Files.createDirectories(directory.resolve("empty"))
+        val bare = config(manifests = "\"classpath\": [\"empty\"],").toString()
+        run("check", "--config", bare).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains(
+            "FAILED The configuration names no manifests, and the Manifest fragments of the modules on the classpath " +
+                "[${directory.resolve("empty")}] hold no context [example], which the map imports into: add the lib of " +
+                "the service that hosts each to \"classpath\", or name its Manifest in \"manifests\".",
+        )
+    }
+
+    @Test
+    fun `without manifests or a classpath, the Manifests should be the tool's own modules', each fragment read`() {
+        // The tool's own class path holds the 9.x example's module, whose fragment no resource holds here.
+        val config = config(manifests = "").toString()
+        run("check", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains(
+            "FAILED The Manifest fragments of the modules in the tool's class path do not assemble: The Manifest " +
+                "fragments could not be read:\n- fragment META-INF/wow/manifest/ninex-example.json is not on the " +
+                "class path",
+        )
+    }
+
+    @Test
+    fun `a checkpoint kept in the target has a name of its own`() {
+        assertThrows<IllegalArgumentException> {
+            MigrationConfig(
+                map = "m",
+                checkpoint = "target:a b",
+                source = SourceConfig("mongodb://x", "db"),
+                target = TargetConfig(TargetConfig.POSTGRES, jdbcUrl = "jdbc:postgresql://x/wow"),
+            )
+        }.message.assert().contains("not \"target:a b\"")
+        MigrationConfig(
+            map = "m",
+            checkpoint = "target:order-service.v1_2",
+            source = SourceConfig("mongodb://x", "db"),
+            target = TargetConfig(TargetConfig.POSTGRES, jdbcUrl = "jdbc:postgresql://x/wow"),
+        ).checkpointName.assert().isEqualTo("order-service.v1_2")
     }
 
     @Test

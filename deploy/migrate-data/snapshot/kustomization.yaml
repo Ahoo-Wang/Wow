@@ -1,0 +1,13 @@
+# migrate-data snapshot, the V10 snapshots of every imported instance: kubectl create -k deploy/migrate-data/snapshot
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../job
+nameSuffix: -snapshot
+patches:
+  - target:
+      kind: Job
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/args
+        value: ["snapshot", "--config", "/config/migrate-data.json"]

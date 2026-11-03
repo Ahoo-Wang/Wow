@@ -1,0 +1,124 @@
+# The stores of the rehearsal's kind arm, as compose.yml runs them for the runner arm: MongoDB, the 9.x example's
+# event store and its compensation service's database, and PostgreSQL, the V10 logs. In the cluster as `mongo` and
+# `postgres`, where migrate-data's Jobs reach them; on the node's ports 30017 and 30432 (kind.yaml maps them to the
+# runner's 27017 and 5432) for the runner. Their labels are the ones deploy/migrate-data/networkpolicy.yaml lets
+# migrate-data reach. Nothing is kept: the cluster goes with the run.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongodb-9x
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongodb-9x
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7.0
+          args: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "1"]
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.runCommand({ping: 1}).ok"]
+            periodSeconds: 2
+          volumeMounts:
+            - name: scripts
+              mountPath: /rehearsal
+              readOnly: true
+      volumes:
+        # seed-compensation.js, which rehearse.sh runs here (kind.sh).
+        - name: scripts
+          configMap:
+            name: rehearsal-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+spec:
+  selector:
+    app.kubernetes.io/name: mongodb-9x
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: mongodb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-node
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: mongodb-9x
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: mongodb
+      nodePort: 30017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          args: ["postgres", "-c", "max_connections=200"]
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+            - name: POSTGRES_DB
+              value: example
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "example"]
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-node
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+      nodePort: 30432

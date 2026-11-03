@@ -1,0 +1,199 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "example",
+      "aggregates": [
+        {
+          "name": "order",
+          "state": {
+            "schema": "#/$defs/example.orderState"
+          },
+          "snapshot": {
+            "enabled": true
+          },
+          "commands": [
+            {
+              "name": "CreateOrder",
+              "aliases": [],
+              "schema": "#/$defs/example.CreateOrder",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "ChangeAddress",
+              "aliases": [],
+              "schema": "#/$defs/example.ChangeAddress",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "PayOrder",
+              "aliases": [],
+              "schema": "#/$defs/example.PayOrder",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "ShipOrder",
+              "aliases": [],
+              "schema": "#/$defs/example.ShipOrder",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "ReceiptOrder",
+              "aliases": [],
+              "schema": "#/$defs/example.ReceiptOrder",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "wow.lifecycle.DeleteAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
+              "creation": "none",
+              "routes": [
+                {
+                  "method": "DELETE",
+                  "path": "/example/order/{id}"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.TransferOwner",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.TransferOwner",
+              "creation": "none",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/example/order/{id}/wow.lifecycle.transfer-owner"
+                }
+              ],
+              "system": true
+            }
+          ],
+          "events": [
+            {
+              "name": "OrderCreated",
+              "aliases": [],
+              "revision": 2,
+              "schema": "#/$defs/example.OrderCreated"
+            },
+            {
+              "name": "AddressChanged",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.AddressChanged"
+            },
+            {
+              "name": "OrderPaid",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.OrderPaid"
+            },
+            {
+              "name": "OrderShipped",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.OrderShipped"
+            },
+            {
+              "name": "OrderReceived",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.OrderReceived"
+            }
+          ],
+          "queries": []
+        },
+        {
+          "name": "cart",
+          "state": {
+            "schema": "#/$defs/example.cartState"
+          },
+          "snapshot": {
+            "enabled": true
+          },
+          "commands": [
+            {
+              "name": "AddCartItem",
+              "aliases": [],
+              "schema": "#/$defs/example.AddCartItem",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "ChangeQuantity",
+              "aliases": [],
+              "schema": "#/$defs/example.ChangeQuantity",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "RemoveCartItem",
+              "aliases": [],
+              "schema": "#/$defs/example.RemoveCartItem",
+              "creation": "none",
+              "routes": []
+            },
+            {
+              "name": "wow.lifecycle.DeleteAggregate",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.DeleteAggregate",
+              "creation": "none",
+              "routes": [
+                {
+                  "method": "DELETE",
+                  "path": "/example/cart/{id}"
+                }
+              ],
+              "system": true
+            },
+            {
+              "name": "wow.lifecycle.TransferOwner",
+              "aliases": [],
+              "schema": "#/$defs/wow.lifecycle.TransferOwner",
+              "creation": "none",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/example/cart/{id}/wow.lifecycle.transfer-owner"
+                }
+              ],
+              "system": true
+            }
+          ],
+          "events": [
+            {
+              "name": "CartItemAdded",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.CartItemAdded"
+            },
+            {
+              "name": "CartQuantityChanged",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.CartQuantityChanged"
+            },
+            {
+              "name": "CartItemRemoved",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/example.CartItemRemoved"
+            }
+          ],
+          "queries": []
+        }
+      ],
+      "subscriptions": [],
+      "published": [],
+      "errors": []
+    }
+  ],
+  "errors": [],
+  "$defs": {}
+}

@@ -1,0 +1,20 @@
+# migrate-data next to its stores: kubectl apply -k deploy/migrate-data puts the configuration and the map (a
+# ConfigMap), the secrets and the network policy in place. Each command then runs as a Job of its own
+# (kubectl create -k deploy/migrate-data/<command>), the tail as a one-replica Deployment (deploy/migrate-data/tail).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/name: migrate-data
+    includeSelectors: false
+# The Jobs, applied on their own, name the ConfigMap as it is.
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: migrate-data-config
+    files:
+      - migrate-data.json
+      - migration-map.json
+resources:
+  - secret.yaml
+  - networkpolicy.yaml
