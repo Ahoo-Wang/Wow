@@ -29,7 +29,8 @@ services:
     ports:
       - "${REHEARSAL_POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d example"]
+      # Over TCP, as kind/stores.yaml probes it: the image's temporary init server listens on the socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d example"]
       interval: 2s
       timeout: 5s
       retries: 30
