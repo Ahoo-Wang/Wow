@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
+import me.ahoo.wow.runtime.cluster.ClusterStream
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
@@ -36,8 +37,9 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A node's forwards and signals on its one HTTP/2 connection to a peer, more of them at once than the peer's streams
- * (review X-55): none fails or is dropped for the peer's stream limit, and forwards given up at their deadline do not
- * reset their streams, which made the peer's server close the connection under every forward on it.
+ * (review X-55): none fails or is dropped for the peer's stream limit, and forwards at their deadline do not reset
+ * their streams, which made the peer's server close the connection under every forward on it; they wait the grace
+ * for the owner's answer (review X-61).
  */
 class InternalStreamsTest {
     private val client = InternalHttp.client()
@@ -124,7 +126,7 @@ class InternalStreamsTest {
         }
 
     @Test
-    fun `a forward the peer's limit keeps from being sent by its deadline fails, not unsent`(): Unit = runBlocking {
+    fun `a forward the peer's limit keeps from being sent by its deadline fails unsent`(): Unit = runBlocking {
         val server = server(streams = 1)
         val channel = HttpClusterChannel(client)
         channel.connect(server.address)
@@ -133,27 +135,27 @@ class InternalStreamsTest {
         val failure = failsWith<ClusterChannelException> {
             channel.forward(server.address, forwardCommand("c-1", deadline = System.currentTimeMillis() + 200))
         }
-        // Not sent, yet not unsent: the router does not run a command here because its forward waited (X-34).
-        failure.unsent.assert().isFalse()
-        failure.message.assert().contains("free by the forward's deadline")
+        // It never was sent; the router, past the forward's deadline, runs it nowhere (X-34, X-61).
+        failure.unsent.assert().isTrue()
+        failure.message.assert().contains("it was not sent")
         release.complete(Unit)
         held.await().result!!.commandId.assert().isEqualTo("held")
         executed.assert().containsExactly("held")
     }
 
     @Test
-    fun `a forward waiting for a stream until its deadline ends there with its caller, never unsent`(): Unit =
+    fun `a forward reserves its stream before it is sent, and one that got it only past its deadline is not sent`(): Unit =
         runBlocking {
             val server = server()
             val channel = HttpClusterChannel(client, streams = 1)
             channel.connect(server.address)
             val held = async { channel.forward(server.address, forwardCommand("held", context = "slow")) }
             eventually { executing.get() == 1 }
-            // As the router bounds a forward: at its deadline, still waiting for a stream, it is cancelled (unknown).
-            val bounded = forwardCommand("bounded", deadline = System.currentTimeMillis() + 200)
-            withTimeoutOrNull(200.milliseconds) { channel.forward(server.address, bounded) }.assert().isNull()
-            // A caller with no bound of its own: the stream comes after the deadline, and the forward fails unsent no
-            // more than under the router.
+            // As the router bounds a reservation, at the forward's deadline: none taken, nothing sent (review X-61).
+            var reserved: ClusterStream? = null
+            withTimeoutOrNull(200.milliseconds) { reserved = channel.reserve(server.address) }.assert().isNull()
+            reserved.assert().isNull()
+            // A caller with no bound of its own: the stream comes after the deadline, and the forward is not sent.
             val unbounded = async {
                 val request = forwardCommand("unbounded", deadline = System.currentTimeMillis() + 200)
                 failsWith<ClusterChannelException> { channel.forward(server.address, request) }
@@ -161,9 +163,16 @@ class InternalStreamsTest {
             delay(400)
             unbounded.isCompleted.assert().isFalse()
             release.complete(Unit)
-            unbounded.await().unsent.assert().isFalse()
+            unbounded.await().unsent.assert().isTrue()
             held.await().result!!.commandId.assert().isEqualTo("held")
-            executed.assert().containsExactly("held")
+            // A stream released unused is free again, and carries no forward after.
+            val unused = channel.reserve(server.address)
+            unused.release()
+            unused.release()
+            assertThrownBy<IllegalStateException> { runBlocking { unused.forward(forwardCommand("unused")) } }
+            val next = channel.reserve(server.address)
+            next.forward(forwardCommand("next")).result!!.commandId.assert().isEqualTo("next")
+            executed.assert().containsExactly("held", "next")
         }
 
     @Test
@@ -202,30 +211,32 @@ class InternalStreamsTest {
     }
 
     @Test
-    fun `forwards given up at the deadline the owner answers at leave the connection open`(): Unit = runBlocking {
-        val server = server()
-        val channel = HttpClusterChannel(client)
-        channel.connect(server.address)
-        val inFlight = async { channel.forward(server.address, forwardCommand("in-flight", context = "slow")) }
-        eventually { executing.get() == 1 }
-        // More than the 200 resets in 30 seconds after which the peer's server closes the connection, in waves that
-        // each find their streams free, so every one of them is sent.
-        val given = (1..ABANDONED).chunked(WAVE).flatMap { wave ->
-            wave.map { n ->
-                async {
-                    val deadline = System.currentTimeMillis() + ABANDON_AFTER.inWholeMilliseconds
-                    val request = forwardCommand("late-$n", context = "late", deadline = deadline)
-                    failsWith<ClusterChannelException> { channel.forward(server.address, request) }
-                }
-            }.awaitAll()
+    fun `forwards the owner answers just after their deadline get that answer and leave the connection open`(): Unit =
+        runBlocking {
+            val server = server()
+            val channel = HttpClusterChannel(client)
+            channel.connect(server.address)
+            val inFlight = async { channel.forward(server.address, forwardCommand("in-flight", context = "slow")) }
+            eventually { executing.get() == 1 }
+            // More of them than the 200 resets in 30 seconds after which the peer's server closes the connection, were
+            // each reset at its deadline; in waves that each find their streams free, so every one of them is sent.
+            val answered = (1..ABANDONED).chunked(WAVE).flatMap { wave ->
+                wave.map { n ->
+                    async {
+                        val deadline = System.currentTimeMillis() + ABANDON_AFTER.inWholeMilliseconds
+                        val request = forwardCommand("late-$n", context = "late", deadline = deadline)
+                        channel.forward(server.address, request)
+                    }
+                }.awaitAll()
+            }
+            // The owner's answer, within the grace, is each one's outcome (review X-61), and no stream was reset.
+            answered.map { it.result!!.commandId }.assert().containsExactlyElementsOf((1..ABANDONED).map { "late-$it" })
+            release.complete(Unit)
+            inFlight.await().result!!.commandId.assert().isEqualTo("in-flight")
+            channel.forward(server.address, forwardCommand("after")).result!!.commandId.assert().isEqualTo("after")
+            // One connection served them all: it was never closed under them.
+            server.connections.get().assert().isEqualTo(1)
         }
-        given.forEach { it.unsent.assert().isFalse() }
-        release.complete(Unit)
-        inFlight.await().result!!.commandId.assert().isEqualTo("in-flight")
-        channel.forward(server.address, forwardCommand("after")).result!!.commandId.assert().isEqualTo("after")
-        // One connection served them all: it was never closed under them.
-        server.connections.get().assert().isEqualTo(1)
-    }
 
     @Test
     fun `a stream stays taken past its forward's deadline until the owner answers or the grace ends`(): Unit =
@@ -235,17 +246,22 @@ class InternalStreamsTest {
             val channel = HttpClusterChannel(client, streams = 1, answerGrace = grace)
             channel.connect(server.address)
             val start = System.currentTimeMillis()
+            // An owner that does not answer: the channel waits the grace past the deadline, then fails, not unsent.
             failsWith<ClusterChannelException> {
                 channel.forward(server.address, forwardCommand("stuck", context = "slow", deadline = start + 100))
             }.unsent.assert().isFalse()
-            // The owner has not answered: the stream is the stuck forward's until its grace ends.
+            (System.currentTimeMillis() - start).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
+            // A caller that gives up at the deadline: the stream is the forward's until its grace ends.
+            val abandoned = System.currentTimeMillis()
+            val given = forwardCommand("abandoned", context = "slow", deadline = abandoned + 100)
+            withTimeoutOrNull(100.milliseconds) { channel.forward(server.address, given) }.assert().isNull()
             val waiting = forwardCommand("c-1", deadline = System.currentTimeMillis() + 100)
             withTimeoutOrNull(100.milliseconds) { channel.forward(server.address, waiting) }.assert().isNull()
             val waited = measureTimeMillis {
                 channel.forward(server.address, forwardCommand("c-2", deadline = System.currentTimeMillis() + 5_000))
                     .result!!.commandId.assert().isEqualTo("c-2")
             }
-            (System.currentTimeMillis() - start).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
+            (System.currentTimeMillis() - abandoned).assert().isGreaterThanOrEqualTo(100 + grace.inWholeMilliseconds)
             waited.assert().isLessThan(5_000)
         }
 

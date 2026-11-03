@@ -23,6 +23,7 @@ import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.ClusterStream
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import tools.jackson.core.JacksonException
@@ -37,6 +38,7 @@ import java.net.http.HttpTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -54,25 +56,27 @@ import kotlin.time.toJavaDuration
  *
  * A peer's connection carries at most [InternalHttp.MAX_CONCURRENT_STREAMS] requests at a time, which the JDK client
  * does not queue past. The channel keeps at most [streams] forwards open to a peer, leaving the rest of the peer's
- * streams to the node's [HttpSignalSender]; a forward past them waits for one, in order, with no bound of its own: its
- * caller's bound ends the wait, the router's at the forward's deadline, which reports the forward unknown. It never
- * ends [unsent][ClusterChannelException.unsent]: a forward that waited for a stream until its deadline is not run
- * locally instead, which near the deadline would put a second writer beside the owner. One the JDK still refuses for
- * the peer's limit, a stream just ended that it has not released yet, is sent again once one is free, until the
- * deadline.
+ * streams to the node's [HttpSignalSender]. A forward [reserves][reserve] one of them before it is sent, waiting for
+ * one, in order, with no bound of its own: the router bounds the wait by the forward's deadline, and a forward that
+ * got none by then was not sent, which the router answers as such (withdrawn or busy), never by running it locally,
+ * which near the deadline would put a second writer beside the owner. One the JDK still refuses for the peer's limit,
+ * a stream just ended that it has not released yet, is sent again on its stream after a short pause, until the
+ * deadline, and is then [unsent][ClusterChannelException.unsent] too.
  *
  * The caller bounds a forward ([me.ahoo.wow.runtime.cluster.PartitionedRouter]), and the channel stops waiting for the
- * reply at the forward's deadline too, so a forward never outlives it. Its stream does: it stays open, counted among
- * [streams], until the owner's answer ends it, which comes about the deadline (the owner withdraws a command still
- * queued at its wait's deadline). Only an owner that has not answered [answerGrace] after the deadline has the stream
- * reset: resetting each stream at the very deadline it is answered at made the peer's server close the whole
- * connection under load, failing every forward on it ([InternalHttp.ANSWER_GRACE]).
+ * reply [answerGrace] after the forward's deadline too, so a forward never outlives that. Its stream stays open,
+ * counted among [streams], until the owner's answer ends it, which comes about the deadline (the owner withdraws a
+ * command still queued at its wait's deadline), and the router waits for that answer as long. Only an owner that has
+ * not answered [answerGrace] after the deadline has the stream reset: resetting each stream at the very deadline it is
+ * answered at made the peer's server close the whole connection under load, failing every forward on it
+ * ([InternalHttp.ANSWER_GRACE]).
  *
- * Whatever keeps a reply from arriving (no connection, no reply by the deadline, a reset stream or a closed connection,
- * a status other than 200, a body that is not a reply) is a [ClusterChannelException]. Only one raised before the
- * request was sent for want of a connection (no connection to the peer, refused or not opened in time) is
- * [unsent][ClusterChannelException.unsent], which the router degrades to running the command locally; one that got no
- * stream by its deadline is not, nor anything after the send, whose outcome is unknown.
+ * Whatever keeps a reply from arriving (no connection, no reply by the deadline and its grace, a reset stream or a
+ * closed connection, a status other than 200, a body that is not a reply) is a [ClusterChannelException]. Only one
+ * raised before the request was sent (no connection to the peer, refused or not opened in time, or refused by the JDK
+ * for the peer's limit until the deadline) is [unsent][ClusterChannelException.unsent], which the router degrades to
+ * running the command locally while the forward's deadline is ahead; nothing after the send is, whose outcome is
+ * unknown.
  *
  * Each forward names the node's [service] in `Wow-Service`. A peer that answers 401 or 403 did not
  * take the forward, being a node of another service: a refusal, which is [unsent][ClusterChannelException.unsent] too,
@@ -87,7 +91,7 @@ class HttpClusterChannel(
     /** The forwards open to one peer at a time: its connection's streams, less the signal sender's. */
     private val streams: Int = DEFAULT_STREAMS,
     /** How long a forward's stream stays open past its deadline for the owner's answer before it is reset. */
-    private val answerGrace: Duration = InternalHttp.ANSWER_GRACE,
+    override val answerGrace: Duration = InternalHttp.ANSWER_GRACE,
 ) : ClusterChannel {
     /** The connections opened or opening, by peer address: completed once the peer answered. */
     private val connections = ConcurrentHashMap<String, CompletableFuture<*>>()
@@ -127,10 +131,46 @@ class HttpClusterChannel(
         }
     }
 
+    /**
+     * Takes one of the [streams] to [address], waiting for one, in order, with no bound of its own: the router's bound
+     * ends the wait at the forward's deadline, before anything is sent.
+     */
+    override suspend fun reserve(address: String): ClusterStream {
+        val free = freeStreams.computeIfAbsent(address) { Semaphore(streams) }
+        free.acquire()
+        return Reserved(address, free)
+    }
+
     override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
+        val stream = reserve(address)
+        try {
+            return stream.forward(request)
+        } finally {
+            stream.release()
+        }
+    }
+
+    /** One of the [streams] to [address], taken from [free]: freed once, by [release] or by the forward sent on it. */
+    private inner class Reserved(private val address: String, private val free: Semaphore) : ClusterStream {
+        private val unused = AtomicBoolean(true)
+
+        override suspend fun forward(request: ForwardCommand): ForwardReply {
+            check(unused.compareAndSet(true, false)) { "A stream carries one forward." }
+            return post(address, free, request)
+        }
+
+        override fun release() {
+            if (unused.compareAndSet(true, false)) {
+                free.release()
+            }
+        }
+    }
+
+    /** Posts [request] to [address] on the stream taken from [free], and returns the reply. */
+    private suspend fun post(address: String, free: Semaphore, request: ForwardCommand): ForwardReply {
         val body = ClusterCodec.encode(request)
         val response = try {
-            exchange(address, request.deadline) { remaining ->
+            exchange(address, free, request.deadline) { remaining ->
                 HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.FORWARD_PATH))
                     .timeout((remaining + answerGrace).toJavaDuration())
                     .header("Content-Type", InternalHttp.JSON)
@@ -174,46 +214,48 @@ class HttpClusterChannel(
     }
 
     /**
-     * [address]'s response to the request [build] makes for the time left until [deadline]: sent once one of the
-     * [streams] to it is free, however long that takes, and waited for until [deadline]. The stream stays taken until
-     * the response, or the request's own timeout, ends it. An [HttpTimeoutException] when no reply came by [deadline],
-     * or the stream came, or the JDK took the request, only after it: not a reason to run the command elsewhere.
+     * [address]'s response to the request [build] makes for the time left until [deadline], on the stream taken from
+     * [free], waited for until [deadline] and the [answerGrace] after it: an [HttpTimeoutException] when none came by
+     * then. The stream stays taken until the response, or the request's own timeout, ends it. A request the JDK refuses
+     * for the peer's limit (a stream that just ended it has not released yet) is sent again on the same stream after a
+     * short pause, until [deadline]: then it is [unsent][ClusterChannelException.unsent], as it never was sent.
      */
     private suspend fun exchange(
         address: String,
+        free: Semaphore,
         deadline: Long,
         build: (remaining: Duration) -> HttpRequest,
     ): HttpResponse<ByteArray> {
-        val free = freeStreams.computeIfAbsent(address) { Semaphore(streams) }
-        var pause = MIN_STREAM_PAUSE
-        while (true) {
-            // No bound of its own: the caller's cancels the wait, as the router's does at the deadline.
-            free.acquire()
-            if (deadline <= clock()) {
-                free.release()
-                throw HttpTimeoutException("No stream to $address was free by the forward's deadline.")
+        // The last request given to the JDK, which frees the stream once it ends; a refused one has ended.
+        var sending: CompletableFuture<HttpResponse<ByteArray>>? = null
+        try {
+            var pause = MIN_STREAM_PAUSE
+            while (true) {
+                if (deadline <= clock()) {
+                    throw ClusterChannelException(
+                        "The streams to $address stayed taken until the forward's deadline; it was not sent.",
+                        unsent = true,
+                    )
+                }
+                val attempt = client.sendAsync(build(remaining(deadline)), HttpResponse.BodyHandlers.ofByteArray())
+                sending = attempt
+                val response = try {
+                    // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
+                    withTimeoutOrNull(remaining(deadline) + answerGrace) { attempt.copy().await() }
+                        ?: throw HttpTimeoutException("No reply by the forward's deadline and its grace.")
+                } catch (failure: IOException) {
+                    if (!failure.isStreamLimit()) throw failure
+                    null
+                }
+                response?.let { return it }
+                // Not sent: the peer's streams were all taken, one of them only just ended. Again after a pause.
+                logger.debug { "The streams to $address are all taken; the forward waits for one." }
+                delay(pause)
+                pause = minOf(pause * 2, MAX_STREAM_PAUSE)
             }
-            send(free, build(remaining(deadline)), deadline)?.let { return it }
-            // Not sent: the peer's streams were all taken, one of them only just ended. Again once one is free.
-            logger.debug { "The streams to $address are all taken; the forward waits for one." }
-            delay(pause)
-            pause = minOf(pause * 2, MAX_STREAM_PAUSE)
-        }
-    }
-
-    /**
-     * The response to [request] on a stream taken from [free], which it holds until the response ends it, waited for
-     * until [deadline]; null when the JDK refused the request for the peer's limit, unsent.
-     */
-    private suspend fun send(free: Semaphore, request: HttpRequest, deadline: Long): HttpResponse<ByteArray>? {
-        val sending = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-        sending.whenComplete { _, _ -> free.release() }
-        return try {
-            // A copy: cancelling the JDK's own future completes it, which would free a stream still open.
-            withTimeoutOrNull(remaining(deadline)) { sending.copy().await() }
-                ?: throw HttpTimeoutException("No reply by the forward's deadline.")
-        } catch (failure: IOException) {
-            if (failure.isStreamLimit()) null else throw failure
+        } finally {
+            val last = sending
+            if (last == null) free.release() else last.whenComplete { _, _ -> free.release() }
         }
     }
 

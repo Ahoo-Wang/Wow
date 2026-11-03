@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.cluster
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import kotlin.time.Duration
 
 /**
  * The cluster channel: the one internal channel between the nodes of a service,
@@ -30,6 +31,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * up a connection opens it there, so that cost is not counted against a forward's own timeout. A node
  * connects to each peer as soon as its routes learn the peer's address, and [PartitionedRouter] once more before
  * each forward, which costs nothing once connected.
+ *
+ * [reserve] takes the stream a forward is sent on before it is sent, so a forward that waits for its turn to a busy
+ * peer is known not to have been sent; [PartitionedRouter] reserves one before each forward.
  */
 @InternalWowApi
 fun interface ClusterChannel {
@@ -41,6 +45,34 @@ fun interface ClusterChannel {
      * connection opening for the next one. The default needs nothing.
      */
     suspend fun connect(address: String) {}
+
+    /**
+     * Takes one of the streams to [address] a forward is sent on, and returns it once taken. A transport that carries
+     * a bounded number of requests to a peer at a time waits here, in order, while they are all taken, with no bound of
+     * its own: the caller bounds the wait, and a cancelled call takes nothing. It does not fail: a peer that cannot be
+     * reached fails the [ClusterStream.forward]. The default takes nothing, and its stream forwards through [forward].
+     */
+    suspend fun reserve(address: String): ClusterStream = ClusterStream { request -> forward(address, request) }
+
+    /**
+     * How long past a forward's deadline its stream still carries the owner's reply: the owner answers about the
+     * deadline (it withdraws a command still queued at its wait's deadline), and [PartitionedRouter] waits that much
+     * longer for the reply before it reports the outcome unknown. The default carries none past the deadline.
+     */
+    val answerGrace: Duration get() = Duration.ZERO
+}
+
+/**
+ * One stream to a peer, taken by [ClusterChannel.reserve] for one forward: [forward] sends it, after which the channel
+ * frees the stream once the reply ended it; [release] frees a stream no forward was sent on.
+ */
+@InternalWowApi
+fun interface ClusterStream {
+    /** Sends [request] on this stream, as [ClusterChannel.forward] does; once. */
+    suspend fun forward(request: ForwardCommand): ForwardReply
+
+    /** Frees this stream when [forward] was not called; nothing after it. */
+    fun release() {}
 }
 
 /** What a node serves on the cluster channel: the forwarded commands it executes. */
@@ -51,8 +83,8 @@ fun interface ClusterChannelHandler {
 
 /**
  * A peer could not be reached over the cluster channel. [unsent] says the request surely did not reach the peer (no
- * connection to it, refused or not opened in time), so the sender may run the command itself; any
- * other failure of a forward may have come after the peer received it.
+ * connection to it, refused or not opened in time, or not sent by its deadline), so the sender may run the command
+ * itself while its deadline is ahead; any other failure of a forward may have come after the peer received it.
  */
 @InternalWowApi
 class ClusterChannelException(

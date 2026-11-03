@@ -422,7 +422,7 @@ The nodes of one service forward commands to each other on their internal ports,
 | Forward | `{v, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
 | Reply | `{v, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`. |
 
-A refused forward is executed by the sending node itself. A forward that was sent and then timed out is not: the sender answers that the outcome is unknown, and the caller retries with the same request id.
+A forward refused before its deadline is executed by the sending node itself; one refused after it is not executed at all. A forward that was sent and got no reply by its deadline and the 2 seconds after it is not executed by the sender either: the sender answers that the outcome is unknown, and the caller retries with the same request id.
 
 ## Snapshot
 

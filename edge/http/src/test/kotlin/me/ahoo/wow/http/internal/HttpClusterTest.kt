@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.internal
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Creation
@@ -42,11 +43,13 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -140,6 +143,67 @@ class HttpClusterTest {
         one.decided.assert().containsExactly(result.commandId)
         two.decided.assert().isEmpty()
     }
+
+    @Test
+    fun `a forward that waits for the owner's streams until its deadline is withdrawn or busy, not unknown nor run here`(): Unit =
+        runBlocking {
+            // Review X-61: it was never sent, so its outcome is known, and it is not run here beside the owner (X-34).
+            val cluster = cluster(forwardTimeout = 300.milliseconds)
+            val (one, two, id) = cluster.forwarded()
+            val gate = CompletableDeferred<Unit>().also { two.hold = it }
+            val channel = HttpClusterChannel(InternalHttp.client(), streams = 1)
+            val router = PartitionedRouter(listOf(one.ownership), channel, cluster.options)
+            // The one stream to the owner: a forward it is deciding.
+            val held = async { router.route(one.model, cluster.command(id), null, nowhere) }
+            eventually { two.decided.size == 1 }
+
+            val busy = router.route(one.model, cluster.command(id), null, nowhere)
+            val withdrawn = router.route(one.model, cluster.command(id), one.waitOf(200.milliseconds), nowhere)
+
+            busy.committed.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
+            withdrawn.committed.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            gate.complete(Unit)
+            // The owner answered the held forward past its deadline, within the grace: its commit, not unknown.
+            held.await().committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            two.decided.assert().hasSize(1)
+            one.decided.assert().isEmpty()
+        }
+
+    @Test
+    fun `an owner that withdraws a forwarded command at its wait's deadline answers so, and that is its outcome`(): Unit =
+        runBlocking {
+            // Review X-61: the router waits the channel's grace for the owner's answer instead of reporting unknown.
+            val cluster = cluster()
+            val (one, two, id) = cluster.forwarded()
+            val gate = CompletableDeferred<Unit>().also { two.hold = it }
+            val router = PartitionedRouter(listOf(one.ownership), HttpClusterChannel(InternalHttp.client()), cluster.options)
+            // The aggregate's lane on the owner is taken by a decide that waits for the gate.
+            val held = async { router.route(one.model, cluster.command(id), null, nowhere) }
+            eventually { two.decided.size == 1 }
+
+            val withdrawn = router.route(one.model, cluster.command(id), one.waitOf(300.milliseconds), nowhere)
+
+            withdrawn.committed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            withdrawn.committed.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            gate.complete(Unit)
+            held.await().committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            two.decided.assert().hasSize(1)
+            one.decided.assert().isEmpty()
+        }
+
+    /** Fails a forward that would run the command here. */
+    private val nowhere: suspend () -> Settlement = { error("The command ran on the node it arrived at.") }
+
+    /** A wait of this node's on COMMITTED that ends [within] from now. */
+    private fun HttpNode.waitOf(within: Duration): WaitContext = WaitContext(
+        "w-$name-${System.nanoTime()}",
+        Origin(name, server.address, SERVICE),
+        listOf(Hop.committed(CONTEXT)),
+        System.currentTimeMillis() + within.inWholeMilliseconds,
+    )
+
+    /** A deposit into [id] with a new command id. */
+    private fun HttpCluster.command(id: String): Command<*> = nextId().let { Command(it, "r-$it", ref(id), Deposit()) }
 }
 
 data class Deposit(val amount: Int = 1)
