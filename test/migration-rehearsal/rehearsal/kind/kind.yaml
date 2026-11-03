@@ -1,0 +1,16 @@
+# The cluster of the rehearsal's kind arm (migration-rehearsal.yml, MIGRATE_IN=kind): one node, kindnet (which
+# enforces NetworkPolicy), and the stores' NodePorts on the runner's 27017 and 5432, where the 9.x example-server, the
+# V10 hosts and the driver reach them as they reach the compose stores of the runner arm.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # MongoDB, the 9.x store (stores.yaml).
+      - containerPort: 30017
+        hostPort: 27017
+        protocol: TCP
+      # PostgreSQL, the V10 logs.
+      - containerPort: 30432
+        hostPort: 5432
+        protocol: TCP
