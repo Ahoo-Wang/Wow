@@ -198,12 +198,11 @@ class OtelObserver(
     }
 
     private fun stateCache(context: String, outcome: ObservedEvent.StateCache.Outcome) {
-        if (outcome == ObservedEvent.StateCache.Outcome.EVICTED) {
-            cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, context).increment()
-        } else {
-            cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, context, outcome.value)
-                .increment()
-        }
+        when (outcome) {
+            ObservedEvent.StateCache.Outcome.EVICTED -> cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, context)
+            ObservedEvent.StateCache.Outcome.STALE -> cached.counter(WowMetrics.STATE_CACHE_INVALIDATIONS, context)
+            else -> cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, context, outcome.value)
+        }.increment()
     }
 
     private fun reservationLost(context: String) {

@@ -111,7 +111,10 @@ sealed class ObservedEvent {
         }
     }
 
-    /** A lookup of an aggregate's state in the state cache of [context] by the kernel, or a state evicted from it. */
+    /**
+     * A lookup of an aggregate's state in the state cache of [context] by the kernel, a state evicted from it, or one
+     * dropped as stale.
+     */
     class StateCache @InternalWowApi constructor(val context: String, val outcome: Outcome) : ObservedEvent() {
         override fun fields() = listOf("context" to context, "outcome" to outcome)
 
@@ -125,6 +128,12 @@ sealed class ObservedEvent {
 
             /** A state left the cache. */
             EVICTED("evicted"),
+
+            /**
+             * A state behind the log left the cache: the owner's tail of its partition read a later stream of the
+             * aggregate, which another node committed without the partition's lease.
+             */
+            STALE("stale"),
         }
     }
 

@@ -152,6 +152,7 @@ class OtelObserverTest {
         observer.observed(ObservedEvent.TailRead(SALES, 3, ObservedEvent.TailRead.Reason.GAP))
         observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.MISS))
         observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.EVICTED))
+        observer.observed(ObservedEvent.StateCache(SALES, ObservedEvent.StateCache.Outcome.STALE))
         observer.observed(ObservedEvent.ReservationLost(SALES))
         observer.observed(
             ObservedEvent.StoreFellBack(
@@ -177,6 +178,10 @@ class OtelObserverTest {
         meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).tags(WowMetrics.CONTEXT, SALES).counter().count()
             .assert().isEqualTo(1.0)
         meters.find(WowMetrics.STATE_CACHE_LOOKUPS.name).tags(WowMetrics.OUTCOME, "evicted").counter().assert().isNull()
+        // A state dropped as stale is neither a lookup nor an eviction.
+        meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).tags(WowMetrics.CONTEXT, SALES).counter().count()
+            .assert().isEqualTo(1.0)
+        meters.find(WowMetrics.STATE_CACHE_LOOKUPS.name).tags(WowMetrics.OUTCOME, "stale").counter().assert().isNull()
         meters.get(
             WowMetrics.TAIL_READS.name
         ).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
@@ -292,6 +297,7 @@ class OtelObserverTest {
         tags(WowMetrics.FORWARD_FAILURES.name, WowMetrics.OUTCOME).assert().containsExactly("busy", "local", "unknown")
         tags(WowMetrics.STATE_CACHE_LOOKUPS.name, WowMetrics.OUTCOME).assert().containsExactly("hit", "miss")
         telemetry.meters.get(WowMetrics.STATE_CACHE_EVICTIONS.name).counter().count().assert().isEqualTo(1.0)
+        telemetry.meters.get(WowMetrics.STATE_CACHE_INVALIDATIONS.name).counter().count().assert().isEqualTo(1.0)
         tags(WowMetrics.TAIL_READS.name, WowMetrics.REASON).assert().containsExactly("gap", "idle", "overflow", "start")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-rebuild", "snapshot-tail-read")

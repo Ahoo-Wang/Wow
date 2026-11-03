@@ -806,6 +806,7 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome 
 	public static final field EVICTED Lme/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome;
 	public static final field HIT Lme/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome;
 	public static final field MISS Lme/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome;
+	public static final field STALE Lme/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getValue ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$StateCache$Outcome;

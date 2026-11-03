@@ -406,6 +406,9 @@ class KernelRecentRequestsTest {
         states.put(ref, CachedState(CartState(ref.id), 1))
         states.invalidate(0, 1)
         states.states.assert().containsKey(ref)
+        // A cache that cannot drop a stale state atomically keeps it: its next command conflicts and reloads.
+        states.dropBefore(ref, 2).assert().isFalse()
+        states.states.assert().containsKey(ref)
     }
 
     @Test

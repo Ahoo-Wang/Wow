@@ -115,6 +115,43 @@ class LruStateCacheTest {
     }
 
     @Test
+    fun `a state behind a later stream of its aggregate is dropped, with its bytes`() {
+        val cache = LruStateCache(capacity = 4)
+        cache.put(type.ref("t", "a"), CachedState("a", 3))
+        cache.put(type.ref("t", "b"), CachedState("b", 3))
+
+        cache.dropBefore(type.ref("t", "a"), 4).assert().isTrue()
+
+        cache.take(type.ref("t", "a")).assert().isNull()
+        cache.size.assert().isEqualTo(1)
+        cache.bytes.assert().isEqualTo(CachedState("b", 3).bytes)
+    }
+
+    @Test
+    fun `a state at the stream's version or after it stays`() {
+        val cache = LruStateCache(capacity = 4)
+        cache.put(type.ref("t", "a"), CachedState("a", 3))
+
+        cache.dropBefore(type.ref("t", "a"), 3).assert().isFalse()
+        cache.dropBefore(type.ref("t", "a"), 2).assert().isFalse()
+        cache.dropBefore(type.ref("t", "absent"), 9).assert().isFalse()
+
+        cache.take(type.ref("t", "a"))!!.version.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a state taken out for a command is left alone, and the command puts back what it decided`() {
+        val cache = LruStateCache(capacity = 4)
+        cache.put(type.ref("t", "a"), CachedState("a", 3))
+        val inFlight = cache.take(type.ref("t", "a"))!!
+
+        cache.dropBefore(type.ref("t", "a"), 4).assert().isFalse()
+        cache.put(type.ref("t", "a"), CachedState("a'", inFlight.version + 2))
+
+        cache.take(type.ref("t", "a"))!!.version.assert().isEqualTo(5)
+    }
+
+    @Test
     fun `threads putting and taking different aggregates at once keep every state`() {
         val cache = LruStateCache(capacity = 4_096)
         val threads = (0 until THREADS).map { thread ->

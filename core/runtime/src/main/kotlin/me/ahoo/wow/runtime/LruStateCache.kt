@@ -26,7 +26,7 @@ import kotlin.concurrent.withLock
  * A [StateCache] of at most [capacity] aggregates and [maxBytes] of their estimated size ([weigh]),
  * evicting the least recently used while either is passed. Taking a state out (for a command) frees its room until the
  * command puts it back, weighed again then. [invalidate] drops a partition's states when the node acquires or releases
- * it, scanning every stripe.
+ * it, scanning every stripe; [dropBefore] drops one state behind the log, under its stripe's lock.
  *
  * A large cache is striped by aggregate: each of up to [Stripes.MAX] stripes is an LRU of its share of
  * the bounds under its own lock, so the commands of different aggregates rarely take the same lock. Eviction is then
@@ -75,6 +75,9 @@ class LruStateCache(
         stripes.forEach { stripe -> stripe.removeIf { Partitioner.partitionOf(it, partitions) == partition } }
     }
 
+    override fun dropBefore(ref: AggregateRef, version: Int): Boolean =
+        Stripes.pick(stripes, ref).dropBefore(ref, version)
+
     /** A state with the bytes it was weighed at when put. */
     private class Held(val state: CachedState, val bytes: Long)
 
@@ -108,6 +111,16 @@ class LruStateCache(
                     evicted()
                 }
             }
+        }
+
+        fun dropBefore(ref: AggregateRef, version: Int): Boolean = lock.withLock {
+            val cached = states[ref]
+            if (cached == null || cached.state.version >= version) {
+                return@withLock false
+            }
+            states.remove(ref)
+            held -= cached.bytes
+            true
         }
 
         fun removeIf(matches: (AggregateRef) -> Boolean) {

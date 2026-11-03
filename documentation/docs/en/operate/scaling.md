@@ -16,7 +16,7 @@ Each context's log has a fixed number of partitions, `wow.log.partitions`, 64 by
 - **At most one node per partition does work.** A node beyond the number of partitions owns none and only forwards commands. 64 partitions suit most services; choose a larger power of two, up to 4,096, for a service that may need more nodes than that.
 - **The count is fixed** once the log holds entries, so it is chosen before the first deployment.
 
-When a node joins or leaves, about one partition in N moves, and its subscriptions go on from their checkpoints on the new owner. A node that dies holds its leases until they expire, `wow.cluster.lease-ttl` (10 s): that is how long its partitions wait for a new owner. A command for an aggregate whose partition has no reachable owner runs on the node that received it; the aggregate's version keeps it correct.
+When a node joins or leaves, about one partition in N moves, and its subscriptions go on from their checkpoints on the new owner. A node that dies holds its leases until they expire, `wow.cluster.lease-ttl` (10 s): that is how long its partitions wait for a new owner. A command for an aggregate whose partition has no reachable owner runs on the node that received it; the aggregate's version keeps it correct, and the owner drops its cached state of the aggregate as soon as its subscriptions read that commit, so its next command decides on the log instead of conflicting (`wow.state_cache.invalidations`).
 
 ## Commands go to the owner
 

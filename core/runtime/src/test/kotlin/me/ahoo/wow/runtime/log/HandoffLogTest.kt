@@ -64,7 +64,8 @@ class HandoffLogTest {
         gapWait: Duration = 10.seconds,
         probeInterval: Duration = 10.seconds,
         log: EventLog = store,
-    ) = HandoffLog(log, "bank", HandoffOptions(capacity, gapWait, probeInterval), reads)
+        readBack: (LogEntry) -> Unit = {},
+    ) = HandoffLog(log, "bank", HandoffOptions(capacity, gapWait, probeInterval), reads, readBack)
 
     /** Aggregate ids that all land in partition 0. */
     private val refs: List<AggregateRef> = generateSequence(0) { it + 1 }
@@ -173,6 +174,28 @@ class HandoffLogTest {
         entries.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L, 3L, 4L))
         entries[1].stream.ref.assert().isEqualTo(refs[1])
         reads.reasons.assert().containsExactly(ObservedEvent.TailRead.Reason.GAP)
+    }
+
+    @Test
+    fun `each entry a tail reads from the store is read back, none it took from memory`(): Unit = runBlocking {
+        val readBack = CopyOnWriteArrayList<LogEntry>()
+        val log = handoff(gapWait = 20.milliseconds, readBack = { readBack += it })
+        val (seen, job) = collect(log)
+        awaitOpen(log)
+        log.append(next(refs[0]))
+        seen.take(1)
+        // Another node's commit, which no hand-over brings: the gap it leaves reads the store from it on.
+        val other = next(refs[1])
+        store.append(other)
+        log.append(next(refs[2]))
+        seen.take(2)
+        log.append(next(refs[3]))
+        seen.take(1)
+        job.cancelAndJoin()
+
+        readBack.map { it.position.sequence }.assert().isEqualTo(listOf(2L, 3L))
+        readBack.first().stream.assert().isEqualTo(other)
+        log.delivered.assert().isEqualTo(2L)
     }
 
     @Test

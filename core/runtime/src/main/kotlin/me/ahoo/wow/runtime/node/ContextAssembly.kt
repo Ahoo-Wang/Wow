@@ -149,12 +149,12 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         codec: EventCodec,
         application: SubscriptionFactory,
     ): Parts {
+        val states = stateCacheOf(context, codec)
         // Each group's own commits reach its tails in memory; its sequences are its own.
-        val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log)) }
+        val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log, states)) }
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
-        val states = stateCacheOf(context, codec)
         val reserved = reservationsOf(backends, groups)
         val kernel = kernelOf(log, backends, reserved, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
@@ -371,9 +371,18 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers, reservations)
     }
 
-    /** [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. */
-    private fun handoffOf(context: String, log: EventLog): EventLog =
-        HandoffLog(log, context, options.handoff, observer)
+    /**
+     * [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. What its tails
+     * read from the store instead holds the commits other nodes made in this node's partitions without their
+     * leases: each drops the cached state of its aggregate when that is behind it ([StateCache.dropBefore]), so the
+     * next command decides on the log, not on a stale state that would conflict.
+     */
+    private fun handoffOf(context: String, log: EventLog, states: StateCache): EventLog =
+        HandoffLog(log, context, options.handoff, observer) { entry ->
+            if (states.dropBefore(entry.stream.ref, entry.stream.version)) {
+                observer.observed(ObservedEvent.StateCache(context, ObservedEvent.StateCache.Outcome.STALE))
+            }
+        }
 
     /**
      * The state consumers of [context]: the subscription of each snapshot target, of the types it

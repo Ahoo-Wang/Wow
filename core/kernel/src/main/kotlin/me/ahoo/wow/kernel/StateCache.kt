@@ -29,10 +29,13 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
  * and the next command reloads. With mutable states evolving changes the cached instance itself, so a state
  * must never stay cached through an attempt that may have changed it and did not commit.
  *
- * Commands of one aggregate must not run concurrently on one cache (the executor serializes them); across nodes, a
- * stale state only costs a version conflict and a reload. A state carries the aggregate's recent requests,
- * which must never be behind the log while the node owns the partition: a node drops the states of a partition
- * whenever it acquires or releases it ([invalidate]).
+ * Commands of one aggregate must not run concurrently on one cache (the executor serializes them). Across nodes, a
+ * state goes stale when another node commits to its aggregate without the partition's lease (a command it ran
+ * locally because its forward surely did not reach the owner): the owner drops it as soon as its tail of the
+ * partition reads that commit from the log ([dropBefore]), and until then the stale state costs a version
+ * conflict and a reload. A state carries the aggregate's recent requests, which must never be behind the log
+ * while the node owns the partition: a node drops the states of a partition whenever it acquires or releases it
+ * ([invalidate]).
  */
 @InternalWowApi
 interface StateCache {
@@ -41,6 +44,15 @@ interface StateCache {
 
     /** Caches [state] of [ref]. */
     fun put(ref: AggregateRef, state: CachedState)
+
+    /**
+     * Drops the state of [ref] when it is cached at a version before [version], atomically with [take] and [put]:
+     * a stream of the aggregate at [version] is in the log, so the state is behind it. Whether it dropped one. A
+     * state taken out for a command is not in the cache and is left alone: that command's append meets the version
+     * and conflicts. Drops nothing by default: a cache that cannot drop atomically leaves its stale states to their
+     * conflicts.
+     */
+    fun dropBefore(ref: AggregateRef, version: Int): Boolean = false
 
     /**
      * Drops the states of the aggregates in [partition] of [partitions], as

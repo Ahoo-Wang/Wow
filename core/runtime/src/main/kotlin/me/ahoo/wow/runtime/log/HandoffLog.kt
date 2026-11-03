@@ -107,8 +107,10 @@ class HandoffOptions @InternalWowApi constructor(
  *   delivers it, and reads the store at once for what the head shows past it (other nodes' entries), or when the
  *   append returns without the entry the tail needs.
  *
- * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason. A node that does not own a
- * partition opens no tail of it, so what it appends there (Local execution) is handed to no one.
+ * Each read of the store is reported to [observer] ([ObservedEvent.TailRead]) with its reason, and each entry it delivers
+ * to [readBack]: among them are the commits of other nodes, which no hand-over brings. A node that does not own a
+ * partition opens no tail of it, so what it appends there (Local execution) is handed to no one; its owner's tails
+ * read it from the store.
  */
 @InternalWowApi
 class HandoffLog(
@@ -116,6 +118,11 @@ class HandoffLog(
     private val context: String,
     private val options: HandoffOptions = HandoffOptions(),
     private val observer: Observer = Observer.NONE,
+    /**
+     * Called, from the tail's coroutine, for each entry a tail delivers from the store rather than from memory:
+     * quick, and never throwing.
+     */
+    private val readBack: (LogEntry) -> Unit = {},
 ) : EventLog by log {
     private val listeners = List(log.partitions) { CopyOnWriteArrayList<Listener>() }
     private val inFlight = List(log.partitions) { InFlight() }
@@ -280,7 +287,10 @@ class HandoffLog(
                         emit(it)
                         it.position.sequence < head
                     }
-                    .collect { deliver(it) }
+                    .collect { entry ->
+                        if (entry.position.sequence > cursor) readBack(entry)
+                        deliver(entry)
+                    }
             }
             pending.headMap(cursor, true).clear()
         }

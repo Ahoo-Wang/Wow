@@ -230,6 +230,14 @@ object WowMetrics {
         tags = listOf(CONTEXT),
     )
 
+    val STATE_CACHE_INVALIDATIONS: MetricSpec = MetricSpec.counter(
+        "wow.state_cache.invalidations",
+        "The states a context's state cache dropped as behind the log: the partition's owner read a later stream " +
+            "of the aggregate, which another node committed without the partition's lease. Each spares the next " +
+            "command a version conflict.",
+        tags = listOf(CONTEXT),
+    )
+
     val STORE_FALLBACKS: MetricSpec = MetricSpec.counter(
         "wow.store.fallbacks",
         "The times a store fell back from an optional capability and did the work the way every store can. A " +
@@ -390,7 +398,7 @@ object WowMetrics {
     val ALL: List<MetricSpec> = listOf(
         COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
-        STORE_FALLBACKS, RESERVATION_LOSSES, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
+        STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
         EVENTS_PINNED, QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,
