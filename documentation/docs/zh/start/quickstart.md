@@ -345,6 +345,37 @@ class Teller(private val commands: CommandClient) {
 
 `wait` 在命令的等待结束时回答，默认是快照；`send` 在命令被接受后就回答。其余用法见[调用其他服务](../guide/calling-services)。
 
+## 本地运行多个服务 {#run-several-services-locally}
+
+由多个服务组成的系统可以在一个 JVM 里运行，用于开发、前端联调或演示。`wow-test-spring-boot` 的 `runWowLocal` 启动每个服务，各自只服务自己的上下文，全部使用内存后端，并共用一份内存中的主题。于是 Saga 发往另一个服务的命令、各服务发布的流，都像在 Kafka 上一样在它们之间流转。把它的 `main` 写在类路径上有全部服务的源码集里，例如 `integrationTest` 套件：
+
+<!-- sample: fragment -->
+
+```kotlin
+fun main() = runWowLocal {
+    service<InventoryServer>("eshop-inventory-service", listOf("eshop-inventory"), 8084, 9094)
+    service<OrderingServer>("eshop-ordering-service", listOf("eshop-ordering"), 8083, 9093)
+    service<BasketServer>("eshop-basket-service", listOf("eshop-basket"), 8082, 9092)
+}
+```
+
+- 每个服务在 `dev` profile 下运行，所以请求用 `Wow-*` 头指名调用者。服务以 `spring.application.name` 命名，只服务自己的上下文（`wow.contexts.include`）；`properties` 加上它自己的设置。
+- 服务按列出的顺序启动，每个服务调用列在它前面的服务：它的 `wow.peers.<context>.url` 指向那些服务的内部端口。把被调用的服务列在调用方之前，这里是 ordering 在 basket 之前，basket 的结账会调用它。
+- 端口是每个服务自己的；`-Dwow-local.ports=random` 让系统选择每一个端口，这时服务可以不指定端口。
+- 所有服务都开始监听后，它打印一行公开端口清单：`wow-local ready {"eshop-inventory-service":8084,…}`。加上 `-Dwow-local.exit-on-stdin-eof=true`，JVM 会在标准输入关闭时退出，所以启动它的进程（例如前端的端到端测试）不会把它留在运行中。
+- `wowLocal { … }` 在测试里启动同样的服务，并把它们交还（`servers`、`publicPorts`）以便关闭。
+
+由构建的一个任务运行它：
+
+<!-- sample: fragment -->
+
+```kotlin
+tasks.register<JavaExec>("runLocal") {
+    classpath = sourceSets["integrationTest"].runtimeClasspath
+    mainClass.set("com.example.shop.LocalKt")
+}
+```
+
 ## 接下来读什么 {#where-to-go-next}
 
 - **概念。** [架构总览](../concepts/)说明宿主为你做了什么。

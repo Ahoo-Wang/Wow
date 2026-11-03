@@ -14,7 +14,7 @@ The job: a context needs another context's facts, or needs it to do something. C
 
 - A saga returns a `CommandRequest` as for its own context; the target's `*-api` module on the class path carries the contract that names the target aggregate.
 - Transport: the command goes to the target's command topic `wow.<target>.commands`; the target runs with `wow.kafka.command-intake.enabled: true` and its command topic must exist with exactly `wow.log.partitions` partitions. Rejections and commits return as receipts on `wow.<sender>.receipts`, to `@OnRejected` and `@OnCommitted`.
-- A node without a command transport refuses to start when a saga sends, schedules or handles receipts of another context's commands (`Node … has no command transport …`). Production needs Kafka; a test server (`wowServer`) and a local run on the loopback interface keep the topics in their JVM with no configuration (`wow.transport=auto` in development), and `wow.transport=memory` keeps them there on purpose.
+- A node without a command transport refuses to start when a saga sends, schedules or handles receipts of another context's commands (`Node … has no command transport …`). Production needs Kafka; a test server (`wowServer`) and a local run on the loopback interface keep the topics in their JVM with no configuration (`wow.transport=auto` in development), and `wow.transport=memory` keeps them there on purpose. Several services run in one JVM, sharing those topics, with `runWowLocal { service<App>(name, contexts, publicPort, internalPort) }` (`wow-test-spring-boot`), a called service listed before its callers.
 
 ## Calling another context synchronously
 
