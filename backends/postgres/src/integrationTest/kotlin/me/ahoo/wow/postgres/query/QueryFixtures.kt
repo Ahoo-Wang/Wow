@@ -40,6 +40,7 @@ object QueryFixtures {
     val DECLARATION: QuerySchemaDeclaration = querySchema {
         // An access attribute of several values, as the aggregate's Manifest types it.
         field("access.region") { items { types(QueryValueType.STRING) } }
+        field("access.dept") { types(QueryValueType.STRING) }
         field("state.name") { types(QueryValueType.STRING) }
         field("state.status") { types(QueryValueType.STRING) }
         field("state.amount") { types(QueryValueType.DECIMAL) }

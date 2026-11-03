@@ -46,6 +46,19 @@ class PostgresQueryIndexesTest {
     }
 
     @Test
+    fun `a key of many values alone is a GIN index of its node, the containments' operator class`() {
+        val index = PostgresQueryIndexes.plan(
+            "shop",
+            "order",
+            QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix_keywords", listOf("state.keywords")))),
+        ).single()
+        index.ddl.assert().isEqualTo(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot__shop__order_ix_keywords\" ON \"wow_snapshot__shop__order\" " +
+                "USING gin ((state #> '{keywords}') jsonb_path_ops) WHERE NOT deleted",
+        )
+    }
+
+    @Test
     fun `a key the backend cannot index is refused`() {
         fun refuses(key: String) = assertThrownBy<IllegalArgumentException> {
             PostgresQueryIndexes.plan(
@@ -55,8 +68,15 @@ class PostgresQueryIndexesTest {
             )
         }
         refuses("state.unknown")
-        refuses("state.keywords")
         refuses("state.mixed")
+        // Many values beside another key: a GIN index of many values holds it alone.
+        assertThrownBy<IllegalArgumentException> {
+            PostgresQueryIndexes.plan(
+                "shop",
+                "order",
+                QueryIndexPlan.of(schema, listOf(QueryIndexDeclaration("ix", listOf("state.keywords", "state.name")))),
+            )
+        }.hasMessageContaining("GIN")
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("", listOf("state.name")) }
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("ix", emptyList()) }
     }

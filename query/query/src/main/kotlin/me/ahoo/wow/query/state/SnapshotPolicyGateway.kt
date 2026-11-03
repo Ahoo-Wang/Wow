@@ -30,6 +30,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.admission.maskRecord
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.policy.QueryEntryPolicy
@@ -57,6 +58,8 @@ class SnapshotPolicyGateway(
 
     override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
         admission.admitRecord(selection, record, schemaProvider.schema(), caller)
+
+    override suspend fun maskRecord(record: ObjectNode): ObjectNode = schemaProvider.schema().maskRecord(record)
 
     override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? = throw unqueried()
 

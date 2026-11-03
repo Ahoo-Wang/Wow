@@ -51,6 +51,11 @@ data class PostgresQueryIndexReport(
  * the SQL compiler compares and sorts by ([PostgresSnapshotQueryExpressions.value], with the type of the binding the
  * query model compiles for it), so the planner matches the two; `NULLS FIRST` is the compiler's ascending order. The
  * name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per schema, not per table.
+ *
+ * An index of one key that holds many values (a multiple access attribute) is a GIN index of its `jsonb` node,
+ * `USING gin ((<node>) jsonb_path_ops) WHERE NOT deleted`: it serves the containment `@>` the SQL compiler writes for
+ * an equality, a membership and a containment of such a key, each value one `@>`. A GIN index takes no tenant;
+ * the planner ANDs it with the scope's.
  */
 @InternalWowApi
 object PostgresQueryIndexes {
@@ -63,20 +68,25 @@ object PostgresQueryIndexes {
     fun plan(context: String, aggregate: String, plan: QueryIndexPlan): List<PostgresQueryIndex> {
         val tables = PostgresSnapshotTables(context, aggregate)
         return plan.indexes.map { index ->
-            val keys = index.keys.map { key(index, it) }
             val name = PostgresIdentifiers.limited(tables.base + "_" + index.name)
+            val many = index.keys.singleOrNull()?.takeIf { it.cardinality == QueryCardinality.MANY }
+            val columns = if (many != null) {
+                "USING gin (${PostgresSnapshotQueryExpressions.node(many.physicalField)} jsonb_path_ops)"
+            } else {
+                "(tenant_id, ${index.keys.joinToString(", ") { key(index, it) }})"
+            }
             PostgresQueryIndex(
                 name,
                 tables.snapshot,
-                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"$name\" ON ${tables.snapshot} " +
-                    "(tenant_id, ${keys.joinToString(", ")}) WHERE NOT deleted",
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"$name\" ON ${tables.snapshot} $columns WHERE NOT deleted",
             )
         }
     }
 
     private fun key(index: QueryIndexPlan.Index, key: QueryIndexPlan.Key): String {
         require(key.cardinality == QueryCardinality.SINGLE) {
-            "Index [${index.name}] has the key [${key.field.path}], which holds many values: a B-tree indexes one."
+            "Index [${index.name}] has the key [${key.field.path}], which holds many values: a B-tree indexes one, " +
+                "and a GIN index holds that key alone."
         }
         val type = PostgresQueryType.require(key.storageTypes, key.field)
         val expression = PostgresSnapshotQueryExpressions.value(key.physicalField, type)

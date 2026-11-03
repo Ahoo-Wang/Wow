@@ -64,6 +64,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.dataset.DatasetQueryGateways` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetQueryModelProfile` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.DatasetVisibility` | interface | `wow-query` |
+| `me.ahoo.wow.query.dataset.QueryDatasetAccess` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetScope` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDataset` | class | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasetBuilder` | class | `wow-query` |

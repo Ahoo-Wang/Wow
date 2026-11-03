@@ -11,10 +11,7 @@ public final class me/ahoo/wow/cosec/CoSecActions {
 }
 
 public final class me/ahoo/wow/cosec/CoSecCallerOptions {
-	public static final field ABAC_PREFIX Ljava/lang/String;
-	public static final field Companion Lme/ahoo/wow/cosec/CoSecCallerOptions$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAttributePrefix ()Ljava/lang/String;
 	public final fun getCrossScopePolicies ()Ljava/util/Set;
 	public final fun getCrossScopeRoles ()Ljava/util/Set;
 	public final fun getDefaultTenant ()Ljava/lang/String;
@@ -22,9 +19,6 @@ public final class me/ahoo/wow/cosec/CoSecCallerOptions {
 	public final fun getTenantRoles ()Ljava/util/Set;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/cosec/CoSecCallerOptions$Companion {
 }
 
 public final class me/ahoo/wow/cosec/CoSecCallerResolver : me/ahoo/wow/http/caller/CallerResolver {

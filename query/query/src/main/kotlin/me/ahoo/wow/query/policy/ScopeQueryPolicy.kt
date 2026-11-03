@@ -30,6 +30,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.admission.QueryTargets
 import me.ahoo.wow.query.backend.single
+import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
@@ -71,8 +72,10 @@ fun interface QueryOwnership {
  * - the tenant [tenants] gives the caller, when it gives one; else, for a [cross-tenant][QueryCaller.crossTenant]
  *   caller, its tenants (none for every tenant): a type whose tenant is fixed keeps its own;
  * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner (an owner-level caller)
- * and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names
- *   a space: a tenant-level caller, whose principal names no owner, reads every aggregate of its tenant;
+ *   and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names a space: a
+ *   tenant-level caller, whose principal names no owner, reads every aggregate of its tenant. This is the default
+ *   access rule of an aggregate: one with an access policy of its own ([AccessPolicies.governs]), and a dataset whose
+ *   rows are such an aggregate's, read by that policy instead ([AccessQueryPolicy]);
  * - the deletion scope the model defaults to (a snapshot query sees active aggregates) unless the query states its
  *   own deletion filter. Admission's step 3 would add the same default; stating it here keeps the whole scope one
  *   audited policy.
@@ -87,6 +90,7 @@ class ScopeQueryPolicy(
     override val order: Int = ORDER,
     private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
     crossTenant: Boolean = false,
+    private val access: AccessPolicies = AccessPolicies.NONE,
 ) : QueryPolicy {
     /** The read side's scope rules, which an HTTP caller is checked against again. */
     private val targets = QueryTargets(tenants, crossTenant)
@@ -98,10 +102,13 @@ class ScopeQueryPolicy(
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         targets.recheck(context.aggregateType, caller)
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
+        // An access policy of the aggregate's own decides its owner and space instead.
+        val scoped = !access.governs(context.aggregateType) &&
+            (context.schema.profile as? DatasetQueryModelProfile)?.dataset?.let(access::governs) != true
         val restrictions = listOfNotNull(
             tenants.queryTenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),
-            caller.principal.ownerId?.takeIf { owned }?.let(::OwnerIdFilter),
-            caller.principal.spaceId?.let(::SpaceIdFilter),
+            caller.principal.ownerId?.takeIf { owned && scoped }?.let(::OwnerIdFilter),
+            caller.principal.spaceId?.takeIf { scoped }?.let(::SpaceIdFilter),
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter },
         )
         return when (restrictions.size) {

@@ -18,8 +18,11 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.access.AccessPolicy
+import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -32,6 +35,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -121,6 +125,23 @@ class HideFromMallory {
     @Bean
     fun malloryPolicy(): QueryPolicy =
         QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
+}
+
+/** The access policy of the accounts: the tellers read them, and no caller changes them through it. */
+@Configuration(proxyBeanMethods = false)
+class TellersReadAccounts {
+    @Bean
+    fun accountAccess(): AccessPolicy<Account> = accessPolicy {
+        read { caller -> allowIf(caller.hasRole("teller")) }
+        write { denyAll() }
+    }
+}
+
+/** An access policy of a state no aggregate of the node has. */
+@Configuration(proxyBeanMethods = false)
+class StrayAccessPolicy {
+    @Bean
+    fun strayAccess(): AccessPolicy<DecidedCommands> = accessPolicy { readWrite { allowAll() } }
 }
 
 /** The application's own [me.ahoo.wow.runtime.node.BackendFactory]: in memory, opened by no layout of the host's. */
@@ -234,6 +255,44 @@ class HostQueryTest {
             // An aggregate with no committed state has no streams.
             eventsOf("alice", "no-such-account").assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `an access policy bean should govern its aggregate's reads, and one of no aggregate refuse the start`() {
+        // The development profile: a request's headers name its caller.
+        startHost(
+            "spring.profiles.active" to "dev",
+            sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val engine = host.context.getBean(QueryEngine::class.java)
+            engine.access.governs(ACCOUNT).assert().isTrue()
+            fun accounts(caller: Caller) = runBlocking {
+                engine.snapshots(ACCOUNT)!!.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller(caller)).toList()
+            }
+            val tom = Caller.of(subject = "tom", attributes = mapOf("roles" to listOf("teller")))
+            eventually { accounts(tom).size == 1 }
+            // Not by its owner: the policy alone decides.
+            accounts(Caller.of(subject = "mona", scope = Scope("mona"))).assert().isEmpty()
+            // A state read alike: a teller who is an owner of none of them reads it, no one else.
+            val teller = mapOf(
+                DevelopmentHeaders.USER to "tom",
+                DevelopmentHeaders.OWNER to "tom",
+                DevelopmentHeaders.ROLES to "teller",
+            )
+            host.get("/bank/account/$id/state", teller).status.assert().isEqualTo(200)
+            host.get("/bank/account/$id/state").status.assert().isEqualTo(404)
+        }
+        val refused = assertThrows<Exception> {
+            startHost(sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java)).close()
+        }
+        generateSequence<Throwable>(refused) { it.cause }.mapNotNull { it.message }
+            .any { "is of no aggregate of this node" in it }.assert().isTrue()
+        // A node of some of the service's contexts leaves such a policy to the node that hosts its aggregate.
+        startHost(
+            "wow.contexts.include" to BANK,
+            sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java),
+        ).use { host -> host.context.getBean(QueryEngine::class.java).access.governed.assert().isEmpty() }
     }
 
     @Test

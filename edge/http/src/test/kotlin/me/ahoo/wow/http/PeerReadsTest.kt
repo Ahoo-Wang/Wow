@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
@@ -43,6 +44,7 @@ import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
+import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
@@ -53,6 +55,7 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import tools.jackson.databind.node.ObjectNode
 import java.net.URI
 import kotlin.time.Duration.Companion.milliseconds
@@ -257,6 +260,27 @@ class PeerReadsTest {
             it.set(WowHeaders.CALL, root)
         }
             .answer().problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+    }
+
+    @Test
+    fun `a root no end user sent should read as a service, and one an end user sent as that user (D298)`() {
+        val roots = PeerRoots(services, CallPermits(emptyMap()), ErrorStatuses(manifest))
+        fun rootOf(operator: Operator?): Caller {
+            val call = CallHeaders.format(
+                CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c"), operator),
+            )
+            val request = MockServerRequest.builder()
+                .header(WowHeaders.SERVICE, SERVICE)
+                .header(WowHeaders.CALL, call)
+                .build()
+            return runBlocking { roots.rootOf(request, model = null) }
+        }
+        // A service's own commit, and a framework component's: no access policy reads them, the tenant bounds them.
+        rootOf(Operator.of(Caller.SERVICE_SUBJECT_PREFIX + "ordering", TENANT)).service.assert().isTrue()
+        rootOf(Operator.system("timer", TENANT)).service.assert().isTrue()
+        // An end user's, anonymous or not: evaluated as that user.
+        rootOf(Operator.of("alice", TENANT)).assert().isEqualTo(Caller.of(TENANT, Scope("alice"), "alice"))
+        rootOf(null).assert().isEqualTo(Caller.of(TENANT, Scope("alice")))
     }
 
     @Test

@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The snapshot query backend of the node: the [bindings] of each aggregate type's backend and storage facts (null when
  * no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's
- * storage and [manages][manageIndexes] its `x-wow-index` indexes at startup.
+ * storage and [manages][manageIndexes] its `x-wow-index` indexes and those of its access attributes at startup.
  */
 @InternalWowApi
 class SnapshotQueryBackend(
@@ -281,7 +281,8 @@ class QueryIndexesLifecycle(
             reports = types.filter(backend::serves).associateWith { type ->
                 backend.prepare(type)
                 val schema = runBlocking { catalog.schema(type, QueryModel.SNAPSHOT) }
-                val declarations = QueryIndexDeclaration.of(manifest, type.context, type.name)
+                val declarations = QueryIndexDeclaration.of(manifest, type.context, type.name) +
+                    QueryIndexDeclaration.accessOf(manifest, type.context, type.name)
                 backend.manageIndexes(type, QueryIndexPlan.of(schema, declarations)).also { report ->
                     if (report.created.isNotEmpty()) {
                         logger.info { "Created the query indexes ${report.created} of $type." }
