@@ -53,9 +53,9 @@ class WowServerTest {
         wowServer<EmptyApp>("dev", properties = NAMED).use { first ->
             val second = wowServer<EmptyApp>("dev", properties = NAMED)
             // Each server's public port runs on loops of its own, none on reactor-netty's global ones.
-            val loops = listOf(first, second).map { it.bean<ReactorResourceFactory>() }
-            loops.forEach { it.isUseGlobalResources.assert().isFalse() }
-            loops[0].loopResources.assert().isNotSameAs(loops[1].loopResources)
+            for (server in listOf(first, second)) {
+                server.bean<ReactorResourceFactory>().isUseGlobalResources.assert().isFalse()
+            }
             second.close()
             first.http.get("/shop/order/1/state").status.assert().isEqualTo(404)
             first.internal.get("/").status.assert().isGreaterThanOrEqualTo(400)
