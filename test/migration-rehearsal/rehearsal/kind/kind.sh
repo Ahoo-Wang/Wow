@@ -21,7 +21,8 @@
 # runs.
 #
 # Environment, besides rehearse.sh's: the images wow-migrate-data:local, wow-migration-rehearsal:local and
-# wow-view-store-server:local, loaded into the cluster.
+# wow-view-store-server:local, loaded into the cluster; MIGRATE_IMAGE, the migrate-data image a Job runs
+# (wow-migrate-data:local); and for bench_imports, wow-migrate-data:baseline.
 
 KIND_DIR="$REHEARSAL/kind"
 ROOT="$(cd "$REHEARSAL/../../.." && pwd)"
@@ -84,7 +85,7 @@ write_config() {
 # render KIND NAME ARGS...: the arm's Job or Deployment named NAME, its container running ARGS.
 render() {
   python3 - "$WORK/kind-templates.json" "$@" <<'PY'
-import json, sys
+import json, os, sys
 templates, kind, name, args = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4:]
 # kubectl writes the objects one after the other.
 text, decoder, position, items = open(templates).read(), json.JSONDecoder(), 0, []
@@ -94,7 +95,9 @@ while text[position:].strip():
 item = next(item for item in items if item["kind"] == kind)
 if kind == "Job":
     item["metadata"]["name"] = name
-item["spec"]["template"]["spec"]["containers"][0]["args"] = args
+container = item["spec"]["template"]["spec"]["containers"][0]
+container["args"] = args
+container["image"] = os.environ.get("MIGRATE_IMAGE") or container["image"]
 print(json.dumps(item))
 PY
 }
@@ -238,4 +241,25 @@ where_timings() {
   timed_import timing-runner-2 runner timing_runner_2
   timed_import timing-job-2 job timing_job_2
   timed_import timing-port-forward port-forward timing_port_forward
+}
+
+# bench_imports: the import of the seeded 9.x store (9.x stopped) by two migrate-data images, the baseline
+# (wow-migrate-data:baseline, A) and the candidate (wow-migrate-data:local, B), each as a Job into a fresh database,
+# alternating A B B A (D392 ③), so each image's two runs give its noise band. Each database is dropped once its run
+# is timed, which keeps a large store within the runner's disk. The Jobs' logs hold each aggregate's time and where its
+# workers spent it (ImportPhases).
+bench_imports() {
+  local run=0 arm image db
+  for arm in A B B A; do
+    run=$((run + 1))
+    image=wow-migrate-data:local
+    [ "$arm" = A ] && image=wow-migrate-data:baseline
+    db="bench_${run}_$(tr '[:upper:]' '[:lower:]' <<<"$arm")"
+    createdb "$db"
+    write_config "$db"
+    export MIGRATE_IMAGE="$image"
+    step "bench-$run-$arm" 0 kind_job import --config "/config/migrate-data-$db.json"
+    unset MIGRATE_IMAGE
+    kubectl exec deploy/postgres -- dropdb -U postgres "$db"
+  done
 }

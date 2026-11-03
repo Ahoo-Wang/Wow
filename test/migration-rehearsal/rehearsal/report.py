@@ -39,6 +39,51 @@ def log_lines(name, pattern):
     return [line for line in path.read_text().splitlines() if re.search(pattern, line)]
 
 
+DONE = re.compile(
+    r"^(?P<aggregate>\S+) done: (?P<instances>\d+) instances, (?P<imported>\d+) streams imported, (?P<skipped>\d+) "
+    r"skipped, (?P<events>\d+) events, .*?(?P<rate>[\d.]+) streams/s in (?P<seconds>[\d.]+) s; worker time: read 9\.x "
+    r"(?P<read>[\d.]+) s, convert (?P<convert>[\d.]+) s, append (?P<append>[\d.]+) s, checkpoints (?P<checkpoints>[\d.]+) s$"
+)
+
+if any(step["step"].startswith("bench-") for step in steps):
+    # MODE=bench: the import of two images, A B B A; nothing else ran after the check.
+    seed = data("seed")
+    seeded = data("ninex-seeded")
+    lines = [
+        "# migrate-data import benchmark",
+        "",
+        f"- 9.x seeded: {seed.get('orders', '?')} orders, {seed.get('carts', '?')} carts; {seeded.get('orders', '?')} "
+        f"order streams, {seeded.get('carts', '?')} cart streams, {seeded.get('views', '?')} view streams.",
+        "- A is the baseline image, B the candidate, each a Job into a fresh database, A B B A (D392 ③): each "
+        "image's two runs are its noise band. The step is what an operator waits for; the container time is the tool's "
+        "own run. Worker time is summed over the instances imported at once.",
+        "",
+        "| Run | Image | Step | Container |",
+        "| --- | --- | --- | --- |",
+    ]
+    bench = [step for step in steps if step["step"].startswith("bench-")]
+    for step in bench:
+        container = step["data"].get("containerMillis")
+        lines.append(
+            f"| {step['step']} | {step['step'][-1]} | {step['millis'] / 1000:.1f} s | "
+            + (f"{container / 1000:.1f} s |" if container is not None else "n/a |")
+        )
+    lines += [
+        "",
+        "| Run | Aggregate | Streams | Time | Streams/s | Read 9.x | Convert | Append | Checkpoints |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for step in bench:
+        for line in log_lines(step["step"], DONE.pattern):
+            done = DONE.match(line)
+            streams = int(done["imported"]) + int(done["skipped"])
+            lines.append(
+                f"| {step['step']} | {done['aggregate']} | {streams} | {done['seconds']} s | {done['rate']} | "
+                f"{done['read']} s | {done['convert']} s | {done['append']} s | {done['checkpoints']} s |"
+            )
+    print("\n".join(lines))
+    sys.exit(0)
+
 lines = ["# Blue-green rehearsal (roadmap 8c.1)", ""]
 seed = data("seed")
 seeded = data("ninex-seeded")

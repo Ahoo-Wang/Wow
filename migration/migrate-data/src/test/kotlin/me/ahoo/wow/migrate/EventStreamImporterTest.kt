@@ -25,6 +25,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -365,6 +366,31 @@ class EventStreamImporterTest {
         progress.streamsPerSecond.assert().isEqualTo(20.0)
         progress.render().assert().contains("example-service.order done").contains("20.0 streams/s")
         progress.copy(elapsedMillis = 0, done = false).render().assert().doesNotContain("done")
+    }
+
+    @Test
+    fun `a finished import reports its time and where its workers spent it`() {
+        val phases = ImportPhases(readMillis = 1_200, convertMillis = 300, appendMillis = 4_500, checkpointMillis = 40)
+        val done = ImportProgress(order, 2, 30, 10, 40, 1, 2_000, done = true, phases = phases)
+        done.render().assert().endsWith(
+            "20.0 streams/s in 2.0 s; worker time: read 9.x 1.2 s, convert 0.3 s, append 4.5 s, checkpoints 0.0 s",
+        )
+        done.copy(done = false).render().assert().endsWith("20.0 streams/s")
+    }
+
+    @Test
+    fun `the import times every phase it runs`() = runTest {
+        val inMemory = InMemoryEventLog(4)
+        val slowLog = object : EventLog by inMemory {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+                Thread.sleep(2)
+                return inMemory.append(stream, transport)
+            }
+        }
+        val done = importer(InMemoryNineXEventSource(NineXExample.streams()), target = slowLog)
+            .importAll(order)
+        done.phases.appendMillis.assert().isGreaterThanOrEqualTo(2L * done.imported)
+        reports.last().assert().isEqualTo(done)
     }
 
     @Test
