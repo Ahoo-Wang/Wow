@@ -41,16 +41,18 @@ until a revision is published or its sources come back.
 | `ReviseSource` | editor, admin | Declares an analyst's tenant, owner and space columns and its references to known aggregates, or that it is a platform dimension |
 | `ReviewSourceSensitivity` | editor, admin | Records each value's protection; a Wow source's values are only tightened |
 | `MarkSourceReviewed` | approver, admin | Draft → reviewed, once the tenant column (or the platform dimension) is declared and every string column reviewed |
-| `SyncSource` | the watcher, admin | Reads the table and its `wow_catalog` rows again; adopts a trusted row |
+| `SyncSource` | the watcher (internal) | Reads the table and its `wow_catalog` rows again; adopts a trusted row |
 | `ApproveSensitivityChange` | approver | Accepts the lower protection a Wow source's row now gives the pending values |
 | `DraftDataset` | editor, admin | Drafts the dataset `<context>.<name>` from a definition checked against the catalog |
 | `ReviseDataset` | editor, admin | Replaces the dataset's definition, checked again |
 | `PublishDataset` | editor, admin | Compiles the definition as the next version and creates its view; queries then read it |
 | `RollbackDataset` | editor, admin | Switches queries back to an earlier version, its view created again if gone |
-| `RetireDataset` | editor, admin | Stops the queries; the views are dropped after the retention (`DropDatasetViews`, scheduled) |
+| `RetireDataset` | editor, admin | Stops the queries; the views are dropped after the retention (`DropDatasetViews`, scheduled, internal) |
 | `ApproveDatasetPublication`, `RefuseDatasetPublication` | approver | Decides a publication that takes an approver: every one with `require-publication-approval`, and any computing from sensitive values or lowering a protection |
 | `ApproveSource` | approver | With `require-source-approval`, lets the datasets read a reviewed or adopted source |
-| `RecompileDataset` | the catalog, admin | Compiles a published dataset again after a source changed |
+| `RecompileDataset` | the catalog (internal) | Compiles a published dataset again after a source changed |
+
+The internal commands (`@InternalCommand`) are the catalog's own: its watcher, its recompilation saga and a retirement's schedule send them in process, and the public port answers their routes `404`. The watcher syncs each changed table every `refresh-interval` and every table when the node starts.
 
 Roles: `analytics.catalog.admin` (connections, trusted writers), `analytics.catalog.approver` (reviews and
 sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `analytics.catalog.viewer` (reads).

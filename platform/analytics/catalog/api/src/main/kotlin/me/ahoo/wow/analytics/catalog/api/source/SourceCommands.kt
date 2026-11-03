@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.api.source
 
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.InternalCommand
 import me.ahoo.wow.api.annotation.Summary
 
 /**
@@ -59,9 +60,10 @@ data object MarkSourceReviewed
  * Brings a source up to date with the warehouse: its table's uuid and columns, and for a table the
  * Wow Sink describes, the `wow_catalog` row the trust rules adopt. The catalog sends it when it sees the table or its
  * `wow_catalog` rows change; it creates the Wow source of a table it does not know yet, and changes nothing for a
- * table that is neither known nor trusted.
+ * table that is neither known nor trusted. Only the catalog's watcher sends it: internal.
  */
 @AllowCreate
+@InternalCommand
 @Summary("Bring a source up to date with the warehouse")
 data class SyncSource(val database: String, val table: String)
 

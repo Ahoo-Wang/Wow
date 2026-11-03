@@ -30,8 +30,11 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * - `ApproveSensitivityChange`, the privileged review of a lower protection, `ApproveSource` and a
  *   dataset's `ApproveDatasetPublication` and `RefuseDatasetPublication`, only an
  *   [AnalyticsCatalogRoles.APPROVER];
- * - every other command of the catalog (`SyncSource`, `DropDatasetViews`, `RecompileDataset`), and the framework's own system commands (`wow.*`), an
- *   [AnalyticsCatalogRoles.ADMIN].
+ * - every other command of the catalog, and the framework's own system commands (`wow.*`), an
+ *   [AnalyticsCatalogRoles.ADMIN]. The catalog's own `SyncSource`, `RecompileDataset` and `DropDatasetViews` are
+ *   internal commands (`@InternalCommand`) its watcher (as an administrator), its recompilation saga and a retirement's
+ *   schedule send in process: the public port serves none of their routes, and a service calling them on the internal
+ *   port has no catalog role.
  *
  * It steps aside when CoSec decides (`wow.cosec.authorizer.enabled`, its policies alone); otherwise the catalog's
  * roles decide: the catalog asks this authorizer only without CoSec's.

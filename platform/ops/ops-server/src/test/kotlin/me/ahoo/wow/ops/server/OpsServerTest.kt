@@ -35,6 +35,10 @@ class OpsServerTest {
             parked.ownership.name.assert().isEqualTo(Ownership.TENANT.name)
             parked.lifecycle.assert().isEmpty()
 
+            // The records are internal commands (X-63): the ledgers and the ops saga send them, no caller.
+            parked.commands.filter { it.internal }.map { it.name }.assert()
+                .containsExactlyInAnyOrder("RecordParked", "RecordResolved", "RecordActionRefused")
+
             val manifest = ops.get("/wow/manifest", Who.OPERATOR).assertOk().json
             manifest["contexts"].values().map { it["name"].asString() }.assert().containsExactly(OpsContext.NAME)
             val paths = ops.get("/wow/openapi", Who.OPERATOR).assertOk().json["paths"].propertyNames().toList()
@@ -45,6 +49,7 @@ class OpsServerTest {
                 "/ops/parked/{id}/apply-retry-spec",
                 "/ops/parked/{id}/state",
             )
+            paths.filter { "/record-" in it }.assert().isEmpty()
             // The memory backend serves the snapshot queries itself, as the postgres profile's store does.
             ops.post(OpsContract.QUERY, """{"kind":"list","filter":{"op":"match-all"}}""", Who.OPERATOR)
                 .status.assert().isEqualTo(OK)

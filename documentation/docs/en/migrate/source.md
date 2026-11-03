@@ -64,7 +64,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@StaticTenantId` | Host configuration: `wow.aggregates.[<context>.<aggregate>].tenant` |
 | `@StaticAggregateId` | Removed: no fixed aggregate id ([9.x Capabilities in V10](./capabilities)) |
 | `@AggregateRoute`, `@CommandRoute` | Removed: routes come from the Manifest |
-| `@CommandRoute(enabled = false)` | `@InternalCommand` on the command class: only the platform sends it (sagas, timers, the in-process gateway, other services on the internal port), and the public port serves no route of it ([Keep a command internal](../guide/aggregates#keep-a-command-internal)) |
+| `@CommandRoute(enabled = false)` | It depends on who sent the command. Only the platform (sagas, timers, the in-process gateway, other services on the internal port): `@InternalCommand` on the command class, and the public port serves no route of it ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). A hand-written user route of the 9.x service: the command stays public on its generated route ([Routes, tenancy and ownership](#routes-tenancy-and-ownership)) |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
 | none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |
@@ -197,6 +197,8 @@ private suspend fun take(name: String, scope: DecideScope) {
 ## Routes, tenancy and ownership
 
 Routes are derived from the Manifest: `POST /<context>/<aggregate>/<id>/<command>`, no tenant or owner prefixes, no custom actions or methods. A fixed tenant is host configuration, and a 9.x resource kept under one shared owner for a whole tenant is `Ownership.TENANT`, and one whose id is its owner's id (`OwnerPolicy.AGGREGATE_ID`, a user's cart) is `idSource = AggregateIdSource.OWNER`, served by no id as the caller's own, with no ownership check left in its command functions ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)). Only `wow.lifecycle.TransferOwner` moves an owner: a 9.x event that implemented `OwnerTransferred` becomes a domain event and a saga that derives the transfer. A 9.x starter's own routes are rewritten by what they did, with transformers, snapshot queries and `Decision.NoOp` ([HTTP and TypeScript Clients](./http-and-clients) lists every route and header).
+
+A command with `@CommandRoute(enabled = false)` had no generated route in 9.x, for one of two reasons. Find out which before you port it. If only the service's own processes or other services sent it, mark it `@InternalCommand`. If a hand-written route of the 9.x service sent it on a user's request, it is a user's command, and it stays public: its generated route replaces the hand-written one. A `CommandTransformer` does what the hand-written route worked out, such as an id derived from the caller and the body, and the `Wow-Scope` header names another scope the caller may act in. The 9.x view store's `SetViewPreferences`, `SetDatasetWording`, `ClearDatasetWording` and `ClaimView` are of the second kind. Hand-written routes sent them, so they stay public in 10. The first three go on their generated routes, and transformers derive their ids; `ClaimView` goes with `Wow-Scope` naming the shared owner.
 
 ## The migration map
 

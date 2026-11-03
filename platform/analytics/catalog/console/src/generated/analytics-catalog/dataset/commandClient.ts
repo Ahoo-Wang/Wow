@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { AnalyticsCatalogManifest } from '../manifest.js';
-import type { ApproveDatasetPublication, DraftDataset, DropDatasetViews, PublishDataset, RecompileDataset, RefuseDatasetPublication, RetireDataset, ReviseDataset, RollbackDataset } from '../types.js';
+import type { ApproveDatasetPublication, DraftDataset, PublishDataset, RefuseDatasetPublication, RetireDataset, ReviseDataset, RollbackDataset } from '../types.js';
 
 /** Sends the commands of `analytics-catalog.dataset` by its service's routes (`AnalyticsCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class DatasetCommandClient {
@@ -43,20 +43,6 @@ export class DatasetCommandClient {
   }
 
   /**
-   * Drop a retired dataset's views
-   * `DropDatasetViews`: `POST /analytics-catalog/dataset/{id}/drop-dataset-views`.
-   * Produces `DatasetViewsDropped`.
-   */
-  dropDatasetViews(id: string, body: DropDatasetViews = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', body, id });
-  }
-
-  /** `DropDatasetViews`, answered as one result per hop of its wait (`text/event-stream`). */
-  dropDatasetViewsStream(id: string, body: DropDatasetViews = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.DropDatasetViews', body, id });
-  }
-
-  /**
    * Publish the dataset's definition as its next version
    * `PublishDataset`: `POST /analytics-catalog/dataset/{id}/publish-dataset`.
    * Produces `DatasetPublicationRequested`, `DatasetPublished`.
@@ -68,20 +54,6 @@ export class DatasetCommandClient {
   /** `PublishDataset`, answered as one result per hop of its wait (`text/event-stream`). */
   publishDatasetStream(id: string, body: PublishDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'analytics-catalog.dataset.PublishDataset', body, id });
-  }
-
-  /**
-   * Compile a published dataset again after a source changed
-   * `RecompileDataset`: `POST /analytics-catalog/dataset/{id}/recompile-dataset`.
-   * Produces `DatasetNeedsRevision`, `DatasetPublished`, `DatasetRevisionCleared`.
-   */
-  recompileDataset(id: string, body: RecompileDataset = {}, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', body, id });
-  }
-
-  /** `RecompileDataset`, answered as one result per hop of its wait (`text/event-stream`). */
-  recompileDatasetStream(id: string, body: RecompileDataset = {}, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.client.stream({ ...options, command: 'analytics-catalog.dataset.RecompileDataset', body, id });
   }
 
   /**
