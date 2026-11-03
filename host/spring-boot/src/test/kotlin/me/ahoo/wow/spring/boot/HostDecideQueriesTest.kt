@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.query.policy.QueryPolicy
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -112,8 +113,8 @@ class HostDecideQueriesTest {
     }
 
     private companion object {
-        val ALICE = mapOf(DevelopmentCallerResolver.USER to "alice")
-        val LIBRARIAN_ALICE = ALICE + (DevelopmentCallerResolver.ROLES to LIBRARIAN)
+        val ALICE = mapOf(DevelopmentHeaders.USER to "alice")
+        val LIBRARIAN_ALICE = ALICE + (DevelopmentHeaders.ROLES to LIBRARIAN)
         const val FORBIDDEN = 403
         const val OK = 200
         const val CONFLICT = 409

@@ -15,9 +15,9 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.wowServer
 import org.junit.jupiter.api.AfterAll

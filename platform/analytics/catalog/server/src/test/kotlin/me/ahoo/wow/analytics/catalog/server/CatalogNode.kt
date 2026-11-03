@@ -15,9 +15,9 @@ package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.TENANT
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer

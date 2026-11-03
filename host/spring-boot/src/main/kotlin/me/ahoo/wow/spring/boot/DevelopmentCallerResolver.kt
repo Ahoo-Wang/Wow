@@ -16,14 +16,21 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.DevelopmentHeaders
+import me.ahoo.wow.api.wire.DevelopmentHeaders.APP
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES_ATTRIBUTE
+import me.ahoo.wow.api.wire.DevelopmentHeaders.TENANT
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**
  * The host's callers in a development profile (a profile of `wow.dev-profiles`), when the application has no
- * `CallerResolver` and CoSec is off: the caller the request's identity headers name, so a service runs and is tried
- * out at every caller level without an identity provider. Any client sets these headers, so the host wires it only
- * when a development profile is active: outside one, it never does.
+ * `CallerResolver` and CoSec is off: the caller the request's identity headers ([DevelopmentHeaders]) name, so a
+ * service runs and is tried out at every caller level without an identity provider. Any client sets these headers, so
+ * the host wires it only when a development profile is active: outside one, it never does.
  *
  * - [USER]: the caller's subject. Without it, the request is the anonymous caller of [defaultTenant], and the other
  *   identity headers are ignored but [APP].
@@ -33,6 +40,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * - [TENANT]: its tenant; [defaultTenant] (`wow.tenant.default`) without it.
  * - [APP]: the application it calls in, its standard attribute [Caller.APP], which the edge records as each command's
  *   request fact `app_id`; CoSec's resolver takes the one CoSec authorized instead. The anonymous caller keeps it too.
+ *
+ * A client writes a caller as these headers with its development credential (`UserCredential.DEVELOPMENT` of
+ * `wow-client`), as a test server's typed clients do.
  */
 class DevelopmentCallerResolver(private val defaultTenant: String = Caller.DEFAULT_TENANT) : CallerResolver {
     private val anonymous = if (defaultTenant == Caller.DEFAULT_TENANT) Caller.ANONYMOUS else Caller(defaultTenant)
@@ -59,28 +69,10 @@ class DevelopmentCallerResolver(private val defaultTenant: String = Caller.DEFAU
 
     private fun String?.value(): String? = this?.trim()?.ifEmpty { null }
 
-    companion object {
-        /** The header naming the caller's subject. */
-        const val USER: String = "Wow-User"
-
-        /** The header naming the owner of the caller's scope. */
-        const val OWNER: String = "Wow-Owner"
-
-        /** The header listing the caller's roles, comma-separated. */
-        const val ROLES: String = "Wow-Roles"
-
-        /** The header naming the caller's tenant. */
-        const val TENANT: String = "Wow-Tenant"
-
-        /** The header naming the application the caller calls in. */
-        const val APP: String = "Wow-App"
-
-        /** The caller attribute listing its roles, as CoSec's resolver names it. */
-        const val ROLES_ATTRIBUTE: String = "roles"
-
+    private companion object {
         /** The identity headers that only name a caller with [USER]. */
-        private val IDENTITY = listOf(OWNER, ROLES, TENANT)
+        val IDENTITY = listOf(OWNER, ROLES, TENANT)
 
-        private val logger = KotlinLogging.logger {}
+        val logger = KotlinLogging.logger {}
     }
 }

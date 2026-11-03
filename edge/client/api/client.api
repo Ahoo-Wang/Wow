@@ -113,6 +113,7 @@ public final class me/ahoo/wow/client/RetryPolicy$Companion {
 
 public abstract interface class me/ahoo/wow/client/UserCredential {
 	public static final field Companion Lme/ahoo/wow/client/UserCredential$Companion;
+	public static final field DEVELOPMENT Lme/ahoo/wow/client/UserCredential;
 	public static final field FORWARDED Lme/ahoo/wow/client/UserCredential;
 	public static final field NONE Lme/ahoo/wow/client/UserCredential;
 	public abstract fun headers (Lme/ahoo/wow/api/caller/Caller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

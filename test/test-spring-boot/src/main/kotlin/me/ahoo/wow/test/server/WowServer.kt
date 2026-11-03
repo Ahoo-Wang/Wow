@@ -13,11 +13,26 @@
 
 package me.ahoo.wow.test.server
 
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.problem.Retry
+import me.ahoo.wow.api.read.Queries
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.api.wire.WireNames
+import me.ahoo.wow.client.EndpointResolver
+import me.ahoo.wow.client.UserCredential
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.http.problem.Problem
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.support.GenericApplicationContext
+import org.springframework.http.client.ReactorResourceFactory
 import tools.jackson.databind.JsonNode
 import java.net.URI
 import java.net.http.HttpClient
@@ -25,13 +40,16 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Clock
 import java.time.Duration
+import java.util.function.Supplier
 
 /**
  * Starts the Wow application [App] for a test, with [profiles] active, as [wowServer] of its class does.
  *
  * ```kotlin
  * wowServer<BankServer>("dev").use { server ->
- *     server.http.post("/bank/account", """{"owner":"alice"}""").status.assert().isEqualTo(200)
+ *     val alice = Caller.of(subject = "alice")
+ *     server.commands(alice).wait(OpenAccount("Alice"), "alice")
+ *     server.queries(alice).snapshots(AccountState::class.java).state("alice")!!.state.owner.assert().isEqualTo("Alice")
  * }
  * ```
  */
@@ -59,6 +77,7 @@ fun wowServer(
 ): WowServer {
     val arguments = (TEST_PROPERTIES + properties).mapNotNull { (key, value) -> value?.let { "--$key=$it" } }
     val builder = SpringApplicationBuilder(application, *sources.toTypedArray()).profiles(*profiles.toTypedArray())
+        .initializers(OWN_EVENT_LOOPS)
     clock?.let { given ->
         val register = ApplicationContextInitializer<ConfigurableApplicationContext> { context ->
             context.beanFactory.registerSingleton(CLOCK, given)
@@ -92,8 +111,37 @@ private const val LOOPBACK = "127.0.0.1"
 private const val CLOCK = "wowTestClock"
 
 /**
+ * Gives the server's public port event loops of its own, which closing it disposes, after the quiet period Spring Boot
+ * reads (`spring.reactor.netty.shutdown-quiet-period`). Spring Boot's default, reactor-netty's global loops, are every
+ * server's of the JVM, and closing one disposes them: a test that closed one server would stop every other one's ports,
+ * a peer's or a long-lived fixture's.
+ */
+private val OWN_EVENT_LOOPS = ApplicationContextInitializer<ConfigurableApplicationContext> { context ->
+    val own = Supplier {
+        ReactorResourceFactory().apply {
+            isUseGlobalResources = false
+            Binder.get(context.environment).bind(QUIET_PERIOD, Duration::class.java).ifBound(::setShutdownQuietPeriod)
+        }
+    }
+    (context as GenericApplicationContext).registerBean(ReactorResourceFactory::class.java, own)
+}
+
+private const val QUIET_PERIOD = "spring.reactor.netty.shutdown-quiet-period"
+
+/**
  * A Wow application a test started ([wowServer]): its [context], the [publicPort] and [internalPort] it bound, and
- * clients of them ([http], [internal]). Closing it closes the application and the clients.
+ * clients of them. A test drives the service as its users do, with the typed clients of the public port: [commands]
+ * sends command objects and [queries] reads states, both as a caller, through the `wow-client` a peer calls with. The
+ * JSON clients ([http], [internal]) are for what the wire itself must show: a route's shape, a header, a problem's
+ * members ([Answer.problem]). Closing it closes the application and every client.
+ *
+ * ```kotlin
+ * val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+ * server.commands(alice).wait(Deposit(100), "alice").version.assert().isEqualTo(2)
+ * val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+ * assertThrows<CommandRejectedException> { server.commands(alice).wait(Withdraw(150), "alice") }
+ *     .code.assert().isEqualTo("bank.account.insufficient-balance")
+ * ```
  */
 class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
     /** The port of the public server: the HTTP API. */
@@ -111,6 +159,35 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
     val internal: WowHttp
         get() = internalHttp ?: WowHttp(URI.create("http://$LOOPBACK:$internalPort")).also { internalHttp = it }
 
+    /**
+     * The typed clients of the public port, made on first use: they name the commands and models of the contracts the
+     * node read, and send to its own contexts alone.
+     */
+    private val client: Lazy<WowClient> = lazy {
+        val contracts = bean<ContractDirectory>()
+        WowClient.builder()
+            .endpoints(EndpointResolver.of(contracts.localContexts.associateWith { http.base }))
+            .user(UserCredential.DEVELOPMENT)
+            .contracts(contracts.fragments)
+            .build()
+    }
+
+    /**
+     * The command client of the public port, sending as [caller]: the `wow-client` a peer calls with, in user mode. It
+     * sends the commands of the contexts the server serves as objects, waits as their wait plans say, and throws a
+     * rejection as a `CommandRejectedException`, any other problem as a `WowProblemException`, each with its error
+     * code; a command of another context fails, as no endpoint is known for it. The caller goes as the development
+     * identity headers ([UserCredential.DEVELOPMENT]), so the server runs a development profile (`dev`) with no
+     * `CallerResolver` of the application's and CoSec off; [Caller.ANONYMOUS] sends none.
+     */
+    fun commands(caller: Caller): CommandClient = client.value.commands.of(caller)
+
+    /**
+     * The queries of the public port as [caller], sent as [commands] sends: the states, snapshots, events and datasets
+     * of the contexts the server serves, by their state classes, read as that caller may.
+     */
+    fun queries(caller: Caller): Queries = client.value.queries.of(caller)
+
     /** The application's bean of [type]. */
     fun <T : Any> bean(type: Class<T>): T = context.getBean(type)
 
@@ -123,6 +200,7 @@ class WowServer(val context: ConfigurableApplicationContext) : AutoCloseable {
         } finally {
             http.close()
             internalHttp?.close()
+            if (client.isInitialized()) client.value.close()
         }
     }
 }
@@ -157,11 +235,30 @@ class WowHttp(val base: URI, private val timeout: Duration = Duration.ofSeconds(
     }
 }
 
-/** A server's answer: its [status], [headers] and body, as [text] and, when it is JSON, as [body]. */
+/**
+ * A server's answer: its [status], [headers] and body, as [text] and, when it is JSON, as [body]; when it is an RFC 9457
+ * problem, as [problem] too.
+ */
 class Answer(val status: Int, val headers: Map<String, List<String>>, val text: String) {
     /** The body as JSON; null when it is empty or not JSON. */
     val body: JsonNode? by lazy {
         text.takeIf { it.isNotBlank() }?.let { runCatching { WowJson.mapper.readTree(it) }.getOrNull() }
+    }
+
+    /**
+     * The body as the problem the server answered (`application/problem+json`), its members typed: the [Problem.status],
+     * the error [Problem.code], the [Problem.violations], the rejected command's [Problem.result], the aggregate's
+     * [Problem.version], what a retry may do ([Problem.retry], with `Retry-After` as [Problem.retryAfter]) and every
+     * other member as an extension. Null when the answer is not a problem.
+     *
+     * ```kotlin
+     * val answer = server.http.post("/bank/account/alice/withdraw", """{"amount":0}""")
+     * answer.problem!!.violations.single().path.assert().isEqualTo("amount")
+     * ```
+     */
+    val problem: Problem? by lazy {
+        body?.takeIf { it.isObject && header(CONTENT_TYPE)?.contains(PROBLEM_JSON, ignoreCase = true) == true }
+            ?.let(::problemOf)
     }
 
     /** The first value of the header [name], whatever its case; null when the answer has none. */
@@ -169,4 +266,39 @@ class Answer(val status: Int, val headers: Map<String, List<String>>, val text: 
         headers.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
 
     override fun toString(): String = "Answer($status, $text)"
+
+    private fun problemOf(members: JsonNode): Problem = Problem(
+        status = members.get("status")?.takeIf { it.isInt }?.asInt() ?: status,
+        title = members.text("title").orEmpty(),
+        detail = members.text("detail"),
+        code = members.text("code"),
+        violations = members.get("violations")?.takeIf { it.isArray }?.values()?.map {
+            Violation.of(it.text("path").orEmpty(), it.text("code").orEmpty(), it.text("message").orEmpty())
+        }.orEmpty(),
+        result = members.get("result")?.takeIf { it.isObject }?.let {
+            ANSWERS.treeToValue(it, CommandResult::class.java)
+        },
+        extensions = members.properties().filter { it.key !in MEMBERS }
+            .associate { (name, value) -> name to ANSWERS.treeToValue(value, Any::class.java) },
+        retryAfter = header(RETRY_AFTER)?.trim()?.toLongOrNull(),
+        version = members.get(Problem.VERSION)?.takeIf { it.isInt }?.asInt(),
+        retry = members.text(Problem.RETRY)?.let { WireNames.entryOf<Retry>(it) },
+    )
+
+    private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isString }?.asString()
+
+    private companion object {
+        const val CONTENT_TYPE = "Content-Type"
+        const val PROBLEM_JSON = "application/problem+json"
+        const val RETRY_AFTER = "Retry-After"
+
+        /** The members a [Problem] has a property of; every other one is an extension. */
+        val MEMBERS = setOf(
+            "type", "title", "status", "detail", "code", "violations", "result", "instance", Problem.VERSION,
+            Problem.RETRY,
+        )
+
+        /** Reads what a server wrote, as a client does: an enum value it does not know is no failure. */
+        val ANSWERS = WowJson.readerBuilder().build()
+    }
 }

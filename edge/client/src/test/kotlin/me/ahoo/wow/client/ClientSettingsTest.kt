@@ -17,7 +17,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandManifest
@@ -71,6 +73,35 @@ class ClientSettingsTest {
             it.port.assert().isEqualTo(Port.PUBLIC)
             it.toString().assert().isEqualTo("ClientMode.User")
         }
+    }
+
+    @Test
+    fun `the development credential should write the caller as the development identity headers`(): Unit = runBlocking {
+        val erin = Caller.of(
+            tenantId = "acme",
+            scope = Scope(ownerId = "erin", spaceId = "team"),
+            subject = "erin",
+            crossScope = true,
+            attributes = mapOf(
+                DevelopmentHeaders.ROLES_ATTRIBUTE to listOf("employee", " ", "auditor"),
+                Caller.APP to listOf("console"),
+                "abac.region" to listOf("eu"),
+            ),
+        )
+        UserCredential.DEVELOPMENT.headers(erin).assert().isEqualTo(
+            mapOf(
+                "Wow-App" to "console",
+                "Wow-User" to "erin",
+                "Wow-Tenant" to "acme",
+                "Wow-Owner" to "erin",
+                "Wow-Roles" to "employee,auditor",
+            ),
+        )
+        UserCredential.DEVELOPMENT.headers(Caller.of(subject = "bob", attributes = mapOf("roles" to listOf(" "))))
+            .assert().isEqualTo(mapOf("Wow-User" to "bob", "Wow-Tenant" to Caller.DEFAULT_TENANT))
+        UserCredential.DEVELOPMENT.headers(Caller.ANONYMOUS).assert().isEmpty()
+        UserCredential.DEVELOPMENT.headers(Caller.of(scope = Scope(ownerId = "x"), attributes = erin.attributes))
+            .assert().isEqualTo(mapOf("Wow-App" to "console"))
     }
 
     @Test

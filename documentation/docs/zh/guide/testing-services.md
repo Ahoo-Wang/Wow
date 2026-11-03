@@ -72,6 +72,57 @@ fun `an order not paid within its grace period should cancel itself`() {
 }
 ```
 
+## 以调用者身份发送与读取 {#send-and-read-as-a-caller}
+
+服务器的类型化客户端以调用者的身份发送服务 api 模块里的命令、读取它的状态，测试里不写路径也不写 JSON：`commands(caller)` 是一个 `CommandClient`，`queries(caller)` 是这个调用者的 `Queries`，都在服务器的公开端口上。它们就是 `wow-client`，服务调用对端用的那个客户端，处于用户模式。调用者以开发身份头发送（`Wow-User`、`Wow-Owner`、`Wow-Roles`、`Wow-Tenant`、`Wow-App`，即 `UserCredential.DEVELOPMENT`），宿主在开发 profile 下、应用没有 `CallerResolver` 且 CoSec 关闭时读取它们（[调用者是谁](./http#who-the-caller-is)），所以测试在开发 profile `dev` 下启动服务器。快速开始的 bank 服务这样测试：
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#typed-clients -->
+
+```kotlin
+@Test
+fun `the typed clients should send commands and read states as the caller`() {
+    val alice = Caller.of(subject = "alice", scope = Scope(ownerId = "alice"))
+    val commands = server.commands(alice)
+    runBlocking {
+        commands.wait(OpenAccount("Alice"), "alice").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.wait(Deposit(100), "alice").version.assert().isEqualTo(2)
+
+        val account = server.queries(alice).snapshots(AccountState::class.java).state("alice")!!
+        account.state.balance.assert().isEqualTo(100L)
+        account.operator!!.id.assert().isEqualTo("alice")
+
+        val rejected = assertThrows<CommandRejectedException> { commands.wait(Withdraw(150), "alice") }
+        rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    }
+}
+```
+
+- `wait` 回答命令的等待计划最终的结果，等待计划可以一直等到 Saga 链尾。拒绝，无论来自聚合还是来自准入（无效或未知的命令、被禁止的调用者），是带错误码的 `CommandRejectedException`；其他问题是 `WowProblemException`。
+- 等待计划看不到的东西，例如到期触发的定时命令、另一个服务收到的调用，测试用 `eventually("what") { condition }` 轮询，默认每 100 毫秒一次，最多 20 秒。条件抛出异常（包括断言失败）视为尚未成立；失败时说明哪件事没有达到，并以条件最后一次的失败为原因。
+- `server.http` 留给线上契约本身：路由的形状、请求头、problem 的成员。`Answer.problem` 把 `application/problem+json` 的回答读成类型化的 `Problem`：它的状态、错误码和违规项，被拒命令的结果，聚合的版本，以及重试能做什么。
+
+<!-- sample: test/test-spring-boot/src/test/kotlin/me/ahoo/wow/test/server/TypedClientsTest.kt#problem -->
+
+```kotlin
+@Test
+fun `a problem the server answered should be typed`() {
+    server.http.post("/bank/account/carol/open-account", """{"owner":"Carol"}""").status.assert().isEqualTo(200)
+    val invalid = server.http.post("/bank/account/carol/deposit", """{"amount":0}""").problem!!
+    invalid.status.assert().isEqualTo(400)
+    invalid.code.assert().isEqualTo("wow.command.invalid")
+    val violation = invalid.violations.single()
+    violation.path.assert().isEqualTo("amount")
+    violation.code.assert().isEqualTo("positive")
+
+    val rejected = server.http.post("/bank/account/carol/withdraw", """{"amount":1}""").problem!!
+    rejected.status.assert().isEqualTo(409)
+    rejected.code.assert().isEqualTo("bank.account.insufficient-balance")
+    rejected.result!!.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+    rejected.version.assert().isEqualTo(1)
+    rejected.retry.assert().isEqualTo(Retry.NONE)
+}
+```
+
 ## 在真实存储上运行 {#run-it-on-real-stores}
 
 内存后端用内存引擎从内存回答快照查询和事件查询，但不写数仓。测试存储的 schema、存储自己的查询引擎和数仓，要让服务运行在存储本身上，由 Testcontainers 启动它们。`me.ahoo.wow.service` 为它们注册了单独的测试套件 `integrationTest`，`check` 不会运行它，这样单元测试保持快速，也不需要 Docker：源码放在 `src/integrationTest/kotlin`，用 `./gradlew integrationTest` 运行。这个套件在 JUnit Jupiter 上运行，能用到模块的类以及 `testImplementation` 提供的一切；插件不再添加别的东西，测试需要什么，包括 Testcontainers，由构建脚本声明：

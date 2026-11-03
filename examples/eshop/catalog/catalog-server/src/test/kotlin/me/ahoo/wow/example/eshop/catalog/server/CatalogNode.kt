@@ -14,11 +14,11 @@
 package me.ahoo.wow.example.eshop.catalog.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.DevelopmentHeaders.OWNER
+import me.ahoo.wow.api.wire.DevelopmentHeaders.ROLES
+import me.ahoo.wow.api.wire.DevelopmentHeaders.USER
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.OWNER
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.ROLES
-import me.ahoo.wow.spring.boot.DevelopmentCallerResolver.Companion.USER
 import me.ahoo.wow.test.server.Answer
 import me.ahoo.wow.test.server.WowServer
 import me.ahoo.wow.test.server.wowServer
