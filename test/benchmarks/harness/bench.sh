@@ -39,6 +39,8 @@
 #          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
 #          --server-java=<JDK home> (the servers' JDK, 21 at least, for a runtime calibration; by default JAVA_HOME's),
 #          --no-bus (no Kafka: for servers that use none, such as a Wow node with --wow.transport=none, and Axon's),
+#          --seed-cache=<dir> (the stores as seeding left them, kept per data set under <dir>; a later run of the
+#          same data set restores them instead of seeding; see keep_seeded),
 #          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --store-cpus=<list> and --bus-cpus=<list> (the store's and
@@ -74,7 +76,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,54p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -130,12 +132,18 @@ build() {
 }
 
 down() {
-  local pid
   if [ -f "$SESSION" ]; then
     # shellcheck disable=SC1090
     SERVER_PIDS=($(. "$SESSION"; echo "$S_PIDS"))
     rm -f "$SESSION"
   fi
+  stop_servers
+  compose down -v --remove-orphans >/dev/null 2>&1 || true
+}
+
+# Stops the servers in SERVER_PIDS and waits until they are gone.
+stop_servers() {
+  local pid
   for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
     kill "$pid" 2>/dev/null || true
   done
@@ -145,7 +153,62 @@ down() {
     local _
     for _ in $(seq 1 150); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
   done
-  compose down -v --remove-orphans >/dev/null 2>&1 || true
+}
+
+# The seeded stores of --seed-cache (keep_seeded): a data set's snapshot is kept under the hash of what made it, the
+# backend, the nodes, the accounts, the servers' build and arguments, the bus and MongoDB's cache, so a run with any of
+# them changed seeds its own. Empty without --seed-cache.
+seed_snapshot() {
+  local cache; cache=$(opt seed-cache "")
+  [ -n "$cache" ] || return 0
+  local key="backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;install=$(opt install "");args=$(opt server-args "")"
+  key="$key;bus=$(opt no-bus false);mongoCacheGb=$(opt mongo-cache-gb 2)"
+  echo "$cache/$(printf '%s' "$key" | cksum | cut -d' ' -f1)"
+}
+
+# The data directories of store $1's container and, with a bus, Kafka's: container:path, a line each.
+data_dirs() {
+  case "$1" in
+    postgres) echo "wow-e2e-bench-postgres:/var/lib/postgresql/data" ;;
+    mongo) echo "wow-e2e-bench-mongo:/data/db" ;;
+  esac
+  if uses_bus; then echo "wow-e2e-bench-kafka:/var/lib/kafka/data"; fi
+}
+
+# --seed-cache, the run that seeds: once seeded, the servers stop and the stores shut down cleanly, their data is kept
+# in snapshot $2 (docker cp, owners and modes kept), and the stores start again. The caller then starts new servers,
+# as a run that restores the snapshot does, so every run of the data set measures servers started on the seeded
+# stores, primed as before. Wow's servers take their own leases back at once (the lease store gives a node the
+# leases it held).
+keep_seeded() {
+  stop_servers
+  SERVER_PIDS=()
+  TARGETS=()
+  STARTED_AT=()
+  READY=()
+  # Time for PostgreSQL's checkpoint and Kafka's controlled shutdown, so neither is killed.
+  compose stop -t 120 >/dev/null
+  mkdir -p "$2"
+  local dir
+  for dir in $(data_dirs "$1"); do
+    docker cp -a "$dir" - >"$2/${dir%%:*}.tar"
+  done
+  touch "$2/done"
+  log "kept the seeded stores in $2"
+}
+
+# --seed-cache, a later run: creates the containers, unstarted, and restores snapshot $2's data into them.
+restore_seeded() {
+  local files=(-f "$HARNESS/compose.yml")
+  local services=("$1")
+  if uses_bus; then services=(kafka "$1"); fi
+  WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" create "${services[@]}" >/dev/null
+  local dir path
+  for dir in $(data_dirs "$1"); do
+    path=${dir#*:}
+    docker cp -a - "${dir%%:*}:${path%/*}" <"$2/${dir%%:*}.tar"
+  done
+  log "restored the seeded stores from $2"
 }
 
 # The --name=value options, one name=value per line in OPTIONS (bash 3.2 has no associative arrays); the ones the
@@ -162,7 +225,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-cache --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -251,6 +314,23 @@ start_node() {
   TARGETS+=("http://127.0.0.1:$port")
 }
 
+# Starts the nodes and waits until each answers (startup.json), then lets them settle: TARGET_LIST is theirs.
+start_nodes() {
+  local n
+  for n in $(seq 1 "$NODES"); do
+    log "starting node $n on $BACKEND"
+    start_node "$n"
+    await_node "$n"
+  done
+  local settle=2
+  if [ "$NODES" -gt 1 ]; then settle=15; fi
+  settle=$(opt settle "$settle")
+  printf '{"nodes":[%s]}\n' "$(IFS=,; echo "${READY[*]}")" >"$OUT/startup.json"
+  log "nodes up; settling ${settle}s"
+  sleep "$settle"
+  TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
+}
+
 # Waits until node $1 answers on its public port, probing five times a second, at most 120 s; fails when it exits
 # first. Once it answers, READY gets how long it took from its launch and its RSS then.
 await_node() {
@@ -294,26 +374,30 @@ setup() {
   if uses_bus; then log "starting kafka and $store"; else log "starting $store (no bus)"; fi
   # A profiled PostgreSQL run loads pg_stat_statements, for the statements behind the tails (postgres_stats).
   if [ "$(opt jfr false)" = true ] && [ "$store" = postgres ]; then export WOW_BENCH_PG_PRELOAD=pg_stat_statements; fi
+  local snapshot seeded=http
+  snapshot=$(seed_snapshot)
+  if [ -n "$snapshot" ] && [ "$(opt tmpfs false)" = true ]; then
+    log "--seed-cache keeps stores on disk; --tmpfs stores are gone once stopped"; exit 2
+  fi
+  if [ -n "$snapshot" ] && [ -f "$snapshot/done" ]; then
+    restore_seeded "$store" "$snapshot"
+    seeded=snapshot
+  fi
   stores_up "$store"
   pin_containers "$store"
   containers "$store"
   STORE_OPTION="--$store=wow-e2e-bench-$store"
-  local n
-  for n in $(seq 1 "$NODES"); do
-    log "starting node $n on $BACKEND"
-    start_node "$n"
-    await_node "$n"
-  done
-  local settle=2
-  if [ "$NODES" -gt 1 ]; then settle=15; fi
-  settle=$(opt settle "$settle")
-  printf '{"nodes":[%s]}\n' "$(IFS=,; echo "${READY[*]}")" >"$OUT/startup.json"
-  log "nodes up; settling ${settle}s"
-  sleep "$settle"
-  TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
-  log "seeding $ACCOUNTS accounts"
-  load seed --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
-    --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
+  start_nodes
+  if [ "$seeded" = http ]; then
+    log "seeding $ACCOUNTS accounts"
+    load seed --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+      --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
+    if [ -n "$snapshot" ]; then
+      keep_seeded "$store" "$snapshot"
+      stores_up "$store"
+      start_nodes
+    fi
+  fi
   log "checking every scenario once"
   # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
   load check --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
@@ -348,7 +432,7 @@ setup() {
   if uses_bus; then stores="kafka $store"; fi
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=$stores;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
-  META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
+  META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2);seeded=$seeded"
   if [ "$UP" = true ]; then
     # results/e2e is ignored by git: a fresh checkout has no such directory until a run's output makes one.
     mkdir -p "$(dirname "$SESSION")"

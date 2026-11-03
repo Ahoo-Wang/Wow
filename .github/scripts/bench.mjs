@@ -1635,6 +1635,8 @@ export const DEFAULTS = {
   dataset: '',
   aa: 'false',
   profile: 'false',
+  // Seed each data set once a job and restore it for the other runs (bench.sh --seed-cache), instead of seeding each.
+  seed_cache: 'false',
   warm_up: '30',
   measure: '40',
   repeats: '2',
@@ -1681,6 +1683,7 @@ export function resolveInputs({
   dataset,
   aa = DEFAULTS.aa,
   profile = DEFAULTS.profile,
+  seedCache = DEFAULTS.seed_cache,
   warmUp,
   measure,
   repeats,
@@ -1745,6 +1748,7 @@ export function resolveInputs({
     datasets: datasetsOf(dataset, suites?.trim() ? undefined : tier),
     aa: String(aa) === 'true',
     profile: String(profile) === 'true',
+    seedCache: String(seedCache) === 'true',
     ...(propertiesOf(properties)
       ? { properties: propertiesOf(properties) }
       : {}),
@@ -2724,6 +2728,11 @@ function primingLines(suite) {
           ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
           : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
   ];
+  if (suite.seedCache) {
+    lines.push(
+      'Seeded once a data set and build, its stores kept and restored for the other runs (`--seed-cache`): every run measures servers started on the seeded stores.',
+    );
+  }
   if (suite.accounts > STATE_CACHE) {
     lines.push(
       `The accounts exceed the node's state cache (a tenth of the 1 GB heap, about ${STATE_CACHE} states of few requests): the steady state is a full cache with evictions.`,
@@ -3109,6 +3118,8 @@ export function runSuite(name, options) {
     processes,
     // Where an arm's JDK is found (javaHome).
     env = process.env,
+    // Where bench.sh keeps each data set's seeded stores (--seed-cache), when the run seeds once a job.
+    seedCache,
   } = options;
   // Before anything runs: a cluster suite's hand-overs signal the node they stop.
   const handoverProcesses =
@@ -3185,6 +3196,7 @@ export function runSuite(name, options) {
     primed,
     cold: definition.cold === true,
     aa: aaRun,
+    ...(seedCache ? { seedCache: true } : {}),
     ...(properties && definition.kind === 'paired' ? { properties } : {}),
     // An arm on a JDK of its own records which (its release; the major version without one).
     arms: arms.map(arm =>
@@ -3247,6 +3259,7 @@ export function runSuite(name, options) {
       ? []
       : [
           `--seed-concurrency=${seedConcurrency}`,
+          ...(seedCache ? [`--seed-cache=${seedCache}`] : []),
           ...(primed ? ['--prime'] : []),
         ]),
     ...pins,
@@ -3741,6 +3754,7 @@ export function runSuite(name, options) {
               `--mix=${definition.scenarios.join(',')}`,
               `--accounts=${data.accounts}`,
               `--seed-concurrency=${seedConcurrency}`,
+              ...(seedCache ? [`--seed-cache=${seedCache}`] : []),
               ...(primed ? ['--prime'] : []),
               ...pins,
               `--out=${join(out, `${session}-up`)}`,
@@ -4166,6 +4180,7 @@ if (
         dataset: env.DATASET,
         aa: env.AA,
         profile: env.PROFILE,
+        seed_cache: env.SEED_CACHE,
         warm_up: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,
@@ -4186,6 +4201,7 @@ if (
         dataset: settings.dataset,
         aa: settings.aa,
         profile: settings.profile,
+        seedCache: settings.seed_cache,
         warmUp: settings.warm_up,
         measure: settings.measure,
         repeats: settings.repeats,
@@ -4205,6 +4221,7 @@ if (
         datasets: JSON.stringify(inputs.datasets),
         aa: inputs.aa,
         profile: inputs.profile,
+        'seed-cache': inputs.seedCache,
         properties: inputs.properties ? JSON.stringify(inputs.properties) : '',
         'base-ref': settings.base_ref,
         // The component suites take a baseline when there is one, and run the head alone otherwise.
@@ -4235,6 +4252,7 @@ if (
         dataset: job.dataset,
         aa: env.AA,
         profile: env.PROFILE,
+        seedCache: env.SEED_CACHE,
         warmUp: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,
@@ -4254,6 +4272,11 @@ if (
         ...inputs,
         dataset: job.dataset,
         cpus: { total: Number(env.CPUS) || undefined },
+        // Outside the results, which the job uploads.
+        seedCache: inputs.seedCache
+          ? env.SEED_CACHE_DIR ||
+            join(env.RUNNER_TEMP || '/tmp', 'wow-bench-seed-cache')
+          : undefined,
         installs: Object.fromEntries(
           [
             ['head', env.INSTALL_HEAD],

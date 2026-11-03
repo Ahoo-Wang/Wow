@@ -138,7 +138,19 @@ test('resolveInputs checks the inputs and expands all', () => {
       datasets: ['100k'],
       aa: false,
       profile: false,
+      seedCache: false,
     },
+  );
+  assert.equal(
+    resolveInputs({
+      suites: 'e1-pg-uniform',
+      warmUp: 30,
+      measure: 60,
+      repeats: 2,
+      fraction: 0.8,
+      seedCache: 'true',
+    }).seedCache,
+    true,
   );
   // No suites named: the tier's list, L2 by default.
   const byTier = tier =>
@@ -178,6 +190,7 @@ test('resolveInputs checks the inputs and expands all', () => {
       datasets: ['1M', '1k'],
       aa: true,
       profile: false,
+      seedCache: false,
     },
   );
   assert.throws(
@@ -549,6 +562,45 @@ test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge 
   assert.doesNotMatch(renderSuite(suite), /\| Run \| Arm \| Rate/);
   const report = renderReport([suite], {});
   assert.match(report, /## Saturation samples \(closed loop\)/);
+});
+
+test('with a seed cache every run that seeds names it, and the summary says so', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  const env = {
+    JAVA_HOME_21_X64: fakeJdk(dir, '21.0.9+10-LTS'),
+    JAVA_HOME_25_X64: fakeJdk(dir, '25.0.1+8-LTS'),
+  };
+  const seedCache = join(dir, 'seed-cache');
+  const options = {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    env,
+  };
+  const suite = runSuite('jdk-e1-pg', {
+    ...options,
+    seedCache,
+    out: join(dir, 'results', 'jdk-e1-pg'),
+  });
+  assert.equal(suite.seedCache, true);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  // Each paired run starts from empty stores, so each names the cache: the first of a data set seeds and keeps it.
+  assert.ok(calls.length > 0);
+  assert.ok(calls.every(line => line.includes(`--seed-cache=${seedCache} `)));
+  assert.match(
+    renderSuite(suite),
+    /Seeded once a data set and build, its stores kept and restored for the other runs/,
+  );
+  // Without one, none does.
+  const plain = runSuite('jdk-e1-pg', {
+    ...options,
+    out: join(dir, 'results', 'plain'),
+  });
+  assert.equal(plain.seedCache, undefined);
+  assert.doesNotMatch(renderSuite(plain), /Seeded once/);
 });
 
 test('runSuite pairs the arms, adds a round on drift, and the report combines the suites', () => {

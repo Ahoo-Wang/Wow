@@ -22,7 +22,7 @@
 #
 # A run starts when a branch `bench-run/**` is pushed (`git push origin main:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
-# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties` and `base_ref`. Delete the branch afterwards. It can also be
+# `dataset`, `aa`, `profile`, `seed_cache`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties` and `base_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
 # a pull request or a schedule, and no merge signal.
 name: Bench
@@ -56,6 +56,10 @@ on:
         default: false
       profile:
         description: 'Profile: one more run per arm of each paired suite with a flight recording, summarized by jfr view'
+        type: boolean
+        default: false
+      seed_cache:
+        description: 'Seed each data set once a job and restore its stores for the other runs (bench.sh --seed-cache)'
         type: boolean
         default: false
       warm_up:
@@ -115,6 +119,7 @@ jobs:
       tier: ${{ steps.settings.outputs.tier }}
       aa: ${{ steps.settings.outputs.aa }}
       profile: ${{ steps.settings.outputs.profile }}
+      seed-cache: ${{ steps.settings.outputs.seed-cache }}
       properties: ${{ steps.settings.outputs.properties }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
@@ -141,6 +146,7 @@ jobs:
           DATASET: ${{ inputs.dataset }}
           AA: ${{ inputs.aa }}
           PROFILE: ${{ inputs.profile }}
+          SEED_CACHE: ${{ inputs.seed_cache }}
           WARM_UP: ${{ inputs.warm_up }}
           MEASURE: ${{ inputs.measure }}
           REPEATS: ${{ inputs.repeats }}
@@ -288,6 +294,7 @@ jobs:
       TIER: ${{ needs.plan.outputs.tier }}
       AA: ${{ needs.plan.outputs.aa }}
       PROFILE: ${{ needs.plan.outputs.profile }}
+      SEED_CACHE: ${{ needs.plan.outputs.seed-cache }}
     steps:
       # The steps' script comes from the workflow's own commit; the harness from the measured head.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -364,6 +371,7 @@ jobs:
         run: |
           export BENCH="$GITHUB_WORKSPACE/repo/test/benchmarks/harness/bench.sh"
           export OUT="$RUNNER_TEMP/results/$JOB"
+          export SEED_CACHE_DIR="$RUNNER_TEMP/seed-cache"
           node steps/.github/scripts/bench.mjs suite "$JOB"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: always() && steps.axon.outputs.cache-hit != 'true' && hashFiles('repo/test/benchmarks/axon-server/build/install/axon-server/bin/axon-server') != ''
