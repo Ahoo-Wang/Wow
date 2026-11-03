@@ -24,6 +24,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
@@ -35,6 +38,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
@@ -284,8 +288,8 @@ class HostQueryTest {
             host.get("/bank/account/$id/state").status.assert().isEqualTo(404)
             // Its events alike, by a query that names no aggregate: each stream records the account's attributes.
             val all = """{"kind":"list","filter":{"op":"match-all"}}"""
-            host.post("/bank/account/events/query", all, teller).body!!.map { it["aggregateId"].asString() }.toSet()
-                .assert().containsExactly(id)
+            host.post("/bank/account/events/query", all, teller).body!!.values()
+                .map { it["aggregateId"].asString() }.toSet().assert().containsExactly(id)
             host.post("/bank/account/events/query", all).body!!.size().assert().isZero()
         }
         val refused = assertThrows<Exception> {
@@ -298,6 +302,33 @@ class HostQueryTest {
             "wow.contexts.include" to BANK,
             sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java),
         ).use { host -> host.context.getBean(QueryEngine::class.java).access.governed.assert().isEmpty() }
+    }
+
+    @Test
+    fun `an owner transfer should move the aggregate's whole history to its new owner's events queries`() {
+        startHost("spring.profiles.active" to "dev").use { host ->
+            val tom = Caller.of(scope = Scope("tom"), subject = "tom")
+            val commands = host.context.getBean(CommandClient::class.java).of(tom)
+            val ref = runBlocking {
+                val opened = commands.wait(CommandRequest.of(OpenAccount("tom")))
+                commands.wait(CommandRequest.to(opened.ref, Deposit(5))).status.assert()
+                    .isEqualTo(CommandResult.Status.SUCCEEDED)
+                opened.ref
+            }
+            val all = """{"kind":"list","filter":{"op":"match-all"}}"""
+            fun versions(owner: String) = host.post(
+                "/bank/account/events/query",
+                all,
+                mapOf(DevelopmentHeaders.USER to owner, DevelopmentHeaders.OWNER to owner),
+            ).body!!.values().map { it["version"].asInt() }
+            versions("tom").assert().containsExactly(1, 2)
+            versions("ann").assert().isEmpty()
+            runBlocking { commands.wait(CommandRequest.to(ref, TransferOwner.of("ann"))) }.status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+            // The built-in stamping stamps the earlier streams with the owner of now.
+            eventually { versions("ann") == listOf(1, 2, 3) }
+            versions("tom").assert().isEmpty()
+        }
     }
 
     @Test

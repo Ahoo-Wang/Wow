@@ -32,6 +32,16 @@
           "method" : "POST",
           "path" : "/bank/account/open-account"
         } ]
+      }, {
+        "name" : "wow.lifecycle.TransferOwner",
+        "aliases" : [ ],
+        "schema" : "#/$defs/wow.lifecycle.TransferOwner",
+        "creation" : "none",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/bank/account/{id}/wow.lifecycle.transfer-owner"
+        } ],
+        "system" : true
       } ],
       "events" : [ {
         "name" : "AccountOpened",
@@ -44,7 +54,7 @@
         "revision" : 1,
         "schema" : "#/$defs/Deposited"
       } ],
-      "lifecycle" : [ ],
+      "lifecycle" : [ "wow.lifecycle.TransferOwner" ],
       "queries" : [ {
         "model" : "snapshot",
         "routes" : [ {

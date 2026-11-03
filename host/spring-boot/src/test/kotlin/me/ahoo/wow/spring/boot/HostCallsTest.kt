@@ -150,8 +150,7 @@ class HostCallsTest {
 
     @Test
     fun `a service's commands should narrow the calls it may make (D226)`() {
-        // Without a list, a domain command is called (the bank's account has no lifecycle routes; the edge's tests
-        // call those).
+        // Without a list, a domain command is called (the edge's tests call the lifecycle routes).
         internalCall(target, "/bank/account/open-account", """{"owner":"olga"}""").second.assert()
             .isNotEqualTo(CallPermits.COMMAND_FORBIDDEN)
         // Listed, the gateway decides it: the account does not exist.
