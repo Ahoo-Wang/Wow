@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.cluster
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -38,6 +39,12 @@ import tools.jackson.databind.json.JsonMapper
  * [replyTo] is set only on a command a saga sends to another context (an addition within format 1):
  * where the target sends the receipt of a rejection, and, when it asks for one, of the commit. [operator] (an addition within format 1 too) is the
  * command's operator; a reader of an older version ignores it, and one reading an older writer's command has none.
+ *
+ * [caller] (an addition within format 1 too) is who sent the command, as admission resolved them ([Command.caller]):
+ * the target's access policy compares its claims. A derived command has none, and neither does an older writer's
+ * command nor one a producer wrote without one: under an access policy, a command that is not derived and has no
+ * caller is refused. Its claims travel in the cluster channel's requests and stay in the command topic's records
+ * for the topic's retention; they are never recorded in the log.
  */
 class CommandWire @InternalWowApi constructor(
     val type: String,
@@ -51,6 +58,7 @@ class CommandWire @InternalWowApi constructor(
     val causation: Causation? = null,
     val operator: Operator? = null,
     val replyTo: ReplyTo? = null,
+    val caller: CallerWire? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is CommandWire && valueFields() == other.valueFields()
@@ -60,7 +68,8 @@ class CommandWire @InternalWowApi constructor(
     override fun toString(): String = "CommandWire(" +
         "type=$type, id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, scope=$scope, headers=$headers, causation=$causation, operator=$operator, replyTo=$replyTo)"
 
-    private fun valueFields(): List<Any?> = listOf(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+    private fun valueFields(): List<Any?> =
+        listOf(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
 
     /** This CommandWire with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
@@ -77,7 +86,9 @@ class CommandWire @InternalWowApi constructor(
         causation: Causation? = this.causation,
         operator: Operator? = this.operator,
         replyTo: ReplyTo? = this.replyTo,
-    ): CommandWire = CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+        caller: CallerWire? = this.caller,
+    ): CommandWire =
+        CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
 
     companion object {
         /** A CommandWire of the given fields; parameters added later come last, with a default. */
@@ -94,8 +105,35 @@ class CommandWire @InternalWowApi constructor(
             headers: Map<String, String> = emptyMap(),
             causation: Causation? = null,
             operator: Operator? = null,
-            replyTo: ReplyTo? = null
-        ): CommandWire = CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo)
+            replyTo: ReplyTo? = null,
+            caller: CallerWire? = null,
+        ): CommandWire =
+            CommandWire(type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo, caller)
+    }
+}
+
+/**
+ * Who sent a command, in its wire form ([CommandWire.caller]): the fields of a [Caller], `{tenantId, scope, subject,
+ * crossScope, attributes, service}`, and nothing else: no credential, token or request header.
+ */
+@InternalWowApi
+data class CallerWire(
+    val tenantId: String = Caller.DEFAULT_TENANT,
+    val scope: Scope = Scope.NONE,
+    val subject: String? = null,
+    val crossScope: Boolean = false,
+    val attributes: Map<String, List<String>> = emptyMap(),
+    val service: Boolean = false,
+) {
+    /** The caller this wire form holds. */
+    fun caller(): Caller = Caller.of(tenantId, scope, subject, crossScope, attributes, service)
+
+    @InternalWowApi
+    companion object {
+        /** [caller] in its wire form. */
+        @JvmStatic
+        fun of(caller: Caller): CallerWire =
+            CallerWire(caller.tenantId, caller.scope, caller.subject, caller.crossScope, caller.attributes, caller.service)
     }
 }
 
@@ -294,6 +332,7 @@ object ClusterCodec {
         causation = command.causation,
         operator = command.operator,
         replyTo = replyTo,
+        caller = command.caller?.let(CallerWire::of),
     )
 
     /** The command [wire] holds, its body read as [model]'s command type of that name; null when it has none. */
@@ -309,6 +348,7 @@ object ClusterCodec {
             headers = wire.headers,
             causation = wire.causation,
             operator = wire.operator,
+            caller = wire.caller?.caller(),
         )
     }
 }

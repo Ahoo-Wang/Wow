@@ -586,6 +586,8 @@ class CommandGateway @InternalWowApi constructor(
             causation = call?.causation,
             operator = if (call != null) call.operator else origin.operator,
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
+            // A call's command is derived: the access policies trust it, and it carries no caller.
+            caller = if (call == null) actingCaller(request.caller, facts.ref, scope) else null,
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
     }
@@ -694,6 +696,7 @@ class CommandGateway @InternalWowApi constructor(
             headers = request.headers,
             operator = origin.operator,
             wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
+            caller = actingCaller(request.caller, facts.ref, scope),
         )
         return Admission.Relayed(admitted, facts.function, relay)
     }
@@ -779,6 +782,13 @@ class CommandGateway @InternalWowApi constructor(
             )
         }
     }
+
+    /**
+     * [caller] as its command's caller ([Command.caller]): acting in the tenant of [ref] and in [scope], the target's
+     * when `Wow-Scope` names one, as a read of it acts. The access policy of the aggregate compares its claims.
+     */
+    private fun actingCaller(caller: Caller, ref: AggregateRef, scope: Scope): Caller =
+        caller.copyWith(tenantId = ref.tenantId, scope = scope)
 
     /** The id [ownId] resolves, or why it refuses the request. */
     private sealed interface OwnId {

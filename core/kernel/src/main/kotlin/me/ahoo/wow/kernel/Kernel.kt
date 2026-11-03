@@ -173,6 +173,11 @@ class Kernel(
      * snapshots are on one store that reads them together; none, the reads are done apart.
      */
     private val snapshotTailReaders: (AggregateType) -> SnapshotTailReader? = { null },
+    /**
+     * The access policy of each aggregate type, which decides who changes it before and after deciding; none, every
+     * aggregate is changed by the default rule ([me.ahoo.wow.api.access.ScopeAccess]).
+     */
+    private val policies: WritePolicies = WritePolicies.NONE,
 ) {
     /** The reads of a committed state at a version or a time, and of its history. */
     private val history = StateHistory(this, log, codec)
@@ -299,8 +304,9 @@ class Kernel(
             val command = entry.command.narrowedTo(model)
             val decider = model.decider(command.body.javaClass) ?: break
             val commandType = model.commandType(command.body.javaClass)
+            val reach = CommandReach(model, policies.of(model.type), command)
             val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
-                duplicate(it, command, commandType)
+                duplicate(it, command, commandType, reach, codec)
             }
             // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
             if (!requests.pure || command.schedule != null) break
@@ -308,7 +314,7 @@ class Kernel(
                 state = it
                 caching = requests.caching
             }
-            val member = decided(model, decider, entry, command, commandType, requests, current, members) ?: break
+            val member = decided(model, decider, entry, command, commandType, requests, current, members, reach) ?: break
             members.streams += member
             // Before the next command evolves the same (mutable) state further.
             appending?.invoke(member.stream, member.evolved)
@@ -342,16 +348,17 @@ class Kernel(
         requests: RequestCheck,
         current: CachedState,
         members: BatchMembers,
+        reach: CommandReach,
     ): BatchMember? {
         val repeated = current.requests?.versionOf(command.requestId) != null ||
             members.streams.any { it.stream.requestId == command.requestId }
-        if (repeated || admissible(decider, command, current) != null) return null
+        if (repeated || admissible(decider, command, current, reach) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         val wait = entry.wait.beyondCommitted()
         val attempt =
             AttemptScope(command, ids, clock(), current, reservations, options.reservationTtl, wait, observer, encode)
         val prepared = try {
-            prepare(model, decider, attempt, current, command, commandType.name)
+            prepare(model, decider, attempt, current, command, commandType.name, reach)
         } catch (cancelled: CancellationException) {
             attempt.compensate(cancelled)
             throw cancelled
@@ -365,6 +372,8 @@ class Kernel(
         }
         if (prepared !is Prepared.Append) {
             attempt.compensate()
+            // Refused once its events evolved the state, which may have changed in place: the state is dropped.
+            if (prepared is Prepared.Refused) members.tainted = true
             return null
         }
         return BatchMember(command, commandType, requests, attempt, prepared.stream, prepared.evolved)
@@ -456,8 +465,9 @@ class Kernel(
             ?: return rejected(FrameworkCodes.COMMAND_UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
         val lease = currentCoroutineContext()[ExecutionLease]
+        val reach = CommandReach(model, policies.of(model.type), command)
         val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
-            duplicate(it, command, commandType)
+            duplicate(it, command, commandType, reach, codec)
         }
         requests.beforeWaiting()?.let { return it }
         awaitDue(command)
@@ -468,7 +478,7 @@ class Kernel(
             val (loaded, cached) = load(model, requests)
             // Checked after every load: a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
-            admissible(decider, command, loaded)?.let {
+            admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
             val attempt =
@@ -484,7 +494,7 @@ class Kernel(
                     encode
                 )
             val prepared = try {
-                prepare(model, decider, attempt, loaded, command, commandType.name)
+                prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
                 @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
                 failure: Throwable,
@@ -496,6 +506,11 @@ class Kernel(
                 is Prepared.Done -> {
                     attempt.compensate()
                     return requests.standing(loaded, cached, prepared.outcome) ?: continue
+                }
+
+                is Prepared.Refused -> {
+                    attempt.compensate()
+                    return requests.dropping(loaded, cached, prepared.outcome) ?: continue
                 }
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
@@ -586,7 +601,7 @@ class Kernel(
             attempt.compensate()
             // Answered as the request-id lookup answers it: within the scope that sent it. With the recent
             // requests, a request id reused on another aggregate of the type reaches only this key.
-            duplicate(appended.existing, attempt.command, commandType)
+            requests.duplicateOf(appended.existing)
         }
 
         is AppendOutcome.Conflict -> {
@@ -626,6 +641,7 @@ class Kernel(
         loaded: CachedState,
         command: Command<*>,
         commandType: String,
+        reach: CommandReach,
     ): Prepared {
         @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
         val state = loaded.state as S
@@ -658,12 +674,34 @@ class Kernel(
             "${command.ref} does not exist: a decision that only schedules needs an aggregate that exists."
         }
         // The decision's own time: what it read as `now` is the time its events are committed at.
-        val commitTime = scope.now
+        return appended(model, loaded, command, commandType, events, rejection, scope.now, reach)
+    }
+
+    /**
+     * The stream [command] appends with [events] (a rejection's when [rejection] is not null) on [loaded] at
+     * [commitTime], and the state after it; [Prepared.Refused] when it leaves the aggregate out of its caller's reach
+     * ([leaves]), checked once the events evolved the state, on the attributes the stream records.
+     */
+    @Suppress("LongParameterList") // The facts of the commit.
+    private fun <S : Any> appended(
+        model: AggregateModel<S>,
+        loaded: CachedState,
+        command: Command<*>,
+        commandType: String,
+        events: List<Any>,
+        rejection: Rejection?,
+        commitTime: Long,
+        reach: CommandReach,
+    ): Prepared {
+        val version = loaded.version
+        @Suppress("UNCHECKED_CAST") // The ref names the aggregate type, so the loaded state is this model's.
+        val state = loaded.state as S
         val metadata = metadataAfter(model, loaded, command, events)
-        // A creation is checked again on the aggregate it creates, before evolving the state: a caller creates none
-        // out of its own reach, and a refused creation leaves the initial state untouched.
-        creatable(command, version, metadata.scope)?.let { return Prepared.Done(it) }
+        // Read before the events evolve the state, which may change it in place.
+        val before = if (reach.governed) loaded.declared(model) else emptyMap()
         val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
+        val declared = model.accessOf(evolved)
+        leaves(command, reach, version, metadata.scope, before, declared)?.let { return Prepared.Refused(it) }
         val stream = EventStreamRecord(
             ref = command.ref,
             version = version + 1,
@@ -676,11 +714,12 @@ class Kernel(
             causation = command.causation,
             headers = rejection?.let { command.headers + EventStreamRecord.rejectionHeaders(it) } ?: command.headers,
             operator = command.operator,
-            access = AccessValues.ofStream(codec.accessOf(model, evolved), metadata.scope),
+            access = AccessValues.ofStream(codec.stored(declared), metadata.scope),
             // The attributes after this commit are of its own version, until a later change stamps them.
             accessVersion = version + 1,
         )
         val after = loaded.with(evolved, stream.version, metadata)
+        after.access = declared
         if (stream.version == 1) {
             after.first = FirstCommit.of(stream)
         }
@@ -1300,6 +1339,9 @@ class Kernel(
 
     private sealed interface Prepared {
         class Done(val outcome: CommandOutcome) : Prepared
+
+        /** Refused once its events evolved the state ([leaves]), which may have changed it in place. */
+        class Refused(val outcome: CommandOutcome) : Prepared
 
         class Append(val stream: EventStreamRecord, val evolved: CachedState) : Prepared
     }

@@ -95,6 +95,24 @@ internal class RequestCheck(
         return lookUp()?.let { answered(loaded, it) }
     }
 
+    /** The answer to the command when [existing] committed its request: a duplicate, or a refusal. */
+    fun duplicateOf(existing: EventStreamRecord): CommandOutcome = duplicate(existing)
+
+    /**
+     * [outcome], a refusal decided on [loaded] once its events evolved the state, which may have changed it in place:
+     * answered as [standing] answers it, but [loaded] is not cached again, so the aggregate's next command loads it
+     * anew.
+     */
+    suspend fun dropping(loaded: CachedState, cached: Boolean, outcome: CommandOutcome): CommandOutcome? {
+        if (!lookedUp) {
+            lookUp()?.let { return it }
+        }
+        if (cached && behindLog(loaded.version)) {
+            return null
+        }
+        return outcome
+    }
+
     /** The aggregate's cached state, taken out; none when this execution runs without the lease, dropped. */
     fun cached(): CachedState? = states.take(ref)?.takeIf { caching }
 

@@ -23,6 +23,7 @@ import me.ahoo.wow.spi.json.StateJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.util.concurrent.ConcurrentHashMap
@@ -225,9 +226,35 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             return emptyMap()
         }
         @Suppress("UNCHECKED_CAST") // The state is the model's, as every caller holds it.
-        val declared = (model as AggregateModel<Any>).accessOf(state)
-        return checkNotNull(AccessValues.of(mapper.valueToTree(declared)))
+        return stored((model as AggregateModel<Any>).accessOf(state))
     }
+
+    /** [declared], the values of declared access attributes ([AggregateModel.accessOf]), in their stored form. */
+    internal fun stored(declared: Map<String, Any?>): Map<String, Any?> =
+        if (declared.isEmpty()) emptyMap() else checkNotNull(AccessValues.of(mapper.valueToTree(declared)))
+
+    /**
+     * The values of [model]'s declared access attributes that [stored] holds in their stored form, as
+     * [AggregateModel.accessOf] gives them: an enum by its constant, a number as its attribute's type, several values
+     * as a set. An attribute [stored] lacks, or holds a value of another type in, has none.
+     */
+    internal fun declaredOf(model: AggregateModel<*>, stored: Map<String, Any?>): Map<String, Any?> =
+        model.accessAttributes.associate { attribute ->
+            val value = stored[attribute.name]
+            attribute.name to try {
+                when {
+                    value == null -> null
+                    attribute.multiple -> (value as Collection<*>).mapTo(LinkedHashSet()) {
+                        mapper.convertValue(it, attribute.type)
+                    }
+                    else -> mapper.convertValue(value, attribute.type)
+                }
+            } catch (_: JacksonException) {
+                null
+            } catch (_: ClassCastException) {
+                null
+            }
+        }
 
     /**
      * The declared access attributes after [stream], a stream of [model] that left the state [stateText]: the
