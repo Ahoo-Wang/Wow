@@ -53,6 +53,9 @@ object ArchitectureRules {
     val COCACHE_API = WowProject("cocache-api", "extensions/cocache-api")
     val COCACHE = WowProject("cocache", "extensions/cocache")
 
+    /** A service's peers through a Spring Cloud registry, and a client's endpoints through its LoadBalancer (D396). */
+    val SPRING_CLOUD = WowProject("spring-cloud", "extensions/spring-cloud")
+
     /** 9.x wow-models ported (decision D187): capability interfaces and the reusable Tree aggregate. */
     val MODELS = WowProject("models", "extensions/models")
     val MIGRATE_DATA = WowProject("migrate-data", "migration/migrate-data")
@@ -126,7 +129,7 @@ object ArchitectureRules {
     val MODULES = listOf(
         ANNOTATIONS, API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
         OPENAPI, HTTP, CLIENT, COSEC, OBSERVABILITY, SPRING_BOOT, COSID, COCACHE_API, COCACHE,
-        MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        SPRING_CLOUD, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -269,6 +272,10 @@ object ArchitectureRules {
         // through the node's typed queries, the views are found in the peer contracts (manifest). The host only for
         // the tests, which generate the module's configuration metadata and check the host accepts its keys.
         COCACHE to setOf("cocache-api", "manifest", "runtime", "spring-boot"),
+        // The peer discovery port and the client's endpoints (decision D396); the runtime's node, compileOnly, for the
+        // address a registration carries. The host and the quickstart only for the tests, which start nodes of the
+        // bank service that register in a registry and a peer that finds them there.
+        SPRING_CLOUD to setOf("spi", "client", "runtime", "spring-boot", "quickstart"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
@@ -646,6 +653,8 @@ object ArchitectureRules {
         GRADLE_PLUGIN to setOf("kernel", "compiler", "manifest-tools", "wow-dependencies"),
         // The test kit's published POM names no example: the quickstart is its tests' alone.
         TEST_SPRING_BOOT to setOf("spring-boot", "test-dsl"),
+        // A non-Wow application takes the module for its `lb://` endpoints: its POM names neither the host nor a domain.
+        SPRING_CLOUD to setOf("spi", "client", "runtime"),
     )
 
     private val CONFIGURED_PROJECT_DEPENDENCY =
