@@ -294,6 +294,7 @@ export interface CommandManifest {
     // (undocumented)
     readonly description?: string;
     readonly idProperty?: string;
+    readonly internal?: boolean;
     // (undocumented)
     readonly mounted?: boolean;
     // (undocumented)

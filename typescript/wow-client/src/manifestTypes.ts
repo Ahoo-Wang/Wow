@@ -118,6 +118,8 @@ export interface CommandManifest {
   readonly mounted?: boolean;
   /** A system command (wow.*): a lifecycle command, a rebuild or a job command. */
   readonly system?: boolean;
+  /** An internal command: only the platform sends it, on the internal port; the public port does not serve its routes. */
+  readonly internal?: boolean;
   readonly transformsTo?: readonly string[];
   /** The property of the command's body that holds its aggregate's id. */
   readonly idProperty?: string;

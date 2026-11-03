@@ -667,11 +667,17 @@ function computedProperty(
   return isObject(property) && property.readOnly === true;
 }
 
-/** The domain commands of `aggregate`: its system commands left out. */
+/**
+ * The domain commands of `aggregate` a client sends: its system commands left
+ * out, and its internal ones (`@InternalCommand`), which only the platform
+ * sends and the public port does not serve.
+ */
 function domainCommands(
   aggregate: ManifestAggregate,
 ): readonly ManifestCommand[] {
-  return (aggregate.commands ?? []).filter(command => command.system !== true);
+  return (aggregate.commands ?? []).filter(
+    command => command.system !== true && command.internal !== true,
+  );
 }
 
 /** The lifecycle commands `aggregate` lists among its system commands. */
