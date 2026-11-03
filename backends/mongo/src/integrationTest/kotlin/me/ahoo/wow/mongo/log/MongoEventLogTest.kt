@@ -856,6 +856,57 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `placeholders of a group that cannot be written are left to the tail, which fills them`(): Unit = runBlocking {
+        val failures: List<(List<Document>, (List<Document>) -> Unit) -> Unit> = listOf(
+            // The server refuses the placeholders' write.
+            { _, _ -> throw MongoException(QUOTA_EXCEEDED, "refused") },
+            // One placeholder fails, the other lands.
+            { documents, insert ->
+                insert(documents.drop(1))
+                throw bulk(documents, BulkWriteError(QUOTA_EXCEEDED, "failed", BsonDocument(), 0), null)
+            },
+            // Both land, but their write concern failed: each is filled again, a duplicate then.
+            { documents, insert ->
+                insert(documents)
+                throw bulk(documents, null, WriteConcernError(WRITE_CONCERN_FAILED, "", "no majority", BsonDocument()))
+            },
+        )
+        failures.forEach { failure ->
+            val context = MongoLogFixture.newContext()
+            val type = AggregateType(context, "order")
+            var armed = false
+            val client = faulty(many = { documents, insert ->
+                if (armed && documents.all { it.containsKey(MongoEventLog.GAP) }) {
+                    armed = false
+                    failure(documents, insert)
+                } else {
+                    insert(documents)
+                }
+            })
+            val owner = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            owner.appendAll(listOf(stream("hot", 1, aggregate = type) to null, stream("cold", 1, aggregate = type) to null))
+            MongoLogFixture.log(1, context).append(stream("hot", 2, aggregate = type))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            armed = true
+
+            // The conflict leaves its own sequence and its successor's without a stream: two placeholders, one write.
+            val outcomes = owner.appendAll(
+                listOf(
+                    stream("hot", 2, aggregate = type) to null,
+                    stream("hot", 3, aggregate = type) to null,
+                    stream("cold", 2, aggregate = type) to null,
+                ),
+            )
+
+            armed.assert().isFalse()
+            outcomes[0].assert().isEqualTo(AppendOutcome.Conflict(2))
+            outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            tailed(owner, 4).map { it.stream.ref.id to it.stream.version }.assert()
+                .containsExactlyInAnyOrder("hot" to 1, "cold" to 1, "hot" to 2, "cold" to 2)
+        }
+    }
+
+    @Test
     fun `a group whose write concern failed is unknown for each stream`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         var faulted = false
