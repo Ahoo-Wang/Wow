@@ -40,6 +40,9 @@ class AccessAttributeTest {
 
     @Test
     fun `two references are equal when they name the same attribute alike`() {
+        val name: Any = "department"
+        (DocumentStateAccess.DEPARTMENT == DocumentStateAccess.DEPARTMENT).assert().isTrue()
+        (DocumentStateAccess.DEPARTMENT == name).assert().isFalse()
         single("department").assert().isEqualTo(DocumentStateAccess.DEPARTMENT)
         single("department").hashCode().assert().isEqualTo(DocumentStateAccess.DEPARTMENT.hashCode())
         single("division").assert().isNotEqualTo(DocumentStateAccess.DEPARTMENT)

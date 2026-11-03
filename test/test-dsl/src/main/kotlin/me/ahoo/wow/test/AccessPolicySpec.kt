@@ -100,9 +100,9 @@ class AccessPolicySpec<S : Any> internal constructor(
             )
         }
         val allows = predicate.allows { attribute ->
-            when (attribute.name) {
-                AccessAttribute.OWNER.name -> scope.ownerId
-                AccessAttribute.SPACE.name -> scope.spaceId
+            when (attribute) {
+                AccessAttribute.OWNER -> scope.ownerId
+                AccessAttribute.SPACE -> scope.spaceId
                 else -> values[attribute.name]
             }
         }

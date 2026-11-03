@@ -25,7 +25,7 @@ import me.ahoo.wow.api.caller.Caller
  */
 class AccessPolicy<S : Any> @InternalWowApi constructor(
     val stateType: Class<S>,
-    val aggregate: AggregateType? = null,
+    val aggregate: AggregateType?,
     private val read: AccessScope<S>.(Caller) -> AccessPredicate,
     private val write: AccessScope<S>.(Caller) -> AccessPredicate,
 ) {

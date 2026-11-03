@@ -90,6 +90,27 @@ class AccessPolicySpecTest {
     }
 
     @Test
+    fun `a policy of the space, a negation and a conjunction is checked on the scope and the values`() {
+        val inSpace = accessPolicy<Document> {
+            read { caller ->
+                allOf(DocumentAccess.SPACE eq caller.claim("space"), not(DocumentAccess.DEPARTMENT eq "hr"))
+            }
+            write { denyAll() }
+        }
+        accessPolicySpec(model, inSpace) {
+            givenState(Document("d-1").apply { department = "sales" })
+            whenCaller(claims = mapOf("space" to listOf("s-1"))) { expectNoRead() }
+            given(Created("sales"), scope = Scope(spaceId = "s-1"))
+            whenCaller(claims = mapOf("space" to listOf("s-1"))) {
+                expectRead()
+                expectNoWrite()
+            }
+            given(Created("hr"), scope = Scope(spaceId = "s-1"))
+            whenCaller(claims = mapOf("space" to listOf("s-1"))) { expectNoRead() }
+        }
+    }
+
+    @Test
     fun `a check that does not hold says what was compared`() = accessPolicySpec(model, documentAccess) {
         given(Created("sales"))
         whenCaller(subject = "dave") {

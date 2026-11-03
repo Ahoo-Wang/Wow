@@ -87,18 +87,16 @@ object AccessFilters {
     }
 
     private fun comparison(comparison: AccessPredicate.Comparison, field: QueryField<*>, negated: Boolean): FilterExpression {
-        if (comparison.operator == AccessOperator.IS_NULL) {
-            return if (negated) IsNotNullFilter(field) else IsNullFilter(field)
-        }
         val values = comparison.values.map(::stored)
         val holds = when (comparison.operator) {
+            // The one comparison of absence: it needs no presence guard.
+            AccessOperator.IS_NULL -> return if (negated) IsNotNullFilter(field) else IsNullFilter(field)
             AccessOperator.EQUAL -> EqualFilter(field, values.single())
             AccessOperator.IN -> InFilter(field, values)
             AccessOperator.STARTS_WITH -> StartsWithFilter(field, values.single() as String)
             AccessOperator.CONTAINS -> ContainsAllFilter(field, values)
             AccessOperator.CONTAINS_ANY -> or(values.map { ContainsAllFilter(field, listOf(it)) })
             AccessOperator.IS_EMPTY -> IsEmptyFilter(field)
-            AccessOperator.IS_NULL -> error("Compiled above.")
         }
         val present = IsNotNullFilter(field)
         return when {

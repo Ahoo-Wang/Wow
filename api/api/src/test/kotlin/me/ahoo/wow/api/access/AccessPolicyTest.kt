@@ -215,6 +215,43 @@ class AccessPolicyTest {
     }
 
     @Test
+    fun `predicates are equal by what they compare`() {
+        val hr = Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.EQUAL, listOf("hr"))
+        listOf(hr, Not(hr), AllOf(listOf(hr)), AnyOf(listOf(hr))).forEach { predicate ->
+            (predicate == predicate).assert().isTrue()
+            (predicate == Allowed).assert().isFalse()
+        }
+        (hr == Comparison(DocumentStateAccess.ORG, AccessOperator.EQUAL, listOf("hr"))).assert().isFalse()
+        (hr == Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.IN, listOf("hr"))).assert().isFalse()
+        (hr == Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.EQUAL, listOf("sales"))).assert().isFalse()
+        (Not(hr) == Not(Allowed)).assert().isFalse()
+        (AllOf(listOf(hr)) == AllOf(emptyList())).assert().isFalse()
+        (AnyOf(listOf(hr)) == AnyOf(emptyList())).assert().isFalse()
+        assertThrownBy<IllegalArgumentException> {
+            Comparison(DocumentStateAccess.DEPARTMENT, AccessOperator.CONTAINS, listOf("hr"))
+        }.hasMessageContaining("several values")
+        assertThrownBy<IllegalArgumentException> {
+            Comparison(DocumentStateAccess.SHARED_WITH, AccessOperator.EQUAL, listOf("bob"))
+        }.hasMessageContaining("one value")
+    }
+
+    @Test
+    fun `a policy built from the state's class, as Java builds it, gives one write predicate`() {
+        val readOnly = accessPolicy(DocumentState::class.java) {
+            read { allowAll() }
+            write { denyAll() }
+        }
+        readOnly.aggregate.assert().isNull()
+        readOnly.read(bob).assert().isEqualTo(Allowed)
+        assertThrownBy<IllegalArgumentException> {
+            accessPolicy(DocumentState::class.java) {
+                write { denyAll() }
+                readWrite { allowAll() }
+            }
+        }.hasMessageContaining("two write predicates")
+    }
+
+    @Test
     fun `the claims are read by their exact names`() {
         accessPolicy<DocumentState> {
             readWrite { caller ->

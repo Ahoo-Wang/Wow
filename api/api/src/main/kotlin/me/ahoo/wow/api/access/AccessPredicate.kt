@@ -121,21 +121,18 @@ sealed interface AccessPredicate {
 
         /** [comparison] of [value], or its negation; an absent value holds neither way, but as one that is null. */
         fun compares(comparison: Comparison, value: Any?, negated: Boolean): Boolean {
-            if (comparison.operator == AccessOperator.IS_NULL) {
-                return (value == null) != negated
-            }
             if (value == null) {
-                return false
+                return comparison.operator == AccessOperator.IS_NULL && !negated
             }
             val values = comparison.values
             val holds = when (comparison.operator) {
+                AccessOperator.IS_NULL -> false
                 AccessOperator.EQUAL -> value == values.single()
                 AccessOperator.IN -> value in values
                 AccessOperator.STARTS_WITH -> (value as String).startsWith(values.single() as String)
                 AccessOperator.CONTAINS -> values.single() in value as Collection<*>
                 AccessOperator.CONTAINS_ANY -> values.any { it in value as Collection<*> }
                 AccessOperator.IS_EMPTY -> (value as Collection<*>).isEmpty()
-                AccessOperator.IS_NULL -> error("Compared above.")
             }
             return holds != negated
         }
