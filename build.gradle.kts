@@ -140,6 +140,9 @@ val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBe
 // What the BOM constrains: exactly the libraries a 10.x release publishes.
 val bomConstrainedProjects = publishedLibraries
 val isInCI = !System.getenv("CI").isNullOrEmpty()
+// The JDK the tests run on, when not the toolchain's: off pull requests CI runs them on Temurin 25 too
+// (`-Pwow.test.java=25`; D29 tests on 21 and 25, D368 recommends 25), while the toolchain still compiles for 21.
+val testJava = providers.gradleProperty("wow.test.java").orNull
 ext.set("libraryProjects", libraryProjects)
 ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)
 ext.set("bomConstrainedProjects", bomConstrainedProjects)
@@ -544,6 +547,13 @@ configure(libraryProjects) {
         }
         // fix logging missing code for JacocoPlugin
         jvmArgs = listOf(testLogbackConfiguration())
+        testJava?.let { version ->
+            javaLauncher.set(
+                project.extensions.getByType<JavaToolchainService>().launcherFor {
+                    languageVersion.set(JavaLanguageVersion.of(version))
+                },
+            )
+        }
         retry {
             if (isInCI) {
                 maxRetries = 2

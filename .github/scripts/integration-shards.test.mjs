@@ -11,6 +11,8 @@ import {
   codecovBuilds,
   gradleCheckShards,
   gradleProjects,
+  integrationListProblems,
+  matrixShards,
   shardProblems,
   workflowCheckShards,
   workflowShards,
@@ -20,14 +22,17 @@ const workflow = `jobs:
   check:
     strategy:
       matrix:
+        shard: [host, rest]
+        java: \${{ fromJSON('["21", "25"]') }}
         include:
-          - shard: host
           - shard: rest
             publications: true
     steps: []
   integration:
     strategy:
       matrix:
+        shard: [stores, apps]
+        java: \${{ fromJSON('["21", "25"]') }}
         include:
           - shard: stores
             projects: :mongo :postgres
@@ -46,6 +51,32 @@ test('the shards are read from the integration job of the workflow', () => {
   assert.throws(
     () => workflowShards('jobs:\n  check:\n'),
     /no integration job/,
+  );
+});
+
+test("the integration matrix's shard list and its include entries name the same shards", () => {
+  assert.deepEqual(
+    matrixShards('      matrix:\n        shard: [a, b-c ,d]\n'),
+    ['a', 'b-c', 'd'],
+  );
+  assert.equal(matrixShards('      matrix:\n        include: []\n'), undefined);
+  assert.deepEqual(integrationListProblems(workflow), []);
+  assert.deepEqual(
+    integrationListProblems(
+      workflow.replace('shard: [stores, apps]', 'shard: [stores, cold]'),
+    ),
+    [
+      'the integration matrix lists cold, which has no projects',
+      'the integration matrix gives projects to apps, which it does not list',
+    ],
+  );
+  assert.deepEqual(
+    integrationListProblems(workflow.replace('shard: [stores, apps]\n', '')),
+    ['the integration matrix lists no shards'],
+  );
+  assert.deepEqual(
+    integrationListProblems(readFileSync('.github/workflows/ci.yml', 'utf8')),
+    [],
   );
 });
 
@@ -120,6 +151,13 @@ test('the check shards are read from build.gradle.kts and the check job', () => 
 )`;
   assert.deepEqual(gradleCheckShards(buildScript), ['host', 'tooling', 'rest']);
   assert.deepEqual(workflowCheckShards(workflow), ['host', 'rest']);
+  // A matrix of include entries alone names its shards there.
+  assert.deepEqual(
+    workflowCheckShards(
+      'jobs:\n  check:\n    strategy:\n      matrix:\n        include:\n          - shard: host\n          - shard: rest\n',
+    ),
+    ['host', 'rest'],
+  );
   assert.throws(() => gradleCheckShards('val x = 1'), /no checkShards/);
 });
 

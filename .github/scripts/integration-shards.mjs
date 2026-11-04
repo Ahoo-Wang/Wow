@@ -32,9 +32,28 @@ export function gradleProjects(buildScript) {
   return [...list[1].matchAll(/"(:[^"]+)"/g)].map(match => match[1]);
 }
 
-/** The shards of the `integration` job's matrix: `{ shard, projects }`. */
+/** The text of ci.yml's job `name`, or undefined. */
+function jobOf(workflow, name) {
+  return workflow
+    .split(new RegExp(`^ {2}${name}:$`, 'm'))[1]
+    ?.split(/^ {2}\S/m)[0];
+}
+
+/**
+ * The `shard: [a, b]` list of a job's matrix, or undefined. The check and integration matrices list their shards so
+ * that the JDK legs (`java`) cross them; an `include` entry then adds a shard's own keys (`projects`, `publications`).
+ */
+export function matrixShards(job) {
+  const list = /^\s+shard: \[([^\]]*)\]/m.exec(job)?.[1];
+  return list
+    ?.split(',')
+    .map(shard => shard.trim())
+    .filter(Boolean);
+}
+
+/** The shards of the `integration` job's matrix: `{ shard, projects }`, from its `include` entries. */
 export function workflowShards(workflow) {
-  const job = workflow.split(/^ {2}integration:$/m)[1]?.split(/^ {2}\S/m)[0];
+  const job = jobOf(workflow, 'integration');
   if (!job) {
     throw new Error('ci.yml has no integration job');
   }
@@ -44,6 +63,29 @@ export function workflowShards(workflow) {
       projects: projects.trim().split(/\s+/),
     }),
   );
+}
+
+/**
+ * Whether the integration matrix's `shard` list and its `include` entries name the same shards: a listed shard with
+ * no entry would run no project, and an entry with no listed shard a leg of its own without the JDK legs.
+ */
+export function integrationListProblems(workflow) {
+  const listed = matrixShards(jobOf(workflow, 'integration') ?? '');
+  if (!listed) return ['the integration matrix lists no shards'];
+  const entries = workflowShards(workflow).map(({ shard }) => shard);
+  return [
+    ...listed
+      .filter(shard => !entries.includes(shard))
+      .map(
+        shard => `the integration matrix lists ${shard}, which has no projects`,
+      ),
+    ...entries
+      .filter(shard => !listed.includes(shard))
+      .map(
+        shard =>
+          `the integration matrix gives projects to ${shard}, which it does not list`,
+      ),
+  ];
 }
 
 /** The `after_n_builds` of the `flag` in codecov.yml, or undefined. */
@@ -61,13 +103,16 @@ export function gradleCheckShards(buildScript) {
   ];
 }
 
-/** The shards of ci.yml's check matrix. */
+/** The shards of ci.yml's check matrix: its `shard` list, else its `include` entries. */
 export function workflowCheckShards(workflow) {
-  const job = workflow.split(/^ {2}check:$/m)[1]?.split(/^ {2}\S/m)[0];
+  const job = jobOf(workflow, 'check');
   if (!job) {
     throw new Error('ci.yml has no check job');
   }
-  return [...job.matchAll(/- shard: (\S+)/g)].map(match => match[1]);
+  return (
+    matrixShards(job) ??
+    [...job.matchAll(/- shard: (\S+)/g)].map(match => match[1])
+  );
 }
 
 /** Whether ci.yml's check matrix runs each shard of build.gradle.kts once, and no other. */
@@ -140,6 +185,7 @@ if (
   const checkShards = workflowCheckShards(workflow);
   const problems = [
     ...shardProblems(projects, shards),
+    ...integrationListProblems(workflow),
     ...checkShardProblems(
       gradleCheckShards(readFileSync('build.gradle.kts', 'utf8')),
       checkShards,
