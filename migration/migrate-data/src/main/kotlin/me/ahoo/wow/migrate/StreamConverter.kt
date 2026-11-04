@@ -146,14 +146,14 @@ internal class StreamConverter(private val plan: MigrationPlan) {
      */
     private fun tagged(event: NineXEvent, mapping: EventMapping, aggregate: AggregatePlan, at: String): String {
         val payload = WowJson.mapper.createObjectNode()
-        (event.body as? ObjectNode)?.properties()?.forEach { (name, value) ->
+        event.body.properties().forEach { (name, value) ->
             if (name != TAGS) {
                 payload.set(mapping.fields[name] ?: name, value)
             }
         }
         val tags = NineXTags.of(event.body.get(TAGS))
         aggregate.mapping.tags.filter { it.written }.forEach { tag ->
-            val name = checkNotNull(tag.to)
+            val name = tag.to!!
             val attribute = aggregate.accessOf(name) ?: throw MigrationException(
                 "$at (${event.name}): the 9.x tag ${tag.key} maps to $name, which ${aggregate.target} does not declare " +
                     "as an access attribute.",

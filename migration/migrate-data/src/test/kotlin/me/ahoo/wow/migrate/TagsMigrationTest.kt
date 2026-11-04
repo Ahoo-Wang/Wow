@@ -51,7 +51,16 @@ class TagsMigrationTest {
     private val level = AccessAttributeManifest("level", AccessAttributeManifest.Type.INTEGER)
     private val channel = AccessAttributeManifest("channel", AccessAttributeManifest.Type.STRING)
 
-    private val manifest: Manifest = NineXExample.manifest.let { manifest ->
+    private val flag = AccessAttributeManifest("flag", AccessAttributeManifest.Type.BOOLEAN)
+    private val scores = AccessAttributeManifest("scores", AccessAttributeManifest.Type.INTEGER, multiple = true)
+
+    private val manifest: Manifest = manifestOf()
+
+    /** The example's Manifest, its order declaring [access], and the tags event and command when [tagging]. */
+    private fun manifestOf(
+        access: List<AccessAttributeManifest> = listOf(region, teams, level, channel),
+        tagging: Boolean = true,
+    ): Manifest = NineXExample.manifest.let { manifest ->
         manifest.copyWith(
             contexts = manifest.contexts.map { context ->
                 context.copyWith(
@@ -60,11 +69,15 @@ class TagsMigrationTest {
                             aggregate
                         } else {
                             aggregate.copyWith(
-                                access = listOf(region, teams, level, channel),
-                                events = aggregate.events +
-                                    EventManifest("OrderTagged", schema = Manifest.schemaRef("example.OrderTagged")),
-                                commands = aggregate.commands +
-                                    CommandManifest("TagOrder", schema = Manifest.schemaRef("example.TagOrder")),
+                                access = access,
+                                events = aggregate.events + listOfNotNull(
+                                    EventManifest("OrderTagged", schema = Manifest.schemaRef("example.OrderTagged"))
+                                        .takeIf { tagging },
+                                ),
+                                commands = aggregate.commands + listOfNotNull(
+                                    CommandManifest("TagOrder", schema = Manifest.schemaRef("example.TagOrder"))
+                                        .takeIf { tagging },
+                                ),
                             )
                         }
                     },
@@ -170,6 +183,65 @@ class TagsMigrationTest {
         TagValues.stringsOf(json("""[3, null, true]""")).assert().containsExactly("3", "true")
         TagValues.stringsOf(json("7")).assert().containsExactly("7")
         TagValues.stringsOf(null).assert().isEmpty()
+    }
+
+    @Test
+    fun `the export gives a tags event's other fields their 9x names back`() {
+        val plan = MigrationPlan(
+            map {
+                copy(
+                    events = events.map {
+                        if (it.tags) it.copy(fields = mapOf("note" to "remark")) else it
+                    },
+                )
+            },
+            manifest,
+        )
+        val stream = tagged(5, "{}").let { stream ->
+            stream.copy(
+                events = listOf(
+                    stream.events.single().copy(body = json("""{"note": "n", "tags": {"region": ["east"]}}""")),
+                ),
+            )
+        }
+        val record = StreamConverter(plan).convert(stream)
+        json(
+            record.events.single().payload
+        ).assert().isEqualTo(json("""{"remark": "n", "region": "east", "teams": []}"""))
+        StreamReverter(plan) { _, _ -> listOf("0.0.1") }.revert(record).events.single().body.assert()
+            .isEqualTo(json("""{"note": "n", "tags": {"region": ["east"]}}"""))
+    }
+
+    @Test
+    fun `a mapping refuses a blank key or attribute, and a tags event it drops or retires`() {
+        assertThrows<IllegalArgumentException> { TagMapping(" ", "region") }
+        assertThrows<IllegalArgumentException> { TagMapping("region", " ") }
+        assertThrows<IllegalArgumentException> { EventMapping(MapDrafter.TAGS_EVENT, drop = true, tags = true) }
+        assertThrows<IllegalArgumentException> {
+            EventMapping(MapDrafter.TAGS_EVENT, to = "OrderTagged", retire = true, tags = true)
+        }
+        TagReader.NONE.samples(order, "region", TagValueProblem.MULTIPLE, fromSnapshots = false).assert().isEmpty()
+        TagValues.booleanOf("FALSE").assert().isEqualTo(false)
+        TagValues.problems(flag, TagValueStats(count = 2, notInteger = 2, notBoolean = 1)).assert()
+            .isEqualTo(mapOf(TagValueProblem.NOT_BOOLEAN to 1L))
+    }
+
+    @Test
+    fun `the walks stop at the samples a check names`() {
+        val (source, _) = store()
+        source.add(tagged(1, """{"region": ["east", "west"]}""", id = "order-2"))
+        source.add(tagged(1, """{"region": ["north", "south"]}""", id = "order-3"))
+        source.tagSamples(order, "region", TagValueProblem.MULTIPLE, 1).assert().containsExactly("tags-1-order-2")
+        val snapshots = InMemoryNineXSnapshotSource(
+            listOf("a", "b").map { id ->
+                val node = json(NineXExample.resource("order-snapshot.json")) as ObjectNode
+                node.put("aggregateId", "order-$id")
+                node.set("tags", json("""{"region": ["east", "west"]}"""))
+                NineXSnapshot.parse(node)
+            },
+            source,
+        )
+        snapshots.tagSamples(order, "region", TagValueProblem.MULTIPLE, 1).assert().containsExactly("order-a")
     }
 
     @Test
@@ -351,6 +423,19 @@ class TagsMigrationTest {
                     "import writes none of them, and compare reports these instances as \$access.channel differences",
             )
         }
+        // A key applied and derived that only the snapshots hold is no warning; a key nothing holds is.
+        check(
+            map {
+                copy(
+                    tags = tags.map { if (it.key == "channel") it.copy(source = TagSource.BOTH) else it } + TagMapping("gone", reason = "r")
+                )
+            },
+            store().first,
+            store().second,
+        ).warnings.run {
+            none { "channel is applied and derived" in it }.assert().isTrue()
+            assert().contains("$order: no tags event or snapshot holds the 9.x tag key gone")
+        }
         val untagged = map {
             copy(
                 events = events.map { if (it.from == MapDrafter.TAGS_EVENT) it.copy(tags = false) else it }
@@ -360,6 +445,82 @@ class TagsMigrationTest {
             "$order: the 9.x tags event ${MapDrafter.TAGS_EVENT} (2 events) is mapped without \"tags\": true, so the " +
                 "tags it wrote would not reach the V10 attributes",
         )
+    }
+
+    @Test
+    fun `the check refuses a dropped tags event, an applied key it does not map and values of other types, and warns of a user's event with tags`() {
+        val (source, snapshots) = store()
+        source.add(
+            tagged(7, """{"extra": ["x"], "flag": ["yes"], "score": ["1", "x"]}""").let { stream ->
+                stream.copy(events = listOf(stream.events.single().copy(name = "order_labelled")))
+            },
+        )
+        val typed = manifestOf(listOf(region, teams, level, channel, flag, scores))
+        val dropped = map {
+            copy(
+                events = events.map { if (it.tags) EventMapping(it.from, drop = true) else it } +
+                    EventMapping("order_labelled", to = "OrderTagged"),
+                tags = tags + TagMapping("flag", "flag") + TagMapping("score", "scores"),
+            )
+        }
+        // A store that names no sample of a problem.
+        val unsampled = object : TagReader by TagReader.of(source, snapshots) {
+            override fun samples(
+                aggregate: NineXAggregate,
+                key: String,
+                problem: TagValueProblem,
+                fromSnapshots: Boolean
+            ) =
+                emptyList<String>()
+        }
+        val report = MappingCheck(MigrationPlan(dropped, typed)).check(source.inventory(), tags = unsampled)
+        report.problems.assert().contains(
+            "$order: the 9.x event ${MapDrafter.TAGS_EVENT} (2 events) writes tags and is dropped, so the attributes " +
+                "[region, teams, flag, scores] would be lost: map it to the V10 event that sets them, with \"tags\": true",
+            "$order: the 9.x tag key extra (1 tags events) has no tag mapping: map it to the V10 access attribute it " +
+                "becomes (source APPLIED), or leave it out with a reason",
+            "$order: the 9.x tag key flag, mapped to the single boolean attribute flag, holds a value that is not true " +
+                "or false in 1 tags events",
+            "$order: the 9.x tag key score, mapped to the multiple integer attribute scores, holds a value that is no " +
+                "integer in 1 tags events",
+        )
+        report.warnings.assert().contains(
+            "$order: the 9.x event order_labelled (1 events) holds a tags object: if it implements " +
+                "ResourceTagsApplied, map it with \"tags\": true",
+        )
+    }
+
+    @Test
+    fun `draft-map names the tags event and command to define, and reviews another event that holds tags`() {
+        val (source, snapshots) = store()
+        source.add(
+            tagged(7, """{"region": ["east"]}""").let { stream ->
+                stream.copy(events = listOf(stream.events.single().copy(name = "address_changed")))
+            },
+        )
+        val draft = MapDrafter(manifestOf(tagging = false))
+            .draft(source.inventory(), emptyMap(), TagReader.of(source, snapshots)::tags)
+        val mapping = draft.aggregates.first { it.source() == order }
+        mapping.events.first { it.from == MapDrafter.TAGS_EVENT }.to.assert().isEqualTo("OrderTagged")
+        mapping.commands.assert().contains(CommandMapping(MapDrafter.TAGS_COMMAND, "TagOrder"))
+        draft.exceptions.assert().contains(
+            "${MapDrafter.REVIEW} $order event ${MapDrafter.TAGS_EVENT}: 9.x's tags; define the V10 event OrderTagged " +
+                "that sets the access attributes the tags table maps (one field each, named as the attribute), or name yours",
+            "${MapDrafter.REVIEW} $order command ${MapDrafter.TAGS_COMMAND}: 9.x's tags command; define the V10 command " +
+                "TagOrder that emits the tags event, or name yours",
+            "${MapDrafter.REVIEW} $order event address_changed: it holds a tags object; if it implements " +
+                "ResourceTagsApplied, set \"tags\": true on its mapping",
+        )
+        val events = listOf(
+            EventMapping("order_archived", to = "OrderArchived", retire = true),
+            EventMapping(
+                "owner_transferred",
+                to = "wow.lifecycle.OwnerTransferred",
+                fields = mapOf("toOwnerId" to "ownerId")
+            ),
+        )
+        MapDraft(listOf(mapping.copy(events = events)), emptyList()).render().assert()
+            .contains("\"retire\" : true").contains("\"toOwnerId\" : \"ownerId\"")
     }
 
     @Test
@@ -399,10 +560,10 @@ class TagsMigrationTest {
         EventStreamImporter(source, plan, { log }, checkpoints).importAll(order).imported.assert().isEqualTo(6)
         val models = MigrationModels(listOf(taggedOrderModel, NineXExample.cartModel))
         val printed = mutableListOf<String>()
-        fun comparison(snapshot: NineXSnapshot) = StateComparison(
+        fun comparison(snapshot: NineXSnapshot, with: MigrationPlan = plan) = StateComparison(
             InMemoryNineXSnapshotSource(listOf(snapshot), source),
             source,
-            plan,
+            with,
             models,
             { log },
             checkpoints,
@@ -417,6 +578,23 @@ class TagsMigrationTest {
         printed.single { it.startsWith("DIFFERS") }.assert().endsWith(
             "\$access.region: 9.x \"west\", V10 \"east\"; \$access.teams: 9.x [\"a\",\"b\",\"c\"], V10 [\"a\",\"b\"]",
         )
+        // Values the attribute cannot hold show as 9.x stored them; a key the snapshot lacks, as none.
+        printed.clear()
+        comparison(
+            snapshot(6, """{"region": ["east", "west"], "team": ["a", "b"], "level": ["1"], "channel": ["web"]}""")
+        )
+            .compare(order).passed.assert().isFalse()
+        printed.single { it.startsWith("DIFFERS") }.assert()
+            .endsWith("\$access.region: 9.x [\"east\",\"west\"], V10 \"east\"")
+        printed.clear()
+        comparison(snapshot(6, """{"team": ["a", "b"], "level": ["1"], "channel": ["web"]}""")).compare(order)
+        printed.single { it.startsWith("DIFFERS") }.assert().endsWith("\$access.region: 9.x (none), V10 \"east\"")
+        // A derived key mapped to an attribute the Manifest does not declare: the check names it; compare passes it by.
+        val undeclared = MigrationPlan(
+            map { copy(tags = tags + TagMapping("zone", "zone", TagSource.DERIVED)) },
+            manifest
+        )
+        comparison(snapshot(6, SNAPSHOT_TAGS), undeclared).compare(order).passed.assert().isTrue()
     }
 
     private companion object {

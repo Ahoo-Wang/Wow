@@ -400,11 +400,14 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                 Document("\$project", Document("name", "\$body.name").append(TAGS, "\$body.body.$TAGS")),
                 Document(
                     "\$facet",
-                    Document("events", listOf(Document("\$group", Document("_id", "\$name").append("count", Document("\$sum", 1)))))
+                    Document(
+                        "events",
+                        listOf(Document("\$group", Document("_id", "\$name").append("count", Document("\$sum", 1))))
+                    )
                         .append("keys", MongoTags.counts("\$$TAGS")),
                 ),
             ),
-        ).first() ?: return NineXTags.NONE
+        ).first()!! // A $facet stage answers one document, of empty facets when nothing matches.
         return NineXTags(
             applied = MongoTags.stats(facets.getList("keys", Document::class.java)),
             events = facets.getList("events", Document::class.java).associate {

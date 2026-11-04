@@ -235,7 +235,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
 
                 tag.source == TagSource.APPLIED && applied == null ->
                     problems += "$subject: the 9.x tag key $key is mapped as ${TagSource.APPLIED}, but no tags event " +
-                        "wrote it: the ${held?.count} snapshots that hold it had it derived by the 9.x state, so map it as " +
+                        "wrote it: the ${held!!.count} snapshots that hold it had it derived by the 9.x state, so map it as " +
                         "${TagSource.DERIVED}"
 
                 tag.source == TagSource.BOTH && applied != null ->

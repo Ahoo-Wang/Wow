@@ -131,11 +131,11 @@ internal class StreamReverter(
 
     /** The 9.x tags event's body: its other fields renamed back, and the attributes it sets as the `tags` they were. */
     private fun taggedBodyOf(aggregate: AggregatePlan, event: EventRecord, mapping: EventMapping): JsonNode {
-        val keys = aggregate.mapping.tags.filter { it.written }.associate { checkNotNull(it.to) to it.key }
+        val keys = aggregate.mapping.tags.filter { it.written }.associate { it.to!! to it.key }
         val names = mapping.fields.entries.associate { (from, to) -> to to from }
         val body = WowJson.mapper.createObjectNode()
         val tags = WowJson.mapper.createObjectNode()
-        (WowJson.mapper.readTree(event.payload) as? ObjectNode)?.properties()?.forEach { (name, value) ->
+        WowJson.mapper.readTree(event.payload).properties().forEach { (name, value) ->
             val key = keys[name]
             if (key == null) {
                 body.set(names[name] ?: name, value)

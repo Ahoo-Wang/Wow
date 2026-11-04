@@ -390,7 +390,7 @@ internal class StateComparison(
         }
         val v10 = AccessValues.normalized(target.model.accessOf(rebuilt.state))
         return tags.mapNotNull { tag ->
-            val name = checkNotNull(tag.to)
+            val name = tag.to!!
             val attribute = target.plan.accessOf(name) ?: return@mapNotNull null
             val values = snapshot.tags[tag.key]
             val nineX = try {

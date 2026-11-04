@@ -149,7 +149,7 @@ internal object TagValues {
         }
         if (read.size > 1) {
             throw TagValueException(
-                "holds ${read.size} values, ${values.orEmpty()}, which the single attribute ${attribute.name} cannot"
+                "holds ${read.size} values, $values, which the single attribute ${attribute.name} cannot"
             )
         }
         return read.singleOrNull()
