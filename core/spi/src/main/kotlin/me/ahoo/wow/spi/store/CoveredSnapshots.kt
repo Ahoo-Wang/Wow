@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spi.store
 
-import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * Snapshot writes a later durable write to the same store covers: a facet of a [Store] ([Store.facet]) whose
@@ -25,8 +25,10 @@ import me.ahoo.wow.api.annotation.WowSpi
  * comes after the last durable checkpoint: the subscription writes it again from the log. A context split over stores
  * is never covered, since there a checkpoint durable in one store says nothing of the snapshots another lost. A store
  * without the facet writes every snapshot durably, as one not covered does.
+ *
+ * Internal to Wow: only its runtime and its PostgreSQL store use it; a third-party store may ask for it later.
  */
-@WowSpi
+@InternalWowApi
 fun interface CoveredSnapshots {
     /** [context]'s snapshot writes on this store are covered by its checkpoints there. */
     fun cover(context: String)
