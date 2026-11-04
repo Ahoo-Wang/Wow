@@ -139,7 +139,7 @@ if any(step["step"].startswith("bench-") for step in steps):
         "| Run | Image | Step | Container |",
         "| --- | --- | --- | --- |",
     ]
-    bench = [step for step in steps if step["step"].startswith("bench-")]
+    bench = [step for step in steps if step["step"].startswith(("bench-", "sweep-"))]
     for step in bench:
         container = step["data"].get("containerMillis")
         lines.append(
@@ -158,6 +158,26 @@ if any(step["step"].startswith("bench-") for step in steps):
             lines.append(
                 f"| {step['step']} | {done['aggregate']} | {streams} | {done['seconds']} s | {done['rate']} | "
                 f"{done['read']} s | {done['convert']} s | {done['append']} s | {done['checkpoints']} s |"
+            )
+    loads = [step for step in steps if step["step"].startswith("load-")]
+    if loads:
+        lines += [
+            "",
+            "9.x's MongoDB while each ran (kind.sh mongo_load_start): mongod's CPU, its operations per second, and a "
+            "probe reading one order's streams by id every 200 ms, as 9.x serves a command. `idle` is the store with "
+            "no import; `sweep-N` is the candidate walking N ranges of ids at once (readParallelism).",
+            "",
+            "| Run | Import | mongod CPU (cores) | Queries/s | getMores/s | Probe p50 | Probe p99 | Probe max |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for load in loads:
+            run, load_data = load["step"][len("load-"):], load["data"]
+            ops, probe = load_data.get("opsPerSecond", {}), load_data.get("probe", {})
+            imported = by_name.get(run)
+            lines.append(
+                f"| {run} | " + (f"{imported['millis'] / 1000:.1f} s" if imported else "-")
+                + f" | {load_data.get('cpuCores')} | {ops.get('query')} | {ops.get('getmore')} | "
+                f"{probe.get('p50')} ms | {probe.get('p99')} ms | {probe.get('max')} ms |"
             )
     print("\n".join(lines))
     sys.exit(0)

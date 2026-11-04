@@ -78,8 +78,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
  *   into the V10 service's failure ledger ([CompensationConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
- * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
- *   pause between two tail passes.
+ * - [pageSize], [streamBatch], [concurrency], [readParallelism] and [lookbackMillis] are [ImportOptions];
+ *   [pollIntervalMillis] is the pause between two tail passes.
  * - [final] is the final pass after 9.x stops (`import --final`, [FinalPassConfig]).
  */
 internal data class MigrationConfig(
@@ -92,6 +92,7 @@ internal data class MigrationConfig(
     val pageSize: Int = 500,
     val streamBatch: Int = 200,
     val concurrency: Int = 8,
+    val readParallelism: Int = ImportOptions.DEFAULT_READ_PARALLELISM,
     val lookbackMillis: Long = 300_000,
     val pollIntervalMillis: Long = 1_000,
     val classpath: List<String> = emptyList(),
@@ -118,6 +119,7 @@ internal data class MigrationConfig(
         dryRun = dryRun,
         restart = restart,
         lookbackMillis = lookbackMillis,
+        readParallelism = readParallelism,
     )
 
     /**

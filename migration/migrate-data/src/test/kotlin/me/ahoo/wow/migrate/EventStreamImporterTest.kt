@@ -123,7 +123,7 @@ class EventStreamImporterTest {
             override fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int) =
                 inMemory.streams(aggregate, id, fromVersion, limit).also { reads += fromVersion }
         }
-        importer(source, ImportOptions(streamBatch = 2)).also {
+        importer(source, ImportOptions(streamBatch = 2, readParallelism = 1)).also {
             it.importAll(order).imported.assert().isEqualTo(4)
             it.importAll(cart).imported.assert().isEqualTo(4)
         }
@@ -481,17 +481,26 @@ class EventStreamImporterTest {
         // Five instances, two of them holding a second stream: seven streams in two groups, by whole instances.
         val streams = (1..5).map { copyOf(first, "order-$it") } +
             (1..2).map { copyOf(NineXExample.stream("order-stream-v2.json"), "order-$it") }
-        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2), counting).importAll(order).also {
-            it.imported.assert().isEqualTo(7)
-            it.instances.assert().isEqualTo(5)
-        }
+        importer(
+            InMemoryNineXEventSource(streams),
+            ImportOptions(concurrency = 2, readParallelism = 1),
+            counting
+        ).importAll(order)
+            .also {
+                it.imported.assert().isEqualTo(7)
+                it.instances.assert().isEqualTo(5)
+            }
         calls.sorted().assert().containsExactly(3, 4)
         single.assert().isEqualTo(0)
         log.read(NineXExample.orderModel.type.ref("(0)", "order-1")).toList().map { it.version }.assert()
             .containsExactly(1, 2)
         // A rerun meets every stream in the log: each instance goes on alone from its first, and skips it.
         calls.clear()
-        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2, restart = true), counting)
+        importer(
+            InMemoryNineXEventSource(streams),
+            ImportOptions(concurrency = 2, restart = true, readParallelism = 1),
+            counting
+        )
             .importAll(order).also {
                 it.imported.assert().isEqualTo(0)
                 it.skipped.assert().isEqualTo(7)
@@ -533,7 +542,11 @@ class EventStreamImporterTest {
                 return log.appendAll(streams)
             }
         }
-        importer(source, ImportOptions(pageSize = 1), waiting).importAll(order).imported.assert().isEqualTo(3)
+        importer(
+            source,
+            ImportOptions(pageSize = 1, readParallelism = 1),
+            waiting
+        ).importAll(order).imported.assert().isEqualTo(3)
     }
 
     @Test
@@ -552,11 +565,14 @@ class EventStreamImporterTest {
         val saved = mutableListOf<String?>()
         val recording = object : CheckpointRepository by checkpoints {
             override fun update(change: (ImportCheckpoints) -> ImportCheckpoints): ImportCheckpoints =
-                checkpoints.update(change).also { saved += it.of(order)?.after?.id }
+                checkpoints.update(change).also { saved += it.of(order)?.ranges?.single()?.after?.id }
         }
-        EventStreamImporter(source, NineXExample.plan, { reordering }, recording, ImportOptions(pageSize = 1), { now })
+        EventStreamImporter(source, NineXExample.plan, {
+            reordering
+        }, recording, ImportOptions(pageSize = 1, readParallelism = 1), { now })
             .importAll(order).imported.assert().isEqualTo(3)
-        saved.assert().containsExactly(null, "order-1", "order-2", "order-3", "order-3")
+        // The range's position after each page, then the range done, then the aggregate.
+        saved.assert().containsExactly(null, "order-1", "order-2", "order-3", "order-3", "order-3")
     }
 
     @Test
@@ -570,9 +586,9 @@ class EventStreamImporterTest {
             }
         }
         assertThrows<IllegalStateException> {
-            importer(source, ImportOptions(pageSize = 1), failing).importAll(order)
+            importer(source, ImportOptions(pageSize = 1, readParallelism = 1), failing).importAll(order)
         }
-        checkpoints.load().of(order)!!.after?.id.assert().isIn(null, "order-1")
+        checkpoints.load().of(order)!!.ranges!!.single().after?.id.assert().isIn(null, "order-1")
         // The rerun goes on from there, and finds in the log what the stopped run appended after it.
         importer(source, ImportOptions(pageSize = 1)).importAll(order).also {
             (it.imported + it.skipped).assert().isGreaterThanOrEqualTo(3)
@@ -580,6 +596,105 @@ class EventStreamImporterTest {
         (1..4).forEach { n ->
             log.read(NineXExample.orderModel.type.ref("(0)", "order-$n")).toList().size.assert().isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `the walk is split into ranges of ids walked at once, each instance imported once`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val streams = (10..19).map { copyOf(first, "order-$it") }
+        val walked = mutableListOf<IdRange>()
+        val inMemory = InMemoryNineXEventSource(streams)
+        val source = object : NineXEventSource by inMemory {
+            override fun instances(
+                aggregate: NineXAggregate,
+                range: IdRange,
+                after: NineXAggregateId?,
+                limit: Int,
+                maxStreams: Int,
+            ): List<NineXInstance> {
+                synchronized(walked) { walked += range }
+                return inMemory.instances(aggregate, range, after, limit, maxStreams)
+            }
+        }
+        importer(source, ImportOptions(pageSize = 2, readParallelism = 3)).importAll(order).also {
+            it.imported.assert().isEqualTo(10)
+            it.instances.assert().isEqualTo(10)
+        }
+        val ranges = checkpoints.load().of(order)!!.ranges!!
+        ranges.map { it.range }.assert()
+            .containsExactly(IdRange(null, "order-13"), IdRange("order-13", "order-16"), IdRange("order-16", null))
+        ranges.all { it.completed }.assert().isTrue()
+        ranges.map { it.after?.id }.assert().containsExactly("order-12", "order-15", "order-19")
+        walked.distinct().size.assert().isEqualTo(3)
+        streams.forEach { stream ->
+            log.read(NineXExample.orderModel.type.ref("(0)", stream.aggregateId.id)).toList().size.assert().isEqualTo(1)
+        }
+        // A restart samples the ranges again, and finds every stream in the log.
+        importer(source, ImportOptions(restart = true, readParallelism = 2)).importAll(order).also {
+            it.skipped.assert().isEqualTo(10)
+        }
+        checkpoints.load().of(order)!!.ranges!!.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `an earlier version's single position resumes as one range from there`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val source = InMemoryNineXEventSource((1..4).map { copyOf(first, "order-$it") })
+        checkpoints.save(
+            ImportCheckpoints().with(
+                order,
+                AggregateCheckpoint(startedAt = 1, after = NineXAggregateId("order-2", "(0)"))
+            ),
+        )
+        importer(source, ImportOptions(readParallelism = 4)).importAll(order).imported.assert().isEqualTo(2)
+        checkpoints.load().of(order)!!.also {
+            it.completed.assert().isTrue()
+            it.startedAt.assert().isEqualTo(1)
+            it.after.assert().isNull()
+            it.ranges!!.single().also { range ->
+                range.range.assert().isEqualTo(IdRange.ALL)
+                range.after!!.id.assert().isEqualTo("order-4")
+            }
+        }
+        log.read(NineXExample.orderModel.type.ref("(0)", "order-1")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `a stopped import resumes each range where it stopped`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val source = InMemoryNineXEventSource((10..15).map { copyOf(first, "order-$it") })
+        val failing = object : EventLog by log {
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                check(streams.none { it.first.ref.id == "order-14" }) { "the store is gone" }
+                return log.appendAll(streams)
+            }
+        }
+        val options = ImportOptions(pageSize = 1, concurrency = 1, readParallelism = 2)
+        assertThrows<IllegalStateException> { importer(source, options, failing).importAll(order) }
+        val stopped = checkpoints.load().of(order)!!
+        stopped.completed.assert().isFalse()
+        stopped.ranges!!.map { it.range }.assert().containsExactly(IdRange(null, "order-13"), IdRange("order-13", null))
+        importer(
+            source,
+            options
+        ).importAll(order).also { (it.imported + it.skipped).assert().isGreaterThanOrEqualTo(2) }
+        checkpoints.load().of(order)!!.ranges!!.map { it.range }.assert().isEqualTo(stopped.ranges!!.map { it.range })
+        (10..15).forEach { n ->
+            log.read(NineXExample.orderModel.type.ref("(0)", "order-$n")).toList().size.assert().isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `ranges split the ids and hold their own`() {
+        IdRange.split(emptyList()).assert().containsExactly(IdRange.ALL)
+        IdRange.split(
+            listOf("b", "d")
+        ).assert().containsExactly(IdRange(null, "b"), IdRange("b", "d"), IdRange("d", null))
+        IdRange("b", "d").holds("b").assert().isTrue()
+        IdRange("b", "d").holds("c").assert().isTrue()
+        IdRange("b", "d").holds("d").assert().isFalse()
+        IdRange(null, "b").holds("a").assert().isTrue()
+        assertThrows<IllegalArgumentException> { ImportOptions(readParallelism = 0) }
     }
 
     /** [log] answering a group commit as the log's own default does: one append after another. */

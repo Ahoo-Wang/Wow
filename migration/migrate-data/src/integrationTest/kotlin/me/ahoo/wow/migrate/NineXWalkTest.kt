@@ -126,6 +126,25 @@ class NineXWalkTest {
     }
 
     @Test
+    fun `the ranges MongoDB's sampled ids split the walk into hold every instance once, in the walk's order`() {
+        // Ids whose UTF-8 bytes order them one way, as MongoDB orders strings, and their UTF-16 units the other.
+        val ids = (100..159).map { "o-$it" } + listOf("\uE000", "\uD83D\uDE00", "z-1")
+        ids.forEach { insertOrder(it, "(0)", versions = 2) }
+        val whole = pages({ source.instances(order, it, 7, 1000) }, { it.id }).flatten().map { it.id }
+        listOf(1, 2, 4, 8).forEach { parallelism ->
+            val boundaries = source.idBoundaries(order, parallelism)
+            boundaries.size.assert().isLessThanOrEqualTo(parallelism - 1)
+            if (parallelism > 1) boundaries.assert().isNotEmpty()
+            val ranges = IdRange.split(boundaries)
+            val walked = ranges.flatMap { range ->
+                pages({ source.instances(order, range, it, 7, 1000) }, { it.id }).flatten().map { it.id }
+            }
+            walked.assert().isEqualTo(whole)
+        }
+        source.idBoundaries(NineXAggregate("example-service", "absent"), 4).assert().isEmpty()
+    }
+
+    @Test
     fun `a page ends at the instance that reaches its streams, and one that does not parse is left to the import`() {
         insertOrder("p-1", "(0)")
         insertOrder("p-2", "(0)")
@@ -201,7 +220,9 @@ class NineXWalkTest {
             }
             checkpoints.load().of(order)!!.also {
                 it.completed.assert().isTrue()
-                it.after.assert().isEqualTo(NineXAggregateId("c", "t1"))
+                // One range from the earlier version's position, which now holds it.
+                it.after.assert().isNull()
+                it.ranges!!.single().after.assert().isEqualTo(NineXAggregateId("c", "t1"))
             }
         }
     }

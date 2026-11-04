@@ -24,6 +24,25 @@ internal data class NineXPosition(val createTime: Long, val streamId: String)
 internal data class NineXInstance(val id: NineXAggregateId, val streams: List<NineXStream>, val complete: Boolean)
 
 /**
+ * A range of the full import's walk, by aggregate id: from [from], included (the first id when null), to [until],
+ * excluded (to the last when null). The ranges of an import share no id and leave none out
+ * ([NineXEventSource.idBoundaries]); each is walked on its own ([NineXEventSource.instances]).
+ */
+internal data class IdRange(val from: String? = null, val until: String? = null) {
+    /** Whether [id] is in this range, in the order of Kotlin's strings: a store compares in its own. */
+    fun holds(id: String): Boolean = (from == null || id >= from) && (until == null || id < until)
+
+    companion object {
+        /** Every id. */
+        val ALL = IdRange()
+
+        /** The ranges [boundaries], sorted in the store's order, split the ids into: one more than them. */
+        fun split(boundaries: List<String>): List<IdRange> =
+            (listOf(null) + boundaries).zip(boundaries + listOf(null)) { from, until -> IdRange(from, until) }
+    }
+}
+
+/**
  * A 9.x event store, read by its storage format (no 9.x module). The calls block; the import runs them
  * off its coroutines.
  *
@@ -74,6 +93,54 @@ internal interface NineXEventSource {
         return page
     }
 
+    /**
+     * A page of the walk of [range] ([instances]): its instances after [after], or from its first when null, the page
+     * ending where the range ends. A store reads it in one bounded scan when it can; this one reads the pages of the
+     * whole walk, passing over the ids before the range.
+     */
+    fun instances(
+        aggregate: NineXAggregate,
+        range: IdRange,
+        after: NineXAggregateId?,
+        limit: Int,
+        maxStreams: Int,
+    ): List<NineXInstance> {
+        if (range == IdRange.ALL) {
+            return instances(aggregate, after, limit, maxStreams)
+        }
+        var from = after
+        while (true) {
+            val read = instances(aggregate, from, limit, maxStreams)
+            val held = read.filter { range.holds(it.id.id) }
+            val ended = range.until?.let { until -> read.any { it.id.id >= until } } == true
+            if (read.isEmpty() || held.isNotEmpty() || ended) {
+                return held
+            }
+            from = read.last().id
+        }
+    }
+
+    /**
+     * Up to [ranges] - 1 aggregate ids that split [aggregate]'s instances into about even ranges of the full import's
+     * walk ([IdRange.split]), sorted in the store's own order; none when it holds too few. A store samples them; this
+     * one walks every id.
+     */
+    fun idBoundaries(aggregate: NineXAggregate, ranges: Int): List<String> {
+        val ids = ArrayList<String>()
+        var after: NineXAggregateId? = null
+        while (true) {
+            val page = aggregateIds(aggregate, after, BOUNDARY_PAGE)
+            if (page.isEmpty()) {
+                break
+            }
+            ids += page.map { it.id }
+            after = page.last()
+        }
+        val distinct = ids.distinct()
+        return (1 until ranges).mapNotNull { distinct.getOrNull(it * distinct.size / ranges) }.distinct()
+            .filter { it != distinct.firstOrNull() }
+    }
+
     /** At most [limit] streams of [id] from version [fromVersion] on, in version order. */
     fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int): List<NineXStream>
 
@@ -116,3 +183,6 @@ internal interface CommitTimeIndexed {
     /** Creates the index on [aggregate]'s collection when it is missing: a write to the 9.x store. */
     fun ensureCommitTimeIndex(aggregate: NineXAggregate)
 }
+
+/** The ids [NineXEventSource.idBoundaries] reads at once when it walks them all. */
+private const val BOUNDARY_PAGE = 1000

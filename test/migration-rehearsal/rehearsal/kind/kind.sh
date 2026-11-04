@@ -67,7 +67,8 @@ config_json() {
   "classpath": ["/service/migration-rehearsal", "/service/view-store-server"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
   "lookbackMillis": 20000,
-  "pollIntervalMillis": 500,
+  "pollIntervalMillis": 500,${READ_PARALLELISM:+
+  "readParallelism": $READ_PARALLELISM,}
   "final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 }
 EOF
@@ -249,7 +250,10 @@ where_timings() {
 # is timed, which keeps a large store within the runner's disk. The Jobs' logs hold each aggregate's time and where its
 # workers spent it (ImportPhases).
 bench_imports() {
-  local run=0 arm image db
+  local run=0 arm image db ranges
+  mongo_load_start idle
+  sleep 30
+  mongo_load_stop idle
   for arm in A B B A; do
     run=$((run + 1))
     image=wow-migrate-data:local
@@ -258,10 +262,47 @@ bench_imports() {
     createdb "$db"
     write_config "$db"
     export MIGRATE_IMAGE="$image"
+    mongo_load_start "bench-$run-$arm"
     step "bench-$run-$arm" 0 kind_job import --config "/config/migrate-data-$db.json"
+    mongo_load_stop "bench-$run-$arm"
     unset MIGRATE_IMAGE
     kubectl exec deploy/postgres -- dropdb -U postgres "$db"
   done
+  # The candidate's import walking 1, 2, 4 and 8 ranges of ids at once (readParallelism), each with 9.x's MongoDB load:
+  # the baseline image may not know the setting, so only these runs' configurations carry it.
+  for ranges in ${READ_SWEEP:-1 2 4 8}; do
+    db="sweep_$ranges"
+    createdb "$db"
+    READ_PARALLELISM="$ranges" write_config "$db"
+    export MIGRATE_IMAGE=wow-migrate-data:local
+    mongo_load_start "sweep-$ranges"
+    step "sweep-$ranges" 0 kind_job import --config "/config/migrate-data-$db.json"
+    mongo_load_stop "sweep-$ranges"
+    unset MIGRATE_IMAGE
+    kubectl exec deploy/postgres -- dropdb -U postgres "$db"
+  done
+}
+
+# mongo_load_start NAME: samples 9.x's MongoDB while step NAME runs: mongod's CPU time and operation counters now, and
+# a probe in its pod that reads one order's streams by id every 200 ms, as 9.x does to serve a command, each read's
+# milliseconds a line. mongo_load_stop NAME ends it and records the load as the step load-NAME (load.py).
+mongo_load_start() {
+  kubectl exec deploy/mongo -- cat /proc/1/stat | awk '{print $14 + $15}' >"$WORK/load-$1.cpu"
+  mongosh_run wow_example_db --eval 'JSON.stringify(db.serverStatus().opcounters)' >"$WORK/load-$1.ops"
+  now_ms >"$WORK/load-$1.at"
+  kubectl exec deploy/mongo -- mongosh --quiet wow_example_db --eval "$(sed "s/@RUN@/$1/" "$KIND_DIR/probe.js")" \
+    >"$WORK/load-$1.probe" 2>&1 &
+  echo $! >"$WORK/load-$1.pid"
+}
+
+mongo_load_stop() {
+  kubectl exec deploy/mongo -- cat /proc/1/stat | awk '{print $14 + $15}' >>"$WORK/load-$1.cpu"
+  mongosh_run wow_example_db --eval 'JSON.stringify(db.serverStatus().opcounters)' >>"$WORK/load-$1.ops"
+  now_ms >>"$WORK/load-$1.at"
+  mongosh_run --eval "db.getSiblingDB('rehearsal_probe').stop.insertOne({ run: '$1' })" >/dev/null
+  wait "$(cat "$WORK/load-$1.pid")" 2>/dev/null || true
+  record "load-$1" "$(head -1 "$WORK/load-$1.at")" 0 \
+    "$(python3 "$KIND_DIR/load.py" "$WORK" "$1" "$(kubectl exec deploy/mongo -- getconf CLK_TCK)")"
 }
 
 # mongo_log NAME START_MS: MongoDB's log since START_MS into cluster/mongo-NAME.log, its slow queries among it, taken as

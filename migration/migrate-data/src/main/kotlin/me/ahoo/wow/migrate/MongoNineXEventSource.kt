@@ -239,9 +239,18 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         after: NineXAggregateId?,
         limit: Int,
         maxStreams: Int,
+    ): List<NineXInstance> = instances(aggregate, IdRange.ALL, after, limit, maxStreams)
+
+    /** A page of [range]'s walk, in one scan bounded by the range ([walk]). */
+    override fun instances(
+        aggregate: NineXAggregate,
+        range: IdRange,
+        after: NineXAggregateId?,
+        limit: Int,
+        maxStreams: Int,
     ): List<NineXInstance> {
         val page = Page(after, limit, maxStreams)
-        walk(aggregate, after, null, null).use { cursor ->
+        walk(aggregate, after, null, null, range).use { cursor ->
             while (cursor.hasNext()) {
                 if (!page.read(cursor.next())) {
                     break
@@ -335,6 +344,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         after: NineXAggregateId?,
         filter: Bson?,
         projection: Bson?,
+        range: IdRange = IdRange.ALL,
     ): MongoCursor<Document> {
         val name = aggregate.name + SUFFIX
         missingWalkIndexOf(name)?.let { create ->
@@ -343,13 +353,38 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                     "walks it in: create it, $create.",
             )
         }
+        // A page after [after] is within its range, whose ids it starts from otherwise.
         val filters = listOfNotNull(
             Filters.eq(CONTEXT_NAME, aggregate.context),
-            Filters.gte(AGGREGATE_ID, after?.id ?: ""),
+            Filters.gte(AGGREGATE_ID, after?.id ?: range.from ?: ""),
+            range.until?.let { Filters.lt(AGGREGATE_ID, it) },
             filter,
         )
         val find = collectionOf(aggregate).find(Filters.and(filters)).sort(WALK_KEY).hint(WALK_KEY)
         return (projection?.let { find.projection(it) } ?: find).cursor()
+    }
+
+    /**
+     * Samples [aggregate]'s streams with MongoDB's random cursor (`$sample` first, which reads no index nor the whole
+     * collection): their ids, sorted by MongoDB, as the walk's bounds compare them, are weighted by streams, so the
+     * ranges hold about as many streams each. A small collection is sampled whole.
+     */
+    override fun idBoundaries(aggregate: NineXAggregate, ranges: Int): List<String> {
+        if (ranges <= 1) {
+            return emptyList()
+        }
+        val sampled = collectionOf(aggregate).aggregate(
+            listOf(
+                Aggregates.sample(ranges * SAMPLES_PER_RANGE),
+                Aggregates.match(
+                    Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.type(AGGREGATE_ID, "string"))
+                ),
+                Aggregates.project(Projections.include(AGGREGATE_ID)),
+                Aggregates.sort(Sorts.ascending(AGGREGATE_ID)),
+            ),
+        ).map { it.getString(AGGREGATE_ID) }.toList()
+        return (1 until ranges).mapNotNull { sampled.getOrNull(it * sampled.size / ranges) }.distinct()
+            .filter { it != sampled.firstOrNull() }
     }
 
     override fun missingWalkIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
@@ -495,6 +530,9 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
 
         /** The walk's order and the 9.x index it reads: `{aggregateId: 1, version: 1}`. */
         private val WALK_KEY: Bson = Indexes.ascending(AGGREGATE_ID, VERSION)
+
+        /** The streams [idBoundaries] samples for each range it splits into. */
+        private const val SAMPLES_PER_RANGE = 100
 
         /** Strings as MongoDB orders them: by their UTF-8 bytes, unsigned. */
         private val BINARY: Comparator<String> = Comparator { left, right ->
