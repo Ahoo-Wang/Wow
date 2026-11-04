@@ -39,9 +39,3 @@ kotlin {
         associateWith(target.compilations.getByName("test"))
     }
 }
-
-// The tags backfill's cost is measured only on demand:
-// ./gradlew :migrate-data:integrationTest -Dwow-test.spike.tags=true
-tasks.named<Test>("integrationTest") {
-    systemProperty("wow-test.spike.tags", providers.systemProperty("wow-test.spike.tags").orElse("false").get())
-}

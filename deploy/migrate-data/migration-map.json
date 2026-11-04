@@ -7,7 +7,8 @@
       "to": "example.order",
       "commands": [
         { "from": "create_order", "to": "CreateOrder" },
-        { "from": "pay_order", "to": "PayOrder" }
+        { "from": "pay_order", "to": "PayOrder" },
+        { "from": "default_apply_resource_tags", "to": "TagOrder" }
       ],
       "events": [
         {
@@ -23,6 +24,7 @@
           "to": "wow.lifecycle.OwnerTransferred",
           "fields": { "toOwnerId": "ownerId" }
         },
+        { "from": "default_resource_tags_applied", "to": "OrderTagged", "tags": true },
         { "from": "order_archived", "to": "OrderArchived", "retire": true },
         { "from": "order_noted", "drop": true }
       ],
@@ -32,6 +34,12 @@
       },
       "reservations": [
         { "from": "order_no", "namespace": "order.no", "tenancy": "SYSTEM", "ownerId": "orderId" }
+      ],
+      "tags": [
+        { "key": "region", "to": "region" },
+        { "key": "team", "to": "teams" },
+        { "key": "channel", "to": "channel", "source": "DERIVED" },
+        { "key": "legacy", "reason": "No access policy reads it: 9.x set it for a report retired in 2024" }
       ]
     }
   ],

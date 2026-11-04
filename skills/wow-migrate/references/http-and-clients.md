@@ -163,7 +163,7 @@ These were exported for the default UI's own use, and the default UI still uses 
 - **Exact numbers:** a `Long`, `BigInteger` or `BigDecimal` field is a `string` in the V10 types and read exactly; code that did arithmetic on a `number` now concatenates strings unless it was fixed. Find each such field in the regenerated types and every use.
 - **Time zones:** a relative-time filter without `zoneId` reads calendar days in UTC in V10 (9.x used the server's zone): pass `zoneId` wherever the application meant a local day.
 - **Event names:** `bodyType` class names become `name` values; saved filters, analytics and screens keyed on the old names change.
-- **Snapshot fields:** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `tags` remain.
+- **Snapshot fields:** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator`, `firstOperator` remain, and `tags` is `access`, the aggregate's access attributes by name.
 - **React hooks:** a change of `requestOptions` (scope, space, headers) by content runs the query again; a header value rebuilt on every render reruns it on every render.
 - **Waits:** 9.x stages map by meaning: `SENT` → `accepted`, `PROCESSED` → `committed`, `SNAPSHOT` → `snapshot` (the V10 default), `PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED` → `handled('Processor.function')` naming the subscription, which the generated `<context>Wait` builders list.
 

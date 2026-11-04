@@ -240,7 +240,11 @@ internal class MigrateData(
             out.println("FAILED $path exists: draft-map writes a new map, so pass $FORCE to replace it, or $OUT.")
             return FAILED
         }
-        val draft = MapDrafter(manifest).draft(inventoryOf(connections.source), connections.reservations.prepareKeys())
+        val draft = MapDrafter(manifest).draft(
+            inventoryOf(connections.source),
+            connections.reservations.prepareKeys(),
+            TagReader.of(connections.source, connections.snapshots)::tags,
+        )
         draft.exceptions.forEach(out::println)
         if (dryRun) {
             out.println(draft.render())
@@ -291,6 +295,7 @@ internal class MigrateData(
             (connections.source as? CommitTimeIndexed)?.missingCommitTimeIndexes(plan.aggregates.keys).orEmpty(),
             connections.snapshots::deleted,
             connections.source.missingWalkIndexes(plan.aggregates.keys),
+            TagReader.of(connections.source, connections.snapshots),
         )
         out.println(report.render())
         return if (report.passed) OK else FAILED

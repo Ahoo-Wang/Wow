@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: '@Tags'
+pattern: '@Access'
 match: contains
 target: last_message
 ---
 
-The answer names `@Tags`.
+The answer names `@Access`.

@@ -141,6 +141,57 @@ internal interface NineXEventSource {
             .filter { it != distinct.firstOrNull() }
     }
 
+    /**
+     * What [aggregate]'s 9.x tags events wrote ([NineXTags.applied], [NineXTags.events]): the events whose payload holds
+     * a `tags` object, by name, and the tag keys they wrote, each with its values' counts. A store counts them in one
+     * scan; this one reads every stream.
+     */
+    fun tags(aggregate: NineXAggregate): NineXTags {
+        val applied = LinkedHashMap<String, TagValueStats>()
+        val events = LinkedHashMap<String, Long>()
+        tagged(aggregate) { _, event, tags ->
+            events.merge(event.name, 1, Long::plus)
+            tags.forEach { (key, values) -> applied.merge(key, TagValueStats.of(values), TagValueStats::plus) }
+            true
+        }
+        return NineXTags(applied = applied, events = events)
+    }
+
+    /** At most [limit] ids of [aggregate]'s streams whose tags event wrote the values of [key] [problem] names. */
+    fun tagSamples(aggregate: NineXAggregate, key: String, problem: TagValueProblem, limit: Int): List<String> {
+        val ids = ArrayList<String>()
+        tagged(aggregate) { stream, _, tags ->
+            tags[key]?.takeIf { TagValues.holds(problem, it) }?.let { ids += stream.id }
+            ids.size < limit
+        }
+        return ids
+    }
+
+    /** Hands each tags event of [aggregate]'s streams to [each], with its stream and tags, until it returns false. */
+    private fun tagged(
+        aggregate: NineXAggregate,
+        each: (NineXStream, NineXEvent, Map<String, List<String>>) -> Boolean
+    ) {
+        var after: NineXAggregateId? = null
+        while (true) {
+            val ids = aggregateIds(aggregate, after, TAG_PAGE)
+            if (ids.isEmpty()) {
+                return
+            }
+            for (id in ids) {
+                for (stream in streams(aggregate, id, 1, Int.MAX_VALUE)) {
+                    for (event in stream.events) {
+                        val tags = NineXTags.of(event.body.get(TAGS)) ?: continue
+                        if (!each(stream, event, tags)) {
+                            return
+                        }
+                    }
+                }
+            }
+            after = ids.last()
+        }
+    }
+
     /** At most [limit] streams of [id] from version [fromVersion] on, in version order. */
     fun streams(aggregate: NineXAggregate, id: NineXAggregateId, fromVersion: Int, limit: Int): List<NineXStream>
 
@@ -186,3 +237,6 @@ internal interface CommitTimeIndexed {
 
 /** The ids [NineXEventSource.idBoundaries] reads at once when it walks them all. */
 private const val BOUNDARY_PAGE = 1000
+
+/** The ids [NineXEventSource]'s own tag counts read at once. */
+private const val TAG_PAGE = 500

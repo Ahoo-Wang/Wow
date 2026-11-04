@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'backfill-tags'
+pattern: 'wow\.access'
 match: contains
 target: last_message
 ---
 
-The answer names `backfill-tags`.
+The answer names the access walk's `wow.access` metric or subscription.
