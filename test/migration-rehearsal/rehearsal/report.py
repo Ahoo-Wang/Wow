@@ -139,7 +139,7 @@ if any(step["step"].startswith("bench-") for step in steps):
         "| Run | Image | Step | Container |",
         "| --- | --- | --- | --- |",
     ]
-    bench = [step for step in steps if step["step"].startswith(("bench-", "sweep-"))]
+    bench = [step for step in steps if step["step"].startswith(("bench-", "sweep-", "groups-"))]
     for step in bench:
         container = step["data"].get("containerMillis")
         lines.append(
@@ -165,7 +165,8 @@ if any(step["step"].startswith("bench-") for step in steps):
             "",
             "9.x's MongoDB while each ran (kind.sh mongo_load_start): mongod's CPU, its operations per second, and a "
             "probe reading one order's streams by id every 200 ms, as 9.x serves a command. `idle` is the store with "
-            "no import; `sweep-N` is the candidate walking N ranges of ids at once (readParallelism).",
+            "no import; `sweep-N` is the candidate walking N ranges of ids at once (readParallelism), and `groups-N` "
+            "2 ranges with N groups appended at once (concurrency) and a pool of 2N connections.",
             "",
             "| Run | Import | mongod CPU (cores) | Queries/s | getMores/s | Probe p50 | Probe p99 | Probe max |",
             "| --- | --- | --- | --- | --- | --- | --- | --- |",

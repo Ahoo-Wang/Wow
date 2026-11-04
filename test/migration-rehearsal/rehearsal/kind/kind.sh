@@ -52,10 +52,14 @@ createdb() { kubectl exec deploy/postgres -- createdb -U postgres "$1"; }
 # target, the password from the Secret, the classes where the init containers copy them, and no manifests: the tool
 # reads them from those classes.
 config_json() {
-  # The setting only the sweep's runs carry, as its own line: quotes inside \${…:+…} do not survive a here-document.
-  local parallelism=""
+  # The settings only the sweeps' runs carry, each its own line: quotes inside \${…:+…} do not survive a here-document.
+  local parallelism="" groups="" pool=""
   if [ -n "${READ_PARALLELISM:-}" ]; then
     parallelism=$'\n  "readParallelism": '"$READ_PARALLELISM,"
+  fi
+  if [ -n "${IMPORT_CONCURRENCY:-}" ]; then
+    groups=$'\n  "concurrency": '"$IMPORT_CONCURRENCY,"
+    pool=$',\n    "poolSize": '"$((IMPORT_CONCURRENCY * 2))"
   fi
   cat <<EOF
 {
@@ -66,13 +70,13 @@ config_json() {
     "type": "postgres",
     "jdbcUrl": "jdbc:postgresql://$3/$1",
     "username": "postgres",
-    "password": "env:WOW_PG_PASSWORD"
+    "password": "env:WOW_PG_PASSWORD"$pool
   },
   "partitions": { "example": 64, "view-store": 64 },
   "classpath": ["/service/migration-rehearsal", "/service/view-store-server"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
   "lookbackMillis": 20000,
-  "pollIntervalMillis": 500,$parallelism
+  "pollIntervalMillis": 500,$parallelism$groups
   "final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 }
 EOF
@@ -282,6 +286,18 @@ bench_imports() {
     mongo_load_start "sweep-$ranges"
     step "sweep-$ranges" 0 kind_job import --config "/config/migrate-data-$db.json"
     mongo_load_stop "sweep-$ranges"
+    unset MIGRATE_IMAGE
+    kubectl exec deploy/postgres -- dropdb -U postgres "$db"
+  done
+  # Then 2 ranges with more groups appended at once (concurrency) and a pool of twice as many connections.
+  for groups in ${CONCURRENCY_SWEEP:-16 32}; do
+    db="groups_$groups"
+    createdb "$db"
+    READ_PARALLELISM=2 IMPORT_CONCURRENCY="$groups" write_config "$db"
+    export MIGRATE_IMAGE=wow-migrate-data:local
+    mongo_load_start "groups-$groups"
+    step "groups-$groups" 0 kind_job import --config "/config/migrate-data-$db.json"
+    mongo_load_stop "groups-$groups"
     unset MIGRATE_IMAGE
     kubectl exec deploy/postgres -- dropdb -U postgres "$db"
   done
