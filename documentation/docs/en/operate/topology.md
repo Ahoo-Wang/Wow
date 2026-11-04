@@ -151,7 +151,7 @@ A node opens its public port only once it has started: its backends are up, its 
 2. The node stops taking commands for its partitions, finishes those in flight within `wow.cluster.drain-timeout` (10 seconds), saves its subscriptions' checkpoints and releases its leases. Other nodes take the partitions over.
 3. The internal port closes last.
 
-The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.timeout-per-shutdown-phase` is set. Give the platform's termination grace period at least as much; the eShop manifests use 90 seconds.
+The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.timeout-per-shutdown-phase` is set. Give the platform's termination grace period at least as much; Wow's chart derives it from the same bounds, 90 seconds by default ([Kubernetes](./kubernetes#graceful-shutdown)).
 
 With Spring Boot Actuator on the classpath, the host contributes the node's health to the readiness and liveness groups:
 

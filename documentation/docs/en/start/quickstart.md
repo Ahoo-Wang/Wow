@@ -382,4 +382,5 @@ tasks.register<JavaExec>("runLocal") {
 - **A real service.** [Add Wow to an Existing Service](./existing-project) lays a service out in modules.
 - **The guide.** [Developer Guide](../guide/) shows each task: sagas, projections, queries, tests.
 - **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/examples/eshop) is five services on PostgreSQL, Kafka and ClickHouse, with sagas between contexts, scheduled commands, datasets and a web UI.
+- **Deploy it.** [Kubernetes](../operate/kubernetes) installs a service with Wow's Helm chart, the values its build generates and your own.
 - **This sample** is [`examples/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/examples/quickstart), built and tested with every change.

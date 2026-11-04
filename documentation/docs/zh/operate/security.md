@@ -262,7 +262,7 @@ wow:
         - eshop-ordering.order.SubmitOrder
 ```
 
-它的 Kubernetes 网络策略就是边界。第一条只让网关的 Pod 访问 HTTP 端口；第二条只让 eShop 自己的 Pod 访问内部端口：
+它的 Kubernetes 网络策略（由 Wow 的 chart 渲染）就是边界。第一条只让网关的 Pod 访问 HTTP 端口；第二条只让本服务的节点、eShop 的其他 Pod 及其对端访问内部端口：
 
 <!-- sample: deploy/helm/wow-service/templates/networkpolicy.yaml -->
 

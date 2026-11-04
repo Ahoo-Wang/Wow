@@ -262,7 +262,7 @@ wow:
         - eshop-ordering.order.SubmitOrder
 ```
 
-Its Kubernetes network policies are the boundary. The first lets only the gateway's pods reach the HTTP port; the second lets only the shop's own pods reach the internal port:
+Its Kubernetes network policies, which Wow's chart renders, are the boundary. The first lets only the gateway's pods reach the HTTP port; the second lets only the service's own nodes, the shop's other pods and its peers reach the internal port:
 
 <!-- sample: deploy/helm/wow-service/templates/networkpolicy.yaml -->
 
