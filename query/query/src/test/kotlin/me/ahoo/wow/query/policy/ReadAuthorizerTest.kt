@@ -136,6 +136,49 @@ class ReadAuthorizerTest {
     }
 
     @Test
+    fun `allOf asks each authorizer while it allows, and a read every one allows is allowed`(): Unit = runBlocking {
+        var askedFirst = 0
+        val allowing = ReadAuthorizer { _, _ ->
+            askedFirst++
+            ReadAuthorization.Allowed
+        }
+        val both = ReadAuthorizer.allOf(listOf(allowing, readers))
+        val read = ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.LIST, QueryEntry.HTTP)
+        both.authorize(checkNotNull(reader.caller), read).assert().isSameAs(ReadAuthorization.Allowed)
+        both.authorize(checkNotNull(stranger.caller), read).assert().isInstanceOf(ReadAuthorization.Denied::class.java)
+        askedFirst.assert().isEqualTo(2)
+        asked.map { it.second }.assert().containsExactly(read, read)
+        both.toString().assert().startsWith("ReadAuthorizer.allOf(")
+    }
+
+    @Test
+    fun `a read and a refusal compare by their fields`() {
+        val read = ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.LIST, QueryEntry.HTTP)
+        val same: Any = read
+        val text: Any = read.toString()
+        (read == same).assert().isTrue()
+        (read == text).assert().isFalse()
+        read.assert().isEqualTo(ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.LIST, QueryEntry.HTTP))
+            .hasSameHashCodeAs(ReadAction.of(NOTE, QueryModel.SNAPSHOT, QueryType.LIST, QueryEntry.HTTP))
+            .isNotEqualTo(ReadAction.of(NOTE, QueryModel.EVENTS, QueryType.LIST, QueryEntry.HTTP))
+        val denied = ReadAuthorization.Denied("no")
+        val itself: Any = denied
+        (denied == itself).assert().isTrue()
+        (denied == text).assert().isFalse()
+        denied.code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+        val again = ReadAuthorization.Denied.of("no")
+        denied.assert().isEqualTo(again).hasSameHashCodeAs(again)
+            .isNotEqualTo(ReadAuthorization.Denied.of("no", FrameworkErrors.QUERY_MALFORMED))
+        denied.toString().assert().contains(FrameworkErrors.AUTH_FORBIDDEN)
+    }
+
+    @Test
+    fun `an entry nobody stated is read as in process`() {
+        QueryEntry.UNSPECIFIED.admitted().assert().isEqualTo(QueryEntry.IN_PROCESS)
+        QueryEntry.HTTP.admitted().assert().isEqualTo(QueryEntry.HTTP)
+    }
+
+    @Test
     fun `a refusal names a code of the framework's error table`() {
         assertThrows<IllegalArgumentException> { ReadAuthorization.Denied.of("no", "app.not-mine") }
         ReadAuthorization.Denied.of("no").code.assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
