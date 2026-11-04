@@ -55,6 +55,10 @@ const WOW_NO_BUS = {
   serverArgs: '--wow.transport=none',
   sql: 'test/benchmarks/server/inspect.sql',
 };
+// The same server before and after a change, on one runner (a sessions suite of the two): the baseline's build and
+// the head's (wow-pg-same-rate-ab).
+const WOW_BASE_NO_BUS = { ...WOW_NO_BUS, id: 'base', install: 'base' };
+const WOW_HEAD_NO_BUS = { ...WOW_NO_BUS, id: 'head' };
 const AXON = {
   id: 'axon',
   backend: 'postgres',
@@ -524,6 +528,48 @@ export const SUITES = {
     storeWriteIops: 1400,
     answers:
       "axon-pg-same-rate with PostgreSQL's disk writes capped at 1,400 a second: whether the same-rate latency follows the store's flushes.",
+  },
+  // A change of the same-rate view's latency, before against after on one runner, W A A W (X-72): Wow with no bus,
+  // the baseline's build against the head's, at E1 1,000/s and E3 300/s twice a session, then each sweep to its peak,
+  // each sweep's part on a runner of its own; so the same rates and the peaks compare with their A/A spreads.
+  'wow-pg-same-rate-ab': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_BASE_NO_BUS, WOW_HEAD_NO_BUS],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [{ scenario: 'E1' }, { scenario: 'E3' }],
+    own: false,
+    answers:
+      "Wow with no bus before and after a change on one runner: the baseline's build against the head's at E1 1,000/s and E3 300/s, each twice a session, then each sweep to its peak.",
+  },
+  // The same rates on a slower disk, PostgreSQL's writes capped at 1,200 a second: before X-72's fix Wow flushed its
+  // WAL about 1,800 times a second at E1 1,000/s, after it about 900, so the cap binds the one and not the other.
+  'wow-pg-same-rate-ab-slow-disk': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_BASE_NO_BUS, WOW_HEAD_NO_BUS],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    storeWriteIops: 1200,
+    answers:
+      "wow-pg-same-rate-ab's same rates with PostgreSQL's disk writes capped at 1,200 a second, no sweep.",
   },
   'jdk-e1-pg': {
     group: 'jdk',
@@ -2011,8 +2057,16 @@ export function parseJob(id) {
 }
 
 /**
- * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit), the ones skipped and why,
- * and the builds they need, one per side.
+ * Whether a sessions suite runs the baseline's build beside the head's: an arm of it. A baseline suite (group `ab`)
+ * has its own rule, its A/A runs needing none.
+ */
+export const usesBase = name =>
+  SUITES[name]?.kind === 'sessions' &&
+  SUITES[name].arms.some(arm => arm.install === 'base');
+
+/**
+ * The jobs of a run: the suites that can run (those of group `ab`, and those with an arm of the baseline's build
+ * (usesBase), need a baseline commit), the ones skipped and why, and the builds they need, one per side.
  */
 export function planMatrix({
   suites,
@@ -2031,13 +2085,19 @@ export function planMatrix({
       );
       return false;
     }
+    if (usesBase(name) && !baseSha) {
+      skipped.push(`${name} (an arm runs the baseline's build: set base_ref)`);
+      return false;
+    }
     return true;
   });
   const groups = new Set(runnable.map(name => SUITES[name].group));
   const builds = [
     { side: 'head', sha: headSha },
     // The baseline build serves the baseline suites, and the component suites when a baseline is given.
-    ...((groups.has('ab') && !aa) || (groups.has('component') && baseSha && !aa)
+    ...((groups.has('ab') && !aa) ||
+    (groups.has('component') && baseSha && !aa) ||
+    runnable.some(usesBase)
       ? [{ side: 'base', sha: baseSha }]
       : []),
   ];
@@ -4558,7 +4618,8 @@ if (
         'base-ref': settings.base_ref,
         // The component suites take a baseline when there is one, and run the head alone otherwise.
         'needs-base':
-          (groups.has('ab') || groups.has('component')) && !inputs.aa,
+          ((groups.has('ab') || groups.has('component')) && !inputs.aa) ||
+          inputs.suites.some(usesBase),
       });
     } else if (command === 'matrix') {
       const plan = planMatrix({

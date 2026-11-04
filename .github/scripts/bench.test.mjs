@@ -83,6 +83,7 @@ import {
   sweepOf,
   jobId,
   partsOf,
+  usesBase,
   fineMore,
   fineOf,
   fineSteps,
@@ -2515,6 +2516,52 @@ test('the axon group and its build: the head alone, no baseline', () => {
   );
 });
 
+test('a sessions suite with an arm of the baseline needs its build, and a baseline commit to build it', () => {
+  assert.equal(usesBase('wow-pg-same-rate-ab'), true);
+  assert.equal(usesBase('axon-pg'), false);
+  assert.equal(usesBase('e1-pg-uniform'), false);
+  const plan = planMatrix({
+    suites: ['wow-pg-same-rate-ab', 'wow-pg-same-rate-ab-slow-disk'],
+    headSha: 'h',
+    baseSha: 'b',
+  });
+  assert.deepEqual(plan.builds, [
+    { side: 'head', sha: 'h' },
+    { side: 'base', sha: 'b' },
+  ]);
+  // Its two sweeps, a job each, and the slow-disk suite's one.
+  assert.deepEqual(plan.jobs, [
+    'wow-pg-same-rate-ab.100k.e1',
+    'wow-pg-same-rate-ab.100k.e3',
+    'wow-pg-same-rate-ab-slow-disk.100k',
+  ]);
+  // Each session starts the build of its arm, W A A W.
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite('wow-pg-same-rate-ab-slow-disk', {
+    benchPath: fakeSessionBench(dir),
+    out: join(dir, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 2,
+    fraction: 0.8,
+    installs: { head: '/builds/head', base: '/builds/base' },
+  });
+  assert.equal(suite.failures, 0);
+  const ups = readFileSync(join(dir, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(call => call.startsWith('up '));
+  assert.deepEqual(
+    ups.map(call => call.match(/--install=(\S+)/)?.[1]),
+    ['/builds/base', '/builds/head', '/builds/head', '/builds/base'],
+  );
+  assert.ok(ups.every(call => call.includes(' --store-write-iops=1200 ')));
+  const unbased = planMatrix({ suites: ['wow-pg-same-rate-ab'], headSha: 'h' });
+  assert.deepEqual(unbased.suites, []);
+  assert.deepEqual(unbased.skipped, [
+    "wow-pg-same-rate-ab (an arm runs the baseline's build: set base_ref)",
+  ]);
+});
+
 test('partsOf splits a sessions suite of several sweeps into a part a sweep, its same-rate runs with it', () => {
   assert.deepEqual(partsOf(SUITES['axon-pg']), [
     {
@@ -3232,6 +3279,8 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
       'axon-pg-e3-reactions',
       'axon-pg-same-rate',
       'axon-pg-same-rate-slow-disk',
+      'wow-pg-same-rate-ab',
+      'wow-pg-same-rate-ab-slow-disk',
     ],
   );
 });
