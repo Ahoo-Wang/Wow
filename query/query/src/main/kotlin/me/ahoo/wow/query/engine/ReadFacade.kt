@@ -28,6 +28,10 @@ import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.observe.audits
 import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorizer
+import me.ahoo.wow.query.policy.admitted
+import me.ahoo.wow.query.policy.authorizeOrThrow
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.query.state.StateVisibility
@@ -84,6 +88,8 @@ class ReadFacade(
     private val masks: PayloadMasks = PayloadMasks.NONE,
     private val observer: QueryObserver = QueryObserver.NONE,
     private val targets: QueryTargets = QueryTargets.DEFAULT,
+    /** Who may read each model at all ([ReadAuthorizer]): asked before a state or a trace is read ([observed]). */
+    private val authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
 ) {
     /** What reading a state found: [Missing], [Hidden] from the caller, or [Visible] with its masked tree. */
     @InternalWowApi
@@ -140,6 +146,9 @@ class ReadFacade(
      * [observer] starts it as a stage of work of [StateRead.queryType], is told how it ended, and audits it with the
      * [rows] it returned (one state, or the commits of a trace). A read answered as not found throws
      * [me.ahoo.wow.query.state.StateNotFoundException], whose reason only the audit records.
+     *
+     * The caller is first authorized to read the type's snapshot model by [what]'s operation ([ReadAuthorizer]),
+     * before anything is read: a refused caller learns nothing, not even whether the state exists.
      */
     @Suppress("TooGenericExceptionCaught") // Every failure is observed, then propagates.
     suspend fun <T> observed(
@@ -158,6 +167,9 @@ class ReadFacade(
             .observe {
                 val trail = if (observer.audits) QueryAuditTrail(type, queryType, what, caller) else null
                 try {
+                    authorizer.authorizeOrThrow(caller) {
+                        ReadAction(type, QueryModel.SNAPSHOT, queryType, caller.entry.admitted())
+                    }
                     read().also { result ->
                         trail?.rows(rows(result))
                         observer.finished(type, queryType, trail, null)

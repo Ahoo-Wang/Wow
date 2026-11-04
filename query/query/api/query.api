@@ -99,8 +99,8 @@ public final class me/ahoo/wow/query/admission/AdmittedQuery {
 }
 
 public final class me/ahoo/wow/query/admission/QueryAdmission {
-	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/policy/QueryEntryPolicy;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/policy/QueryEntryPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/policy/QueryEntryPolicy;Lme/ahoo/wow/query/policy/ReadAuthorizer;Lme/ahoo/wow/query/schema/QueryModel;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/policy/QueryEntryPolicy;Lme/ahoo/wow/query/policy/ReadAuthorizer;Lme/ahoo/wow/query/schema/QueryModel;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
 public final class me/ahoo/wow/query/admission/QueryBudget {
@@ -864,6 +864,60 @@ public abstract interface class me/ahoo/wow/query/policy/QueryPolicy {
 	public abstract fun evaluate (Lme/ahoo/wow/query/QueryCaller;Lme/ahoo/wow/query/filter/QueryContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getEvents ()Lme/ahoo/wow/query/policy/EventsMode;
 	public fun getOrder ()I
+}
+
+public final class me/ahoo/wow/query/policy/ReadAction {
+	public static final field Companion Lme/ahoo/wow/query/policy/ReadAction$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntry ()Lme/ahoo/wow/query/QueryEntry;
+	public final fun getModel ()Lme/ahoo/wow/query/schema/QueryModel;
+	public final fun getOperation ()Lme/ahoo/wow/query/filter/QueryType;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/schema/QueryModel;Lme/ahoo/wow/query/filter/QueryType;Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/policy/ReadAction;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/policy/ReadAction$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/schema/QueryModel;Lme/ahoo/wow/query/filter/QueryType;Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/policy/ReadAction;
+}
+
+public abstract interface class me/ahoo/wow/query/policy/ReadAuthorization {
+}
+
+public final class me/ahoo/wow/query/policy/ReadAuthorization$Allowed : me/ahoo/wow/query/policy/ReadAuthorization {
+	public static final field INSTANCE Lme/ahoo/wow/query/policy/ReadAuthorization$Allowed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/policy/ReadAuthorization$Denied : me/ahoo/wow/query/policy/ReadAuthorization {
+	public static final field Companion Lme/ahoo/wow/query/policy/ReadAuthorization$Denied$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/policy/ReadAuthorization$Denied;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/policy/ReadAuthorization$Denied;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/policy/ReadAuthorization$Denied$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/query/policy/ReadAuthorization$Denied;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/policy/ReadAuthorization$Denied;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/policy/ReadAuthorization$Denied$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/policy/ReadAuthorization$Denied;
+}
+
+public abstract interface class me/ahoo/wow/query/policy/ReadAuthorizer {
+	public static final field ALLOW_ALL Lme/ahoo/wow/query/policy/ReadAuthorizer;
+	public static final field Companion Lme/ahoo/wow/query/policy/ReadAuthorizer$Companion;
+	public static fun allOf (Ljava/util/List;)Lme/ahoo/wow/query/policy/ReadAuthorizer;
+	public abstract fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/policy/ReadAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/query/policy/ReadAuthorizer$Companion {
+	public final fun allOf (Ljava/util/List;)Lme/ahoo/wow/query/policy/ReadAuthorizer;
 }
 
 public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/api/read/TenantQueryApi {

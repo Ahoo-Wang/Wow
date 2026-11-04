@@ -46,6 +46,7 @@ import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryOwnership
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.policy.ScopeQueryPolicy
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.MaskStrategyResolver
@@ -95,6 +96,8 @@ class QueryEngine private constructor(
     val crossTenant: Boolean,
     /** The access policies of the node's aggregates, each resolved to its aggregate. */
     val access: AccessPolicies,
+    /** Who may read each model at all, asked before every query, state read and trace. */
+    readAuthorizer: ReadAuthorizer,
 ) {
     /**
      * The read side's scope rules over [tenants] and [crossTenant]: an edge builds its callers with
@@ -126,7 +129,7 @@ class QueryEngine private constructor(
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
 
     /** Every entry's state reads: read, check against [visibility], mask, observed as the queries are. */
-    val reads: ReadFacade = ReadFacade(::visibility, masks, observer, targets)
+    val reads: ReadFacade = ReadFacade(::visibility, masks, observer, targets, readAuthorizer)
 
     /**
      * What a host gives the engine of [manifest], each from its configuration or the application: the [contexts] the
@@ -156,6 +159,7 @@ class QueryEngine private constructor(
         private var filters: List<QueryFilter> = emptyList()
         private var observers: List<QueryObserver> = emptyList()
         private var entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT
+        private var readAuthorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL
         private var snapshotCounts: QueryCountCache? = null
         private var eventCounts: QueryCountCache? = null
         private var committed: CommittedStates = CommittedStates.NONE
@@ -235,6 +239,14 @@ class QueryEngine private constructor(
         /** The entry gates and the in-process timeout. */
         fun entryPolicy(entryPolicy: QueryEntryPolicy) = apply { this.entryPolicy = entryPolicy }
 
+        /**
+         * Who may read each model at all ([ReadAuthorizer]), all of [authorizers] asked in their order: once per query,
+         * state read and trace, before anything is read. None by default: every caller may read, the rows still the
+         * access policies' and the default rule's.
+         */
+        fun readAuthorizers(authorizers: List<ReadAuthorizer>) =
+            apply { this.readAuthorizer = ReadAuthorizer.allOf(authorizers) }
+
         /** The count caches of the snapshot and the events gateways; none by default. */
         fun counts(snapshots: QueryCountCache?, events: QueryCountCache?) = apply {
             snapshotCounts = snapshots
@@ -298,6 +310,7 @@ class QueryEngine private constructor(
                     masks = masks,
                     reading = reading(type),
                     unpinned = unpinned(type),
+                    authorizer = readAuthorizer,
                 )
             }
             val datasetGateways = datasetGateways(catalog, gatewayPolicies, observer)
@@ -314,6 +327,7 @@ class QueryEngine private constructor(
                 ownerships,
                 crossTenant,
                 access,
+                readAuthorizer,
             )
         }
 
@@ -360,6 +374,7 @@ class QueryEngine private constructor(
                 observer = observer,
                 entryPolicy = entryPolicy,
                 bulkhead = { name -> bulkheads(name, QueryModel.DATASET) },
+                authorizer = readAuthorizer,
             )
         }
 
@@ -401,6 +416,7 @@ class QueryEngine private constructor(
                     observer = observer,
                     entryPolicy = entryPolicy,
                     counts = snapshotCounts,
+                    authorizer = readAuthorizer,
                 )
             }
         }

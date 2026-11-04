@@ -25,6 +25,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.spi.access.AccessValues
@@ -87,6 +88,7 @@ object EventQueryGateways {
         masks: PayloadMasks = PayloadMasks.NONE,
         reading: (EventRecord) -> EventRecord? = { it },
         unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW,
+        authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
     ): QueryGateway {
         val refuses = unpinned == UnpinnedEvents.REFUSE
         val pinned = refuses || visibility.pins(aggregateType)
@@ -105,6 +107,7 @@ object EventQueryGateways {
             records = EventStreamRecords.reader(aggregateType, masks, reading),
             constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { pinned }),
             model = QueryModel.EVENTS,
+            authorizer = authorizer,
         )
     }
 }

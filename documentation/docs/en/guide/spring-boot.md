@@ -126,6 +126,7 @@ The host takes these from the application when it defines them, and falls back t
 | Domain services | The parameters of command functions and processors, by type, or by name with `@Name` |
 | `CallerResolver` | Turns the authenticated principal into the caller. Without one, the host reads the development headers in a development profile, serves the anonymous caller on a loopback-only internal port, and does not start anywhere else |
 | `CommandAuthorizer` | Says whether it objects to the caller sending a command to an aggregate |
+| `ReadAuthorizer` | Says whether it objects to the caller reading a model at all: a query, a state read or a trace, before anything is read ([Authorize reads](../operate/security#authorize-reads)) |
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
 | `FailureClassifier` | Classifies the failures of subscription handlers ([Failures and Retries](./failures)) |
@@ -135,6 +136,7 @@ The host takes these from the application when it defines them, and falls back t
 Most of these hooks are lists: the host takes every bean of the type, in the beans' order (`@Order`, `Ordered` or `@Priority`, the one ordering there is). The authorizers, the transformers, the validators, the observers, the failure classifiers, and the query policies, filters and observers are such lists:
 
 - **Authorizers are all asked.** A command is allowed only when every `CommandAuthorizer` allows it; the first that denies it, in their order, is the answer, and the rest are not asked. Allowing means having no objection, not overruling the others, and there is no abstaining: an authorizer of one concern, such as the commands a service identity may call (`caller.service`), allows every command outside it. With `wow.cosec.authorizer.enabled`, CoSec's authorizer is one more of them. Without any, a command is allowed, except the system commands of Wow's built-in aggregates, a scheduled job's and the snapshot rebuild's, which the public port then refuses ([Authorize commands](../operate/security#authorize-commands)).
+- **Read authorizers are all asked**, as the command authorizers are: a read is allowed only when every `ReadAuthorizer` allows it, the first that denies it answering. They are asked for every caller on every entry, the public port, a peer's read and in-process code reading as a caller; trusted in-process code, which reads with no caller, is not.
 - **Observers are all told.** Every `Observer` sees each stage and event in their order. One that fails is logged and left out of that call; it never fails the command, nor keeps the others from being told.
 
 A few are single seams the node takes one bean of: the `CallerResolver`, the `GlobalIdGenerator`, the `MaskStrategyResolver`, the `DatasetVisibility`, the `CommandCaller` and the `QueryCountCache`. Two beans of one fail the start, naming the seam and both beans. Mark the one the node should take `@Primary`: that is the one way to pick among several.

@@ -41,6 +41,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.query.schema.MaskStrategyResolver
@@ -264,6 +265,7 @@ class QueryAutoConfiguration {
                 // A node of some of the service's contexts leaves the policies of the others' aggregates to theirs.
                 strict = wow.ifAvailable?.contexts?.selection()?.isAll != false,
             )
+            .readAuthorizers(beans.readers.orderedStream().toList())
             .filters(beans.filters.orderedStream().toList())
             .observers(beans.observers.orderedStream().toList())
             .entryPolicy(entryPolicy)
@@ -383,6 +385,7 @@ class QueryAutoConfiguration {
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
             access: ObjectProvider<AccessPolicy<*>>,
+            readers: ObjectProvider<ReadAuthorizer>,
         ): QueryBeans = QueryBeans(
             datasetBindings,
             datasetVisibility,
@@ -392,6 +395,7 @@ class QueryAutoConfiguration {
             filters,
             observers,
             access,
+            readers,
         )
 
         /** The engine's schema Catalog. */
@@ -533,6 +537,8 @@ class QueryBeans internal constructor(
     internal val filters: ObjectProvider<QueryFilter>,
     internal val observers: ObjectProvider<QueryObserver>,
     internal val access: ObjectProvider<AccessPolicy<*>>,
+    /** Who may read each model at all: every bean asked, in its order, before each read. */
+    internal val readers: ObjectProvider<ReadAuthorizer>,
 )
 
 /** A class of wow-query, present only when the application has the module. */

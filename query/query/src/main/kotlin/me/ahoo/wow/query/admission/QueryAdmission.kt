@@ -42,7 +42,12 @@ import me.ahoo.wow.query.memory.RecordScope
 import me.ahoo.wow.query.observe.QueryAuditTrail
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorizer
+import me.ahoo.wow.query.policy.admitted
+import me.ahoo.wow.query.policy.authorizeOrThrow
 import me.ahoo.wow.query.resolve.QueryResolver
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
@@ -58,8 +63,10 @@ import kotlin.time.toJavaDuration
  * The one admission pipeline of an aggregate type's queries: it turns what a caller submitted into the
  * [AdmittedQuery] a [QueryBackend] may execute, in the fixed order of the design (§5.4):
  *
- * 0. the entry is accepted by the [entry policy][QueryEntryPolicy] and the submitted query plus the caller's scope fit
- *    the entry's budget; once the schema is known, an authenticated scope is required when the policy says so;
+ * 0. the entry is accepted by the [entry policy][QueryEntryPolicy], the caller is authorized to read the model
+ *    ([ReadAuthorizer], before anything of the query is judged or the schema loads), and the submitted query plus the
+ *    caller's scope fit the entry's budget; once the schema is known, an authenticated scope is required when the
+ *    policy says so;
  * 1. the [QueryFilter]s rewrite the query, in order;
  * 2. the caller's [scope][QueryCaller.scope], the route's [selection][QueryCaller.selection] (an operation constraint,
  *    such as the aggregate id of a load route, not caller scope) and every [QueryPolicy] restriction are appended,
@@ -82,6 +89,10 @@ class QueryAdmission(
     filters: List<QueryFilter> = emptyList(),
     policies: List<QueryPolicy> = emptyList(),
     private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    /** Who may read the model at all ([ReadAuthorizer]): asked once per query, before anything is read. */
+    private val authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
+    /** The model the queries read, which [authorizer] is told. */
+    private val model: QueryModel = QueryModel.SNAPSHOT,
 ) {
     private val filters = filters.sortedBy(QueryFilter::order)
     private val policies = policies.sortedBy(QueryPolicy::order)
@@ -95,6 +106,7 @@ class QueryAdmission(
         trail: QueryAuditTrail? = null,
     ): AdmittedQuery<Q> {
         val entry = entryPolicy.admit(caller.entry)
+        authorizer.authorizeOrThrow(caller) { ReadAction(aggregateType, model, operation.queryType, entry.admitted()) }
         val budget = entryPolicy.budget(entry)
         // The route selection is an operation constraint the caller did not write, so only the caller's scope counts.
         budget?.let { operation.budget(it, query, caller.scope.filter) }
