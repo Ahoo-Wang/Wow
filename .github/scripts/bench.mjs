@@ -479,6 +479,29 @@ export const SUITES = {
     answers:
       "A diagnostic of Axon's E3 in closed loop: the transfer's reactions nested in the processor's unit of work (axon-server's) against units of work of their own, each sweep's threads and PostgreSQL sessions dumped every 15 s.",
   },
+  // The same-rate view's latency alone (X-72): in axon-pg on a runner, Wow's p50 at E1 1,000/s and E3 300/s went from
+  // 1 ms to 177 ms second by second and differed by session (17.5 against 3.7 ms), Axon's stayed at 1–4 ms. Each
+  // session runs both rates twice, so its runs compare with each other as well as with the other sessions'. With
+  // `profile`, every server records a flight recording, and each run keeps its servers' recording and PostgreSQL's
+  // statements and checkpoints (bench.sh up --jfr).
+  'axon-pg-same-rate': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_NO_BUS, AXON],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    answers:
+      "A diagnostic of the same-rate view's latency: Wow with no bus and Axon at E1 1,000/s and E3 300/s, each twice a session, nothing else; with profile, every run's flight recording and PostgreSQL's statements.",
+  },
   'jdk-e1-pg': {
     group: 'jdk',
     kind: 'paired',
@@ -2907,6 +2930,11 @@ function primingLines(suite) {
           ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
           : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
   ];
+  if (suite.profiled) {
+    lines.push(
+      "Profiled: every session's servers ran with a flight recording (`up --jfr`), so the runs carry its cost; each run's recording and PostgreSQL's statements are beside its result.",
+    );
+  }
   if (suite.accounts > STATE_CACHE) {
     lines.push(
       `The accounts exceed the node's state cache (a tenth of the 1 GB heap, about ${STATE_CACHE} states of few requests): the steady state is a full cache with evictions.`,
@@ -3826,6 +3854,14 @@ export function runSuite(name, options) {
     }
   } else if (sessions) {
     suite.sweeps = [];
+    // With `profile`, every session's servers record (bench.sh up --jfr), the profile's settings with the safepoints
+    // and the socket reads and writes (jfrSettings): each run on the session keeps their recording over its warm-up
+    // and measured phase and, on PostgreSQL, its statements and checkpoints. The runs then carry the recording's cost.
+    const settings = profile ? jfrSettings(out) : undefined;
+    const recording = profile
+      ? ['--jfr', ...(settings ? [`--jfr-settings=${settings}`] : [])]
+      : [];
+    if (profile) suite.profiled = true;
     // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`), or the steps
     // `concurrencies`, short ones when `locate` (SESSIONS.sweep.locate) and full-length ones otherwise, a failing one
     // ending once it measured `failAfter` s.
@@ -3997,6 +4033,7 @@ export function runSuite(name, options) {
               `--accounts=${data.accounts}`,
               `--seed-concurrency=${seedConcurrency}`,
               ...(primed ? ['--prime'] : []),
+              ...recording,
               ...pins,
               `--out=${join(out, `${session}-up`)}`,
             ],
@@ -4026,9 +4063,18 @@ export function runSuite(name, options) {
             view,
           });
         try {
-          // The same-rate view: both arms at one rate.
-          for (const { scenario, rate } of suite.fixedRates)
-            fixed(`${session}-${scenario.toLowerCase()}`, scenario, rate, SAME);
+          // The same-rate view: both arms at one rate; a rate given twice runs twice (`-e1`, `-e1-2`).
+          const times = {};
+          for (const { scenario, rate } of suite.fixedRates) {
+            const key = scenario.toLowerCase();
+            times[key] = (times[key] ?? 0) + 1;
+            fixed(
+              `${session}-${key}${times[key] > 1 ? `-${times[key]}` : ''}`,
+              scenario,
+              rate,
+              SAME,
+            );
+          }
           const swept = suite.sweepPlan.map(plan =>
             sweep(arm, session, plan, index),
           );

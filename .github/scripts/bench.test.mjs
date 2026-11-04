@@ -3104,6 +3104,64 @@ test('correctnessOf counts what the runs sent against what the store holds', () 
   assert.equal(unknown.comparable, true);
 });
 
+test('the same-rate diagnostic runs each rate twice a session and nothing else; with profile, every session records', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeSessionBench(dir);
+  const out = join(dir, 'out');
+  const suite = runSuite('axon-pg-same-rate', {
+    benchPath,
+    out,
+    warmUp: 30,
+    measure: 40,
+    repeats: 2,
+    fraction: 0.8,
+    profile: true,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(suite.failures, 0);
+  assert.equal(suite.profiled, true);
+  assert.deepEqual(suite.sweeps, []);
+  assert.deepEqual(
+    suite.runs
+      .filter(run => run.arm === 'wow' && run.round === 0)
+      .map(run => [run.name, run.scenario, run.rate]),
+    [
+      ['1-wow-e1', 'E1', 1000],
+      ['1-wow-e3', 'E3', 300],
+      ['1-wow-e1-2', 'E1', 1000],
+      ['1-wow-e3-2', 'E3', 300],
+    ],
+  );
+  assert.equal(suite.runs.length, 16);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  assert.ok(!calls.some(call => call.startsWith('saturate ')));
+  const ups = calls.filter(call => call.startsWith('up '));
+  assert.equal(ups.length, 4);
+  assert.ok(ups.every(call => / --jfr( |$)/.test(call)));
+  assert.ok(suite.sessions.every(session => session.correctness.comparable));
+  assert.match(
+    renderSuite(suite),
+    /Profiled: every session's servers ran with a flight recording/,
+  );
+  // Without profile, nothing records.
+  const plain = mkdtempSync(join(tmpdir(), 'bench-'));
+  const unprofiled = runSuite('axon-pg-same-rate', {
+    benchPath: fakeSessionBench(plain),
+    out: join(plain, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(unprofiled.profiled, undefined);
+  assert.ok(
+    readFileSync(join(plain, 'calls.log'), 'utf8')
+      .split('\n')
+      .every(call => !call.includes('--jfr')),
+  );
+});
+
 test('a diagnostic suite dumps its sweeps, its second arm set by properties when the session starts', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeSessionBench(dir);
@@ -3146,6 +3204,6 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
       repeats: 2,
       fraction: 0.8,
     }).suites,
-    ['axon-pg-e3-pool', 'axon-pg-e3-reactions'],
+    ['axon-pg-e3-pool', 'axon-pg-e3-reactions', 'axon-pg-same-rate'],
   );
 });
