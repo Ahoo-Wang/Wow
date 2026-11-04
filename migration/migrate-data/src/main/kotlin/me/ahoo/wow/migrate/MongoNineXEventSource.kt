@@ -19,6 +19,7 @@ import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.json.WowJson
@@ -404,6 +405,7 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
         from: Long,
         after: NineXPosition?,
         limit: Int,
+        until: NineXPosition?,
     ): List<NineXStream> {
         val since = if (after == null) {
             Filters.gte(CREATE_TIME, from)
@@ -413,13 +415,27 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
                 Filters.and(Filters.eq(CREATE_TIME, after.createTime), Filters.gt(ID, after.streamId)),
             )
         }
+        val upTo = until?.let {
+            Filters.or(
+                Filters.lt(CREATE_TIME, it.createTime),
+                Filters.and(Filters.eq(CREATE_TIME, it.createTime), Filters.lte(ID, it.streamId)),
+            )
+        }
         return read(
             aggregate,
-            Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), since),
+            Filters.and(listOfNotNull(Filters.eq(CONTEXT_NAME, aggregate.context), since, upTo)),
             Sorts.ascending(CREATE_TIME, ID),
             limit,
         )
     }
+
+    override fun lastCommitted(aggregate: NineXAggregate): NineXPosition? = collectionOf(aggregate)
+        .find(Filters.eq(CONTEXT_NAME, aggregate.context))
+        .sort(Sorts.descending(CREATE_TIME, ID))
+        .projection(Projections.include(CREATE_TIME))
+        .limit(1)
+        .firstOrNull()
+        ?.let { NineXPosition((it.get(CREATE_TIME) as Number).toLong(), it.get(ID).toString()) }
 
     override fun tenantsOf(aggregate: NineXAggregate, id: String): List<String> = collectionOf(aggregate)
         .find(

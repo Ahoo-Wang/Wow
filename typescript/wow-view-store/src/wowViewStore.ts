@@ -374,9 +374,10 @@ export class WowViewStore implements ViewStore {
    * from the same owner whether or not the view has moved, so a retry is
    * answered as its first attempt's duplicate even after the move.
    *
-   * Asked for the audience the view already has, the service refuses the
-   * command as outside that owner's scope; the store then answers the view
-   * as it is, revision unmoved, once the revision matches.
+   * Asked for the audience the view already has, the service answers the
+   * command as one on a view out of that owner's reach, not found; the store
+   * then answers the view as it is, revision unmoved, once the revision
+   * matches.
    *
    * A shared view a shared dashboard shows stays shared: the service
    * refuses the claim and names the boards, and the refusal carries them by
@@ -518,7 +519,7 @@ export class WowViewStore implements ViewStore {
           if (
             write.moves &&
             place === write.landsAt &&
-            thrown.code === 'FORBIDDEN'
+            (thrown.code === 'NOT_FOUND' || thrown.code === 'FORBIDDEN')
           )
             return this.unchanged(id, revision, place, signal);
           if (

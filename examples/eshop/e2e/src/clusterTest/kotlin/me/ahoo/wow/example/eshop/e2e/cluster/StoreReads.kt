@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import me.ahoo.wow.example.eshop.e2e.MongoLogChecks
 import me.ahoo.wow.example.eshop.e2e.json
 import me.ahoo.wow.example.eshop.e2e.soak.SoakDatabase
 import tools.jackson.databind.JsonNode
@@ -102,15 +103,14 @@ class PostgresReads(private val url: String) : StoreReads {
  * share with mongod) against the replica set, its answers as relaxed Extended JSON. The collections are named as PostgreSQL's tables (`wow_log__eshop_<context>__<aggregate>`, the
  * registry `wow_log_aggregate`, `wow_checkpoint`, `wow_lease`, `wow_failure_ledger`, `wow_snapshot__…`).
  *
- * The log's integrity: an aggregate's versions 1..max once each, and no sequence of a partition taken twice across
- * the context's collections. MongoDB's log reserves sequences in blocks and records the ones no stream took as
- * placeholders (decision D271), so a sequence missing between two that are taken is a block still open, not a loss:
- * unlike PostgreSQL's dense counter, it is not counted as a violation.
+ * The log's integrity ([MongoLogChecks.violations]): an aggregate's versions 1..max once each, and no sequence of a
+ * partition taken by two streams across the context's collections. MongoDB's log reserves sequences in blocks and
+ * records the ones no stream took as placeholders (decision D271), so a sequence missing between two that are taken is
+ * a block still open, not a loss: unlike PostgreSQL's dense counter, it is not counted as a violation.
  */
 class MongoReads(private val kube: Kube) : StoreReads {
     private fun eval(context: String, script: String): JsonNode {
-        val full = "const db = connect('$URI').getSiblingDB('eshop_$context'); " +
-            "print(EJSON.stringify((() => { $script })(), { relaxed: true }))"
+        val full = MongoLogChecks.program(URI, "eshop_$context", script)
         val result = kube.exec(SHELL, "mongosh", "--quiet", "--nodb", "--eval", full)
         check(result.ok) { "mongosh on eshop_$context failed: ${result.err.take(ERROR)}${result.out.take(ERROR)}" }
         return json.readTree(result.out.trim().lineSequence().last())
@@ -147,31 +147,9 @@ class MongoReads(private val kube: Kube) : StoreReads {
         )
     }
 
-    override fun logViolations(context: String): List<Map<String, Any?>> = eval(
-        context,
-        """
-        const collections = db.wow_log_aggregate.find({ context: 'eshop-$context' }).toArray().map(r => r._id);
-        const out = [];
-        for (const c of collections) {
-          db.getCollection(c).aggregate([
-            { ${'$'}match: { aggregate_id: { ${'$'}exists: true } } },
-            { ${'$'}group: { _id: { t: '${'$'}tenant_id', a: '${'$'}aggregate_id' }, n: { ${'$'}sum: 1 },
-              d: { ${'$'}addToSet: '${'$'}version' }, min: { ${'$'}min: '${'$'}version' }, max: { ${'$'}max: '${'$'}version' } } },
-            { ${'$'}match: { ${'$'}expr: { ${'$'}or: [ { ${'$'}ne: ['${'$'}n', '${'$'}max'] }, { ${'$'}ne: ['${'$'}min', 1] },
-              { ${'$'}ne: [{ ${'$'}size: '${'$'}d' }, '${'$'}n'] } ] } } }
-          ]).forEach(g => out.push({ kind: 'versions', collection: c, aggregateId: g._id.a, versions: g.n, min: g.min, max: g.max }));
-        }
-        if (collections.length > 0) {
-          const [first, ...rest] = collections;
-          db.getCollection(first).aggregate([
-            ...rest.map(c => ({ ${'$'}unionWith: c })),
-            { ${'$'}group: { _id: { p: '${'$'}partition', s: '${'$'}sequence' }, n: { ${'$'}sum: 1 } } },
-            { ${'$'}match: { n: { ${'$'}gt: 1 } } }
-          ], { allowDiskUse: true }).forEach(g => out.push({ kind: 'sequence taken twice', partition: g._id.p, sequence: g._id.s, times: g.n }));
-        }
-        return out;
-        """.trimIndent(),
-    ).values().map { node -> node.properties().associate { (key, value) -> key to value.toString() } }
+    override fun logViolations(context: String): List<Map<String, Any?>> =
+        eval(context, MongoLogChecks.violations("eshop-$context"))
+            .values().map { node -> node.properties().associate { (key, value) -> key to value.toString() } }
 
     override fun snapshotsBehind(context: String): List<Map<String, Any?>> = eval(
         context,

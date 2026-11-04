@@ -288,6 +288,8 @@ private class TrackedWalksLog<L>(
     override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
         activity.call(::unavailable) { walks.stamp(ref, access, asOf, from, until) }
 
+    override suspend fun holds(type: AggregateType): Boolean = activity.call(::unavailable) { walks.holds(type) }
+
     override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage =
         activity.call(::unavailable) { walks.aggregates(type, after, limit) }
 

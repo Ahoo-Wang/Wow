@@ -111,15 +111,18 @@ import kotlin.coroutines.CoroutineContext
  * The kernel keeps the deleted mark beside the state too, evolved by the lifecycle events: a deleted
  * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]).
  *
- * The aggregate's scope also guards it: an existing aggregate refuses a command whose scope names another owner
- * or space ([FrameworkCodes.AGGREGATE_FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
- * caller's, or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
- * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
- * ([AggregateModel.ownership]) neither records nor checks an owner: only the space of a command counts. An aggregate
- * whose id is its owner's ([AggregateModel.idSource]) records its id as its owner, whoever creates it, and refuses a
- * command, creating or not, whose caller has another owner.
- * A transfer of the owner or the space is guarded like any other command: its scope is the caller's, so the current
- * owner (or a member of the current space) transfers, and the new owner or space is in its body.
+ * The aggregate's scope also guards it, by the default rule ([me.ahoo.wow.api.access.ScopeAccess]) on the command's
+ * scope ([admissible]): an existing aggregate whose owner or space is another than the one the command's scope names
+ * is out of the caller's reach, and is answered as one that does not exist ([FrameworkCodes.AGGREGATE_NOT_FOUND]), or
+ * [FrameworkCodes.AGGREGATE_FORBIDDEN] for a command that may create it. A part absent from the command's scope is not
+ * checked: a tenant-level caller's, or an administrator's acting across scopes, carries no owner. Creating an
+ * aggregate gives it the creating command's scope, and is checked again on the aggregate it creates ([creatable]).
+ * An aggregate that belongs to its tenant ([AggregateModel.ownership]) neither records nor checks an owner: only the
+ * space of a command counts. An aggregate whose id is its owner's ([AggregateModel.idSource]) records its id as its
+ * owner, whoever creates it, so a caller of another owner neither creates nor changes it.
+ * A transfer of the owner or the space is guarded like any other command before deciding: its scope is the caller's,
+ * so the current owner (or a member of the current space) transfers, and the new owner or space is in its body. It
+ * is not checked after: it gives the aggregate away on purpose.
  *
  * A derived command ([isDerived]: a saga's, an `@OnRejected` compensation, a timer's, one another context sent
  * through its command topic) is not guarded: the server's own code made it, there is no caller to
@@ -342,7 +345,7 @@ class Kernel(
     ): BatchMember? {
         val repeated = current.requests?.versionOf(command.requestId) != null ||
             members.streams.any { it.stream.requestId == command.requestId }
-        if (repeated || admissible(decider, command, current, model.ownsById) != null) return null
+        if (repeated || admissible(decider, command, current) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         val wait = entry.wait.beyondCommitted()
         val attempt =
@@ -465,7 +468,7 @@ class Kernel(
             val (loaded, cached) = load(model, requests)
             // Checked after every load: a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
-            admissible(decider, command, loaded, model.ownsById)?.let {
+            admissible(decider, command, loaded)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
             val attempt =
@@ -644,11 +647,7 @@ class Kernel(
         val rejection = (decision as? Decision.Rejected)?.let {
             RejectionCodes.qualified(it.rejection, model.type, commandType)
         }
-        val domain = when (decision) {
-            is Decision.Events -> decision.events
-            Decision.NoOp -> emptyList()
-            is Decision.Rejected -> decision.events
-        }
+        val domain = decision.events
         // A rejection commits its own events alone: what the refused decision scheduled is not.
         val schedules = if (rejection == null) scope.scheduleEvents() else emptyList()
         val events = domain + schedules
@@ -660,7 +659,10 @@ class Kernel(
         }
         // The decision's own time: what it read as `now` is the time its events are committed at.
         val commitTime = scope.now
-        val metadata = metadataAfter(loaded, command, events)
+        val metadata = metadataAfter(model, loaded, command, events)
+        // A creation is checked again on the aggregate it creates, before evolving the state: a caller creates none
+        // out of its own reach, and a refused creation leaves the initial state untouched.
+        creatable(command, version, metadata.scope)?.let { return Prepared.Done(it) }
         val evolved = evolveDecided(model, state, events, command, commandType, version + 1, commitTime, metadata.scope)
         val stream = EventStreamRecord(
             ref = command.ref,
@@ -744,12 +746,21 @@ class Kernel(
 
     /**
      * The aggregate's metadata after [command] commits [events] on [loaded]. Its scope: a command that
-     * creates the aggregate gives it the caller's scope; every other command carries the aggregate's scope forward,
-     * and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
+     * creates the aggregate gives it the caller's scope ([createdIn]); every other command carries the aggregate's
+     * scope forward, and only the lifecycle events of transferring the owner or the space change it. Its deleted mark
      * changes only by its lifecycle events too.
      */
-    private fun metadataAfter(loaded: CachedState, command: Command<*>, events: List<Any>): KernelLifecycle.Metadata {
-        val before = if (loaded.version == 0) loaded.metadata.copy(scope = command.scope) else loaded.metadata
+    private fun metadataAfter(
+        model: AggregateModel<*>,
+        loaded: CachedState,
+        command: Command<*>,
+        events: List<Any>,
+    ): KernelLifecycle.Metadata {
+        val before = if (loaded.version == 0) {
+            loaded.metadata.copy(scope = createdIn(model, command))
+        } else {
+            loaded.metadata
+        }
         return events.fold(before, KernelLifecycle::evolve)
     }
 
@@ -1309,7 +1320,8 @@ class Kernel(
 /**
  * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate neither
  * records nor checks an owner, only that part of the scope counts. An aggregate whose id is its owner's takes its id
- * for the owner of a command with none, or derived: a caller's other owner is kept, and refused ([admissible]).
+ * for the owner of a command with none, or derived: a caller's other owner is kept, and refused ([admissible],
+ * [creatable]).
  */
 private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
     val owned = model.ownsById && (scope.ownerId == null || isDerived)
@@ -1317,8 +1329,23 @@ private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
     return if (narrowed == scope) this else copyWith(scope = narrowed)
 }
 
+/** The domain events this decision commits: none for a no-op, a rejection's own with it. */
+private val Decision.events: List<Any>
+    get() = when (this) {
+        is Decision.Events -> events
+        Decision.NoOp -> emptyList()
+        is Decision.Rejected -> events
+    }
+
 /** Whether the model's aggregate's id is its owner's. */
 private val AggregateModel<*>.ownsById: Boolean get() = idSource == AggregateIdSource.OWNER
+
+/**
+ * The scope of the aggregate [command] creates: the command's, but for an aggregate whose id is its owner's, whose
+ * owner is its id whoever creates it ([creatable] refuses a caller of another owner).
+ */
+private fun createdIn(model: AggregateModel<*>, command: Command<*>): Scope =
+    if (model.ownsById) command.scope.copy(ownerId = command.ref.id) else command.scope
 
 /** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
 private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }

@@ -80,6 +80,9 @@ dependencies {
     integrationTestImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     // EshopLedgerOpsTest: the statuses of the ops view (work package 6.3f, D141).
     integrationTestImplementation(project(":ops-api"))
+    // MongoLogChecksTest: the GA verdict's check of a MongoDB log, against logs two nodes write on the TCK's MongoDB.
+    integrationTestImplementation(project(":mongo"))
+    integrationTestImplementation(project(":tck-containers"))
 }
 
 /**

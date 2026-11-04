@@ -759,19 +759,15 @@ class CommandGateway @InternalWowApi constructor(
 
     /**
      * The id of an aggregate whose id is its owner's, for a request of [caller] naming [requested] (null for none) in
-     * [scope]: an owner-level caller's own, which it may name or not, while naming another is forbidden; a caller with
-     * no owner names it, having no aggregate of its own: unauthenticated, it is answered as such.
+     * [scope]: the one it names, else an owner-level caller's own; a caller with no owner names it, having no aggregate
+     * of its own: unauthenticated, it is answered as such. Whether the caller may act on the aggregate it names is the
+     * kernel's to answer, as for any aggregate: one of another owner is out of its reach.
      */
     private fun ownId(requested: String?, scope: Scope, caller: Caller): OwnId {
         val owner = scope.ownerId
         return when {
-            owner != null && requested != null && requested != owner -> OwnId.Refused(
-                FrameworkCodes.AGGREGATE_FORBIDDEN,
-                "The aggregate's id is its owner's: the caller's is $owner, not $requested.",
-            )
-
-            owner != null -> OwnId.Of(owner)
             requested != null -> OwnId.Of(requested)
+            owner != null -> OwnId.Of(owner)
             caller.subject == null -> OwnId.Refused(
                 FrameworkCodes.AUTH_UNAUTHENTICATED,
                 "An unauthenticated caller has no aggregate of its own.",

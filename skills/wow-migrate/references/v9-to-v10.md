@@ -350,7 +350,7 @@ class Cart(private val state: CartState) {
 
 Such an aggregate exists once per owner in its tenant, and its id is the owner's:
 
-- an owner-level caller addresses its own by no id, on the routes without `{id}` ([Routing](#routing)); naming another owner's id is 403 `wow.aggregate.forbidden`;
+- an owner-level caller addresses its own by no id, on the routes without `{id}` ([Routing](#routing)); naming another owner's id is 403 `wow.aggregate.forbidden` for a creation and 404 `wow.aggregate.not-found` for any other command;
 - a caller with no owner (a tenant-level caller, a service, a saga) names the id, else 400 `wow.command.malformed` (`wow.query.malformed` on the state read; 401 `wow.auth.unauthenticated` for an unauthenticated caller);
 - a derived or scheduled command without an id takes the owner of its scope;
 - the kernel records the id as the owner, whoever creates the aggregate, and refuses another owner, on creation too;
@@ -653,7 +653,7 @@ Read this when the 9.x domain uses the owner segment of its paths as data: an au
 - **Moving an owner.** No 9.x marker interface moves the owner in V10: a command changes its aggregate's lifecycle by producing the lifecycle event beside its own event, in one commit (decision D336). Rewrite a 9.x command whose event implemented `OwnerTransferred` as a command of the aggregate that produces its domain event and `OwnerTransferred(ownerId)`: `ClaimView(toOwnerId)` produces `ViewClaimed(toOwnerId)` and `OwnerTransferred(toOwnerId)`, listed in `@OnCommand(produces = [ViewClaimed::class, OwnerTransferred::class])`; the stream records the new owner, and the move is one version. An aggregate of its tenant (`Ownership.TENANT`) has no owner, and one whose id is its owner's (`idSource = AggregateIdSource.OWNER`) keeps it: the compiler refuses a command that produces `OwnerTransferred` on either. An annotated model's decide function never takes `wow.lifecycle.TransferOwner` or any other lifecycle command, which the kernel decides: the compiler refuses it (a model of the kernel's DSL may override one, deciding that command's own lifecycle event beside its own events). Who may move an owner is the `CommandAuthorizer`'s decision on the command. A move that must run apart from the domain change (another authorization, after a confirmation) is a `@Saga` that derives `TransferOwner` from the domain event instead (derived commands keep the commit's scope, decision D199), as the V10 view store does; a caller that must see it waits for it: `Wow-Wait: handled(<Saga>.<function>)>snapshot`.
 - **The user a command is for.** A 9.x route that took the target owner from the caller's own path (a claim sent to `owner/{me}`) reads it from `command.operator?.id` instead; never from the body, which anyone can fill.
 
-A target pinned to an earlier V10 pre-release that copied the eShop's basket changes with it: the basket declares `@AggregateRoot(idSource = AggregateIdSource.OWNER)`, its `eshop-basket.basket.not-owner` rejection code is removed (the kernel answers another owner with `wow.aggregate.forbidden`), and `POST /eshop-basket/basket/add-basket-item` no longer creates a basket under a generated id: it is the buyer's own basket, whose id is the buyer's user id. A client that sent `POST /eshop-basket/basket/{id}/…` with the buyer's id still works; one that stored a generated basket id reads the buyer's basket by no id instead.
+A target pinned to an earlier V10 pre-release that copied the eShop's basket changes with it: the basket declares `@AggregateRoot(idSource = AggregateIdSource.OWNER)`, its `eshop-basket.basket.not-owner` rejection code is removed (the kernel answers another owner's creation with `wow.aggregate.forbidden`, and its other commands with `wow.aggregate.not-found`), and `POST /eshop-basket/basket/add-basket-item` no longer creates a basket under a generated id: it is the buyer's own basket, whose id is the buyer's user id. A client that sent `POST /eshop-basket/basket/{id}/…` with the buyer's id still works; one that stored a generated basket id reads the buyer's basket by no id instead.
 
 ## Routes and handlers of a 9.x starter
 
@@ -858,7 +858,7 @@ class CartSpec {
 
     @Test
     fun `a customer should not add to another customer's cart`() = aggregateSpec(model, id = CUSTOMER) {
-        whenCommand(AddCartItem("apple"), scope = Scope("mallory")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        whenCommand(AddCartItem("apple"), scope = Scope("mallory")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 }
 ```

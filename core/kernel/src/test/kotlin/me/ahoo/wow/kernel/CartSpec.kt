@@ -71,7 +71,7 @@ class CartSpec {
         whenCommand(
             AddItem("apple", 1),
             scope = Scope("bob", "home")
-        ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        ) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test

@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 
 /**
  * Roadmap 8b.1's and 8b.2's exits: the 9.x example's data, in a 9.x MongoDB store, imported by the command line into
@@ -165,6 +166,25 @@ class NineXExampleImportTest {
             .contains("example-service.order done: 1 instances, 0 streams imported, 1 skipped")
             .contains("Final pass done")
         kernel.stateAt(NineXExample.orderModel, orderRef, 5)!!.version.assert().isEqualTo(5)
+
+        // A stream 9.x committed two minutes before the tail's checkpoint, visible only after the tail had read past
+        // it: the states compare equal at 9.x's snapshot (version 4), and the check of the import finds it missing.
+        val committedAt = NineXStream.parse(received).createTime - 120_000
+        NineXMongoStore.insert(
+            nineX,
+            NineXMongoStore.received(received, committedAt)
+                .replace("received-stream", "lost-stream")
+                .replace("received-command", "lost-command"),
+        )
+        run("compare", "--config", config(target).toString(), "--restart").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
+            .contains(
+                "MISSING example-service.order (0)/0VY3GwaK4OmV00E v6: 9.x stream lost-stream (command lost-command), " +
+                    "committed at ${Instant.ofEpochMilli(committedAt)}, is not in the log, which holds v5",
+            )
+            .contains("Comparison done: 1 instances of [example-service.order] miss the latest stream 9.x committed")
     }
 
     @Test

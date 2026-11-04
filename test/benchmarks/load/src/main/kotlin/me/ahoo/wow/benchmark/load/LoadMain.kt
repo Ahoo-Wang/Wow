@@ -105,6 +105,8 @@ private fun usage(): Nothing {
           saturate: --scenario=… (or --mix=…) --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
                     --sweep (every step up to the maximum, not only up to where the throughput levels off)
                     --growth=2 (the concurrency's factor from one step to the next; 4 takes 1, 4, 16, 64, 256, 1024)
+                    --concurrencies=16,64,1024 (exactly these steps, in order, instead of growing to the maximum)
+                    --fail-after=10 (a failing step below an earlier one's throughput ends once it measured this long)
         """.trimIndent(),
     )
     exitProcess(2)
@@ -386,6 +388,8 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         stepSeconds = options.int("step", 10),
         sweep = options.string("sweep", "false").toBoolean(),
         growth = options.int("growth", 2),
+        concurrencies = options.optional("concurrencies")?.split(',')?.map { it.trim().toInt() },
+        failAfterSeconds = options.optional("fail-after")?.toInt(),
     ) { println("[saturate] ${mix.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(
@@ -403,6 +407,8 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         "steps" to steps.map { step ->
             mapOf(
                 "concurrency" to step.concurrency,
+                // Less than --step when a failing step ended early (--fail-after).
+                "seconds" to step.seconds,
                 "throughput" to step.throughput,
                 "ok" to step.ok,
                 "errors" to step.errors,

@@ -110,12 +110,12 @@ class DerivedCommandScopeTest {
         val streams = backends.opened.getValue(SHOP).log.read(CART.ref(TENANT, BOB)).toList()
         streams.map { it.scope }.distinct().assert().containsExactly(Scope(ownerId = BOB))
 
-        // An external caller of alice's is refused bob's cart (D94).
+        // An external caller of alice's does not reach bob's cart (D94): it is not found for it.
         val external = node.gateway.execute(
             request("cart", "RemoveItems", listOf("plum"), BOB, ALICE, WaitPlan.COMMITTED),
         )
         external.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        external.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+        external.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         cartItems().assert().containsExactly("plum")
     }
 

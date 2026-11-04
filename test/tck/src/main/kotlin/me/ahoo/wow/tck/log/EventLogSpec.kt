@@ -324,11 +324,39 @@ abstract class EventLogSpec {
         }
 
     @Test
+    fun `a type the log holds no history of has no walk and claims none, and its first append creates its store`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
+            val walks = log as AccessWalks
+            val walk = AccessWalk("", mapOf(0 to 1L))
+            walks.holds(type).assert().isFalse()
+            walks.walk(type).assert().isNull()
+            walks.claim(type, walk, expected = null).assert().isFalse()
+            walks.advance(type, "", null, walked = 0, completed = true).assert().isFalse()
+            walks.aggregates(type, null, limit = 3).assert().isEqualTo(AggregatePage(emptyList(), null))
+            // None of them created the type's store.
+            walks.holds(type).assert().isFalse()
+
+            log.append(stream("a-1", 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            walks.holds(type).assert().isTrue()
+            walks.holds(other).assert().isFalse()
+            if (opensOneStorePerContext) {
+                // Another node of the service finds the store its first append created.
+                (createLog() as AccessWalks).holds(type).assert().isTrue()
+            }
+            walks.claim(type, walk, expected = null).assert().isTrue()
+            walks.walk(type).assert().isEqualTo(walk)
+            walks.aggregates(type, null, limit = 3).refs.assert().containsExactly(type.ref("tenant", "a-1"))
+        }
+
+    @Test
     fun `a walk is claimed by its schema, once among concurrent claims, and advances while recorded`(): Unit =
         runBlocking {
             val log = createLog()
             Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
             val walks = log as AccessWalks
+            log.append(stream("a-1", 1))
             walks.walk(type).assert().isNull()
             val first = AccessWalk("region:string", mapOf(0 to 4L, 1 to 0L))
             walks.claim(type, first, expected = "other").assert().isFalse()

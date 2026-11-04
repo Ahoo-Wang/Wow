@@ -65,7 +65,7 @@ class BasketSpec {
             expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
         givenCommands(AddBasketItem(MUG, MUG_PRICE, 2))
-        whenCommand(ClearBasket, scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+        whenCommand(ClearBasket, scope = Scope(ownerId = "bob")) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
     }
 
     @Test

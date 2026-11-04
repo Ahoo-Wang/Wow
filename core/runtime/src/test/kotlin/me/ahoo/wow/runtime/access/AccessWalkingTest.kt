@@ -193,11 +193,26 @@ class AccessWalkingTest {
         walking.maintain()
         walking.covers(type, position).assert().isTrue()
         history(log, "d-1").assert().containsExactly(access("sales"))
-        // An empty log's walk has nothing to walk.
-        val empty = InMemoryEventLog()
-        walking(empty).maintain()
-        empty.walk(type)!!.completed.assert().isTrue()
     }
+
+    @Test
+    fun `a type without a store of its history is not claimed, and the first run after its first append claims it`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog()
+            val walking = walking(log)
+            walking.maintain().assert().isFalse()
+            log.holds(type).assert().isFalse()
+            log.walk(type).assert().isNull()
+            walking.walks().assert().isEmpty()
+            // A node of an earlier version writes the type's first stream: the next run's heads reach it.
+            unstamped(log, listOf("d-1"), "sales")
+            walking.maintain().assert().isFalse()
+            log.walk(type)!!.let {
+                it.completed.assert().isTrue()
+                it.walked.assert().isEqualTo(1)
+            }
+            history(log, "d-1").assert().containsExactly(access("sales"))
+        }
 
     /** [log], whose claims, or advances, another node's claim of the schema `other` precedes. */
     private class Contended(
