@@ -83,6 +83,7 @@ import {
   sweepOf,
   jobId,
   partsOf,
+  usesBase,
   fineMore,
   fineOf,
   fineSteps,
@@ -2535,6 +2536,52 @@ test('the axon group and its build: the head alone, no baseline', () => {
   );
 });
 
+test('a sessions suite with an arm of the baseline needs its build, and a baseline commit to build it', () => {
+  assert.equal(usesBase('wow-pg-same-rate-ab'), true);
+  assert.equal(usesBase('axon-pg'), false);
+  assert.equal(usesBase('e1-pg-uniform'), false);
+  const plan = planMatrix({
+    suites: ['wow-pg-same-rate-ab', 'wow-pg-same-rate-ab-slow-disk'],
+    headSha: 'h',
+    baseSha: 'b',
+  });
+  assert.deepEqual(plan.builds, [
+    { side: 'head', sha: 'h' },
+    { side: 'base', sha: 'b' },
+  ]);
+  // Its two sweeps, a job each, and the slow-disk suite's one.
+  assert.deepEqual(plan.jobs, [
+    'wow-pg-same-rate-ab.100k.e1',
+    'wow-pg-same-rate-ab.100k.e3',
+    'wow-pg-same-rate-ab-slow-disk.100k',
+  ]);
+  // Each session starts the build of its arm, W A A W.
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const suite = runSuite('wow-pg-same-rate-ab-slow-disk', {
+    benchPath: fakeSessionBench(dir),
+    out: join(dir, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 2,
+    fraction: 0.8,
+    installs: { head: '/builds/head', base: '/builds/base' },
+  });
+  assert.equal(suite.failures, 0);
+  const ups = readFileSync(join(dir, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(call => call.startsWith('up '));
+  assert.deepEqual(
+    ups.map(call => call.match(/--install=(\S+)/)?.[1]),
+    ['/builds/base', '/builds/head', '/builds/head', '/builds/base'],
+  );
+  assert.ok(ups.every(call => call.includes(' --store-write-iops=1200 ')));
+  const unbased = planMatrix({ suites: ['wow-pg-same-rate-ab'], headSha: 'h' });
+  assert.deepEqual(unbased.suites, []);
+  assert.deepEqual(unbased.skipped, [
+    "wow-pg-same-rate-ab (an arm runs the baseline's build: set base_ref)",
+  ]);
+});
+
 test('partsOf splits a sessions suite of several sweeps into a part a sweep, its same-rate runs with it', () => {
   assert.deepEqual(partsOf(SUITES['axon-pg']), [
     {
@@ -3124,6 +3171,87 @@ test('correctnessOf counts what the runs sent against what the store holds', () 
   assert.equal(unknown.comparable, true);
 });
 
+test('the same-rate diagnostic runs each rate twice a session and nothing else; with profile, every session records', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeSessionBench(dir);
+  const out = join(dir, 'out');
+  const suite = runSuite('axon-pg-same-rate', {
+    benchPath,
+    out,
+    warmUp: 30,
+    measure: 40,
+    repeats: 2,
+    fraction: 0.8,
+    profile: true,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(suite.failures, 0);
+  assert.equal(suite.profiled, true);
+  assert.deepEqual(suite.sweeps, []);
+  assert.deepEqual(
+    suite.runs
+      .filter(run => run.arm === 'wow' && run.round === 0)
+      .map(run => [run.name, run.scenario, run.rate]),
+    [
+      ['1-wow-e1', 'E1', 1000],
+      ['1-wow-e3', 'E3', 300],
+      ['1-wow-e1-2', 'E1', 1000],
+      ['1-wow-e3-2', 'E3', 300],
+    ],
+  );
+  assert.equal(suite.runs.length, 16);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  assert.ok(!calls.some(call => call.startsWith('saturate ')));
+  const ups = calls.filter(call => call.startsWith('up '));
+  assert.equal(ups.length, 4);
+  assert.ok(ups.every(call => / --jfr( |$)/.test(call)));
+  assert.ok(suite.sessions.every(session => session.correctness.comparable));
+  assert.match(
+    renderSuite(suite),
+    /Profiled: every session's servers ran with a flight recording/,
+  );
+  // The slow-disk variant caps the store's writes when each session starts.
+  const slow = mkdtempSync(join(tmpdir(), 'bench-'));
+  const capped = runSuite('axon-pg-same-rate-slow-disk', {
+    benchPath: fakeSessionBench(slow),
+    out: join(slow, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(capped.storeWriteIops, 1400);
+  const cappedUps = readFileSync(join(slow, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(call => call.startsWith('up '));
+  assert.equal(cappedUps.length, 2);
+  assert.ok(
+    cappedUps.every(call => call.includes(' --store-write-iops=1400 ')),
+  );
+  assert.match(
+    renderSuite(capped),
+    /The store's disk writes capped at 1400 a second/,
+  );
+  // Without profile, nothing records.
+  const plain = mkdtempSync(join(tmpdir(), 'bench-'));
+  const unprofiled = runSuite('axon-pg-same-rate', {
+    benchPath: fakeSessionBench(plain),
+    out: join(plain, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(unprofiled.profiled, undefined);
+  assert.ok(
+    readFileSync(join(plain, 'calls.log'), 'utf8')
+      .split('\n')
+      .every(call => !call.includes('--jfr')),
+  );
+});
+
 test('a diagnostic suite dumps its sweeps, its second arm set by properties when the session starts', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = fakeSessionBench(dir);
@@ -3166,6 +3294,13 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
       repeats: 2,
       fraction: 0.8,
     }).suites,
-    ['axon-pg-e3-pool', 'axon-pg-e3-reactions'],
+    [
+      'axon-pg-e3-pool',
+      'axon-pg-e3-reactions',
+      'axon-pg-same-rate',
+      'axon-pg-same-rate-slow-disk',
+      'wow-pg-same-rate-ab',
+      'wow-pg-same-rate-ab-slow-disk',
+    ],
   );
 });

@@ -70,6 +70,35 @@ class SamplesTest {
     }
 
     @Test
+    fun `diskStats reads each disk's writes and flushes, without partitions, loops or RAM`() {
+        val text = """
+           7       0 loop0 10 0 20 1 0 0 0 0 0 1 1 0 0 0 0 0 0
+           8       0 sda 100 5 2000 40 300 20 4000 900 0 1200 1500 0 0 0 0 250 600
+           8       1 sda1 90 5 1900 38 290 20 3900 880 0 1100 1400 0 0 0 0 0 0
+         259       0 nvme0n1 1 0 8 0 50 0 800 25 1 30 40
+         259       1 nvme0n1p1 1 0 8 0 50 0 800 25 0 30 40
+        """.trimIndent()
+        Samples.diskStats(text).assert().isEqualTo(
+            mapOf(
+                "sda:writes" to 300.0,
+                "sda:writeKb" to 2000.0,
+                "sda:writeMs" to 900.0,
+                "sda:ioMs" to 1200.0,
+                "sda:flushes" to 250.0,
+                "sda:flushMs" to 600.0,
+                // A kernel before 5.5 has no flush counters.
+                "nvme0n1:writes" to 50.0,
+                "nvme0n1:writeKb" to 400.0,
+                "nvme0n1:writeMs" to 25.0,
+                "nvme0n1:ioMs" to 30.0,
+                "nvme0n1:flushes" to 0.0,
+                "nvme0n1:flushMs" to 0.0,
+            ),
+        )
+        Samples.diskStats("").assert().isEqualTo(emptyMap<String, Double>())
+    }
+
+    @Test
     fun `whole keeps counters integral`() {
         Samples.whole(12.0).assert().isEqualTo(12L)
         Samples.whole(1.5).assert().isEqualTo(1.5)

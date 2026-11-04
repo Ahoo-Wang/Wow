@@ -59,6 +59,7 @@ class Resources(
     private val dockerLines = mutableListOf<Pair<Long, String>>()
     private val mongoSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
     private val postgresSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
+    private val diskSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
     private val samplers = mutableListOf<Process>()
     private var allocations: Map<String, Allocations.Reader?> = emptyMap()
     private var psThread: Thread? = null
@@ -132,6 +133,7 @@ class Resources(
             while (sampling) {
                 val at = System.currentTimeMillis() - startedAt
                 cpu().forEach { (name, sample) -> synchronized(psSamples) { psSamples += sample + ("process" to name) + ("t" to at) } }
+                disks()?.let { synchronized(diskSamples) { diskSamples += System.currentTimeMillis() to it } }
                 Thread.sleep(SAMPLE_MILLIS)
             }
         }
@@ -180,10 +182,16 @@ class Resources(
             "postgresSeries" to synchronized(postgresSamples) {
                 Samples.perSecond(postgresSamples.toList(), window, POSTGRES_SERIES)
             },
+            // The disks' writes and flushes a second (Linux): what an fsync of the stores waited on.
+            "diskSeries" to synchronized(diskSamples) {
+                val keys = diskSamples.firstOrNull()?.second?.keys?.toList().orEmpty()
+                Samples.perSecond(diskSamples.toList(), window, keys)
+            },
             // Whether every sampler was up before the measured phase began, and how long before.
             "samplersReadyBeforeMeasureSeconds" to (startedAt - readyAt) / MILLIS_PER_SECOND.toDouble(),
             "samplers" to "${if (procAvailable) "/proc" else "ps"} every ${SAMPLE_MILLIS}ms; jstat -gc -t <pid> $SAMPLE_MILLIS per JVM; " +
                 "one docker stats stream; one mongosh and one psql session sampling every ${SAMPLE_MILLIS}ms; " +
+                "/proc/diskstats every ${SAMPLE_MILLIS}ms on Linux; " +
                 "allocations over JMX connections opened at the warm-up; all started at the warm-up",
         )
     }
@@ -260,6 +268,11 @@ class Resources(
     }
 
     private val procAvailable = File("/proc/self/stat").exists()
+    private val diskStats = File("/proc/diskstats")
+
+    /** The disks' counters now (Samples.diskStats), or null off Linux. */
+    private fun disks(): Map<String, Double>? =
+        if (diskStats.exists()) runCatching { Samples.diskStats(diskStats.readText()) }.getOrNull() else null
     private val clockTicks by lazy { execute("getconf", "CLK_TCK")?.trim()?.toDoubleOrNull() ?: DEFAULT_CLOCK_TICKS }
     private val pageKb by lazy { (execute("getconf", "PAGESIZE")?.trim()?.toDoubleOrNull() ?: DEFAULT_PAGE_BYTES) / KB }
 
@@ -371,25 +384,33 @@ class Resources(
         private val POSTGRES_COLUMNS = listOf(
             "epoch", "xact_commit", "xact_rollback", "tup_inserted", "tup_updated", "tup_deleted", "tup_fetched",
             "tup_returned", "blks_read", "blks_hit", "wal_records", "wal_fpi", "wal_bytes", "wal_buffers_full", "wal_write",
-            "wal_sync", "wal_write_time", "wal_sync_time",
+            "wal_sync", "wal_write_time", "wal_sync_time", "checkpoint_buffers", "bgwriter_buffers",
         )
 
-        /** The per-second series kept of PostgreSQL's samples: commits, and WAL records, bytes, writes and flushes. */
+        /**
+         * The per-second series kept of PostgreSQL's samples: commits, WAL records, full-page images, bytes, writes and
+         * flushes, and the data pages the checkpointer and the background writer wrote.
+         */
         private val POSTGRES_SERIES = listOf(
             "xact_commit",
             "wal_records",
+            "wal_fpi",
             "wal_bytes",
             "wal_write",
             "wal_sync",
             "wal_write_time",
             "wal_sync_time",
+            "checkpoint_buffers",
+            "bgwriter_buffers",
         )
 
         private fun postgresQuery(database: String): String =
             "select extract(epoch from clock_timestamp()), d.xact_commit, d.xact_rollback, d.tup_inserted, d.tup_updated, " +
                 "d.tup_deleted, d.tup_fetched, d.tup_returned, d.blks_read, d.blks_hit, w.wal_records, w.wal_fpi, " +
-                "w.wal_bytes, w.wal_buffers_full, w.wal_write, w.wal_sync, w.wal_write_time, w.wal_sync_time " +
-                "from pg_stat_database d, pg_stat_wal w where d.datname = '$database';"
+                "w.wal_bytes, w.wal_buffers_full, w.wal_write, w.wal_sync, w.wal_write_time, w.wal_sync_time, " +
+                "c.buffers_written, b.buffers_clean " +
+                "from pg_stat_database d, pg_stat_wal w, pg_stat_checkpointer c, pg_stat_bgwriter b " +
+                "where d.datname = '$database';"
 
         /** Where the run happened (machine, commit, JVM), as far as the machine tells. */
         fun environment(repository: File?): Map<String, Any?> = mapOf(

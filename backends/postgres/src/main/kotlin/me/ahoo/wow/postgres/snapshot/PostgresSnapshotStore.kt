@@ -67,6 +67,14 @@ class PostgresSnapshotStore(
     /** How the store's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
 ) : SnapshotStore, SnapshotRebuildStore {
+    /**
+     * Whether the node covered this context's snapshot writes ([me.ahoo.wow.spi.store.CoveredSnapshots]): its log, the
+     * checkpoints of its snapshot subscription and all its snapshots on this store's database, so [saveAll] commits
+     * without waiting for its flush. Not by default: a store opened on its own writes every snapshot durably.
+     */
+    @Volatile
+    internal var covered: Boolean = false
+
     /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
     override val rebuilds: SnapshotRebuildStore get() = this
 
@@ -154,9 +162,25 @@ class PostgresSnapshotStore(
      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
      * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
      *
-     * All of it is one transaction, one commit and one WAL flush, the aggregate types in name
-     * order and each statement's rows in key order, so concurrent batches lock their common rows in the same order. A
-     * statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
+     * All of it is one transaction and one commit, the aggregate types in name order and each statement's rows in key
+     * order, so concurrent batches lock their common rows in the same order.
+     *
+     * When the store is [covered], the commit does not wait for its WAL flush (`synchronous_commit = off`). Covered
+     * means the node found the context's log, the checkpoints its snapshot subscription saves and every store its
+     * snapshots go to all on this one store ([me.ahoo.wow.spi.store.CoveredSnapshots]). Then the snapshots are its log
+     * folded, and the subscription saves the checkpoint covering them, which waits for its own flush, only after they
+     * are written. The WAL being written in order, that flush carries them, as any append's does, or the WAL writer's
+     * after `wal_writer_delay`. A crash of PostgreSQL loses at most the snapshots after the last durable checkpoint,
+     * which the subscription then takes again and writes again; meanwhile a load replays more of the log. Waiting for
+     * the flush there too doubled a command's WAL flushes, its append's and its snapshot's. PostgreSQL flushes one at a
+     * time, so on a disk whose flushes take half a millisecond a node at a thousand commands a second spent more than a
+     * second of flushing a second, and its commits queued.
+     *
+     * A store not covered commits as any write, waiting for its flush. A checkpoint durable elsewhere, in another
+     * database or backend, would otherwise cover snapshots this one could lose with nothing to write them again, and
+     * an idle aggregate's snapshot would stay at the state before until its next command.
+     *
+     * A statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
      * nothing: the rounds run again statement by statement in autocommit, where such a statement's snapshots are saved
      * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown, and nothing of
      * the batch was written.
@@ -169,7 +193,9 @@ class PostgresSnapshotStore(
         } else {
             dataSource.autoCommitted { connection ->
                 try {
-                    inTransaction(connection) { bound -> saveRounds(bound, tablesOf, snapshots, alone = false) }
+                    inTransaction(connection, asynchronous = covered) { bound ->
+                        saveRounds(bound, tablesOf, snapshots, alone = false)
+                    }
                 } catch (failure: SQLException) {
                     PostgresFailures.refusedOrThrow(failure)
                     saveRounds(connection, tablesOf, snapshots, alone = true)
