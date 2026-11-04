@@ -47,7 +47,11 @@ class PostgresSnapshotDurabilityTest {
                 val type = AggregateType(context, "account")
                 var covered = emptyList<SnapshotRecord>()
                 pooled(container.jdbcUrl, container) { dataSource ->
-                    val snapshots = PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
+                    // Covered, as the node covers a context on one store: its checkpoints on this database too.
+                    val snapshots = PostgresSnapshotStore(dataSource, context).also {
+                        it.createSchema()
+                        it.covered = true
+                    }
                     val checkpoints = PostgresCheckpointStore(dataSource).also { it.createSchema() }
                     // The aggregate's table first, by a save that waits for its flush.
                     runBlocking { snapshots.save(snapshot(type, "table")).assert().isTrue() }
