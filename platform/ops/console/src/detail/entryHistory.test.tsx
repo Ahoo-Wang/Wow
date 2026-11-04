@@ -98,10 +98,14 @@ const STREAMS: EventStream[] = [
 ];
 
 /** A system event the kernel commits beside the entry's own (wow-client's SystemEvent). */
-const TAGGED: EventStream = {
+const TRANSFERRED: EventStream = {
   ...stream(11, "unused", {}),
   events: [
-    { name: "wow.lifecycle.TagsApplied", revision: 1, body: { tags: {} } },
+    {
+      name: "wow.lifecycle.OwnerTransferred",
+      revision: 1,
+      body: { ownerId: "o" },
+    },
   ],
 };
 
@@ -163,10 +167,10 @@ describe("an entry's history", () => {
   });
 
   it("matches the event names the server sends, system events included", () => {
-    const [tagged] = historyOf([TAGGED]);
-    expect(tagged).toMatchObject({
+    const [transferred] = historyOf([TRANSFERRED]);
+    expect(transferred).toMatchObject({
       kind: "unknown",
-      name: "wow.lifecycle.TagsApplied",
+      name: "wow.lifecycle.OwnerTransferred",
     });
     // The short name is not what the server sends: it is not read as a step.
     const short = historyOf([

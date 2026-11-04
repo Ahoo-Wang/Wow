@@ -97,6 +97,73 @@ describe('Manifest clients', () => {
     expect(read('probe/contract.ts')).not.toContain('handled');
     // An aggregate without query models has no query clients in its context's client.
     expect(read('probe/client.ts')).not.toContain('snapshots');
+    // Nor access attributes: its records' access is empty, and no query names one.
+    expect(read('probe/thing/aggregate.ts')).toContain(
+      'export type ThingAccess = NoAccess;',
+    );
+  });
+
+  it("types an aggregate's access attributes, and reads an integer one as its exact text (D390)", async () => {
+    const queries = [
+      { model: 'snapshot', routes: [] },
+      { model: 'events', routes: [] },
+    ];
+    const { read } = await generateCompiling(
+      manifest({
+        queries,
+        access: [
+          { name: 'region', type: 'string' },
+          { name: 'teams', type: 'string', multiple: true },
+          { name: 'level', type: 'integer' },
+          { name: 'grades', type: 'integer', multiple: true },
+          { name: 'open', type: 'boolean' },
+          // A type this generator does not know yet takes any scalar.
+          { name: 'scores', type: 'decimal', multiple: true },
+        ],
+      }),
+      `import { ThingSnapshotQueryClient, ThingEventQueryClient, ThingStateClient, type ThingAccess } from './out/index.js';
+       import { filter } from '@ahoo-wang/wow-client/dsl';
+       import type { Snapshot } from '@ahoo-wang/wow-client';
+       const access: ThingAccess = { region: null, teams: ['a'], level: '9007199254740993', grades: ['1'], open: true };
+       const snapshots = new ThingSnapshotQueryClient();
+       const streams = new ThingEventQueryClient();
+       const read = async () => (await new ThingStateClient().get('t1')).access.level;
+       // A typed record is also an untyped one.
+       const untyped = async (): Promise<Snapshot<unknown>> => new ThingStateClient().get('t1');
+       void [
+         access, read, untyped,
+         snapshots.list({ filter: filter.eq('access.region', 'east') }),
+         streams.list({ filter: filter.and([filter.eq('access.owner', 'o'), filter.eq('access.level', '1')]) }),
+         // @ts-expect-error the thing declares no such attribute
+         snapshots.list({ filter: filter.eq('access.unknown', 'x') }),
+       ];`,
+    );
+    const aggregate = read('probe/thing/aggregate.ts');
+    expect(aggregate).toContain(
+      [
+        'export type ThingAccess = {',
+        '  readonly region?: string | null;',
+        '  readonly teams?: readonly string[];',
+        '  readonly level?: string | null;',
+        '  readonly grades?: readonly string[];',
+        '  readonly open?: boolean | null;',
+        '  readonly scores?: readonly (string | number | boolean)[];',
+        '};',
+      ].join('\n'),
+    );
+    expect(aggregate).toContain(
+      "    access: { level: true, grades: { '*': true } },",
+    );
+    const clients = read('probe/thing/queryClient.ts');
+    expect(clients).toContain(
+      'export class ThingSnapshotQueryClient extends SnapshotQueryClient<ThingState, ThingStateField, ThingAccess> {',
+    );
+    expect(clients).toContain(
+      'export class ThingEventQueryClient extends EventQueryClient<ThingEvent, ThingAccess> {',
+    );
+    expect(clients).toContain(
+      'export class ThingStateClient extends StateClient<ThingState, ThingEvent, ThingAccess> {',
+    );
   });
 
   it('types every kind of schema', async () => {
@@ -263,7 +330,7 @@ describe('Manifest clients', () => {
     );
     expect(client).not.toContain('restoreAggregateOwn');
     expect(read('probe/thing/queryClient.ts')).toContain(
-      'export class ThingStateClient extends OwnStateClient<ThingState, ThingEvent> {',
+      'export class ThingStateClient extends OwnStateClient<ThingState, ThingEvent, ThingAccess> {',
     );
     expect(read('probe/thing/aggregate.ts')).toContain("idSource: 'owner',");
   });
@@ -499,7 +566,7 @@ describe('Manifest clients', () => {
         {
           commands: [
             ...lifecycle(
-              'wow.lifecycle.ApplyTags',
+              'wow.lifecycle.TransferOwner',
               'wow.lifecycle.DeleteAggregate',
               'wow.lifecycle.TransferSpace',
             ),
@@ -518,19 +585,11 @@ describe('Manifest clients', () => {
             required: ['name'],
             description: 'Renames the thing',
           },
-          'wow.lifecycle.ApplyTags': {
+          'wow.lifecycle.TransferOwner': {
             type: 'object',
-            properties: {
-              tags: {
-                type: 'object',
-                additionalProperties: {
-                  type: 'array',
-                  items: { type: 'string' },
-                },
-              },
-            },
-            required: ['tags'],
-            description: 'Sets the tags',
+            properties: { ownerId: { type: 'string' } },
+            required: ['ownerId'],
+            description: 'Moves it to its new owner',
           },
           'wow.lifecycle.DeleteAggregate': {
             type: 'object',
@@ -539,23 +598,23 @@ describe('Manifest clients', () => {
         },
       ),
       `import { ThingCommandClient } from './out/index.js';
-       import type { ApplyTags } from './out/probe/types.js';
-       const tags: ApplyTags = { tags: { color: ['red'] } };
-       void [new ThingCommandClient().applyTags('1', tags)];`,
+       import type { TransferOwner } from './out/probe/types.js';
+       const body: TransferOwner = { ownerId: 'o' };
+       void [new ThingCommandClient().transferOwner('1', body)];`,
     );
     const client = read('probe/thing/commandClient.ts');
     expect(client).toContain(
-      "import type { ApplyTags, Rename } from '../types.js';",
+      "import type { Rename, TransferOwner } from '../types.js';",
     );
     expect(client).toMatch(
       /import \{[^}]*type TransferSpace[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).not.toMatch(
-      /type ApplyTags[^}]*\} from '@ahoo-wang\/wow-client'/,
+      /type TransferOwner[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).toContain('   * Renames the thing\n   * `Rename`:');
     expect(client).toContain(
-      '   * Sets the tags\n   * The lifecycle command `wow.lifecycle.ApplyTags`.',
+      '   * Moves it to its new owner\n   * The lifecycle command `wow.lifecycle.TransferOwner`.',
     );
     expect(client).toContain(
       '   * Marks it deleted\n   * The lifecycle command `wow.lifecycle.DeleteAggregate`.',
@@ -565,7 +624,7 @@ describe('Manifest clients', () => {
       '/** The lifecycle command `wow.lifecycle.TransferSpace`. */',
     );
     const types = read('probe/types.ts');
-    expect(types).toContain('export interface ApplyTags {');
+    expect(types).toContain('export interface TransferOwner {');
     expect(types).not.toContain('DeleteAggregate');
   });
 

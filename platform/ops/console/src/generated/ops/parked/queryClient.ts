@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ParkedState } from '../types.js';
-import { ParkedAggregate, type ParkedEvent, type ParkedStateField } from './aggregate.js';
+import { type ParkedAccess, ParkedAggregate, type ParkedEvent, type ParkedStateField } from './aggregate.js';
 
 /** Queries the snapshots of `ops.parked`: `POST /ops/parked/snapshot/query`. */
-export class ParkedSnapshotQueryClient extends SnapshotQueryClient<ParkedState, ParkedStateField> {
+export class ParkedSnapshotQueryClient extends SnapshotQueryClient<ParkedState, ParkedStateField, ParkedAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ParkedAggregate, options);
@@ -14,7 +14,7 @@ export class ParkedSnapshotQueryClient extends SnapshotQueryClient<ParkedState, 
 
 
 /** Queries the event streams of `ops.parked`, one record per commit: `POST /ops/parked/events/query`. */
-export class ParkedEventQueryClient extends EventQueryClient<ParkedEvent> {
+export class ParkedEventQueryClient extends EventQueryClient<ParkedEvent, ParkedAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ParkedAggregate, options);
@@ -23,7 +23,7 @@ export class ParkedEventQueryClient extends EventQueryClient<ParkedEvent> {
 
 
 /** Reads the states of `ops.parked`, at a version or a time, and their traces: `GET /ops/parked/{id}/state`. */
-export class ParkedStateClient extends StateClient<ParkedState, ParkedEvent> {
+export class ParkedStateClient extends StateClient<ParkedState, ParkedEvent, ParkedAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ParkedAggregate, options);

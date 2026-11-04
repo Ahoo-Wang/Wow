@@ -58,6 +58,8 @@ import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorization
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -130,6 +132,19 @@ class HideFromMallory {
     @Bean
     fun malloryPolicy(): QueryPolicy =
         QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
+}
+
+/** A read authorizer that lets only the callers with the `reader` role read, wherever they read from. */
+@Configuration(proxyBeanMethods = false)
+class ReadersOnly {
+    @Bean
+    fun readerRole(): ReadAuthorizer = ReadAuthorizer { caller, read ->
+        if ("reader" in caller.attributes["roles"].orEmpty()) {
+            ReadAuthorization.Allowed
+        } else {
+            ReadAuthorization.Denied.of("${caller.subject} may not read ${read.type}: it needs the reader role.")
+        }
+    }
 }
 
 /** The access policy of the accounts: the tellers read and change them, the auditors only read them. */
@@ -498,6 +513,40 @@ class HostQueryTest {
             store.rebuilds!!.rewrite(record(1, "older")).assert().isFalse()
             owner().assert().isEqualTo("rebuilt")
             MemoryStore("plain").snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
+        }
+    }
+
+    @Test
+    fun `a read authorizer bean should refuse a caller every read before anything is read, over HTTP and in process`() {
+        startHost(
+            "spring.profiles.active" to "dev",
+            sources = listOf(HostTestApp::class.java, ReadersOnly::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val reader = mapOf(DevelopmentHeaders.USER to "rita", DevelopmentHeaders.ROLES to "reader")
+            val all = """{"kind":"list","filter":{"op":"match-all"}}"""
+            eventually { host.post("/bank/account/snapshot/query", all, reader).body!!.size() == 1 }
+            host.get("/bank/account/$id/state", reader).status.assert().isEqualTo(200)
+            // Refused alike whatever is asked: a query, a state that exists or not, a trace, the events.
+            val stranger = mapOf(DevelopmentHeaders.USER to "sam")
+            listOf(
+                host.post("/bank/account/snapshot/query", all, stranger),
+                host.post("/bank/account/events/query", all, stranger),
+                host.get("/bank/account/$id/state", stranger),
+                host.get("/bank/account/no-such-account/state", stranger),
+                host.get("/bank/account/$id/state/trace", stranger),
+            ).forEach { answer ->
+                answer.status.assert().isEqualTo(403)
+                answer.body!!["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+            }
+            val api = host.context.getBean(NodeQueryApi::class.java)
+            runBlocking {
+                runCatching { api.of(Caller.of(subject = "sam")).snapshots<Account>().state(id) }
+                    .exceptionOrNull().assert().isInstanceOf(WowProblemException::class.java)
+                    .hasMessageContaining("needs the reader role")
+                // Trusted code reads with no caller, and is not asked.
+                api.trusted().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 5)).toList().assert().hasSize(1)
+            }
         }
     }
 

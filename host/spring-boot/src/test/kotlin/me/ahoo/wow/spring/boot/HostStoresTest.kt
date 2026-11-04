@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.CoveredSnapshots
 import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
@@ -341,6 +342,30 @@ class HostStoresTest {
     }
 
     @Test
+    fun `a context should be covered only when its log, checkpoints and every snapshot are on one store`() {
+        fun covered(layout: StoreLayout, vararg names: String): List<String> {
+            val stores = names.associateWith { Covering(it) }
+            layout.open(BANK, stores, 4)
+            return stores.values.flatMap { store -> store.covered.map { "${store.config.name}:$it" } }
+        }
+        // All on one store: covered there.
+        covered(StoreLayout("a"), "a").assert().containsExactly("a:$BANK")
+        // The default snapshots, or a type's, on another store, or mirrored there: not covered.
+        covered(StoreLayout("a", "b"), "a", "b").assert().isEmpty()
+        covered(StoreLayout("a", snapshots = mapOf(account to "b")), "a", "b").assert().isEmpty()
+        covered(
+            StoreLayout("a", placements = mapOf(account to SnapshotPlacement(listOf("a", "b"), "a"))),
+            "a",
+            "b",
+        ).assert().isEmpty()
+        // A type's log on another store, whose log group saves its checkpoints there: not covered.
+        covered(StoreLayout("a", logs = mapOf(account to "b")), "a", "b").assert().isEmpty()
+        // Another context's split leaves this one whole.
+        covered(StoreLayout("a", logs = mapOf(AggregateType("ledger", "entry") to "b")), "a", "b")
+            .assert().containsExactly("a:$BANK")
+    }
+
+    @Test
     fun `a host on several durable stores is of its default log store's type`() {
         val other = Unopened("q", "acme")
         val postgres = Unopened("p", "postgres")
@@ -509,6 +534,31 @@ class HostStoresTest {
         override val location: Any = Any()
 
         override fun openSnapshotTails(context: String): SnapshotTailReader = reader
+
+        override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
+
+        override fun openLeases(): Opened<LeaseStore> = Opened.of(InMemoryLeaseStore())
+
+        override fun openLedger(): Opened<FailureLedger> = Opened.of(InMemoryFailureLedger())
+
+        override fun openReservations(): Opened<ReservationStore> = Opened.of(InMemoryReservationStore())
+
+        override fun openLog(context: String, partitions: Int): Opened<EventLog> = Opened.of(
+            InMemoryEventLog(partitions)
+        )
+
+        override fun openSnapshots(context: String): Opened<SnapshotStore> = Opened.of(InMemorySnapshotStore())
+
+        override fun openTimers(context: String, partitions: Int): Opened<TimerStore> = Opened.of(InMemoryTimerStore())
+    }
+
+    /** A store whose covered contexts ([CoveredSnapshots]) are recorded. */
+    private class Covering(name: String) : Store(StoreConfig(name, "covering")) {
+        val covered = mutableListOf<String>()
+        override val location: Any = Any()
+
+        override fun <F : Any> facet(type: Class<F>): F? =
+            if (type == CoveredSnapshots::class.java) type.cast(CoveredSnapshots { covered += it }) else null
 
         override fun openCheckpoints(): Opened<CheckpointStore> = Opened.of(InMemoryCheckpointStore())
 

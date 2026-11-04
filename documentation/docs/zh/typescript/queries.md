@@ -77,7 +77,7 @@ const page = await orderQueries.paged(
 console.log(page.total, page.list.map(record => record.state.status));
 ```
 
-字段名的类型来自生成的 `<Aggregate>StateField` 和系统字段，所以拼错的字段无法编译。客户端的每个方法运行一种查询：
+字段名的类型来自生成的 `<Aggregate>StateField`、系统字段，以及聚合声明的每个访问属性的 `access.<name>`（生成的 `<Aggregate>Access`），所以拼错的字段、聚合没有声明的属性都无法编译。客户端的每个方法运行一种查询：
 
 | 方法 | 返回 |
 | --- | --- |
@@ -152,7 +152,7 @@ for (;;) {
 
 ## 查询事件流 {#query-event-streams}
 
-`<Aggregate>EventQueryClient` 对聚合的事件流运行同样的查询，每次提交一条记录，它的事件在 `events` 中，类型是生成的 `<Aggregate>Event` 联合类型：
+`<Aggregate>EventQueryClient` 对聚合的事件流运行同样的查询，每次提交一条记录，它的事件在 `events` 中，类型是生成的 `<Aggregate>Event` 联合类型。它的 `access` 含聚合当前的访问属性以及 `owner` 与 `space`，所以过滤条件除了声明的属性，还可以写 `access.owner` 与 `access.space`；尚未盖章的流为 `null`：
 
 <!-- typecheck-context
 import { OrderEventQueryClient } from './generated/ordering/index.js';

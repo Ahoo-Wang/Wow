@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { SourceState } from '../types.js';
-import { SourceAggregate, type SourceEvent, type SourceStateField } from './aggregate.js';
+import { type SourceAccess, SourceAggregate, type SourceEvent, type SourceStateField } from './aggregate.js';
 
 /** Queries the snapshots of `analytics-catalog.source`: `POST /analytics-catalog/source/snapshot/query`. */
-export class SourceSnapshotQueryClient extends SnapshotQueryClient<SourceState, SourceStateField> {
+export class SourceSnapshotQueryClient extends SnapshotQueryClient<SourceState, SourceStateField, SourceAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(SourceAggregate, options);
@@ -14,7 +14,7 @@ export class SourceSnapshotQueryClient extends SnapshotQueryClient<SourceState, 
 
 
 /** Queries the event streams of `analytics-catalog.source`, one record per commit: `POST /analytics-catalog/source/events/query`. */
-export class SourceEventQueryClient extends EventQueryClient<SourceEvent> {
+export class SourceEventQueryClient extends EventQueryClient<SourceEvent, SourceAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(SourceAggregate, options);
@@ -23,7 +23,7 @@ export class SourceEventQueryClient extends EventQueryClient<SourceEvent> {
 
 
 /** Reads the states of `analytics-catalog.source`, at a version or a time, and their traces: `GET /analytics-catalog/source/{id}/state`. */
-export class SourceStateClient extends StateClient<SourceState, SourceEvent> {
+export class SourceStateClient extends StateClient<SourceState, SourceEvent, SourceAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(SourceAggregate, options);

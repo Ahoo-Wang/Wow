@@ -466,7 +466,7 @@ object ArchitectureRules {
         "policy.QueryEntryPolicy", "admission.QueryBudget", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
         "QueryGateway", "QueryModule", "CrossTenantAudit",
         // The application's ports the engine is built of.
-        "policy.QueryPolicy", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
+        "policy.QueryPolicy", "policy.ReadAuthorizer", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
         "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",

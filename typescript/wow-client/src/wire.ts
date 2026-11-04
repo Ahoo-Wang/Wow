@@ -39,6 +39,11 @@ export interface AggregateTextNumbers {
   readonly events?: Readonly<Record<string, TextNumbers>>;
   /** Those of each command's body, by the command's name. */
   readonly commands?: Readonly<Record<string, TextNumbers>>;
+  /**
+   * Those of its access attributes, by name: the integer ones, which a record
+   * keeps as a `Long` (`int64`).
+   */
+  readonly access?: TextNumbers;
 }
 
 /** One aggregate: its type, its tenant and its id. */
@@ -252,8 +257,39 @@ export interface RefusedResult<R = Record<string, unknown>> extends Omit<
   readonly ref: CommandRef;
 }
 
-/** The tags of an aggregate: names to values. */
-export type Tags = Readonly<Record<string, readonly string[]>>;
+/**
+ * An access attribute's value as a record carries it: a single attribute's
+ * value or null, a multiple one's values, distinct and sorted. An integer is
+ * a `Long` on the server: wow-generator types it `string` and marks it to be
+ * read as its exact text ({@link AggregateTextNumbers.access}).
+ */
+export type AccessValue =
+  string | number | boolean | null | readonly (string | number | boolean)[];
+
+/**
+ * A record's access attributes by name, as the aggregate declares them
+ * (`@Access` on its state, the Manifest's `access`): a generated client types
+ * them as an `<Aggregate>Access` interface instead.
+ */
+export type AccessValues = Readonly<Record<string, AccessValue>>;
+
+/**
+ * The access attributes of an aggregate that declares none: a record's
+ * `access` is then empty, and a query names no `access.<name>`.
+ */
+export type NoAccess = Readonly<Record<never, never>>;
+
+/**
+ * The `access` of an event stream: the aggregate's current owner and space
+ * beside its declared access attributes `A`.
+ */
+export type StreamAccess<A = AccessValues> = A & {
+  readonly owner?: string | null;
+  readonly space?: string | null;
+};
+
+/** The `access.<name>` field paths of the access attributes `A`. */
+export type AccessField<A> = `access.${keyof A & string}`;
 
 /**
  * An event as Wow reads it now: under its current name, upgraded to its latest revision. Kotlin's `CommittedEvent`. The `events` query gives
@@ -277,11 +313,6 @@ export interface OwnerTransferred {
 /** The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. */
 export interface SpaceTransferred {
   readonly spaceId: string;
-}
-
-/** The body of `wow.lifecycle.TagsApplied`: the aggregate's tags now. */
-export interface TagsApplied {
-  readonly tags: Tags;
 }
 
 /**
@@ -319,7 +350,6 @@ export type SystemEvent =
     >
   | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred>
   | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred>
-  | CommittedEvent<'wow.lifecycle.TagsApplied', TagsApplied>
   | CommittedEvent<'wow.ScheduleSet', ScheduleSet>
   | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
 
@@ -329,10 +359,12 @@ export type SystemEvent =
  *
  * @typeParam S - The state's type.
  * @typeParam E - The events' type.
+ * @typeParam A - The aggregate's access attributes.
  */
 export interface CommitView<
   S = unknown,
   E extends CommittedEvent = CommittedEvent,
+  A = AccessValues,
 > {
   readonly version: number;
   /** When it was committed, in epoch milliseconds. */
@@ -343,7 +375,8 @@ export interface CommitView<
   readonly events: readonly E[];
   readonly scope: Scope;
   readonly deleted: boolean;
-  readonly tags: Tags;
+  /** Its declared access attributes after the commit. */
+  readonly access: A;
   readonly state: S;
   readonly operator?: Operator | null;
 }
@@ -355,9 +388,10 @@ export interface CommitView<
 export interface StateTrace<
   S = unknown,
   E extends CommittedEvent = CommittedEvent,
+  A = AccessValues,
 > {
   readonly ref: AggregateRef;
-  readonly commits: readonly CommitView<S, E>[];
+  readonly commits: readonly CommitView<S, E, A>[];
 }
 
 /**
@@ -366,15 +400,20 @@ export interface StateTrace<
  * aggregate's system fields and its state. Kotlin's `Snapshot`.
  *
  * @typeParam S - The state's type.
+ * @typeParam A - The aggregate's access attributes.
  */
-export interface Snapshot<S = unknown> {
+export interface Snapshot<S = unknown, A = AccessValues> {
   readonly tenantId: string;
   readonly aggregateId: string;
   readonly version: number;
   readonly ownerId: string | null;
   readonly spaceId: string | null;
   readonly deleted: boolean;
-  readonly tags: Tags;
+  /**
+   * Its declared access attributes. A snapshot written before an attribute
+   * was declared lacks it.
+   */
+  readonly access: A;
   /** The first commit's time, in epoch milliseconds. */
   readonly firstEventTime: number;
   /** The last commit's time, in epoch milliseconds. */
@@ -402,7 +441,7 @@ export type SnapshotSystemField =
   | 'ownerId'
   | 'spaceId'
   | 'deleted'
-  | 'tags'
+  | 'access'
   | 'firstEventTime'
   | 'lastEventTime'
   | 'operator'
@@ -427,8 +466,12 @@ export interface ScheduleRule {
  * aggregate and its events. Kotlin's `EventStream`.
  *
  * @typeParam E - The events' type.
+ * @typeParam A - The aggregate's declared access attributes.
  */
-export interface EventStream<E extends CommittedEvent = CommittedEvent> {
+export interface EventStream<
+  E extends CommittedEvent = CommittedEvent,
+  A = AccessValues,
+> {
   readonly aggregateId: string;
   readonly tenantId: string;
   readonly version: number;
@@ -442,14 +485,22 @@ export interface EventStream<E extends CommittedEvent = CommittedEvent> {
   readonly spaceId?: string | null;
   /** Null for an anonymous caller (decision D163). */
   readonly operator?: Operator | null;
+  /**
+   * The aggregate's current access attributes, its owner and space among
+   * them, kept current as they change (decision D390); null while the stream
+   * is not stamped (appended before the log recorded them, or imported
+   * without them).
+   */
+  readonly access?: StreamAccess<A> | null;
   readonly events: readonly E[];
 }
 
 /**
  * The fields of an event stream record a query names: its
- * system fields and `events`, the array an `elementMatch` filter and an
- * aggregation's `elements` reach an event through, by the event's own
- * `name`, `revision` and `body.*`.
+ * system fields, `access` and its built-in `owner` and `space` (a declared
+ * attribute is an {@link AccessField}), and `events`, the array an
+ * `elementMatch` filter and an aggregation's `elements` reach an event
+ * through, by the event's own `name`, `revision` and `body.*`.
  */
 export type EventStreamField =
   | 'aggregateId'
@@ -465,6 +516,9 @@ export type EventStreamField =
   | 'operator.id'
   | 'operator.tenantId'
   | 'operator.crossScope'
+  | 'access'
+  | 'access.owner'
+  | 'access.space'
   | 'events';
 
 /** How an aggregate belongs to its callers. */

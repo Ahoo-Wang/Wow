@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopInventoryManifest } from '../manifest.js';
-import type { ApplyTags, CommitReservation, ReceiveStock, ReleaseReservation, ReserveStock, TransferSpace } from '../types.js';
+import type { CommitReservation, ReceiveStock, ReleaseReservation, ReserveStock, TransferSpace } from '../types.js';
 
 /** Sends the commands of `eshop-inventory.stock` by its service's routes (`EshopInventoryManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
 export class StockCommandClient {
@@ -68,14 +68,6 @@ export class StockCommandClient {
   /** `ReserveStock`, answered as one result per hop of its wait (`text/event-stream`). */
   reserveStockStream(id: string, body: ReserveStock, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-inventory.stock.ReserveStock', body, id });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-inventory', name: 'stock' }, id, body });
   }
 
   /**
