@@ -52,8 +52,9 @@ import java.util.concurrent.atomic.AtomicLong
  * - [maxUnknownRetries] is how often an append whose outcome is unknown is tried again.
  * - [readParallelism] is how many ranges of ids the full import walks at once, each its own scan of the 9.x store,
  *   split by ids sampled from it ([NineXEventSource.idBoundaries]) when the import first starts. The 9.x store serves
- *   production through the dual run, and each range is one more scan it runs: keep it low then, and raise it in an
- *   offline window.
+ *   production through the dual run, and each range is one more scan it runs. In a 500,000-order bench 2 ranges took
+ *   most of the gain (7 to 16% against 1, 8 ranges 3 to 4% more) for little more of MongoDB's own CPU, while a probe of
+ *   9.x's reads saw its p99 grow 3 to 5 times: keep 2 (or 1) through the dual run, and raise it once 9.x has stopped.
  */
 internal data class ImportOptions(
     val pageSize: Int = 500,
