@@ -21,6 +21,9 @@
 #   bench.sh saturate [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
+#   bench.sh measure  --backend=mongo|postgres --program=walk [--name=value ...]   (a scale check in one JVM against
+#                      one store: walk, AccessWalkBench, the access walk of --aggregates accounts of --streams streams
+#                      under --rate deposits a second; its other options passed through)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
@@ -75,7 +78,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,53p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,56p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -571,6 +574,44 @@ component() {
   log "results in $OUT"
 }
 
+# measure: a scale check's program (kind `measure`) on the install's class path, against the store in its container:
+# --program=walk runs AccessWalkBench. Exit 3 when the install has no such program, a baseline older than it.
+measure() {
+  parse "$@"
+  check_java
+  BACKEND=$(opt backend mongo)
+  local program main
+  program=$(opt program walk)
+  case "$program" in
+    walk) main=me.ahoo.wow.benchmark.transfer.AccessWalkBenchKt ;;
+    *) log "unknown program $program: walk"; exit 2 ;;
+  esac
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-$program-$BACKEND")
+  mkdir -p "$OUT"
+  local install
+  install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
+  local jar class
+  class="$(echo "$main" | tr . /).class"
+  for jar in "$install"/lib/benchmark-server*.jar "$install"/lib/e2e-bench-v10*.jar; do
+    if [ -f "$jar" ] && "$SERVER_JAVA/bin/jar" tf "$jar" | grep -q "^$class$"; then break; fi
+    jar=""
+  done
+  if [ -z "$jar" ]; then log "$install has no ${main##*.}"; exit 3; fi
+  trap down EXIT
+  down
+  local store=postgres
+  if [ "$BACKEND" = mongo ]; then store=mongo; fi
+  log "starting kafka and $store"
+  stores_up "$store"
+  pin_containers "$store"
+  pin server-cpus
+  log "measure $program on $BACKEND"
+  ${PREFIX[@]+"${PREFIX[@]}"} "$SERVER_JAVA/bin/java" -Xms"$(opt heap 2g)" -Xmx"$(opt heap 2g)" -XX:+UseG1GC \
+    -cp "$install/lib/*" "$main" --backend="$BACKEND" ${PASS[@]+"${PASS[@]}"} --out="$OUT" 2>&1 \
+    | tee "$OUT/measure.log" >&2
+  log "results in $OUT"
+}
+
 command=${1:-}
 if [ -z "$command" ]; then usage; fi
 shift
@@ -579,6 +620,7 @@ case "$command" in
   run) run "$@" ;;
   saturate) saturate "$@" ;;
   component) component "$@" ;;
+  measure) measure "$@" ;;
   up) up "$@" ;;
   inspect) inspect "$@" ;;
   down) down ;;
