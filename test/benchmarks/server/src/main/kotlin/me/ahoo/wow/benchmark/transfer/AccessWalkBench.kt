@@ -11,41 +11,31 @@
  * limitations under the License.
  */
 
-// The walk, its record and the node's contexts are Wow's internals: a scale check of them reads them as Wow does.
-@file:OptIn(InternalWowApi::class)
-
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.client.MongoClients
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
-import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.runtime.access.AccessSchema
-import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.spi.access.AccessWalk
-import me.ahoo.wow.spi.access.AccessWalks
-import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Partitioner
+import org.bson.Document
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.core.env.Environment
 import java.io.File
+import java.sql.DriverManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.LongAdder
@@ -53,14 +43,14 @@ import kotlin.system.exitProcess
 
 /**
  * The access walk's scale check (the `access-walk-*` suites, kind `measure`): the benchmark's accounts on the V10 node
- * and one store, in this JVM, as [ComponentRun] runs them.
+ * and one store, in this JVM, as [ComponentRun] runs them, through the node's public API and the store's own driver.
  *
- * On a node started on standby, so that nothing walks or follows yet, it appends `--aggregates` accounts of
- * `--streams` streams each to the log, as an import writes them: without access attributes, or, with `--walk=none`,
- * with them and the account's walk recorded as completed, so the node has nothing to walk (the A/A arm). It then
- * activates the node, whose walk stamps the accounts at `wow.access.walk-rate`, while `--rate` deposits a second (E1,
- * open loop) go to the same accounts, measured over `--measure` seconds after `--warm-up`; and it waits for the walk to
- * complete. It writes `measure.json` to `--out`: the walk's time and rate, and the deposits' latencies.
+ * A first node opens `--aggregates` accounts and deposits into each until it has `--streams` streams, then completes
+ * its walk of them. Unless `--walk=none` (the A/A arm, nothing to walk), the store's history then loses its access
+ * attributes and the account's walk record, as a log an import wrote holds none. A second node then starts: its walk
+ * stamps the accounts at `wow.access.walk-rate`, while `--rate` deposits a second (E1, open loop) go to the same
+ * accounts, measured over `--measure` seconds after `--warm-up`. It writes `measure.json` to `--out`: the walk's time
+ * from the second node's start to its completion and its rate, and the deposits' latencies.
  *
  * Run it on the install's class path with main class `AccessWalkBenchKt`; bench.sh's `measure` command does.
  */
@@ -79,23 +69,19 @@ fun main(args: Array<String>) {
         measureSeconds = options["measure"]?.toInt() ?: DEFAULT_MEASURE,
     )
     val out = File(options["out"] ?: ".").apply { mkdirs() }
-    val context = SpringApplicationBuilder(TransferServer::class.java)
-        .web(WebApplicationType.NONE)
-        .profiles(backend)
-        .run(
-            "--wow.internal.port=0",
-            "--wow.node.standby=true",
-            *options.filterKeys { it.startsWith("spring.") || it.startsWith("wow.") }
-                .map { "--${it.key}=${it.value}" }
-                .toTypedArray(),
-        )
-    val walkRate = context.environment.getProperty("wow.access.walk-rate")
-    val result = try {
-        run.run(context.getBean(ServiceNode::class.java), context.getBean(CommandClient::class.java))
-    } finally {
-        context.close()
+    val node = {
+        SpringApplicationBuilder(TransferServer::class.java)
+            .web(WebApplicationType.NONE)
+            .profiles(backend)
+            .run(
+                "--wow.internal.port=0",
+                *options.filterKeys { it.startsWith("spring.") || it.startsWith("wow.") }
+                    .map { "--${it.key}=${it.value}" }
+                    .toTypedArray(),
+            )
     }
-    val json = toJson(result + ("backend" to backend) + ("walkRate" to walkRate))
+    val result = run.run(backend, node)
+    val json = toJson(result + ("backend" to backend))
     File(out, "measure.json").writeText(json + "\n")
     println(json)
     exitProcess(0)
@@ -106,16 +92,15 @@ private const val DEFAULT_STREAMS = 10
 private const val DEFAULT_WARM_UP = 10
 private const val DEFAULT_MEASURE = 40
 private const val BALANCE = 1_000_000_000_000L
-private const val APPEND_BATCH = 500
-private const val SEED_CONCURRENCY = 16
+private const val SEED_CONCURRENCY = 256
 private const val IN_FLIGHT = 1_024
 private const val WALK_TIMEOUT_SECONDS = 3_600L
-private const val POLL_MILLIS = 50L
+private const val POLL_MILLIS = 100L
 private const val NANOS_PER_MILLI = 1_000_000.0
 private const val NANOS_PER_SECOND = 1_000_000_000.0
 private const val PERCENT = 100.0
 
-/** One walk run: the history appended on standby, then the activation, the deposits and the walk. */
+/** One walk run: the history a first node writes, then the second node's walk under the deposits. */
 class WalkRun(
     private val aggregates: Int,
     private val streams: Int,
@@ -128,89 +113,77 @@ class WalkRun(
         require(aggregates > 0 && streams > 0) { "A walk needs aggregates with streams." }
     }
 
-    fun run(node: ServiceNode, client: CommandClient): Map<String, Any?> = runBlocking(Dispatchers.Default) {
-        val context = node.context(ACCOUNT_TYPE.context)
-        val log = context.backends.log
-        val walksOf = log as AccessWalks
-
-        @Suppress("UNCHECKED_CAST") // The account's model, as the node holds it.
-        val model = context.models.first { it.type == ACCOUNT_TYPE } as AggregateModel<Any>
-        val seedStarted = System.nanoTime()
-        seed(model, log)
-        if (!walks) {
-            walksOf.claim(ACCOUNT_TYPE, AccessWalk(AccessSchema.of(model), emptyMap(), completed = true), null)
+    fun run(backend: String, node: () -> ConfigurableApplicationContext): Map<String, Any?> =
+        runBlocking(Dispatchers.Default) {
+            val seedStarted = System.nanoTime()
+            val seeding = node()
+            val walkRate = seeding.environment.getProperty("wow.access.walk-rate")
+            try {
+                seed(seeding.getBean(CommandClient::class.java))
+                WalkStore.of(backend, seeding.environment).use { store ->
+                    // The first node walks the history it wrote: a node starting after it finds it walked.
+                    walked(store, seedStarted)
+                    if (walks) store.unstamp()
+                }
+            } finally {
+                seeding.close()
+            }
+            val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
+            val started = System.nanoTime()
+            val walking = node()
+            try {
+                WalkStore.of(backend, walking.environment).use { store ->
+                    // The walk is timed while the deposits run, not after them.
+                    val walk = async { if (walks) walked(store, started) else null }
+                    val deposits = if (rate > 0) deposits(walking.getBean(CommandClient::class.java)) else null
+                    mapOf(
+                        "schema" to "wow-e2e-bench/measure/1",
+                        "program" to "walk",
+                        "aggregates" to aggregates,
+                        "streams" to streams,
+                        "walks" to walks,
+                        "walkRate" to walkRate,
+                        "rate" to rate,
+                        "warmUpSeconds" to warmUpSeconds,
+                        "measureSeconds" to measureSeconds,
+                        "seedSeconds" to seedSeconds,
+                        "walk" to walk.await(),
+                        "e1" to deposits,
+                        "note" to "In one JVM: the walk's time is from the second node's start to its completion, " +
+                            "the deposits' latencies an open loop over the measured window.",
+                    )
+                }
+            } finally {
+                walking.close()
+            }
         }
-        val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
-        val activated = System.nanoTime()
-        node.activate("benchmark", "the access walk's scale check")
-        val walk = async { if (walks) walked(node, activated) else null }
-        val deposits = if (rate > 0) deposits(client) else null
-        mapOf(
-            "schema" to "wow-e2e-bench/measure/1",
-            "program" to "walk",
-            "aggregates" to aggregates,
-            "streams" to streams,
-            "walks" to walks,
-            "rate" to rate,
-            "warmUpSeconds" to warmUpSeconds,
-            "measureSeconds" to measureSeconds,
-            "seedSeconds" to seedSeconds,
-            "walk" to walk.await(),
-            "e1" to deposits,
-            "note" to "In one JVM: the walk's time is from the activation to its completion, the deposits' latencies " +
-                "an open loop over the measured window, both against the node's catch-up of the appended history.",
-        )
-    }
 
-    /**
-     * Appends the accounts' histories: each a copy of its owner's, written once by a kernel in memory (the account's
-     * events hold no id of it), without their attributes when the node walks them, with them otherwise.
-     */
-    private suspend fun seed(model: AggregateModel<Any>, log: EventLog) = coroutineScope {
-        val templates = (0 until minOf(OWNERS, aggregates)).associateWith { history(model, it) }
+    /** Opens the accounts, then deposits into each until it holds [streams] streams. */
+    private suspend fun seed(client: CommandClient) = coroutineScope {
         val permits = Semaphore(SEED_CONCURRENCY)
-        (0 until aggregates).chunked(APPEND_BATCH).map { chunk ->
-            async {
+        repeat(aggregates) { index ->
+            launch {
                 permits.withPermit {
-                    val written = chunk.flatMap { index ->
-                        val ref = ACCOUNT_TYPE.ref(TENANT, accountId(index))
-                        templates.getValue(index % OWNERS).map {
-                            it.copyWith(
-                                ref = ref,
-                                commandId = "seed-$index-${it.version}",
-                                requestId = "seed-$index-${it.version}"
-                            )
-                        }
-                    }
-                    written.groupBy { Partitioner.partitionOf(it.ref, log.partitions) }.values.forEach { partition ->
-                        partition.chunked(APPEND_BATCH).forEach { group -> log.appendAll(group.map { it to null }) }
+                    val ref = ACCOUNT_TYPE.ref(TENANT, accountId(index))
+                    val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
+                    client.wait(CommandRequest.builder(ref, open).wait(WaitPlan.COMMITTED).build())
+                    repeat(streams - 1) {
+                        client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
                     }
                 }
             }
-        }.awaitAll()
-    }
-
-    /** The streams of account [index]: opened by its owner, then deposited into, [streams] in all. */
-    private suspend fun history(model: AggregateModel<Any>, index: Int): List<EventStreamRecord> {
-        val memory = InMemoryEventLog()
-        val kernel = Kernel(memory)
-        val ref = ACCOUNT_TYPE.ref(TENANT, accountId(index))
-        repeat(streams) { version ->
-            val body: Any = if (version == 0) OpenAccount("owner-${index % OWNERS}", BALANCE) else Deposit(1)
-            kernel.execute(model, Command("seed-$index-$version", "seed-$index-$version", ref, body))
         }
-        return memory.read(ref).toList().map { if (walks) it.copyWith(access = null, accessVersion = null) else it }
     }
 
-    /** How long the walk took from [activated] to its completion, and its rate. */
-    private suspend fun walked(node: ServiceNode, activated: Long): Map<String, Any?> {
-        val deadline = activated + WALK_TIMEOUT_SECONDS * NANOS_PER_SECOND.toLong()
-        var walk = node.context(ACCOUNT_TYPE.context).accessWalking?.walks()?.get(ACCOUNT_TYPE)
+    /** Waits for the account's walk in [store] to complete: how long it took from [from], and its rate. */
+    private suspend fun walked(store: WalkStore, from: Long): Map<String, Any?> {
+        val deadline = from + WALK_TIMEOUT_SECONDS * NANOS_PER_SECOND.toLong()
+        var walk = store.walk()
         while (walk?.completed != true && System.nanoTime() < deadline) {
             delay(POLL_MILLIS)
-            walk = node.context(ACCOUNT_TYPE.context).accessWalking?.walks()?.get(ACCOUNT_TYPE)
+            walk = store.walk()
         }
-        val seconds = (System.nanoTime() - activated) / NANOS_PER_SECOND
+        val seconds = (System.nanoTime() - from) / NANOS_PER_SECOND
         return mapOf(
             "completed" to (walk?.completed == true),
             "walked" to walk?.walked,
@@ -285,5 +258,93 @@ class WalkRun(
 
         /** The load generator's account ids, as [ComponentRun]'s. */
         fun accountId(index: Int): String = "acc-%07d".format(index)
+    }
+}
+
+/** The account's walk record, as the log's registry holds it: whether it is [completed], and the aggregates [walked]. */
+class WalkRecord(val completed: Boolean, val walked: Long)
+
+/**
+ * The account's log and its walk record, read and written with the store's own driver, as an operator reads the
+ * registry (Rebuild and Replay, "Watching it"): the log collection or table `wow_log__transfer__account`, the registry
+ * `wow_log_aggregate`.
+ */
+sealed interface WalkStore : AutoCloseable {
+    /** The account's walk record; null when none is recorded. */
+    fun walk(): WalkRecord?
+
+    /** Removes the access attributes from the account's history, and its walk record: a log as an import writes it. */
+    fun unstamp()
+
+    companion object {
+        const val LOG = "wow_log__${TransferContext.NAME}__${TransferContext.ACCOUNT}"
+        const val REGISTRY = "wow_log_aggregate"
+
+        /** The store of [backend], reached as [environment] configures the node. */
+        fun of(backend: String, environment: Environment): WalkStore = when (backend) {
+            "postgres" -> Postgres(
+                checkNotNull(environment.getProperty("spring.datasource.url")),
+                environment.getProperty("spring.datasource.username"),
+                environment.getProperty("spring.datasource.password"),
+            )
+            "mongo" -> Mongo(
+                checkNotNull(environment.getProperty("spring.mongodb.uri")),
+                checkNotNull(environment.getProperty("wow.mongo.database")),
+            )
+            else -> throw IllegalArgumentException("Unknown backend '$backend': mongo or postgres.")
+        }
+    }
+
+    class Postgres(url: String, user: String?, password: String?) : WalkStore {
+        private val connection = DriverManager.getConnection(url, user, password)
+
+        override fun walk(): WalkRecord? = connection.prepareStatement(
+            "SELECT (access_walk ->> 'completed')::boolean, (access_walk ->> 'walked')::bigint FROM $REGISTRY " +
+                "WHERE context = ? AND aggregate = ? AND access_walk IS NOT NULL",
+        ).use { query ->
+            query.setString(1, TransferContext.NAME)
+            query.setString(2, TransferContext.ACCOUNT)
+            query.executeQuery().use { rows ->
+                if (rows.next()) WalkRecord(rows.getBoolean(1), rows.getLong(2)) else null
+            }
+        }
+
+        override fun unstamp() {
+            connection.createStatement().use {
+                it.executeUpdate("UPDATE $LOG SET access = NULL, access_version = NULL")
+                it.executeUpdate(
+                    "UPDATE $REGISTRY SET access_walk = NULL " +
+                        "WHERE context = '${TransferContext.NAME}' AND aggregate = '${TransferContext.ACCOUNT}'",
+                )
+            }
+        }
+
+        override fun close() = connection.close()
+    }
+
+    class Mongo(uri: String, database: String) : WalkStore {
+        private val client = MongoClients.create(uri)
+        private val database = client.getDatabase(database)
+        private val registry = Filters.and(
+            Filters.eq("context", TransferContext.NAME),
+            Filters.eq("aggregate", TransferContext.ACCOUNT),
+        )
+
+        override fun walk(): WalkRecord? {
+            val walk = database.getCollection(REGISTRY).find(registry).first()
+                ?.get("access_walk", Document::class.java) ?: return null
+            return WalkRecord(walk.getBoolean("completed") == true, (walk["walked"] as? Number)?.toLong() ?: 0)
+        }
+
+        override fun unstamp() {
+            database.getCollection(LOG)
+                .updateMany(
+                    Filters.exists("version"),
+                    Updates.combine(Updates.unset("access"), Updates.unset("access_version"))
+                )
+            database.getCollection(REGISTRY).updateMany(registry, Updates.unset("access_walk"))
+        }
+
+        override fun close() = client.close()
     }
 }
