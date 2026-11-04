@@ -46,7 +46,7 @@ class ShipOrder
 class ReceiptOrder
 
 /**
- * Tags the order with a region and teams, as 9.x's `ApplyResourceTags` did (D390 F): both together, the region left
+ * Tags the order with a region and teams, as 9.x's `ApplyResourceTags` did: both together, the region left
  * out for none, as 9.x replaced the whole map.
  */
 data class TagOrder(val region: String? = null, val teams: Set<String> = emptySet())

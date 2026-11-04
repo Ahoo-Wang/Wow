@@ -51,7 +51,7 @@ class RehearsalServer {
     }
 
     /**
-     * Who reads and changes an order, which declares access attributes (D390): a caller of a region the orders tagged
+     * Who reads and changes an order, which declares access attributes: a caller of a region the orders tagged
      * with it, an owner its own, and a tenant-level caller every order of its tenant, as the scope rule had it.
      */
     @Bean
