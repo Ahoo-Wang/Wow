@@ -7,13 +7,15 @@ Before that online cut-over, it runs an offline one of the same data into a data
 - **`src/main/kotlin/.../example`** is the 9.x example's order and cart ported to V10, in context `example`. The commands and events use the names [`rehearsal/migration-map.json`](rehearsal/migration-map.json) gives them.
   - `OrderCreated` is at revision 2, with an `@Upgrade` from the 9.x shape.
   - The 9.x `OrderPayDuplicated` and `OrderOverPaid` events are retired.
+  - The order's 9.x tags are its access attributes (D390 F): `region` and `teams`, which `TagOrder` sets (`OrderTagged`, mapped from 9.x's `default_resource_tags_applied`), and `country` and `province`, derived from the address as 9.x's tags extractor derived `address-country` and `address-province`. Its access policy (`RehearsalServer.orderAccess`) lets a caller of a region (`X-Rehearsal-Region`) read and change that region's orders, an owner its own, and a tenant-level caller every order of its tenant.
   - `CartSaga.onOrderCreated` is where the 9.x compensation service's unresolved executions are parked.
   - It is a rehearsal-only host: never published, outside the coverage reports and the ABI checks.
 - **`src/main/kotlin/.../driver`** drives the 9.x example-server and this host over HTTP:
-  - `seed`: orders through their lifecycles, and carts;
-  - `traffic`: moves orders on, fills carts, or creates new orders;
+  - `seed`: orders through their lifecycles, half of them tagged before any address change (a region and teams; some tagged again with another region and no team, some cleared), and carts;
+  - `traffic`: moves orders on or tags them again, fills carts, or creates new orders;
   - `await`: waits until this host holds what 9.x wrote;
-  - `states`, `compare`: an order's state read on both sides, compared numbers by value;
+  - `states`, `compare`: an order's state read on both sides, compared numbers by value, without the V10 order's access attributes, which 9.x kept as tags (migrate-data `compare` checks those);
+  - `access`: once the access walk has stamped the imported orders, a caller of the region most of a tenant's orders are tagged with reads each order's state and counts its streams: those of its region, all of them, and none of the others; and no stream another region's order wrote is among the events it lists;
   - `views …` (`ViewsDriver`): the view store's part. `seed` creates views in 9.x and takes them through saves, renames, shares, claims and deletions, with each user's preferences and each tenant's dataset wordings; `traffic` renames views, or creates some; `await` and `states` read them on V10 (its state routes) and on 9.x (its snapshot queries, since the 9.x view store closes its state routes); `verify` renames in 9.x, after the rollback, every view V10 renamed, on the version V10 left.
 - **[`rehearsal/rehearse.sh`](rehearsal/rehearse.sh)** runs the steps with migrate-data and writes `steps.jsonl` and `report.md` (rendered by [`rehearsal/report.py`](rehearsal/report.py)). Its header lists the steps and the environment it reads.
   - Through the dual-run window the V10 host runs on standby (`wow.node.standby`): it serves reads, is ready, and refuses commands with `wow.node.standby`. At the cut-over, after the final pass, the script activates it on its internal port as a node of its service (`Wow-Service`), as an operator would (deployment run book, "Standby for a migration's cut-over").
@@ -44,5 +46,7 @@ It needs Docker, JDK 21 in `JAVA_HOME` and Python 3. The stores run in container
 ## Explained differences
 
 `compare` may differ only in what `rehearse.sh` lists as explained for each aggregate (`EXPLAINED_KINDS`), each signed off under design 07 §3 step 4:
+
+- `example-service.order`, `$access.province`: 9.x merged the tags its extractor derived into the ones it kept, so an order whose address changed after its last tags kept its former province among them. V10's `province` attribute is the current one. This is an intended change; `check` warns of those snapshots.
 
 - `view-store.dataset_wording`, any field of a wording 9.x deleted (`@deleted`): 9.x's `ClearDatasetWording` was a `DeleteAggregate`, which kept the wording's last values and let it never be set again. V10 clears it (`DatasetWordingCleared`), keeps it, and sets it again. This is an intended change.

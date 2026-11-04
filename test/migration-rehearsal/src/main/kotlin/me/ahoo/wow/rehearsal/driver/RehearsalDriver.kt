@@ -16,6 +16,7 @@ package me.ahoo.wow.rehearsal.driver
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.io.File
+import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
@@ -45,17 +46,24 @@ data class BookedOrder(val ref: OrderRef, val status: String, val version: Int, 
  * driver traffic --version=9x|v10 --base=<url> --book=<file> --seconds=S [--touched=<file>] [--create=K] [--concurrency=C]
  * driver await   --base=<v10 url> --touched=<file> [--timeout=S]
  * driver states  --version=9x|v10 --base=<url> --book=<file> --out=<file> [--sample=N]
+ * driver access  --base=<v10 url> --book=<file> [--tenant=t0] [--sample=N]
  * driver compare <states a> <states b>
  * driver views …  (the view store's part, see ViewsDriver)
  * ```
  *
  * - `seed` creates N orders, each taken through a lifecycle drawn from its index (some only created, some with a
  *   changed address, some paid, shipped and received), and M carts; the order book records where each order stands.
+ *   Half the orders are tagged, before any address change, with a region and teams (9.x's tags command); some are
+ *   tagged again with another region and no team, some cleared.
  * - `traffic` moves existing orders on by one step at a time for S seconds, and adds to carts; with `--create`, it
- *   creates K new orders instead, and nothing else. It records each order it wrote and its version in the touched file.
+ *   creates K new orders instead, and nothing else. Some of its steps tag an order again. It records each order it
+ *   wrote and its version in the touched file.
  * - `await` waits until the rehearsal host holds every touched order at its version: the tail's lag behind 9.x.
  * - `states` reads every N-th order's state; `compare` compares two such files (of orders, or of views), numbers by
  *   value, and exits with 3 when one differs.
+ * - `access` reads a tenant's orders under the access policy, once the access walk has stamped them: a caller of the
+ *   region most of them are tagged with reads every N-th order's state, and its streams, when it is of that region,
+ *   and neither otherwise; and no stream of another order is among the events it finds.
  *
  * Each command prints one JSON line of its numbers, which rehearse.sh copies into the report.
  */
@@ -70,10 +78,11 @@ class RehearsalDriver(private val args: List<String>) {
         "traffic" -> traffic()
         "await" -> await()
         "states" -> states()
+        "access" -> access()
         "compare" -> compare(File(args[1]), File(args[2]))
         "views" -> ViewsDriver(args.drop(1), concurrency).run()
         else -> {
-            System.err.println("Usage: driver seed|traffic|await|states|compare|views … (see RehearsalDriver)")
+            System.err.println("Usage: driver seed|traffic|await|states|access|compare|views … (see RehearsalDriver)")
             USAGE
         }
     }
@@ -93,7 +102,7 @@ class RehearsalDriver(private val args: List<String>) {
             val random = Random(index)
             val ref =
                 OrderRef("o-%08d".format(index), "t${index % tenants}", "c-%06d".format(index % carts.coerceAtLeast(1)))
-            book[ref.id] = lifecycle(endpoints, ref, random, stats)
+            book[ref.id] = lifecycle(endpoints, ref, random, Random(index + TAG_SEED), stats)
         }
         parallel(0 until carts) { index ->
             val customer = "c-%06d".format(index)
@@ -109,12 +118,20 @@ class RehearsalDriver(private val args: List<String>) {
         File(
             required("book")
         ).writeText(book.values.sortedBy { it.ref.id }.joinToString("\n", postfix = "\n") { it.line() })
-        println(stats.json("seed", "\"orders\":$orders,\"carts\":$carts,\"tenants\":$tenants"))
+        println(
+            stats.json("seed", "\"orders\":$orders,\"carts\":$carts,\"tenants\":$tenants,\"tags\":${stats.tags.get()}")
+        )
         return if (stats.failed.get() == 0L) OK else FAILED
     }
 
-    /** Creates [ref] and takes it as far through its lifecycle as [random] draws. */
-    private fun lifecycle(endpoints: Endpoints, ref: OrderRef, random: Random, stats: Stats): BookedOrder {
+    /** Creates [ref] and takes it as far through its lifecycle as [random] draws, tagging it as [tagging] draws. */
+    private fun lifecycle(
+        endpoints: Endpoints,
+        ref: OrderRef,
+        random: Random,
+        tagging: Random,
+        stats: Stats
+    ): BookedOrder {
         val quantity = 1 + random.nextInt(MAX_QUANTITY)
         val total = quantity * PRICE
         var booked = BookedOrder(ref, "NONE", 0, total)
@@ -127,6 +144,11 @@ class RehearsalDriver(private val args: List<String>) {
         }
         val created = step("CREATED", endpoints.createOrder(ref, createBody(random, quantity)))
         if (!created) return booked
+        // Before the address changes: 9.x's tags extractor then keeps the former province among the order's tags.
+        for ((region, teams) in tagsOf(tagging)) {
+            if (!step("CREATED", endpoints.tagOrder(ref, region, teams))) return booked
+            stats.tags.incrementAndGet()
+        }
         if (random.nextInt(PERCENT) < ADDRESS_CHANGED && !step("CREATED", endpoints.changeAddress(ref, addressBody(random)))) {
             return booked
         }
@@ -206,9 +228,15 @@ class RehearsalDriver(private val args: List<String>) {
             return true
         }
 
-        /** Moves a random order on by one step; one already received is left as it is. */
+        /** Moves a random order on by one step, or tags it again; one already received is only tagged. */
         private fun advance(random: Random): Boolean {
             val order = book[ids[random.nextInt(ids.size)]] ?: return true
+            if (random.nextInt(PERCENT) < TAG_SHARE) {
+                val outcome = endpoints.tagOrder(order.ref, REGIONS[random.nextInt(REGIONS.size)], teamsOf(random))
+                stats.count(outcome)
+                if (outcome.ok) booked(order.copy(version = outcome.version ?: (order.version + 1)))
+                return true
+            }
             val (status, outcome) = when (order.status) {
                 "CREATED" -> "PAID" to endpoints.payOrder(order.ref, payBody(order.ref, order.total))
                 "PAID" -> "SHIPPED" to endpoints.shipOrder(order.ref)
@@ -256,6 +284,57 @@ class RehearsalDriver(private val args: List<String>) {
         File(required("out")).writeText(Endpoints.MAPPER.writeValueAsString(out))
         println("""{"command":"states","sampled":${orders.size},"read":${states.size}}""")
         return if (states.size == orders.size) OK else FAILED
+    }
+
+    private fun access(): Int {
+        val endpoints = Endpoints.V10(URI.create(required("base")))
+        val tenant = options["tenant"] ?: "t0"
+        val every = options["sample"]?.toInt() ?: 1
+        val orders = File(required("book")).readLines().filter { it.isNotBlank() }.map(BookedOrder::parse)
+            .filter { it.ref.tenant == tenant }
+        // Each order's version and region, read by a caller of the whole tenant.
+        val read = ConcurrentHashMap<String, Pair<Int, String?>>()
+        parallel(orders.indices) { index ->
+            val ref = orders[index].ref
+            endpoints.accessState(ref)?.let { (version, state) ->
+                read[ref.id] = version to state.get("region")?.takeUnless { it.isNull }?.asString()
+            }
+        }
+        val region = read.values.mapNotNull { it.second }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+        if (region == null) {
+            println(
+                """{"command":"access","tenant":"$tenant","orders":${orders.size},"read":${read.size},"tagged":0}"""
+            )
+            return FAILED
+        }
+        val sampled = orders.filterIndexed { index, _ -> index % every == 0 }.filter { read.containsKey(it.ref.id) }
+        val visible = AtomicLong()
+        val streams = AtomicLong()
+        val wrongStates = AtomicLong()
+        val wrongStreams = AtomicLong()
+        parallel(sampled.indices) { index ->
+            val ref = sampled[index].ref
+            val (version, tagged) = read.getValue(ref.id)
+            val sees = tagged == region
+            if (sees) {
+                visible.incrementAndGet()
+                streams.addAndGet(version.toLong())
+            }
+            if (endpoints.stateStatus(ref, region) != if (sees) Endpoints.OK else Endpoints.NOT_FOUND) {
+                wrongStates.incrementAndGet()
+            }
+            if (endpoints.streams(ref, region) != if (sees) version.toLong() else 0L) wrongStreams.incrementAndGet()
+        }
+        val listed = endpoints.streamOrders(tenant, region, LIST_LIMIT)
+        val leaked = listed.count { id -> read[id]?.second != region }
+        println(
+            """{"command":"access","tenant":"$tenant","region":"$region","orders":${orders.size},"read":${read.size},""" +
+                """"sampled":${sampled.size},"visible":${visible.get()},"streams":${streams.get()},""" +
+                """"wrongStates":${wrongStates.get()},"wrongStreams":${wrongStreams.get()},""" +
+                """"listed":${listed.size},"leaked":$leaked}""",
+        )
+        val wrong = wrongStates.get() + wrongStreams.get() + leaked
+        return if (read.size == orders.size && listed.isNotEmpty() && wrong == 0L) OK else FAILED
     }
 
     private fun compare(left: File, right: File): Int {
@@ -312,10 +391,36 @@ class RehearsalDriver(private val args: List<String>) {
 
     private fun payBody(ref: OrderRef, total: Int): String = """{"paymentId":"pay-${ref.id}","amount":$total}"""
 
+    /**
+     * The tags of an order, in the order they are applied, each a region (none for null) and teams: none for half the
+     * orders; else a region and teams, then for some another region and no team (a key the replace removes), or for
+     * some nothing (a clear, 9.x's empty map).
+     */
+    private fun tagsOf(random: Random): List<Pair<String?, List<String>>> {
+        if (random.nextInt(PERCENT) >= TAGGED) {
+            return emptyList()
+        }
+        val first = REGIONS[random.nextInt(REGIONS.size)]
+        val tags = mutableListOf<Pair<String?, List<String>>>(first to teamsOf(random))
+        val again = random.nextInt(PERCENT)
+        when {
+            again < RETAGGED -> tags += REGIONS.filter { it != first }[random.nextInt(REGIONS.size - 1)] to emptyList()
+            again < RETAGGED + CLEARED -> tags += null to emptyList()
+        }
+        return tags
+    }
+
+    /** One team or more. */
+    private fun teamsOf(random: Random): List<String> =
+        TEAMS.filter { random.nextBoolean() }.ifEmpty { listOf(TEAMS[random.nextInt(TEAMS.size)]) }
+
     /** The commands a run sent, applied and failed, and how fast. */
     private class Stats {
         val sent = AtomicLong()
         val failed = AtomicLong()
+
+        /** The tags commands applied: one 9.x stream each. */
+        val tags = AtomicLong()
         val errors = ConcurrentHashMap<String, AtomicLong>()
         private val started = System.nanoTime()
 
@@ -355,6 +460,16 @@ class RehearsalDriver(private val args: List<String>) {
         const val SHIPPED = 60
         const val RECEIVED = 50
         const val CART_SHARE = 20
+        const val TAGGED = 50
+        const val RETAGGED = 30
+        const val CLEARED = 10
+
+        /** The share of traffic steps that tag an order again. */
+        const val TAG_SHARE = 10
+        const val TAG_SEED = 104_729
+        const val LIST_LIMIT = 1000
+        val REGIONS = listOf("east", "west", "north", "south")
+        val TEAMS = listOf("a", "b", "c")
 
         /** The share of orders placed from the customer's cart, which the cart saga then empties of their products. */
         const val FROM_CART = 10

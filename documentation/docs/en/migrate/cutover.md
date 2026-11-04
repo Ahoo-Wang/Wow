@@ -16,14 +16,14 @@ A service that consumes another 9.x service's events, sends it commands, calls i
 
 ## Offline or online
 
-Choose by the rehearsal's measured import time against the stop the business accepts, and record the choice. The rehearsal of the 9.x example and its view store, 50,000 orders and 12,500 views over four tenants, ran both paths on one runner:
+Choose by the rehearsal's measured import time against the stop the business accepts, and record the choice. The rehearsal of the 9.x example and its view store, 50,000 orders (half of them tagged) and 12,500 views over four tenants, ran both paths on one runner:
 
 | Path | Write stop, 9.x stopped to V10 serving | Where the time went |
 | --- | --- | --- |
-| Offline | 243.4 s | The full import 98.2 s, compare 23.5 s, snapshots 43.8 s, tags 35.4 s, start of both services 36.3 s |
-| Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, activation of both services 29.3 s |
+| Offline | 136.7 s | The full import 43.1 s, compare 25.1 s, snapshots 44.1 s, start of both services 18.0 s |
+| Online | 102.8 s | The final pass 19.7 s, compare 27.8 s, snapshots 47.1 s, activation of both services 1.8 s |
 
-Both were measured with the tags backfill V10 no longer has (`tags`). In its place, `snapshot` stamps the imported history, so the stamps are part of the snapshot times ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
+These were measured before `snapshot` stamped the imported history: the access walk then stamped the imported orders, 220 s after the offline start and 214 s after the activation. `snapshot` now stamps it, so the stamps are part of the snapshot times and nothing waits for a walk ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
 
 ## Inventory before any write
 

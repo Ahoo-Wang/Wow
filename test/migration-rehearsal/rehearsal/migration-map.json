@@ -9,7 +9,8 @@
         { "from": "change_address", "to": "ChangeAddress" },
         { "from": "pay_order", "to": "PayOrder" },
         { "from": "ship_order", "to": "ShipOrder" },
-        { "from": "receipt_order", "to": "ReceiptOrder" }
+        { "from": "receipt_order", "to": "ReceiptOrder" },
+        { "from": "default_apply_resource_tags", "to": "TagOrder" }
       ],
       "events": [
         {
@@ -23,13 +24,16 @@
         { "from": "order_paid", "to": "OrderPaid" },
         { "from": "order_shipped", "to": "OrderShipped" },
         { "from": "order_received", "to": "OrderReceived" },
+        { "from": "default_resource_tags_applied", "to": "OrderTagged", "tags": true },
         { "from": "order_pay_duplicated", "to": "OrderPayDuplicated", "retire": true },
         { "from": "order_over_paid", "to": "OrderOverPaid", "retire": true }
       ],
       "state": { "ignore": ["id"] },
       "tags": [
-        { "key": "address-country", "reason": "The V10 order declares no access attribute of its address: no access policy of the rehearsal reads it" },
-        { "key": "address-province", "reason": "The V10 order declares no access attribute of its address: no access policy of the rehearsal reads it" }
+        { "key": "region", "to": "region" },
+        { "key": "team", "to": "teams" },
+        { "key": "address-country", "to": "country", "source": "DERIVED" },
+        { "key": "address-province", "to": "province", "source": "DERIVED" }
       ]
     },
     {
