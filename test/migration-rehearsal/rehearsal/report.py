@@ -268,9 +268,12 @@ if "timing-job-1" in by_name:
         run("timing-port-forward", "On the runner, through kubectl port-forward"),
     ]
 
-def walk(name, since):
-    aggregates = data(name).get("aggregates", "?")
-    return f"{seconds(name)} from {since}, {aggregates} orders stamped"
+def unstamped(name):
+    return data(name).get("unstamped", "?")
+
+
+def claims(name):
+    return data(name).get("claims", "?")
 
 
 def access(name):
@@ -300,9 +303,12 @@ lines += [
     f"- Compare: offline {differs('offline-compare', ACCESS)} instances with an $access difference "
     f"({differs('offline-compare', APPLIED)} on an applied attribute), online "
     f"{differs('compare', ACCESS)} ({differs('compare', APPLIED)} applied).",
-    f"- Access walk: offline {walk('offline-access-walk', 'the start')}; online {walk('access-walk', 'the activation')}.",
-    f"- Under the policy, offline: {access('offline-access')}.",
-    f"- Under the policy, online: {access('access')}.",
+    f"- Stamped by migrate-data's snapshot (X-76): {unstamped('offline-unstamped')} order streams without access "
+    f"attributes before the offline start, {unstamped('unstamped')} before the activation; the hosts claimed the "
+    f"order's walk {claims('offline-not-walked')} times offline and {claims('not-walked')} times online.",
+    f"- Under the policy, offline, right after the start: {access('offline-access')}.",
+    f"- Under the policy, online, on the standby hosts: {access('standby-access')}.",
+    f"- Under the policy, online, right after the activation: {access('access')}.",
 ]
 
 views = data("seed-views")

@@ -46,6 +46,7 @@ stores_up() {
 stores_down() { :; }
 mongosh_run() { kubectl exec deploy/mongo -- mongosh --quiet "$@"; }
 createdb() { kubectl exec deploy/postgres -- createdb -U postgres "$1"; }
+psql_run() { kubectl exec deploy/postgres -- psql -U postgres -At "$@"; }
 
 # config_json DB MONGO POSTGRES: migrate-data's configuration for the V10 log in database DB, the stores at MONGO and
 # POSTGRES (host:port), as the runner arm's (rehearse.sh write_config) but for the cluster: the checkpoints in the
