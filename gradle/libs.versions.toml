@@ -14,7 +14,7 @@ kotlin-logging = "8.0.4"
 swagger = "2.2.55"
 springdoc = "3.2.0"
 jsonschema-generator = "5.0.0"
-json-schema-validator = "3.0.8"
+json-schema-validator = "3.0.9"
 kotlinx-coroutines = "1.11.0"
 # ClickHouse
 clickhouse-java = "0.11.0"
