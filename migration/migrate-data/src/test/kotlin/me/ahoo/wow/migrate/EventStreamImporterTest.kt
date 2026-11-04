@@ -408,12 +408,14 @@ class EventStreamImporterTest {
             AppendOutcome.Conflict(0),
             AppendOutcome.Committed(position),
         )
+        appendsOneByOne(flaky)
         importer(
             InMemoryNineXEventSource(listOf(first)),
             target = flaky
         ).importAll(order).imported.assert().isEqualTo(1)
         val broken = mockk<EventLog>()
         coEvery { broken.append(any(), any()) } returns AppendOutcome.Unknown(IllegalStateException("timeout"))
+        appendsOneByOne(broken)
         checkpoints.save(ImportCheckpoints())
         val failure = assertThrows<MigrationException> {
             importer(
@@ -431,6 +433,7 @@ class EventStreamImporterTest {
         val refusing = mockk<EventLog>()
         val cause = IllegalArgumentException("unsupported Unicode escape sequence")
         coEvery { refusing.append(any(), any()) } returns AppendOutcome.Rejected(cause)
+        appendsOneByOne(refusing)
         val failure = assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first)), target = refusing).importAll(order)
         }
@@ -444,8 +447,53 @@ class EventStreamImporterTest {
         val taken = mockk<EventLog>()
         coEvery { taken.append(any(), any()) } returns
             AppendOutcome.AlreadyCommitted(record.copyWith(ref = record.ref.copy(id = "someone-else")))
+        appendsOneByOne(taken)
         assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first)), target = taken).importAll(order)
+        }
+    }
+
+    @Test
+    fun `a page's streams are appended in groups of whole instances, one call of the log each`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val calls = mutableListOf<Int>()
+        var single = 0
+        val counting = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+                single++
+                return log.append(stream, transport)
+            }
+
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                synchronized(calls) { calls += streams.size }
+                return log.appendAll(streams)
+            }
+        }
+        // Five instances, two of them holding a second stream: seven streams in two groups, by whole instances.
+        val streams = (1..5).map { copyOf(first, "order-$it") } +
+            (1..2).map { copyOf(NineXExample.stream("order-stream-v2.json"), "order-$it") }
+        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2), counting).importAll(order).also {
+            it.imported.assert().isEqualTo(7)
+            it.instances.assert().isEqualTo(5)
+        }
+        calls.sorted().assert().containsExactly(3, 4)
+        single.assert().isEqualTo(0)
+        log.read(NineXExample.orderModel.type.ref("(0)", "order-1")).toList().map { it.version }.assert()
+            .containsExactly(1, 2)
+        // A rerun meets every stream in the log: each instance goes on alone from its first, and skips it.
+        calls.clear()
+        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2, restart = true), counting)
+            .importAll(order).also {
+                it.imported.assert().isEqualTo(0)
+                it.skipped.assert().isEqualTo(7)
+            }
+        calls.sorted().assert().containsExactly(3, 4)
+    }
+
+    /** [log] answering a group commit as the log's own default does: one append after another. */
+    private fun appendsOneByOne(log: EventLog) {
+        coEvery { log.appendAll(any()) } coAnswers {
+            firstArg<List<Pair<EventStreamRecord, ByteArray?>>>().map { (stream, transport) -> log.append(stream, transport) }
         }
     }
 
@@ -471,9 +519,9 @@ class EventStreamImporterTest {
     fun `the import times every phase it runs`() = runTest {
         val inMemory = InMemoryEventLog(4)
         val slowLog = object : EventLog by inMemory {
-            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-                Thread.sleep(2)
-                return inMemory.append(stream, transport)
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                Thread.sleep(2L * streams.size)
+                return inMemory.appendAll(streams)
             }
         }
         val done = importer(InMemoryNineXEventSource(NineXExample.streams()), target = slowLog)

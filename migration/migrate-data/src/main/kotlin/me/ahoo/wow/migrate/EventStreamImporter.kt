@@ -29,10 +29,11 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * How [EventStreamImporter] runs.
  *
- * - [pageSize] instances are imported between two checkpoints, [concurrency] at a time. A page is read with its
- *   instances' streams in one scan ([NineXEventSource.instances]), at most [pageStreams] of them, so an estate of
- *   large instances has shorter pages; the rest of an instance it read in part is read [streamBatch] streams at a
- *   time. The tail reads [pageSize] streams at once.
+ * - [pageSize] instances are imported between two checkpoints. A page is read with its instances' streams in one scan
+ *   ([NineXEventSource.instances]), at most [pageStreams] of them, so an estate of large instances has shorter pages;
+ *   the streams it read are appended in [concurrency] groups of whole instances, each one call of the log
+ *   ([EventLog.appendAll]), the groups at once; the rest of an instance it read in part is read [streamBatch] streams
+ *   at a time. The tail reads [pageSize] streams at once, and imports [concurrency] instances at a time.
  * - [dryRun] reads and converts every stream but appends none and saves no checkpoint: the mapping check's dry run
  *   extended to every payload.
  * - [restart] walks every instance again, ignoring where the last full import stopped: the final complete pass once
@@ -180,8 +181,14 @@ internal class EventStreamImporter(
             }
             val (excluded, imported) = page.partition { plan.excludes(aggregate, it.id.id) }
             coroutineScope {
-                imported.map { instance ->
-                    async { permits.withPermit { importInstance(aggregatePlan, instance, stats) } }
+                if (options.dryRun) {
+                    imported.map { instance ->
+                        async { permits.withPermit { importInstance(aggregatePlan, instance, stats) } }
+                    }
+                } else {
+                    groupsOf(imported).map { group ->
+                        async { permits.withPermit { importGroup(aggregatePlan, group, stats) } }
+                    }
                 }.awaitAll()
             }
             stats.instances.addAndGet(imported.size.toLong())
@@ -296,6 +303,70 @@ internal class EventStreamImporter(
                     "did not follow 9.x continuously"
 
             else -> null
+        }
+    }
+
+    /**
+     * [instances] in groups of whole instances, about [ImportOptions.concurrency] of them, each of at most
+     * [MAX_GROUP_STREAMS] streams but for an instance that holds more alone.
+     */
+    private fun groupsOf(instances: List<NineXInstance>): List<List<NineXInstance>> {
+        val streams = instances.sumOf { it.streams.size }
+        val size = ((streams + options.concurrency - 1) / options.concurrency).coerceIn(1, MAX_GROUP_STREAMS)
+        val groups = mutableListOf<List<NineXInstance>>()
+        var group = mutableListOf<NineXInstance>()
+        var held = 0
+        for (instance in instances) {
+            if (group.isNotEmpty() && held + instance.streams.size > size) {
+                groups += group
+                group = mutableListOf()
+                held = 0
+            }
+            group += instance
+            held += instance.streams.size
+        }
+        if (group.isNotEmpty()) {
+            groups += group
+        }
+        return groups
+    }
+
+    /**
+     * Imports [instances] as their page read them, with one call of the log for the streams read (group commit,
+     * [EventLog.appendAll]): each instance's streams the log committed are imported; from its first stream it did not
+     * commit, which the log answers as [EventLog.append] would, the instance goes on as [importInstance] does, one
+     * stream at a time, so that stream's outcome is settled as it always was (already there, a request id another
+     * instance holds, a version taken, an unknown outcome tried again); then the rest of an instance read in part.
+     */
+    private suspend fun importGroup(plan: AggregatePlan, instances: List<NineXInstance>, stats: Stats) {
+        val records = instances.map { instance ->
+            instance.streams.mapIndexed { index, stream ->
+                if (stream.version != index + 1) {
+                    throw MigrationException(
+                        "9.x stream ${stream.id} of ${plan.source}/${instance.id} is version ${stream.version} " +
+                            "where ${index + 1} was expected: the 9.x history has a gap.",
+                    )
+                }
+                stats.timed(stats.convert) { converter.convert(stream) }
+            }
+        }
+        val outcomes = stats.timed(stats.append) {
+            logOf(plan.target.context).appendAll(records.flatten().map { it to null })
+        }
+        var at = 0
+        instances.forEachIndexed { index, instance ->
+            val converted = records[index]
+            val committed = outcomes.subList(at, at + converted.size).takeWhile { it is AppendOutcome.Committed }.size
+            at += converted.size
+            converted.take(committed).forEach(stats::imported)
+            val next = if (committed == converted.size) {
+                committed + 1
+            } else {
+                importBatch(plan, instance.id, committed + 1, instance.streams.drop(committed), stats)
+            }
+            if (!instance.complete || next != instance.streams.size + 1) {
+                importInstance(plan, instance.id, next, stats)
+            }
         }
     }
 
@@ -503,3 +574,6 @@ internal class EventStreamImporter(
 }
 
 private const val NANOS_PER_MILLI = 1_000_000L
+
+/** The streams of one group commit at most: as many as one PostgreSQL statement of the log takes. */
+private const val MAX_GROUP_STREAMS = 1000
