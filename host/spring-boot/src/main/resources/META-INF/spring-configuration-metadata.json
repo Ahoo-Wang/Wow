@@ -325,7 +325,7 @@
   }, {
     "name" : "wow.access.stamp-batch",
     "type" : "java.lang.Integer",
-    "description" : "The most streams one stamp writes: a long history is stamped in statements of at most this many.",
+    "description" : "The most streams one stamp writes: a long history is stamped in statements of at most this many, and an access walk writes the stamps of a page together in statements of at most this many.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
     "defaultValue" : 1000
   }, {

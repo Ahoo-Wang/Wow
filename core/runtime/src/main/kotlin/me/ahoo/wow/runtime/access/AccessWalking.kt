@@ -27,6 +27,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
@@ -52,6 +53,11 @@ import kotlin.time.TimeSource
 fun interface AccessSnapshots {
     suspend fun rewrite(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState)
 
+    /** [rewrite]s the snapshot of each of [histories], aggregates of one type: a walk's page, in as few writes as it can. */
+    suspend fun rewriteAll(histories: List<ReplayedHistory>) {
+        histories.forEach { rewrite(it.ref, it.streams, it.state) }
+    }
+
     @InternalWowApi
     companion object {
         /** No snapshots to rewrite. */
@@ -74,8 +80,11 @@ fun interface AccessSnapshots {
  *   store is not created: the first run after its first append claims it.
  * - **The walk**: the node that holds the type's walk lease (`<group>#access-walk/<aggregate>`) pages its aggregates
  *   ([AccessWalks.aggregates], [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with its
- *   current attributes ([stampCurrent]), at most [AccessStampOptions.walkRate] aggregates a second. After each page it
- *   records its cursor and count, so another node or a restart resumes it there; past the last page it is completed.
+ *   current attributes, at most [AccessStampOptions.walkRate] aggregates a second. A page is a few writes, whatever
+ *   its size: one read of its histories ([AccessWalks.histories]), their stamps together, at most
+ *   [AccessStampOptions.batch] streams a write ([AccessStamps.stampAll]), in the log and in each other store of the
+ *   history ([target]), and one rewrite of their snapshots ([AccessSnapshots.rewriteAll]). After each page it records
+ *   its cursor and count, so another node or a restart resumes it there; past the last page it is completed.
  * - **After the heads**: the walk reaches every stream up to its heads. A stream after them that carries no attributes
  *   (a node of an earlier version still running, an import) is the follower's: [AccessStamping] stamps its aggregate
  *   when it reads it ([covers]).
@@ -238,6 +247,57 @@ class AccessWalking(
         return Stamped(head, access)
     }
 
+    /**
+     * Stamps the whole history of each of [refs], a page of [model]'s aggregates, as [stampCurrent] stamps one: one
+     * read of their histories, their stamps written together in [bulksOf], in the log and in each other store
+     * ([target]), and one rewrite of their snapshots.
+     */
+    private suspend fun stampPage(model: AggregateModel<*>, walks: AccessWalks, refs: List<AggregateRef>) {
+        if (refs.isEmpty()) {
+            return
+        }
+        val started = time.markNow()
+        val replayed = walks.histories(refs).mapNotNull { (ref, streams) ->
+            kernel.replayed(model, ref, streams)?.let { ReplayedHistory(ref, streams, it) }
+        }
+        val stamps = replayed.flatMap { history ->
+            val head = history.streams.last().version
+            val access = AccessValues.ofStream(kernel.accessOf(model, history.state.state), history.state.scope)
+            (1..head step options.batch).map { from ->
+                AccessStamp(history.ref, access, head, from, minOf(from + options.batch, head + 1))
+            }
+        }
+        val bulks = bulksOf(stamps)
+        val written = bulks.sumOf { walks.stampAll(it) }
+        targets[model.type]?.forEach { target -> bulks.forEach { target.stampAll(it) } }
+        snapshots.rewriteAll(replayed)
+        val millis = started.elapsedNow().inWholeMilliseconds
+        observer.observed(
+            ObservedEvent.AccessStamped(model.type, ObservedEvent.AccessStamped.Cause.WALK, written, millis)
+        )
+    }
+
+    /** [stamps] in writes of at most [AccessStampOptions.batch] streams each, a stamp's chunk whole in one. */
+    private fun bulksOf(stamps: List<AccessStamp>): List<List<AccessStamp>> {
+        val bulks = ArrayList<List<AccessStamp>>()
+        var bulk = ArrayList<AccessStamp>()
+        var streams = 0
+        stamps.forEach { stamp ->
+            val size = stamp.until - stamp.from
+            if (bulk.isNotEmpty() && streams + size > options.batch) {
+                bulks += bulk
+                bulk = ArrayList()
+                streams = 0
+            }
+            bulk += stamp
+            streams += size
+        }
+        if (bulk.isNotEmpty()) {
+            bulks += bulk
+        }
+        return bulks
+    }
+
     /** Keeps this node a member of the context's walks, serving its schema of each type. */
     private suspend fun heartbeat() {
         if (schemas.isNotEmpty()) {
@@ -288,7 +348,7 @@ class AccessWalking(
         while (!deadline.hasPassedNow()) {
             val began = time.markNow()
             val page = walks.aggregates(type, walk.cursor, options.walkBatch)
-            page.refs.forEach { stampCurrent(model, it, ObservedEvent.AccessStamped.Cause.WALK) }
+            stampPage(model, walks, page.refs)
             val next = walk.copy(
                 cursor = page.next ?: walk.cursor,
                 walked = walk.walked + page.refs.size,
@@ -338,6 +398,10 @@ class AccessWalking(
         private val logger = KotlinLogging.logger {}
     }
 }
+
+/** An aggregate's whole log, [streams] from version 1, replayed as [state]: a walk's, to stamp it and rewrite its snapshot. */
+@InternalWowApi
+class ReplayedHistory(val ref: AggregateRef, val streams: List<EventStreamRecord>, val state: CachedState)
 
 /** The attributes of an aggregate's history as of [version]: what a stamp wrote, or a stream carries. */
 @InternalWowApi

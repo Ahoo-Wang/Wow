@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.access
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.log.EventStreamRecord
 
 /**
  * The walks of a log's history ([AccessStamps] it also is): a walk of an aggregate type stamps each of its aggregates'
@@ -42,6 +43,12 @@ interface AccessWalks : AccessStamps {
      * [after] (null: from the first); none of a type the log [holds] no store of.
      */
     suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage
+
+    /**
+     * The whole history of each of [refs], aggregates of one type, in version order, in as few reads as the log makes
+     * of them: a walk's page ([aggregates]). A ref the log holds no stream of is not among them.
+     */
+    suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>>
 
     /** The walk of [type] as the log records it; null before any [claim]. */
     suspend fun walk(type: AggregateType): AccessWalk?

@@ -462,7 +462,10 @@ class WowProperties {
      */
     @InternalWowApi
     class Access {
-        /** The most streams one stamp writes: a long history is stamped in statements of at most this many. */
+        /**
+         * The most streams one stamp writes: a long history is stamped in statements of at most this many, and an
+         * access walk writes the stamps of a page together in statements of at most this many.
+         */
         var stampBatch: Int = AccessStampOptions.DEFAULT_BATCH
 
         /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */

@@ -273,8 +273,38 @@ class MongoSnapshotStore(
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         val snapshots = collectionOf(snapshot.ref.type.name)
-        upsert(snapshots, Filters.and(keyFilter(snapshot.ref), Filters.lte(VERSION, snapshot.version)), snapshot)
+        upsert(snapshots, rewriteGuardOf(snapshot), snapshot)
     }
+
+    /**
+     * One unordered `bulkWrite` of conditional upserts per aggregate type, each guarded as [rewrite] guards one, its
+     * update the pipeline that clears a stale mark of a version up to its own in the same write ([saveAll]'s). A
+     * snapshot whose upsert met the key (a higher version stored, or a concurrent insert) is rewritten again alone, as
+     * [rewrite] would; any other failure is thrown, as [rewrite] throws it.
+     */
+    override suspend fun rewriteAll(snapshots: List<SnapshotRecord>): Int = dispatcher.mongo {
+        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
+        snapshots.groupBy { it.ref.type.name }.entries.sumOf { (aggregate, records) ->
+            val collection = collectionOf(aggregate)
+            val upserts = records.map { UpdateOneModel<Document>(rewriteGuardOf(it), pipelineOf(it), UPSERT) }
+            val again = try {
+                collection.bulkWrite(upserts, UNORDERED)
+                emptyList()
+            } catch (failure: MongoBulkWriteException) {
+                if (failure.writeConcernError != null ||
+                    failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }
+                ) {
+                    throw failure
+                }
+                failure.writeErrors.map { records[it.index] }
+            }
+            records.size - again.size + again.count { upsert(collection, rewriteGuardOf(it), it) }
+        }
+    }
+
+    /** The filter of [snapshot]'s rewrite: its key, the same or a lower stored version, whatever its revision. */
+    private fun rewriteGuardOf(snapshot: SnapshotRecord): Bson =
+        Filters.and(keyFilter(snapshot.ref), Filters.lte(VERSION, snapshot.version))
 
     /**
      * Writes [snapshot] over the document [guarded] matches, or inserts it when there is none; then clears a stale

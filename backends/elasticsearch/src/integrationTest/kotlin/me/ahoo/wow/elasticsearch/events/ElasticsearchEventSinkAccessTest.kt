@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
@@ -101,6 +102,34 @@ class ElasticsearchEventSinkAccessTest {
                 access("north") to 4,
                 access("west") to 4,
             )
+        }
+
+    @Test
+    fun `a walk's page of stamps is one update by query, each document its own aggregate's stamp under its guard`(): Unit =
+        runBlocking {
+            val sink = sink()
+            val other = type.ref("tenant", "a-2")
+            sink.write((1..3).map { record(it, null, null) } + (1..2).map { record(it, null, null, other) })
+            // A later stamp of a-2's first document stays.
+            sink.stamp(other, access("west"), asOf = 9, from = 1, until = 2).assert().isEqualTo(1)
+            sink.stampAll(
+                listOf(
+                    AccessStamp(ref, access("east"), asOf = 3, from = 1, until = 3),
+                    AccessStamp(ref, access("east"), asOf = 3, from = 3, until = 4),
+                    AccessStamp(other, access("north"), asOf = 2, from = 1, until = 3),
+                ),
+            ).assert().isEqualTo(4)
+            documents().assert().containsExactly(access("east") to 3, access("east") to 3, access("east") to 3)
+            documents(other).assert().containsExactly(access("west") to 9, access("north") to 2)
+            // Stamps of one aggregate of different versions are written one at a time: the later one stays.
+            sink.stampAll(
+                listOf(
+                    AccessStamp(ref, access("west"), asOf = 5, from = 1, until = 2),
+                    AccessStamp(ref, access("north"), asOf = 4, from = 2, until = 4),
+                ),
+            ).assert().isEqualTo(3)
+            documents().assert().containsExactly(access("west") to 5, access("north") to 4, access("north") to 4)
+            sink.stampAll(emptyList()).assert().isEqualTo(0)
         }
 
     @Test
