@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi
 
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.wire.WireNames
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.ManifestSchema
 import me.ahoo.wow.openapi.Json.array
 import me.ahoo.wow.openapi.Json.map
@@ -103,12 +104,42 @@ internal object WowSchemas {
         get() = LIFECYCLE.keys + JOB_COMMANDS.keys + REBUILD
 
     private val ACCESS: Map<String, Any?>
-        get() = map(
-            obj(
-                "description" to "An access attribute's value: a string, an integer, a boolean or null; an array " +
-                    "of them for a multiple one.",
-            ),
+        get() = map(ACCESS_VALUE)
+
+    private val ACCESS_VALUE: Map<String, Any?>
+        get() = obj(
+            "description" to "An access attribute's value: a string, an integer, a boolean or null; an array " +
+                "of them for a multiple one.",
         )
+
+    /** The built-in access attributes of an event stream's `access`, the aggregate's owner and space. */
+    private val BUILT_IN_ACCESS: Map<String, Any?>
+        get() = linkedMapOf("owner" to NULLABLE_STRING, "space" to NULLABLE_STRING)
+
+    /**
+     * The `access` of a record of an aggregate that declares [attributes] (its Manifest's access section): a single
+     * attribute's value or null, a multiple one's values, distinct and sorted, and, of an event stream ([stream]), the
+     * built-in `owner` and `space` too. None is required, since a record written before an attribute was declared
+     * lacks it, and nothing else is refused, since a snapshot not written since an attribute was removed still holds
+     * it. An integer is kept as a `Long`: `int64`.
+     */
+    fun access(attributes: List<AccessAttributeManifest>, stream: Boolean): Map<String, Any?> {
+        val declared = attributes.associate { attribute ->
+            val value = accessValue(attribute.type, nullable = !attribute.multiple)
+            attribute.name to if (attribute.multiple) array(value) + obj("uniqueItems" to true) else value
+        }
+        return obj(
+            "type" to "object",
+            "properties" to (if (stream) BUILT_IN_ACCESS else emptyMap()) + declared,
+            "additionalProperties" to ACCESS_VALUE,
+        )
+    }
+
+    private fun accessValue(kind: AccessAttributeManifest.Type, nullable: Boolean): Map<String, Any?> = when (kind) {
+        AccessAttributeManifest.Type.STRING -> type("string", nullable)
+        AccessAttributeManifest.Type.INTEGER -> type("integer", nullable) + obj("format" to "int64")
+        AccessAttributeManifest.Type.BOOLEAN -> type("boolean", nullable)
+    }
 
     private val STRING: Map<String, Any?> get() = type("string")
     private val NULLABLE_STRING: Map<String, Any?> get() = type("string", nullable = true)
@@ -368,10 +399,12 @@ internal object WowSchemas {
             "ownerId" to NULLABLE_STRING,
             "spaceId" to NULLABLE_STRING,
             "operator" to nullable(schemaRef(OPERATOR)),
+            "access" to nullable(access(emptyList(), stream = true)),
             "events" to array(schemaRef(COMMITTED_EVENT)),
         ),
         description = "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` " +
-            "are null when unset; a projection leaves fields out.",
+            "are null when unset; `access` holds the aggregate's current access attributes, `owner` and `space` " +
+            "among them, and is null while the stream is not stamped; a projection leaves fields out.",
     )
 
     private fun queryRequest(): Map<String, Any?> = objectSchema(

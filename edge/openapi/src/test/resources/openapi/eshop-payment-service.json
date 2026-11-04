@@ -2700,7 +2700,7 @@
       },
       "wow.EventStream" : {
         "type" : "object",
-        "description" : "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
+        "description" : "An event stream, the commit of one command: `ownerId`, `spaceId` and `operator` are null when unset; `access` holds the aggregate's current access attributes, `owner` and `space` among them, and is null while the stream is not stamped; a projection leaves fields out.",
         "properties" : {
           "aggregateId" : {
             "type" : "string"
@@ -2732,6 +2732,24 @@
           "operator" : {
             "anyOf" : [ {
               "$ref" : "#/components/schemas/wow.Operator"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "access" : {
+            "anyOf" : [ {
+              "type" : "object",
+              "properties" : {
+                "owner" : {
+                  "type" : [ "string", "null" ]
+                },
+                "space" : {
+                  "type" : [ "string", "null" ]
+                }
+              },
+              "additionalProperties" : {
+                "description" : "An access attribute's value: a string, an integer, a boolean or null; an array of them for a multiple one."
+              }
             }, {
               "type" : "null"
             } ]

@@ -21,7 +21,6 @@ A service's public port serves these routes, materialized from its Manifest. [Se
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.restore-aggregate` | `RestoreAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`, body `{"ownerId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `TransferSpace`, body `{"spaceId": "…"}` |
-| `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags` | `ApplyTags`, body `{"tags": {"name": ["value"]}}`, replacing the applied tags |
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | A rebuild of the snapshots of `{"ids": [...]}` |
 | `POST /<context>/wow.schedule/{job}/<command>` | A job command: `enable`, `reschedule`, `disable` |
 
@@ -45,7 +44,7 @@ An internal command (`@InternalCommand`, `"internal": true` in the Manifest) has
 | Method and path | Answers |
 | --- | --- |
 | `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`), its internal commands among them, marked `internal` |
-| `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them |
+| `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`): the internal commands are not among them, and each aggregate's records are typed by its Manifest, the `state` by its state schema and the `access` by the access attributes it declares |
 
 A context's own service routes, the handlers its code declares, are served as its Manifest lists them. `wow.http.ops.enabled: true` (off by default) also serves the operator's routes: the parked entries under `/wow/ops/parked` and the read of the node's subscriptions, `GET /wow/ops/subscriptions` ([Ops Console](../operate/ops-console)).
 
