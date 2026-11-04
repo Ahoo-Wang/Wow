@@ -181,6 +181,19 @@ class AccessWalkingTest {
         }
 
     @Test
+    fun `snapshots that rewrite one at a time are rewritten one at a time, a page's each`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("d-1", "d-2", "d-3"), "sales")
+        val rewritten = ArrayList<String>()
+        val walking = AccessWalking(
+            "office", "service/office", "n-1", listOf(model), Kernel(log), { log }, InMemoryLeaseStore(), options,
+            AccessSnapshots { ref, _, _ -> rewritten += ref.id },
+        )
+        walking.maintain()
+        rewritten.assert().containsExactly("d-1", "d-2", "d-3")
+    }
+
+    @Test
     fun `a walk resumes after the page its log records`(): Unit = runBlocking {
         val log = InMemoryEventLog()
         unstamped(log, listOf("d-1", "d-2", "d-3", "d-4"), "sales")

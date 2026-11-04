@@ -253,6 +253,7 @@ class AccessWalking(
      * ([target]), and one rewrite of their snapshots.
      */
     private suspend fun stampPage(model: AggregateModel<*>, walks: AccessWalks, refs: List<AggregateRef>) {
+        // The page after a full last one is empty.
         if (refs.isEmpty()) {
             return
         }
