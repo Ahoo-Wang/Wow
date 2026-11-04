@@ -154,6 +154,25 @@ class TagsMigrationTest {
     }
 
     @Test
+    fun `the rollback export writes the attributes back as the 9x tags, an attribute without a value as no key`() {
+        val plan = MigrationPlan(map(), manifest)
+        val converter = StreamConverter(plan)
+        val reverter = StreamReverter(plan) { _, _ -> listOf("0.0.1") }
+        val record = converter.convert(tagged(5, """{"region": ["east"], "team": ["a", "b"], "level": ["3"]}"""))
+        reverter.revert(record).events.single().run {
+            name.assert().isEqualTo(MapDrafter.TAGS_EVENT)
+            body.assert().isEqualTo(json("""{"tags": {"region": ["east"], "team": ["a", "b"]}}"""))
+        }
+        val cleared = converter.convert(tagged(6, "{}"))
+        reverter.revert(cleared).events.single().body.assert().isEqualTo(json("""{"tags": {}}"""))
+        val back = reverter.revert(record)
+        converter.convert(back).events.assert().isEqualTo(record.events)
+        TagValues.stringsOf(json("""[3, null, true]""")).assert().containsExactly("3", "true")
+        TagValues.stringsOf(json("7")).assert().containsExactly("7")
+        TagValues.stringsOf(null).assert().isEmpty()
+    }
+
+    @Test
     fun `an event of the user's that holds tags keeps its other fields, renamed`() {
         val labelled = EventMapping(
             "order_labelled",

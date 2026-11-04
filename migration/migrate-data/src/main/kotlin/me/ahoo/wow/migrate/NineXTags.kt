@@ -159,6 +159,16 @@ internal object TagValues {
     fun nodeOf(attribute: AccessAttributeManifest, values: List<String>?): JsonNode =
         WowJson.mapper.valueToTree(valueOf(attribute, values))
 
+    /**
+     * An attribute's value, a payload's JSON, as the 9.x tag values it was: the strings 9.x stored, for the rollback
+     * export; none for `null` or an empty list.
+     */
+    fun stringsOf(node: JsonNode?): List<String> = when {
+        node == null || node.isNull -> emptyList()
+        node.isArray -> node.filterNot { it.isNull }.map { it.asString() }
+        else -> listOf(node.asString())
+    }
+
     /** The problems [stats] counts that [attribute] cannot hold, with their counts. */
     fun problems(attribute: AccessAttributeManifest, stats: TagValueStats): Map<TagValueProblem, Long> = buildMap {
         if (!attribute.multiple && stats.multiple > 0) {

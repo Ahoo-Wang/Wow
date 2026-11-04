@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
 
@@ -28,7 +29,9 @@ import java.util.UUID
  *   that two map to, has no way back.
  * - **Events.** Each event by the mapping whose V10 name and revision are the event's: renamed to the 9.x name at the
  *   9.x revision (the mapping's `fromRevision`, else the latest revision of that name the 9.x store holds, else 9.x's
- *   default), its renamed top-level fields given their 9.x names back. An event the map reaches at another revision
+ *   default), its renamed top-level fields given their 9.x names back. The tags event's access attributes go back
+ *   into its `tags`, by their 9.x keys, each value as 9.x stored it, a string; an attribute without a value as no
+ *   key ([TagValues.stringsOf]). An event the map reaches at another revision
  *   (V10 moved its shape on with `@Upgrade`) or not at all is a V10-only type: 9.x cannot read it, and the stream has
  *   no way back.
  * - **Command.** The 9.x name of the stream's command type, by the map; a command the map does not name keeps its V10
@@ -96,7 +99,7 @@ internal class StreamReverter(
                     id = "$id-${index + 1}",
                     name = mapping.from,
                     revision = mapping.fromRevision ?: revisionOf(aggregate.source, mapping.from),
-                    body = bodyOf(event, mapping),
+                    body = if (mapping.tags) taggedBodyOf(aggregate, event, mapping) else bodyOf(event, mapping),
                 )
             },
             createTime = record.commitTime,
@@ -124,6 +127,25 @@ internal class StreamReverter(
                 body.properties().forEach { (name, value) -> renamed.set(names[name] ?: name, value) }
             }
         }
+    }
+
+    /** The 9.x tags event's body: its other fields renamed back, and the attributes it sets as the `tags` they were. */
+    private fun taggedBodyOf(aggregate: AggregatePlan, event: EventRecord, mapping: EventMapping): JsonNode {
+        val keys = aggregate.mapping.tags.filter { it.written }.associate { checkNotNull(it.to) to it.key }
+        val names = mapping.fields.entries.associate { (from, to) -> to to from }
+        val body = WowJson.mapper.createObjectNode()
+        val tags = WowJson.mapper.createObjectNode()
+        (WowJson.mapper.readTree(event.payload) as? ObjectNode)?.properties()?.forEach { (name, value) ->
+            val key = keys[name]
+            if (key == null) {
+                body.set(names[name] ?: name, value)
+            } else {
+                TagValues.stringsOf(value).takeIf { it.isNotEmpty() }?.let { values ->
+                    tags.putArray(key).apply { values.forEach(::add) }
+                }
+            }
+        }
+        return body.set(TAGS, tags)
     }
 
     companion object {

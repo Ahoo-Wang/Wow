@@ -352,7 +352,7 @@ It writes no `headers`, `state`, reservation or subscription mappings: those nee
 
 ## Export
 
-`export` reads the map backwards. Each V10 stream gets its 9.x aggregate, event names and revisions, field names and kept headers back; the root command's id, the command id, the command's 9.x name and the operator's id become the 9.x `trace_id`, `upstream_id`, `upstream_name` and `command_operator` headers. A stream's 9.x id is derived from its reference and version, the same on every run. Each event gets the body type 9.x recorded for its name and revision, and decimals are written as `Decimal128`.
+`export` reads the map backwards. Each V10 stream gets its 9.x aggregate, event names and revisions, field names and kept headers back, and the tags event its `tags`: each attribute it sets under its 9.x key, its values as strings, an attribute without a value as no key; the root command's id, the command id, the command's 9.x name and the operator's id become the 9.x `trace_id`, `upstream_id`, `upstream_name` and `command_operator` headers. A stream's 9.x id is derived from its reference and version, the same on every run. Each event gets the body type 9.x recorded for its name and revision, and decimals are written as `Decimal128`.
 
 It writes into the 9.x store of `source`, and only into a collection with 9.x's unique `(aggregateId, version)` index, which 9.x creates when it starts; without it, `export` stops and prints the command that creates it. Its checkpoint is the last log position written per V10 context and partition.
 
