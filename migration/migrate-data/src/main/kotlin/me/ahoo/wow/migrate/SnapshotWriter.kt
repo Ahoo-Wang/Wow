@@ -27,7 +27,8 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.access.AccessSchema
 import me.ahoo.wow.runtime.access.AccessStampOptions
-import me.ahoo.wow.runtime.access.stampIn
+import me.ahoo.wow.runtime.access.stampAllIn
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
@@ -69,7 +70,8 @@ internal data class SnapshotProgress(
  *
  * - **Stamped.** The instance's streams get the access attributes of the state it rebuilt, as of the log's last version
  *   ([AccessStamps.stamp]), as the V10 nodes' access walk would stamp them, so an events query under an access policy
- *   reads the imported history once V10 serves. A stream stamped as of a later version keeps its attributes, and one
+ *   reads the imported history once V10 serves. The stamps of a page of instances are written together
+ *   ([AccessStamps.stampAll]), a catch-up's too, a page at a time. A stream stamped as of a later version keeps its attributes, and one
  *   appended since is stamped by the next catch-up. A type every 9.x aggregate mapped to it stamped without a failure
  *   has its walk recorded as completed ([recordWalks]): the nodes do not walk it again when they start or are
  *   activated.
@@ -154,14 +156,11 @@ internal class SnapshotWriter(
                 checkpoint = checkpoint.copy(completed = true)
                 checkpoints.update { it.with(aggregate, checkpoint) }
             } else {
-                val written = coroutineScope {
-                    page.filterNot { plan.excludes(aggregate, it.id) }
-                        .map { id -> async { permits.withPermit { write(target, id) } } }.awaitAll()
-                }
+                val written = writePage(target, page.filterNot { plan.excludes(aggregate, it.id) }, permits)
                 checkpoint = checkpoint.copy(
                     after = page.last(),
-                    written = checkpoint.written + written.count { it == true },
-                    skipped = checkpoint.skipped + written.count { it == false },
+                    written = checkpoint.written + written.count { it?.saved == true },
+                    skipped = checkpoint.skipped + written.count { it?.saved == false },
                     failed = checkpoint.failed + written.count { it == null },
                 )
                 checkpoints.update { it.with(aggregate, checkpoint) }
@@ -185,15 +184,14 @@ internal class SnapshotWriter(
         val changed = target.log.changedSince(target.plan.target, recorded, heads)
             .filterNot { plan.excludes(target.aggregate, it.id) }
         val permits = Semaphore(options.concurrency)
-        val written = coroutineScope {
-            changed.map { ref ->
-                async { permits.withPermit { write(target, NineXAggregateId(ref.id, ref.tenantId)) } }
-            }.awaitAll()
+        // A page at a time, as the walk writes them: the stamps of a page are written together.
+        val written = changed.chunked(options.pageSize).flatMap { refs ->
+            writePage(target, refs.map { NineXAggregateId(it.id, it.tenantId) }, permits)
         }
         val progress = SnapshotProgress(
             aggregate = target.aggregate,
-            written = written.count { it == true }.toLong(),
-            skipped = written.count { it == false }.toLong(),
+            written = written.count { it?.saved == true }.toLong(),
+            skipped = written.count { it?.saved == false }.toLong(),
             done = true,
             failed = written.count { it == null }.toLong(),
             caughtUp = true,
@@ -212,10 +210,25 @@ internal class SnapshotWriter(
     }
 
     /**
-     * Writes the snapshot of the instance [id] of [target]; whether it was written (false: the store holds it), or
-     * null when its state does not rebuild, which is [report]ed.
+     * Writes the snapshots of [ids], instances of [target], [permits] at a time, then stamps their histories together,
+     * at most [batch] streams a write ([stampAllIn]); what [write] gave each.
      */
-    private suspend fun write(target: Target, id: NineXAggregateId): Boolean? {
+    private suspend fun writePage(target: Target, ids: List<NineXAggregateId>, permits: Semaphore): List<Written?> {
+        val written = coroutineScope {
+            ids.map { id -> async { permits.withPermit { write(target, id) } } }.awaitAll()
+        }
+        target.stamps?.stampAllIn(written.mapNotNull { it?.stamp }, batch)
+        return written
+    }
+
+    /** An instance's snapshot [saved] (false: the store held it already), and the [stamp] of its history. */
+    private class Written(val saved: Boolean, val stamp: AccessStamp)
+
+    /**
+     * Writes the snapshot of the instance [id] of [target], and gives the stamp of its history with the attributes of
+     * its state as of its last version; null when its state does not rebuild, which is [report]ed.
+     */
+    private suspend fun write(target: Target, id: NineXAggregateId): Written? {
         val ref = target.plan.target.ref(id.tenantId, id.id)
         val subject = "$ref, the 9.x instance ${target.aggregate}/$id"
         val streams = target.log.read(ref).toList()
@@ -237,15 +250,8 @@ internal class SnapshotWriter(
         val first = streams.first()
         val last = streams.last()
         val access = codec.accessOf(target.model, state.state)
-        target.stamps?.stampIn(
-            ref,
-            AccessValues.ofStream(access, state.scope),
-            last.version,
-            1,
-            last.version + 1,
-            batch
-        )
-        return target.store.save(
+        val stamp = AccessStamp(ref, AccessValues.ofStream(access, state.scope), last.version, 1, last.version + 1)
+        val saved = target.store.save(
             codec.snapshotOf(
                 target.model,
                 ref,
@@ -261,11 +267,12 @@ internal class SnapshotWriter(
                 access,
             ),
         )
+        return Written(saved, stamp)
     }
 
     /**
      * Records the access walk of each V10 type whose every 9.x aggregate's snapshots [progress] holds as done without a
-     * failure, as completed for the type's access schema ([AccessSchema]), so the V10 nodes find it walked: [write]
+     * failure, as completed for the type's access schema ([AccessSchema]), so the V10 nodes find it walked: [writePage]
      * stamped each instance's history. It records no heads, so a stream without attributes, one those stamps did not
      * reach (an append in flight can land on MongoDB below the head a walk read) or one appended since, is the built-in
      * subscription `wow.access`'s, which stamps its aggregate when it reads it. A walk already recorded is left as it is,

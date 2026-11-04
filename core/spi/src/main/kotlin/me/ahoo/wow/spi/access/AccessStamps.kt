@@ -35,4 +35,30 @@ interface AccessStamps {
      * A version the store does not hold is passed over.
      */
     suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int
+
+    /**
+     * Writes each of [stamps] as [stamp] writes it, in as few writes as the store makes of them: the access walk's
+     * stamps of a page of aggregates. Returns how many streams they wrote. Each is one stamp: [stamp] one at a time,
+     * unless the store writes them together.
+     */
+    suspend fun stampAll(stamps: List<AccessStamp>): Int =
+        stamps.sumOf { stamp(it.ref, it.access, it.asOf, it.from, it.until) }
+
+    @InternalWowApi
+    companion object {
+        /** Whether no two of [stamps] cover one stream: a store may then write them in any order, or at once. */
+        fun disjoint(stamps: List<AccessStamp>): Boolean = stamps.groupBy { it.ref }.values.all { ranges ->
+            ranges.sortedBy { it.from }.zipWithNext().all { (before, after) -> before.until <= after.from }
+        }
+    }
 }
+
+/** One stamp of [AccessStamps.stampAll]: [access] as of [asOf] over the streams of [ref] from [from] until [until]. */
+@InternalWowApi
+data class AccessStamp(
+    val ref: AggregateRef,
+    val access: Map<String, Any?>,
+    val asOf: Int,
+    val from: Int,
+    val until: Int,
+)

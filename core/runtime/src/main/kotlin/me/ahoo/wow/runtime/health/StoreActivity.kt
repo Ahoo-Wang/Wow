@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
@@ -288,7 +289,14 @@ private class TrackedWalksLog<L>(
     override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
         activity.call(::unavailable) { walks.stamp(ref, access, asOf, from, until) }
 
+    override suspend fun stampAll(stamps: List<AccessStamp>): Int = activity.call(
+        ::unavailable
+    ) { walks.stampAll(stamps) }
+
     override suspend fun holds(type: AggregateType): Boolean = activity.call(::unavailable) { walks.holds(type) }
+
+    override suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>> =
+        activity.call(::unavailable) { walks.histories(refs) }
 
     override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage =
         activity.call(::unavailable) { walks.aggregates(type, after, limit) }

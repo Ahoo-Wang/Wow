@@ -399,6 +399,25 @@ abstract class SnapshotStoreSpec {
     }
 
     @Test
+    fun `a page's rewrites are written together, each as a rewrite alone, a higher version stored kept`(): Unit =
+        runBlocking {
+            val store = createStore()
+            val higher = snapshot("b", 9)
+            store.save(higher).assert().isTrue()
+            val stale = snapshot("c", 2)
+            store.save(stale).assert().isTrue()
+            store.rebuild.markStale(stale.ref).assert().isTrue()
+            val rebuilt =
+                listOf(snapshot("a", 3), snapshot("b", 4), snapshot("c", 2).copyWith(state = """{"rebuilt":true}"""))
+            store.rebuild.rewriteAll(rebuilt).assert().isEqualTo(2)
+            store.load(rebuilt[0].ref).assertSameAs(rebuilt[0])
+            store.load(higher.ref).assertSameAs(higher)
+            store.load(stale.ref).assertSameAs(rebuilt[2])
+            store.rebuild.pending(type, 1, limit = 10).assert().isEmpty()
+            store.rebuild.rewriteAll(emptyList()).assert().isEqualTo(0)
+        }
+
+    @Test
     fun `a stale mark keeps a snapshot pending until a rewrite reaches its version`(): Unit = runBlocking {
         val store = createStore()
         val stored = snapshot("a", 2)

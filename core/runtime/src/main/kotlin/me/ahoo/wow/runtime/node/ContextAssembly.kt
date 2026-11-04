@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.runtime.node
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -26,6 +28,7 @@ import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.access.AccessSnapshots
 import me.ahoo.wow.runtime.access.AccessStamping
 import me.ahoo.wow.runtime.access.AccessWalking
+import me.ahoo.wow.runtime.access.ReplayedHistory
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.ForwardEndpoint
 import me.ahoo.wow.runtime.cluster.LeaseGroup
@@ -56,6 +59,7 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -236,7 +240,14 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         maintenance: SnapshotMaintenance?,
     ): AccessStamping {
         val logs = parts.flatMap { part -> part.types.map { it to part.log } }.toMap()
-        val snapshots = maintenance?.let { AccessSnapshots(it::rebuild) } ?: AccessSnapshots.NONE
+        val snapshots = maintenance?.let {
+            object : AccessSnapshots {
+                override suspend fun rewrite(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState) =
+                    it.rebuild(ref, streams, state)
+
+                override suspend fun rewriteAll(histories: List<ReplayedHistory>) = it.rebuildAll(histories)
+            }
+        } ?: AccessSnapshots.NONE
         val walking = AccessWalking(
             context, group, node, models, kernel, logs::get, backends.leases, options.access, snapshots, { address },
             observer,

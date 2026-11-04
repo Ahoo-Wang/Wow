@@ -53,6 +53,7 @@ import {
   propertiesOf,
   verdict,
   metrics,
+  measureTable,
   pairs,
   ratios,
   readSuites,
@@ -474,13 +475,16 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
 });
 
 test('the access suites pair the head with teller callers, without and with a policy of the account', () => {
-  assert.deepEqual(suitesOf('access'), [
+  const paired = suitesOf('access').filter(
+    name => SUITES[name].kind === 'paired',
+  );
+  assert.deepEqual(paired, [
     'access-e1-pg',
     'access-e3-pg',
     'access-e1-mongo',
     'access-e3-mongo',
   ]);
-  for (const name of suitesOf('access')) {
+  for (const name of paired) {
     const arms = SUITES[name].arms;
     assert.deepEqual(
       arms.map(arm => arm.install),
@@ -1449,6 +1453,74 @@ test('a mixed suite sends its mix and shows each scenario', () => {
     calls,
     /--scenario=mixed --mix=E1:50,E4-state:40,E4-list:10 --distribution=uniform/,
   );
+});
+
+test('the walk suites measure the walk uncapped per build, then live E1 at each rate against two runs without a walk', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = join(dir, 'bench.sh');
+  // Each run writes its measure.json: the walk at the configured rate, the deposits' p99 by run.
+  writeFileSync(
+    benchPath,
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const opt = name => args.find(a => a.startsWith('--' + name + '='))?.split('=').slice(1).join('=');
+fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, args.join(' ') + ' ' + (process.env.SPRING_APPLICATION_JSON ?? '') + '\\n');
+const rate = JSON.parse(process.env.SPRING_APPLICATION_JSON ?? '{}')['wow.access.walk-rate'];
+const walks = opt('walk') !== 'none';
+const p99 = { 500: 20, 1000: 24, 2000: 40 }[rate] ?? 22;
+fs.mkdirSync(opt('out'), { recursive: true });
+fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
+  program: 'walk', walks, rate: Number(opt('rate')), walkRate: rate === undefined ? null : String(rate),
+  walk: walks ? { completed: true, walked: 1000, seconds: 2, aggregatesPerSecond: 500 } : null,
+  e1: Number(opt('rate')) > 0 ? { ops: 100, failed: {}, latencyMs: { p50: 5, p99: walks ? p99 : (opt('out').endsWith('none-1') ? 21 : 25), p999: 50 } } : null,
+}));
+`,
+  );
+  chmodSync(benchPath, 0o755);
+  const suite = runSuite('access-walk-pg', {
+    benchPath,
+    out: join(dir, 'out'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    dataset: '1k',
+    installs: {},
+  });
+  assert.equal(suite.failures, 0);
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.status]),
+    [
+      ['base-uncapped', 'unavailable'],
+      ['head-uncapped', 'ok'],
+      ['none-1', 'ok'],
+      ['walk-500', 'ok'],
+      ['walk-1000', 'ok'],
+      ['walk-2000', 'ok'],
+      ['none-2', 'ok'],
+    ],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.match(
+    calls,
+    /^measure --backend=postgres --program=walk --aggregates=1000 --streams=10 --walk=yes --rate=0 /m,
+  );
+  // A run with nothing to walk sets no walk rate.
+  assert.match(calls, /--walk=none --rate=200 .*\/none-1 $/m);
+  const table = measureTable(suite).join('\n');
+  // The band is the higher of the two runs without a walk, 25 ms: 2,000/s leaves it.
+  assert.match(
+    table,
+    /\| access-walk-pg@1k \| head-uncapped \| uncapped \| 2\.0 s \| 500 \|/,
+  );
+  assert.match(table, /\| walk-1000 \| 1000\/s \| .* \| yes \|/);
+  assert.match(
+    table,
+    /\| walk-2000 \| 2000\/s \| .* \| \*\*no\*\* \(40\.0 ms > 25\.0 ms\) \|/,
+  );
+  assert.deepEqual(pairs(suite), []);
+  assert.doesNotMatch(renderReport([suite]), /NaN/);
 });
 
 test('component suites run each scenario per arm and tolerate a baseline without ComponentBench', () => {

@@ -431,6 +431,20 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         "AND version >= ? AND version < ? AND (access_version IS NULL OR access_version <= ?)"
 
     /**
+     * [stamp] of many ranges of distinct streams in one statement, each a row of the arrays (`unnest`): attributes,
+     * the version they are of, aggregate id, tenant, from and until.
+     */
+    val stampRows = "UPDATE $log AS l SET access = s.access::jsonb, access_version = s.as_of FROM " +
+        "unnest(?::text[], ?::int[], ?::text[], ?::text[], ?::int[], ?::int[]) " +
+        "AS s(access, as_of, aggregate_id, tenant_id, from_version, until_version) " +
+        "WHERE l.aggregate_id = s.aggregate_id AND l.tenant_id = s.tenant_id AND l.version >= s.from_version " +
+        "AND l.version < s.until_version AND (l.access_version IS NULL OR l.access_version <= s.as_of)"
+
+    /** The whole histories of the aggregates of two arrays, ids and tenants (`unnest`), by the version key. */
+    val histories = "SELECT $FACTS FROM $log WHERE (aggregate_id, tenant_id) IN " +
+        "(SELECT * FROM unnest(?::text[], ?::text[])) ORDER BY aggregate_id, tenant_id, version"
+
+    /**
      * The first page of the table's aggregates, by the version key: each one's first stream, in the key's order
      * (aggregate id, then tenant). Parameter: limit.
      */

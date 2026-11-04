@@ -25,6 +25,8 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessStamp
+import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
@@ -612,6 +614,54 @@ class PostgresEventLog(
             }
         }
         return AggregatePage.of(refs, limit)
+    }
+
+    /**
+     * One statement of the stamps of distinct streams ([PostgresEventLogTables] `stampRows`), autocommitted, per
+     * aggregate type; stamps that overlap are written one at a time, so the later version of two wins.
+     */
+    @InternalWowApi
+    override suspend fun stampAll(stamps: List<AccessStamp>): Int {
+        val ranges = stamps.filter { it.from < it.until }
+        if (!AccessStamps.disjoint(ranges)) {
+            return super.stampAll(ranges)
+        }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                ranges.groupBy { it.ref.type }.entries.sumOf { (type, group) ->
+                    withTable(connection, type) { table ->
+                        connection.prepareStatement(table.stampRows).use { update ->
+                            fun array(kind: String, values: List<Any>) =
+                                connection.createArrayOf(kind, values.toTypedArray())
+                            update.setArray(1, array("text", group.map { AccessValues.text(it.access) }))
+                            update.setArray(2, array("int4", group.map { it.asOf }))
+                            update.setArray(3, array("text", group.map { it.ref.id }))
+                            update.setArray(4, array("text", group.map { it.ref.tenantId }))
+                            update.setArray(5, array("int4", group.map { it.from }))
+                            update.setArray(6, array("int4", group.map { it.until }))
+                            update.executeUpdate()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** One statement by the version key, the refs given as arrays; none of a type whose table does not exist. */
+    override suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>> {
+        val type = refs.firstOrNull()?.type ?: return emptyMap()
+        require(refs.all { it.type == type }) { "The histories of one read are of one aggregate type." }
+        val streams = dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                val table = existing(connection, type) ?: return@autoCommitted emptyList()
+                connection.prepareStatement(table.histories).use { query ->
+                    query.setArray(1, connection.createArrayOf("text", refs.map { it.id }.toTypedArray()))
+                    query.setArray(2, connection.createArrayOf("text", refs.map { it.tenantId }.toTypedArray()))
+                    query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+                }
+            }
+        }
+        return streams.groupBy { it.ref }
     }
 
     /** Whether [type]'s table exists: this log made sure of it, or the registry lists it. */

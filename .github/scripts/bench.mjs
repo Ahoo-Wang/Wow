@@ -227,6 +227,39 @@ export function cpuLayout(definition, total) {
   };
 }
 
+// kind `measure`: a scale check's program in one JVM against one store, one run per entry of the suite's `runs`,
+// through bench.sh's `measure` command. The walk's (AccessWalkBench): the accounts' streams each, the E1 deposits a
+// second under a walk, the warm-up and the measured seconds of the deposits, the walk rates measured live, and the
+// rate that leaves the walk uncapped.
+export const WALK = {
+  streams: 10,
+  rate: 200,
+  warmUp: 10,
+  measure: 40,
+  rates: [500, 1000, 2000],
+  uncapped: 1000000,
+};
+
+/**
+ * The runs of a walk suite: the walk uncapped and without load on the baseline's build and the head's, then live E1
+ * with nothing to walk, at each rate of WALK.rates, and with nothing to walk again; the two runs without a walk are
+ * the A/A band a rate's p99 is held to.
+ */
+function walkRuns(head, base) {
+  const uncapped = { 'wow.access.walk-rate': WALK.uncapped };
+  return [
+    { arm: withProps(base, 'base-uncapped', uncapped), walk: true, rate: 0 },
+    { arm: withProps(head, 'head-uncapped', uncapped), walk: true, rate: 0 },
+    { arm: withProps(head, 'none-1', {}), walk: false, rate: WALK.rate },
+    ...WALK.rates.map(rate => ({
+      arm: withProps(head, `walk-${rate}`, { 'wow.access.walk-rate': rate }),
+      walk: true,
+      rate: WALK.rate,
+    })),
+    { arm: withProps(head, 'none-2', {}), walk: false, rate: WALK.rate },
+  ];
+}
+
 export const SUITES = {
   'e1-mongo-uniform': {
     group: 'ab',
@@ -650,6 +683,21 @@ export const SUITES = {
     distribution: 'uniform',
     arms: [ACCESS_CLAIMS_MONGO, ACCESS_POLICY_MONGO],
     answers: 'E3 on MongoDB, as access-e3-pg.',
+  },
+  'access-walk-pg': {
+    group: 'access',
+    kind: 'measure',
+    program: 'walk',
+    runs: walkRuns(HEAD_PG, BASE_PG),
+    answers:
+      "How fast the access walk stamps a history an import wrote, and what it costs live commands (D390 X-76): on PostgreSQL, the data set's accounts of 10 streams each, appended without attributes on a standby node, walked once it is activated; uncapped and without load on the baseline's build and the head's, then at each walk rate under E1 deposits, against two runs with nothing to walk (their A/A band).",
+  },
+  'access-walk-mongo': {
+    group: 'access',
+    kind: 'measure',
+    program: 'walk',
+    runs: walkRuns(HEAD_MONGO, BASE_MONGO),
+    answers: 'The access walk on MongoDB, as access-walk-pg.',
   },
   'jdk-e1-pg-saturation': {
     group: 'jdk-saturation',
@@ -1141,6 +1189,34 @@ export function anomalies(suite, noise = {}) {
           });
         }
       }
+    }
+    return rows;
+  }
+  if (suite.kind === 'measure') {
+    // A run that failed, a walk that did not complete, and deposits that failed: that run's numbers do not hold.
+    for (const run of suite.runs) {
+      const row = (kind, detail) =>
+        rows.push({
+          suite: labelOf(suite),
+          run: run.name,
+          context: 'measure',
+          kind,
+          detail,
+        });
+      if (run.status === 'failed')
+        row('run failed', 'bench.sh failed; see the job log');
+      if (run.status !== 'ok') continue;
+      if (run.measure.walk && !run.measure.walk.completed)
+        row(
+          'walk not completed',
+          `${num(run.measure.walk.walked ?? 0, 0)} aggregates walked`,
+        );
+      const failed = Object.entries(run.measure.e1?.failed ?? {});
+      if (failed.length > 0)
+        row(
+          'deposits failed',
+          failed.map(([kind, count]) => `${kind} ${count}`).join(', '),
+        );
     }
     return rows;
   }
@@ -2118,6 +2194,11 @@ export const usesBase = name =>
   SUITES[name]?.kind === 'sessions' &&
   SUITES[name].arms.some(arm => arm.install === 'base');
 
+/** Whether a measure suite has a run of the baseline's build: it runs the head's alone without one. */
+export const measuresBase = name =>
+  SUITES[name]?.kind === 'measure' &&
+  SUITES[name].runs.some(run => run.arm.install === 'base');
+
 /**
  * The jobs of a run: the suites that can run (those of group `ab`, and those with an arm of the baseline's build
  * (usesBase), need a baseline commit), the ones skipped and why, and the builds they need, one per side.
@@ -2151,6 +2232,7 @@ export function planMatrix({
     // The baseline build serves the baseline suites, and the component suites when a baseline is given.
     ...((groups.has('ab') && !aa) ||
     (groups.has('component') && baseSha && !aa) ||
+    (runnable.some(measuresBase) && baseSha && !aa) ||
     runnable.some(usesBase)
       ? [{ side: 'base', sha: baseSha }]
       : []),
@@ -2401,7 +2483,10 @@ export function roundOrder(arms, round) {
 export function pairs(suite, mode = CALIBRATED) {
   // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
   // round: each compares in a table of its own.
-  if (['component', 'sessions'].includes(suite.kind) || suite.arms.length < 2)
+  if (
+    ['component', 'sessions', 'measure'].includes(suite.kind) ||
+    suite.arms.length < 2
+  )
     return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
@@ -2641,6 +2726,50 @@ function componentTable(suite) {
               ' · ',
             )} | ${num((c.allocatedBytesPerOp ?? 0) / 1024, 0)} KiB | ${num(c.throughput, 0)}/s | ${ms(c.latencyMs?.p50)} | ${ms(c.latencyMs?.p99)} |`
         : `| ${labelOf(suite)} | ${run.scenario} | ${run.arm} | **${run.status}** | | | | | |`,
+    );
+  }
+  return lines;
+}
+
+/**
+ * A walk suite's runs: the walk's time and rate, and the E1 deposits' latencies under it. A rate is within the A/A band
+ * when its p99 is at most the higher of the two runs with nothing to walk.
+ */
+export function measureTable(suite) {
+  const ok = suite.runs.filter(run => run.status === 'ok');
+  const band = ok
+    .filter(run => run.measure.walks === false)
+    .map(run => run.measure.e1?.latencyMs?.p99)
+    .filter(Number.isFinite);
+  const ceiling = band.length > 1 ? Math.max(...band) : undefined;
+  const lines = [
+    '| Suite | Run | Walk rate | Walk | Aggregates/s | E1/s | p50 | p99 | p99.9 | Failed | Within the A/A band |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const run of suite.runs) {
+    if (run.status !== 'ok') {
+      lines.push(
+        `| ${labelOf(suite)} | ${run.name} | **${run.status}** | | | | | | | | |`,
+      );
+      continue;
+    }
+    const m = run.measure;
+    const walk = m.walk;
+    const latency = m.e1?.latencyMs ?? {};
+    const failed = Object.values(m.e1?.failed ?? {}).reduce(
+      (sum, n) => sum + n,
+      0,
+    );
+    const within =
+      !m.walks || !m.e1
+        ? ''
+        : ceiling === undefined
+          ? 'no band'
+          : latency.p99 <= ceiling
+            ? 'yes'
+            : `**no** (${ms(latency.p99)} > ${ms(ceiling)})`;
+    lines.push(
+      `| ${labelOf(suite)} | ${run.name} | ${m.walks ? (Number(m.walkRate) >= WALK.uncapped ? 'uncapped' : `${num(Number(m.walkRate), 0)}/s`) : 'nothing to walk'} | ${walk ? `${num(walk.seconds, 1)} s${walk.completed ? '' : ' (**not completed**)'}` : ''} | ${walk ? num(walk.aggregatesPerSecond, 0) : ''} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(latency.p99) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${within} |`,
     );
   }
   return lines;
@@ -3048,7 +3177,8 @@ function pairTable(suite, mode) {
 
 /** What a suite's runs started from: primed or not, and whether its accounts fit the node's state cache. */
 function primingLines(suite) {
-  if (!suite.accounts || suite.kind === 'component') return [];
+  if (!suite.accounts || ['component', 'measure'].includes(suite.kind))
+    return [];
   const runs = [...(suite.runs ?? []), ...(suite.probes ?? [])];
   const seconds = range(runs.map(run => run.metrics?.primeSeconds));
   const settled = range(runs.map(run => run.metrics?.settleSeconds));
@@ -3141,6 +3271,7 @@ export function renderSuite(suite) {
   if (suite.kind === 'steps') lines.push(...cliffTable(suite), '');
   if (suite.kind === 'capacity') lines.push(...capacityTable(suite), '');
   if (suite.kind === 'component') lines.push(...componentTable(suite), '');
+  if (suite.kind === 'measure') lines.push(...measureTable(suite), '');
   for (const run of suite.profiles ?? []) {
     lines.push(`Profile of ${run.arm} (${run.name}, not a timed round):`, '');
     for (const [view, text] of Object.entries(run.profile ?? {})) {
@@ -3176,7 +3307,7 @@ export function renderSuite(suite) {
       );
     }
   }
-  if (suite.kind !== 'component' && !suite.saturations)
+  if (!['component', 'measure'].includes(suite.kind) && !suite.saturations)
     lines.push(...runTable(suite.runs), '');
   const mixed = suite.runs.filter(run => run.metrics?.byScenario);
   if (mixed.length > 0) {
@@ -3903,6 +4034,51 @@ export function runSuite(name, options) {
         suite.runs.push(run);
         save();
       }
+    }
+  } else if (definition.kind === 'measure') {
+    for (const spec of definition.runs) {
+      const runName = spec.arm.id;
+      const run = { name: runName, arm: spec.arm.id, status: 'failed' };
+      if (spec.arm.install === 'base' && !installs.base) {
+        // No baseline given: the head's runs alone.
+        run.status = 'unavailable';
+        suite.runs.push(run);
+        save();
+        continue;
+      }
+      const dir = join(out, runName);
+      const status = bench(
+        benchPath,
+        [
+          'measure',
+          `--backend=${spec.arm.backend}`,
+          ...(installs[spec.arm.install]
+            ? [`--install=${installs[spec.arm.install]}`]
+            : []),
+          `--program=${definition.program}`,
+          `--aggregates=${data.accounts}`,
+          `--streams=${WALK.streams}`,
+          `--walk=${spec.walk ? 'yes' : 'none'}`,
+          `--rate=${spec.rate}`,
+          `--warm-up=${WALK.warmUp}`,
+          `--measure=${WALK.measure}`,
+          ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+          `--out=${dir}`,
+        ],
+        spec.arm.props,
+      );
+      const file = join(dir, 'measure.json');
+      if (status === 0 && existsSync(file)) {
+        run.status = 'ok';
+        run.measure = readJson(file);
+      } else if (status === 3) {
+        // A build older than the program: nothing to compare, not a failure.
+        run.status = 'unavailable';
+      } else {
+        suite.failures++;
+      }
+      suite.runs.push(run);
+      save();
     }
   } else if (definition.kind === 'capacity') {
     suite.probes = [];
@@ -4673,7 +4849,8 @@ if (
         // The component suites take a baseline when there is one, and run the head alone otherwise.
         'needs-base':
           ((groups.has('ab') || groups.has('component')) && !inputs.aa) ||
-          inputs.suites.some(usesBase),
+          inputs.suites.some(usesBase) ||
+          (inputs.suites.some(measuresBase) && !inputs.aa),
       });
     } else if (command === 'matrix') {
       const plan = planMatrix({
