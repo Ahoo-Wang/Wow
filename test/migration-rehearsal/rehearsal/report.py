@@ -268,6 +268,43 @@ if "timing-job-1" in by_name:
         run("timing-port-forward", "On the runner, through kubectl port-forward"),
     ]
 
+def walk(name, since):
+    aggregates = data(name).get("aggregates", "?")
+    return f"{seconds(name)} from {since}, {aggregates} orders stamped"
+
+
+def access(name):
+    read = data(name)
+    return (
+        f"a caller of region {read.get('region', '?')} of tenant {read.get('tenant', '?')} read {read.get('visible', '?')} "
+        f"of {read.get('sampled', '?')} sampled orders ({read.get('streams', '?')} streams), "
+        f"{read.get('wrongStates', '?')} wrong state reads, {read.get('wrongStreams', '?')} wrong stream counts, "
+        f"{read.get('leaked', '?')} of {read.get('listed', '?')} listed streams of another region"
+    )
+
+
+def differs(name, pattern):
+    return sum(1 for line in log_lines(name, r"^DIFFERS ") if re.search(pattern, line))
+
+
+ACCESS = r"\$access\."
+APPLIED = r"\$access\.(region|teams)"
+TAG_LINES = "; ".join(log_lines("check", r"9\.x tag key")[:4]) or "no tag warning"
+lines += [
+    "",
+    "## Access attributes (D390 F)",
+    "",
+    f"- 9.x tags: {seed.get('tags', '?')} tags streams in the seed (a region, teams; some tagged again or cleared); "
+    f"the order's tag keys mapped to region, teams, and the derived country and province.",
+    f"- Check: {TAG_LINES}",
+    f"- Compare: offline {differs('offline-compare', ACCESS)} instances with an $access difference "
+    f"({differs('offline-compare', APPLIED)} on an applied attribute), online "
+    f"{differs('compare', ACCESS)} ({differs('compare', APPLIED)} applied).",
+    f"- Access walk: offline {walk('offline-access-walk', 'the start')}; online {walk('access-walk', 'the activation')}.",
+    f"- Under the policy, offline: {access('offline-access')}.",
+    f"- Under the policy, online: {access('access')}.",
+]
+
 views = data("seed-views")
 lines += [
     "",

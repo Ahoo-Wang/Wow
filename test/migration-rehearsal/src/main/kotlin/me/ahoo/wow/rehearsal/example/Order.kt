@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.rehearsal.example
 
+import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
@@ -38,6 +39,26 @@ class OrderState {
     /** What remains to pay. */
     val payable: BigDecimal
         get() = totalAmount.minus(paidAmount)
+
+    /** The region the order is tagged with, its 9.x `region` tag: the access policy's (RehearsalServer). */
+    @Access
+    var region: String? = null
+        private set
+
+    /** The teams the order is tagged with, its 9.x `team` tag. */
+    @Access
+    var teams: Set<String> = emptySet()
+        private set
+
+    /** The country it ships to, which 9.x's tags extractor derived as `address-country`. */
+    @Access
+    val country: String?
+        get() = address?.country
+
+    /** The province it ships to, which 9.x's tags extractor derived as `address-province`. */
+    @Access
+    val province: String?
+        get() = address?.province
 
     fun onSourcing(event: OrderCreated) {
         items = event.items
@@ -65,6 +86,11 @@ class OrderState {
     @Suppress("UnusedParameter")
     fun onSourcing(event: OrderReceived) {
         status = OrderStatus.RECEIVED
+    }
+
+    fun onSourcing(event: OrderTagged) {
+        region = event.region
+        teams = event.teams
     }
 }
 
@@ -109,6 +135,10 @@ class Order(private val state: OrderState) {
     fun onCommand(command: ReceiptOrder): Decision = whenStatus(OrderStatus.SHIPPED, "be received") {
         Decision.events(OrderReceived())
     }
+
+    /** Any order may be tagged again, as 9.x's lifecycle command tagged it. */
+    @OnCommand(produces = [OrderTagged::class])
+    fun onCommand(command: TagOrder): Decision = Decision.events(OrderTagged(command.region, command.teams))
 
     private inline fun whenStatus(required: OrderStatus, action: String, decide: () -> Decision): Decision =
         if (state.status == required) {

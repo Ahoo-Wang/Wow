@@ -17,19 +17,23 @@
 # service (context view-store, platform/view-store), both on one PostgreSQL database. Every step is timed into
 # $WORK/steps.jsonl; report.py renders $WORK/report.md.
 #
-#   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, VIEWS views (saved,
-#                renamed, shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the
-#                9.x compensation service's database with unresolved CartSaga executions
+#   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, half the orders tagged
+#                (9.x's tags command: a region, teams, some tagged again or cleared), VIEWS views (saved, renamed,
+#                shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the 9.x
+#                compensation service's database with unresolved CartSaga executions
 #   1b. offline  the offline cut-over, into its own database (offline): 9.x stops (the write stop starts), import,
 #                compare and snapshot, and the V10 hosts start and serve (the write stop ends); their
-#                sampled states equal 9.x's before it stopped. They stop and 9.x starts again for the online cut-over
+#                sampled states equal 9.x's before it stopped. Once the access walk has stamped the imported orders, a
+#                caller of one region reads that region's orders alone, states and events (driver access). They stop
+#                and 9.x starts again for the online cut-over
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL (database example)
 #   3. dual-run  the V10 hosts start on standby (wow.node.standby): they serve reads and refuse commands while 9.x keeps
 #                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
 #                or import --restart with FINAL_PASS=restart), compare and snapshot; the operator
-#                activates the V10 hosts on their internal ports, and they serve writes (the write stop ends)
+#                activates the V10 hosts on their internal ports, and they serve writes (the write stop ends); the
+#                access walk then stamps the imported orders, and a caller of one region reads its orders alone
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states (orders, views) equal V10's; then the cut-over again
 #   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed; every user's preferences and every
@@ -141,10 +145,13 @@ step() {
 }
 
 # The kinds of difference compare may report, by aggregate, each explained and signed off (design 07 §3 step 4):
+# - example-service.order:$access.province: 9.x merged the tags its extractor derived into the ones it kept, so an
+#   order whose address changed after its last tags kept its former province among them; V10's province attribute
+#   is the current one (D390 F). An intended change: the check warns of those snapshots.
 # - view-store.dataset_wording:@deleted, every difference of a wording 9.x deleted: 9.x's ClearDatasetWording was a
 #   DeleteAggregate, which kept the wording's last values and let it never be set again; V10 clears it
 #   (DatasetWordingCleared, mapped from the 9.x deletion), keeps it, and sets it again. An intended change.
-EXPLAINED_KINDS="${EXPLAINED_KINDS:-view-store.dataset_wording:@deleted}"
+EXPLAINED_KINDS="${EXPLAINED_KINDS:-example-service.order:\$access.province view-store.dataset_wording:@deleted}"
 
 # compared NAME CMD…: a comparison that passes, or whose every DIFFERS line differs only in what EXPLAINED_KINDS
 # explains for its aggregate: a field (aggregate:field), or anything of an instance 9.x deleted (aggregate:@deleted).
@@ -314,6 +321,28 @@ standby_refuses() {
   printf '{"refused":%s}\n' "$code"
 }
 
+# v10_lines: how many lines the rehearsal host has logged, so a wait reads what it logs after.
+v10_lines() { if [ -f "$WORK/v10.out" ]; then wc -l <"$WORK/v10.out" | tr -d ' '; else echo 0; fi; }
+
+# access_walked NAME FROM_MS FROM_LINE: waits until the rehearsal host logs, after line FROM_LINE, that the access walk
+# of example.order is completed (wow.access.walk.pending 0, D390 C), and records NAME from FROM_MS, when the host
+# started or was activated, with the aggregates it stamped.
+access_walked() {
+  local name="$1" from_ms="$2" from_line="$3" line=""
+  for _ in $(seq 1 900); do
+    line="$(tail -n "+$((from_line + 1))" "$WORK/v10.out" | grep -m1 'The access walk of example.order is completed' || true)"
+    [ -n "$line" ] && break
+    sleep 1
+  done
+  if [ -z "$line" ]; then
+    record "$name" "$from_ms" 1
+    log "the access walk of example.order did not complete; the host's log:"
+    tail -40 "$WORK/v10.out" >&2
+    exit 1
+  fi
+  record "$name" "$from_ms" 0 "{\"aggregates\":$(sed -E 's/.*completed: ([0-9]+) aggregates.*/\1/' <<<"$line")}"
+}
+
 stop_pid() {
   local file="$WORK/$1.pid"
   [ -f "$file" ] || return 0
@@ -427,8 +456,13 @@ stop_pid ninex
 step offline-import 0 migrate import
 compared offline-compare migrate compare
 step offline-snapshot 0 migrate snapshot
+offline_hosts="$(now_ms)"
+offline_lines="$(v10_lines)"
 step offline-start 0 start_hosts
 record offline-write-stop "$offline_started" 0
+# The access walk stamps the imported orders after the start; a region's caller then reads its orders alone.
+access_walked offline-access-walk "$offline_hosts" "$offline_lines"
+step offline-access 0 driver access --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE"
 step offline-v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-offline.json"
 step offline-states-compare 0 driver compare "$WORK/v10-offline.json" "$WORK/9x-offline.json"
 step offline-v10-views-states 0 driver views states --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/v10-views-offline.json"
@@ -461,8 +495,13 @@ stop_pid ninex
 step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
+activated="$(now_ms)"
+activated_lines="$(v10_lines)"
 step activate 0 activate_hosts
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
+# A standby node runs no access walk: it starts at the activation, after the write stop, before traffic switches.
+access_walked access-walk "$activated" "$activated_lines"
+step access 0 driver access --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"
 step v10-views-states 0 driver views states --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/v10-views-cutover.json"
 
