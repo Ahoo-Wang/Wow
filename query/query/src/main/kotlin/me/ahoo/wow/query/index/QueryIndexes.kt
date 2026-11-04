@@ -13,14 +13,16 @@
 
 package me.ahoo.wow.query.index
 
+import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /**
- * One `x-wow-index` entry of an aggregate's state schema, or the index of one of its access attributes ([accessOf]):
- * its name and its keys, logical paths. Each snapshot query backend plans its own index from it.
+ * One `x-wow-index` entry of an aggregate's state schema, or the index of one of its access attributes ([accessOf],
+ * [BUILT_IN_ACCESS]): its name and its keys, logical paths. Each query backend plans its own index from it, on its
+ * snapshots or, for the access attributes, its log.
  */
 class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {
     init {
@@ -34,6 +36,16 @@ class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val ke
 
         /** The prefix of the name of an access attribute's index ([accessOf]). */
         const val ACCESS_PREFIX: String = "access_"
+
+        /**
+         * The indexes of the built-in access attributes, `owner` and `space`, keyed by their paths: the `events` model
+         * holds them in `access` (a snapshot has them as columns, indexed with its scope), and a log indexes them
+         * apart from the declared ones, on the streams that have them.
+         */
+        @JvmField
+        val BUILT_IN_ACCESS: List<QueryIndexDeclaration> = AccessAttribute.BUILT_IN.map { name ->
+            QueryIndexDeclaration(ACCESS_PREFIX + name, listOf("${SnapshotFields.ACCESS}.$name"))
+        }
 
         /**
          * One index for each access attribute [aggregate] in [context] declares in [manifest], named [ACCESS_PREFIX] and

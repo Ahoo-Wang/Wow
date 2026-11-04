@@ -165,6 +165,7 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueryOptions` | class | `wow-query` |
 

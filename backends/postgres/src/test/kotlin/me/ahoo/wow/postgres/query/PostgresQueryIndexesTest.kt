@@ -13,13 +13,25 @@
 
 package me.ahoo.wow.postgres.query
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.manifest.AccessAttributeManifest
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.index.QueryIndexPlan
+import me.ahoo.wow.query.schema.EventsQuerySchemas
+import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
@@ -42,6 +54,62 @@ class PostgresQueryIndexesTest {
         index.ddl.assert().isEqualTo(
             "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_snapshot__shop__order_ix_order_state_name\" ON \"wow_snapshot__shop__order\" " +
                 "(tenant_id, ($name) NULLS FIRST, owner_id NULLS FIRST, ($amount) NULLS FIRST) WHERE NOT deleted",
+        )
+    }
+
+    /** The `events` model of `shop.order`, whose Manifest declares a single and a multiple access attribute. */
+    private val events: QueryModelSchema by lazy {
+        val type = AggregateType("shop", "order")
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            "order",
+                            state = StateManifest(Manifest.schemaRef("shop.OrderState")),
+                            access = listOf(
+                                AccessAttributeManifest("region", AccessAttributeManifest.Type.STRING),
+                                AccessAttributeManifest("teams", AccessAttributeManifest.Type.STRING, multiple = true),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            defs = mapOf("shop.OrderState" to mapOf("type" to "object")),
+        )
+        runBlocking {
+            QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
+                .compile(QuerySchemaContext(type, QueryModel.EVENTS), PostgresEventStorageAdapter)
+                .schema()
+        }
+    }
+
+    @Test
+    fun `a log indexes each access attribute as its events are compiled, partial on the attribute holding a value`() {
+        val declarations = QueryIndexDeclaration.BUILT_IN_ACCESS +
+            listOf("region", "teams").map { QueryIndexDeclaration("access_$it", listOf("access.$it")) }
+        val indexes = PostgresQueryIndexes.planLog("shop", "order", QueryIndexPlan.of(events, declarations))
+        val log = "\"wow_log__shop__order\""
+        fun value(name: String) = PostgresEventQueryExpressions.value(
+            QueryField("access.$name"),
+            PostgresQueryType.TEXT
+        )
+        indexes.map { it.name }.assert().containsExactly(
+            "wow_log__shop__order_access_owner",
+            "wow_log__shop__order_access_space",
+            "wow_log__shop__order_access_region",
+            "wow_log__shop__order_access_teams",
+        )
+        indexes.forEach { it.table.assert().isEqualTo(log) }
+        indexes.first().ddl.assert().isEqualTo(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_log__shop__order_access_owner\" ON $log " +
+                "(tenant_id, (${value("owner")}) NULLS FIRST) WHERE (${value("owner")}) IS NOT NULL",
+        )
+        val teams = PostgresEventQueryExpressions.node(QueryField("access.teams"))
+        indexes.last().ddl.assert().isEqualTo(
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"wow_log__shop__order_access_teams\" ON $log " +
+                "USING gin ($teams jsonb_path_ops) WHERE $teams IS NOT NULL",
         )
     }
 

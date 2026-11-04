@@ -47,6 +47,8 @@ import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueries
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -184,8 +186,14 @@ class QueryAutoConfiguration {
                 }
             }
             val storeOf = { type: AggregateType -> configured[type] ?: layout?.logStoreOf(type) }
+            val indexed = { type: AggregateType ->
+                (storeOf(type)?.let(byStore::get) as? EventQueries)?.takeIf { it.managesIndexes }
+            }
             val backend = EventQueryBackend(
                 store = { type -> storeOf(type)?.takeIf { byStore[it] != null } },
+                prepare = { type -> indexed(type)?.prepare(type) },
+                indexes = { type, plan -> indexed(type)?.manageIndexes(type, plan) ?: QueryIndexReport.NONE },
+                manages = { type -> indexed(type) != null },
             ) { type -> storeOf(type)?.let(byStore::get)?.binding(type) }
             val unserved = ManifestTypes.events(manifest, node.contexts.keys)
                 .filter { backend.binding(it) == null }
@@ -495,12 +503,15 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             wow: ObjectProvider<WowProperties>,
             backend: SnapshotQueryBackend,
+            events: EventQueryBackend,
             catalog: QuerySchemaCatalog,
         ): QueryIndexesLifecycle = QueryIndexesLifecycle(
             manifest,
             ManifestTypes.snapshots(manifest, node.contexts.keys),
             backend,
             catalog,
+            events,
+            ManifestTypes.events(manifest, node.contexts.keys),
         ) { store ->
             store?.takeIf { wow.ifAvailable?.stores?.get(it)?.ddl != null }?.let { "wow.stores.$it.ddl" } ?: "wow.ddl"
         }

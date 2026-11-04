@@ -43,6 +43,22 @@ class MongoQueryIndexesTest {
     }
 
     @Test
+    fun `a log's index leads with the tenant over the streams, a multi-valued key alone`() {
+        fun planLog(vararg declarations: QueryIndexDeclaration) =
+            MongoQueryIndexes.planLog("shop", "order", QueryIndexPlan.of(schema, declarations.toList()))
+        planLog(QueryIndexDeclaration("access_keywords", listOf("state.keywords"))).single().let { index ->
+            index.collection.assert().isEqualTo("wow_log__shop__order")
+            index.toString().assert().isEqualTo(
+                """wow_log__shop__order.access_keywords {"tenant_id": 1, "state.keywords": 1} """ +
+                    """partialFilterExpression {"version": {"${'$'}exists": true}}""",
+            )
+        }
+        assertThrownBy<IllegalArgumentException> {
+            planLog(QueryIndexDeclaration("ix", listOf("state.keywords", "state.scores")))
+        }
+    }
+
+    @Test
     fun `a key or a name the collection cannot take is refused`() {
         fun refuses(vararg declarations: QueryIndexDeclaration) =
             assertThrownBy<IllegalArgumentException> { plan(*declarations) }

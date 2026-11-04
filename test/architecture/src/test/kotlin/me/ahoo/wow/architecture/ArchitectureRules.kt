@@ -470,7 +470,7 @@ object ArchitectureRules {
         "policy.QueryPolicy", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
-        "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries",
+        "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
         "store.DatasetQueryLimits", "admission.QueryBulkhead", "admission.AdaptiveQueryLimit", "admission.AdaptiveQueryLimits", "admission.AdaptiveLimitOptions",
         "backend.QueryBackend", "backend.QueryBindings", "backend.QueryBackendBinding", "events.UnpinnedEvents",

@@ -14,12 +14,13 @@
 package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.PostgresStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
-import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.index.QueryIndexPlan
+import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueries
@@ -38,12 +39,31 @@ import javax.sql.DataSource
 internal class PostgresQueries(private val store: PostgresStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries = PostgresSnapshotQueries(store, options)
 
-    override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> {
-        val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
-        return QueryBindings { type ->
-            storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(store.queryDataSource, it) }
-                .binding(type)
-        }
+    override fun events(options: StoreQueryOptions): EventQueries = PostgresEventQueries(store, options)
+}
+
+/**
+ * The `events` queries of a PostgreSQL store: each context's log tables in place, read through the query DataSource,
+ * and the indexes of their access attributes ([PostgresQueryIndexes.planLog]), created through the store's own.
+ */
+private class PostgresEventQueries(private val store: PostgresStore, options: StoreQueryOptions) : EventQueries {
+    private val indexDdl = options.indexDdl
+    private val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
+
+    override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend>? =
+        storages.computeIfAbsent(key.context) { PostgresEventQueryStorage(store.queryDataSource, it) }.binding(key)
+
+    override val managesIndexes: Boolean get() = true
+
+    // The table is created on an aggregate type's first append; an index needs it now.
+    override fun prepare(type: AggregateType) {
+        (store.openedLog(type.context) as? PostgresEventLog)?.createTable(type.name)
+    }
+
+    override fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport {
+        val indexes = PostgresQueryIndexes.planLog(type.context, type.name, plan)
+        val report = PostgresQueryIndexes.manage(store.dataSource, indexDdl, indexes)
+        return QueryIndexReport(report.created, report.missing, report.invalid)
     }
 }
 

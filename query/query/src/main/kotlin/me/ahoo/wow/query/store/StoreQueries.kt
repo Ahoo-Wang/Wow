@@ -36,7 +36,10 @@ interface StoreQueries {
     /** The snapshot queries of the store, opened with [options], or null when its snapshots are not queried. */
     fun snapshots(options: StoreQueryOptions): SnapshotQueries? = null
 
-    /** The `events` queries of the store's logs, opened with [options], or null when they are not queried. */
+    /**
+     * The `events` queries of the store's logs, opened with [options], or null when they are not queried. When they
+     * are [EventQueries], the host manages the indexes of the logs' access attributes too.
+     */
     fun events(options: StoreQueryOptions): QueryBindings<AggregateType>? = null
 }
 
@@ -97,6 +100,28 @@ interface SnapshotQueries : QueryBindings<AggregateType> {
     /**
      * Manages [plan], [type]'s indexes as the core planned them on its query model, as [StoreQueryOptions.indexDdl]
      * says: creates the missing ones under `auto`, reports them under `validate`.
+     */
+    fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport = QueryIndexReport.NONE
+}
+
+/**
+ * The `events` queries of one store's logs ([StoreQueries.events]): the [binding] of each aggregate type's backend
+ * over its log and, for a backend that manages the indexes of the log's access attributes, how it [prepare]s an
+ * aggregate's log and [manageIndexes] them at startup: each attribute the aggregate declares and the built-in owner
+ * and space ([me.ahoo.wow.query.index.QueryIndexDeclaration.BUILT_IN_ACCESS]), so a query under an access policy is
+ * served by an index rather than a scan of the log.
+ */
+@WowSpi
+interface EventQueries : QueryBindings<AggregateType> {
+    /** Whether it manages the indexes ([manageIndexes]). */
+    val managesIndexes: Boolean get() = false
+
+    /** Makes sure [type]'s log exists, so that an index has a table or a collection to be on. */
+    fun prepare(type: AggregateType) = Unit
+
+    /**
+     * Manages [plan], the indexes of [type]'s access attributes as the core planned them on its `events` model, as
+     * [StoreQueryOptions.indexDdl] says: creates the missing ones under `auto`, reports them under `validate`.
      */
     fun manageIndexes(type: AggregateType, plan: QueryIndexPlan): QueryIndexReport = QueryIndexReport.NONE
 }

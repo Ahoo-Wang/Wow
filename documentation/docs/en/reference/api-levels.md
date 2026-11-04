@@ -165,6 +165,7 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.SnapshotQueries` | interface | `wow-query` |
+| `me.ahoo.wow.query.store.EventQueries` | interface | `wow-query` |
 | `me.ahoo.wow.query.store.QueryIndexReport` | class | `wow-query` |
 | `me.ahoo.wow.query.store.StoreQueryOptions` | class | `wow-query` |
 
