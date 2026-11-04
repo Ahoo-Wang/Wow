@@ -121,12 +121,15 @@ describe('Manifest clients', () => {
       }),
       `import { ThingSnapshotQueryClient, ThingEventQueryClient, ThingStateClient, type ThingAccess } from './out/index.js';
        import { filter } from '@ahoo-wang/wow-client/dsl';
+       import type { Snapshot } from '@ahoo-wang/wow-client';
        const access: ThingAccess = { region: null, teams: ['a'], level: '9007199254740993', grades: ['1'], open: true };
        const snapshots = new ThingSnapshotQueryClient();
        const streams = new ThingEventQueryClient();
        const read = async () => (await new ThingStateClient().get('t1')).access.level;
+       // A typed record is also an untyped one.
+       const untyped = async (): Promise<Snapshot<unknown>> => new ThingStateClient().get('t1');
        void [
-         access, read,
+         access, read, untyped,
          snapshots.list({ filter: filter.eq('access.region', 'east') }),
          streams.list({ filter: filter.and([filter.eq('access.owner', 'o'), filter.eq('access.level', '1')]) }),
          // @ts-expect-error the thing declares no such attribute
@@ -136,13 +139,13 @@ describe('Manifest clients', () => {
     const aggregate = read('probe/thing/aggregate.ts');
     expect(aggregate).toContain(
       [
-        'export interface ThingAccess {',
+        'export type ThingAccess = {',
         '  readonly region?: string | null;',
         '  readonly teams?: readonly string[];',
         '  readonly level?: string | null;',
         '  readonly grades?: readonly string[];',
         '  readonly open?: boolean | null;',
-        '}',
+        '};',
       ].join('\n'),
     );
     expect(aggregate).toContain(

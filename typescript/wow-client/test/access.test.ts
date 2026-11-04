@@ -32,11 +32,11 @@ interface Document {
   title: string;
 }
 
-/** A document's access attributes, as wow-generator writes an `<Aggregate>Access`. */
-interface DocumentAccess {
+/** A document's access attributes, as wow-generator writes an `<Aggregate>Access`: a type alias. */
+type DocumentAccess = {
   readonly region?: string | null;
   readonly teams?: readonly string[];
-}
+};
 
 declare const documents: SnapshotQueryClient<
   Document,
@@ -65,6 +65,13 @@ describe('access attributes in the clients (D390)', () => {
       'access.region' | 'access.teams'
     >();
     expectTypeOf<AccessField<NoAccess>>().toBeNever();
+    // A typed record is also an untyped one.
+    expectTypeOf<Snapshot<Document, DocumentAccess>>().toExtend<
+      Snapshot<Document>
+    >();
+    expectTypeOf<EventStream<CommittedEvent, DocumentAccess>>().toExtend<
+      EventStream<CommittedEvent>
+    >();
     expectTypeOf(() => states.get('d1'))
       .returns.resolves.toHaveProperty('access')
       .toEqualTypeOf<DocumentAccess>();

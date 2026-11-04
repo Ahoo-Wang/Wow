@@ -748,7 +748,9 @@ function emitCommandClient(
 
 /**
  * The `<Aggregate>Access` type of an aggregate: its access attributes by name
- * as its records carry them, or `NoAccess` when it declares none.
+ * as its records carry them, or `NoAccess` when it declares none. A type
+ * alias, not an interface: an object type alias has an implicit index
+ * signature, so a record typed by it is also the untyped `Snapshot<S>`.
  */
 function emitAccess(aggregate: AggregateModel, module: ModuleBuilder): void {
   const name = aggregate.typeName;
@@ -774,7 +776,7 @@ function emitAccess(aggregate: AggregateModel, module: ModuleBuilder): void {
     module,
     `${doc([
       `The access attributes of ${subject} (\`@Access\`) by name, as its records carry them: a single one's value or null, a multiple one's values. A record written before an attribute was declared lacks it.`,
-    ])}export interface ${name}Access {\n${members.join('\n')}\n}`,
+    ])}export type ${name}Access = {\n${members.join('\n')}\n};`,
   );
 }
 
