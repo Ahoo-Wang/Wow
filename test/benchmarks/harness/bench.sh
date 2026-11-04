@@ -47,7 +47,8 @@
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
 #          --dump-every=<s> (saturate, a diagnostic: every <s> seconds of the sweep, each server's threads and the store's
 #          sessions into $OUT/dumps), --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
-#          a baseline keeps the disk), --mongo-cache-gb=2 (MongoDB's WiredTiger cache),
+#          a baseline keeps the disk), --store-write-iops=<n> (a diagnostic: the store's disk writes capped at <n> a second,
+#          compose.write-iops.yml, Linux), --mongo-cache-gb=2 (MongoDB's WiredTiger cache),
 #          and any other --name=value of the load generator's run or saturate, passed through (`saturate --growth=4`
 #          steps the concurrency 1, 4, 16, 64, 256, 1024: six steps for a sweep to 1,024 instead of eleven).
 
@@ -74,7 +75,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,53p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -108,9 +109,26 @@ uses_bus() { [ "$(opt no-bus false)" != true ]; }
 stores_up() {
   local files=(-f "$HARNESS/compose.yml")
   if [ "$(opt tmpfs false)" = true ]; then files+=(-f "$HARNESS/compose.tmpfs.yml"); fi
+  local iops; iops=$(opt store-write-iops "")
+  if [ -n "$iops" ]; then
+    files+=(-f "$HARNESS/compose.write-iops.yml")
+    export WOW_BENCH_STORE_WRITE_IOPS="$iops" WOW_BENCH_STORE_DEVICE
+    WOW_BENCH_STORE_DEVICE=$(volume_disk) || exit 2
+    log "the store's writes capped at $iops a second on $WOW_BENCH_STORE_DEVICE"
+  fi
   local services=("$1")
   if uses_bus; then services=(kafka "$1"); fi
   WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait "${services[@]}" >/dev/null
+}
+
+# The whole disk under Docker's volumes, as /dev/<disk>: cgroup v2 caps a disk, not a partition (--store-write-iops).
+volume_disk() {
+  local source disk
+  source=$(findmnt -no SOURCE --target "$(docker info --format '{{.DockerRootDir}}')" 2>/dev/null) || true
+  disk=$(lsblk -no PKNAME "$source" 2>/dev/null | head -1)
+  if [ -z "$disk" ]; then disk=$(basename "$source"); fi
+  if [ ! -b "/dev/$disk" ]; then log "--store-write-iops: no disk found under Docker's volumes ($source)"; exit 2; fi
+  echo "/dev/$disk"
 }
 
 # What the load generator samples of the containers beside the servers (its --containers and --kafka): the store's
@@ -162,7 +180,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --mongo-cache-gb --sql --dump-every " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --server-java --no-bus --seed-concurrency --load-cpus --server-cpus --store-cpus --bus-cpus --prime --reuse --tmpfs --store-write-iops --mongo-cache-gb --sql --dump-every " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -346,7 +364,8 @@ setup() {
   load_jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
   local stores=$store
   if uses_bus; then stores="kafka $store"; fi
-  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=$stores;primed=$primed"
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;loadJvm=$load_jvm;stores=$stores"
+  META="$META;storeWriteIops=$(opt store-write-iops "");primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
   META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
   if [ "$UP" = true ]; then

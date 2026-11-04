@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.manifest.AccessAttributeManifest
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 
@@ -109,6 +110,9 @@ internal class AggregatePlan(
      */
     fun commandTypeOf(name: String?): String? =
         if (name == null) mapping.defaultCommand?.let(::fullName) else commands[name]
+
+    /** The V10 aggregate's access attribute [name], by its Manifest entry; null when it declares none of that name. */
+    fun accessOf(name: String): AccessAttributeManifest? = manifest?.access?.firstOrNull { it.name == name }
 
     /** The full V10 name of a command or event the map names [name]: a simple name is in [target]'s namespace. */
     fun fullName(name: String): String = if ('.' in name) name else "$target.$name"

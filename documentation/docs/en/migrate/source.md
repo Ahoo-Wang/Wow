@@ -67,7 +67,7 @@ The package stays `me.ahoo.wow.api.annotation`, so kept names need no new import
 | `@CommandRoute(enabled = false)` | It depends on who sent the command. Only the platform (sagas, timers, the in-process gateway, other services on the internal port): `@InternalCommand` on the command class, and the public port serves no route of it ([Keep a command internal](../guide/aggregates#keep-a-command-internal)). A hand-written user route of the 9.x service: the command stays public on its generated route ([Routes, tenancy and ownership](#routes-tenancy-and-ownership)) |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`; owner and space come from the caller. `OwnerPolicy.AGGREGATE_ID` is `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject` | Removed |
-| none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Tags` |
+| none | `@ErrorCode` on a rejection code, `@Alias` for a later rename, `@QueryIndex`, `@Access` |
 
 ## What a command body holds
 
@@ -154,7 +154,7 @@ A rejection carries a code and a message: 9.x `bindingErrors` go into the messag
 
 - **Names.** A V10 event is `<context>.<aggregate>.<Name>`; 9.x used snake case (`order_created`). Do not keep the 9.x spelling with `@Name`: map it in the migration map.
 - **Revisions.** An event whose V10 shape differs from what 9.x stored (an identity field removed, a computed property dropped) gets a higher `@Revision` and an `@Upgrade` function from revision 1, which a test covers with a real 9.x payload.
-- **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value once the creation event is applied: a `lateinit` its `onSourcing` assigns is fine. A handler 9.x found while private, an `@OnCommand`, `@OnSourcing` or `@OnEvent` function, is a compile error in V10, as a Kotlin `protected` one is: make it `internal`. Only a private function bound by its name alone, without the annotation, is ignored. A 9.x `StateAggregateTagsExtractor` is a `@Tags` member of the state.
+- **State.** `onSourcing` functions are not private, every event a command produces has one, even an empty one, and every property has a value once the creation event is applied: a `lateinit` its `onSourcing` assigns is fine. A handler 9.x found while private, an `@OnCommand`, `@OnSourcing` or `@OnEvent` function, is a compile error in V10, as a Kotlin `protected` one is: make it `internal`. Only a private function bound by its name alone, without the annotation, is ignored. A 9.x `StateAggregateTagsExtractor`, and the tags 9.x applied, become access attributes of the state ([Tags and attribute-based access](#tags-and-attribute-based-access)).
 - **Properties with no setter.** A 9.x state, event or command that holds a collection or map in a `val` it fills as it goes (`val items = sortedSetOf<…>()`, a `MutableList` or `MutableMap` `val`), or a value in a `val` of its body, reads back as 9.x read it: Wow's JSON writes such a property's field (`ALLOW_FINAL_FIELDS_AS_MUTATORS`, which 9.x's JSON turned on too and Jackson 3 leaves off). A computed property, a getter with no field behind it, is written and not read.
 - **Deleted events** are retired: delete the class and its sourcing function, list the stored name in `retiredEvents`, and map it with `"retire": true`.
 - **Wow types in events and state.** A stored `Condition`, `Sort` or `Projection` (a saved filter, say) has no V10 form: the `Condition` protocol is gone, the kernel's JSON has no codec for the query protocol, and its enumerations are lower case now. Store a type of your own, and upgrade the 9.x JSON into it with an `@Upgrade` function and a test. The build refuses an event or a state that still holds a type of the query protocol (`me.ahoo.wow.api.query`), naming the path to each.
@@ -173,7 +173,7 @@ fun onOrderSubmitted(
 ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
-A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A saga that read the tags of 9.x's read-only state aggregate reads `event.tags`, the aggregate's tags after the commit, not the snapshot's. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
+A saga that handled a 9.x `onError` gains an `@OnRejected` handler for a rejected derived command; without one, the rejection parks the aggregate. A saga that read the tags of 9.x's read-only state aggregate reads the access attributes of `event.state`, the state after the commit, not the snapshot's. A processor of another context's events reads that context's published stream, through its `*-api` jar ([Published Streams](../guide/published-streams)).
 
 A periodic job a 9.x service ran in Simba or `@Scheduled` is an `@OnSchedule` handler of a saga, on a cron rule, when it derives commands from what is due; a job that waits for each command's outcome before the next stays outside, sending through the `CommandClient` ([Scheduled Commands](../guide/scheduling)). A 9.x backfill that re-dispatched stored events to one handler is a handler of a new name with `@OnEvent(start = OnEvent.Start.BEGINNING)`, which reads the stream once from its start ([Rebuild and Replay](../operate/replay)).
 
@@ -199,6 +199,39 @@ private suspend fun take(name: String, scope: DecideScope) {
 Routes are derived from the Manifest: `POST /<context>/<aggregate>/<id>/<command>`, no tenant or owner prefixes, no custom actions or methods. A fixed tenant is host configuration, and a 9.x resource kept under one shared owner for a whole tenant is `Ownership.TENANT`, and one whose id is its owner's id (`OwnerPolicy.AGGREGATE_ID`, a user's cart) is `idSource = AggregateIdSource.OWNER`, served by no id as the caller's own, with no ownership check left in its command functions ([One aggregate per owner](../guide/ownership#one-aggregate-per-owner)). Only `wow.lifecycle.TransferOwner` moves an owner: a 9.x event that implemented `OwnerTransferred` becomes a domain event and a saga that derives the transfer. A 9.x starter's own routes are rewritten by what they did, with transformers, snapshot queries and `Decision.NoOp` ([HTTP and TypeScript Clients](./http-and-clients) lists every route and header).
 
 A command with `@CommandRoute(enabled = false)` had no generated route in 9.x, for one of two reasons. Find out which before you port it. If only the service's own processes or other services sent it, mark it `@InternalCommand`. If a hand-written route of the 9.x service sent it on a user's request, it is a user's command, and it stays public: its generated route replaces the hand-written one. A `CommandTransformer` does what the hand-written route worked out, such as an id derived from the caller and the body, and the `Wow-Scope` header names another scope the caller may act in. The 9.x view store's `SetViewPreferences`, `SetDatasetWording`, `ClearDatasetWording` and `ClaimView` are of the second kind. Hand-written routes sent them, so they stay public in 10. The first three go on their generated routes, and transformers derive their ids; `ClaimView` goes with `Wow-Scope` naming the shared owner.
+
+## Tags and attribute-based access
+
+V10 has no tags. What an aggregate's tags said about who may read it becomes its **access attributes**, members of its state marked [`@Access`](../reference/annotations#access), and the service's **access policy** compares them with the caller's claims ([Authorize commands](../operate/security#authorize-commands)).
+
+- **Tags the state derived.** A 9.x `StateAggregateTagsExtractor` becomes one `@Access` member per key: a property, or a function of the state without parameters, of the key's type (a `String`, a number, a `Boolean` or an enum, or a `Set` of them for a key of several values). V10 derives each on every commit, as 9.x derived the tags.
+- **Tags a command applied.** What 9.x's `ApplyResourceTags` set is data: a field of the state marked `@Access`, which a domain command and event of the aggregate's own set (`TagOrder`, `OrderTagged`), so the domain checks who may change it and the log records it. The event's payload names each field as its attribute, and its sourcing function replaces all of them, an absent one with none, as 9.x replaced the whole map. The 9.x route `PUT …/{id}/tags` is that command's route now.
+- **A key both applied and derived** had in 9.x what the extractor returned after each commit, which had the last word: it is an `@Access` function, and the values the tags event set are left out.
+- **A key no policy reads** is left out, with the reason in the map: leaving it out changes who may read the data.
+- **ABAC rules.** 9.x's `abac.*` matching becomes the aggregate's access policy, a bean of its state's type. Each tag key a rule matched is a comparison of its attribute with the caller's claim of that name, and the keys are all of them (`allOf`):
+
+<!-- sample: fragment -->
+
+```kotlin
+@Bean
+fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
+    read { caller ->
+        allOf(
+            OrderStateAccess.REGION isIn caller.claims("region"),
+            OrderStateAccess.TEAMS containsAny caller.claims("teams"),
+        )
+    }
+    write { caller -> OrderStateAccess.OWNER eq caller.subject }
+}
+```
+
+A claim is the caller's principal attribute of the same name, prefix included: an attribute 9.x matched as `abac.region` is the claim `abac.region`, unless the identity provider names it `region`, as this sample assumes. A policy replaces the owner and space check for its aggregate, for reads and commands alike, so restate it where 9.x relied on it, as `write` does here for an aggregate of owners. Three things 9.x allowed by default are denied in V10:
+
+- A caller without `abac.*` attributes read every aggregate. A comparison with a claim the caller does not hold denies: give such callers a rule of their own (`allowIf(caller.hasRole("auditor"))`).
+- An aggregate without a key was public to that key's rule. One without a value of the attribute matches no comparison: say in the policy what is public (`OrderStateAccess.REGION.isNull()` in an `anyOf`, or `allowAll()`).
+- A stream written before 9.x recorded tags was read by every caller. A stream not yet stamped with the access attributes, as every imported stream is until the access walk completes, shows to no caller under a policy ([Migrate the Data](./data#_7-the-access-attributes)).
+
+The migration map maps the 9.x tags event to the domain event with `"tags": true`, and each tag key to its attribute ([The map](../reference/migrate-data#tags)).
 
 ## The migration map
 
@@ -272,7 +305,7 @@ In 9.x, sibling `whenCommand` calls inside one `on { … }` or `givenEvent(…) 
 | `expectStateAggregate { aggregateId }` | The spec's `id` |
 | `expectStateAggregate { version }` | `expectVersion(n)`: the committed version, or the version the aggregate stayed at when the command appended nothing |
 | `expectStateAggregate { deleted }` | `expectDeleted()` |
-| `expectStateAggregate { ownerId; spaceId }`, the tags | `expectScope(scope)`, `expectTags(tags)` |
+| `expectStateAggregate { ownerId; spaceId }`, the tags | `expectScope(scope)`, `expectAccess(attributes)`: the access attributes, by name |
 
 Smaller differences: `expectEvent` and the saga's `expectCommand` now require exactly one, where 9.x took the first match; a command that commits nothing is `expectUnchanged()`.
 

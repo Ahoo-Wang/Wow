@@ -24,9 +24,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.CountedDataSource
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import me.ahoo.wow.postgres.PostgresStore
+import me.ahoo.wow.postgres.PostgresStoreProvider
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.CoveredSnapshots
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
 
@@ -140,6 +144,39 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         )
         counted.since(replay).size.assert().isEqualTo(2)
         store.pending(order, 2, limit = 10).assert().contains(order.ref("tenant", "newer"))
+    }
+
+    @Test
+    fun `a batch should commit without waiting for its flush only where the node covered the store`(): Unit = runBlocking {
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val context = PostgresFixture.newContext()
+        val store = PostgresSnapshotStore(counted.dataSource, context)
+        val type = AggregateType(context, "aggregate")
+        fun batch(version: Int) = (1..3).map { snapshot("s$it", version).copyWith(ref = type.ref("tenant", "s$it")) }
+        store.save(snapshot("warm", 1).copyWith(ref = type.ref("tenant", "warm"))).assert().isTrue()
+        // Opened on its own, or for a context split over stores (its log or checkpoints elsewhere, its snapshots
+        // routed): every batch waits for its flush.
+        val uncovered = counted.begin()
+        store.saveAll(batch(1)).forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+        counted.since(uncovered).none { "synchronous_commit" in it }.assert().isTrue()
+        store.covered = true
+        val covered = counted.begin()
+        store.saveAll(batch(2)).forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+        counted.since(covered).single().assert().startsWith("SET LOCAL synchronous_commit = off; ")
+    }
+
+    @Test
+    fun `the node's cover of a context should reach that context's snapshots alone, opened before or after`() {
+        val store = PostgresStore(StoreConfig("covered", PostgresStoreProvider.TYPE), PostgresFixture.dataSource)
+        val covering = checkNotNull(store.facet(CoveredSnapshots::class.java))
+        val first = PostgresFixture.newContext()
+        val opened = store.snapshots(first) as PostgresSnapshotStore
+        covering.cover(first)
+        opened.covered.assert().isTrue()
+        (store.snapshots(PostgresFixture.newContext()) as PostgresSnapshotStore).covered.assert().isFalse()
+        val later = PostgresFixture.newContext()
+        covering.cover(later)
+        (store.snapshots(later) as PostgresSnapshotStore).covered.assert().isTrue()
     }
 
     @Test

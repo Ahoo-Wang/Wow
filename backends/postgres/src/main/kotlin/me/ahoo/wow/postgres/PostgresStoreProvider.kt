@@ -30,6 +30,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.CoveredSnapshots
 import me.ahoo.wow.spi.store.Opened
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
@@ -124,11 +125,20 @@ internal class PostgresStore(
 
     override val location: Any get() = dataSource
 
-    /** Its pools ([PostgresPool]) and its queries ([PostgresQueries]). */
+    /** Its pools ([PostgresPool]), its queries ([PostgresQueries]) and its covered snapshot writes ([covered]). */
     override fun <F : Any> facet(type: Class<F>): F? = when (type) {
         StorePool::class.java -> type.cast(pool)
         StoreQueries::class.java -> type.cast(queries)
+        CoveredSnapshots::class.java -> type.cast(covering)
         else -> null
+    }
+
+    /** The contexts whose snapshot writes the node covered ([CoveredSnapshots]): their batches commit asynchronously. */
+    private val covered: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    private val covering = CoveredSnapshots { context ->
+        covered += context
+        snapshotStores[context]?.covered = true
     }
 
     override fun openCheckpoints(): Opened<CheckpointStore> =
@@ -170,8 +180,10 @@ internal class PostgresStore(
         ).also { logs[context] = it }.let { Opened.of(it, it::createSchema) }
 
     override fun openSnapshots(context: String): Opened<SnapshotStore> =
-        PostgresSnapshotStore(timed, context, ddl = ddl).also { snapshotStores[context] = it }
-            .let { Opened.of(it, it::createSchema) }
+        PostgresSnapshotStore(timed, context, ddl = ddl).also {
+            it.covered = context in covered
+            snapshotStores[context] = it
+        }.let { Opened.of(it, it::createSchema) }
 
     override fun openTimers(context: String, partitions: Int): Opened<TimerStore> =
         PostgresTimerStore(timed, context, ddl = ddl).let { Opened.of(it, it::createSchema) }

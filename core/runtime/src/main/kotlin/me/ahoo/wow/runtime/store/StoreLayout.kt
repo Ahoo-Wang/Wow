@@ -25,6 +25,7 @@ import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.store.CoveredSnapshots
 import me.ahoo.wow.spi.store.Store
 
 /**
@@ -93,6 +94,9 @@ class StoreLayout(
             placed,
             snapshotDefault,
         )
+        // A context on one store alone, its log, the checkpoints its snapshot subscription saves and every snapshot
+        // target: those checkpoints cover its snapshot writes there (CoveredSnapshots). Split, none is covered.
+        if (groups.isEmpty() && names == setOf(log)) default.facet(CoveredSnapshots::class.java)?.cover(context)
         val backends = ContextBackends(
             log = default.log(context, partitions),
             checkpoints = default.checkpoints,

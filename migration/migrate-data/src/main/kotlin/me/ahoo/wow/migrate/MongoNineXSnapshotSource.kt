@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
+import org.bson.Document
 
 /**
  * The snapshots of a 9.x MongoDB store, read by their storage format (9.x `wow-mongo`'s `MongoSnapshotStore`): one
@@ -63,6 +64,29 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
 
     override fun deleted(aggregate: NineXAggregate): Long = database.getCollection(aggregate.name + SUFFIX)
         .countDocuments(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(DELETED, true)))
+
+    /** One aggregation of [aggregate]'s snapshots: the keys of their `tags`, each with its values' counts. */
+    override fun tags(aggregate: NineXAggregate): Map<String, TagValueStats> = MongoTags.stats(
+        database.getCollection(aggregate.name + SUFFIX).aggregate(
+            listOf(
+                Document("\$match", Document(CONTEXT_NAME, aggregate.context).append(TAGS, Document("\$type", "object"))),
+            ) + MongoTags.counts("\$$TAGS"),
+        ).toList(),
+    )
+
+    /** The instances whose snapshot holds the values, in id order. */
+    override fun tagSamples(
+        aggregate: NineXAggregate,
+        key: String,
+        problem: TagValueProblem,
+        limit: Int
+    ): List<String> {
+        val holding = MongoTags.holding(TAGS, key, problem) ?: return emptyList()
+        return database.getCollection(aggregate.name + SUFFIX).aggregate(
+            listOf(Document("\$match", Document(CONTEXT_NAME, aggregate.context))) + holding +
+                listOf(Document("\$sort", Document(ID, 1)), Document("\$limit", limit)),
+        ).map { it.get(ID).toString() }.toList()
+    }
 
     companion object {
         /** The suffix of a 9.x snapshot collection. */

@@ -7,7 +7,7 @@ description: Move a 9.x service, or an estate of services that depend on each ot
 
 The cut-over moves traffic from a 9.x service to its V10 service. 9.x and V10 never write the same data at once: there is no mixed-version protocol between them, so the cut-over is one write stop, and its length is what you choose between.
 
-- **Offline, the default.** Stop 9.x's writes, import everything, compare, write the snapshots and the tags, start V10. It has the fewest steps and the least that can go wrong.
+- **Offline, the default.** Stop 9.x's writes, import everything, compare, write the snapshots, start V10. It has the fewest steps and the least that can go wrong.
 - **Online, the option for a large system** whose import does not fit a window it can stop for. 9.x keeps serving while the data is imported and followed, V10 waits on standby, and the write stop shrinks to a final pass.
 
 A service that consumes another 9.x service's events, sends it commands, calls its routes or shares api jars with it does not cut over alone: the whole group moves in one window, as [Cut over an estate](#cut-over-an-estate) describes.
@@ -23,7 +23,7 @@ Choose by the rehearsal's measured import time against the stop the business acc
 | Offline | 243.4 s | The full import 98.2 s, compare 23.5 s, snapshots 43.8 s, tags 35.4 s, start of both services 36.3 s |
 | Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, activation of both services 29.3 s |
 
-The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
+Both were measured with the tags backfill V10 no longer has (`tags`): its access walk stamps the imported history after the nodes start or are activated ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
 
 ## Inventory before any write
 

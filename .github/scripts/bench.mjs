@@ -55,6 +55,10 @@ const WOW_NO_BUS = {
   serverArgs: '--wow.transport=none',
   sql: 'test/benchmarks/server/inspect.sql',
 };
+// The same server before and after a change, on one runner (a sessions suite of the two): the baseline's build and
+// the head's (wow-pg-same-rate-ab).
+const WOW_BASE_NO_BUS = { ...WOW_NO_BUS, id: 'base', install: 'base' };
+const WOW_HEAD_NO_BUS = { ...WOW_NO_BUS, id: 'head' };
 const AXON = {
   id: 'axon',
   backend: 'postgres',
@@ -492,6 +496,94 @@ export const SUITES = {
     dumpEvery: 15,
     answers:
       "A diagnostic of Axon's E3 in closed loop: the transfer's reactions nested in the processor's unit of work (axon-server's) against units of work of their own, each sweep's threads and PostgreSQL sessions dumped every 15 s.",
+  },
+  // The same-rate view's latency alone (X-72): in axon-pg on a runner, Wow's p50 at E1 1,000/s and E3 300/s went from
+  // 1 ms to 177 ms second by second and differed by session (17.5 against 3.7 ms), Axon's stayed at 1–4 ms. Each
+  // session runs both rates twice, so its runs compare with each other as well as with the other sessions'. With
+  // `profile`, every server records a flight recording, and each run keeps its servers' recording and PostgreSQL's
+  // statements and checkpoints (bench.sh up --jfr).
+  'axon-pg-same-rate': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_NO_BUS, AXON],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    answers:
+      "A diagnostic of the same-rate view's latency: Wow with no bus and Axon at E1 1,000/s and E3 300/s, each twice a session, nothing else; with profile, every run's flight recording and PostgreSQL's statements.",
+  },
+  // The same on a slower disk: PostgreSQL's writes capped at 1,400 a second (bench.sh --store-write-iops). Each WAL
+  // flush is a write of its page; on a runner whose flushes took 0.15–0.2 ms, Wow flushed about 1,800 times a second
+  // at E1 1,000/s (its append and its snapshot, each a transaction) and Axon about 1,000 (its one write), so the cap
+  // binds one and leaves the other headroom, as the runner of axon-pg's slow sessions did with 0.5–0.7 ms flushes.
+  'axon-pg-same-rate-slow-disk': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_NO_BUS, AXON],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    storeWriteIops: 1400,
+    answers:
+      "axon-pg-same-rate with PostgreSQL's disk writes capped at 1,400 a second: whether the same-rate latency follows the store's flushes.",
+  },
+  // A change of the same-rate view's latency, before against after on one runner, W A A W (X-72): Wow with no bus,
+  // the baseline's build against the head's, at E1 1,000/s and E3 300/s twice a session, then each sweep to its peak,
+  // each sweep's part on a runner of its own; so the same rates and the peaks compare with their A/A spreads.
+  'wow-pg-same-rate-ab': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_BASE_NO_BUS, WOW_HEAD_NO_BUS],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [{ scenario: 'E1' }, { scenario: 'E3' }],
+    own: false,
+    answers:
+      "Wow with no bus before and after a change on one runner: the baseline's build against the head's at E1 1,000/s and E3 300/s, each twice a session, then each sweep to its peak.",
+  },
+  // The same rates on a slower disk, PostgreSQL's writes capped at 1,200 a second: before X-72's fix Wow flushed its
+  // WAL about 1,800 times a second at E1 1,000/s, after it about 900, so the cap binds the one and not the other.
+  'wow-pg-same-rate-ab-slow-disk': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_BASE_NO_BUS, WOW_HEAD_NO_BUS],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    storeWriteIops: 1200,
+    answers:
+      "wow-pg-same-rate-ab's same rates with PostgreSQL's disk writes capped at 1,200 a second, no sweep.",
   },
   'jdk-e1-pg': {
     group: 'jdk',
@@ -2019,8 +2111,16 @@ export function parseJob(id) {
 }
 
 /**
- * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit), the ones skipped and why,
- * and the builds they need, one per side.
+ * Whether a sessions suite runs the baseline's build beside the head's: an arm of it. A baseline suite (group `ab`)
+ * has its own rule, its A/A runs needing none.
+ */
+export const usesBase = name =>
+  SUITES[name]?.kind === 'sessions' &&
+  SUITES[name].arms.some(arm => arm.install === 'base');
+
+/**
+ * The jobs of a run: the suites that can run (those of group `ab`, and those with an arm of the baseline's build
+ * (usesBase), need a baseline commit), the ones skipped and why, and the builds they need, one per side.
  */
 export function planMatrix({
   suites,
@@ -2039,13 +2139,19 @@ export function planMatrix({
       );
       return false;
     }
+    if (usesBase(name) && !baseSha) {
+      skipped.push(`${name} (an arm runs the baseline's build: set base_ref)`);
+      return false;
+    }
     return true;
   });
   const groups = new Set(runnable.map(name => SUITES[name].group));
   const builds = [
     { side: 'head', sha: headSha },
     // The baseline build serves the baseline suites, and the component suites when a baseline is given.
-    ...((groups.has('ab') && !aa) || (groups.has('component') && baseSha && !aa)
+    ...((groups.has('ab') && !aa) ||
+    (groups.has('component') && baseSha && !aa) ||
+    runnable.some(usesBase)
       ? [{ side: 'base', sha: baseSha }]
       : []),
   ];
@@ -2961,6 +3067,16 @@ function primingLines(suite) {
           ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
           : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
   ];
+  if (suite.storeWriteIops) {
+    lines.push(
+      `The store's disk writes capped at ${suite.storeWriteIops} a second (\`bench.sh --store-write-iops\`): a diagnostic of a slower disk.`,
+    );
+  }
+  if (suite.profiled) {
+    lines.push(
+      "Profiled: every session's servers ran with a flight recording (`up --jfr`), so the runs carry its cost; each run's recording and PostgreSQL's statements are beside its result.",
+    );
+  }
   if (suite.accounts > STATE_CACHE) {
     lines.push(
       `The accounts exceed the node's state cache (a tenth of the 1 GB heap, about ${STATE_CACHE} states of few requests): the steady state is a full cache with evictions.`,
@@ -3880,6 +3996,16 @@ export function runSuite(name, options) {
     }
   } else if (sessions) {
     suite.sweeps = [];
+    // With `profile`, every session's servers record (bench.sh up --jfr), the profile's settings with the safepoints
+    // and the socket reads and writes (jfrSettings): each run on the session keeps their recording over its warm-up
+    // and measured phase and, on PostgreSQL, its statements and checkpoints. The runs then carry the recording's cost.
+    const settings = profile ? jfrSettings(out) : undefined;
+    const recording = profile
+      ? ['--jfr', ...(settings ? [`--jfr-settings=${settings}`] : [])]
+      : [];
+    if (profile) suite.profiled = true;
+    if (definition.storeWriteIops)
+      suite.storeWriteIops = definition.storeWriteIops;
     // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`), or the steps
     // `concurrencies`, short ones when `locate` (SESSIONS.sweep.locate) and full-length ones otherwise, a failing one
     // ending once it measured `failAfter` s.
@@ -4051,6 +4177,10 @@ export function runSuite(name, options) {
               `--accounts=${data.accounts}`,
               `--seed-concurrency=${seedConcurrency}`,
               ...(primed ? ['--prime'] : []),
+              ...recording,
+              ...(definition.storeWriteIops
+                ? [`--store-write-iops=${definition.storeWriteIops}`]
+                : []),
               ...pins,
               `--out=${join(out, `${session}-up`)}`,
             ],
@@ -4080,9 +4210,18 @@ export function runSuite(name, options) {
             view,
           });
         try {
-          // The same-rate view: both arms at one rate.
-          for (const { scenario, rate } of suite.fixedRates)
-            fixed(`${session}-${scenario.toLowerCase()}`, scenario, rate, SAME);
+          // The same-rate view: both arms at one rate; a rate given twice runs twice (`-e1`, `-e1-2`).
+          const times = {};
+          for (const { scenario, rate } of suite.fixedRates) {
+            const key = scenario.toLowerCase();
+            times[key] = (times[key] ?? 0) + 1;
+            fixed(
+              `${session}-${key}${times[key] > 1 ? `-${times[key]}` : ''}`,
+              scenario,
+              rate,
+              SAME,
+            );
+          }
           const swept = suite.sweepPlan.map(plan =>
             sweep(arm, session, plan, index),
           );
@@ -4533,7 +4672,8 @@ if (
         'base-ref': settings.base_ref,
         // The component suites take a baseline when there is one, and run the head alone otherwise.
         'needs-base':
-          (groups.has('ab') || groups.has('component')) && !inputs.aa,
+          ((groups.has('ab') || groups.has('component')) && !inputs.aa) ||
+          inputs.suites.some(usesBase),
       });
     } else if (command === 'matrix') {
       const plan = planMatrix({

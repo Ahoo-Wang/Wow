@@ -27,6 +27,7 @@ The offline path is shorter and has fewer moving parts, so use it unless the wri
 | Confirmed `PrepareKey` keys | Confirmed reservations |
 | Unresolved executions of the compensation service | Parked aggregates in the V10 service's failure ledger |
 | Custom projections and their views | Not migrated: their V10 subscriptions rebuild them from the log |
+| Tags, applied and derived | Access attributes of the V10 state: the applied ones written into the domain event the 9.x tags event maps to, the derived ones derived by V10 |
 
 Each imported stream keeps its version, command id, request id and commit time, so idempotency and history carry over. Its tenant and aggregate id become the V10 aggregate reference. The owner and space follow the V10 aggregate's ownership, the operator comes from the 9.x operator header, and the 9.x trace id becomes the chain's root. Headers the map does not list, framework headers and wait headers are dropped.
 
@@ -125,6 +126,8 @@ Fix the map, or the source, and check again until it passes. `import --dry-run` 
 
 A wrong choice shows in `compare` (step 5), as `$deleted` or as fields 9.x changed and V10 did not.
 
+**Tags.** 9.x tags become access attributes of the V10 state ([Tags and attribute-based access](./source#tags-and-attribute-based-access)). The map names, for each tag key the store holds, the attribute it becomes and whether 9.x's tags event applied it or the 9.x state derived it, and maps the tags event, with `"tags": true`, to the domain event that sets them ([The map](../reference/migrate-data#tags)). The check reads the store's tags events and snapshots, and fails on a key the map does not name and on values the import would write that an attribute cannot hold: two values or more for a single attribute, or a value that does not read as the integer or boolean its attribute is. It counts them and names up to three streams that hold them. Before importing, make such an attribute hold several values, map the key to another, or correct the 9.x data: the import fails the stream that holds one. The same values in the snapshots of a derived key are a warning: 9.x merged what its state derived into the tags it kept, so a snapshot can hold a key's former values beside its current one, and `compare` reports them.
+
 ## 3. Stop 9.x writing
 
 Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep serving reads from its own store, but nothing may commit until V10 takes over: a stream 9.x commits after the import is not in V10.
@@ -143,7 +146,8 @@ Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep 
 `compare` rebuilds each aggregate that has a 9.x snapshot to the snapshot's version, with the V10 model, and compares:
 
 - the state, as normalized JSON: fields in any order, null the same as missing, numbers by value, arrays in order;
-- the deleted mark, the owner, the space and the tags;
+- the deleted mark, the owner and the space;
+- the access attributes the map's `tags` name, as `$access.<attribute>`: the 9.x snapshot's tags converted as the import converts them, against the attributes V10 derives from the rebuilt state, each side normalized the same way, so the order of a key's values is never a difference;
 - whether the V10 log holds the snapshot's version at all.
 
 It also checks the reservations and the parked entries both ways. Each difference is printed with the aggregate, its version and the fields:
@@ -207,7 +211,11 @@ This is safe because a V10 snapshot is a cache of the log: V10 loads an aggregat
 
 ## 7. The access attributes
 
-Streams the import appended carry no access attributes yet, so an access policy shows none of them on the `events` model until they are stamped ([Rebuild and Replay](../operate/replay#access-attributes)).
+The import writes the tags the map names into the domain event the 9.x tags event maps to, so the state holds its access attributes at every version, and the snapshots `snapshot` writes carry them. The streams the import appended carry none yet. The V10 nodes stamp them once they start, or once they are activated from standby: one node at a time runs the access walk of each aggregate type, which stamps every aggregate's whole history with the attributes of its current state, and the built-in subscription `wow.access` stamps what is appended after the walk began ([Rebuild and Replay](../operate/replay#access-attributes)).
+
+- **What waits for it.** Until the walk of a type completes, an events query under an access policy leaves out the type's imported streams, and so does an events query, without a policy, by a caller acting as an owner or in a space. A caller of the whole tenant still reads them. A state read, a snapshot query, a version, a time and a trace are not affected: they decide on the state.
+- **How long it takes.** The walk stamps at most `wow.access.walk-rate` aggregates a second, 500 by default, each one's whole history and its snapshot, so it takes at least the imported instances divided by the rate, and longer when the stores do not keep up: the rehearsal's 50,000 orders, three to four streams each, took three to four minutes, about 250 a second, on one PostgreSQL. It can outlast the write stop of an online cut-over. Time it in the rehearsal, and raise the rate for the cut-over only if the stores keep up.
+- **What to watch before switching traffic.** `wow.access.walk.pending` reads 1 for each type until its walk completes, then 0, and the walking node logs `The access walk of <type> is completed: <n> aggregates stamped.` Streams appended after the walk began are stamped as `wow.access` reads them: its lag is `wow.subscription.lag` of the subscription `wow.access`, normally seconds ([Metrics](../reference/observability#metrics)). Switch traffic once every type reads 0 and that lag is down, when an events query under a policy, or by an owner or a space, must show the imported history from the first request. Switching earlier hides those streams from those queries until then, and nothing else.
 
 ## 8. Start V10 and switch traffic
 

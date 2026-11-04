@@ -24,6 +24,18 @@ object Samples {
     private const val RSS_PAGES = 21
     private const val KB_PER_MB = 1_024.0
 
+    // `/proc/diskstats`: major, minor, name, then the counters (Documentation/admin-guide/iostats.rst).
+    private const val DISK_FIELDS = 14
+    private const val DISK_NAME = 2
+    private const val DISK_WRITES = 7
+    private const val DISK_SECTORS_WRITTEN = 9
+    private const val DISK_WRITE_MS = 10
+    private const val DISK_IO_MS = 12
+    private const val DISK_FLUSHES = 18
+    private const val DISK_FLUSH_MS = 19
+    private const val SECTOR_KB = 0.5
+    private val PARTITION = Regex("""^((sd|vd|xvd|hd)[a-z]+\d+|(nvme\d+n\d+|mmcblk\d+)p\d+)$""")
+
     /** [line] split by [separator] into numbers named [names], or null when it is not such a line. */
     fun columns(line: String, names: List<String>, separator: Char): Map<String, Double>? {
         val values = line.trim().split(separator).map { it.trim().toDoubleOrNull() }
@@ -63,6 +75,28 @@ object Samples {
             if (seconds <= 0) return@mapNotNull null
             mapOf("t" to (later.first - window.first) / MILLIS_PER_SECOND) +
                 keys.associateWith { key -> ((later.second[key] ?: 0.0) - (earlier.second[key] ?: 0.0)) / seconds }
+        }
+    }
+
+    /**
+     * `/proc/diskstats` as each disk's cumulative counters, `<disk>:<counter>`: `writes` completed, `writeKb`,
+     * `writeMs` (the time those writes took), `flushes` and `flushMs` (Linux 5.5 on: the cache flushes an fsync
+     * issues), and `ioMs` (the time the disk was busy). A disk's line counts its partitions' I/O, so partitions are left
+     * out, and so are loop and RAM devices.
+     */
+    fun diskStats(text: String): Map<String, Double> = buildMap {
+        text.lineSequence().forEach { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            if (fields.size < DISK_FIELDS) return@forEach
+            val disk = fields[DISK_NAME]
+            if (disk.startsWith("loop") || disk.startsWith("ram") || PARTITION.matches(disk)) return@forEach
+            fun field(index: Int): Double = fields.getOrNull(index)?.toDoubleOrNull() ?: 0.0
+            put("$disk:writes", field(DISK_WRITES))
+            put("$disk:writeKb", field(DISK_SECTORS_WRITTEN) * SECTOR_KB)
+            put("$disk:writeMs", field(DISK_WRITE_MS))
+            put("$disk:ioMs", field(DISK_IO_MS))
+            put("$disk:flushes", field(DISK_FLUSHES))
+            put("$disk:flushMs", field(DISK_FLUSH_MS))
         }
     }
 

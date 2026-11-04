@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-只读规划把下游服务的工单领域从 Wow 9.9.0 迁到 V10（源码目标固定为 Wow `v10` 分支 commit 267683da7d7a9773db417ab12b542d6b3546bf33，尚未发布），只看状态类这一处，给出改写后的代码，不改文件。查询策略按标签 `region` 与 `assignee` 过滤工单：
+只读规划把下游服务的工单领域从 Wow 9.9.0 迁到 V10（源码目标为 Wow `main` 分支的当前提交，尚未发布），只看状态类这一处，给出改写后的代码，不改文件。查询策略按标签 `region` 与 `assignee` 过滤工单：
 
 ```kotlin
 class TicketState(val id: String) : StatusCapable<TicketStatus>, StateAggregateTagsExtractor<TicketState> {
@@ -25,4 +25,4 @@ class TicketState(val id: String) : StatusCapable<TicketStatus>, StateAggregateT
 }
 ```
 
-运维还会通过 `ApplyTags` 给工单手工打 `priority` 标签。团队认为 V10 没有从状态推导标签的能力，打算让每个改派命令的 Saga 再发一条 `ApplyTags`。在回答里给出代码和命令。
+运维还会通过 `ApplyResourceTags` 给工单手工打 `priority` 标签。团队认为 V10 没有从状态推导标签的能力，打算让每个改派命令的 Saga 再发一条打标签的命令。在回答里给出代码和命令。

@@ -60,6 +60,10 @@ class DocumentationSamplesTest {
         order.events.filter { it.drop }.map { it.from }.assert().containsExactly("order_noted")
         order.reservations.single().tenancy.assert().isEqualTo(ReservationTenancy.SYSTEM)
         order.state.ignore.assert().containsExactly("payable")
+        order.events.single { it.tags }.to.assert().isEqualTo("OrderTagged")
+        order.tags.map { it.key to it.to }.assert()
+            .containsExactly("region" to "region", "team" to "teams", "channel" to "channel", "legacy" to null)
+        order.tagOf("channel")?.source.assert().isEqualTo(TagSource.DERIVED)
         map.subscriptions.map { it.from }
             .assert().containsExactly("order-service.OrderSaga", "order-service.OrderProjector")
         map.headers.assert().containsEntry("app_id", "app_id")

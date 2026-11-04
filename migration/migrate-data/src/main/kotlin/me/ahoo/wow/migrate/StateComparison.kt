@@ -26,6 +26,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
 import tools.jackson.databind.JsonNode
@@ -110,8 +111,8 @@ internal data class ComparisonReport(
  * - **What is compared.** The state, by [StateDiff], the 9.x state read through the aggregate's
  *   [AggregateMapping.state]; the deleted mark (`$deleted`); the owner and the space (`$ownerId`, `$spaceId`), the
  *   9.x ones narrowed by the V10 ownership as the import narrows them. A version the V10 log does not hold is the
- *   difference `$version`. The 9.x tags are not compared: V10 has none, and work package F maps them to
- *   state fields.
+ *   difference `$version`. The 9.x tags the map maps to access attributes ([AggregateMapping.tags]): each against the
+ *   attribute V10 derives from the rebuilt state (`$access.<attribute>`), both sides in the stored form.
  * - **Report.** Each instance that differs is printed with its aggregate id, version and fields
  *   ([ComparisonReport.render] sums them up); the share of instances with a snapshot is reported, since an instance
  *   without one cannot be compared.
@@ -345,7 +346,7 @@ internal class StateComparison(
         val differences = if (rebuilt == null) {
             listOf(FieldDifference(VERSION, node(snapshot.version), streams.lastOrNull()?.version?.let(::node)))
         } else {
-            differencesOf(target.plan, snapshot, rebuilt)
+            differencesOf(target.plan, snapshot, rebuilt) + accessDifferences(target, snapshot, rebuilt)
         }
         if (differences.isNotEmpty()) {
             report(
@@ -365,7 +366,40 @@ internal class StateComparison(
         ).filter { (_, nineX, v10) -> nineX != v10 }.map { (path, nineX, v10) ->
             FieldDifference(path, nineX.takeUnless { it.isNull }, v10.takeUnless { it.isNull })
         }
-        return metadata + StateDiff.diff(snapshot.state, codec.stateTree(rebuilt.state), plan.mapping.state)
+        // A 9.x tag became an access attribute, a field of the V10 state 9.x held as metadata: $access compares it.
+        val attributes = plan.mapping.tags.mapNotNull { it.to }
+        val state = plan.mapping.state.let { it.copy(ignore = it.ignore + attributes) }
+        return metadata + StateDiff.diff(snapshot.state, codec.stateTree(rebuilt.state), state)
+    }
+
+    /**
+     * The differences of [snapshot]'s 9.x tags from [rebuilt]'s access attributes (`$access.<attribute>`), for the keys
+     * [AggregateMapping.tags] maps: each side the same way, the 9.x values converted as the import converts them
+     * ([TagValues]), then both in the stored form ([AccessValues]), so the order of a multiple attribute's values, or a
+     * key 9.x left absent where V10 holds none, is no difference. An attribute the Manifest does not declare is the
+     * check's problem, not compared.
+     */
+    private fun accessDifferences(
+        target: Target,
+        snapshot: NineXSnapshot,
+        rebuilt: CachedState
+    ): List<FieldDifference> {
+        val tags = target.plan.mapping.tags.filter { it.to != null }
+        if (tags.isEmpty()) {
+            return emptyList()
+        }
+        val v10 = AccessValues.normalized(target.model.accessOf(rebuilt.state))
+        return tags.mapNotNull { tag ->
+            val name = tag.to!!
+            val attribute = target.plan.accessOf(name) ?: return@mapNotNull null
+            val values = snapshot.tags[tag.key]
+            val nineX = try {
+                AccessValues.normalized(mapOf(name to TagValues.valueOf(attribute, values)))[name]
+            } catch (_: TagValueException) {
+                values
+            }
+            FieldDifference("$ACCESS.$name", nineX?.let(::node), v10[name]?.let(::node)).takeIf { nineX != v10[name] }
+        }
     }
 
     private fun reportOf(aggregate: NineXAggregate, instances: Long, checkpoint: CompareCheckpoint) = ComparisonReport(
@@ -396,5 +430,6 @@ internal class StateComparison(
         private const val DELETED = "\$deleted"
         private const val OWNER_ID = "\$ownerId"
         private const val SPACE_ID = "\$spaceId"
+        const val ACCESS = "\$access"
     }
 }

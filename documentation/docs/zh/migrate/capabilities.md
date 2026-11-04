@@ -60,8 +60,8 @@ outline: deep
 | 所有者和空间策略（`@AggregateOwner`、`@Spaced`） | 替代 | 按聚合类型声明归属（所有者或租户）；作用域来自调用方。见[身份、租户与访问](../concepts/identity)。 |
 | 命令体中的聚合 ID（`@AggregateId`） | 保留 | 命令体指明聚合，命令的路由不带 `{id}`：Saga 或客户端发送它时不带 ID。计算出的 ID 由服务算出。 |
 | 命令字段上的租户、所有者和版本（`@TenantId`、`@OwnerId`、`@AggregateVersion`） | 放弃 | 租户和所有者是调用方的，期望版本是 `If-Match`。 |
-| 从状态推出标签（`StateAggregateTagsExtractor`） | 替代 | 状态上的 `@Tags`。 |
-| 打标签 | 保留 | 生命周期命令 `ApplyTags`。 |
+| 从状态推出标签（`StateAggregateTagsExtractor`） | 替代 | 访问属性：状态的 `@Access` 成员。 |
+| 打标签（`ApplyResourceTags`） | 替代 | 聚合自己的一条领域命令和一个领域事件，设置状态的访问属性；数据迁移把 9.x 的标签映射到它们（[标签与基于属性的访问](./source#tags-and-attribute-based-access)）。 |
 | 生命周期命令：删除、恢复、转移所有者或空间 | 保留 | — |
 | `@EntityObject`、`@ValueObject`、`@Order` | 放弃 | — |
 | `@OnError` | 放弃 | 从决定函数返回拒绝，需要记录这次拒绝时带上事件；把补偿放进 Saga 的 `@OnRejected` 处理函数。 |

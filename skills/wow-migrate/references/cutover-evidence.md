@@ -2,7 +2,7 @@
 
 The job: move traffic from a 9.x service to its V10 service with the history intact, and keep a way back that is real. 9.x and V10 never write the same data at once: there is no mixed-version protocol between them.
 
-**Offline is the default** (decision D267 ⑳): stop 9.x's writes, import everything, compare, write the snapshots and tags, start V10. It has the fewest steps and the least that can go wrong, and most 9.x systems import within a maintenance window; the rehearsal's timing proves whether this one does. **Online is the option** for a system whose import does not fit a window it can stop for: 9.x keeps serving while the data is imported and followed, V10 waits on standby, and the write stop shrinks to a final pass. Choose by the rehearsal's measured import time against the stop the business accepts, and record the choice. Every step below needs the authorization of its own scope: rehearsal writes, production reads, production data writes, the traffic switch and the release are separate.
+**Offline is the default** (decision D267 ⑳): stop 9.x's writes, import everything, compare, write the snapshots, start V10 and let its access walk stamp the imported streams. It has the fewest steps and the least that can go wrong, and most 9.x systems import within a maintenance window; the rehearsal's timing proves whether this one does. **Online is the option** for a system whose import does not fit a window it can stop for: 9.x keeps serving while the data is imported and followed, V10 waits on standby, and the write stop shrinks to a final pass. Choose by the rehearsal's measured import time against the stop the business accepts, and record the choice. Every step below needs the authorization of its own scope: rehearsal writes, production reads, production data writes, the traffic switch and the release are separate.
 
 ## Inventory before any write
 
@@ -28,7 +28,7 @@ From an end-to-end rehearsal on an isolated target (`data.md`):
 3. `compare` with every kind of difference explained and signed off, and the share of instances compared.
 4. The V10 services started on the target: a command on a migrated aggregate appends at the next version, reads and queries return the migrated state, projections rebuilt, parked entries listed.
    Started with a clean environment holding only the rehearsal's configuration (no shell-inherited variable, such as a `SPRING_*` one, pointing a service at shared infrastructure), their logs naming no address outside the target; in the 9.x services' time zone (`TZ`) when domain code uses the system's zone; and a first start on the migrated target with every partition acquired and kept.
-5. Timings on production-sized data: the whole `import` (with `compare`, `snapshot`, `backfill-tags`) for an offline cut-over, which sets the window and decides whether offline fits; or the final pass for an online one.
+5. Timings on production-sized data: the whole `import` (with `compare` and `snapshot`, and the access walk after V10 starts) for an offline cut-over, which sets the window and decides whether offline fits; or the final pass for an online one.
 6. Both rollback paths below rehearsed, with the list of what cannot go back.
 
 ## Before the cut-over: the point of no easy return
@@ -46,11 +46,12 @@ Each such type, once V10 writes it in production, makes the export refuse (decis
 2. **Take and verify the backup** of the 9.x stores.
 3. **Import:** `check`, then `import` (the streams, then the reservations and the unresolved executions; resumable from its checkpoint if it stops).
 4. **Gate:** `compare` shows only the signed-off kinds; no unexplained `UNRESOLVED` key or execution. Otherwise stop here and restart 9.x: V10 has written nothing.
-5. **Prepare the read side:** `snapshot`, and `backfill-tags` where ABAC reads the `events` model.
+5. **Prepare the read side:** `snapshot`.
 6. **Start the V10 services** against the production target and probe the critical paths: a command on a migrated aggregate, a read, a query, a subscription, the ops service's parked entries.
 7. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
-8. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
-9. **Observe** the agreed signals: errors and problem codes, latency, command waits, subscription lag and parked aggregates, and the consumers. The rollback decision is taken on them.
+8. **Wait for the access walk** where an access policy, or an owner or a space, reads the `events` model: `wow.access.walk.pending` 0 for every type, and the `wow.access` subscription's lag down (`data.md`). Until then those events queries leave the imported streams out; nothing else waits for it.
+9. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
+10. **Observe** the agreed signals: errors and problem codes, latency, command waits, subscription lag and parked aggregates, and the consumers. The rollback decision is taken on them.
 
 No `tail`, no standby and no final pass: they exist only to shorten the stop, and offline does not need them.
 
@@ -66,15 +67,16 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 
 1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services, external command producers included, and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
 2. **Take and verify the final backup** of the 9.x stores.
-3. **Final pass**, then `compare`, `snapshot`, and `backfill-tags` where ABAC reads the `events` model:
+3. **Final pass**, then `compare` and `snapshot`:
    - **`import --final`** when `tail` followed 9.x continuously until it stopped. It first checks that every mapped aggregate's full import completed and that its tail's last pass ended within `final.maxTailAgeMillis` (10 minutes by default); otherwise it writes nothing, says why and exits `1`, and the final pass is `import --restart`. It then runs one tail pass from the checkpoint, reading again `final.lookbackMillis` before it (60 s by default; size it as twice the larger of the 9.x nodes' clock skew and the slowest 9.x commit latency), then the reservations and the unresolved executions again. Its cost is what 9.x committed since the tail last read.
    - **`import --restart`** when the tail did not run continuously: the complete pass over every instance, as long as the whole history (half the write stop of a 50,000-order rehearsal).
 4. **Gate:** `compare` shows only the signed-off kinds, whichever pass ran; no unexplained `UNRESOLVED` key or execution. Otherwise stop here and go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target: reads and queries of migrated aggregates, the ops service's parked entries.
 6. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
 7. **Activate every V10 node:** `POST /wow/node/activate` on each node's internal port, naming the node's service in `Wow-Service`, with a body `{"by": "<operator>", "reason": "<why>"}` (`by` is required: without it the node answers 400). The node joins its groups, starts the rest of its work and then admits commands; the activation ends the write stop. A subscription that starts at the end of its stream starts where the stream ends at the activation. Each activation is recorded (node, time, operator, reason) and returned by `GET /wow/node/standby` (also naming the service in `Wow-Service`); check every node reports it. An activation that fails stops the node: start it again on standby, find the cause in its log, and activate it before the switch; a node that is not on standby treats an activation as a no-op.
-8. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
-9. **Observe** as offline does.
+8. **Wait for the access walk**, which starts at the activation, as offline does.
+9. **Switch traffic to V10**, the external command producers with it, then scale V10 out. Keep 9.x stopped, not deleted.
+10. **Observe** as offline does.
 
 ## External command producers
 
