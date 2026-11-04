@@ -55,7 +55,8 @@
 # host's Manifest), VIEWS_MANIFEST (the view store service's Manifest), WORK (an empty directory); ORDERS (200),
 # VIEWS (ORDERS / 4), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE
 # (every n-th order and view compared, 1), FINAL_PASS (final: import --final; restart: import --restart), MIGRATE_IN
-# (runner).
+# (runner); NINEX_JAVA_HOME, the JDK the 9.x stand-in runs on, and V10_JAVA_HOME, the one the V10 hosts, migrate-data's
+# installation and the driver run on (each JAVA_HOME by default). The migrate-data image brings its own.
 set -euo pipefail
 
 REHEARSAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -183,12 +184,31 @@ PY
   log "$name: every difference is an explained kind ($EXPLAINED_KINDS)"
 }
 
-java_home() { echo "${JAVA_HOME:?JAVA_HOME (JDK 21)}"; }
-driver() { "$(java_home)/bin/java" -cp "$V10_HOME/lib/*" me.ahoo.wow.rehearsal.driver.RehearsalDriverKt "$@" --concurrency="$CONCURRENCY"; }
-migrate() { JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" "$1" --config "$WORK/migrate-data-$TARGET_DB.json" "${@:2}"; }
+ninex_java() { echo "${NINEX_JAVA_HOME:-${JAVA_HOME:?JAVA_HOME or NINEX_JAVA_HOME (the JDK of the 9.x stand-in)}}"; }
+v10_java() { echo "${V10_JAVA_HOME:-${JAVA_HOME:?JAVA_HOME or V10_JAVA_HOME (the JDK of the V10 side)}}"; }
+driver() { "$(v10_java)/bin/java" -cp "$V10_HOME/lib/*" me.ahoo.wow.rehearsal.driver.RehearsalDriverKt "$@" --concurrency="$CONCURRENCY"; }
+migrate() { JAVA_HOME="$(v10_java)" JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" "$1" --config "$WORK/migrate-data-$TARGET_DB.json" "${@:2}"; }
+# jvms_json: the full version of each JVM the rehearsal runs, as a JSON object: the 9.x stand-in's, the V10 side's
+# and, on the kind arm, the migrate-data images'.
+jvms_json() {
+  local images=()
+  if [ "$MIGRATE_IN" = kind ]; then
+    images=(wow-migrate-data:local)
+    if docker image inspect wow-migrate-data:baseline >/dev/null 2>&1; then images+=(wow-migrate-data:baseline); fi
+  fi
+  {
+    printf 'ninex\t%s\n' "$("$(ninex_java)/bin/java" -version 2>&1 | tr '\n' ' ')"
+    printf 'v10\t%s\n' "$("$(v10_java)/bin/java" -version 2>&1 | tr '\n' ' ')"
+    local image
+    for image in "${images[@]+"${images[@]}"}"; do
+      # shellcheck disable=SC2016 # expanded by the image's shell
+      printf '%s\t%s\n' "$image" "$(docker run --rm --entrypoint sh "$image" -c '"${JAVA_HOME:+$JAVA_HOME/bin/}java" -version' 2>&1 | tr '\n' ' ')"
+    done
+  } | python3 -c 'import json, sys; print(json.dumps(dict(line.rstrip("\n").split("\t", 1) for line in sys.stdin)))'
+}
 # The tail, until tail_stop; its log in $WORK/tail.log.
 tail_start() {
-  JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data-example.json" >"$WORK/tail.log" 2>&1 &
+  JAVA_HOME="$(v10_java)" JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data-example.json" >"$WORK/tail.log" 2>&1 &
   echo $! >"$WORK/tail.pid"
 }
 tail_stop() { stop_pid tail; }
@@ -207,7 +227,7 @@ await_http() {
 start_ninex() {
   (
     cd "$NINEX_HOME"
-    env JAVA_OPTS="-Dcom.sun.management.jmxremote.port=0" \
+    env JAVA_HOME="$(ninex_java)" JAVA_OPTS="-Dcom.sun.management.jmxremote.port=0" \
       SERVER_PORT="$NINEX_PORT" \
       SPRING_MONGODB_URI="mongodb://localhost:$MONGO_PORT/wow_example_db" \
       SPRING_AUTOCONFIGURE_EXCLUDE="org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration" \
@@ -224,7 +244,7 @@ launch_v10() {
   local standby="${1:-}"
   (
     cd "$V10_HOME"
-    env JAVA_OPTS="-Xmx1g" ./bin/migration-rehearsal \
+    env JAVA_HOME="$(v10_java)" JAVA_OPTS="-Xmx1g" ./bin/migration-rehearsal \
       --server.port="$V10_PORT" --wow.internal.port="$V10_INTERNAL_PORT" \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
       --wow.node.standby="$([ "$standby" = standby ] && echo true || echo false)" \
@@ -239,7 +259,7 @@ launch_views() {
   local standby="${1:-}"
   (
     cd "$VIEWS_HOME"
-    env JAVA_OPTS="-Xmx1g" ./bin/view-store-server \
+    env JAVA_HOME="$(v10_java)" JAVA_OPTS="-Xmx1g" ./bin/view-store-server \
       --spring.profiles.active=postgres,dev --server.port="$VIEWS_PORT" \
       --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
@@ -372,6 +392,7 @@ if [ "$MIGRATE_IN" = kind ]; then
 fi
 
 log "stores up ($MIGRATE_IN)"
+record jvms "$(now_ms)" 0 "$(jvms_json)"
 stores_up
 createdb offline
 write_config example

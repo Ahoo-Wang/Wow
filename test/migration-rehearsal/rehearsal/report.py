@@ -55,6 +55,13 @@ def container(name):
     return millis / 1000 if millis is not None else None
 
 
+def jvms():
+    """The full version of each JVM the run ran on (rehearse.sh jvms_json), one bullet each."""
+    names = {"ninex": "9.x stand-in", "v10": "V10 hosts, migrate-data's installation and the driver"}
+    parts = data("jvms").items()
+    return [f"- JVM, {names.get(part, f'the migrate-data image {part}')}: {version.strip()}" for part, version in parts]
+
+
 def slow_queries(name):
     """The slow queries in the MongoDB log of step NAME (kind.sh mongo_log): how many, and their milliseconds."""
     path = work / "cluster" / f"mongo-{name}.log"
@@ -85,6 +92,7 @@ if any(step["step"].startswith("cut-") for step in steps):
         "and dual run, in which the driver writes to 9.x while the tail follows it. B walks compare and snapshot once in "
         "the dual run; A, as main's run book has it, only in the write stop. The write stop is the final pass, compare "
         "and snapshot, by their containers' time; the activation is not part of it.",
+        *jvms(),
         "",
         "| Run | Orders touched | Import | Dual-run compare | Dual-run snapshot | Final pass | Compare | Snapshot "
         "| Write stop |",
@@ -126,6 +134,7 @@ if any(step["step"].startswith("bench-") for step in steps):
         "- A is the baseline image, B the candidate, each a Job into a fresh database, A B B A (D392 ③): each "
         "image's two runs are its noise band. The step is what an operator waits for; the container time is the tool's "
         "own run. Worker time is summed over the instances imported at once.",
+        *jvms(),
         "",
         "| Run | Image | Step | Container |",
         "| --- | --- | --- | --- |",
@@ -153,7 +162,7 @@ if any(step["step"].startswith("bench-") for step in steps):
     print("\n".join(lines))
     sys.exit(0)
 
-lines = ["# Blue-green rehearsal (roadmap 8c.1)", ""]
+lines = ["# Blue-green rehearsal (roadmap 8c.1)", "", *jvms(), *([""] if data("jvms") else [])]
 seed = data("seed")
 seeded = data("ninex-seeded")
 lines += [
