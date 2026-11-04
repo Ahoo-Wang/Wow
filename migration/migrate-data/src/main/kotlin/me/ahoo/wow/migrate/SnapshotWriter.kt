@@ -21,9 +21,17 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.access.AccessSchema
+import me.ahoo.wow.runtime.access.AccessStampOptions
+import me.ahoo.wow.runtime.access.stampIn
+import me.ahoo.wow.spi.access.AccessStamps
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
@@ -59,6 +67,12 @@ internal data class SnapshotProgress(
  * the same backend as the log. The snapshot is the one the V10 snapshot subscription would write: the state, the
  * scope, the deleted mark and schedules, the commit times and the operators of the first and the last stream.
  *
+ * - **Stamped.** The instance's streams get the access attributes of the state it rebuilt, as of the log's last version
+ *   ([AccessStamps.stamp]), as the V10 nodes' access walk would stamp them, so an events query under an access policy
+ *   reads the imported history once V10 serves. A stream stamped as of a later version keeps its attributes, and one
+ *   appended since is stamped by the next catch-up. A type every 9.x aggregate mapped to it stamped without a failure
+ *   has its walk recorded as completed ([recordWalks]): the nodes do not walk it again when they start or are
+ *   activated.
  * - **Idempotent.** [SnapshotStore.save] writes no snapshot of a version the store already holds, so a run again
  *   skips them; a snapshot written since at a higher version stays.
  * - **Checkpointed.** Instances are walked as the import walks them ([NineXEventSource.aggregateIds]), a page of
@@ -96,6 +110,8 @@ internal class SnapshotWriter(
     private val progress: (SnapshotProgress) -> Unit = {},
     private val codec: EventCodec = EventCodec(),
     private val report: (String) -> Unit = {},
+    /** The most streams one stamp of an instance's history writes. */
+    private val batch: Int = AccessStampOptions.DEFAULT_BATCH,
 ) {
     /**
      * Writes the snapshots of [aggregate]'s instances not yet written, and marks its snapshot writing complete, unless
@@ -220,6 +236,15 @@ internal class SnapshotWriter(
         }
         val first = streams.first()
         val last = streams.last()
+        val access = codec.accessOf(target.model, state.state)
+        target.stamps?.stampIn(
+            ref,
+            AccessValues.ofStream(access, state.scope),
+            last.version,
+            1,
+            last.version + 1,
+            batch
+        )
         return target.store.save(
             codec.snapshotOf(
                 target.model,
@@ -233,9 +258,48 @@ internal class SnapshotWriter(
                 last.operator,
                 first.operator,
                 state.schedules,
-                codec.accessOf(target.model, state.state),
+                access,
             ),
         )
+    }
+
+    /**
+     * Records the access walk of each V10 type whose every 9.x aggregate's snapshots [progress] holds as done without a
+     * failure, as completed for the type's access schema ([AccessSchema]), so the V10 nodes find it walked: [write]
+     * stamped each instance's history. It records no heads, so a stream without attributes, one those stamps did not
+     * reach (an append in flight can land on MongoDB below the head a walk read) or one appended since, is the built-in
+     * subscription `wow.access`'s, which stamps its aggregate when it reads it. A walk already recorded is left as it is,
+     * and a node whose model has another access schema walks the type again.
+     */
+    suspend fun recordWalks(progress: List<SnapshotProgress>) {
+        val clean = progress.filter { it.done && it.failed == 0L }.associateBy { it.aggregate }
+        plan.aggregates.keys.groupBy { plan.of(it).target }.forEach { (type, aggregates) ->
+            if (aggregates.all { it in clean }) {
+                recordWalk(type, aggregates.sumOf { clean.getValue(it).written + clean.getValue(it).skipped })
+            }
+        }
+    }
+
+    private suspend fun recordWalk(type: AggregateType, walked: Long) {
+        val walks = logOf(type.context) as? AccessWalks ?: return
+        if (!walks.holds(type)) {
+            return
+        }
+        val schema = AccessSchema.of(models.of(type))
+        val walk = AccessWalk(schema, emptyMap(), walked = walked, completed = true)
+        if (walks.claim(type, walk, expected = null)) {
+            report(
+                "$type: its access walk is recorded as completed for the schema [$schema]: $walked instances stamped."
+            )
+            return
+        }
+        val recorded = walks.walk(type) ?: return
+        if (recorded.schema != schema) {
+            report(
+                "$type: the log records its access walk for the schema [${recorded.schema}], not this model's " +
+                    "[$schema]: it is left as it is, and the V10 nodes of this model walk the type again.",
+            )
+        }
     }
 
     /** Where the snapshots of the 9.x [aggregate] are rebuilt from and written to. */
@@ -247,6 +311,9 @@ internal class SnapshotWriter(
         val store: SnapshotStore,
     ) {
         val kernel = Kernel(log, codec)
+
+        /** Where the log's history is stamped; none for a log that keeps no access attributes. */
+        val stamps: AccessStamps? = log as? AccessStamps
     }
 
     private fun progressOf(aggregate: NineXAggregate, checkpoint: SnapshotCheckpoint) =

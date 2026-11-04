@@ -23,7 +23,7 @@ Choose by the rehearsal's measured import time against the stop the business acc
 | Offline | 243.4 s | The full import 98.2 s, compare 23.5 s, snapshots 43.8 s, tags 35.4 s, start of both services 36.3 s |
 | Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, activation of both services 29.3 s |
 
-Both were measured with the tags backfill V10 no longer has (`tags`): its access walk stamps the imported history after the nodes start or are activated ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
+Both were measured with the tags backfill V10 no longer has (`tags`). In its place, `snapshot` stamps the imported history, so the stamps are part of the snapshot times ([The access attributes](./data#_7-the-access-attributes)). The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
 
 ## Inventory before any write
 

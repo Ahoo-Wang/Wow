@@ -369,8 +369,12 @@ object AccessSchema {
     private const val HASH_BYTES = 8
 }
 
-/** Stamps [access] as of [asOf] over the streams of [ref] from [from] until [until], at most [batch] in each stamp. */
-internal suspend fun AccessStamps.stampIn(
+/**
+ * Stamps [access] as of [asOf] over the streams of [ref] from [from] until [until], at most [batch] in each stamp; the
+ * streams stamped.
+ */
+@InternalWowApi
+suspend fun AccessStamps.stampIn(
     ref: AggregateRef,
     access: Map<String, Any?>,
     asOf: Int,

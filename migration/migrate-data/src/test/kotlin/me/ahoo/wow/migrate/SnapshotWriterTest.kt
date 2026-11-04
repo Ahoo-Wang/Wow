@@ -13,13 +13,18 @@
 
 package me.ahoo.wow.migrate
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.runtime.access.AccessSchema
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -82,6 +87,85 @@ class SnapshotWriterTest {
         reports.last().render().assert()
             .isEqualTo("example-service.cart snapshots done: 1 instances, 1 V10 snapshots written, 0 already there")
         checkpoints.load().snapshotsOf(cart)!!.completed.assert().isTrue()
+    }
+
+    @Test
+    fun `each instance's history is stamped with its state's attributes as of its last version, a later stamp kept`() =
+        runTest {
+            imported()
+            val id = streams.first { it.aggregate == order }.aggregateId
+            val ref = NineXExample.orderModel.type.ref(id.tenantId, id.id)
+            // A node stamped the first stream as of a later version.
+            val later = AccessValues.ofStream(emptyMap(), Scope("someone"))
+            log.stamp(ref, later, asOf = 9, from = 1, until = 2).assert().isEqualTo(1)
+            writer().writeAll(order)
+            val snapshot = store.load(ref)!!
+            val current = AccessValues.ofStream(emptyMap(), snapshot.scope)
+            log.read(ref).toList().map { it.access to it.accessVersion }.assert().containsExactly(
+                later to 9,
+                current to 4,
+                current to 4,
+                current to 4,
+            )
+            // A catch-up stamps the instances the log changed since, as of their new last version.
+            val last = streams.last { it.aggregate == order }
+            val late = last.copy(
+                id = "late",
+                version = last.version + 1,
+                commandId = "late",
+                requestId = "late",
+                createTime = System.currentTimeMillis(),
+            )
+            val source = InMemoryNineXEventSource(streams + late)
+            EventStreamImporter(source, NineXExample.plan, { log }, checkpoints).tailOnce(order)
+            writer(source).writeAll(order).caughtUp.assert().isTrue()
+            log.read(ref).toList().map { it.accessVersion }.assert().containsExactly(9, 5, 5, 5, 5)
+        }
+
+    @Test
+    fun `a type whose every 9x aggregate's snapshots completed without a failure has its walk recorded`() = runTest {
+        imported()
+        val orderType = NineXExample.orderModel.type
+        val cartType = NineXExample.cartModel.type
+        val writer = writer()
+        val done = listOf(writer.writeAll(order), writer.writeAll(cart))
+        // A cart that failed, or is missing, records nothing of its type.
+        writer.recordWalks(listOf(done[0], done[1].copy(failed = 1)))
+        log.walk(orderType).assert().isEqualTo(
+            AccessWalk(AccessSchema.of(NineXExample.orderModel), emptyMap(), walked = 1, completed = true),
+        )
+        log.walk(cartType).assert().isNull()
+        writer.recordWalks(listOf(done[0]))
+        log.walk(cartType).assert().isNull()
+        printed.assert().containsExactly(
+            "$orderType: its access walk is recorded as completed for the schema []: 1 instances stamped.",
+        )
+        // A walk recorded is left as it is, and one of another schema is reported.
+        log.claim(cartType, AccessWalk("region:string", emptyMap()), expected = null).assert().isTrue()
+        writer.recordWalks(done)
+        log.walk(cartType)!!.schema.assert().isEqualTo("region:string")
+        printed.assert().hasSize(2)
+        printed.last().assert().isEqualTo(
+            "$cartType: the log records its access walk for the schema [region:string], not this model's []: it " +
+                "is left as it is, and the V10 nodes of this model walk the type again.",
+        )
+    }
+
+    @Test
+    fun `a type two 9x aggregates are mapped to has its walk recorded once both completed`() = runTest {
+        imported()
+        val done = writer().let { listOf(it.writeAll(order), it.writeAll(cart)) }
+        // The 9.x cart mapped to the V10 order too.
+        val merged = NineXExample.map.let { map ->
+            map.copy(
+                aggregates = map.aggregates.map { if (it.to == "example.cart") it.copy(to = "example.order") else it }
+            )
+        }.let { MigrationPlan(it, NineXExample.manifest) }
+        val orderType = NineXExample.orderModel.type
+        writer(plan = merged).recordWalks(listOf(done[0]))
+        log.walk(orderType).assert().isNull()
+        writer(plan = merged).recordWalks(done)
+        log.walk(orderType)!!.walked.assert().isEqualTo(2)
     }
 
     @Test
