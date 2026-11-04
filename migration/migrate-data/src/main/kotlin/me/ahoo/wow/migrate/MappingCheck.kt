@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.manifest.AccessAttributeManifest
 
 /** A 9.x event type as streams record it: its name and 9.x revision. */
 internal data class NineXEventType(val name: String, val revision: String) {
@@ -122,6 +123,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         commitTimeIndexes: Map<String, String> = emptyMap(),
         deleted: (NineXAggregate) -> Long = { 0 },
         walkIndexes: Map<String, String> = emptyMap(),
+        tags: TagReader = TagReader.NONE,
     ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
@@ -145,6 +147,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
             } else {
                 storeProblems(aggregate, inventory, problems, warnings)
                 deletionWarning(aggregate, deleted)?.let { warnings += it }
+                TagCheck(aggregate, tags, problems, warnings).check()
             }
         }
         reservationProblems(prepareKeys, problems, warnings)
@@ -166,6 +169,124 @@ internal class MappingCheck(private val plan: MigrationPlan) {
      * The warning of an [aggregate] whose 9.x snapshots mark instances [deleted] when the map deletes none
      * ([AggregatePlan.deletes]): V10 would hold them alive. Null when the map deletes, or no snapshot marks one.
      */
+    /**
+     * The check of one [aggregate]'s 9.x tags against its [AggregateMapping.tags], from what [reader] counts in the
+     * store: every key the store holds is mapped or left out for a reason; each is mapped as its source (a key no tags
+     * event wrote was derived); each attribute is declared, and holds the values the store has; the tags event writes
+     * them ([EventMapping.tags]).
+     */
+    private class TagCheck(
+        private val aggregate: AggregatePlan,
+        private val reader: TagReader,
+        private val problems: MutableList<String>,
+        private val warnings: MutableList<String>,
+    ) {
+        private val subject = aggregate.source
+        private val mapping = aggregate.mapping
+        private val tags = reader.tags(subject)
+
+        fun check() {
+            tags.events.forEach { (name, count) -> eventProblem(name, count) }
+            (tags.applied.keys + tags.snapshots.keys).forEach(::keyProblem)
+            mapping.tags.forEach(::attributeProblem)
+            mapping.tags.filter { it.key !in tags.applied && it.key !in tags.snapshots }.forEach {
+                warnings += "$subject: no tags event or snapshot holds the 9.x tag key ${it.key}"
+            }
+        }
+
+        /** The 9.x event [name], [count] of which hold tags: the tags event writes them, so maps with tags. */
+        private fun eventProblem(name: String, count: Long) {
+            val event = mapping.events.firstOrNull { it.from == name } ?: return // Its own problem: it has no mapping.
+            when {
+                event.tags -> Unit
+                event.drop && mapping.tags.any { it.written } ->
+                    problems += "$subject: the 9.x event $name ($count events) writes tags and is dropped, so the " +
+                        "attributes ${mapping.tags.filter { it.written }.map { it.to }} would be lost: map it to the " +
+                        "V10 event that sets them, with \"tags\": true"
+
+                name == MapDrafter.TAGS_EVENT ->
+                    problems += "$subject: the 9.x tags event $name ($count events) is mapped without \"tags\": true, " +
+                        "so the tags it wrote would not reach the V10 attributes"
+
+                else ->
+                    warnings += "$subject: the 9.x event $name ($count events) holds a tags object: if it " +
+                        "implements ResourceTagsApplied, map it with \"tags\": true"
+            }
+        }
+
+        /** The 9.x tag [key] the store holds: mapped as where its values come from, or left out for a reason. */
+        private fun keyProblem(key: String) {
+            val applied = tags.applied[key]
+            val held = tags.snapshots[key]
+            val where = listOfNotNull(applied?.let { "${it.count} tags events" }, held?.let { "${it.count} snapshots" })
+                .joinToString(" and ")
+            val tag = mapping.tagOf(key)
+            when {
+                tag == null ->
+                    problems += "$subject: the 9.x tag key $key ($where) has no tag mapping: map it to the " +
+                        "V10 access attribute it becomes (source ${if (applied == null) TagSource.DERIVED else TagSource.APPLIED}), " +
+                        "or leave it out with a reason"
+
+                tag.to == null -> warnings += "$subject: the 9.x tag key $key ($where) is left out: ${tag.reason}"
+                tag.source == TagSource.DERIVED && applied != null ->
+                    problems += "$subject: the 9.x tag key $key is mapped as ${TagSource.DERIVED}, but ${applied.count} " +
+                        "tags events wrote it: map it as ${TagSource.BOTH} (V10 derives it, and leaves the values they " +
+                        "wrote out) or ${TagSource.APPLIED}"
+
+                tag.source == TagSource.APPLIED && applied == null ->
+                    problems += "$subject: the 9.x tag key $key is mapped as ${TagSource.APPLIED}, but no tags event " +
+                        "wrote it: the ${held!!.count} snapshots that hold it had it derived by the 9.x state, so map it as " +
+                        "${TagSource.DERIVED}"
+
+                tag.source == TagSource.BOTH && applied != null ->
+                    warnings += "$subject: the 9.x tag key $key is applied and derived: V10 derives ${tag.to} with an " +
+                        "@Access function, and the values ${applied.count} tags events wrote are left out of their events"
+            }
+        }
+
+        /**
+         * The problems of [tag]'s attribute: declared by the V10 aggregate, and able to hold the values the store
+         * holds. The tags events' values of an applied key are problems, since the import writes them. The snapshots'
+         * values of a derived key are warnings: V10 derives the attribute and the import writes none of them, but
+         * 9.x merged what its state derived into the tags it kept, so a snapshot can hold a key's former values
+         * beside its current one, which compare then reports.
+         */
+        private fun attributeProblem(tag: TagMapping) {
+            val to = tag.to ?: return
+            val attribute = aggregate.accessOf(to)
+            if (attribute == null) {
+                problems += "$subject: the 9.x tag key ${tag.key} maps to $to, which ${aggregate.target} does not " +
+                    "declare as an access attribute (@Access)"
+                return
+            }
+            val snapshots = tag.source != TagSource.APPLIED
+            val stats = (if (snapshots) tags.snapshots else tags.applied)[tag.key] ?: return
+            val records = if (snapshots) "snapshots" else "tags events"
+            TagValues.problems(attribute, stats).forEach { (problem, count) ->
+                val samples = reader.samples(subject, tag.key, problem, snapshots)
+                val kind = if (snapshots) "instances" else "streams"
+                val found = "$subject: the 9.x tag key ${tag.key}, mapped to the ${describe(attribute)} attribute $to, " +
+                    "holds ${valuesOf(problem)} in $count $records" +
+                    (if (samples.isEmpty()) "" else " ($kind ${samples.joinToString()})")
+                if (snapshots) {
+                    warnings += "$found: V10 derives $to from the state, so the import writes none of them, and " +
+                        "compare reports these instances as ${StateComparison.ACCESS}.$to differences"
+                } else {
+                    problems += found
+                }
+            }
+        }
+
+        private fun describe(attribute: AccessAttributeManifest): String =
+            (if (attribute.multiple) "multiple " else "single ") + attribute.type.name.lowercase()
+
+        private fun valuesOf(problem: TagValueProblem): String = when (problem) {
+            TagValueProblem.MULTIPLE -> "two values or more"
+            TagValueProblem.NOT_INTEGER -> "a value that is no integer"
+            TagValueProblem.NOT_BOOLEAN -> "a value that is not true or false"
+        }
+    }
+
     private fun deletionWarning(aggregate: AggregatePlan, deleted: (NineXAggregate) -> Long): String? {
         if (aggregate.deletes) {
             return null

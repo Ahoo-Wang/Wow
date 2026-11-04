@@ -281,8 +281,7 @@ object ArchitectureRules {
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime for the
         // node's assembly of a service's Manifest from its modules' fragments on the class path, and for the tests,
         // which list and retry the imported parked entries as the ops routes do (roadmap 8b.4).
-        // elasticsearch only for the tags backfill's re-sink of an events index (decision D259).
-        MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "elasticsearch", "runtime"),
+        MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "runtime"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
         // Only for the TestKit fixture and the tests: the plugin's own code depends on no Wow module, its tools run in

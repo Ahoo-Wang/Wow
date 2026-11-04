@@ -387,6 +387,55 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             .filter { it != sampled.firstOrNull() }
     }
 
+    /**
+     * One aggregation of [aggregate]'s collection: its events whose payload holds a `tags` object, counted by name,
+     * and their tag keys, each with its values' counts ([MongoTags.counts]).
+     */
+    override fun tags(aggregate: NineXAggregate): NineXTags {
+        val facets = collectionOf(aggregate).aggregate(
+            listOf(
+                Document("\$match", Document(CONTEXT_NAME, aggregate.context)),
+                Document("\$unwind", "\$body"),
+                Document("\$match", Document("body.body.$TAGS", Document("\$type", "object"))),
+                Document("\$project", Document("name", "\$body.name").append(TAGS, "\$body.body.$TAGS")),
+                Document(
+                    "\$facet",
+                    Document(
+                        "events",
+                        listOf(Document("\$group", Document("_id", "\$name").append("count", Document("\$sum", 1))))
+                    )
+                        .append("keys", MongoTags.counts("\$$TAGS")),
+                ),
+            ),
+        ).first()!! // A $facet stage answers one document, of empty facets when nothing matches.
+        return NineXTags(
+            applied = MongoTags.stats(facets.getList("keys", Document::class.java)),
+            events = facets.getList("events", Document::class.java).associate {
+                it.getString("_id") to (it.get("count") as Number).toLong()
+            },
+        )
+    }
+
+    /** The streams whose tags events hold the values, in id order: each stream once, however many of its events do. */
+    override fun tagSamples(
+        aggregate: NineXAggregate,
+        key: String,
+        problem: TagValueProblem,
+        limit: Int
+    ): List<String> {
+        val holding = MongoTags.holding("body.body.$TAGS", key, problem) ?: return emptyList()
+        return collectionOf(aggregate).aggregate(
+            listOf(
+                Document("\$match", Document(CONTEXT_NAME, aggregate.context).append("body.body.$TAGS.$key", Document("\$exists", true))),
+                Document("\$unwind", "\$body"),
+            ) + holding + listOf(
+                Document("\$group", Document(ID, "\$$ID")),
+                Document("\$sort", Document(ID, 1)),
+                Document("\$limit", limit),
+            ),
+        ).map { it.get(ID).toString() }.toList()
+    }
+
     override fun missingWalkIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
         aggregates.map { it.name + SUFFIX }.distinct()
             .mapNotNull { name -> missingWalkIndexOf(name)?.let { name to it } }

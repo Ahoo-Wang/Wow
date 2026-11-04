@@ -165,6 +165,9 @@ internal data class Exclusion(
  *   by default field for field.
  * - [reservations] map the 9.x `PrepareKey`s whose values name an instance of this aggregate to V10 reservation
  *   namespaces ([ReservationMapping]): every `PrepareKey` the store holds needs one.
+ * - [tags] map the 9.x tag keys the aggregate's tags events wrote and its snapshots hold to V10 access attributes
+ *   ([TagMapping]), or leave one out for a reason: every key the store holds needs one. The tags event itself maps to
+ *   the V10 domain event that sets them ([EventMapping.tags]).
  *
  * A V10 name without a dot is the simple name in [to]'s namespace (`OrderCreated` is `example.order.OrderCreated`);
  * one with a dot is a system name such as `wow.lifecycle.AggregateDeleted`.
@@ -177,10 +180,17 @@ internal data class AggregateMapping(
     val defaultCommand: String? = null,
     val state: StateMapping = StateMapping(),
     val reservations: List<ReservationMapping> = emptyList(),
+    val tags: List<TagMapping> = emptyList(),
 ) {
     init {
         val dot = from.lastIndexOf('.')
         require(dot in 1 until from.length - 1) { "A 9.x aggregate is named contextName.aggregateName: $from" }
+        tags.groupBy { it.key }.filterValues { it.size > 1 }.keys.forEach {
+            throw IllegalArgumentException("$from maps the 9.x tag key $it twice.")
+        }
+        tags.filter { it.to != null }.groupBy { it.to }.filterValues { it.size > 1 }.forEach { (to, keys) ->
+            throw IllegalArgumentException("$from maps the 9.x tag keys ${keys.map { it.key }} all to $to.")
+        }
         val toDot = to.indexOf('.')
         require(toDot in 1 until to.length - 1) { "A V10 aggregate type is named context.aggregate: $to" }
         require(defaultCommand == null || defaultCommand.isNotBlank()) { "$from has a blank default command." }
@@ -190,6 +200,9 @@ internal data class AggregateMapping(
     fun source(): NineXAggregate = from.lastIndexOf('.').let {
         NineXAggregate(from.substring(0, it), from.substring(it + 1))
     }
+
+    /** The mapping of the 9.x tag [key]; null when [tags] has none. */
+    fun tagOf(key: String): TagMapping? = tags.firstOrNull { it.key == key }
 }
 
 /** The 9.x command [from] imported as the V10 command [to]. */
@@ -209,6 +222,11 @@ internal data class CommandMapping(val from: String, val to: String) {
  *   as stored under the name [to], which the aggregate lists in `@AggregateRoot(retiredEvents)` (the Manifest's
  *   `retired`), so loading skips it and its stream still counts as a version. The mapping check fails when [to] is
  *   not retired there.
+ * - [tags] is for 9.x's tags event (`default_resource_tags_applied`, or an event implementing `ResourceTagsApplied`):
+ *   its payload's `tags` become fields of the V10 event [to], one per applied key of [AggregateMapping.tags], named as
+ *   the access attribute, each value converted by the attribute's Manifest entry ([TagValues]). Every such attribute
+ *   is written, an absent key as none (null, or an empty list), as 9.x replaced the whole map; the payload's other
+ *   fields are kept, renamed by [fields]. `draft-map` sets it on the 9.x tags event, so the import never guesses.
  * - [drop] leaves the event out of its stream. A stream whose every event is dropped would leave its version empty,
  *   which the log cannot hold: the mapping check counts such streams and fails before anything is imported; map
  *   those events with [retire] instead.
@@ -233,9 +251,13 @@ internal data class EventMapping(
     val fields: Map<String, String> = emptyMap(),
     val upgrade: String? = null,
     val lifecycle: LifecycleMapping? = null,
+    val tags: Boolean = false,
 ) {
     init {
         require(from.isNotBlank()) { "An event mapping names its 9.x event." }
+        require(!tags || to != null && !retire) {
+            "The event mapping of $from writes the 9.x tags into the V10 event it names: it neither drops nor retires it."
+        }
         require(lifecycle == null || !drop && !retire) {
             "The event mapping of $from writes the lifecycle event ${lifecycle?.to} beside an event it drops or retires."
         }
@@ -252,8 +274,8 @@ internal data class EventMapping(
  * The system lifecycle event [to] a 9.x event that implemented one is composed with in V10: written right after the
  * mapped event, in the same stream, so V10 marks the aggregate deleted or restored, or moves its owner or space, as
  * 9.x did. [to] is one of `wow.lifecycle.AggregateDeleted`, `AggregateRestored` (9.x `AggregateRecovered`),
- * `OwnerTransferred` and `SpaceTransferred`. 9.x `ResourceTagsApplied` has no lifecycle event any more: work
- * package F maps 9.x tags to state fields.
+ * `OwnerTransferred` and `SpaceTransferred`. 9.x `ResourceTagsApplied` has no lifecycle event any more: its tags
+ * become fields of the V10 domain event its mapping names ([EventMapping.tags]).
  *
  * [fields] build its payload from the 9.x payload, 9.x name to V10 name (`"toOwnerId": "ownerId"`): it holds those
  * fields alone, and each must be in the 9.x payload. The fields the lifecycle event needs ([REQUIRED]) must be among

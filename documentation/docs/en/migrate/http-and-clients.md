@@ -12,7 +12,8 @@ V10 changes the routes, the headers, the errors and the client packages, and kee
 | 9.x | V10 |
 | --- | --- |
 | `POST /<context>/[tenant/{tenantId}/][owner/{ownerId}/]<aggregate>/{id}/<action>`, with `PUT`, `PATCH` and custom actions | `POST /<context>/<aggregate>/{id}/<command>`, the command in kebab case; a creating command also without `{id}`, and every command of an aggregate whose id is its owner's (9.x `OwnerPolicy.AGGREGATE_ID`), as the caller's own; a command whose body names its aggregate (`@AggregateId`) only without `{id}`. The tenant and owner come from the caller, never the path |
-| `DELETE …/{id}`, `PUT …/{id}/recover`, `PUT …/{id}/tags` | `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.restore-aggregate`, `POST …/{id}/wow.lifecycle.apply-tags` |
+| `DELETE …/{id}`, `PUT …/{id}/recover` | `DELETE /<context>/<aggregate>/{id}`, `POST …/{id}/wow.lifecycle.restore-aggregate` |
+| `PUT …/{id}/tags` | The route of the aggregate's own command that sets its access attributes ([Tags and attribute-based access](./source#tags-and-attribute-based-access)) |
 | `…/snapshot/{single,list,paged,cursor,count,aggregation}`, their `/state` forms, `…/event/…` | `POST /<context>/<aggregate>/snapshot/query` and `…/events/query`, the operation in the body's `kind` |
 | `GET …/snapshot/schema` | `GET` on the same query route: the capability descriptor, with its `ETag` |
 | `GET …/{id}/state/{version}`, `…/state/tracing` | `GET /<context>/<aggregate>/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and `…/state/trace` |

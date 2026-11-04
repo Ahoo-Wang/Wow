@@ -116,8 +116,13 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             val mapping = aggregate.eventOf(event.name, event.revision)
                 ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
             val to = mapping.to ?: return@mapIndexed event to emptyList()
+            val payload = if (mapping.tags) {
+                tagged(event, mapping, aggregate, "$subject, event $position")
+            } else {
+                payload(event.body, mapping)
+            }
             event to listOfNotNull(
-                EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping)),
+                EventRecord(aggregate.fullName(to), mapping.toRevision, payload),
                 mapping.lifecycle?.let { lifecycle -> lifecycleOf(lifecycle, event, "$subject, event $position") },
             )
         }
@@ -132,6 +137,35 @@ internal class StreamConverter(private val plan: MigrationPlan) {
             payload.set(to, value)
         }
         return EventRecord(lifecycle.to, 1, WowJson.mapper.writeValueAsString(payload))
+    }
+
+    /**
+     * The payload of 9.x's tags [event] ([EventMapping.tags]): its fields but `tags`, renamed, and one field per applied
+     * tag key of the aggregate, named as its access attribute, holding the key's values as the attribute does
+     * ([TagValues]), none when the event holds no such key: 9.x replaced the whole map.
+     */
+    private fun tagged(event: NineXEvent, mapping: EventMapping, aggregate: AggregatePlan, at: String): String {
+        val payload = WowJson.mapper.createObjectNode()
+        event.body.properties().forEach { (name, value) ->
+            if (name != TAGS) {
+                payload.set(mapping.fields[name] ?: name, value)
+            }
+        }
+        val tags = NineXTags.of(event.body.get(TAGS))
+        aggregate.mapping.tags.filter { it.written }.forEach { tag ->
+            val name = tag.to!!
+            val attribute = aggregate.accessOf(name) ?: throw MigrationException(
+                "$at (${event.name}): the 9.x tag ${tag.key} maps to $name, which ${aggregate.target} does not declare " +
+                    "as an access attribute.",
+            )
+            val value = try {
+                TagValues.nodeOf(attribute, tags?.get(tag.key))
+            } catch (failure: TagValueException) {
+                throw MigrationException("$at (${event.name}): the 9.x tag ${tag.key} ${failure.message}.")
+            }
+            payload.set(name, value)
+        }
+        return WowJson.mapper.writeValueAsString(payload)
     }
 
     private fun payload(body: JsonNode, mapping: EventMapping): String {
@@ -159,3 +193,6 @@ internal class StreamConverter(private val plan: MigrationPlan) {
     private fun field(event: EventRecord, name: String): String? =
         WowJson.mapper.readTree(event.payload).get(name)?.takeIf { it.isString }?.stringValue()?.ifBlank { null }
 }
+
+/** The field of 9.x's tags event that holds the tags: `ResourceTagsApplied.tags`. */
+internal const val TAGS = "tags"

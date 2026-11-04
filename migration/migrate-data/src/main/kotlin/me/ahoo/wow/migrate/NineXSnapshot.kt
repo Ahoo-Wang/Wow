@@ -58,16 +58,11 @@ internal data class NineXSnapshot(
                 ownerId = node.text("ownerId").orEmpty(),
                 spaceId = node.text("spaceId").orEmpty(),
                 deleted = node.get("deleted")?.asBoolean() ?: false,
-                tags = tagsOf(node.get("tags")),
+                tags = NineXTags.of(node.get("tags")).orEmpty(),
                 state = required("state", node.get("state")?.takeIf { !it.isNull }),
                 snapshotTime = node.get("snapshotTime")?.takeIf { it.isIntegralNumber }?.asLong(),
             )
         }
-
-        private fun tagsOf(node: JsonNode?): Map<String, List<String>> =
-            node?.takeIf { it.isObject }?.properties()?.associate { (key, values) ->
-                key to values.toList().map { it.asString() }
-            }.orEmpty()
 
         private fun JsonNode.text(field: String): String? = get(field)?.takeIf { it.isString }?.asString()
     }
@@ -99,4 +94,42 @@ internal interface NineXSnapshotSource {
 
     /** How many snapshots of [aggregate] mark their instance deleted. */
     fun deleted(aggregate: NineXAggregate): Long
+
+    /**
+     * The 9.x tag keys [aggregate]'s snapshots hold ([NineXSnapshot.tags]), each with its values' counts: the tags
+     * 9.x applied, then derived. A store counts them in one scan; this one reads every snapshot.
+     */
+    fun tags(aggregate: NineXAggregate): Map<String, TagValueStats> {
+        val tags = LinkedHashMap<String, TagValueStats>()
+        snapshotPages(aggregate) { snapshot ->
+            snapshot.tags.forEach { (key, values) -> tags.merge(key, TagValueStats.of(values), TagValueStats::plus) }
+            true
+        }
+        return tags
+    }
+
+    /** At most [limit] ids of [aggregate]'s instances whose snapshot holds the values of [key] [problem] names. */
+    fun tagSamples(aggregate: NineXAggregate, key: String, problem: TagValueProblem, limit: Int): List<String> {
+        val ids = ArrayList<String>()
+        snapshotPages(aggregate) { snapshot ->
+            snapshot.tags[key]?.takeIf { TagValues.holds(problem, it) }?.let { ids += snapshot.aggregateId.id }
+            ids.size < limit
+        }
+        return ids
+    }
+
+    /** Hands [aggregate]'s snapshots to [each], in id order, until it returns false. */
+    private fun snapshotPages(aggregate: NineXAggregate, each: (NineXSnapshot) -> Boolean) {
+        var after: NineXAggregateId? = null
+        while (true) {
+            val page = snapshots(aggregate, after, SNAPSHOT_PAGE)
+            if (page.isEmpty() || !page.all(each)) {
+                return
+            }
+            after = page.last().aggregateId
+        }
+    }
 }
+
+/** The snapshots [NineXSnapshotSource]'s own tag counts read at once. */
+private const val SNAPSHOT_PAGE = 500
