@@ -117,6 +117,8 @@ describe('Manifest clients', () => {
           { name: 'level', type: 'integer' },
           { name: 'grades', type: 'integer', multiple: true },
           { name: 'open', type: 'boolean' },
+          // A type this generator does not know yet takes any scalar.
+          { name: 'scores', type: 'decimal', multiple: true },
         ],
       }),
       `import { ThingSnapshotQueryClient, ThingEventQueryClient, ThingStateClient, type ThingAccess } from './out/index.js';
@@ -145,6 +147,7 @@ describe('Manifest clients', () => {
         '  readonly level?: string | null;',
         '  readonly grades?: readonly string[];',
         '  readonly open?: boolean | null;',
+        '  readonly scores?: readonly (string | number | boolean)[];',
         '};',
       ].join('\n'),
     );
