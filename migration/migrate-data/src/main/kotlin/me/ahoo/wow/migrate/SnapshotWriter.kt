@@ -18,7 +18,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -71,7 +73,8 @@ internal data class SnapshotProgress(
  * - **Stamped.** The instance's streams get the access attributes of the state it rebuilt, as of the log's last version
  *   ([AccessStamps.stamp]), as the V10 nodes' access walk would stamp them, so an events query under an access policy
  *   reads the imported history once V10 serves. The stamps of a page of instances are written together
- *   ([AccessStamps.stampAll]), a catch-up's too, a page at a time. A stream stamped as of a later version keeps its attributes, and one
+ *   ([AccessStamps.stampAll]); a catch-up writes every changed instance at once, as before, and their stamps together a
+ *   page's worth at a time, as they come. A stream stamped as of a later version keeps its attributes, and one
  *   appended since is stamped by the next catch-up. A type every 9.x aggregate mapped to it stamped without a failure
  *   has its walk recorded as completed ([recordWalks]): the nodes do not walk it again when they start or are
  *   activated.
@@ -184,10 +187,17 @@ internal class SnapshotWriter(
         val changed = target.log.changedSince(target.plan.target, recorded, heads)
             .filterNot { plan.excludes(target.aggregate, it.id) }
         val permits = Semaphore(options.concurrency)
-        // A page at a time, as the walk writes them: the stamps of a page are written together.
-        val written = changed.chunked(options.pageSize).flatMap { refs ->
-            writePage(target, refs.map { NineXAggregateId(it.id, it.tenantId) }, permits)
+        // Every changed instance at once, as before the stamps; theirs are written together a page's worth at a time.
+        val stamps = StampBuffer(target)
+        val written = coroutineScope {
+            changed.map { ref ->
+                async {
+                    permits.withPermit { write(target, NineXAggregateId(ref.id, ref.tenantId)) }
+                        ?.also { it.stamp?.let { stamp -> stamps.add(stamp) } }
+                }
+            }.awaitAll()
         }
+        stamps.flush()
         val progress = SnapshotProgress(
             aggregate = target.aggregate,
             written = written.count { it?.saved == true }.toLong(),
@@ -219,6 +229,28 @@ internal class SnapshotWriter(
         }
         target.stamps?.stampAllIn(written.mapNotNull { it?.stamp }, batch)
         return written
+    }
+
+    /**
+     * The stamps of a catch-up's instances as they are written, written together each time [ImportOptions.pageSize] of
+     * them are held, and the rest by [flush].
+     */
+    private inner class StampBuffer(private val target: Target) {
+        private val lock = Mutex()
+        private val held = ArrayList<AccessStamp>()
+
+        suspend fun add(stamp: AccessStamp) {
+            val full = lock.withLock {
+                held += stamp
+                if (held.size < options.pageSize) null else held.toList().also { held.clear() }
+            }
+            full?.let { target.stamps?.stampAllIn(it, batch) }
+        }
+
+        suspend fun flush() {
+            val rest = lock.withLock { held.toList().also { held.clear() } }
+            target.stamps?.stampAllIn(rest, batch)
+        }
     }
 
     /**

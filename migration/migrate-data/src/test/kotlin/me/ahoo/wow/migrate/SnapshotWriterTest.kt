@@ -241,7 +241,8 @@ class SnapshotWriterTest {
         )
         val source = InMemoryNineXEventSource(streams + late)
         EventStreamImporter(source, NineXExample.plan, { log }, checkpoints).tailOnce(order)
-        writer(source).writeAll(order).also {
+        // A page of one: the changed instance's stamp is written as soon as it is held.
+        writer(source, ImportOptions(pageSize = 1)).writeAll(order).also {
             it.caughtUp.assert().isTrue()
             it.written.assert().isEqualTo(1)
             it.done.assert().isTrue()
