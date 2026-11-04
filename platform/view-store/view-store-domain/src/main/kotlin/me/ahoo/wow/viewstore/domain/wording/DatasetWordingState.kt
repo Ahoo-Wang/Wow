@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.domain.wording
 
+import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared
 import me.ahoo.wow.viewstore.api.wording.DatasetWordingSet
 
@@ -20,6 +21,12 @@ import me.ahoo.wow.viewstore.api.wording.DatasetWordingSet
 class DatasetWordingState {
     var dataset: String = ""
         private set
+
+    /**
+     * The application it was created under: its creation's request fact `app_id`. An access attribute: each caller
+     * reads the wordings of its own application.
+     */
+    @Access
     var appId: String = ""
         private set
     var title: String? = null

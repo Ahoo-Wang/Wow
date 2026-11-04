@@ -13,17 +13,26 @@
 
 package me.ahoo.wow.viewstore.server
 
+import me.ahoo.wow.api.access.AccessPolicy
+import me.ahoo.wow.api.access.accessPolicy
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
+import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState
+import me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesStateAccess
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.domain.view.ViewReads
+import me.ahoo.wow.viewstore.domain.view.ViewState
+import me.ahoo.wow.viewstore.domain.view.ViewStateAccess
 import me.ahoo.wow.viewstore.domain.view.ViewStoreRoutes
+import me.ahoo.wow.viewstore.domain.wording.DatasetWordingState
+import me.ahoo.wow.viewstore.domain.wording.DatasetWordingStateAccess
 import me.ahoo.wow.viewstore.server.system.ConfiguredSystemViews
 import me.ahoo.wow.viewstore.server.system.StoredSystemViews
 import me.ahoo.wow.viewstore.server.system.ViewStoreProperties
@@ -34,8 +43,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * The view store's beans: its callers, its write rules, its derived ids, its query policy, the board lookup, the
- * system views and the handlers of its own routes.
+ * The view store's beans: its callers, its write rules, its derived ids, its access policies and the application its
+ * reads need, the board lookup, the system views and the handlers of its own routes.
+ *
+ * Its access policies: a view, preferences or a wording is read by its owner, in its space, within the caller's
+ * application ([ViewStateAccess.APP_ID] and the others' `appId`), and changed by its owner in its space (the default
+ * rule, which a policy replaces, so each says so); its commands keep to the application in the domain, whose
+ * rejections (`APP_REQUIRED`, `view-store.not-found`) the view store's clients read. A dataset wording belongs to its
+ * tenant: no owner is compared. A read without an application is refused ([ViewStoreApps]).
  *
  * Its callers: CoSec's, the user, its roles and the app of its scope, which the edge's resolver reads from the
  * security context CoSec put on the request, which the `cosec` profile has CoSec's gateway mode read from the identity
@@ -62,7 +77,30 @@ class ViewStoreConfiguration {
     fun wordingClearTarget(): CommandTransformer = WordingClearTarget()
 
     @Bean
-    fun viewStoreQueryPolicy(): QueryPolicy = ViewStoreQueryPolicy()
+    fun viewStoreApps(): ReadAuthorizer = ViewStoreApps()
+
+    @Bean
+    fun viewAccess(): AccessPolicy<ViewState> = accessPolicy {
+        read { caller -> allOf(ViewStateAccess.APP_ID eq caller.app, ownerAndSpace(caller)) }
+        write { caller -> ownerAndSpace(caller) }
+    }
+
+    @Bean
+    fun preferencesAccess(): AccessPolicy<ViewPreferencesState> = accessPolicy {
+        read { caller -> allOf(ViewPreferencesStateAccess.APP_ID eq caller.app, ownerAndSpace(caller)) }
+        write { caller -> ownerAndSpace(caller) }
+    }
+
+    @Bean
+    fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
+        read { caller ->
+            allOf(
+                DatasetWordingStateAccess.APP_ID eq caller.app,
+                ownerAndSpace(caller, Ownership.TENANT)
+            )
+        }
+        write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+    }
 
     /** Looks the queries up on use: they are built with the node, which this binding is part of. */
     @Bean

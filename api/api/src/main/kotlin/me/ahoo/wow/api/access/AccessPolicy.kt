@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.access
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 
@@ -22,6 +23,10 @@ import me.ahoo.wow.api.caller.Caller
  * attributes ([AccessPredicate]) to [read] them and one to [write] them. A service declares one per aggregate whose
  * state declares access attributes (`@Access`), as a bean; [aggregate] names the aggregate when several share the
  * state type, null otherwise. Build one with [accessPolicy].
+ *
+ * A policy replaces the default rule ([ScopeAccess]) for its aggregate: the caller's owner and space are compared
+ * only where the policy compares them, so a policy that keeps the aggregates to their owner and space says so
+ * ([AccessScope.ownerAndSpace]).
  */
 class AccessPolicy<S : Any> @InternalWowApi constructor(
     val stateType: Class<S>,
@@ -179,6 +184,16 @@ class AccessScope<S : Any> internal constructor() {
 
     /** Whether the caller holds the role [role]: one of the values of its `roles` claim. */
     fun Caller.hasRole(role: String): Boolean = role in claims(ROLES)
+
+    /**
+     * The default rule of [caller] ([ScopeAccess]): the aggregates whose owner is the owner of the scope the caller acts
+     * in and whose space is its space, each part compared only when the scope names it, and no owner for an aggregate
+     * of its tenant ([ownership]). A policy replaces the default rule for its aggregate, so one that keeps the
+     * aggregates to their owner and space combines its own attributes with this:
+     * `allOf(DocumentStateAccess.APP eq caller.app, ownerAndSpace(caller))`.
+     */
+    fun ownerAndSpace(caller: Caller, ownership: Ownership = Ownership.OWNER): AccessPredicate =
+        ScopeAccess.of(ownership.scopeOf(caller.scope))
 
     private fun compare(attribute: AccessAttribute<*, *>, operator: AccessOperator, values: List<Any>): AccessPredicate =
         if (values.isEmpty()) AccessPredicate.Unknown else AccessPredicate.Comparison(attribute, operator, values)

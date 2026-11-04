@@ -15,7 +15,7 @@ package me.ahoo.wow.ops.server
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.SignedInCallerResolver
@@ -61,12 +61,12 @@ class OpsConfiguration {
         if (cosec.ifAvailable == null) OperatorRole() else CommandAuthorizer.ALLOW_ALL
 
     /**
-     * Who reads the entries: steps aside when CoSec decides ([CoSecCommandAuthorizer]: its policies of the query
+     * Who reads the entries: no objection when CoSec decides ([CoSecCommandAuthorizer]: its policies of the query
      * routes, which it decides as their paths); otherwise the reader roles decide ([ReaderRole]).
      */
     @Bean
-    fun opsReaderRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): QueryPolicy =
-        if (cosec.ifAvailable == null) ReaderRole() else ReaderRole.COSEC_DECIDES
+    fun opsReaderRole(cosec: ObjectProvider<CoSecCommandAuthorizer>): ReadAuthorizer =
+        if (cosec.ifAvailable == null) ReaderRole() else ReadAuthorizer.ALLOW_ALL
 
     companion object {
         /**

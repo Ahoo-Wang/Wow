@@ -25,13 +25,16 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.error.QueryRequestException
+import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorization
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class AnalyticsCatalogAuthorizerTest {
     private val source = AnalyticsCatalogContract.Source.TYPE.ref("t", "s-1")
@@ -78,32 +81,21 @@ class AnalyticsCatalogAuthorizerTest {
     }
 
     @Test
-    fun `the catalog's own models should be read by its roles and in-process code only, its datasets by anyone`(): Unit = runBlocking {
-        val policy = AnalyticsCatalogQueryPolicy()
-        fun context(context: String, queried: me.ahoo.wow.query.schema.QueryModel) =
-            io.mockk.mockk<me.ahoo.wow.query.filter.QueryContext<*>> {
-                io.mockk.every { aggregateType } returns AggregateType(context, "x")
-                io.mockk.every { model } returns queried
-            }
-        val sources = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
-        policy.evaluate(QueryCaller.IN_PROCESS, sources).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        policy.evaluate(QueryCaller.of(caller(AnalyticsCatalogRoles.VIEWER)), sources)
-            .assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
+    fun `the catalog's own models should be read by its roles, its datasets by anyone`(): Unit = runBlocking {
+        val role = AnalyticsCatalogReaderRole()
+        fun read(context: String, model: QueryModel) =
+            ReadAction.of(AggregateType(context, "x"), model, QueryType.LIST, QueryEntry.HTTP)
+        val sources = read(AnalyticsCatalogContext.NAME, QueryModel.SNAPSHOT)
+        role.authorize(caller(AnalyticsCatalogRoles.VIEWER), sources).assert().isEqualTo(ReadAuthorization.Allowed)
         listOf(caller(), caller("other")).forEach { reader ->
-            val refused = assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(reader), sources) }
-            refused.code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)
-            // The query is right, the caller may not run it (UI-35).
-            refused.errorCode.assert().isEqualTo(me.ahoo.wow.api.result.FrameworkCodes.AUTH_FORBIDDEN)
+            val refused = role.authorize(reader, sources) as ReadAuthorization.Denied
+            // The read is right, the caller may not make it (UI-35).
+            refused.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+            refused.message.assert().contains("reads no source")
         }
         // A published dataset is the data plane's: its readers need no catalog role.
-        val dataset = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.DATASET)
-        policy.evaluate(
-            QueryCaller.of(caller("other")),
-            dataset
-        ).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        val other = context("shop", me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
-        policy.evaluate(QueryCaller.of(caller("other")), other).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        // It hides no row, so the catalog's events queries need not name their aggregates.
-        policy.events.assert().isEqualTo(me.ahoo.wow.query.policy.EventsMode.NONE)
+        role.authorize(caller("other"), read(AnalyticsCatalogContext.NAME, QueryModel.DATASET))
+            .assert().isEqualTo(ReadAuthorization.Allowed)
+        role.authorize(caller("other"), read("shop", QueryModel.SNAPSHOT)).assert().isEqualTo(ReadAuthorization.Allowed)
     }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.domain.view
 
+import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
 import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
@@ -40,7 +41,11 @@ class ViewState {
     var audience: ViewAudience = ViewAudience.PERSONAL
         private set
 
-    /** The application it was created under: its creation's request fact `app_id`. */
+    /**
+     * The application it was created under: its creation's request fact `app_id`. An access attribute: each caller
+     * reads the views of its own application.
+     */
+    @Access
     var appId: String = ""
         private set
 
