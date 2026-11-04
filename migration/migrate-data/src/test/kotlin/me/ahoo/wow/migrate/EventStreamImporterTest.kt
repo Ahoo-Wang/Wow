@@ -136,6 +136,13 @@ class EventStreamImporterTest {
     fun `a dry run converts every stream and appends none`(): Unit = runTest {
         importer(InMemoryNineXEventSource(NineXExample.streams()), ImportOptions(dryRun = true)).importAll(order)
             .imported.assert().isEqualTo(4)
+        // An instance its page read in part is read on from 9.x, as the import reads it.
+        val inMemory = InMemoryNineXEventSource(NineXExample.streams())
+        val partial = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(aggregate, after, limit, 1)
+        }
+        importer(partial, ImportOptions(dryRun = true)).importAll(order).imported.assert().isEqualTo(4)
         (0 until log.partitions).all { log.head(it) == null }.assert().isTrue()
         checkpoints.load().aggregates.assert().isEmpty()
     }
@@ -162,7 +169,8 @@ class EventStreamImporterTest {
             val first = NineXExample.stream("order-stream-v1.json")
             val source = InMemoryNineXEventSource(listOf(copyOf(first, "order-1"), copyOf(first, "")))
             val excluding = NineXExample.planExcluding(RefusedIds.EMPTY)
-            importer(source, plan = excluding).importAll(order).also {
+            // A page an instance: the first holds only the excluded one, and appends nothing.
+            importer(source, ImportOptions(pageSize = 1), plan = excluding).importAll(order).also {
                 it.instances.assert().isEqualTo(1)
                 it.imported.assert().isEqualTo(1)
                 it.excluded.assert().isEqualTo(1)
@@ -488,6 +496,19 @@ class EventStreamImporterTest {
                 it.skipped.assert().isEqualTo(7)
             }
         calls.sorted().assert().containsExactly(3, 4)
+    }
+
+    @Test
+    fun `a gap in an instance's 9x versions stops the import before its group is appended`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val third = NineXExample.stream("order-stream-v3.json")
+        val source = InMemoryNineXEventSource(listOf(first, third))
+        assertThrows<MigrationException> { importer(source).importAll(order) }.message.assert()
+            .isEqualTo(
+                "9.x stream ${third.id} of example-service.order/${first.aggregateId} is version 3 where 2 was " +
+                    "expected: the 9.x history has a gap.",
+            )
+        log.read(NineXExample.orderModel.type.ref("(0)", first.aggregateId.id)).toList().assert().isEmpty()
     }
 
     /** [log] answering a group commit as the log's own default does: one append after another. */
