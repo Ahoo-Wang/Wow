@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
@@ -509,6 +510,76 @@ class EventStreamImporterTest {
                     "expected: the 9.x history has a gap.",
             )
         log.read(NineXExample.orderModel.type.ref("(0)", first.aggregateId.id)).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `the next page is read while a page is appended`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val inMemory = InMemoryNineXEventSource((1..3).map { copyOf(first, "order-$it") })
+        val nextRead = CompletableDeferred<Unit>()
+        val source = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(
+                    aggregate,
+                    after,
+                    limit,
+                    maxStreams
+                ).also { if (after != null) nextRead.complete(Unit) }
+        }
+        // The first page's append waits for the second page's read: with a barrier between pages, it never comes.
+        val waiting = object : EventLog by log {
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                if (streams.first().first.ref.id == "order-1") nextRead.await()
+                return log.appendAll(streams)
+            }
+        }
+        importer(source, ImportOptions(pageSize = 1), waiting).importAll(order).imported.assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `the checkpoint moves after a page once it and the pages before it are imported`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val source = InMemoryNineXEventSource((1..3).map { copyOf(first, "order-$it") })
+        val secondAppended = CompletableDeferred<Unit>()
+        // The second page is appended before the first.
+        val reordering = object : EventLog by log {
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                val id = streams.first().first.ref.id
+                if (id == "order-1") secondAppended.await()
+                return log.appendAll(streams).also { if (id == "order-2") secondAppended.complete(Unit) }
+            }
+        }
+        val saved = mutableListOf<String?>()
+        val recording = object : CheckpointRepository by checkpoints {
+            override fun update(change: (ImportCheckpoints) -> ImportCheckpoints): ImportCheckpoints =
+                checkpoints.update(change).also { saved += it.of(order)?.after?.id }
+        }
+        EventStreamImporter(source, NineXExample.plan, { reordering }, recording, ImportOptions(pageSize = 1), { now })
+            .importAll(order).imported.assert().isEqualTo(3)
+        saved.assert().containsExactly(null, "order-1", "order-2", "order-3", "order-3")
+    }
+
+    @Test
+    fun `a page that fails leaves the checkpoint no further than the pages imported in full`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val source = InMemoryNineXEventSource((1..4).map { copyOf(first, "order-$it") })
+        val failing = object : EventLog by log {
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                check(streams.first().first.ref.id != "order-2") { "the store is gone" }
+                return log.appendAll(streams)
+            }
+        }
+        assertThrows<IllegalStateException> {
+            importer(source, ImportOptions(pageSize = 1), failing).importAll(order)
+        }
+        checkpoints.load().of(order)!!.after?.id.assert().isIn(null, "order-1")
+        // The rerun goes on from there, and finds in the log what the stopped run appended after it.
+        importer(source, ImportOptions(pageSize = 1)).importAll(order).also {
+            (it.imported + it.skipped).assert().isGreaterThanOrEqualTo(3)
+        }
+        (1..4).forEach { n ->
+            log.read(NineXExample.orderModel.type.ref("(0)", "order-$n")).toList().size.assert().isEqualTo(1)
+        }
     }
 
     /** [log] answering a group commit as the log's own default does: one append after another. */
