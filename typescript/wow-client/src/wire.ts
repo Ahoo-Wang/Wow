@@ -258,10 +258,10 @@ export interface RefusedResult<R = Record<string, unknown>> extends Omit<
 }
 
 /**
- * An access attribute's value as a record carries it (decision D390): a single
- * attribute's value or null, a multiple one's values, distinct and sorted. An
- * integer is a `Long` on the server: wow-generator types it `string` and marks
- * it to be read as its exact text ({@link AggregateTextNumbers.access}).
+ * An access attribute's value as a record carries it: a single attribute's
+ * value or null, a multiple one's values, distinct and sorted. An integer is
+ * a `Long` on the server: wow-generator types it `string` and marks it to be
+ * read as its exact text ({@link AggregateTextNumbers.access}).
  */
 export type AccessValue =
   string | number | boolean | null | readonly (string | number | boolean)[];

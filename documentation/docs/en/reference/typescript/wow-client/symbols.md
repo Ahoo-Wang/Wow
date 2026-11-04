@@ -17,7 +17,7 @@ Every name `@ahoo-wang/wow-client` exports — 132 — with its kind and the fir
 |---|---|---|---|
 | `AccessAttributeManifest` | interface | An access attribute of an aggregate: its name, the type of its values, and whether it holds several. | — |
 | `AccessField` | type | The `access.<name>` field paths of the access attributes `A`. | — |
-| `AccessValue` | type | An access attribute's value as a record carries it (decision D390): a single attribute's value or null, a multiple one's values, distinct and sorted. | — |
+| `AccessValue` | type | An access attribute's value as a record carries it: a single attribute's value or null, a multiple one's values, distinct and sorted. | — |
 | `AccessValues` | type | A record's access attributes by name, as the aggregate declares them (`@Access` on its state, the Manifest's `access`): a generated client types them as an `<Aggregate>Access` interface instead. | — |
 | `AggregateManifest` | interface | An aggregate type: its state, snapshots, commands, events and query models. | — |
 | `AggregateRef` | interface | One aggregate: its type, its tenant and its id. | — |
