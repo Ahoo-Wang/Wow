@@ -17,7 +17,7 @@ export const EshopCatalogContract = {
 } as const;
 
 /** An error code of `eshop-catalog`, of the context or of one of its aggregates. */
-export type EshopCatalogErrorCode = 'eshop-catalog.brand.blank-name' | 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.blank-name' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.product.blank-name' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.invalid-price' | 'eshop-catalog.product.not-published';
+export type EshopCatalogErrorCode = 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.not-published';
 
 /** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`. */
 export const eshopCatalogWait = {

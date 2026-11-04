@@ -14,7 +14,7 @@
 import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
 import type { Projected } from './dsl/projection.js';
-import { eventNumbers, type TextNumbers } from './exactJson.js';
+import { eventNumbers, recordNumbers, type TextNumbers } from './exactJson.js';
 import type {
   DescriptorResult,
   QueryModelDescriptor,
@@ -36,6 +36,8 @@ import {
   WowHeaders,
 } from './http.js';
 import type {
+  AccessField,
+  AccessValues,
   AggregateType,
   DatasetEntry,
   EventStreamField,
@@ -351,11 +353,18 @@ export function queryPath(type: AggregateType, model: string): string {
  *
  * @typeParam S - The state's type.
  * @typeParam STATE_FIELDS - The `state.*` paths of the state.
+ * @typeParam A - Its access attributes, whose `access.<name>` paths a query
+ *   names ({@link AccessField}); {@link NoAccess} for an aggregate that
+ *   declares none.
  */
 export class SnapshotQueryClient<
   S = unknown,
   STATE_FIELDS extends string = `state.${string}`,
-> extends QueryModelClient<Snapshot<S>, SnapshotSystemField | STATE_FIELDS> {
+  A = AccessValues,
+> extends QueryModelClient<
+  Snapshot<S, A>,
+  SnapshotSystemField | STATE_FIELDS | AccessField<A>
+> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached
@@ -367,9 +376,10 @@ export class SnapshotQueryClient<
     super(
       queryPath(type, 'snapshot'),
       client,
-      type.textNumbers?.state === undefined
-        ? undefined
-        : { state: type.textNumbers.state },
+      recordNumbers({
+        state: type.textNumbers?.state,
+        access: type.textNumbers?.access,
+      }),
     );
   }
 }
@@ -383,10 +393,17 @@ export class SnapshotQueryClient<
  * appends to: the budget bounds it.
  *
  * @typeParam E - The events' type.
+ * @typeParam A - The aggregate's declared access attributes, whose
+ *   `access.<name>` paths a query names beside the built-in `access.owner`
+ *   and `access.space`.
  */
 export class EventQueryClient<
   E extends CommittedEvent = CommittedEvent,
-> extends QueryModelClient<EventStream<E>, EventStreamField> {
+  A = AccessValues,
+> extends QueryModelClient<
+  EventStream<E, A>,
+  EventStreamField | AccessField<A>
+> {
   /**
    * @param type - The aggregate type
    * @param client - How the service is reached
@@ -399,7 +416,10 @@ export class EventQueryClient<
     super(
       queryPath(type, 'events'),
       client,
-      events === undefined ? undefined : { events: { '*': events } },
+      recordNumbers({
+        events: events === undefined ? undefined : { '*': events },
+        access: type.textNumbers?.access,
+      }),
     );
   }
 }

@@ -77,7 +77,7 @@ const page = await orderQueries.paged(
 console.log(page.total, page.list.map(record => record.state.status));
 ```
 
-The field names are typed from the generated `<Aggregate>StateField` and the system fields, so a misspelt field does not compile. Each client method runs one kind of query:
+The field names are typed from the generated `<Aggregate>StateField`, the system fields and the `access.<name>` of each access attribute the aggregate declares (its generated `<Aggregate>Access`), so a misspelt field, or an attribute the aggregate does not declare, does not compile. Each client method runs one kind of query:
 
 | Method | Answers |
 | --- | --- |
@@ -152,7 +152,7 @@ A failure the client cannot resume errors the stream with its `WowProblemError`.
 
 ## Query event streams
 
-`<Aggregate>EventQueryClient` runs the same queries over the aggregate's event streams, one record per commit, its events in `events`, typed by the generated `<Aggregate>Event` union:
+`<Aggregate>EventQueryClient` runs the same queries over the aggregate's event streams, one record per commit, its events in `events`, typed by the generated `<Aggregate>Event` union. Its `access` holds the aggregate's current access attributes with its `owner` and `space`, so a filter names `access.owner` and `access.space` beside the declared ones; it is `null` for a stream not stamped yet:
 
 <!-- typecheck-context
 import { OrderEventQueryClient } from './generated/ordering/index.js';

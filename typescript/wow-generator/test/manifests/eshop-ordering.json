@@ -1,5 +1,6 @@
 {
   "format": 1,
+  "line": 10,
   "service": { "name": "eshop-ordering-service" },
   "contexts": [
     {
@@ -102,19 +103,6 @@
                 }
               ],
               "description": "Submit an order"
-            },
-            {
-              "name": "wow.lifecycle.ApplyTags",
-              "aliases": [],
-              "schema": "#/$defs/wow.lifecycle.ApplyTags",
-              "creation": "none",
-              "routes": [
-                {
-                  "method": "POST",
-                  "path": "/eshop-ordering/order/{id}/wow.lifecycle.apply-tags"
-                }
-              ],
-              "system": true
             },
             {
               "name": "wow.lifecycle.DeleteAggregate",
@@ -268,7 +256,7 @@
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
-            "events": []
+            "events": ["OrderAwaitingValidation"]
           },
           "function": {
             "kind": "saga",
@@ -287,7 +275,7 @@
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
-            "events": []
+            "events": ["OrderCancelled"]
           },
           "function": {
             "kind": "saga",
@@ -306,7 +294,7 @@
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
-            "events": []
+            "events": ["OrderShipped"]
           },
           "function": {
             "kind": "saga",
@@ -325,7 +313,7 @@
           "source": {
             "context": "eshop-ordering",
             "aggregates": ["order"],
-            "events": []
+            "events": ["OrderSubmitted"]
           },
           "function": {
             "kind": "saga",
@@ -346,7 +334,7 @@
             "processor": "OrderProcessSaga",
             "name": "onReleaseRejected"
           },
-          "derives": ["eshop-ordering.order.CancelOrder"],
+          "derives": [],
           "rejected": [
             "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
           ]
@@ -380,6 +368,47 @@
           "rejected": [
             "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
           ]
+        },
+        {
+          "name": "OrderSummaryProjection.onEvent",
+          "kind": "projection",
+          "source": {
+            "context": "eshop-ordering",
+            "aggregates": ["order"],
+            "events": []
+          },
+          "function": {
+            "kind": "project",
+            "context": "eshop-ordering",
+            "processor": "OrderSummaryProjection",
+            "name": "onEvent"
+          },
+          "start": "beginning"
+        },
+        {
+          "name": "ShipmentNotifier.onOrderShipped",
+          "kind": "reactor",
+          "source": {
+            "context": "eshop-ordering",
+            "aggregates": ["order"],
+            "events": ["OrderShipped"]
+          },
+          "function": {
+            "kind": "react",
+            "context": "eshop-ordering",
+            "processor": "ShipmentNotifier",
+            "name": "onOrderShipped"
+          },
+          "start": "end",
+          "retry": {
+            "maxAttempts": 5,
+            "initialBackoff": "PT1S",
+            "maxBackoff": "PT30S",
+            "timeout": "PT10S",
+            "unrecoverable": [
+              "me.ahoo.wow.example.eshop.ordering.domain.order.UnknownBuyerException"
+            ]
+          }
         }
       ],
       "published": [
@@ -390,11 +419,6 @@
         }
       ],
       "errors": [
-        {
-          "code": "eshop-ordering.order.invalid-items",
-          "status": 422,
-          "description": "An order has at least one item, each of a positive quantity and a price not negative."
-        },
         {
           "code": "eshop-ordering.order.wrong-amount",
           "status": 422,
@@ -423,6 +447,11 @@
       "code": "wow.aggregate.forbidden",
       "status": 403,
       "description": "The aggregate is outside the caller's scope."
+    },
+    {
+      "code": "wow.request.malformed",
+      "status": 400,
+      "description": "A request header or parameter does not parse, or names what Wow does not take."
     },
     {
       "code": "wow.command.malformed",
@@ -467,7 +496,9 @@
     {
       "code": "wow.command.contended",
       "status": 409,
-      "description": "Concurrent writers kept winning the version; retrying with the same request id is safe."
+      "description": "Concurrent writers kept winning the version; retrying with the same request id is safe.",
+      "retry": "same-request",
+      "retryAfter": 1
     },
     {
       "code": "wow.aggregate.deleted",
@@ -477,32 +508,69 @@
     {
       "code": "wow.command.busy",
       "status": 429,
-      "description": "The node has too many commands in flight; retry later."
+      "description": "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
+      "retry": "same-request",
+      "retryAfter": 1
     },
     {
       "code": "wow.command.unknown",
       "status": 503,
-      "description": "Whether the command committed is unknown; retrying with the same request id is safe."
+      "description": "Whether the command committed is unknown; retrying with the same request id is safe.",
+      "retry": "same-request",
+      "retryAfter": 1
+    },
+    {
+      "code": "wow.command.failed",
+      "status": 500,
+      "description": "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike."
+    },
+    {
+      "code": "wow.command.refused",
+      "status": 409,
+      "description": "The aggregate's current state refuses the command (a check of its decide function); the message says why."
+    },
+    {
+      "code": "wow.command.undeclared-event",
+      "status": 500,
+      "description": "The command's handling produced an event its decide function or after hooks do not declare: a bug in the model, which the message names; it committed nothing."
     },
     {
       "code": "wow.node.closing",
       "status": 503,
-      "description": "The node is shutting down; retry on another node."
+      "description": "The node is shutting down; retry on another node.",
+      "retry": "same-request",
+      "retryAfter": 1
+    },
+    {
+      "code": "wow.node.standby",
+      "status": 503,
+      "description": "The node is on standby until the cut-over: it serves reads only.",
+      "retry": "same-request",
+      "retryAfter": 1
     },
     {
       "code": "wow.storage.unavailable",
       "status": 503,
-      "description": "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+      "description": "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+      "retry": "same-request",
+      "retryAfter": 1
     },
     {
       "code": "wow.schedule.not-due",
       "status": 503,
-      "description": "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+      "description": "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+      "retry": "same-request",
+      "retryAfter": 1
     },
     {
       "code": "wow.schedule.job-invalid",
       "status": 400,
       "description": "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+    },
+    {
+      "code": "wow.ledger.stale",
+      "status": 409,
+      "description": "The action names a parking the entry no longer is: the aggregate was resolved and parked again since; read the entry again before acting on it."
     },
     {
       "code": "wow.subscription.parked",
@@ -512,7 +580,14 @@
     {
       "code": "wow.wait.timeout",
       "status": 504,
-      "description": "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+      "description": "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+      "retry": "same-request",
+      "retryAfter": 1
+    },
+    {
+      "code": "wow.route.malformed",
+      "status": 400,
+      "description": "A service route's parameter or body cannot be read as its type; the violation names the parameter."
     },
     {
       "code": "wow.query.malformed",
@@ -530,9 +605,55 @@
       "description": "The query backend failed to run the query."
     },
     {
+      "code": "wow.query.not-found",
+      "status": 404,
+      "description": "A single query matched no record: a query result, not a statement that an aggregate does not exist."
+    },
+    {
+      "code": "wow.query.dataset-not-found",
+      "status": 404,
+      "description": "No dataset of that name is served to the caller."
+    },
+    {
+      "code": "wow.query.too-many-groups",
+      "status": 400,
+      "description": "An aggregation that names no sort has more groups than its limit; add a sort for a top-N, or raise limit."
+    },
+    {
       "code": "wow.query.timeout",
+      "status": 504,
+      "description": "The query ran longer than its budget allows; narrow it rather than run it again."
+    },
+    {
+      "code": "wow.query.min-version-not-reached",
+      "status": 409,
+      "description": "The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later.",
+      "retry": "new-request",
+      "retryAfter": 1
+    },
+    {
+      "code": "wow.query.busy",
+      "status": 429,
+      "description": "The query was not run: its store has as many queries running as it allows; retry later.",
+      "retry": "new-request",
+      "retryAfter": 1
+    },
+    {
+      "code": "wow.query.dataset-unavailable",
+      "status": 409,
+      "description": "The dataset is served but cannot be queried now, for the reason the problem names (it needs revision)."
+    },
+    {
+      "code": "wow.call.command-forbidden",
+      "status": 403,
+      "description": "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
+    },
+    {
+      "code": "wow.peer.unavailable",
       "status": 503,
-      "description": "The query ran longer than its budget allows; narrow it, or retry later."
+      "description": "A client reached no node of the peer, or lost the connection before a query's answer; nothing was changed, so the request may be sent again.",
+      "retry": "new-request",
+      "retryAfter": 1
     }
   ],
   "$defs": {
@@ -540,57 +661,74 @@
       "type": "object",
       "properties": { "orderId": { "type": "string" } },
       "required": ["orderId"],
-      "description": "Commit an order's reservation"
+      "description": "Commit an order's reservation",
+      "x-wow-class": "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation": {
       "type": "object",
       "properties": { "orderId": { "type": "string" } },
       "required": ["orderId"],
-      "description": "Release an order's reservation"
+      "description": "Release an order's reservation",
+      "x-wow-class": "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock": {
       "type": "object",
       "properties": {
         "orderId": { "type": "string" },
-        "quantity": { "type": "integer" }
+        "quantity": {
+          "type": "integer",
+          "format": "int32",
+          "exclusiveMinimum": 0
+        }
       },
       "required": ["orderId", "quantity"],
-      "description": "Reserve stock for an order"
+      "description": "Reserve stock for an order",
+      "x-wow-class": "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation": {
       "type": "object",
-      "description": "Await the stock validation"
+      "description": "Await the stock validation",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder": {
       "type": "object",
       "properties": { "reason": { "type": "string" } },
       "required": ["reason"],
-      "description": "Cancel the order"
+      "description": "Cancel the order",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock": {
       "type": "object",
       "properties": { "productId": { "type": "string" } },
       "required": ["productId"],
-      "description": "Confirm a product's stock"
+      "description": "Confirm a product's stock",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation": {
       "type": "object",
-      "description": "The order awaits its stock validation"
+      "description": "The order awaits its stock validation",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled": {
       "type": "object",
       "properties": { "reason": { "type": "string" } },
       "required": ["reason"],
-      "description": "The order was cancelled"
+      "description": "The order was cancelled",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem": {
       "type": "object",
       "properties": {
         "productId": { "type": "string" },
-        "quantity": { "type": "integer" },
-        "unitPrice": { "type": "number", "format": "decimal" }
+        "quantity": {
+          "type": "integer",
+          "format": "int32",
+          "exclusiveMinimum": 0
+        },
+        "unitPrice": { "type": "number", "format": "decimal", "minimum": 0 }
       },
-      "required": ["productId", "quantity", "unitPrice"]
+      "required": ["productId", "quantity", "unitPrice"],
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid": {
       "type": "object",
@@ -599,21 +737,25 @@
         "paymentId": { "type": "string" }
       },
       "required": ["amount", "paymentId"],
-      "description": "The order was paid"
+      "description": "The order was paid",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped": {
       "type": "object",
-      "description": "The order was shipped"
+      "description": "The order was shipped",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed": {
       "type": "object",
-      "description": "The inventory reserved every product of the order; it awaits its payment"
+      "description": "The inventory reserved every product of the order; it awaits its payment",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed": {
       "type": "object",
       "properties": { "productId": { "type": "string" } },
       "required": ["productId"],
-      "description": "The inventory reserved one of the order's products"
+      "description": "The inventory reserved one of the order's products",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted": {
       "type": "object",
@@ -626,7 +768,8 @@
         }
       },
       "required": ["items"],
-      "description": "An order was submitted"
+      "description": "An order was submitted",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder": {
       "type": "object",
@@ -635,11 +778,13 @@
         "paymentId": { "type": "string" }
       },
       "required": ["amount", "paymentId"],
-      "description": "Pay the order"
+      "description": "Pay the order",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder": {
       "type": "object",
-      "description": "Ship the order"
+      "description": "Ship the order",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder": {
       "type": "object",
@@ -648,17 +793,23 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderItem"
-          }
+          },
+          "minItems": 1
         }
       },
       "required": ["items"],
-      "description": "Submit an order"
+      "description": "Submit an order",
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder"
     },
     "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState": {
       "type": "object",
       "properties": {
         "cancelReason": { "type": ["string", "null"] },
-        "confirmedProducts": { "type": "array", "items": { "type": "string" } },
+        "confirmedProducts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
         "items": {
           "type": "array",
           "items": {
@@ -675,52 +826,45 @@
             "PAID",
             "SHIPPED",
             "CANCELLED"
-          ]
+          ],
+          "x-wow-class": "me.ahoo.wow.example.eshop.ordering.api.order.OrderStatus"
         },
         "totalAmount": { "type": "number", "format": "decimal" }
       },
-      "required": ["confirmedProducts", "items", "status", "totalAmount"]
-    },
-    "wow.lifecycle.ApplyTags": {
-      "type": "object",
-      "properties": {
-        "tags": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": { "type": "string" }
-          }
-        }
-      },
-      "required": ["tags"],
-      "description": "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+      "required": ["confirmedProducts", "items", "status", "totalAmount"],
+      "x-wow-class": "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState"
     },
     "wow.lifecycle.DeleteAggregate": {
       "type": "object",
-      "description": "Marks the aggregate deleted; its events stay in the log."
+      "description": "Marks the aggregate deleted; its events stay in the log.",
+      "x-wow-class": "me.ahoo.wow.api.lifecycle.DeleteAggregate"
     },
     "wow.lifecycle.RestoreAggregate": {
       "type": "object",
-      "description": "Takes back the deletion of a deleted aggregate."
+      "description": "Takes back the deletion of a deleted aggregate.",
+      "x-wow-class": "me.ahoo.wow.api.lifecycle.RestoreAggregate"
     },
     "wow.lifecycle.TransferOwner": {
       "type": "object",
       "properties": { "ownerId": { "type": "string" } },
       "required": ["ownerId"],
-      "description": "Gives the aggregate to the owner ownerId."
+      "description": "Gives the aggregate to the owner ownerId.",
+      "x-wow-class": "me.ahoo.wow.api.lifecycle.TransferOwner"
     },
     "wow.lifecycle.TransferSpace": {
       "type": "object",
       "properties": { "spaceId": { "type": "string" } },
       "required": ["spaceId"],
-      "description": "Moves the aggregate to the space spaceId."
+      "description": "Moves the aggregate to the space spaceId.",
+      "x-wow-class": "me.ahoo.wow.api.lifecycle.TransferSpace"
     },
     "wow.snapshot.Rebuild": {
       "type": "object",
       "properties": {
         "ids": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["ids"]
+      "required": ["ids"],
+      "x-wow-class": "me.ahoo.wow.spi.snapshot.RebuildSnapshot"
     }
   }
 }

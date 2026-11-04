@@ -18,7 +18,6 @@ export const EshopOrderingManifest: RoutingManifest = {
             { name: 'PayOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/pay-order' }] },
             { name: 'ShipOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/ship-order' }] },
             { name: 'SubmitOrder', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/submit-order' }, { method: 'POST', path: '/eshop-ordering/order/submit-order' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-ordering/order/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferOwner', routes: [{ method: 'POST', path: '/eshop-ordering/order/{id}/wow.lifecycle.transfer-owner' }] },

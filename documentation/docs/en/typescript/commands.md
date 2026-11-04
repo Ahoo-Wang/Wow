@@ -231,6 +231,15 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 ## Lifecycle commands, scope and space
 
-An aggregate's client also sends the lifecycle commands its Manifest lists: `deleteAggregate`, `restoreAggregate`, `transferOwner`, `transferSpace` and `applyTags`.
+An aggregate's client also sends the lifecycle commands its Manifest lists: `deleteAggregate`, `restoreAggregate`, `transferOwner` and `transferSpace`.
+
+Who else may read or change an aggregate follows its access attributes, which its state declares (`@Access`), and the service's access policy: a grant is a command of the aggregate's own, such as `shareDocument`, not a lifecycle command. A record carries the attributes as `access`, typed by the generated `<Aggregate>Access` ([Query snapshots](./queries#query-snapshots)).
+
+A 10.0.0 pre-release's clients had `applyTags`, and its records `tags`. To move a client to 10.0.0:
+
+1. Regenerate it with this `wow-generator`, from the service's Manifest.
+2. Where it applied tags, send the aggregate's own command that changes the attribute.
+3. Where it read `tags`, read `access.<name>`. An integer attribute is a `string`, its exact text.
+4. Where a query filtered on `tags`, filter on `access.<name>`, and on event streams on `access.owner` and `access.space`.
 
 Every method takes the request options last. `space` picks one of the caller's spaces (`Wow-Space`; a CoSec service reads `CoSec-Space-Id` instead); `targetTenant` and `targetScope` (`{ ownerId?, spaceId? }`) act in another tenant, owner or space (`Wow-Scope`), for a caller allowed to act across scopes; `headers` adds headers of your own; `signal` cancels the request. Which caller a request is, and what it may do, is the service's to decide from its credentials ([Identity](../concepts/identity)).

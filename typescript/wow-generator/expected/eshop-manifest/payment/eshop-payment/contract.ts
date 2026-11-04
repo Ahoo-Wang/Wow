@@ -13,7 +13,7 @@ export const EshopPaymentContract = {
 } as const;
 
 /** An error code of `eshop-payment`, of the context or of one of its aggregates. */
-export type EshopPaymentErrorCode = 'eshop-payment.payment.invalid-amount' | 'eshop-payment.payment.wrong-status';
+export type EshopPaymentErrorCode = 'eshop-payment.payment.wrong-status';
 
 /** The subscriptions of `eshop-payment` a `handled` hop names. */
 export type EshopPaymentSubscription = 'OrderPaymentSaga.onOrderStockConfirmed' | 'OrderPaymentSaga.onPaymentFailed' | 'OrderPaymentSaga.onPaymentSucceeded' | 'OrderPaymentSaga.onPayRejected' | 'PaymentGatewaySaga.onPaymentRequested';

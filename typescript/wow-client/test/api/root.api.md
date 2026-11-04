@@ -17,6 +17,15 @@ export interface AccessAttributeManifest {
 }
 
 // @public
+export type AccessField<A> = `access.${keyof A & string}`;
+
+// @public
+export type AccessValue = string | number | boolean | null | readonly (string | number | boolean)[];
+
+// @public
+export type AccessValues = Readonly<Record<string, AccessValue>>;
+
+// @public
 export interface AggregateManifest {
     readonly access?: readonly AccessAttributeManifest[];
     // (undocumented)
@@ -51,6 +60,7 @@ export interface AggregateRef {
 
 // @public
 export interface AggregateTextNumbers {
+    readonly access?: TextNumbers;
     readonly commands?: Readonly<Record<string, TextNumbers>>;
     readonly events?: Readonly<Record<string, TextNumbers>>;
     readonly state?: TextNumbers;
@@ -233,12 +243,6 @@ interface AnyAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface ApplyTags {
-    // (undocumented)
-    readonly tags: Readonly<Record<string, readonly string[]>>;
-}
-
-// @public
 type BeforeTodayFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_TODAY;
     field: QueryField<FIELDS>;
@@ -414,7 +418,8 @@ export interface CommittedEvent<N extends string = string, B = unknown> {
 }
 
 // @public
-export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> {
+    readonly access: A;
     // (undocumented)
     readonly commandId: string;
     // (undocumented)
@@ -432,8 +437,6 @@ export interface CommitView<S = unknown, E extends CommittedEvent = CommittedEve
     readonly scope: Scope;
     // (undocumented)
     readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
     // (undocumented)
     readonly version: number;
 }
@@ -829,14 +832,15 @@ export interface EventManifest {
 }
 
 // @public
-export class EventQueryClient<E extends CommittedEvent = CommittedEvent> extends QueryModelClient<EventStream<E>, EventStreamField> {
+export class EventQueryClient<E extends CommittedEvent = CommittedEvent, A = AccessValues> extends QueryModelClient<EventStream<E, A>, EventStreamField | AccessField<A>> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
 }
 
 // @public
-export interface EventStream<E extends CommittedEvent = CommittedEvent> {
+export interface EventStream<E extends CommittedEvent = CommittedEvent, A = AccessValues> {
+    readonly access?: StreamAccess<A> | null;
     // (undocumented)
     readonly aggregateId: string;
     // (undocumented)
@@ -859,7 +863,7 @@ export interface EventStream<E extends CommittedEvent = CommittedEvent> {
 }
 
 // @public
-export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'events';
+export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'access' | 'access.owner' | 'access.space' | 'events';
 
 // @public
 type ExpressionFilter<FIELDS extends string = string> = {
@@ -1274,7 +1278,6 @@ export const LifecycleCommands: {
     readonly RESTORE_AGGREGATE: "wow.lifecycle.RestoreAggregate";
     readonly TRANSFER_OWNER: "wow.lifecycle.TransferOwner";
     readonly TRANSFER_SPACE: "wow.lifecycle.TransferSpace";
-    readonly APPLY_TAGS: "wow.lifecycle.ApplyTags";
 };
 
 // @public
@@ -1337,6 +1340,9 @@ type MetadataValuesFilter = {
 export function newRequestId(): string;
 
 // @public
+export type NoAccess = Readonly<Record<never, never>>;
+
+// @public
 type NowFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
     field: QueryField<FIELDS>;
@@ -1391,11 +1397,11 @@ export interface OwnerTransferred {
 }
 
 // @public
-export class OwnStateClient<S = unknown, E extends CommittedEvent = CommittedEvent> extends StateClient<S, E> {
-    findOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S> | undefined>;
-    getOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S>>;
-    readOwn(options?: StateReadOptions): Promise<StateReadResult<S>>;
-    traceOwn(options?: StateTraceOptions): Promise<StateTrace<S, E>>;
+export class OwnStateClient<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> extends StateClient<S, E, A> {
+    findOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
+    getOwn(options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
+    readOwn(options?: StateReadOptions): Promise<StateReadResult<S, A>>;
+    traceOwn(options?: StateTraceOptions): Promise<StateTrace<S, E, A>>;
 }
 
 // @public
@@ -1863,7 +1869,8 @@ export interface ServiceRouteManifest {
 }
 
 // @public
-export interface Snapshot<S = unknown> {
+export interface Snapshot<S = unknown, A = AccessValues> {
+    readonly access: A;
     // (undocumented)
     readonly aggregateId: string;
     // (undocumented)
@@ -1879,8 +1886,6 @@ export interface Snapshot<S = unknown> {
     readonly spaceId: string | null;
     // (undocumented)
     readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
     // (undocumented)
     readonly tenantId: string;
     // (undocumented)
@@ -1899,14 +1904,14 @@ export interface SnapshotManifest {
 }
 
 // @public
-export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`> extends QueryModelClient<Snapshot<S>, SnapshotSystemField | STATE_FIELDS> {
+export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`, A = AccessValues> extends QueryModelClient<Snapshot<S, A>, SnapshotSystemField | STATE_FIELDS | AccessField<A>> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly type: AggregateType;
 }
 
 // @public
-export type SnapshotSystemField = 'tenantId' | 'aggregateId' | 'version' | 'ownerId' | 'spaceId' | 'deleted' | 'tags' | 'firstEventTime' | 'lastEventTime' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'firstOperator' | 'firstOperator.id' | 'firstOperator.tenantId' | 'firstOperator.crossScope' | 'schedules';
+export type SnapshotSystemField = 'tenantId' | 'aggregateId' | 'version' | 'ownerId' | 'spaceId' | 'deleted' | 'access' | 'firstEventTime' | 'lastEventTime' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'firstOperator' | 'firstOperator.id' | 'firstOperator.tenantId' | 'firstOperator.crossScope' | 'schedules';
 
 // @public
 interface SortCapable<FIELDS extends string = string> {
@@ -1953,18 +1958,18 @@ export const Stage: {
 export type Stage = (typeof Stage)[keyof typeof Stage];
 
 // @public
-export class StateClient<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export class StateClient<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> {
     constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
     readonly client: WowClientOptions;
-    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S> | undefined>;
-    protected findAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S> | undefined>;
-    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S>>;
-    protected getAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S>>;
-    read(id: string, options?: StateReadOptions): Promise<StateReadResult<S>>;
-    protected readAt(id: string | undefined, options: StateReadOptions): Promise<StateReadResult<S>>;
-    trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E>>;
-    protected traceAt(id: string | undefined, options: StateTraceOptions): Promise<StateTrace<S, E>>;
+    find(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
+    protected findAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A> | undefined>;
+    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
+    protected getAt(id: string | undefined, options: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<Snapshot<S, A>>;
+    read(id: string, options?: StateReadOptions): Promise<StateReadResult<S, A>>;
+    protected readAt(id: string | undefined, options: StateReadOptions): Promise<StateReadResult<S, A>>;
+    trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E, A>>;
+    protected traceAt(id: string | undefined, options: StateTraceOptions): Promise<StateTrace<S, E, A>>;
     // (undocumented)
     readonly type: AggregateType;
 }
@@ -1987,9 +1992,9 @@ export interface StateReadOptions extends RequestOptions {
 }
 
 // @public
-export type StateReadResult<S> = {
+export type StateReadResult<S, A = AccessValues> = {
     readonly notModified: false;
-    readonly snapshot: Snapshot<S>;
+    readonly snapshot: Snapshot<S, A>;
     readonly etag?: string;
 } | {
     readonly notModified: true;
@@ -1998,9 +2003,9 @@ export type StateReadResult<S> = {
 };
 
 // @public
-export interface StateTrace<S = unknown, E extends CommittedEvent = CommittedEvent> {
+export interface StateTrace<S = unknown, E extends CommittedEvent = CommittedEvent, A = AccessValues> {
     // (undocumented)
-    readonly commits: readonly CommitView<S, E>[];
+    readonly commits: readonly CommitView<S, E, A>[];
     // (undocumented)
     readonly ref: AggregateRef;
 }
@@ -2011,6 +2016,12 @@ export interface StateTraceOptions extends RequestOptions {
     readonly limit?: number;
     readonly to?: number;
 }
+
+// @public
+export type StreamAccess<A = AccessValues> = A & {
+    readonly owner?: string | null;
+    readonly space?: string | null;
+};
 
 // @public
 export interface StreamEnd {
@@ -2079,16 +2090,7 @@ export interface SubscriptionManifest {
 }
 
 // @public
-export type SystemEvent = CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | CommittedEvent<'wow.lifecycle.TagsApplied', TagsApplied> | CommittedEvent<'wow.ScheduleSet', ScheduleSet> | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
-
-// @public
-export type Tags = Readonly<Record<string, readonly string[]>>;
-
-// @public
-export interface TagsApplied {
-    // (undocumented)
-    readonly tags: Tags;
-}
+export type SystemEvent = CommittedEvent<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | CommittedEvent<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | CommittedEvent<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | CommittedEvent<'wow.ScheduleSet', ScheduleSet> | CommittedEvent<'wow.ScheduleCancelled', ScheduleCancelled>;
 
 // @public
 type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never;

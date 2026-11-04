@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ViewPreferencesState } from '../types.js';
-import { ViewPreferencesAggregate, type ViewPreferencesEvent, type ViewPreferencesStateField } from './aggregate.js';
+import { type ViewPreferencesAccess, ViewPreferencesAggregate, type ViewPreferencesEvent, type ViewPreferencesStateField } from './aggregate.js';
 
 /** Queries the snapshots of `view-store.view_preferences`: `POST /view-store/view_preferences/snapshot/query`. */
-export class ViewPreferencesSnapshotQueryClient extends SnapshotQueryClient<ViewPreferencesState, ViewPreferencesStateField> {
+export class ViewPreferencesSnapshotQueryClient extends SnapshotQueryClient<ViewPreferencesState, ViewPreferencesStateField, ViewPreferencesAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewPreferencesAggregate, options);
@@ -14,7 +14,7 @@ export class ViewPreferencesSnapshotQueryClient extends SnapshotQueryClient<View
 
 
 /** Queries the event streams of `view-store.view_preferences`, one record per commit: `POST /view-store/view_preferences/events/query`. */
-export class ViewPreferencesEventQueryClient extends EventQueryClient<ViewPreferencesEvent> {
+export class ViewPreferencesEventQueryClient extends EventQueryClient<ViewPreferencesEvent, ViewPreferencesAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewPreferencesAggregate, options);
@@ -23,7 +23,7 @@ export class ViewPreferencesEventQueryClient extends EventQueryClient<ViewPrefer
 
 
 /** Reads the states of `view-store.view_preferences`, at a version or a time, and their traces: `GET /view-store/view_preferences/{id}/state`. */
-export class ViewPreferencesStateClient extends StateClient<ViewPreferencesState, ViewPreferencesEvent> {
+export class ViewPreferencesStateClient extends StateClient<ViewPreferencesState, ViewPreferencesEvent, ViewPreferencesAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewPreferencesAggregate, options);

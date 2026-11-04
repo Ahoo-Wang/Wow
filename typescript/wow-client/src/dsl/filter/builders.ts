@@ -730,7 +730,7 @@ export const filter = {
    *   number, or if `field` is not a valid query field path.
    * @example
    * ```typescript
-   * filter.containsAll('state.tags', ['vip', 'new']);
+   * filter.containsAll('access.teams', ['sales', 'support']);
    * ```
    */
   containsAll<FIELDS extends string>(

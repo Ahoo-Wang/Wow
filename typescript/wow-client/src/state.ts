@@ -19,9 +19,10 @@ import {
   type WowClientOptions,
   WowHeaders,
 } from './http.js';
-import { eventNumbers, type TextNumbers } from './exactJson.js';
+import { eventNumbers, recordNumbers, type TextNumbers } from './exactJson.js';
 import { FrameworkErrorCodes, WowProblemError } from './problem.js';
 import type {
+  AccessValues,
   AggregateType,
   CommittedEvent,
   StateTrace,
@@ -55,10 +56,10 @@ export interface StateReadOptions extends RequestOptions {
  * A state read: the snapshot and its entity tag, or `notModified` when the
  * state held is current, with its tag and the version the tag names.
  */
-export type StateReadResult<S> =
+export type StateReadResult<S, A = AccessValues> =
   | {
       readonly notModified: false;
-      readonly snapshot: Snapshot<S>;
+      readonly snapshot: Snapshot<S, A>;
       readonly etag?: string;
     }
   | {
@@ -87,10 +88,12 @@ export interface StateTraceOptions extends RequestOptions {
  *
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
+ * @typeParam A - The aggregate's access attributes.
  */
 export class StateClient<
   S = unknown,
   E extends CommittedEvent = CommittedEvent,
+  A = AccessValues,
 > {
   /**
    * @param type - The aggregate type
@@ -105,7 +108,7 @@ export class StateClient<
   read(
     id: string,
     options: StateReadOptions = {},
-  ): Promise<StateReadResult<S>> {
+  ): Promise<StateReadResult<S, A>> {
     return this.readAt(id, options);
   }
 
@@ -113,7 +116,7 @@ export class StateClient<
   get(
     id: string,
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<Snapshot<S>> {
+  ): Promise<Snapshot<S, A>> {
     return this.getAt(id, options);
   }
 
@@ -126,7 +129,7 @@ export class StateClient<
   find(
     id: string,
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<Snapshot<S> | undefined> {
+  ): Promise<Snapshot<S, A> | undefined> {
     return this.findAt(id, options);
   }
 
@@ -134,7 +137,7 @@ export class StateClient<
   trace(
     id: string,
     options: StateTraceOptions = {},
-  ): Promise<StateTrace<S, E>> {
+  ): Promise<StateTrace<S, E, A>> {
     return this.traceAt(id, options);
   }
 
@@ -145,7 +148,7 @@ export class StateClient<
   protected async readAt(
     id: string | undefined,
     options: StateReadOptions,
-  ): Promise<StateReadResult<S>> {
+  ): Promise<StateReadResult<S, A>> {
     const at =
       options.at instanceof Date ? options.at.toISOString() : options.at;
     const response = await send(this.client, {
@@ -171,7 +174,7 @@ export class StateClient<
     }
     return {
       notModified: false,
-      snapshot: await json<Snapshot<S>>(response, this.stateNumbers),
+      snapshot: await json<Snapshot<S, A>>(response, this.stateNumbers),
       etag: entityTag(response),
     };
   }
@@ -180,7 +183,7 @@ export class StateClient<
   protected async getAt(
     id: string | undefined,
     options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<Snapshot<S>> {
+  ): Promise<Snapshot<S, A>> {
     const result = await this.readAt(id, options);
     if (result.notModified) {
       throw new Error('A read without If-None-Match was answered 304.');
@@ -192,7 +195,7 @@ export class StateClient<
   protected async findAt(
     id: string | undefined,
     options: Omit<StateReadOptions, 'ifNoneMatch'>,
-  ): Promise<Snapshot<S> | undefined> {
+  ): Promise<Snapshot<S, A> | undefined> {
     try {
       return await this.getAt(id, options);
     } catch (error) {
@@ -211,8 +214,8 @@ export class StateClient<
   protected async traceAt(
     id: string | undefined,
     options: StateTraceOptions,
-  ): Promise<StateTrace<S, E>> {
-    return json<StateTrace<S, E>>(
+  ): Promise<StateTrace<S, E, A>> {
+    return json<StateTrace<S, E, A>>(
       await send(this.client, {
         method: 'GET',
         path: `${this.statePath(id)}/trace`,
@@ -223,25 +226,23 @@ export class StateClient<
     );
   }
 
-  /** The exact numbers of a state read: its state's. */
+  /** The exact numbers of a state read: its state's and its access attributes'. */
   private get stateNumbers(): TextNumbers | undefined {
-    const state = this.type.textNumbers?.state;
-    return state === undefined ? undefined : { state };
+    return recordNumbers({
+      state: this.type.textNumbers?.state,
+      access: this.type.textNumbers?.access,
+    });
   }
 
-  /** The exact numbers of a trace: each commit's state and events. */
+  /** The exact numbers of a trace: each commit's state, events and access attributes. */
   private get traceNumbers(): TextNumbers | undefined {
-    const state = this.type.textNumbers?.state;
     const events = eventNumbers(this.type);
-    if (state === undefined && events === undefined) return undefined;
-    return {
-      commits: {
-        '*': {
-          ...(state === undefined ? {} : { state }),
-          ...(events === undefined ? {} : { events: { '*': events } }),
-        },
-      },
-    };
+    const commit = recordNumbers({
+      state: this.type.textNumbers?.state,
+      events: events === undefined ? undefined : { '*': events },
+      access: this.type.textNumbers?.access,
+    });
+    return commit === undefined ? undefined : { commits: { '*': commit } };
   }
 
   private statePath(id: string | undefined): string {
@@ -263,20 +264,22 @@ export class StateClient<
  *
  * @typeParam S - The state's type.
  * @typeParam E - The events' type of a trace.
+ * @typeParam A - The aggregate's access attributes.
  */
 export class OwnStateClient<
   S = unknown,
   E extends CommittedEvent = CommittedEvent,
-> extends StateClient<S, E> {
+  A = AccessValues,
+> extends StateClient<S, E, A> {
   /** {@link StateClient.read} of the caller's own aggregate. */
-  readOwn(options: StateReadOptions = {}): Promise<StateReadResult<S>> {
+  readOwn(options: StateReadOptions = {}): Promise<StateReadResult<S, A>> {
     return this.readAt(undefined, options);
   }
 
   /** {@link StateClient.get} of the caller's own aggregate. */
   getOwn(
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<Snapshot<S>> {
+  ): Promise<Snapshot<S, A>> {
     return this.getAt(undefined, options);
   }
 
@@ -286,12 +289,12 @@ export class OwnStateClient<
    */
   findOwn(
     options: Omit<StateReadOptions, 'ifNoneMatch'> = {},
-  ): Promise<Snapshot<S> | undefined> {
+  ): Promise<Snapshot<S, A> | undefined> {
     return this.findAt(undefined, options);
   }
 
   /** {@link StateClient.trace} of the caller's own aggregate. */
-  traceOwn(options: StateTraceOptions = {}): Promise<StateTrace<S, E>> {
+  traceOwn(options: StateTraceOptions = {}): Promise<StateTrace<S, E, A>> {
     return this.traceAt(undefined, options);
   }
 }

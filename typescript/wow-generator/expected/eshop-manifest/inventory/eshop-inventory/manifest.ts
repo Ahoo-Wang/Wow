@@ -16,7 +16,6 @@ export const EshopInventoryManifest: RoutingManifest = {
             { name: 'ReceiveStock', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/receive-stock' }, { method: 'POST', path: '/eshop-inventory/stock/receive-stock' }] },
             { name: 'ReleaseReservation', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/release-reservation' }] },
             { name: 'ReserveStock', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/reserve-stock' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-inventory/stock/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-inventory/stock/{id}/wow.lifecycle.transfer-space' }] },

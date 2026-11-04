@@ -448,6 +448,19 @@ function replace(
 }
 
 /**
+ * The marks of a record's `members` that mark something, by member, or
+ * `undefined` when none does.
+ */
+export function recordNumbers(
+  members: Readonly<Record<string, TextNumbers | undefined>>,
+): TextNumbers | undefined {
+  const marked = Object.entries(members).filter(
+    (entry): entry is [string, TextNumbers] => entry[1] !== undefined,
+  );
+  return marked.length === 0 ? undefined : Object.fromEntries(marked);
+}
+
+/**
  * The exact numbers ({@link TextNumbers}) of an aggregate type's events: each
  * event's `body` by its `name`.
  */

@@ -1,12 +1,14 @@
-# @ahoo-wang/wow-client — 130 names, from src/index.ts.
+# @ahoo-wang/wow-client — 132 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AccessAttributeManifest
+type  AccessField
+type  AccessValue
+type  AccessValues
 type  AggregateManifest
 type  AggregateRef
 type  AggregateTextNumbers
 type  AggregateType
-type  ApplyTags
 value CommandClient
 type  CommandClientOptions
 type  CommandManifest
@@ -51,6 +53,7 @@ value LifecycleCommands
 value MANIFEST_FEATURES
 value MANIFEST_FORMAT
 type  Manifest
+type  NoAccess
 type  Operator
 value OwnStateClient
 type  OwnerTransferred
@@ -90,14 +93,13 @@ type  StateReadOptions
 type  StateReadResult
 type  StateTrace
 type  StateTraceOptions
+type  StreamAccess
 type  StreamEnd
 type  StreamEndReason
 type  StreamOptions
 type  StreamResumeOptions
 type  SubscriptionManifest
 type  SystemEvent
-type  Tags
-type  TagsApplied
 type  TargetScope
 type  TextNumbers
 type  TextNumbersByName

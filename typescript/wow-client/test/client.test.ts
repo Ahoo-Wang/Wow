@@ -398,7 +398,10 @@ describe('CommandClient', () => {
       commands.wait({ command: LifecycleCommands.DELETE_AGGREGATE, id: 'p1' }),
     ).rejects.toThrow("set the request's type");
     await expect(
-      commands.wait({ command: LifecycleCommands.APPLY_TAGS, type: PRODUCT }),
+      commands.wait({
+        command: LifecycleCommands.TRANSFER_SPACE,
+        type: PRODUCT,
+      }),
     ).rejects.toThrow("set the request's id");
     await expect(
       commands.wait({ command: 'eshop-catalog.product.Rename' }),
@@ -888,8 +891,8 @@ describe('CommandClient', () => {
     });
     await commands.wait({
       ...product,
-      command: LifecycleCommands.APPLY_TAGS,
-      body: { tags: { region: ['eu'] } },
+      command: LifecycleCommands.TRANSFER_SPACE,
+      body: { spaceId: 'eu' },
     });
     await commands.wait({
       ...product,
@@ -899,8 +902,8 @@ describe('CommandClient', () => {
       ['DELETE', `${BASE_URL}/eshop-catalog/product/p1`, undefined],
       [
         'POST',
-        `${BASE_URL}/eshop-catalog/product/p1/wow.lifecycle.apply-tags`,
-        { tags: { region: ['eu'] } },
+        `${BASE_URL}/eshop-catalog/product/p1/wow.lifecycle.transfer-space`,
+        { spaceId: 'eu' },
       ],
       [
         'POST',

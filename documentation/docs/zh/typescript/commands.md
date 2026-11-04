@@ -231,6 +231,15 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 ## 生命周期命令、作用域和空间 {#lifecycle-commands-scope-and-space}
 
-聚合的客户端还发送它的 Manifest 列出的生命周期命令：`deleteAggregate`、`restoreAggregate`、`transferOwner`、`transferSpace` 和 `applyTags`。
+聚合的客户端还发送它的 Manifest 列出的生命周期命令：`deleteAggregate`、`restoreAggregate`、`transferOwner` 和 `transferSpace`。
+
+其他人能否读取或修改一个聚合，取决于它的状态声明的访问属性（`@Access`）和服务的访问策略：授予访问是聚合自己的命令（如 `shareDocument`），不是生命周期命令。记录以 `access` 携带这些属性，类型是生成的 `<Aggregate>Access`（[查询快照](./queries#query-snapshots)）。
+
+10.0.0 预发布版的客户端有 `applyTags`，记录有 `tags`。把客户端迁到 10.0.0：
+
+1. 用这一版的 `wow-generator`，按服务的 Manifest 重新生成客户端。
+2. 原来应用标签的地方，改为发送聚合自己改变该属性的命令。
+3. 原来读取 `tags` 的地方，改读 `access.<name>`。整数属性是 `string`，即它的精确文本。
+4. 原来按 `tags` 过滤的查询，改按 `access.<name>` 过滤；事件流上还可以按 `access.owner` 与 `access.space` 过滤。
 
 每个方法的最后一个参数都是请求选项。`space` 选择调用方的一个空间（`Wow-Space`；CoSec 服务改读 `CoSec-Space-Id`）；`targetTenant` 和 `targetScope`（`{ ownerId?, spaceId? }`）在另一个租户、所有者或空间中行事（`Wow-Scope`），供被允许跨作用域行事的调用方使用；`headers` 加上你自己的请求头；`signal` 取消请求。请求是哪个调用方、能做什么，由服务根据它的凭据决定（[身份](../concepts/identity)）。

@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopPaymentManifest } from '../manifest.js';
-import type { ApplyTags, ChargebackNotified, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
+import type { ChargebackNotified, RefundPayment, RequestPayment, TransferOwner, TransferSpace } from '../types.js';
 import { PaymentAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-payment.payment` by its service's routes (`EshopPaymentManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -19,7 +19,7 @@ export class PaymentCommandClient {
   }
 
   /**
-   * The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it.
+   * The payment gateway's chargeback callback, in the gateway's shape: the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it.
    * `ChargebackNotified`, mounted (a transformer finds its aggregate): `POST /eshop-payment/payment/{id}/chargeback-notified`, `POST /eshop-payment/payment/chargeback-notified`.
    */
   chargebackNotified(body: ChargebackNotified, options?: CreateCommandOptions): Promise<CommandResult> {
@@ -58,14 +58,6 @@ export class PaymentCommandClient {
   /** `RequestPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   requestPaymentStream(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-payment.payment.RequestPayment', body });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-payment', name: 'payment' }, id, body });
   }
 
   /**

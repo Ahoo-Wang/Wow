@@ -109,9 +109,9 @@ export const TEST_MANIFEST: Manifest = manifestOf([
           method: 'DELETE',
           path: `${PRODUCT}/{id}`,
         }),
-        system('wow.lifecycle.ApplyTags', {
+        system('wow.lifecycle.TransferSpace', {
           method: 'POST',
-          path: `${PRODUCT}/{id}/wow.lifecycle.apply-tags`,
+          path: `${PRODUCT}/{id}/wow.lifecycle.transfer-space`,
         }),
         system('wow.lifecycle.RestoreAggregate', {
           method: 'POST',

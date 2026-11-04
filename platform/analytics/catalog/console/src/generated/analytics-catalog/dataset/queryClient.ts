@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { DatasetState } from '../types.js';
-import { DatasetAggregate, type DatasetEvent, type DatasetStateField } from './aggregate.js';
+import { type DatasetAccess, DatasetAggregate, type DatasetEvent, type DatasetStateField } from './aggregate.js';
 
 /** Queries the snapshots of `analytics-catalog.dataset`: `POST /analytics-catalog/dataset/snapshot/query`. */
-export class DatasetSnapshotQueryClient extends SnapshotQueryClient<DatasetState, DatasetStateField> {
+export class DatasetSnapshotQueryClient extends SnapshotQueryClient<DatasetState, DatasetStateField, DatasetAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetAggregate, options);
@@ -14,7 +14,7 @@ export class DatasetSnapshotQueryClient extends SnapshotQueryClient<DatasetState
 
 
 /** Queries the event streams of `analytics-catalog.dataset`, one record per commit: `POST /analytics-catalog/dataset/events/query`. */
-export class DatasetEventQueryClient extends EventQueryClient<DatasetEvent> {
+export class DatasetEventQueryClient extends EventQueryClient<DatasetEvent, DatasetAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetAggregate, options);
@@ -23,7 +23,7 @@ export class DatasetEventQueryClient extends EventQueryClient<DatasetEvent> {
 
 
 /** Reads the states of `analytics-catalog.dataset`, at a version or a time, and their traces: `GET /analytics-catalog/dataset/{id}/state`. */
-export class DatasetStateClient extends StateClient<DatasetState, DatasetEvent> {
+export class DatasetStateClient extends StateClient<DatasetState, DatasetEvent, DatasetAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetAggregate, options);

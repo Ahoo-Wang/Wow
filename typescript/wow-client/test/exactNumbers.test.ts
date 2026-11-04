@@ -117,6 +117,47 @@ describe('exact numbers through the clients (review R4-Q, Q-9)', () => {
     });
   });
 
+  it('reads the integer access attributes as text, in each read of the aggregate (D390)', async () => {
+    const DOCUMENT: AggregateType = {
+      context: 'office',
+      name: 'document',
+      textNumbers: { access: { level: true, grades: { '*': true } } },
+    };
+    const access =
+      '"access":{"level":9007199254740993,"grades":[1,2],"region":"east"}';
+    stubFetch(request =>
+      request.url.endsWith('/state')
+        ? raw(`{"version":1,${access},"state":{"pages":3}}`)
+        : request.url.endsWith('/trace')
+          ? raw(`{"commits":[{${access},"state":{}}]}`)
+          : request.url.endsWith('/snapshot/query')
+            ? raw(`[{"aggregateId":"d1",${access}}]`)
+            : raw(
+                `[{"aggregateId":"d1","access":{"owner":"o","level":7}},{"access":null}]`,
+              ),
+    );
+    const expected = {
+      level: '9007199254740993',
+      grades: ['1', '2'],
+      region: 'east',
+    };
+    const state = new StateClient(DOCUMENT, client());
+    expect((await state.get('d1')).access).toEqual(expected);
+    expect((await state.get('d1')).state).toEqual({ pages: 3 });
+    expect((await state.trace('d1')).commits[0]!.access).toEqual(expected);
+    const snapshots = await new SnapshotQueryClient(DOCUMENT, client()).list({
+      filter: filter.matchAll(),
+    });
+    expect(snapshots[0]!.access).toEqual(expected);
+    const streams = await new EventQueryClient(DOCUMENT, client()).list({
+      filter: filter.matchAll(),
+    });
+    expect(streams.map(stream => stream.access)).toEqual([
+      { owner: 'o', level: '7' },
+      null,
+    ]);
+  });
+
   it('sends a command body with its marked numbers unquoted', async () => {
     const { requests } = stubFetch(() => raw('{"status":"succeeded"}'));
     await new CommandClient(client(), {

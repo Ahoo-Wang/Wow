@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { StockState } from '../types.js';
-import { StockAggregate, type StockEvent, type StockStateField } from './aggregate.js';
+import { type StockAccess, StockAggregate, type StockEvent, type StockStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-inventory.stock`: `POST /eshop-inventory/stock/snapshot/query`. */
-export class StockSnapshotQueryClient extends SnapshotQueryClient<StockState, StockStateField> {
+export class StockSnapshotQueryClient extends SnapshotQueryClient<StockState, StockStateField, StockAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(StockAggregate, options);
@@ -14,7 +14,7 @@ export class StockSnapshotQueryClient extends SnapshotQueryClient<StockState, St
 
 
 /** Queries the event streams of `eshop-inventory.stock`, one record per commit: `POST /eshop-inventory/stock/events/query`. */
-export class StockEventQueryClient extends EventQueryClient<StockEvent> {
+export class StockEventQueryClient extends EventQueryClient<StockEvent, StockAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(StockAggregate, options);
@@ -23,7 +23,7 @@ export class StockEventQueryClient extends EventQueryClient<StockEvent> {
 
 
 /** Reads the states of `eshop-inventory.stock`, at a version or a time, and their traces: `GET /eshop-inventory/stock/{id}/state`. */
-export class StockStateClient extends StateClient<StockState, StockEvent> {
+export class StockStateClient extends StateClient<StockState, StockEvent, StockAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(StockAggregate, options);

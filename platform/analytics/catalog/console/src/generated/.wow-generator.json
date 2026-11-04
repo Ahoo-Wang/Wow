@@ -3,17 +3,17 @@
   "files": {
     "analytics-catalog/client.ts": "15939c3e58596ddd988cba6304648603b7830ef6e0e758e415dad0a2b66ae084",
     "analytics-catalog/contract.ts": "b105975d55f63ae1969665a669c70ee02226ce4f846a12aa1dccfb7b5b554b2b",
-    "analytics-catalog/dataset/aggregate.ts": "c7c727ccac83247006c11eb9670308234a13e82427265599188c04594e0b76b0",
+    "analytics-catalog/dataset/aggregate.ts": "802207dea4dee70aa7243b00a102e2697ab29828cac893865d6c48bd44977a86",
     "analytics-catalog/dataset/commandClient.ts": "57a84be4e9d66599a3cad621b1563ffde29049c09ff16837a4d4bee519653704",
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "analytics-catalog/dataset/queryClient.ts": "ca02a929555e3d31afd42da7d1bf15317c0554ad9d62d8dc6c45e8f991724101",
+    "analytics-catalog/dataset/queryClient.ts": "67c0cd91be5c0c5417e7f86e2de3f8c66d041cf5f7aa55e2d6b4df9c6069a2f9",
     "analytics-catalog/index.ts": "e315fabae9a569ae104f492a911ef02b48dbd643841343ae37063061723145ad",
     "analytics-catalog/manifest.ts": "a5a4b4fbf43c23b597089c4256c4c52720f479667d3c1e2e3f1c1b7d0e4b09d0",
     "analytics-catalog/routes.ts": "a9f0aefd15ce7baa226e0bc39fc4986e261605e79ad300b51ec6fbc566123eeb",
-    "analytics-catalog/source/aggregate.ts": "c67c669aac49a6b9272d80fcd2205f0d911547a31d03d56ba7eb491e4f3defbb",
+    "analytics-catalog/source/aggregate.ts": "1a4f7fcf132efcfac09e6c16dcff69c6c8ca0b8771fb60f562f3a7ea24e4326b",
     "analytics-catalog/source/commandClient.ts": "c1c07e47d6b1ebd52f4cbf0de04a93a606dd44bcbb8f8eb942d32e793ad7c0e1",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "analytics-catalog/source/queryClient.ts": "88d8dc6c3762514204bf7e9004db0434ece5dd629b01fddff924c94749609fd4",
+    "analytics-catalog/source/queryClient.ts": "572c9ef845f40a5bc7ebaa5b0aea7dbb52557d614829efeac935cccc0192dfd7",
     "analytics-catalog/types.ts": "d145d8c90330e2e63099cd02cf2b34824c36a747dfb8c9aa926e566a16aad555",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }

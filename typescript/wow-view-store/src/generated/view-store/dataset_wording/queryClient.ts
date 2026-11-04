@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { DatasetWordingState } from '../types.js';
-import { DatasetWordingAggregate, type DatasetWordingEvent, type DatasetWordingStateField } from './aggregate.js';
+import { type DatasetWordingAccess, DatasetWordingAggregate, type DatasetWordingEvent, type DatasetWordingStateField } from './aggregate.js';
 
 /** Queries the snapshots of `view-store.dataset_wording`: `POST /view-store/dataset_wording/snapshot/query`. */
-export class DatasetWordingSnapshotQueryClient extends SnapshotQueryClient<DatasetWordingState, DatasetWordingStateField> {
+export class DatasetWordingSnapshotQueryClient extends SnapshotQueryClient<DatasetWordingState, DatasetWordingStateField, DatasetWordingAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetWordingAggregate, options);
@@ -14,7 +14,7 @@ export class DatasetWordingSnapshotQueryClient extends SnapshotQueryClient<Datas
 
 
 /** Queries the event streams of `view-store.dataset_wording`, one record per commit: `POST /view-store/dataset_wording/events/query`. */
-export class DatasetWordingEventQueryClient extends EventQueryClient<DatasetWordingEvent> {
+export class DatasetWordingEventQueryClient extends EventQueryClient<DatasetWordingEvent, DatasetWordingAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetWordingAggregate, options);
@@ -23,7 +23,7 @@ export class DatasetWordingEventQueryClient extends EventQueryClient<DatasetWord
 
 
 /** Reads the states of `view-store.dataset_wording`, at a version or a time, and their traces: `GET /view-store/dataset_wording/{id}/state`. */
-export class DatasetWordingStateClient extends StateClient<DatasetWordingState, DatasetWordingEvent> {
+export class DatasetWordingStateClient extends StateClient<DatasetWordingState, DatasetWordingEvent, DatasetWordingAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(DatasetWordingAggregate, options);
