@@ -50,6 +50,11 @@ import java.util.concurrent.atomic.AtomicLong
  *   latest stream committed when it starts ([EventStreamImporter.tailOnce]), so a stream is read by a later pass when
  *   it becomes visible within the look-back of its commit time, the 9.x nodes' clock differences included.
  * - [maxUnknownRetries] is how often an append whose outcome is unknown is tried again.
+ * - [readParallelism] is how many ranges of ids the full import walks at once, each its own scan of the 9.x store,
+ *   split by ids sampled from it ([NineXEventSource.idBoundaries]) when the import first starts. The 9.x store serves
+ *   production through the dual run, and each range is one more scan it runs. In a 500,000-order bench 2 ranges took
+ *   most of the gain (7 to 16% against 1, 8 ranges 3 to 4% more) for little more of MongoDB's own CPU, while a probe of
+ *   9.x's reads saw its p99 grow 3 to 5 times: keep 2 (or 1) through the dual run, and raise it once 9.x has stopped.
  */
 internal data class ImportOptions(
     val pageSize: Int = 500,
@@ -59,8 +64,10 @@ internal data class ImportOptions(
     val restart: Boolean = false,
     val lookbackMillis: Long = 300_000,
     val maxUnknownRetries: Int = 3,
+    val readParallelism: Int = DEFAULT_READ_PARALLELISM,
 ) {
     init {
+        require(readParallelism >= 1) { "The walk reads at least one range at a time." }
         require(pageSize >= 1) { "A page holds at least one instance." }
         require(streamBatch >= 1) { "A batch holds at least one stream." }
         require(concurrency >= 1) { "At least one instance at a time." }
@@ -71,9 +78,12 @@ internal data class ImportOptions(
     /** The streams a page of the full import reads at most: [STREAMS_PER_INSTANCE] for each of its [pageSize]. */
     val pageStreams: Int get() = pageSize * STREAMS_PER_INSTANCE
 
-    private companion object {
+    companion object {
         /** A page's share of streams per instance: 9.x instances hold a few streams, often fewer than ten. */
-        const val STREAMS_PER_INSTANCE = 10
+        private const val STREAMS_PER_INSTANCE = 10
+
+        /** The ranges the full import walks at once by default. */
+        const val DEFAULT_READ_PARALLELISM = 2
     }
 }
 
@@ -171,30 +181,69 @@ internal class EventStreamImporter(
     suspend fun importAll(aggregate: NineXAggregate): ImportProgress {
         val aggregatePlan = plan.of(aggregate)
         val stats = Stats(aggregate, clock())
-        var checkpoint = checkpoints.load().of(aggregate)
-            ?.let { if (options.restart) it.copy(after = null, completed = false) else it }
-            ?: AggregateCheckpoint(startedAt = clock())
-        if (checkpoint.completed) {
+        val loaded = checkpoints.load().of(aggregate)
+        if (loaded?.completed == true && !options.restart) {
             return stats.report(done = true).also(progress)
         }
+        // An earlier version's single position resumes as one range from there, which holds it from then on.
+        val ranges = loaded?.ranges?.takeUnless { options.restart }
+            ?: if (loaded == null || options.restart) {
+                rangesOf(aggregate, stats)
+            } else {
+                listOf(RangeCheckpoint(after = loaded.after))
+            }
+        val checkpoint = (loaded ?: AggregateCheckpoint(startedAt = clock()))
+            .copy(after = null, completed = false, ranges = ranges)
         save(aggregate, checkpoint)
         val permits = Semaphore(options.concurrency)
         coroutineScope {
-            val pages = readAhead(aggregate, checkpoint.after, stats)
+            ranges.forEachIndexed { index, range ->
+                if (!range.completed) {
+                    launch { importRange(aggregate, aggregatePlan, index, range, permits, stats) }
+                }
+            }
+        }
+        stats.timed(stats.checkpoint) { update(aggregate) { it.copy(completed = true) } }
+        return stats.report(done = true).also(progress)
+    }
+
+    /** The ranges [aggregate]'s walk is split into, from ids sampled from the 9.x store, each where it starts. */
+    private suspend fun rangesOf(aggregate: NineXAggregate, stats: Stats): List<RangeCheckpoint> {
+        val boundaries = stats.timed(stats.read) {
+            blocking { source.idBoundaries(aggregate, options.readParallelism) }
+        }
+        return IdRange.split(boundaries).map { RangeCheckpoint(it.from, it.until) }
+    }
+
+    /**
+     * Walks the range [index] of [aggregate], from where [range] stands: its pages read one ahead, at most
+     * [PAGES_IN_FLIGHT] of them appended at once, the range's checkpoint moving after each once it and the pages before
+     * it are imported. [permits] bound the groups in flight with every other range's.
+     */
+    private suspend fun importRange(
+        aggregate: NineXAggregate,
+        aggregatePlan: AggregatePlan,
+        index: Int,
+        range: RangeCheckpoint,
+        permits: Semaphore,
+        stats: Stats,
+    ) {
+        var at = range
+        coroutineScope {
+            val pages = readAhead(aggregate, range.range, range.after, stats)
             val inFlight = ArrayDeque<PageImport>()
             for (page in pages) {
                 val imported = page.filterNot { plan.excludes(aggregate, it.id.id) }
                 inFlight += importPage(aggregatePlan, page, imported, permits, stats)
                 while (inFlight.isNotEmpty() && (inFlight.size > PAGES_IN_FLIGHT || inFlight.first().done)) {
-                    checkpoint = settled(aggregate, inFlight.removeFirst(), checkpoint, stats)
+                    at = settled(aggregate, index, inFlight.removeFirst(), at, stats)
                 }
             }
             while (inFlight.isNotEmpty()) {
-                checkpoint = settled(aggregate, inFlight.removeFirst(), checkpoint, stats)
+                at = settled(aggregate, index, inFlight.removeFirst(), at, stats)
             }
         }
-        stats.timed(stats.checkpoint) { save(aggregate, checkpoint.copy(completed = true)) }
-        return stats.report(done = true).also(progress)
+        stats.timed(stats.checkpoint) { update(aggregate) { it.withRange(index, at.copy(completed = true)) } }
     }
 
     /**
@@ -203,6 +252,7 @@ internal class EventStreamImporter(
      */
     private fun CoroutineScope.readAhead(
         aggregate: NineXAggregate,
+        range: IdRange,
         after: NineXAggregateId?,
         stats: Stats,
     ): ReceiveChannel<List<NineXInstance>> {
@@ -212,7 +262,13 @@ internal class EventStreamImporter(
                 var last = after
                 while (true) {
                     val page = stats.timed(stats.read) {
-                        blocking { source.instances(aggregate, last, options.pageSize, options.pageStreams) }
+                        blocking {
+                            if (range == IdRange.ALL) {
+                                source.instances(aggregate, last, options.pageSize, options.pageStreams)
+                            } else {
+                                source.instances(aggregate, range, last, options.pageSize, options.pageStreams)
+                            }
+                        }
                     }
                     if (page.isEmpty()) {
                         break
@@ -258,15 +314,16 @@ internal class EventStreamImporter(
      */
     private suspend fun settled(
         aggregate: NineXAggregate,
+        index: Int,
         import: PageImport,
-        checkpoint: AggregateCheckpoint,
+        range: RangeCheckpoint,
         stats: Stats,
-    ): AggregateCheckpoint {
+    ): RangeCheckpoint {
         import.jobs.awaitAll()
         stats.instances.addAndGet(import.imported.toLong())
         stats.excluded.addAndGet((import.page.size - import.imported).toLong())
-        val moved = checkpoint.copy(after = import.page.last().id)
-        stats.timed(stats.checkpoint) { save(aggregate, moved) }
+        val moved = range.copy(after = import.page.last().id)
+        stats.timed(stats.checkpoint) { update(aggregate) { it.withRange(index, moved) } }
         progress(stats.report(done = false))
         return moved
     }
@@ -588,6 +645,16 @@ internal class EventStreamImporter(
     private fun save(aggregate: NineXAggregate, checkpoint: AggregateCheckpoint) {
         if (!options.dryRun) {
             checkpoints.update { it.with(aggregate, checkpoint) }
+        }
+    }
+
+    /**
+     * Saves [change] of [aggregate]'s checkpoint as it is kept, in one step: each range moves only its own position,
+     * whatever the others have saved since.
+     */
+    private fun update(aggregate: NineXAggregate, change: (AggregateCheckpoint) -> AggregateCheckpoint) {
+        if (!options.dryRun) {
+            checkpoints.update { saved -> saved.with(aggregate, change(saved.of(aggregate)!!)) }
         }
     }
 

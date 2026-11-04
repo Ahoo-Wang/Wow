@@ -38,6 +38,25 @@ class NineXEventSourceTest {
     }
 
     @Test
+    fun `a range of the walk reads its own instances, from its first, and ends where the range ends`() {
+        val first = example.first().aggregateId.id
+        source.instances(order, IdRange.ALL, null, 10, 100).assert().isEqualTo(source.instances(order, null, 10, 100))
+        source.instances(order, IdRange(null, "z-order"), null, 1, 100).map { it.id.id }.assert().containsExactly(first)
+        source.instances(order, IdRange(null, "z-order"), example.first().aggregateId, 10, 100).assert().isEmpty()
+        source.instances(
+            order,
+            IdRange("z-order", null),
+            null,
+            1,
+            100
+        ).map { it.id.id }.assert().containsExactly("z-order")
+        // Ids split by the walk's own: one boundary between two ids, none for one range or past the ids it holds.
+        source.idBoundaries(order, 2).assert().containsExactly("z-order")
+        source.idBoundaries(order, 1).assert().isEmpty()
+        source.idBoundaries(order, 8).assert().containsExactly("z-order")
+    }
+
+    @Test
     fun `an instance whose streams do not read is left incomplete with none, for the import to read`() {
         val broken = object : NineXEventSource by source {
             override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =

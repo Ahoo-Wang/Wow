@@ -579,7 +579,9 @@ class MigrateDataTest {
             it.dryRun.assert().isTrue()
             it.restart.assert().isTrue()
             it.pageSize.assert().isEqualTo(500)
+            it.readParallelism.assert().isEqualTo(ImportOptions.DEFAULT_READ_PARALLELISM)
         }
+        config.copy(readParallelism = 4).options().readParallelism.assert().isEqualTo(4)
         MigrationConfig.resolve(null).assert().isNull()
         MigrationConfig.resolve("plain").assert().isEqualTo("plain")
         MigrationConfig.resolve(

@@ -28,13 +28,14 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - [startedAt] is when its full import first started, by the tool's clock: the tail scans from there, less its
  *   look-back window, so nothing committed while the full import ran is missed;
- * - [after] is the last instance whose streams are all imported, in the full import's id order; [completed] is set
- *   once every instance is;
+ * - [ranges] are the ranges of ids the full import walks at once ([ImportOptions.readParallelism]), chosen when it
+ *   first starts and kept until it completes, each with where it stands; [completed] is set once every range is.
+ *   [after] is the single position an earlier version walked by: such a checkpoint resumes as one range from there;
  * - [tailedTo] is the latest commit time the tail has read, and [tailedAt] when its last pass ended, by the tool's
  *   clock: the final pass (`import --final`) takes the tail as continuous only when that pass is recent.
  *
- * Resuming repeats at most the pages of instances the import had in flight (two, and the one it had read ahead),
- * whose streams the import finds already in the log and skips.
+ * Resuming repeats, in each range, at most the pages of instances the import had in flight (two, and the one it had
+ * read ahead), whose streams the import finds already in the log and skips.
  */
 internal data class AggregateCheckpoint(
     val startedAt: Long,
@@ -42,7 +43,25 @@ internal data class AggregateCheckpoint(
     val completed: Boolean = false,
     val tailedTo: Long? = null,
     val tailedAt: Long? = null,
-)
+    val ranges: List<RangeCheckpoint>? = null,
+) {
+    /** This checkpoint with its range [index] moved to [range]. */
+    fun withRange(index: Int, range: RangeCheckpoint): AggregateCheckpoint =
+        copy(ranges = ranges!!.toMutableList().also { it[index] = range })
+}
+
+/**
+ * Where one range of the full import's walk stands ([AggregateCheckpoint.ranges]): the ids from [from] to [until]
+ * ([IdRange]), [after] the last instance of it whose streams are all imported, [completed] set once every one is.
+ */
+internal data class RangeCheckpoint(
+    val from: String? = null,
+    val until: String? = null,
+    val after: NineXAggregateId? = null,
+    val completed: Boolean = false,
+) {
+    val range: IdRange get() = IdRange(from, until)
+}
 
 /**
  * Where the state comparison of one 9.x aggregate stands (`compare`): [after] is the last instance whose 9.x snapshot
