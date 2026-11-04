@@ -45,6 +45,12 @@ class ShipOrder
 
 class ReceiptOrder
 
+/**
+ * Tags the order with a region and teams, as 9.x's `ApplyResourceTags` did (D390 F): both together, the region left
+ * out for none, as 9.x replaced the whole map.
+ */
+data class TagOrder(val region: String? = null, val teams: Set<String> = emptySet())
+
 /** Revision 2: the 9.x `orderId` field is the stream's ref now; [upgradeOrderCreatedFrom1] reads the 9.x shape. */
 @Revision(2)
 data class OrderCreated(val items: List<OrderItem>, val address: ShippingAddress, val fromCart: Boolean)
@@ -56,3 +62,6 @@ data class OrderPaid(val amount: BigDecimal, val paid: Boolean)
 class OrderShipped
 
 class OrderReceived
+
+/** The order's region and teams, which the 9.x `default_resource_tags_applied` set (migration-map.json maps it). */
+data class OrderTagged(val region: String? = null, val teams: Set<String> = emptySet())

@@ -15,6 +15,7 @@ package me.ahoo.wow.rehearsal.driver
 
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -48,6 +49,9 @@ sealed class Endpoints(val base: URI) {
     abstract fun receiptOrder(order: OrderRef): Outcome
 
     abstract fun addCartItem(customer: String, body: String): Outcome
+
+    /** Tags the order with [region] (none when null) and [teams], replacing its tags, as 9.x's tags command does. */
+    abstract fun tagOrder(order: OrderRef, region: String?, teams: List<String>): Outcome
 
     /** The order's state and version; null when it does not exist. */
     abstract fun orderState(order: OrderRef): Pair<Int, JsonNode>?
@@ -83,6 +87,19 @@ sealed class Endpoints(val base: URI) {
 
         override fun addCartItem(customer: String, body: String): Outcome =
             command("/owner/$customer/cart/add_cart_item", body, "POST")
+
+        /** 9.x's `DefaultApplyResourceTags`, `PUT …/{id}/tags`: its tags, a key without values left out. */
+        override fun tagOrder(order: OrderRef, region: String?, teams: List<String>): Outcome {
+            val tags = MAPPER.createObjectNode()
+            region?.let { tags.putArray(REGION_TAG).add(it) }
+            if (teams.isNotEmpty()) tags.putArray(TEAM_TAG).apply { teams.forEach(::add) }
+            val body = MAPPER.createObjectNode().set("tags", tags)
+            return command(
+                "/tenant/${order.tenant}/owner/${order.owner}/sales-order/${order.id}/tags",
+                MAPPER.writeValueAsString(body),
+                "PUT",
+            )
+        }
 
         override fun orderState(order: OrderRef): Pair<Int, JsonNode>? {
             val response = send(
@@ -144,18 +161,64 @@ sealed class Endpoints(val base: URI) {
             return outcome(send(request, body, "POST"))
         }
 
-        override fun orderState(order: OrderRef): Pair<Int, JsonNode>? {
-            val response = send(
-                HttpRequest.newBuilder(base.resolve("/example/order/${order.id}/state")).header(TENANT, order.tenant),
-                null,
-                "GET",
-            )
+        override fun tagOrder(order: OrderRef, region: String?, teams: List<String>): Outcome {
+            val body = MAPPER.createObjectNode().put("region", region)
+            body.putArray("teams").apply { teams.forEach(::add) }
+            return command(order, "tag-order", MAPPER.writeValueAsString(body))
+        }
+
+        /**
+         * The order's state and version, without its access attributes ([ACCESS_FIELDS]): the 9.x state holds none,
+         * migrate-data compare checks them against 9.x's tags, and `driver access` reads them ([accessState]).
+         */
+        override fun orderState(order: OrderRef): Pair<Int, JsonNode>? = accessState(order)?.let { (version, state) ->
+            version to (state.deepCopy() as ObjectNode).apply { ACCESS_FIELDS.forEach(::remove) }
+        }
+
+        /** The order's version and state, its access attributes included, read by a caller of the tenant. */
+        fun accessState(order: OrderRef): Pair<Int, JsonNode>? {
+            val response = send(stateRequest(order, null), null, "GET")
             if (response.statusCode() != OK) {
                 return null
             }
             val node = MAPPER.readTree(response.body())
             return node.get("version").asInt() to node.get("state")
         }
+
+        /** The status of a state read of [order] by a caller of [region]: 200 when the policy lets it read it, else 404. */
+        fun stateStatus(order: OrderRef, region: String): Int =
+            send(stateRequest(order, region), null, "GET").statusCode()
+
+        /** How many of [order]'s streams an events query by a caller of [region] finds. */
+        fun streams(order: OrderRef, region: String): Long {
+            val filter = MAPPER.createObjectNode().put("op", "eq").put("field", "aggregateId").put("value", order.id)
+            val body = MAPPER.createObjectNode().put("kind", "count").set("filter", filter)
+            val response = send(eventsRequest(order.tenant, region), MAPPER.writeValueAsString(body), "POST")
+            check(response.statusCode() == OK) {
+                "The events count of ${order.id}: http-${response.statusCode()} ${response.body()}"
+            }
+            return MAPPER.readTree(response.body()).get("count").asLong()
+        }
+
+        /** The aggregate ids of the first [limit] streams of [tenant] an events query by a caller of [region] finds. */
+        fun streamOrders(tenant: String, region: String, limit: Int): List<String> {
+            val body = MAPPER.createObjectNode().put("kind", "list").put("limit", limit)
+            body.putObject("filter").put("op", "match-all")
+            body.putObject("projection").putArray("include").add("aggregateId")
+            val response = send(eventsRequest(tenant, region), MAPPER.writeValueAsString(body), "POST")
+            check(response.statusCode() == OK) {
+                "The events list of $tenant: http-${response.statusCode()} ${response.body()}"
+            }
+            return buildList { MAPPER.readTree(response.body()).forEach { add(it.get("aggregateId").asString()) } }
+        }
+
+        private fun stateRequest(order: OrderRef, region: String?): HttpRequest.Builder =
+            HttpRequest.newBuilder(base.resolve("/example/order/${order.id}/state")).header(TENANT, order.tenant)
+                .also { request -> region?.let { request.header(REGION, it) } }
+
+        private fun eventsRequest(tenant: String, region: String): HttpRequest.Builder =
+            HttpRequest.newBuilder(base.resolve("/example/order/events/query")).header(TENANT, tenant)
+                .header(REGION, region)
 
         private fun command(order: OrderRef, name: String, body: String, owner: String? = null): Outcome {
             val request = HttpRequest.newBuilder(base.resolve("/example/order/${order.id}/$name"))
@@ -178,11 +241,20 @@ sealed class Endpoints(val base: URI) {
         private companion object {
             const val TENANT = "X-Rehearsal-Tenant"
             const val OWNER = "X-Rehearsal-Owner"
+            const val REGION = "X-Rehearsal-Region"
+
+            /** The order's access attributes: fields of the V10 state, which 9.x kept as tags. */
+            val ACCESS_FIELDS = listOf("region", "teams", "country", "province")
         }
     }
 
     companion object {
         const val OK = 200
+        const val NOT_FOUND = 404
+
+        /** The 9.x tag keys the driver applies: a single one, and one of several values. */
+        const val REGION_TAG = "region"
+        const val TEAM_TAG = "team"
         const val WAIT_MILLIS = 10_000
         private const val JSON = "application/json"
         val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(30)
