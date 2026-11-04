@@ -249,7 +249,7 @@ class AccessWalking(
 
     /**
      * Stamps the whole history of each of [refs], a page of [model]'s aggregates, as [stampCurrent] stamps one: one
-     * read of their histories, their stamps written together in [bulksOf], in the log and in each other store
+     * read of their histories, their stamps written together ([stampAllIn]), in the log and in each other store
      * ([target]), and one rewrite of their snapshots.
      */
     private suspend fun stampPage(model: AggregateModel<*>, walks: AccessWalks, refs: List<AggregateRef>) {
@@ -260,42 +260,18 @@ class AccessWalking(
         val replayed = walks.histories(refs).mapNotNull { (ref, streams) ->
             kernel.replayed(model, ref, streams)?.let { ReplayedHistory(ref, streams, it) }
         }
-        val stamps = replayed.flatMap { history ->
+        val stamps = replayed.map { history ->
             val head = history.streams.last().version
             val access = AccessValues.ofStream(kernel.accessOf(model, history.state.state), history.state.scope)
-            (1..head step options.batch).map { from ->
-                AccessStamp(history.ref, access, head, from, minOf(from + options.batch, head + 1))
-            }
+            AccessStamp(history.ref, access, head, 1, head + 1)
         }
-        val bulks = bulksOf(stamps)
-        val written = bulks.sumOf { walks.stampAll(it) }
-        targets[model.type]?.forEach { target -> bulks.forEach { target.stampAll(it) } }
+        val written = walks.stampAllIn(stamps, options.batch)
+        targets[model.type]?.forEach { it.stampAllIn(stamps, options.batch) }
         snapshots.rewriteAll(replayed)
         val millis = started.elapsedNow().inWholeMilliseconds
         observer.observed(
             ObservedEvent.AccessStamped(model.type, ObservedEvent.AccessStamped.Cause.WALK, written, millis)
         )
-    }
-
-    /** [stamps] in writes of at most [AccessStampOptions.batch] streams each, a stamp's chunk whole in one. */
-    private fun bulksOf(stamps: List<AccessStamp>): List<List<AccessStamp>> {
-        val bulks = ArrayList<List<AccessStamp>>()
-        var bulk = ArrayList<AccessStamp>()
-        var streams = 0
-        stamps.forEach { stamp ->
-            val size = stamp.until - stamp.from
-            if (bulk.isNotEmpty() && streams + size > options.batch) {
-                bulks += bulk
-                bulk = ArrayList()
-                streams = 0
-            }
-            bulk += stamp
-            streams += size
-        }
-        if (bulk.isNotEmpty()) {
-            bulks += bulk
-        }
-        return bulks
     }
 
     /** Keeps this node a member of the context's walks, serving its schema of each type. */
@@ -431,6 +407,37 @@ object AccessSchema {
     }
 
     private const val HASH_BYTES = 8
+}
+
+/**
+ * Writes [stamps] together ([AccessStamps.stampAll]), in writes of at most [batch] streams each: a stamp of more is cut
+ * into chunks of [batch], each written whole in one write. Returns the streams stamped.
+ */
+@InternalWowApi
+suspend fun AccessStamps.stampAllIn(stamps: List<AccessStamp>, batch: Int): Int {
+    require(batch >= 1) { "A write stamps at least one stream." }
+    val chunks = stamps.flatMap { stamp ->
+        (stamp.from until stamp.until step batch).map { from ->
+            stamp.copy(from = from, until = minOf(from + batch, stamp.until))
+        }
+    }
+    var written = 0
+    var bulk = ArrayList<AccessStamp>()
+    var streams = 0
+    chunks.forEach { chunk ->
+        val size = chunk.until - chunk.from
+        if (bulk.isNotEmpty() && streams + size > batch) {
+            written += stampAll(bulk)
+            bulk = ArrayList()
+            streams = 0
+        }
+        bulk += chunk
+        streams += size
+    }
+    if (bulk.isNotEmpty()) {
+        written += stampAll(bulk)
+    }
+    return written
 }
 
 /** Stamps [access] as of [asOf] over the streams of [ref] from [from] until [until], at most [batch] in each stamp. */

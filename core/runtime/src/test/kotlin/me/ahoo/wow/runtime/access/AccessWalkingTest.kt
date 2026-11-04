@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -173,6 +174,10 @@ class AccessWalkingTest {
             listOf("d-1", "d-2").forEach { history(log, it).assert().containsOnly(access("legal")) }
             history(log, "d-3").assert().hasSize(5).containsOnly(access("legal"))
             observed.filterIsInstance<ObservedEvent.AccessStamped>().map { it.streams }.assert().containsExactly(9)
+            // Nothing to stamp writes nothing; a write of no stream is refused.
+            counted.stampAllIn(emptyList(), 4).assert().isEqualTo(0)
+            counted.bulks.assert().hasSize(3)
+            assertThrownBy<IllegalArgumentException> { runBlocking { counted.stampAllIn(emptyList(), 0) } }
         }
 
     @Test
