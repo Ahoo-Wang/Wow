@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.kernel.EventCodec
@@ -25,7 +26,9 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.runtime.access.AccessSchema
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.EventLog
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -150,6 +153,38 @@ class SnapshotWriterTest {
                 "is left as it is, and the V10 nodes of this model walk the type again.",
         )
     }
+
+    @Test
+    fun `a log that keeps no attributes is not stamped, and one that holds nothing of a type or records no claim has no walk`() =
+        runTest {
+            imported()
+            // A log of an earlier backend, without stamps or walks: the snapshots alone.
+            val plain = object : EventLog by log {}
+            val writer = SnapshotWriter(events, NineXExample.plan, models, { plain }, { store }, checkpoints)
+            val done = listOf(writer.writeAll(order), writer.writeAll(cart))
+            done.map { it.written }.assert().containsExactly(1, 1)
+            writer.recordWalks(done)
+            log.walk(NineXExample.orderModel.type).assert().isNull()
+            // A log that holds none of the types: nothing to record.
+            val empty = InMemoryEventLog(4)
+            SnapshotWriter(events, NineXExample.plan, models, { empty }, { store }, checkpoints).recordWalks(done)
+            empty.walk(NineXExample.orderModel.type).assert().isNull()
+            // A claim the log does not record, and no walk recorded either: nothing to report.
+            val refusing = object : EventLog by log, AccessWalks by log {
+                override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?) = false
+            }
+            SnapshotWriter(
+                events,
+                NineXExample.plan,
+                models,
+                { refusing },
+                { store },
+                checkpoints,
+                report = { printed += it }
+            )
+                .recordWalks(done)
+            printed.assert().isEmpty()
+        }
 
     @Test
     fun `a type two 9x aggregates are mapped to has its walk recorded once both completed`() = runTest {
