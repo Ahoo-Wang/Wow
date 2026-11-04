@@ -237,7 +237,7 @@ class SubscriptionOptions @InternalWowApi constructor(
 }
 
 /** The partitions a node catches up at once by default ([SubscriptionOptions.maxCatchUps]). */
-private const val DEFAULT_MAX_CATCH_UPS = 8
+private const val DEFAULT_MAX_CATCH_UPS = 2
 
 /**
  * How a subscription answers backpressure: a failure classified

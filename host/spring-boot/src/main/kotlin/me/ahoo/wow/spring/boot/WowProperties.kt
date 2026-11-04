@@ -771,7 +771,7 @@ class WowProperties {
          * The partitions the node reads behind their head at once, all its subscriptions together; 0 for no bound. A
          * partition whose subscriptions start behind the head (a history migrate-data imported, a long stop) waits for
          * one, and the others stand at their checkpoints, so the node keeps its store for its commands while it
-         * catches up. Fewer keep the commands' latency lower during a catch-up, which then takes longer.
+         * catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile.
          */
         var maxCatchUps: Int = DEFAULT_SUBSCRIPTION.maxCatchUps
 

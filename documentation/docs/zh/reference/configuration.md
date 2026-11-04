@@ -666,7 +666,7 @@ How the node's subscriptions run, retry their failures and park what keeps faili
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.subscription.checkpoint-interval` | `Duration` | `PT1S` | How often each subscription saves its checkpoint; a stop saves it too. |
-| `wow.subscription.max-catch-ups` | `Integer` | `8` | The partitions the node reads behind their head at once, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head (a history migrate-data imported, a long stop) waits for one, and the others stand at their checkpoints, so the node keeps its store for its commands while it catches up. Fewer keep the commands' latency lower during a catch-up, which then takes longer. |
+| `wow.subscription.max-catch-ups` | `Integer` | `2` | The partitions the node reads behind their head at once, all its subscriptions together; 0 for no bound. A partition whose subscriptions start behind the head (a history migrate-data imported, a long stop) waits for one, and the others stand at their checkpoints, so the node keeps its store for its commands while it catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile. |
 | `wow.subscription.max-in-flight` | `Integer` | `1024` | The entries one subscription may hold in one partition between its checkpoint and the last entry it took: it bounds both memory and what a crash replays. |
 | `wow.subscription.stop-timeout` | `Duration` | `PT10S` | How long a stop waits for the handlers in flight before abandoning them; an abandoned entry is handled again after the restart. |
 
