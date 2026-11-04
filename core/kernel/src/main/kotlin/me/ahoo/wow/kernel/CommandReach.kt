@@ -105,17 +105,18 @@ internal class CommandReach(
 
     /**
      * Whether the caller of a retry may be answered [existing], which committed its request: by the default rule on
-     * [before], the aggregate's scope before the stream; under a policy, if it may read the aggregate by the attributes
-     * the stream records, its aggregate's current ones, which a stream not yet stamped does not record.
+     * [before], the aggregate's scope before the stream; under a policy, if it may read the aggregate with [before]'s
+     * owner and space and the declared attributes the stream records, its aggregate's current ones, which a stream not
+     * yet stamped does not record. The owner and space are the ones the retried command was sent to, as by the default
+     * rule, so a retry is answered after a later move of the aggregate as before it.
      */
     fun retries(existing: EventStreamRecord, before: Scope, codec: EventCodec): Boolean {
         if (trusted || policy == null) {
             return writes(before, emptyMap())
         }
         val access = existing.access ?: return false
-        val scope = Scope(access[AccessValues.OWNER] as String?, access[AccessValues.SPACE] as String?)
         val declared = codec.declaredOf(model, AccessValues.declared(access))
-        return read.allows { valueOf(it, scope, declared) }
+        return read.allows { valueOf(it, before, declared) }
     }
 
     private fun predicate(of: (AccessPolicy<*>, Caller) -> AccessPredicate): AccessPredicate {

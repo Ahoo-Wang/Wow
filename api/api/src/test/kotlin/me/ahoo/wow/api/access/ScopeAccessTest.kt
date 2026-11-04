@@ -17,7 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessPredicate.AllOf
 import me.ahoo.wow.api.access.AccessPredicate.Allowed
 import me.ahoo.wow.api.access.AccessPredicate.Comparison
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import org.junit.jupiter.api.Test
 
 /** The default rule: each part of the caller's scope is the aggregate's, a part it does not name unchecked. */
@@ -53,4 +55,17 @@ class ScopeAccessTest {
         ScopeAccess.valueOf(AccessAttribute.single<Any, String>("region", String::class.java), aggregate)
             .assert().isNull()
     }
+
+    @Test
+    fun `a policy keeps the default rule by saying so, with no owner for an aggregate of its tenant`() {
+        val policy = accessPolicy<Note> {
+            read { caller -> ownerAndSpace(caller) }
+            write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+        }
+        val caller = Caller.of(scope = Scope("alice", "s1"), subject = "alice")
+        policy.read(caller).assert().isEqualTo(ScopeAccess.of(Scope("alice", "s1")))
+        policy.write(caller).assert().isEqualTo(ScopeAccess.of(Scope(spaceId = "s1")))
+    }
+
+    class Note
 }

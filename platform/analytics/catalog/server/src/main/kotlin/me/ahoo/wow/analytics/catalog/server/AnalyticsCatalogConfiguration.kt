@@ -34,7 +34,7 @@ import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.query.dataset.QueryDatasets
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentCallerResolver
 import me.ahoo.wow.spring.boot.SignedInCallerResolver
@@ -63,7 +63,7 @@ import kotlin.time.toKotlinDuration
  *   CoSec does not start.
  * - What each may send: [AnalyticsCatalogAuthorizer], by role, or CoSec's policies when CoSec decides the requests
  *   itself (its `AuthorizationChecker`) and `wow.cosec.authorizer.enabled` is on; what each may read:
- *   [AnalyticsCatalogQueryPolicy].
+ *   [AnalyticsCatalogReaderRole].
  * - The ClickHouse client: one client of `wow.clickhouse.endpoint` and its credentials ([ClickHouseClients]) the
  *   catalog, its datasets' warehouse, and the host's Sink and dataset backend share, closed with the context.
  * - The catalog: the [WarehouseCatalog] of the ClickHouse server that client reaches, over
@@ -90,7 +90,7 @@ class AnalyticsCatalogConfiguration {
         if (cosec.ifAvailable == null) AnalyticsCatalogAuthorizer() else CommandAuthorizer.ALLOW_ALL
 
     @Bean
-    fun analyticsCatalogQueryPolicy(): QueryPolicy = AnalyticsCatalogQueryPolicy()
+    fun analyticsCatalogReaderRole(): ReadAuthorizer = AnalyticsCatalogReaderRole()
 
     /**
      * The service's one ClickHouse client, of `wow.clickhouse.*` as the Sink and the dataset backend read it: they use

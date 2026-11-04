@@ -30,24 +30,23 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.Retry
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.policy.EventsMode
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorization
+import me.ahoo.wow.query.policy.ReadAuthorizer
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.CoSecAutoConfiguration
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.core.env.MapPropertySource
 import reactor.util.context.Context
@@ -104,17 +103,17 @@ class OpsConfigurationTest {
         }
     }
 
-    /** Whether a query of the entries by [caller] passes every query policy the ops service registers. */
+    /** Whether a read of the entries by [caller] passes every read authorizer the ops service registers. */
     private fun reads(checker: AuthorizationChecker?, authorizerEnabled: Boolean, caller: Caller = granted): Boolean =
         configured(checker, authorizerEnabled) { context ->
-            val policies = context.getBeanProvider(QueryPolicy::class.java).orderedStream().toList()
+            val authorizers = context.getBeanProvider(ReadAuthorizer::class.java).orderedStream().toList()
             runBlocking {
-                try {
-                    policies.forEach { it.evaluate(QueryCaller.of(caller), mockk<QueryContext<*>>()) }
-                    true
-                } catch (refused: QueryRequestException) {
-                    refused.errorCode.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
-                    false
+                when (val decision = ReadAuthorizer.allOf(authorizers).authorize(caller, entriesRead)) {
+                    ReadAuthorization.Allowed -> true
+                    is ReadAuthorization.Denied -> {
+                        decision.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+                        false
+                    }
                 }
             }
         }
@@ -182,29 +181,25 @@ class OpsConfigurationTest {
     }
 
     @Test
-    fun `the node's read policy should step aside for CoSec where it decides, else be the reader roles (UI-1)`() {
-        val entries = mockk<QueryContext<*>>()
-        val nobody = QueryCaller.of(Caller.of(subject = "nobody"))
+    fun `the node's read authorizer should step aside for CoSec where it decides, else be the reader roles (UI-1)`() {
+        val nobody = Caller.of(subject = "nobody")
         configured(checker(permits = true), authorizerEnabled = true) { context ->
             context.getBeanProvider(CoSecCommandAuthorizer::class.java).ifAvailable.assert().isNotNull()
-            val policy = context.getBean(QueryPolicy::class.java)
-            policy.assert().isSameAs(ReaderRole.COSEC_DECIDES)
-            runBlocking {
-                policy.evaluate(nobody, entries).assert().isEqualTo(MatchAllFilter)
-                policy.evaluate(QueryCaller.IN_PROCESS, entries).assert().isEqualTo(MatchAllFilter)
-            }
-            // It hides no entry, so the entries' events queries need not name their aggregates there either.
-            policy.events.assert().isEqualTo(EventsMode.NONE)
+            val authorizer = context.getBean(ReadAuthorizer::class.java)
+            authorizer.assert().isSameAs(ReadAuthorizer.ALLOW_ALL)
+            runBlocking { authorizer.authorize(nobody, entriesRead).assert().isEqualTo(ReadAuthorization.Allowed) }
         }
         configured(null, authorizerEnabled = true) { context ->
             context.getBeanProvider(CoSecCommandAuthorizer::class.java).ifAvailable.assert().isNull()
-            val policy = context.getBean(QueryPolicy::class.java)
-            policy.assert().isInstanceOf(ReaderRole::class.java)
+            val authorizer = context.getBean(ReadAuthorizer::class.java)
+            authorizer.assert().isInstanceOf(ReaderRole::class.java)
             runBlocking {
-                assertThrows<QueryRequestException> { policy.evaluate(nobody, entries) }
-                // Trusted in-process code, such as the ops saga or the node itself, reads every entry.
-                policy.evaluate(QueryCaller.IN_PROCESS, entries).assert().isEqualTo(MatchAllFilter)
+                authorizer.authorize(nobody, entriesRead).assert().isInstanceOf(ReadAuthorization.Denied::class.java)
             }
         }
     }
+
+    /** A list of the parked entries over HTTP. */
+    private val entriesRead =
+        ReadAction.of(AggregateType("ops", "parked"), QueryModel.SNAPSHOT, QueryType.LIST, QueryEntry.HTTP)
 }

@@ -117,6 +117,20 @@ class CommandReachTest {
     }
 
     @Test
+    fun `a retry under a policy reads the owner and space before its stream, though the aggregate moved since`() {
+        val owners = accessPolicy(Shelf::class.java) {
+            read { caller -> ownerAndSpace(caller) }
+            write { caller -> ownerAndSpace(caller) }
+        }
+        val alice = Caller.of("acme", scope = Scope("alice"), subject = "alice")
+        val reach = CommandReach(model, owners, command(alice))
+        // Stamped again since its commit: a later command moved the shelf to bob.
+        val moved = AccessValues.ofStream(emptyMap(), Scope("bob"))
+        reach.retries(stream(moved), Scope("alice"), codec).assert().isTrue()
+        reach.retries(stream(moved), Scope("carol"), codec).assert().isFalse()
+    }
+
+    @Test
     fun `the stored attributes read back as the state gives them, a value of another type as none`() {
         codec.declaredOf(
             model,

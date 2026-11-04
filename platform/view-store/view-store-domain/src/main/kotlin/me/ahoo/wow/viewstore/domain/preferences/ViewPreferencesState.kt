@@ -13,12 +13,19 @@
 
 package me.ahoo.wow.viewstore.domain.preferences
 
+import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet
 
 /** One owner's preferences for one definition in one application; its id is derived from the three. */
 class ViewPreferencesState {
     var definitionId: String = ""
         private set
+
+    /**
+     * The application it was created under: its creation's request fact `app_id`. An access attribute: each caller
+     * reads the preferences of its own application.
+     */
+    @Access
     var appId: String = ""
         private set
     var order: List<String> = emptyList()

@@ -88,7 +88,11 @@
           "path" : "/view-store/dataset_wording/events/query"
         } ]
       } ],
-      "ownership" : "tenant"
+      "ownership" : "tenant",
+      "access" : [ {
+        "name" : "appId",
+        "type" : "string"
+      } ]
     }, {
       "name" : "view",
       "description" : "A saved view of the view engine: a record view, an analysis view or a dashboard",
@@ -243,6 +247,10 @@
           "method" : "GET",
           "path" : "/view-store/view/events/query"
         } ]
+      } ],
+      "access" : [ {
+        "name" : "appId",
+        "type" : "string"
       } ]
     }, {
       "name" : "view_preferences",
@@ -304,6 +312,10 @@
           "method" : "GET",
           "path" : "/view-store/view_preferences/events/query"
         } ]
+      } ],
+      "access" : [ {
+        "name" : "appId",
+        "type" : "string"
       } ]
     } ],
     "subscriptions" : [ {

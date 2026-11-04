@@ -31,9 +31,9 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The view reads of the view store's routes: the system views from [systemViews], the saved views from the view
- * snapshots. The snapshots are read as trusted code, the view store's own, which no query policy restricts, so each
- * read keeps to its application here as [ViewStoreQueryPolicy] does for a caller's query. A node whose backend serves
- * no snapshot query reads no saved view.
+ * snapshots. The snapshots are read as trusted code, the view store's own, which no access policy restricts, so each
+ * read keeps to its application here as the views' access policy does for a caller's query ([ViewStoreConfiguration]).
+ * A node whose backend serves no snapshot query reads no saved view.
  */
 class QueriedViewReads(
     private val systemViews: StoredSystemViews,
@@ -52,7 +52,7 @@ class QueriedViewReads(
                 tenantId(tenantId)
                 id(id)
                 or { owners.forEach { ownerId(it) } }
-                ViewStoreQueryPolicy.APP_ID eq appId
+                APP_ID eq appId
             }
             limit(owners.size)
         }
@@ -86,3 +86,6 @@ class QueriedViewReads(
         val VIEW = ViewStoreContract.View.TYPE
     }
 }
+
+/** The snapshot field every view keeps its application in. */
+private const val APP_ID: String = "state.appId"

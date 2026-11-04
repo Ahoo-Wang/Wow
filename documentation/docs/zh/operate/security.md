@@ -92,41 +92,33 @@ Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任�
 - **按路由。** 在 CoSec 决定请求的地方，路由路径上 `http:<METHOD>` 动作的策略放行或拒绝它（[动作名称](#action-names)）。在 CoSec 网关之后，由网关的策略决定。
 - **按读取者。** 服务自己的 `ReadAuthorizer` Bean 决定调用方是否可以读取某个模型：给定调用方和它读取的东西（聚合类型或数据集、模型、操作和入口），它在读取任何东西之前允许或拒绝这次读取，所以被拒绝的调用方得不到任何信息，连某个状态是否存在都不知道。拒绝答 `403 wow.auth.forbidden`，或授权器指明的[错误码表](../reference/error-codes)里的另一个码，例如没有应用的请求。它按谁在读拒绝（角色、应用），从不按读的是什么拒绝。每个入口的每个调用方都会被询问，包括进程内的 `QueryApi.of(caller)`；不带调用方读取的受信任进程内代码不被询问。
 - **按作用域。** 查询准入把调用方的作用域加进每个查询，状态读取也检查它：租户总是加上；所有者只对 `Ownership.OWNER` 的聚合加上；调用方在某个空间里行事时，加上空间。调用方没有值的那一项不加，所以租户级调用方读取整个租户。查询里的过滤条件不能放宽它。在事件上，所有者和空间是聚合当前的所有者和空间，每条流都记着它们（[谁能看到什么](../guide/event-queries#who-sees-what)）。
-- **按属性。** 基于属性的查询过滤已移除，正由访问属性与访问策略取代；在此之前没有开启它的配置项。
+- **按访问策略。** 状态声明了访问属性（`@Access`）的聚合按它的访问策略读取，即服务自己的 `AccessPolicy` Bean：它的 `read` 用调用方的声明比较每个聚合的属性，下推到每个查询，并在状态读取时求值，取代作用域的所有者与空间（[命令](#authorize-commands)受它的 `write` 约束）。
 - **按策略。** 服务自己的 `QueryPolicy` bean 在这些之后运行，作用于每个查询模型、状态读取和 trace。它返回一个收窄行的过滤条件，或者抛出异常拒绝调用方。
 
-**属于租户的聚合，租户里的每个调用方都能读取。** `Ownership.TENANT` 不记录所有者，所以作用域不加所有者：购物者和员工一样读取商品，所有者级调用方也能读取它所在租户和空间里的每个这样的聚合。这对商品目录是对的，对只有某些角色才能读取的聚合就不对了。Wow 没有自己的读取角色，所以这样的服务要自带一个拒绝没有该角色的调用方的策略。平台的服务就是这样做的：运维服务的 `ReaderRole` 只放行查看者或操作员，分析目录的 `AnalyticsCatalogQueryPolicy` 只放行它的读者。CoSec 在运维服务内部决定且开启了它的授权器时，`ReaderRole` 让开，由 CoSec 在查询路由上的 `http:` 策略决定谁能读取；在网关模式下由角色决定。
+**属于租户的聚合，租户里的每个调用方都能读取。** `Ownership.TENANT` 不记录所有者，所以作用域不加所有者：购物者和员工一样读取商品，所有者级调用方也读取它的租户和空间里所有这样的聚合。这对目录是对的，对只有某些角色才能读取的聚合就不对了。Wow 没有自己的读取角色，所以这样的服务要带一个读取授权器，拒绝没有该角色的调用方。平台的服务就是这样做的：运维服务的 `ReaderRole` 只放行查看者或操作员，分析目录的 `AnalyticsCatalogReaderRole` 只放行它的读者。在运维服务自己由 CoSec 决定且打开了它的授权器时，运维服务不注册角色检查，由 CoSec 在查询路由上的 `http:` 策略决定谁能读取；在网关模式下由角色决定。
 
 <!-- sample: fragment -->
 
 ```kotlin
-class ReaderRole : QueryPolicy {
-    // A role check hides no event stream, so events queries need not name their aggregates.
-    override val events: EventsMode get() = EventsMode.NONE
-
-    override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
-        // Trusted code and subscription handlers read with no caller: the check is not theirs.
-        val who = caller.caller ?: return MatchAllFilter
-        if (OpsRoles.rolesOf(who).none { it in OpsRoles.READERS }) {
-            throw QueryRequestException(
-                "${who.subject ?: "An anonymous caller"} reads no parked entry: it needs ${OpsRoles.VIEWER} or " +
+class ReaderRole : ReadAuthorizer {
+    override suspend fun authorize(caller: Caller, read: ReadAction): ReadAuthorization =
+        if (OpsRoles.rolesOf(caller).any { it in OpsRoles.READERS }) {
+            ReadAuthorization.Allowed
+        } else {
+            ReadAuthorization.Denied.of(
+                "${caller.subject ?: "An anonymous caller"} reads no parked entry: it needs ${OpsRoles.VIEWER} or " +
                     "${OpsRoles.OPERATOR}.",
-                READER_REQUIRED,
-                problem = FrameworkCodes.AUTH_FORBIDDEN,
             )
         }
-        return MatchAllFilter
-    }
 }
 ```
 
-把它注册为 `QueryPolicy` 类型的 bean；宿主按 bean 顺序，在作用域与访问策略之后运行每一个，并把它们的过滤条件用 AND 合起来。有三点要做对：
+把它注册为 `ReadAuthorizer` 类型的 Bean；宿主按 Bean 顺序询问每一个，在读取任何东西之前。有两点要做对：
 
-- **拒绝是 403。** 抛出带 `problem = FrameworkCodes.AUTH_FORBIDDEN` 的 `QueryRequestException`，回答 `wow.auth.forbidden`；不带它，拒绝会被读成格式错误的查询，即 400。隐藏聚合的过滤条件让它的状态读取返回 404 `wow.aggregate.not-found`，就像它不存在一样，而拒绝在那里也回答 403。
-- **说明它怎样对待事件流。** 策略的 `events` 默认为 `EventsMode.PINNED`，它假定策略的规则读取状态，于是要求每个事件查询都指明它的聚合。角色检查不读取状态：给它 `EventsMode.NONE`。
-- **没有调用方时让开。** 受信代码（`NodeQueryApi.trusted()`）和订阅的处理函数不带调用方地读取，读的是整个租户，作为节点自己的代码。读取调用方的策略对它们返回 `MatchAllFilter`，如上所示；不这样做的策略，也会限制节点自己的作业和投影。
+- **它按谁在读拒绝，从不按读的是什么拒绝。** 拒绝是 `403 wow.auth.forbidden`，或 `Denied` 指明的错误码表里的另一个码，例如视图存储对没有应用的请求回答的 `wow.query.malformed`。调用方看到哪些行由访问策略决定：被它隐藏的聚合读起来就像不存在，状态读取返回 404 `wow.aggregate.not-found`。
+- **受信代码不被询问。** 受信代码（`NodeQueryApi.trusted()`）和订阅的处理函数不带调用方地读取，读的是整个租户，作为节点自己的代码：不会为它们询问任何读取授权器。
 
-策略只授权读取。谁能修改属于租户的聚合由命令授权器决定（[授权命令](#authorize-commands)）：没有授权器时，路由放行的任何调用方都能发送它的命令。
+读取授权器只授权读取。谁能修改属于租户的聚合由命令授权器决定（[授权命令](#authorize-commands)）：没有授权器时，路由放行的任何调用方都能发送它的命令。
 
 ## 把网关放在前面 {#put-the-gateway-in-front}
 
