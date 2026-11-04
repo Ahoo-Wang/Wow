@@ -43,6 +43,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -70,6 +71,7 @@ class DefaultDatasetQueryGateway @InternalWowApi constructor(
     policies: List<QueryPolicy> = emptyList(),
     observer: QueryObserver = QueryObserver.NONE,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
 ) : DatasetQueryGateway,
     QueryGateway by DefaultQueryGateway(
         dataset.name,
@@ -80,6 +82,7 @@ class DefaultDatasetQueryGateway @InternalWowApi constructor(
         observer,
         entryPolicy,
         model = QueryModel.DATASET,
+        authorizer = authorizer,
     ) {
     init {
         require(backend.aggregateType == dataset.name) {
@@ -167,6 +170,7 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
             observer: QueryObserver = QueryObserver.NONE,
             entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
             bulkhead: (AggregateType) -> QueryBulkhead? = { null },
+            authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
         ): DatasetQueryGateways = of(datasets, requireServable = { bindings.served(it) }) { dataset ->
             DefaultDatasetQueryGateway(
                 dataset = dataset,
@@ -176,6 +180,7 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
                 policies = policies,
                 observer = observer,
                 entryPolicy = entryPolicy,
+                authorizer = authorizer,
             )
         }
     }

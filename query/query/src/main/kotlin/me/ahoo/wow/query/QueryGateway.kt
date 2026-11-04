@@ -63,6 +63,7 @@ import me.ahoo.wow.query.observe.finished
 import me.ahoo.wow.query.observe.started
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
@@ -198,8 +199,10 @@ class DefaultQueryGateway(
     private val records: QueryRecordReader? = null,
     private val constraints: List<ConstraintDescriptor> = emptyList(),
     private val model: QueryModel = QueryModel.SNAPSHOT,
+    /** Who may read the model at all ([ReadAuthorizer]): asked once per query, before anything is read. */
+    authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
 ) : QueryGateway {
-    private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
+    private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy, authorizer, model)
 
     override suspend fun single(query: SingleQuery, caller: QueryCaller): ObjectNode? =
         run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted, _ ->
