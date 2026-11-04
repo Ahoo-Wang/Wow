@@ -154,8 +154,16 @@ class PostgresSnapshotStore(
      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
      * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
      *
-     * All of it is one transaction, one commit and one WAL flush, the aggregate types in name
-     * order and each statement's rows in key order, so concurrent batches lock their common rows in the same order. A
+     * All of it is one transaction and one commit, the aggregate types in name order and each statement's rows in key
+     * order, so concurrent batches lock their common rows in the same order. The commit does not wait for its WAL flush
+     * (`synchronous_commit = off`): a snapshot is its aggregate's log folded, and the log's own commits wait for theirs.
+     * Waiting here too doubled the WAL flushes of a command, its append's and its snapshot's, and PostgreSQL flushes
+     * one at a time, so on a disk whose flushes take half a millisecond a node at a thousand commands a second spent
+     * more than a second of flushing a second, and its commits queued. The commit is visible at once, and durable with
+     * the next commit that waits for its flush, the WAL being written in order: the snapshot subscription's checkpoint
+     * after it, or any append, at the latest after `wal_writer_delay`. A crash of PostgreSQL in between loses at most
+     * those snapshots and the checkpoint that covered them, so the subscription takes their entries again and writes
+     * them again; meanwhile a load replays more of the log. A
      * statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
      * nothing: the rounds run again statement by statement in autocommit, where such a statement's snapshots are saved
      * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown, and nothing of
@@ -169,7 +177,9 @@ class PostgresSnapshotStore(
         } else {
             dataSource.autoCommitted { connection ->
                 try {
-                    inTransaction(connection) { bound -> saveRounds(bound, tablesOf, snapshots, alone = false) }
+                    inTransaction(connection, asynchronous = true) { bound ->
+                        saveRounds(bound, tablesOf, snapshots, alone = false)
+                    }
                 } catch (failure: SQLException) {
                     PostgresFailures.refusedOrThrow(failure)
                     saveRounds(connection, tablesOf, snapshots, alone = true)

@@ -118,6 +118,21 @@ class PostgresTimeoutsTest {
     }
 
     @Test
+    fun `an asynchronous transaction should commit without waiting for its flush, and only it`() {
+        onePooled { pool ->
+            PostgresTimeouts.timed(pool, 3.seconds).connection.use { connection ->
+                inTransaction(connection, asynchronous = true) { bound ->
+                    show(bound, "synchronous_commit").assert().isEqualTo("off")
+                    // The bound's other statements still come with it.
+                    settings(bound).assert().isEqualTo(listOf("2s", "2s", "6s"))
+                }
+                inTransaction(connection) { bound -> show(bound, "synchronous_commit").assert().isEqualTo("on") }
+            }
+            pool.connection.use { show(it, "synchronous_commit") }.assert().isEqualTo("on")
+        }
+    }
+
+    @Test
     fun `a transaction left idle, as a crashed node leaves it, should be ended by the server`() {
         onePooled { pool ->
             val timed = PostgresTimeouts.timed(pool, 2.seconds)
@@ -161,7 +176,10 @@ class PostgresTimeoutsTest {
         "statement_timeout",
         "lock_timeout",
         "idle_in_transaction_session_timeout",
-    ).map { name -> connection.createStatement().use { it.executeQuery("SHOW $name").use { rows -> rows.next(); rows.getString(1) } } }
+    ).map { name -> show(connection, name) }
+
+    private fun show(connection: Connection, name: String): String =
+        connection.createStatement().use { it.executeQuery("SHOW $name").use { rows -> rows.next(); rows.getString(1) } }
 
     private fun pid(connection: Connection): Int = connection.createStatement().use { statement ->
         statement.executeQuery("SELECT pg_backend_pid()").use { rows ->

@@ -95,22 +95,25 @@ object PostgresTimeouts {
 
     /**
      * The bound of a transaction of [connection], as [boundTransaction] sends it; none to send. One instance for each
-     * network timeout, statement budget and read-only flag seen lately: a store's transactions take theirs without
-     * building it again.
+     * network timeout, statement budget, read-only and asynchronous flag seen lately: a store's transactions take
+     * theirs without building it again. An [asynchronous] transaction commits without waiting for its WAL flush
+     * (`synchronous_commit = off`), for writes another durable commit covers.
      */
     internal fun transactionBound(
         connection: Connection,
         statementMillis: Long?,
         readOnly: Boolean,
+        asynchronous: Boolean = false,
     ): TransactionBound? {
         val network = connection.networkTimeout
         val millis = statementMillis ?: NO_BUDGET
-        val slot = (31 * (31 * network + millis.hashCode()) + readOnly.hashCode()).mod(BOUNDS)
+        val slot = (31 * (31 * (31 * network + millis.hashCode()) + readOnly.hashCode()) + asynchronous.hashCode())
+            .mod(BOUNDS)
         val known = bounds.get(slot)
-        val bound = if (known != null && known.isFor(network, millis, readOnly)) {
+        val bound = if (known != null && known.isFor(network, millis, readOnly, asynchronous)) {
             known
         } else {
-            TransactionBound(network, millis, readOnly).also { bounds.set(slot, it) }
+            TransactionBound(network, millis, readOnly, asynchronous).also { bounds.set(slot, it) }
         }
         return bound.takeIf { it.count > 0 }
     }
@@ -125,17 +128,19 @@ object PostgresTimeouts {
 
     /**
      * The statements that bound a transaction on a connection whose client waits [network] milliseconds: its
-     * statements by [statementMillis] (or [NO_BUDGET]: the server's bound) and [readOnly]; [count] of them, as a
-     * statement's [prefix] or [alone].
+     * statements by [statementMillis] (or [NO_BUDGET]: the server's bound), [readOnly], and [asynchronous] (its commit
+     * does not wait for its WAL flush); [count] of them, as a statement's [prefix] or [alone].
      */
     internal class TransactionBound(
         private val network: Int,
         private val statementMillis: Long,
         private val readOnly: Boolean,
+        private val asynchronous: Boolean = false,
     ) {
         private val statements: List<String> = buildList {
             val server = serverMillis(network)
             if (readOnly) add("SET TRANSACTION READ ONLY")
+            if (asynchronous) add("SET LOCAL synchronous_commit = off")
             val budget = if (statementMillis == NO_BUDGET) server.toLong() else statementMillis
             if (budget > 0) add("SET LOCAL statement_timeout = $budget")
             if (server > 0) {
@@ -153,8 +158,9 @@ object PostgresTimeouts {
         /** The statements as the start of another statement's text. */
         val prefix: String = statements.joinToString("") { "$it; " }
 
-        fun isFor(network: Int, statementMillis: Long, readOnly: Boolean): Boolean =
-            this.network == network && this.statementMillis == statementMillis && this.readOnly == readOnly
+        fun isFor(network: Int, statementMillis: Long, readOnly: Boolean, asynchronous: Boolean): Boolean =
+            this.network == network && this.statementMillis == statementMillis && this.readOnly == readOnly &&
+                this.asynchronous == asynchronous
     }
 }
 
