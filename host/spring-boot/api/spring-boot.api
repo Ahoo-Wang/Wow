@@ -168,6 +168,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+	public static final fun wowRetiredQueryPolicies$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;
 	public static final fun wowSingleSeams$me_ahoo_wow_wow_spring_boot ()Lorg/springframework/beans/factory/config/BeanFactoryPostProcessor;
 }
 

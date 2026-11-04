@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.NodeQueryApi
@@ -56,6 +57,7 @@ import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.QueryEntryPolicy
+import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ReadAuthorization
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.schema.QueryModel
@@ -121,6 +123,14 @@ class ScannedEvents {
             }
         }
     }
+}
+
+/** A beta application's row filter left as a `QueryPolicy` bean, which the node no longer applies. */
+@Configuration(proxyBeanMethods = false)
+class LeftoverQueryPolicy {
+    @Bean
+    fun hideFromMallory(): QueryPolicy =
+        QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
 }
 
 /** A read authorizer that lets only the callers with the `reader` role read, wherever they read from. */
@@ -244,6 +254,21 @@ class HostQueryTest {
             events.binding(ACCOUNT).assert().isNotNull()
             events.binding(AggregateType("elsewhere", "thing")).assert().isNull()
         }
+    }
+
+    @Test
+    fun `a QueryPolicy bean should refuse the start, naming it and where its rule goes`() {
+        val refused = assertThrows<Exception> {
+            startHost(sources = listOf(HostTestApp::class.java, LeftoverQueryPolicy::class.java)).close()
+        }
+        val cause = generateSequence<Throwable>(refused) { it.cause }
+            .filterIsInstance<WowConfigurationException>().first()
+        cause.key.assert().isEqualTo(QueryPolicy::class.java.name)
+        cause.reason.assert().contains("hideFromMallory", "no longer applied")
+        // Reported through the host's failure analyzer, as any refused configuration.
+        val analysis = checkNotNull(WowConfigurationFailureAnalyzer().analyze(refused))
+        analysis.description.assert().contains("hideFromMallory")
+        analysis.action.assert().contains("ReadAuthorizer", "AccessPolicy")
     }
 
     @Test

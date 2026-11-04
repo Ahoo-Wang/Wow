@@ -468,6 +468,8 @@ object ArchitectureRules {
         // The application's ports the engine is built of.
         "policy.ReadAuthorizer", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",
+        // Refused at startup: an application's QueryPolicy bean, which the node no longer applies.
+        "policy.QueryPolicy",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
         "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
