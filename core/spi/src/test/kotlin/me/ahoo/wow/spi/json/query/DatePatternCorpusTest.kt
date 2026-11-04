@@ -24,7 +24,9 @@ import kotlin.io.path.writeText
 
 /**
  * The corpus of `datePattern` values that `typescript/wow-client` holds its build-time check to, ported from 9.x
- * `wow-api`: it fails when the committed file no longer says what this JVM says. Each pattern goes through a
+ * `wow-api`: it fails when the committed file no longer says what this JVM says, on every JDK the tests run on (21,
+ * and 25 off pull requests, D29): the file names the JDK that wrote it, and its answers are what must hold, so the
+ * comparison leaves that name out. Each pattern goes through a
  * relative-time filter's constructor, the entry a server-side `datePattern` takes: blank patterns are refused there,
  * the rest by `DateTimeFormatter.ofPattern`.
  *
@@ -38,6 +40,11 @@ class DatePatternCorpusTest {
         private val LETTERS: List<String> = (('A'..'Z') + ('a'..'z')).map(Char::toString)
         private const val MAX_REPEAT = 20
         private const val MAX_PAD_FIELD_REPEAT = 6
+
+        /** The line that names the JDK that wrote the file. */
+        private val WRITTEN_ON = Regex("""^ {2}"javaSpecificationVersion": "[^"]*",\n""", RegexOption.MULTILINE)
+
+        private fun String.answers(): String = replace(WRITTEN_ON, "")
 
         /** Everything Kotlin's `isBlank` or JavaScript's `trim` treats as whitespace, and near misses. */
         private val SPACES = listOf(
@@ -122,6 +129,6 @@ class DatePatternCorpusTest {
         if (System.getProperty("wow-test.snapshot.update").equals("true", ignoreCase = true)) {
             FIXTURE.writeText(actual)
         }
-        actual.assert().isEqualTo(FIXTURE.readText())
+        actual.answers().assert().isEqualTo(FIXTURE.readText().answers())
     }
 }
