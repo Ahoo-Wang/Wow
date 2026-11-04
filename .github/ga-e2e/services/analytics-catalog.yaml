@@ -1,0 +1,4 @@
+# The image built from the commit (cluster.sh images).
+image:
+  repository: wow-analytics-catalog-server
+  tag: local

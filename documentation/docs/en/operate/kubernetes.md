@@ -6,19 +6,17 @@ outline: deep
 
 # Kubernetes
 
-A Wow service runs on Kubernetes as a Deployment: its pods are the service's nodes, they find each other through the service's database, and they reach each other through a headless Service. Nothing else is needed: no operator, no ZooKeeper, no Kafka consumer group. This page walks through the manifests of the eShop's ordering service, in `deploy/eshop-ordering`, which are a template for your own. [Deployment Model](./topology) explains the ideas behind them.
+A Wow service runs on Kubernetes as a Deployment: its pods are the service's nodes, they find each other through the service's database, and they reach each other through a headless Service. Nothing else is needed: no operator, no ZooKeeper, no Kafka consumer group. Wow's Helm chart, `deploy/helm/wow-service`, renders those objects; this page walks through them with the eShop's ordering service, whose values in `deploy/eshop-ordering` are a template for your own. [Deployment Model](./topology) explains the ideas behind them.
 
 ## The files
 
 | File | Holds |
 | --- | --- |
-| `kustomization.yaml` | The set: `kubectl apply -k deploy/eshop-ordering` |
-| `configmap.yaml` | The settings every node shares, as environment variables |
-| `secret.yaml` | The database's connection: the MongoDB connection string |
-| `deployment.yaml` | The nodes |
-| `service.yaml` | The HTTP service, and the headless service of the internal port |
-| `networkpolicy.yaml` | Who may reach each port: the gateway the HTTP port, the shop's own pods the internal port |
-| `postgres/` | A component that puts the service on PostgreSQL instead |
+| `deploy/helm/wow-service` | The chart: the Deployment, its ConfigMap, the HTTP Service and the internal port's headless Service, the network policies, the disruption budget |
+| `build/wow/helm/values.yaml` | The values the service's build generates from its contract (`generateWowHelmValues`): its name and its peers |
+| `values.yaml` | The service's own values: the image, the ports, the profiles, the settings every node shares, the secret |
+| `values-postgres.yaml` | Passed after `values.yaml`: the service on PostgreSQL instead |
+| `secret.yaml`, `postgres-secret.yaml` | The database's connection, example values |
 | `Dockerfile` | The image, from the service's Gradle distribution |
 
 ## The image
@@ -33,60 +31,73 @@ Wow is built for JDK 21 and runs on it, but run it on JDK 25 in production. The 
 
 Every node of a service gets the same configuration from a ConfigMap, as environment variables that Spring Boot binds relaxed:
 
-<!-- sample: deploy/eshop-ordering/configmap.yaml -->
+<!-- sample: deploy/eshop-ordering/values.yaml -->
 
 ```yaml
-# The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
-# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its profiles included.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: eshop-ordering-service-config
-  labels:
-    app.kubernetes.io/name: eshop-ordering-service
-data:
+# The eshop-ordering service's own values for the wow-service chart (deploy/helm/wow-service), on MongoDB and Kafka:
+# what the build does not know. Pass them after the values its build generates, so they override them:
+#
+#   ./gradlew :eshop-ordering-server:generateWowHelmValues
+#   helm install eshop-ordering deploy/helm/wow-service \
+#     -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml -f deploy/eshop-ordering/values.yaml
+#
+# values-postgres.yaml after these puts the service on PostgreSQL instead.
+image:
+  # The image built from this repository (README.md).
+  repository: wow-eshop-ordering-server
+  tag: local
+# The ports of the image's own configuration (application.yaml), which the chart sets on the pod.
+ports:
+  http: 8083
+  internal: 9093
+# The nodes share the partitions through leases in the service's database: no ZooKeeper, no consumer group.
+replicas: 2
+# The internal port admits the pods of the platform, labelled app.kubernetes.io/part-of: eshop.
+partOf: eshop
+config:
   # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
   # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
-  # callers from the CoSec gateway in front of the service. The postgres component (postgres/)
-  # puts the service on PostgreSQL instead.
+  # callers from the CoSec gateway in front of the service.
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
-  # The order numbers (SO-<yyMMdd>-<sequence>, the orders' ids): every node reserves ranges of one sequence from the
-  # service's own database, at the same URI (CosId's mongo store; on the postgres component, its jdbc store, whose
-  # tables it creates at the first start), set by the profile in the image (eshop-ordering-ids.yaml). The numbers'
-  # generator is a segment and needs no machine slot, so the replica count needs no setting here, nor a StatefulSet.
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # The topics the service owns are created by the operator; the node only validates them. The kafka
-  # profile's auto is for trying the service out.
+  # The topics the service owns are created by the operator; the node only validates them. The kafka profile's auto
+  # is for trying the service out.
   WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
-  JAVA_OPTS: -XX:MaxRAMPercentage=75.0
-  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
-  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
-  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
-  # collector below over OTLP, and bridges Micrometer's global registry.
-  OTEL_SERVICE_NAME: eshop-ordering-service
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent, which the
+  # OpenTelemetry Operator injects (podAnnotations, with an Instrumentation resource in the namespace). Without the
+  # agent they are no-ops. It exports to the collector below over OTLP, and bridges Micrometer's global registry.
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+# The database's connection: secret.yaml, an example to replace.
+envFrom:
+  - secretRef:
+      name: eshop-ordering-service-mongo
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-java: "true"
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    memory: 1Gi
 ```
 
 The database's connection comes from a Secret the same way: the MongoDB connection string, or, with the postgres component, the database user and password. Replace the example values. The internal port needs no secret: the network is its boundary.
 
 ## The nodes
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#rollout -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#rollout -->
 
 ```yaml
-# The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
-replicas: 2
-selector:
-  matchLabels:
-    app.kubernetes.io/name: eshop-ordering-service
+# A new node joins before an old one leaves: the partitions move to it through the leases, and none is left without
+# an owner while the rollout runs.
 strategy:
   type: RollingUpdate
   rollingUpdate:
-    maxSurge: 1
+    maxSurge: {{ .Values.rollout.maxSurge }}
     maxUnavailable: 0
 ```
 
@@ -94,7 +105,7 @@ Two replicas are two nodes, which split the log's partitions through leases in t
 
 Each node needs an identity and an address its peers can reach:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -106,17 +117,26 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
+  # The ports the Services and the probes name: the chart's, whatever the image's configuration says.
   - name: SERVER_PORT
-    value: "8083"
+    value: {{ .Values.ports.http | quote }}
   - name: WOW_INTERNAL_PORT
-    value: "9093"
+    value: {{ .Values.ports.internal | quote }}
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # The internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address: a
+  # Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
+  # The namespace a peer's SRV name is in, unless wow.peer.dns.namespaces places the peer elsewhere.
+  - name: WOW_PEER_DNS_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  {{- with .Values.env }}
+  {{- toYaml . | nindent 12 }}
+  {{- end }}
 ```
 
 - **The node id** is the pod's name. A replaced pod joins as a new member; the old one's leases expire.
@@ -124,45 +144,50 @@ env:
 
 ## Two services
 
-<!-- sample: deploy/eshop-ordering/service.yaml -->
+<!-- sample: deploy/helm/wow-service/templates/service.yaml -->
 
 ```yaml
-# The public HTTP port, for clients and ingresses.
+{{- $name := include "wow-service.name" . -}}
+# The public HTTP port, for clients, the gateway and ingresses.
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-service
+  name: {{ $name }}
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
+  {{- with .Values.publicService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
+  type: {{ .Values.publicService.type }}
   selector:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
-      port: 80
+      port: {{ .Values.publicService.port }}
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service, named after the service (spring.application.name) with
-# -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
-# node advertises (its pod IP), and the other services find the nodes through them. It publishes
-# the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
-# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service),
-# and only the shop's own pods reach it (networkpolicy.yaml).
+# The internal port's headless Service, named after the service with -cluster: its SRV records,
+# _internal._tcp.<service>-cluster.<namespace>.svc, name every node's address, the address each node advertises (its pod
+# IP), and the other services find the nodes through them. It publishes the nodes that are not ready, so a node that is
+# starting or draining is still found. Never expose it outside the cluster: it takes no token, each node and service
+# names itself on each request (Wow-Service), and the internal NetworkPolicy admits the platform's own pods alone.
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-service-cluster
+  name: {{ $name }}-cluster
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.selectorLabels" . | nindent 4 }}
   ports:
     - name: internal
-      port: 9093
+      port: {{ .Values.ports.internal }}
       targetPort: internal
       protocol: TCP
 ```
@@ -178,27 +203,27 @@ Never expose the internal port outside the cluster. It takes no token: each requ
 
 The host gives the node's health to Spring Boot Actuator's readiness and liveness groups, on the HTTP port:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 36
+  periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+  failureThreshold: {{ .Values.probes.startup.failureThreshold }}
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 2
+  periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  periodSeconds: 10
-  failureThreshold: 3
+  periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
 Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck, never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start.
@@ -207,25 +232,25 @@ Readiness fails while the node cannot serve: before it runs, while its log, a st
 
 When Kubernetes stops a pod, the node first finishes the waits still open, then hands its partitions off after the commands in flight, saves its checkpoints, and closes its internal port last. The grace period must cover all of it:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#shutdown -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#shutdown -->
 
 ```yaml
-# The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
-# 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
-# and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
-terminationGracePeriodSeconds: 90
+# The preStop pause, the waits the public server finishes (shutdown.waitMaxTimeoutSeconds, wow.wait.max-timeout),
+# the hand-off of the partitions after their commands in flight (shutdown.drainTimeoutSeconds,
+# wow.cluster.drain-timeout) and a margin: the chart sets both keys from the same values.
+terminationGracePeriodSeconds: {{ include "wow-service.terminationGracePeriodSeconds" . }}
 ```
 
 A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#prestop -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#prestop -->
 
 ```yaml
 lifecycle:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStop:
     exec:
-      command: ["sleep", "5"]
+      command: ["sleep", "{{ .Values.shutdown.preStopSeconds }}"]
 ```
 
 Raise the grace period when you raise `wow.wait.max-timeout` or `wow.cluster.drain-timeout`.
@@ -237,8 +262,8 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 ## Before you apply
 
 1. Build the image and push it, or load it into a local cluster.
-2. Provide the database and, when the service uses it, Kafka. `deploy/mongodb` holds a MongoDB replica set to start from; for PostgreSQL, add the service's `postgres` component to a kustomization of your own (`components: [deploy/eshop-ordering/postgres]`), and set the server as [PostgreSQL](./postgresql#server-settings) says.
-3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
+2. Provide the database and, when the service uses it, Kafka. `deploy/mongodb` holds a MongoDB replica set to start from; for PostgreSQL, pass `values-postgres.yaml` after `values.yaml`, and set the server as [PostgreSQL](./postgresql#server-settings) says.
+3. Create the Kafka topics the service owns, since `values.yaml` sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
-Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering-service`. `kubectl apply -k deploy/eshop` applies the whole eShop.
+Then `helm upgrade --install eshop-ordering deploy/helm/wow-service -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml -f deploy/eshop-ordering/values.yaml --wait`. [`deploy/eshop`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop) installs the whole eShop.

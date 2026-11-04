@@ -6,19 +6,17 @@ outline: deep
 
 # Kubernetes
 
-Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服务的节点，它们通过服务的数据库互相发现，通过一个 headless Service 互相访问。别的都不需要：没有 Operator，没有 ZooKeeper，也没有 Kafka 消费组。本页逐一介绍 eShop 的 ordering 服务在 `deploy/eshop-ordering` 中的清单，它们可以作为你自己清单的模板。背后的思路见[部署模型](./topology)。
+Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服务的节点，它们通过服务的数据库互相发现，通过一个 headless Service 互相访问。别的都不需要：没有 Operator，没有 ZooKeeper，也没有 Kafka 消费组。Wow 的 Helm chart `deploy/helm/wow-service` 渲染出这些对象；本页以 eShop 的 ordering 服务为例逐一介绍它们，该服务在 `deploy/eshop-ordering` 中的 values 可以作为你自己服务的模板。背后的思路见[部署模型](./topology)。
 
 ## 文件 {#the-files}
 
 | 文件 | 包含 |
 | --- | --- |
-| `kustomization.yaml` | 这组清单：`kubectl apply -k deploy/eshop-ordering` |
-| `configmap.yaml` | 每个节点共用的设置，以环境变量提供 |
-| `secret.yaml` | 数据库的连接：MongoDB 连接串 |
-| `deployment.yaml` | 节点 |
-| `service.yaml` | HTTP 服务，以及内部端口的 headless Service |
-| `networkpolicy.yaml` | 谁可以访问每个端口：网关访问 HTTP 端口，商店自己的 Pod 访问内部端口 |
-| `postgres/` | 一个组件，改用 PostgreSQL |
+| `deploy/helm/wow-service` | chart：Deployment 及其 ConfigMap、HTTP Service 与内部端口的 headless Service、网络策略、中断预算 |
+| `build/wow/helm/values.yaml` | 服务的构建按契约生成的 values（`generateWowHelmValues`）：服务名与对端 |
+| `values.yaml` | 服务自己的 values：镜像、端口、profile、每个节点共用的设置、密钥 |
+| `values-postgres.yaml` | 在 `values.yaml` 之后传入：改用 PostgreSQL |
+| `secret.yaml`、`postgres-secret.yaml` | 数据库的连接，示例值 |
 | `Dockerfile` | 镜像，基于服务的 Gradle 发行包 |
 
 ## 镜像 {#the-image}
@@ -33,60 +31,73 @@ Wow 为 JDK 21 构建，也能在 JDK 21 上运行，但生产环境请在 JDK 2
 
 服务的每个节点都从一个 ConfigMap 获得相同的配置，以环境变量形式提供，由 Spring Boot 按宽松规则绑定：
 
-<!-- sample: deploy/eshop-ordering/configmap.yaml -->
+<!-- sample: deploy/eshop-ordering/values.yaml -->
 
 ```yaml
-# The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
-# is WOW_KAFKA_BOOTSTRAPSERVERS). They override the application.yaml in the image, its profiles included.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: eshop-ordering-service-config
-  labels:
-    app.kubernetes.io/name: eshop-ordering-service
-data:
+# The eshop-ordering service's own values for the wow-service chart (deploy/helm/wow-service), on MongoDB and Kafka:
+# what the build does not know. Pass them after the values its build generates, so they override them:
+#
+#   ./gradlew :eshop-ordering-server:generateWowHelmValues
+#   helm install eshop-ordering deploy/helm/wow-service \
+#     -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml -f deploy/eshop-ordering/values.yaml
+#
+# values-postgres.yaml after these puts the service on PostgreSQL instead.
+image:
+  # The image built from this repository (README.md).
+  repository: wow-eshop-ordering-server
+  tag: local
+# The ports of the image's own configuration (application.yaml), which the chart sets on the pod.
+ports:
+  http: 8083
+  internal: 9093
+# The nodes share the partitions through leases in the service's database: no ZooKeeper, no consumer group.
+replicas: 2
+# The internal port admits the pods of the platform, labelled app.kubernetes.io/part-of: eshop.
+partOf: eshop
+config:
   # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
   # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
-  # callers from the CoSec gateway in front of the service. The postgres component (postgres/)
-  # puts the service on PostgreSQL instead.
+  # callers from the CoSec gateway in front of the service.
   SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
-  # The order numbers (SO-<yyMMdd>-<sequence>, the orders' ids): every node reserves ranges of one sequence from the
-  # service's own database, at the same URI (CosId's mongo store; on the postgres component, its jdbc store, whose
-  # tables it creates at the first start), set by the profile in the image (eshop-ordering-ids.yaml). The numbers'
-  # generator is a segment and needs no machine slot, so the replica count needs no setting here, nor a StatefulSet.
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # The topics the service owns are created by the operator; the node only validates them. The kafka
-  # profile's auto is for trying the service out.
+  # The topics the service owns are created by the operator; the node only validates them. The kafka profile's auto
+  # is for trying the service out.
   WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
-  JAVA_OPTS: -XX:MaxRAMPercentage=75.0
-  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
-  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
-  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
-  # collector below over OTLP, and bridges Micrometer's global registry.
-  OTEL_SERVICE_NAME: eshop-ordering-service
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent, which the
+  # OpenTelemetry Operator injects (podAnnotations, with an Instrumentation resource in the namespace). Without the
+  # agent they are no-ops. It exports to the collector below over OTLP, and bridges Micrometer's global registry.
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+# The database's connection: secret.yaml, an example to replace.
+envFrom:
+  - secretRef:
+      name: eshop-ordering-service-mongo
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-java: "true"
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    memory: 1Gi
 ```
 
 数据库的连接以同样的方式来自一个 Secret：MongoDB 连接串；使用 postgres 组件时则是数据库用户名和密码。替换掉示例值。内部端口不需要密钥：网络是它的边界。
 
 ## 节点 {#the-nodes}
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#rollout -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#rollout -->
 
 ```yaml
-# The nodes share the partitions through leases in MongoDB: no ZooKeeper, no consumer group.
-replicas: 2
-selector:
-  matchLabels:
-    app.kubernetes.io/name: eshop-ordering-service
+# A new node joins before an old one leaves: the partitions move to it through the leases, and none is left without
+# an owner while the rollout runs.
 strategy:
   type: RollingUpdate
   rollingUpdate:
-    maxSurge: 1
+    maxSurge: {{ .Values.rollout.maxSurge }}
     maxUnavailable: 0
 ```
 
@@ -94,7 +105,7 @@ strategy:
 
 每个节点都需要一个身份，以及一个同伴能访问到的地址：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -106,17 +117,26 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
+  # The ports the Services and the probes name: the chart's, whatever the image's configuration says.
   - name: SERVER_PORT
-    value: "8083"
+    value: {{ .Values.ports.http | quote }}
   - name: WOW_INTERNAL_PORT
-    value: "9093"
+    value: {{ .Values.ports.internal | quote }}
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # The internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address: a
+  # Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
+  # The namespace a peer's SRV name is in, unless wow.peer.dns.namespaces places the peer elsewhere.
+  - name: WOW_PEER_DNS_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  {{- with .Values.env }}
+  {{- toYaml . | nindent 12 }}
+  {{- end }}
 ```
 
 - **节点 ID** 就是 Pod 的名字。替换后的 Pod 作为新成员加入；旧成员的租约会过期。
@@ -124,45 +144,50 @@ env:
 
 ## 两个 Service {#two-services}
 
-<!-- sample: deploy/eshop-ordering/service.yaml -->
+<!-- sample: deploy/helm/wow-service/templates/service.yaml -->
 
 ```yaml
-# The public HTTP port, for clients and ingresses.
+{{- $name := include "wow-service.name" . -}}
+# The public HTTP port, for clients, the gateway and ingresses.
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-service
+  name: {{ $name }}
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
+  {{- with .Values.publicService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
+  type: {{ .Values.publicService.type }}
   selector:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.selectorLabels" . | nindent 4 }}
   ports:
     - name: http
-      port: 80
+      port: {{ .Values.publicService.port }}
       targetPort: http
       protocol: TCP
 ---
-# The internal port's headless service, named after the service (spring.application.name) with
-# -cluster: its SRV records, _internal._tcp.eshop-ordering-service-cluster, name every node's address, the address each
-# node advertises (its pod IP), and the other services find the nodes through them. It publishes
-# the nodes that are not ready, so a node that is starting or draining is still found. Never expose it
-# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service),
-# and only the shop's own pods reach it (networkpolicy.yaml).
+# The internal port's headless Service, named after the service with -cluster: its SRV records,
+# _internal._tcp.<service>-cluster.<namespace>.svc, name every node's address, the address each node advertises (its pod
+# IP), and the other services find the nodes through them. It publishes the nodes that are not ready, so a node that is
+# starting or draining is still found. Never expose it outside the cluster: it takes no token, each node and service
+# names itself on each request (Wow-Service), and the internal NetworkPolicy admits the platform's own pods alone.
 apiVersion: v1
 kind: Service
 metadata:
-  name: eshop-ordering-service-cluster
+  name: {{ $name }}-cluster
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.selectorLabels" . | nindent 4 }}
   ports:
     - name: internal
-      port: 9093
+      port: {{ .Values.ports.internal }}
       targetPort: internal
       protocol: TCP
 ```
@@ -178,27 +203,27 @@ spec:
 
 宿主在 HTTP 端口上，把节点的健康状况交给 Spring Boot Actuator 的就绪和存活分组：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 36
+  periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+  failureThreshold: {{ .Values.probes.startup.failureThreshold }}
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 2
+  periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  periodSeconds: 10
-  failureThreshold: 3
+  periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
 节点无法提供服务时就绪探针失败：它运行之前、它的日志存储、写入需要的某个存储（某个聚合类型的主快照存储）或租约存储不可用时、交接宽限期过后它仍没有拥有应得的任何分区时，或者它读取的某个主题仍在加入中时。存活探针只在节点卡住时失败，从不因存储故障失败，节点排空期间也不会失败，所以一次故障不会让所有 Pod 同时重启。启动探针给节点三分钟的启动时间。
@@ -207,25 +232,25 @@ livenessProbe:
 
 Kubernetes 停止一个 Pod 时，节点先完成仍未结束的等待，然后在在途命令完成后交出它的分区，保存检查点，最后关闭内部端口。宽限期必须覆盖这全部过程：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#shutdown -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#shutdown -->
 
 ```yaml
-# The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
-# 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
-# and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
-terminationGracePeriodSeconds: 90
+# The preStop pause, the waits the public server finishes (shutdown.waitMaxTimeoutSeconds, wow.wait.max-timeout),
+# the hand-off of the partitions after their commands in flight (shutdown.drainTimeoutSeconds,
+# wow.cluster.drain-timeout) and a margin: the chart sets both keys from the same values.
+terminationGracePeriodSeconds: {{ include "wow-service.terminationGracePeriodSeconds" . }}
 ```
 
 一个短的 `preStop` 暂停，给端点留出时间把这个 Pod 摘掉，然后 Spring Boot 才停止接收请求：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#prestop -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#prestop -->
 
 ```yaml
 lifecycle:
   # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
   preStop:
     exec:
-      command: ["sleep", "5"]
+      command: ["sleep", "{{ .Values.shutdown.preStopSeconds }}"]
 ```
 
 提高 `wow.wait.max-timeout` 或 `wow.cluster.drain-timeout` 时，也要提高宽限期。
@@ -237,8 +262,8 @@ lifecycle:
 ## 应用之前 {#before-you-apply}
 
 1. 构建镜像并推送，或者把它加载到本地集群。
-2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。`deploy/mongodb` 里有一个可作起点的 MongoDB 副本集；要用 PostgreSQL，就在你自己的 kustomization 里加上服务的 `postgres` 组件（`components: [deploy/eshop-ordering/postgres]`），并按 [PostgreSQL](./postgresql#server-settings) 设置服务端。
-3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
+2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。`deploy/mongodb` 里有一个可作起点的 MongoDB 副本集；要用 PostgreSQL，就在 `values.yaml` 之后再传 `values-postgres.yaml`，并按 [PostgreSQL](./postgresql#server-settings) 设置服务端。
+3. 创建服务拥有的 Kafka 主题，因为 `values.yaml` 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
 4. 替换示例密钥。
 
-然后执行 `kubectl apply -k deploy/eshop-ordering` 和 `kubectl rollout status deployment/eshop-ordering-service`。`kubectl apply -k deploy/eshop` 部署整个 eShop。
+然后执行 `helm upgrade --install eshop-ordering deploy/helm/wow-service -f examples/eshop/ordering/ordering-server/build/wow/helm/values.yaml -f deploy/eshop-ordering/values.yaml --wait`。[`deploy/eshop`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop) 部署整个 eShop。

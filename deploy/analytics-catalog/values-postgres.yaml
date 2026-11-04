@@ -1,0 +1,9 @@
+# The analytics-catalog service on PostgreSQL instead of MongoDB: pass it after values.yaml. The postgres profile, the
+# database's URL, and the credentials of postgres-secret.yaml instead of the MongoDB connection string. PostgreSQL's own
+# settings, its TCP keepalives among them, are the server's (Operate › PostgreSQL › Server settings).
+config:
+  SPRING_PROFILES_ACTIVE: postgres,cosec
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wow_analytics_catalog
+envFrom:
+  - secretRef:
+      name: analytics-catalog-service-postgres
