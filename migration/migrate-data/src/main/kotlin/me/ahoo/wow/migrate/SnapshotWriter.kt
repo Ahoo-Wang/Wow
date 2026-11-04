@@ -221,12 +221,18 @@ internal class SnapshotWriter(
         return written
     }
 
-    /** An instance's snapshot [saved] (false: the store held it already), and the [stamp] of its history. */
-    private class Written(val saved: Boolean, val stamp: AccessStamp)
+    /**
+     * An instance's snapshot [saved] (false: the store held it already), and the [stamp] of its history; none when
+     * every stream holds its attributes already.
+     */
+    private class Written(val saved: Boolean, val stamp: AccessStamp?)
 
     /**
      * Writes the snapshot of the instance [id] of [target], and gives the stamp of its history with the attributes of
-     * its state as of its last version; null when its state does not rebuild, which is [report]ed.
+     * its state as of its last version; null when its state does not rebuild, which is [report]ed. The stamp starts at
+     * the first stream that does not hold those attributes: a catch-up stamps what the tail appended since, not again
+     * what an earlier run stamped with the same attributes. A stream it passes over keeps an earlier version's stamp of
+     * the same attributes, which a stamp as of a version between could only write again.
      */
     private suspend fun write(target: Target, id: NineXAggregateId): Written? {
         val ref = target.plan.target.ref(id.tenantId, id.id)
@@ -250,7 +256,9 @@ internal class SnapshotWriter(
         val first = streams.first()
         val last = streams.last()
         val access = codec.accessOf(target.model, state.state)
-        val stamp = AccessStamp(ref, AccessValues.ofStream(access, state.scope), last.version, 1, last.version + 1)
+        val current = AccessValues.ofStream(access, state.scope)
+        val stamp = streams.firstOrNull { it.access != current }
+            ?.let { AccessStamp(ref, current, last.version, it.version, last.version + 1) }
         val saved = target.store.save(
             codec.snapshotOf(
                 target.model,

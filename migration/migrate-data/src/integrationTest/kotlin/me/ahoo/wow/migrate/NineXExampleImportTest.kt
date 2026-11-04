@@ -186,8 +186,9 @@ class NineXExampleImportTest {
             )
             .contains("example-service.cart snapshots caught up: 0 instances the V10 log changed since")
         store.load(orderRef)!!.version.assert().isEqualTo(5)
-        // The catch-up stamped the received order's history again, as of its new last version.
-        log.read(orderRef).toList().map { it.accessVersion }.assert().containsOnly(5)
+        // The catch-up stamped the stream the tail received, as of the new last version; the ones before it hold the
+        // same attributes already.
+        log.read(orderRef).toList().map { it.accessVersion }.assert().containsExactly(4, 4, 4, 4, 5)
 
         // Compared after the broken mapping's comparison, the map is not the one it ran with, so it compares in full;
         // compared again, only what changed since: a differing snapshot 9.x takes since is found.

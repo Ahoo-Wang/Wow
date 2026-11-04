@@ -246,8 +246,10 @@ class SnapshotWriterTest {
             it.written.assert().isEqualTo(1)
             it.done.assert().isTrue()
         }
-        store.load(NineXExample.orderModel.type.ref(late.aggregateId.tenantId, late.aggregateId.id))!!.version
-            .assert().isEqualTo(late.version)
+        val ref = NineXExample.orderModel.type.ref(late.aggregateId.tenantId, late.aggregateId.id)
+        store.load(ref)!!.version.assert().isEqualTo(late.version)
+        // Only the stream the tail brought in is stamped: the ones before it hold the same attributes already.
+        log.read(ref).toList().map { it.accessVersion }.assert().containsExactly(4, 4, 4, 4, 5)
         // The cart's log did not change.
         writer(source).writeAll(cart).written.assert().isEqualTo(0)
         checkpoints.load().snapshotsOf(order)!!.also {
