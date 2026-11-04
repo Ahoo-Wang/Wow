@@ -94,6 +94,23 @@ class CachedState(
     internal var requests: RecentRequests? = null
 
     /**
+     * The values of the aggregate's declared access attributes in [state] ([AggregateModel.accessOf]), once the kernel
+     * read them ([declared]) or committed the state; null until then.
+     */
+    internal var access: Map<String, Any?>? = null
+
+    /**
+     * The values of the declared access attributes of [model], this state's: read once, before the next decision's
+     * events evolve the state, which may change it in place.
+     */
+    internal fun declared(model: AggregateModel<*>): Map<String, Any?> {
+        access?.let { return it }
+        @Suppress("UNCHECKED_CAST") // The state is the model's, as the kernel holds it.
+        val read = (model as AggregateModel<Any>).accessOf(state)
+        return read.also { access = it }
+    }
+
+    /**
      * The estimated bytes it takes in a cache before its class's size is measured ([StateSizes]): [STATE_BYTES] for the
      * state with its metadata, and what its recent requests' rings take.
      */

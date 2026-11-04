@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.subscribe.CommandReceipt
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.StateCacheOptions
@@ -418,7 +419,8 @@ class ServiceNodeOptions @InternalWowApi constructor(
  * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway], and the
  * [tenants] of its aggregate types. [ids] are the node's id generators: admission's
  * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take. [authorizer] is null when
- * the application gives none ([me.ahoo.wow.runtime.admission.CommandGateway.authorizes]).
+ * the application gives none ([me.ahoo.wow.runtime.admission.CommandGateway.authorizes]). [policies] are the access
+ * policies the node's kernel holds each command to, before and after deciding.
  */
 @InternalWowApi
 data class AdmissionPlugins(
@@ -427,6 +429,8 @@ data class AdmissionPlugins(
     val validators: List<CommandValidator> = emptyList(),
     val ids: IdGenerators = IdGenerators.DEFAULT,
     val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    /** The access policy of each aggregate type its commands are held to; none, the default rule decides. */
+    val policies: WritePolicies = WritePolicies.NONE,
 )
 
 /**

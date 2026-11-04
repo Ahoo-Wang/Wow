@@ -49,6 +49,13 @@ class AccessFiltersTest {
     }
 
     @Test
+    fun `a comparison built by the model's own filter matches nothing negated`() {
+        val owner = MatchAllFilter
+        AccessFilters.compileWith(sales) { owner }.assert().isSameAs(owner)
+        AccessFilters.compileWith(Not(sales)) { owner }.assert().isSameAs(MatchNoneFilter)
+    }
+
+    @Test
     fun `constants fold, and a junction of one operand is that operand`() {
         val compiled = AccessFilters.compile(sales, ::fieldOf)
         AccessFilters.compile(Not(Allowed), ::fieldOf).assert().isSameAs(MatchNoneFilter)

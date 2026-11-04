@@ -43,7 +43,7 @@ on:
         options: [L1, L2, L3, L4]
         default: L2
       suites:
-        description: 'Suites or groups (all, ab, head, axon, jdk) separated by commas, instead of the tier'
+        description: 'Suites or groups (all, ab, head, axon, jdk, access) separated by commas, instead of the tier'
         type: string
         default: ''
       dataset:

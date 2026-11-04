@@ -50,7 +50,8 @@ Authorization happens at admission, before the command runs:
 
 - **Per route.** Where CoSec decides a request, its pipeline authorizes it, by an action on a resource, before the route runs.
 - **Per action.** With `wow.cosec.authorizer.enabled: true`, CoSec also authorizes every command and service route call of a request as its caller ([Where CoSec decides](#where-cosec-decides)). A `CommandAuthorizer` of your own does the same.
-- **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, and queries only return what the caller may see ([Authorize reads](#authorize-reads)).
+- **Per scope.** Whatever the authorizer says, the kernel refuses a command on an aggregate outside the caller's scope, as if the aggregate did not exist (`404 wow.aggregate.not-found`), and queries only return what the caller may see ([Authorize reads](#authorize-reads)).
+- **Per access policy.** An aggregate with an access policy of its own (an `AccessPolicy` bean of its state) takes a command when the policy's `write` lets the caller change it, evaluated by the kernel on the aggregate's current access attributes, owner and space included, before deciding; its scope is not checked then. A caller it refuses is answered `404 wow.aggregate.not-found` when the policy's `read` hides the aggregate from it too, `403 wow.aggregate.forbidden` when it may read it, and `403` for a creating command, whose success would tell the aggregate exists anyway. A creation, and a decision that changes the aggregate's declared access attributes, is checked again on the aggregate it leaves: refused (`403`) without appending when the caller could not change the result, so no caller creates an aggregate, or moves one, out of its own reach. A transfer of the owner or the space is checked before deciding only, since it gives the aggregate away on purpose. Commands a saga, a timer or a call derives are trusted, and so is a service sending as itself: code of the service sends as the service with `commandClient.of(Caller.ofService("<wow.service>"))`. The in-process client's default caller is anonymous, which holds no claim, so a policy refuses it.
 
 The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.http.ops.enabled`). Turned on, their actions and reads are authorized as the system commands `wow.ledger.*`. Without a command authorizer every one of them is refused (403 `wow.auth.forbidden`), never allowed by default, and the host warns at startup.
 
@@ -362,6 +363,8 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 ```
 
 Every other principal gets no `Write` ACL on the topic. With an authorizer and `allow.everyone.if.no.acl.found=false`, the broker's default, a principal without an ACL is refused. [Kafka](kafka#topics) lists the topics each context owns and who writes them.
+
+A record also says whether a commit derived the command (`causation`): writing one asserts a command the server derived, trusted as a saga's is. One no commit derived says who sent it (`caller`), whose claims the target's access policy compares. A writer of the topic writes either as easily as an operator, so the topic's ACLs are the only boundary. Under an access policy, a record with neither is refused. The callers' claims stay in the topic's records for its retention ([Commands on a topic](../reference/protocols#commands-on-a-topic)).
 
 ## Mistyped settings
 

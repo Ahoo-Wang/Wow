@@ -16,6 +16,7 @@ package me.ahoo.wow.api.decide
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -43,6 +44,13 @@ import me.ahoo.wow.api.schedule.ScheduleContext
  * [wait] is what the caller waits for before it is answered, by default until the snapshot holds the
  * commit. It stays on the node that took the command: only a wait context travels with it.
  *
+ * [caller] is who sent it, as admission resolved them, acting in the tenant and scope the command names: the
+ * aggregate's access policy compares its claims with the aggregate's access attributes before and after deciding.
+ * It is Wow's own, never recorded: not in the stream, its headers, its operator or the audit. It travels with the
+ * command to the node that decides it, through the cluster channel and the command topics. A command no caller sent
+ * has none: a derived one ([causation]), one an older node relayed, or one a producer wrote on a command topic
+ * without one.
+ *
  * Fields may be added: admission builds a command, and the test DSL builds one for a test; the
  * constructor is internal to Wow.
  */
@@ -57,6 +65,8 @@ class Command<C : Any> @InternalWowApi constructor(
     val causation: Causation? = null,
     val operator: Operator? = null,
     val wait: WaitPlan = WaitPlan.DEFAULT,
+    @property:InternalWowApi
+    val caller: Caller? = null,
 ) {
     init {
         require(id.isNotBlank()) { "A command needs an id." }
@@ -83,6 +93,7 @@ class Command<C : Any> @InternalWowApi constructor(
         causation: Causation? = this.causation,
         operator: Operator? = this.operator,
         wait: WaitPlan = this.wait,
+        caller: Caller? = this.caller,
     ): Command<C> = Command(
         id,
         requestId,
@@ -94,6 +105,7 @@ class Command<C : Any> @InternalWowApi constructor(
         causation,
         operator,
         wait,
+        caller,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -101,11 +113,12 @@ class Command<C : Any> @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
+    // The caller is left out, its claims with it: a command is logged.
     override fun toString(): String =
         "Command(id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, " +
             "scope=$scope, headers=$headers, causation=$causation, operator=$operator, wait=$wait)"
 
     private fun valueFields(): List<Any?> = listOf(
-        id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, wait
+        id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, wait, caller
     )
 }

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.problem.WowProblemException
@@ -131,13 +132,13 @@ class HideFromMallory {
         QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
 }
 
-/** The access policy of the accounts: the tellers read them, and no caller changes them through it. */
+/** The access policy of the accounts: the tellers read and change them, the auditors only read them. */
 @Configuration(proxyBeanMethods = false)
 class TellersReadAccounts {
     @Bean
     fun accountAccess(): AccessPolicy<Account> = accessPolicy {
-        read { caller -> allowIf(caller.hasRole("teller")) }
-        write { denyAll() }
+        read { caller -> allowIf(caller.hasRole("teller") || caller.hasRole("auditor")) }
+        write { caller -> allowIf(caller.hasRole("teller")) }
     }
 }
 
@@ -158,11 +159,14 @@ class ApplicationBackends {
 
 /** The query plane of a host on the memory backend (work package 6.2c). */
 class HostQueryTest {
-    private fun Host.openAccount(owner: String): String {
-        val opened = post("/bank/account/open-account", """{"owner":"$owner"}""")
+    private fun Host.openAccount(owner: String, headers: Map<String, String> = emptyMap()): String {
+        val opened = post("/bank/account/open-account", """{"owner":"$owner"}""", headers)
         opened.status.assert().isEqualTo(200)
         return opened.body!!["ref"]["id"].asString()
     }
+
+    /** A teller of the development profile: a request's headers name its caller. */
+    private val tellerHeaders = mapOf(DevelopmentHeaders.USER to "tom", DevelopmentHeaders.ROLES to "teller")
 
     @Test
     fun `on the memory backend neither the snapshots nor the events should be served when turned off`() {
@@ -268,7 +272,7 @@ class HostQueryTest {
             "spring.profiles.active" to "dev",
             sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java),
         ).use { host ->
-            val id = host.openAccount("mona")
+            val id = host.openAccount("mona", tellerHeaders)
             val engine = host.context.getBean(QueryEngine::class.java)
             engine.access.governs(ACCOUNT).assert().isTrue()
             fun accounts(caller: Caller) = runBlocking {
@@ -302,6 +306,40 @@ class HostQueryTest {
             "wow.contexts.include" to BANK,
             sources = listOf(HostTestApp::class.java, StrayAccessPolicy::class.java),
         ).use { host -> host.context.getBean(QueryEngine::class.java).access.governed.assert().isEmpty() }
+    }
+
+    @Test
+    fun `an access policy bean should decide who changes its aggregate, over HTTP and in process`() {
+        startHost(
+            "spring.profiles.active" to "dev",
+            sources = listOf(HostTestApp::class.java, TellersReadAccounts::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona", tellerHeaders)
+            val deposit = "/bank/account/$id/deposit"
+            host.post(deposit, """{"amount":5}""", tellerHeaders).status.assert().isEqualTo(200)
+            // An auditor reads the account but may not change it; any other caller does not learn it exists.
+            val auditor = mapOf(DevelopmentHeaders.USER to "amy", DevelopmentHeaders.ROLES to "auditor")
+            host.post(deposit, """{"amount":5}""", auditor).let {
+                it.status.assert().isEqualTo(403)
+                it.body!!["code"].asString().assert().isEqualTo("wow.aggregate.forbidden")
+            }
+            host.post(deposit, """{"amount":5}""", mapOf(DevelopmentHeaders.USER to "eve")).let {
+                it.status.assert().isEqualTo(404)
+                it.body!!["code"].asString().assert().isEqualTo("wow.aggregate.not-found")
+            }
+            // Opening one is a change too: the auditor may not create an account it could not change.
+            host.post("/bank/account/open-account", """{"owner":"amy"}""", auditor).status.assert().isEqualTo(403)
+            val ref = ACCOUNT.ref(Caller.DEFAULT_TENANT, id)
+            val commands = host.context.getBean(CommandClient::class.java)
+            runBlocking {
+                // In process, the default caller is anonymous and holds no claim: refused as any other.
+                assertThrows<CommandRejectedException> { commands.wait(CommandRequest.to(ref, Deposit(1))) }
+                    .code.assert().isEqualTo("wow.aggregate.not-found")
+                // The service's own code sends as the service, which access policies trust.
+                commands.of(Caller.ofService("host-test")).wait(CommandRequest.to(ref, Deposit(1))).status.assert()
+                    .isEqualTo(CommandResult.Status.SUCCEEDED)
+            }
+        }
     }
 
     @Test

@@ -18,10 +18,15 @@ import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.event.CommandListener
+import me.ahoo.wow.api.access.AccessAttribute
+import me.ahoo.wow.api.access.AccessPolicy
+import me.ahoo.wow.api.access.accessPolicy
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.mongo.MongoPoolGauge
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -63,11 +68,34 @@ class MongoBackend {
 }
 // endregion
 
-/** The benchmark's clients are anonymous; outside development the host wants that said in a bean. */
+/**
+ * Who the benchmark's clients are; outside development the host wants that said in a bean. Anonymous, unless
+ * `benchmark.access` says otherwise: `claims` makes every request a teller's, a caller with a subject and a role whose
+ * claims travel with each command, and `policy` also holds the accounts to an access policy the teller passes, so the
+ * two compare the write path's cost under a policy.
+ */
 @Configuration(proxyBeanMethods = false)
-class AnonymousCallers {
+class BenchCallers {
     @Bean
-    fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
+    fun benchCallerResolver(environment: Environment): CallerResolver =
+        when (environment.getProperty(ACCESS, NONE)) {
+            NONE -> CallerResolver.ANONYMOUS
+            else -> CallerResolver { TELLER }
+        }
+
+    @Bean
+    @ConditionalOnProperty(ACCESS, havingValue = POLICY)
+    fun accountAccess(): AccessPolicy<AccountState> = accessPolicy {
+        // The owner's or a teller's: the teller is never an account's owner, so both comparisons run.
+        readWrite { caller -> anyOf(AccessAttribute.OWNER eq caller.subject, allowIf(caller.hasRole("teller"))) }
+    }
+
+    private companion object {
+        const val ACCESS = "benchmark.access"
+        const val NONE = "none"
+        const val POLICY = "policy"
+        val TELLER = Caller.of(subject = "bench-teller", attributes = mapOf("roles" to listOf("teller")))
+    }
 }
 
 fun main(args: Array<String>) {
