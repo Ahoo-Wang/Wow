@@ -327,7 +327,7 @@ The checkpoints, format 1, keep where each pass stands:
 - per V10 aggregate type: the tags backfill;
 - per V10 context and partition: the export.
 
-The import also records each key it reserves, before reserving it, so a later import can release a key 9.x gave up. A stopped run repeats at most one page.
+The import also records each key it reserves, before reserving it, so a later import can release a key 9.x gave up. A stopped run repeats at most the pages it had in flight: two being appended, and the one read ahead.
 
 **In a file**, the default. The checkpoint file sits beside `<checkpoint>.reservations.jsonl`, the reserved keys. Keep the two files together. Each change holds a lock on `<checkpoint>.lock` and replaces the file atomically.
 

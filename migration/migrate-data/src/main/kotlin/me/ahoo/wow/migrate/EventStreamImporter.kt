@@ -13,11 +13,16 @@
 
 package me.ahoo.wow.migrate
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -32,8 +37,10 @@ import java.util.concurrent.atomic.AtomicLong
  * - [pageSize] instances are imported between two checkpoints. A page is read with its instances' streams in one scan
  *   ([NineXEventSource.instances]), at most [pageStreams] of them, so an estate of large instances has shorter pages;
  *   the streams it read are appended in [concurrency] groups of whole instances, each one call of the log
- *   ([EventLog.appendAll]), the groups at once; the rest of an instance it read in part is read [streamBatch] streams
- *   at a time. The tail reads [pageSize] streams at once, and imports [concurrency] instances at a time.
+ *   ([EventLog.appendAll]); the rest of an instance it read in part is read [streamBatch] streams at a time. The next
+ *   page is read while a page is appended, and a page's groups start while the last page's finish, [concurrency]
+ *   groups at a time in all; the checkpoint moves after a page once it and every page before it are imported. The tail
+ *   reads [pageSize] streams at once, and imports [concurrency] instances at a time.
  * - [dryRun] reads and converts every stream but appends none and saves no checkpoint: the mapping check's dry run
  *   extended to every payload.
  * - [restart] walks every instance again, ignoring where the last full import stopped: the final complete pass once
@@ -172,33 +179,96 @@ internal class EventStreamImporter(
         }
         save(aggregate, checkpoint)
         val permits = Semaphore(options.concurrency)
-        while (true) {
-            val page = stats.timed(stats.read) {
-                blocking { source.instances(aggregate, checkpoint.after, options.pageSize, options.pageStreams) }
+        coroutineScope {
+            val pages = readAhead(aggregate, checkpoint.after, stats)
+            val inFlight = ArrayDeque<PageImport>()
+            for (page in pages) {
+                val imported = page.filterNot { plan.excludes(aggregate, it.id.id) }
+                inFlight += importPage(aggregatePlan, page, imported, permits, stats)
+                while (inFlight.isNotEmpty() && (inFlight.size > PAGES_IN_FLIGHT || inFlight.first().done)) {
+                    checkpoint = settled(aggregate, inFlight.removeFirst(), checkpoint, stats)
+                }
             }
-            if (page.isEmpty()) {
-                break
+            while (inFlight.isNotEmpty()) {
+                checkpoint = settled(aggregate, inFlight.removeFirst(), checkpoint, stats)
             }
-            val (excluded, imported) = page.partition { plan.excludes(aggregate, it.id.id) }
-            coroutineScope {
-                if (options.dryRun) {
-                    imported.map { instance ->
-                        async { permits.withPermit { importInstance(aggregatePlan, instance, stats) } }
-                    }
-                } else {
-                    groupsOf(imported).map { group ->
-                        async { permits.withPermit { importGroup(aggregatePlan, group, stats) } }
-                    }
-                }.awaitAll()
-            }
-            stats.instances.addAndGet(imported.size.toLong())
-            stats.excluded.addAndGet(excluded.size.toLong())
-            checkpoint = checkpoint.copy(after = page.last().id)
-            stats.timed(stats.checkpoint) { save(aggregate, checkpoint) }
-            progress(stats.report(done = false))
         }
         stats.timed(stats.checkpoint) { save(aggregate, checkpoint.copy(completed = true)) }
         return stats.report(done = true).also(progress)
+    }
+
+    /**
+     * The full import's pages of [aggregate] after [after], read one ahead of the pages being imported (no page
+     * barrier): the next page's scan runs while this page's streams are appended.
+     */
+    private fun CoroutineScope.readAhead(
+        aggregate: NineXAggregate,
+        after: NineXAggregateId?,
+        stats: Stats,
+    ): ReceiveChannel<List<NineXInstance>> {
+        val pages = Channel<List<NineXInstance>>(capacity = 1)
+        launch {
+            try {
+                var last = after
+                while (true) {
+                    val page = stats.timed(stats.read) {
+                        blocking { source.instances(aggregate, last, options.pageSize, options.pageStreams) }
+                    }
+                    if (page.isEmpty()) {
+                        break
+                    }
+                    pages.send(page)
+                    last = page.last().id
+                }
+            } finally {
+                pages.close()
+            }
+        }
+        return pages
+    }
+
+    /** One page of the full import, its instances' imports started, [ImportOptions.concurrency] at a time in all. */
+    private class PageImport(val page: List<NineXInstance>, val imported: Int, val jobs: List<Deferred<Unit>>) {
+        val done: Boolean get() = jobs.all { it.isCompleted }
+    }
+
+    /**
+     * Starts the import of [page]'s instances the map does not exclude, [imported]: their streams in groups of whole
+     * instances ([importGroup]), or one instance after another in a dry run, which appends nothing; [permits] bound
+     * them with the other pages' in flight.
+     */
+    private fun CoroutineScope.importPage(
+        plan: AggregatePlan,
+        page: List<NineXInstance>,
+        imported: List<NineXInstance>,
+        permits: Semaphore,
+        stats: Stats,
+    ): PageImport {
+        val jobs = if (options.dryRun) {
+            imported.map { instance -> async { permits.withPermit { importInstance(plan, instance, stats) } } }
+        } else {
+            groupsOf(imported).map { group -> async { permits.withPermit { importGroup(plan, group, stats) } } }
+        }
+        return PageImport(page, imported.size, jobs)
+    }
+
+    /**
+     * Waits for [import]'s page, the oldest in flight, and moves the checkpoint after it: every instance up to its last
+     * is imported, those of the pages before it too, whatever the pages after it have done.
+     */
+    private suspend fun settled(
+        aggregate: NineXAggregate,
+        import: PageImport,
+        checkpoint: AggregateCheckpoint,
+        stats: Stats,
+    ): AggregateCheckpoint {
+        import.jobs.awaitAll()
+        stats.instances.addAndGet(import.imported.toLong())
+        stats.excluded.addAndGet((import.page.size - import.imported).toLong())
+        val moved = checkpoint.copy(after = import.page.last().id)
+        stats.timed(stats.checkpoint) { save(aggregate, moved) }
+        progress(stats.report(done = false))
+        return moved
     }
 
     /**
@@ -577,3 +647,9 @@ private const val NANOS_PER_MILLI = 1_000_000L
 
 /** The streams of one group commit at most: as many as one PostgreSQL statement of the log takes. */
 private const val MAX_GROUP_STREAMS = 1000
+
+/**
+ * The full import's pages being appended at once, besides the one read ahead: a page's instances wait for no other
+ * page's, so a slow group of one page does not hold the next one's back, and the checkpoint follows the oldest.
+ */
+private const val PAGES_IN_FLIGHT = 2

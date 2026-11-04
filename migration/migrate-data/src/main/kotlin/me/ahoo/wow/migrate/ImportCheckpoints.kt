@@ -33,7 +33,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - [tailedTo] is the latest commit time the tail has read, and [tailedAt] when its last pass ended, by the tool's
  *   clock: the final pass (`import --final`) takes the tail as continuous only when that pass is recent.
  *
- * Resuming repeats at most one page of instances, whose streams the import finds already in the log and skips.
+ * Resuming repeats at most the pages of instances the import had in flight (two, and the one it had read ahead),
+ * whose streams the import finds already in the log and skips.
  */
 internal data class AggregateCheckpoint(
     val startedAt: Long,
