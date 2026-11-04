@@ -47,7 +47,7 @@ internal data class AggregateCheckpoint(
 ) {
     /** This checkpoint with its range [index] moved to [range]. */
     fun withRange(index: Int, range: RangeCheckpoint): AggregateCheckpoint =
-        copy(ranges = checkNotNull(ranges).toMutableList().also { it[index] = range })
+        copy(ranges = ranges!!.toMutableList().also { it[index] = range })
 }
 
 /**

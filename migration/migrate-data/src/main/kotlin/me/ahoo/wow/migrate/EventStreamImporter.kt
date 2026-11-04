@@ -181,18 +181,22 @@ internal class EventStreamImporter(
         val aggregatePlan = plan.of(aggregate)
         val stats = Stats(aggregate, clock())
         val loaded = checkpoints.load().of(aggregate)
-        val checkpoint = when {
-            loaded == null -> AggregateCheckpoint(startedAt = clock(), ranges = rangesOf(aggregate, stats))
-            options.restart -> loaded.copy(after = null, completed = false, ranges = rangesOf(aggregate, stats))
-            loaded.completed -> return stats.report(done = true).also(progress)
-            // An earlier version's single position resumes as one range from there, which holds it from then on.
-            loaded.ranges == null -> loaded.copy(after = null, ranges = listOf(RangeCheckpoint(after = loaded.after)))
-            else -> loaded
+        if (loaded?.completed == true && !options.restart) {
+            return stats.report(done = true).also(progress)
         }
+        // An earlier version's single position resumes as one range from there, which holds it from then on.
+        val ranges = loaded?.ranges?.takeUnless { options.restart }
+            ?: if (loaded == null || options.restart) {
+                rangesOf(aggregate, stats)
+            } else {
+                listOf(RangeCheckpoint(after = loaded.after))
+            }
+        val checkpoint = (loaded ?: AggregateCheckpoint(startedAt = clock()))
+            .copy(after = null, completed = false, ranges = ranges)
         save(aggregate, checkpoint)
         val permits = Semaphore(options.concurrency)
         coroutineScope {
-            checkNotNull(checkpoint.ranges).forEachIndexed { index, range ->
+            ranges.forEachIndexed { index, range ->
                 if (!range.completed) {
                     launch { importRange(aggregate, aggregatePlan, index, range, permits, stats) }
                 }
@@ -649,7 +653,7 @@ internal class EventStreamImporter(
      */
     private fun update(aggregate: NineXAggregate, change: (AggregateCheckpoint) -> AggregateCheckpoint) {
         if (!options.dryRun) {
-            checkpoints.update { saved -> saved.with(aggregate, change(checkNotNull(saved.of(aggregate)))) }
+            checkpoints.update { saved -> saved.with(aggregate, change(saved.of(aggregate)!!)) }
         }
     }
 
