@@ -24,7 +24,6 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.tck.containers.WowContainers
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.testcontainers.postgresql.PostgreSQLContainer
 import javax.sql.DataSource
@@ -46,22 +45,24 @@ class PostgresSnapshotDurabilityTest {
                 container.start()
                 val context = "durability"
                 val type = AggregateType(context, "account")
-                val covered = (1..3).map { snapshot(type, "covered-$it") }
+                var covered = emptyList<SnapshotRecord>()
                 pooled(container.jdbcUrl, container) { dataSource ->
                     val snapshots = PostgresSnapshotStore(dataSource, context).also { it.createSchema() }
                     val checkpoints = PostgresCheckpointStore(dataSource).also { it.createSchema() }
-                    runBlocking {
-                        // The aggregate's table first, by a save that waits for its flush.
-                        snapshots.save(snapshot(type, "table")).assert().isTrue()
-                        snapshots.saveAll(covered).forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+                    // The aggregate's table first, by a save that waits for its flush.
+                    runBlocking { snapshots.save(snapshot(type, "table")).assert().isTrue() }
+                    // A batch whose WAL is not even written out of PostgreSQL's buffers, which a kill loses, so that
+                    // only the checkpoint's flush can make it durable: should the WAL writer write one first, the next.
+                    var coveredEnd = ""
+                    for (attempt in 1..ATTEMPTS) {
+                        covered = (1..3).map { snapshot(type, "covered-$attempt-$it") }
+                        runBlocking {
+                            snapshots.saveAll(covered).forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+                        }
+                        coveredEnd = insertedTo(dataSource)
+                        if (before(dataSource, WRITTEN, coveredEnd)) break
                     }
-                    val coveredEnd = insertedTo(dataSource)
-                    // Not even written out of PostgreSQL's WAL buffers, which a kill loses: only the checkpoint's flush
-                    // can make them durable.
-                    assumeTrue(
-                        before(dataSource, WRITTEN, coveredEnd),
-                        "The WAL writer wrote the snapshots on its own; nothing left to show.",
-                    )
+                    before(dataSource, WRITTEN, coveredEnd).assert().isTrue()
                     runBlocking { checkpoints.saveAll(GROUP, listOf(Checkpoint(SUBSCRIPTION, 0, COVERED_POSITION))) }
                     // The checkpoint's commit flushed the WAL up to it, the snapshots' records with it.
                     before(dataSource, FLUSHED, coveredEnd).assert().isFalse()
@@ -142,6 +143,7 @@ class PostgresSnapshotDurabilityTest {
         const val SUBSCRIPTION = "wow.snapshot"
         const val COVERED_POSITION = 3L
         const val READY_MILLIS = 60_000L
+        const val ATTEMPTS = 5
 
         /** How far the WAL is written to the operating system, which a kill of PostgreSQL does not lose. */
         const val WRITTEN = "pg_current_wal_lsn()"
