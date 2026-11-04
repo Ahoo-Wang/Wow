@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { OrderState } from '../types.js';
-import { OrderAggregate, type OrderEvent, type OrderStateField } from './aggregate.js';
+import { type OrderAccess, OrderAggregate, type OrderEvent, type OrderStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-ordering.order`: `POST /eshop-ordering/order/snapshot/query`. */
-export class OrderSnapshotQueryClient extends SnapshotQueryClient<OrderState, OrderStateField> {
+export class OrderSnapshotQueryClient extends SnapshotQueryClient<OrderState, OrderStateField, OrderAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(OrderAggregate, options);
@@ -14,7 +14,7 @@ export class OrderSnapshotQueryClient extends SnapshotQueryClient<OrderState, Or
 
 
 /** Queries the event streams of `eshop-ordering.order`, one record per commit: `POST /eshop-ordering/order/events/query`. */
-export class OrderEventQueryClient extends EventQueryClient<OrderEvent> {
+export class OrderEventQueryClient extends EventQueryClient<OrderEvent, OrderAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(OrderAggregate, options);
@@ -23,7 +23,7 @@ export class OrderEventQueryClient extends EventQueryClient<OrderEvent> {
 
 
 /** Reads the states of `eshop-ordering.order`, at a version or a time, and their traces: `GET /eshop-ordering/order/{id}/state`. */
-export class OrderStateClient extends StateClient<OrderState, OrderEvent> {
+export class OrderStateClient extends StateClient<OrderState, OrderEvent, OrderAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(OrderAggregate, options);

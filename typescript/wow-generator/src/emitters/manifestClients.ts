@@ -453,19 +453,23 @@ function textNumbersLiteral(marks: TextNumbersModel): string {
 function textNumbersMember(aggregate: AggregateModel): string {
   const numbers = aggregate.textNumbers;
   if (numbers === undefined) return '';
-  const groups = (['state', 'events', 'commands'] as const).flatMap(group => {
-    const value = numbers[group];
-    if (value === undefined) return [];
-    if (group === 'state')
-      return [`    state: ${textNumbersLiteral(value as TextNumbersModel)},`];
-    const entries = Object.entries(
-      value as Readonly<Record<string, TextNumbersModel>>,
-    ).map(
-      ([name, mark]) =>
-        `      ${resolvePropertyName(name)}: ${textNumbersLiteral(mark)},`,
-    );
-    return [`    ${group}: {\n${entries.join('\n')}\n    },`];
-  });
+  const groups = (['state', 'events', 'commands', 'access'] as const).flatMap(
+    group => {
+      const value = numbers[group];
+      if (value === undefined) return [];
+      if (group === 'state' || group === 'access')
+        return [
+          `    ${group}: ${textNumbersLiteral(value as TextNumbersModel)},`,
+        ];
+      const entries = Object.entries(
+        value as Readonly<Record<string, TextNumbersModel>>,
+      ).map(
+        ([name, mark]) =>
+          `      ${resolvePropertyName(name)}: ${textNumbersLiteral(mark)},`,
+      );
+      return [`    ${group}: {\n${entries.join('\n')}\n    },`];
+    },
+  );
   return `  textNumbers: {\n${groups.join('\n')}\n  },\n`;
 }
 
@@ -491,6 +495,7 @@ function emitAggregate(
       `The \`state.*\` paths of \`${aggregate.name}\`'s snapshots a query filters, sorts and projects on.`,
     ])}export type ${name}StateField = ${union(aggregate.stateFields.map(quoteStringLiteral))};`,
   );
+  emitAccess(aggregate, module);
   const events = aggregate.events.map(
     event =>
       `CommittedEvent<${quoteStringLiteral(event.wireName)}, ${event.type}>`,
@@ -741,6 +746,40 @@ function emitCommandClient(
   );
 }
 
+/**
+ * The `<Aggregate>Access` type of an aggregate: its access attributes by name
+ * as its records carry them, or `NoAccess` when it declares none. A type
+ * alias, not an interface: an object type alias has an implicit index
+ * signature, so a record typed by it is also the untyped `Snapshot<S>`.
+ */
+function emitAccess(aggregate: AggregateModel, module: ModuleBuilder): void {
+  const name = aggregate.typeName;
+  const subject = `\`${aggregate.context}.${aggregate.name}\``;
+  if (aggregate.access.length === 0) {
+    module.imports.add(WOW_CLIENT, ['NoAccess']);
+    addStatement(
+      module,
+      `${doc([`The access attributes of ${subject}: it declares none.`])}export type ${name}Access = NoAccess;`,
+    );
+    return;
+  }
+  const members = aggregate.access.map(attribute => {
+    const item = attribute.type.includes('|')
+      ? `(${attribute.type})`
+      : attribute.type;
+    const value = attribute.multiple
+      ? `readonly ${item}[]`
+      : `${attribute.type} | null`;
+    return `  readonly ${resolvePropertyName(attribute.name)}?: ${value};`;
+  });
+  addStatement(
+    module,
+    `${doc([
+      `The access attributes of ${subject} (\`@Access\`) by name, as its records carry them: a single one's value or null, a multiple one's values. A record written before an attribute was declared lacks it.`,
+    ])}export type ${name}Access = {\n${members.join('\n')}\n};`,
+  );
+}
+
 function emitQueryClient(
   aggregate: AggregateModel,
   modules: ModuleSet,
@@ -753,21 +792,21 @@ function emitQueryClient(
   const owned = aggregate.idSource === 'owner';
   const stateClient = owned ? 'OwnStateClient' : 'StateClient';
   const client = [stateClient, 'WowClientOptions'];
-  const aggregateNames = [`${name}Aggregate`, `${name}Event`];
+  const aggregateNames = [`${name}Access`, `${name}Aggregate`, `${name}Event`];
   const constructor = `  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    super(${name}Aggregate, options);\n  }`;
   if (aggregate.queryModels.includes('snapshot')) {
     client.push('SnapshotQueryClient');
     aggregateNames.push(`${name}StateField`);
     addStatement(
       module,
-      `${doc([`Queries the snapshots of \`${aggregate.context}.${aggregate.name}\`: \`POST /${aggregate.context}/${aggregate.name}/snapshot/query\`.`])}export class ${name}SnapshotQueryClient extends SnapshotQueryClient<${state}, ${name}StateField> {\n${constructor}\n}`,
+      `${doc([`Queries the snapshots of \`${aggregate.context}.${aggregate.name}\`: \`POST /${aggregate.context}/${aggregate.name}/snapshot/query\`.`])}export class ${name}SnapshotQueryClient extends SnapshotQueryClient<${state}, ${name}StateField, ${name}Access> {\n${constructor}\n}`,
     );
   }
   if (aggregate.queryModels.includes('events')) {
     client.push('EventQueryClient');
     addStatement(
       module,
-      `${doc([`Queries the event streams of \`${aggregate.context}.${aggregate.name}\`, one record per commit: \`POST /${aggregate.context}/${aggregate.name}/events/query\`.`])}export class ${name}EventQueryClient extends EventQueryClient<${name}Event> {\n${constructor}\n}`,
+      `${doc([`Queries the event streams of \`${aggregate.context}.${aggregate.name}\`, one record per commit: \`POST /${aggregate.context}/${aggregate.name}/events/query\`.`])}export class ${name}EventQueryClient extends EventQueryClient<${name}Event, ${name}Access> {\n${constructor}\n}`,
     );
   }
   addStatement(
@@ -776,7 +815,7 @@ function emitQueryClient(
       owned
         ? `Reads the states of \`${aggregate.context}.${aggregate.name}\`, at a version or a time, and their traces: the caller's own by no id (\`readOwn\`, \`getOwn\`, \`findOwn\`, \`traceOwn\`: \`GET /${aggregate.context}/${aggregate.name}/state\`), and by id for a caller with no owner (\`GET /${aggregate.context}/${aggregate.name}/{id}/state\`).`
         : `Reads the states of \`${aggregate.context}.${aggregate.name}\`, at a version or a time, and their traces: \`GET /${aggregate.context}/${aggregate.name}/{id}/state\`.`,
-    ])}export class ${name}StateClient extends ${stateClient}<${state}, ${name}Event> {\n${constructor}\n}`,
+    ])}export class ${name}StateClient extends ${stateClient}<${state}, ${name}Event, ${name}Access> {\n${constructor}\n}`,
   );
   module.imports.add(WOW_CLIENT, client.sort());
   module.imports.add('./aggregate.js', aggregateNames);

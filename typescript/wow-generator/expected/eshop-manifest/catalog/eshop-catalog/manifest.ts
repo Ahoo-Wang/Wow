@@ -14,7 +14,6 @@ export const EshopCatalogManifest: RoutingManifest = {
           commands: [
             { name: 'CreateBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/create-brand' }, { method: 'POST', path: '/eshop-catalog/brand/create-brand' }] },
             { name: 'RenameBrand', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/rename-brand' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/brand/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/brand/{id}/wow.lifecycle.transfer-space' }] },
@@ -25,7 +24,6 @@ export const EshopCatalogManifest: RoutingManifest = {
           commands: [
             { name: 'CreateCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/create-category' }, { method: 'POST', path: '/eshop-catalog/category/create-category' }] },
             { name: 'RenameCategory', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/rename-category' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/category/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/category/{id}/wow.lifecycle.transfer-space' }] },
@@ -37,9 +35,9 @@ export const EshopCatalogManifest: RoutingManifest = {
             { name: 'ChangeProductPrice', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/change-product-price' }] },
             { name: 'CreateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/create-product' }, { method: 'POST', path: '/eshop-catalog/product/create-product' }] },
             { name: 'DelistProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/delist-product' }] },
+            { name: 'DiscontinueProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/discontinue-product' }] },
             { name: 'PublishProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/publish-product' }] },
             { name: 'UpdateProduct', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/update-product' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-catalog/product/{id}' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.transfer-space' }] },

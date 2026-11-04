@@ -17,7 +17,6 @@ export const EshopBasketManifest: RoutingManifest = {
             { name: 'CheckoutBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/checkout-basket' }, { method: 'POST', path: '/eshop-basket/basket/checkout-basket' }] },
             { name: 'ClearBasket', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/clear-basket' }, { method: 'POST', path: '/eshop-basket/basket/clear-basket' }] },
             { name: 'RemoveBasketItem', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/remove-basket-item' }, { method: 'POST', path: '/eshop-basket/basket/remove-basket-item' }] },
-            { name: 'wow.lifecycle.ApplyTags', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.apply-tags' }, { method: 'POST', path: '/eshop-basket/basket/wow.lifecycle.apply-tags' }] },
             { name: 'wow.lifecycle.DeleteAggregate', routes: [{ method: 'DELETE', path: '/eshop-basket/basket/{id}' }, { method: 'DELETE', path: '/eshop-basket/basket' }] },
             { name: 'wow.lifecycle.RestoreAggregate', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.restore-aggregate' }, { method: 'POST', path: '/eshop-basket/basket/wow.lifecycle.restore-aggregate' }] },
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-basket/basket/{id}/wow.lifecycle.transfer-space' }, { method: 'POST', path: '/eshop-basket/basket/wow.lifecycle.transfer-space' }] },

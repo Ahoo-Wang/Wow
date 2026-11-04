@@ -13,7 +13,10 @@ export const EshopInventoryContract = {
 } as const;
 
 /** An error code of `eshop-inventory`, of the context or of one of its aggregates. */
-export type EshopInventoryErrorCode = 'eshop-inventory.stock.insufficient' | 'eshop-inventory.stock.invalid-quantity' | 'eshop-inventory.stock.no-reservation';
+export type EshopInventoryErrorCode = 'eshop-inventory.stock.insufficient' | 'eshop-inventory.stock.no-reservation';
+
+/** The subscriptions of `eshop-inventory` a `handled` hop names. */
+export type EshopInventorySubscription = 'SupplierDeliverySaga.onSchedule';
 
 /** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`. */
 export const eshopInventoryWait = {
@@ -23,4 +26,6 @@ export const eshopInventoryWait = {
   committed: (): Hop => wait.committed(EshopInventoryContract.NAME),
   /** Until the snapshot of `eshop-inventory` holds the commit. */
   snapshot: (): Hop => wait.snapshot(EshopInventoryContract.NAME),
+  /** Until a subscription of `eshop-inventory` handled the commit. */
+  handled: (subscription: EshopInventorySubscription): Hop => wait.handled(subscription, EshopInventoryContract.NAME),
 } as const;

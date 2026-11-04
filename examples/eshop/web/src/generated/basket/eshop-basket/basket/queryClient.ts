@@ -2,10 +2,10 @@
 
 import { EventQueryClient, OwnStateClient, SnapshotQueryClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { BasketState } from '../types.js';
-import { BasketAggregate, type BasketEvent, type BasketStateField } from './aggregate.js';
+import { type BasketAccess, BasketAggregate, type BasketEvent, type BasketStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-basket.basket`: `POST /eshop-basket/basket/snapshot/query`. */
-export class BasketSnapshotQueryClient extends SnapshotQueryClient<BasketState, BasketStateField> {
+export class BasketSnapshotQueryClient extends SnapshotQueryClient<BasketState, BasketStateField, BasketAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BasketAggregate, options);
@@ -14,7 +14,7 @@ export class BasketSnapshotQueryClient extends SnapshotQueryClient<BasketState, 
 
 
 /** Queries the event streams of `eshop-basket.basket`, one record per commit: `POST /eshop-basket/basket/events/query`. */
-export class BasketEventQueryClient extends EventQueryClient<BasketEvent> {
+export class BasketEventQueryClient extends EventQueryClient<BasketEvent, BasketAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BasketAggregate, options);
@@ -23,7 +23,7 @@ export class BasketEventQueryClient extends EventQueryClient<BasketEvent> {
 
 
 /** Reads the states of `eshop-basket.basket`, at a version or a time, and their traces: the caller's own by no id (`readOwn`, `getOwn`, `findOwn`, `traceOwn`: `GET /eshop-basket/basket/state`), and by id for a caller with no owner (`GET /eshop-basket/basket/{id}/state`). */
-export class BasketStateClient extends OwnStateClient<BasketState, BasketEvent> {
+export class BasketStateClient extends OwnStateClient<BasketState, BasketEvent, BasketAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BasketAggregate, options);

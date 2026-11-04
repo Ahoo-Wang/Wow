@@ -2,15 +2,6 @@
 
 
 /**
- * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
- * - key: `wow.lifecycle.ApplyTags`
- */
-export interface ApplyTags {
-  tags: Record<string, string[]>;
-}
-
-
-/**
  * Await the stock validation
  * - key: `me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation`
  */

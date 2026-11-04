@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { BrandState } from '../types.js';
-import { BrandAggregate, type BrandEvent, type BrandStateField } from './aggregate.js';
+import { type BrandAccess, BrandAggregate, type BrandEvent, type BrandStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-catalog.brand`: `POST /eshop-catalog/brand/snapshot/query`. */
-export class BrandSnapshotQueryClient extends SnapshotQueryClient<BrandState, BrandStateField> {
+export class BrandSnapshotQueryClient extends SnapshotQueryClient<BrandState, BrandStateField, BrandAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BrandAggregate, options);
@@ -14,7 +14,7 @@ export class BrandSnapshotQueryClient extends SnapshotQueryClient<BrandState, Br
 
 
 /** Queries the event streams of `eshop-catalog.brand`, one record per commit: `POST /eshop-catalog/brand/events/query`. */
-export class BrandEventQueryClient extends EventQueryClient<BrandEvent> {
+export class BrandEventQueryClient extends EventQueryClient<BrandEvent, BrandAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BrandAggregate, options);
@@ -23,7 +23,7 @@ export class BrandEventQueryClient extends EventQueryClient<BrandEvent> {
 
 
 /** Reads the states of `eshop-catalog.brand`, at a version or a time, and their traces: `GET /eshop-catalog/brand/{id}/state`. */
-export class BrandStateClient extends StateClient<BrandState, BrandEvent> {
+export class BrandStateClient extends StateClient<BrandState, BrandEvent, BrandAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(BrandAggregate, options);

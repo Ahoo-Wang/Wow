@@ -2,7 +2,7 @@
 
 import { CommandClient, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, LifecycleCommands, type WowClientOptions } from '@ahoo-wang/wow-client';
 import { EshopCatalogManifest } from '../manifest.js';
-import type { ApplyTags, ChangeProductPrice, CreateProduct, DelistProduct, PublishProduct, TransferSpace, UpdateProduct } from '../types.js';
+import type { ChangeProductPrice, CreateProduct, DelistProduct, DiscontinueProduct, PublishProduct, TransferSpace, UpdateProduct } from '../types.js';
 import { ProductAggregate } from './aggregate.js';
 
 /** Sends the commands of `eshop-catalog.product` by its service's routes (`EshopCatalogManifest`). Each method answers the result its wait plan ends with, as `CommandClient.wait` does: the server's default plan unless the options give one, `{ wait: WaitPlan.ACCEPTED }` to answer once it is accepted. A rejected command rejects with a `CommandRejectedError`; anything else that did not succeed with a `WowProblemError`. */
@@ -63,6 +63,20 @@ export class ProductCommandClient {
   }
 
   /**
+   * Discontinue a product
+   * `DiscontinueProduct`: `POST /eshop-catalog/product/{id}/discontinue-product`.
+   * Produces `ProductDiscontinued`, `wow.lifecycle.AggregateDeleted`.
+   */
+  discontinueProduct(id: string, body: DiscontinueProduct, options?: CommandOptions): Promise<CommandResult> {
+    return this.client.wait({ ...options, command: 'eshop-catalog.product.DiscontinueProduct', body, id });
+  }
+
+  /** `DiscontinueProduct`, answered as one result per hop of its wait (`text/event-stream`). */
+  discontinueProductStream(id: string, body: DiscontinueProduct, options?: CommandOptions): Promise<CommandResultStream> {
+    return this.client.stream({ ...options, command: 'eshop-catalog.product.DiscontinueProduct', body, id });
+  }
+
+  /**
    * Publish a product
    * `PublishProduct`: `POST /eshop-catalog/product/{id}/publish-product`.
    * Produces `ProductPublished`.
@@ -88,14 +102,6 @@ export class ProductCommandClient {
   /** `UpdateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   updateProductStream(id: string, body: UpdateProduct, options?: CommandOptions): Promise<CommandResultStream> {
     return this.client.stream({ ...options, command: 'eshop-catalog.product.UpdateProduct', body, id });
-  }
-
-  /**
-   * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
-   * The lifecycle command `wow.lifecycle.ApplyTags`.
-   */
-  applyTags(id: string, body: ApplyTags, options?: CommandOptions): Promise<CommandResult> {
-    return this.client.wait({ ...options, command: LifecycleCommands.APPLY_TAGS, type: { context: 'eshop-catalog', name: 'product' }, id, body });
   }
 
   /**

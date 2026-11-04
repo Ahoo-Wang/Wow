@@ -100,6 +100,28 @@
   },
   "fields": [
     {
+      "path": "access",
+      "types": [
+        "object"
+      ],
+      "kind": "object",
+      "nullable": false,
+      "project": true,
+      "filter": {
+        "operators": [
+          "is-null",
+          "is-not-null",
+          "exists",
+          "not-exists"
+        ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "aliases": []
+    },
+    {
       "path": "aggregateId",
       "role": "aggregate-id",
       "types": [
@@ -2250,28 +2272,6 @@
         "firstLast": true,
         "expressionInput": false,
         "inMetricFilter": true
-      },
-      "aliases": []
-    },
-    {
-      "path": "tags",
-      "types": [
-        "object"
-      ],
-      "kind": "object",
-      "nullable": false,
-      "project": true,
-      "filter": {
-        "operators": [
-          "is-null",
-          "is-not-null",
-          "exists",
-          "not-exists"
-        ]
-      },
-      "sort": {
-        "paged": false,
-        "cursor": false
       },
       "aliases": []
     },
