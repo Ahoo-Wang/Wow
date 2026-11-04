@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.node
 
+import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.FailureClassification
 import me.ahoo.wow.runtime.InFlightLimit
@@ -71,6 +72,12 @@ internal class NodeWiring(
     /** The `@OnCommitted` handlers of a context's sagas: hops of its waits. */
     val committedHandlers: (String) -> Set<String>,
 ) {
+    /**
+     * The node's permits of partitions reading behind their head, which every subscription runtime of the node shares
+     * ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.maxCatchUps]); null when it bounds none.
+     */
+    val catchUps: Semaphore? = options.subscription.maxCatchUps.takeIf { it > 0 }?.let { Semaphore(it) }
+
     /** The contexts of the types the topic router takes: each takes the commands of its topic. */
     private val topicRoutedContexts: Set<String> = options.topicRouted.mapTo(LinkedHashSet()) { it.context }
 

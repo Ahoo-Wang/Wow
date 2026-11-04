@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.spi.store.Store
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
@@ -206,9 +207,39 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
     }
 
-    /** Joins every context's lease group and every topic's, and starts the ledger's publisher. */
-    private suspend fun join() {
-        contexts.values.forEach { it.ownership.start() }
+    /**
+     * Joins every context's lease group and every topic's, and starts the ledger's publisher. The partitions the
+     * contexts' first reconciles start read nothing until every context has started its own
+     * ([me.ahoo.wow.runtime.cluster.PartitionOwnership.start]): the backlog of a log, a history migrate-data imported
+     * say, is read once the node runs all of them, not while it starts the others. A topic's group, which joins in the
+     * background, holds back its own first reconcile.
+     *
+     * The hold lasts at most [ClusterOptions.reconcileTimeout][me.ahoo.wow.runtime.cluster.ClusterOptions.reconcileTimeout]:
+     * a context whose join hangs, its store down or a lease it cannot take, is warned of by name, and the partitions
+     * the others started read from then on.
+     */
+    private suspend fun join(): Unit = coroutineScope {
+        val reads = Job()
+        val joining = AtomicReference<String>()
+        val bound = options.cluster.reconcileTimeout
+        val release = launch {
+            delay(bound)
+            logger.warn {
+                "Node $node of $service has joined its contexts for more than $bound and context ${joining.get()} " +
+                    "is still joining: the partitions the node started read their logs from now on, without waiting " +
+                    "for it."
+            }
+            reads.complete()
+        }
+        try {
+            contexts.forEach { (name, context) ->
+                joining.set(name)
+                context.ownership.start(reads)
+            }
+        } finally {
+            release.cancel()
+            reads.complete()
+        }
         topicSubscriptions.values.forEach { it.start() }
         ledgerPublisher?.start()
     }

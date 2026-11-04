@@ -914,10 +914,11 @@ public final class me/ahoo/wow/runtime/subscription/RetryPolicy$Companion {
 }
 
 public final class me/ahoo/wow/runtime/subscription/SubscriptionOptions {
-	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;Lme/ahoo/wow/runtime/subscription/BackpressureOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;Lme/ahoo/wow/runtime/subscription/BackpressureOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBackpressure ()Lme/ahoo/wow/runtime/subscription/BackpressureOptions;
 	public final fun getCheckpointInterval-UwyO8pc ()J
+	public final fun getMaxCatchUps ()I
 	public final fun getMaxInFlight ()I
 	public final fun getParked ()Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;
 	public final fun getReadRetry ()Lme/ahoo/wow/runtime/subscription/RetryPolicy;

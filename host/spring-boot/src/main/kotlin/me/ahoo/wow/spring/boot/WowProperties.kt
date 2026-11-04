@@ -767,6 +767,14 @@ class WowProperties {
         /** How a handler whose downstream pushes back is retried, and its partition throttled. */
         var backpressure: Backpressure = Backpressure()
 
+        /**
+         * The partitions the node reads behind their head at once, all its subscriptions together; 0 for no bound. A
+         * partition whose subscriptions start behind the head (a history migrate-data imported, a long stop) waits for
+         * one, and the others stand at their checkpoints, so the node keeps its store for its commands while it
+         * catches up. More do not catch up sooner on one store, and raise the latency of the commands meanwhile.
+         */
+        var maxCatchUps: Int = DEFAULT_SUBSCRIPTION.maxCatchUps
+
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
@@ -791,6 +799,7 @@ class WowProperties {
                 }.toMap(),
                 systemic = systemic.options(),
                 backpressure = backpressure.options(),
+                maxCatchUps = maxCatchUps,
             )
         }
 
