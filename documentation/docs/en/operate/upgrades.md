@@ -69,4 +69,6 @@ A log a released beta wrote still loads. Its streams and snapshots carry no acce
 
 A command on an aggregate outside the caller's scope is answered `404 wow.aggregate.not-found` from 10.0.0, as a read of it is; a pre-release answered `403 wow.aggregate.forbidden`, which only a creating command that names such an aggregate is still answered ([Owners, Spaces and Tags](../guide/ownership#what-the-kernel-checks)). A client that told the two apart by the status shows its "not found" answer instead.
 
+The OpenAPI document (`GET /wow/openapi`) types each aggregate's `access` by the attributes it declares, a single one's value or null and a multiple one's array, an integer as `int64`; an event stream's `access`, with the aggregate's `owner` and `space`, is null while the stream is not stamped. A pre-release's document had a `tags` member instead. Regenerate a client generated from it.
+
 The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start; the refusal names the key and points at the migration guide's configuration page, which maps each earlier key to its new one or says why it is gone.

@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.openapi.Json.array
+import me.ahoo.wow.openapi.Json.nullable
 import me.ahoo.wow.openapi.Json.obj
 import me.ahoo.wow.openapi.Json.schemaRef
 import me.ahoo.wow.openapi.Json.type
@@ -134,12 +135,36 @@ internal class OpenApiPaths(
             }
         }
         val base = "/$context/${aggregate.name}"
-        val state = schemas.ref(aggregate.state.schema)
-        stateRoutes(tag, "$base/${CommandRoutes.ID}/${Http.STATE_SEGMENT}", state, byId = true)
+        val record = RecordSchemas(aggregate, schemas.ref(aggregate.state.schema))
+        stateRoutes(tag, "$base/${CommandRoutes.ID}/${Http.STATE_SEGMENT}", record, byId = true)
         if (owned) {
-            stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", state, byId = false)
+            stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", record, byId = false)
         }
-        aggregate.queries.forEach { query -> queryRoutes(tag, query, state) }
+        aggregate.queries.forEach { query -> queryRoutes(tag, query, record) }
+    }
+
+    /**
+     * What an aggregate's records refine of the framework's: its [state], and the `access` of its declared access
+     * attributes ([WowSchemas.access]) when it declares any.
+     */
+    private inner class RecordSchemas(aggregate: AggregateManifest, private val state: Map<String, Any?>) {
+        private val declared = aggregate.access.takeIf { it.isNotEmpty() }
+
+        /** A snapshot, as a state read and a snapshot query answer it. */
+        val snapshot: Map<String, Any?> = refined(WowSchemas.SNAPSHOT, *snapshotProperties())
+
+        /** One commit of a trace: the aggregate after it. */
+        val commit: Map<String, Any?> = obj("properties" to obj(*snapshotProperties()))
+
+        /** An event stream, as an events query answers it. */
+        val stream: Map<String, Any?> = declared?.let {
+            refined(WowSchemas.EVENT_STREAM, "access" to nullable(WowSchemas.access(it, stream = true)))
+        } ?: schemaRef(WowSchemas.EVENT_STREAM)
+
+        private fun snapshotProperties(): Array<Pair<String, Any?>> = listOfNotNull(
+            "state" to state,
+            declared?.let { "access" to WowSchemas.access(it, stream = false) },
+        ).toTypedArray()
     }
 
     /**
@@ -350,8 +375,8 @@ internal class OpenApiPaths(
      * The state read and trace at [path]: of the aggregate the path's id names ([byId]), or of the caller's own
      * aggregate of one whose id is its owner's, by no id.
      */
-    private fun stateRoutes(tag: String, path: String, state: Map<String, Any?>, byId: Boolean) {
-        val view = refined(WowSchemas.SNAPSHOT, "state" to state)
+    private fun stateRoutes(tag: String, path: String, record: RecordSchemas, byId: Boolean) {
+        val view = record.snapshot
         val suffix = if (byId) "" else ".$WITHOUT_ID"
         val own = if (byId) "" else " $OWN_READ"
         val readParameters = listOfNotNull(
@@ -391,7 +416,7 @@ internal class OpenApiPaths(
                 Http.LIMIT_PARAMETER,
                 Http.SCOPE_HEADER
             )
-        val trace = refined(WowSchemas.STATE_TRACE, "commits" to array(obj("properties" to obj("state" to state))))
+        val trace = refined(WowSchemas.STATE_TRACE, "commits" to array(record.commit))
         add(
             GET,
             "$path/${Http.TRACE_SEGMENT}",
@@ -408,10 +433,10 @@ internal class OpenApiPaths(
         )
     }
 
-    private fun queryRoutes(tag: String, query: QueryManifest, state: Map<String, Any?>) {
+    private fun queryRoutes(tag: String, query: QueryManifest, schemas: RecordSchemas) {
         val record = when (query.model) {
-            QueryRoutes.SNAPSHOT -> refined(WowSchemas.SNAPSHOT, "state" to state)
-            QueryRoutes.EVENTS -> schemaRef(WowSchemas.EVENT_STREAM)
+            QueryRoutes.SNAPSHOT -> schemas.snapshot
+            QueryRoutes.EVENTS -> schemas.stream
             // A model the edge does not know is not served.
             else -> null
         } ?: return

@@ -69,4 +69,6 @@ outline: deep
 
 从 10.0.0 起，对调用方作用域之外的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它的回答一致；预发布版回答 `403 wow.aggregate.forbidden`，现在只有指明这样的聚合的创建命令仍得到它（[所有者、空间与标签](../guide/ownership#what-the-kernel-checks)）。按状态码区分两者的客户端改为显示它的"未找到"回答。
 
+OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出 `access` 的类型：单值为该值或 null，多值为数组，整数为 `int64`；事件流的 `access` 含聚合的 `owner` 与 `space`，在该流盖章之前为 null。预发布版的文档里是 `tags` 成员。由它生成的客户端需重新生成。
+
 配置面在 10.0.0 之前一次定稿，不保留别名：改名或移除的键会使节点拒绝启动；拒绝消息列出该键，并指向迁移指南的配置页，那里给出每个旧键的新键或它被移除的原因。
