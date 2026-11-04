@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { PaymentState } from '../types.js';
-import { PaymentAggregate, type PaymentEvent, type PaymentStateField } from './aggregate.js';
+import { type PaymentAccess, PaymentAggregate, type PaymentEvent, type PaymentStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-payment.payment`: `POST /eshop-payment/payment/snapshot/query`. */
-export class PaymentSnapshotQueryClient extends SnapshotQueryClient<PaymentState, PaymentStateField> {
+export class PaymentSnapshotQueryClient extends SnapshotQueryClient<PaymentState, PaymentStateField, PaymentAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(PaymentAggregate, options);
@@ -14,7 +14,7 @@ export class PaymentSnapshotQueryClient extends SnapshotQueryClient<PaymentState
 
 
 /** Queries the event streams of `eshop-payment.payment`, one record per commit: `POST /eshop-payment/payment/events/query`. */
-export class PaymentEventQueryClient extends EventQueryClient<PaymentEvent> {
+export class PaymentEventQueryClient extends EventQueryClient<PaymentEvent, PaymentAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(PaymentAggregate, options);
@@ -23,7 +23,7 @@ export class PaymentEventQueryClient extends EventQueryClient<PaymentEvent> {
 
 
 /** Reads the states of `eshop-payment.payment`, at a version or a time, and their traces: `GET /eshop-payment/payment/{id}/state`. */
-export class PaymentStateClient extends StateClient<PaymentState, PaymentEvent> {
+export class PaymentStateClient extends StateClient<PaymentState, PaymentEvent, PaymentAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(PaymentAggregate, options);

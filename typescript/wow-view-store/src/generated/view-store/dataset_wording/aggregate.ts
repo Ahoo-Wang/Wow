@@ -18,5 +18,10 @@ export const DatasetWordingAggregate = {
 /** The `state.*` paths of `dataset_wording`'s snapshots a query filters, sorts and projects on. */
 export type DatasetWordingStateField = 'state.appId' | 'state.dataset' | 'state.fields' | 'state.isEmpty' | 'state.recordNoun' | 'state.title';
 
+/** The access attributes of `view-store.dataset_wording` (`@Access`) by name, as its records carry them: a single one's value or null, a multiple one's values. A record written before an attribute was declared lacks it. */
+export type DatasetWordingAccess = {
+  readonly appId?: string | null;
+};
+
 /** The events of `dataset_wording`, named as the server sends them, `view-store.dataset_wording.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type DatasetWordingEvent = CommittedEvent<'view-store.dataset_wording.DatasetWordingCleared', DatasetWordingCleared> | CommittedEvent<'view-store.dataset_wording.DatasetWordingSet', DatasetWordingSet> | SystemEvent;

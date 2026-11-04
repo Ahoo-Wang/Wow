@@ -18,5 +18,10 @@ export const ViewPreferencesAggregate = {
 /** The `state.*` paths of `view_preferences`'s snapshots a query filters, sorts and projects on. */
 export type ViewPreferencesStateField = 'state.appId' | 'state.autoRun' | 'state.defaultInstanceId' | 'state.definitionId' | 'state.lastTabs' | 'state.order';
 
+/** The access attributes of `view-store.view_preferences` (`@Access`) by name, as its records carry them: a single one's value or null, a multiple one's values. A record written before an attribute was declared lacks it. */
+export type ViewPreferencesAccess = {
+  readonly appId?: string | null;
+};
+
 /** The events of `view_preferences`, named as the server sends them, `view-store.view_preferences.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type ViewPreferencesEvent = CommittedEvent<'view-store.view_preferences.ViewPreferencesSet', ViewPreferencesSet> | SystemEvent;

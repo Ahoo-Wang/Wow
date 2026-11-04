@@ -2,15 +2,6 @@
 
 
 /**
- * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
- * - key: `wow.lifecycle.ApplyTags`
- */
-export interface ApplyTags {
-  tags: Record<string, string[]>;
-}
-
-
-/**
  * A brand was added to the catalog
  * - key: `me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated`
  */
@@ -108,6 +99,15 @@ export interface DelistProduct {
 
 
 /**
+ * Discontinue a product
+ * - key: `me.ahoo.wow.example.eshop.catalog.api.product.DiscontinueProduct`
+ */
+export interface DiscontinueProduct {
+  reason: string;
+}
+
+
+/**
  * A product was added to the catalog
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated`
  */
@@ -125,6 +125,15 @@ export interface ProductCreated {
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted`
  */
 export interface ProductDelisted {
+  reason: string;
+}
+
+
+/**
+ * A product was discontinued for good
+ * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued`
+ */
+export interface ProductDiscontinued {
   reason: string;
 }
 

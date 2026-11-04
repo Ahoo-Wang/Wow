@@ -13,15 +13,6 @@ export interface AddBasketItem {
 
 
 /**
- * Sets the aggregate's tags, replacing the ones it had; empty tags clear them.
- * - key: `wow.lifecycle.ApplyTags`
- */
-export interface ApplyTags {
-  tags: Record<string, string[]>;
-}
-
-
-/**
  * The basket was checked out
  * - key: `me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut`
  */

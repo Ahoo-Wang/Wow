@@ -7,6 +7,12 @@
 import { RequestInterceptor } from '@ahoo-wang/fetcher';
 
 // @public
+type AccessValue = string | number | boolean | null | readonly (string | number | boolean)[];
+
+// @public
+type AccessValues = Readonly<Record<string, AccessValue>>;
+
+// @public
 interface AggregateRef {
     // (undocumented)
     readonly id: string;
@@ -18,6 +24,7 @@ interface AggregateRef {
 
 // @public
 interface AggregateTextNumbers {
+    readonly access?: TextNumbers;
     readonly commands?: Readonly<Record<string, TextNumbers>>;
     readonly events?: Readonly<Record<string, TextNumbers>>;
     readonly state?: TextNumbers;
@@ -206,7 +213,8 @@ interface ScheduleRule {
 }
 
 // @public
-interface Snapshot<S = unknown> {
+interface Snapshot<S = unknown, A = AccessValues> {
+    readonly access: A;
     // (undocumented)
     readonly aggregateId: string;
     // (undocumented)
@@ -222,8 +230,6 @@ interface Snapshot<S = unknown> {
     readonly spaceId: string | null;
     // (undocumented)
     readonly state: S;
-    // (undocumented)
-    readonly tags: Tags;
     // (undocumented)
     readonly tenantId: string;
     // (undocumented)
@@ -242,9 +248,6 @@ const Stage: {
 
 // @public
 type Stage = (typeof Stage)[keyof typeof Stage];
-
-// @public
-type Tags = Readonly<Record<string, readonly string[]>>;
 
 // @public
 type TextNumbers = true | TextNumbersByName | {

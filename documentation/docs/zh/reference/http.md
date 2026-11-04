@@ -21,7 +21,6 @@ outline: deep
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.restore-aggregate` | `RestoreAggregate` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-owner` | `TransferOwner`，请求体为 `{"ownerId": "…"}` |
 | `POST /<context>/<aggregate>/{id}/wow.lifecycle.transfer-space` | `TransferSpace`，请求体为 `{"spaceId": "…"}` |
-| `POST /<context>/<aggregate>/{id}/wow.lifecycle.apply-tags` | `ApplyTags`，请求体为 `{"tags": {"name": ["value"]}}`，替换已应用的标签 |
 | `POST /<context>/<aggregate>/wow.snapshot.rebuild` | 重建 `{"ids": [...]}` 的快照 |
 | `POST /<context>/wow.schedule/{job}/<command>` | 任务命令：`enable`、`reschedule`、`disable` |
 
@@ -45,7 +44,7 @@ outline: deep
 | 方法和路径 | 返回 |
 | --- | --- |
 | `GET /wow/manifest` | 服务合并后的 Manifest（`wow.http.manifest.enabled`），其中包括内部命令，标注为 `internal` |
-| `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`）：其中没有内部命令 |
+| `GET /wow/openapi` | 这些路由的 OpenAPI 3.1 文档（`wow.http.openapi.enabled`）：其中没有内部命令；每个聚合的记录按它的 Manifest 给出类型，`state` 按状态的 schema，`access` 按它声明的访问属性 |
 
 上下文自己的服务路由（它的代码声明的处理函数）按 Manifest 列出的样子提供。`wow.http.ops.enabled: true`（默认关闭）还提供运维人员的路由：`/wow/ops/parked` 下的停放条目，以及读取节点订阅的 `GET /wow/ops/subscriptions`（[运维控制台](../operate/ops-console)）。
 
