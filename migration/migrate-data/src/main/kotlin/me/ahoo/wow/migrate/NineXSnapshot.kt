@@ -21,7 +21,9 @@ import tools.jackson.databind.node.ObjectNode
  * A 9.x snapshot, read by its storage format (no 9.x module), as the 9.x `SnapshotSerializer` writes
  * it: `contextName`, `aggregateName`, `aggregateId` (`_id` in a MongoDB document), `tenantId`, `ownerId`, `spaceId`,
  * `version`, `eventId`, `firstOperator`, `operator`, `firstEventTime`, `eventTime`, `state`, `snapshotTime`, `tags`
- * and `deleted`. The comparison reads the identity, the version, the scope, the tags, the deleted mark and the state.
+ * and `deleted`. The comparison reads the identity, the version, the scope, the tags, the deleted mark and the state;
+ * a comparison again also the [snapshotTime], when the 9.x node that took it wrote it, by its clock (null when the
+ * document has none).
  */
 internal data class NineXSnapshot(
     val aggregate: NineXAggregate,
@@ -32,6 +34,7 @@ internal data class NineXSnapshot(
     val deleted: Boolean,
     val tags: Map<String, List<String>>,
     val state: JsonNode,
+    val snapshotTime: Long? = null,
 ) {
     companion object {
         /** Reads the JSON [text] of a snapshot. */
@@ -57,6 +60,7 @@ internal data class NineXSnapshot(
                 deleted = node.get("deleted")?.asBoolean() ?: false,
                 tags = tagsOf(node.get("tags")),
                 state = required("state", node.get("state")?.takeIf { !it.isNull }),
+                snapshotTime = node.get("snapshotTime")?.takeIf { it.isIntegralNumber }?.asLong(),
             )
         }
 
@@ -79,6 +83,16 @@ internal interface NineXSnapshotSource {
      * order.
      */
     fun snapshots(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXSnapshot>
+
+    /** The snapshot of [aggregate]'s instance [id], or null when 9.x has none. */
+    fun snapshot(aggregate: NineXAggregate, id: String): NineXSnapshot?
+
+    /**
+     * At most [limit] snapshots of [aggregate] after the instance [after] (from the first when null), in aggregate id
+     * order, that 9.x took at or after [from] by their `snapshotTime`, or that have none: what a comparison again reads
+     * of the 9.x side.
+     */
+    fun takenSince(aggregate: NineXAggregate, from: Long, after: String?, limit: Int): List<NineXSnapshot>
 
     /** How many instances of [aggregate] the 9.x event store holds: the base of the share that has a snapshot. */
     fun instances(aggregate: NineXAggregate): Long

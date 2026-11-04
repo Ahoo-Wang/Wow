@@ -45,6 +45,75 @@ DONE = re.compile(
     r"(?P<read>[\d.]+) s, convert (?P<convert>[\d.]+) s, append (?P<append>[\d.]+) s, checkpoints (?P<checkpoints>[\d.]+) s$"
 )
 
+PASSES = re.compile(
+    r"^\S+ (compared again: .*|compared: .*|is compared in full again: .*|snapshots caught up: .*|snapshots done: .*)$"
+)
+
+
+def container(name):
+    millis = data(name).get("containerMillis")
+    return millis / 1000 if millis is not None else None
+
+
+def slow_queries(name):
+    """The slow queries in the MongoDB log of step NAME (kind.sh mongo_log): how many, and their milliseconds."""
+    path = work / "cluster" / f"mongo-{name}.log"
+    count, millis = 0, 0
+    if path.exists():
+        for line in path.read_text().splitlines():
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if entry.get("msg") == "Slow query":
+                count += 1
+                millis += entry.get("attr", {}).get("durationMillis", 0)
+    return count, millis
+
+
+if any(step["step"].startswith("cut-") for step in steps):
+    # MODE=cutover: the write stop of an online cut-over by two images, A B B A, each after its import and dual run.
+    seed = data("seed")
+    seeded = data("ninex-seeded")
+    runs = [step["step"][: -len("-import")] for step in steps if re.fullmatch(r"cut-\d+-[AB]-import", step["step"])]
+    lines = [
+        "# migrate-data cut-over benchmark",
+        "",
+        f"- 9.x seeded: {seed.get('orders', '?')} orders, {seed.get('carts', '?')} carts; {seeded.get('orders', '?')} "
+        f"order streams, {seeded.get('carts', '?')} cart streams, {seeded.get('views', '?')} view streams.",
+        "- A is the baseline image, B the candidate, A B B A (D392 ③), each into a fresh database after its own import "
+        "and dual run, in which the driver writes to 9.x while the tail follows it. B walks compare and snapshot once in "
+        "the dual run; A, as main's run book has it, only in the write stop. The write stop is the final pass, compare "
+        "and snapshot, by their containers' time; the activation is not part of it.",
+        "",
+        "| Run | Orders touched | Import | Dual-run compare | Dual-run snapshot | Final pass | Compare | Snapshot "
+        "| Write stop |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+
+    def cell(value):
+        return f"{value:.1f} s" if value is not None else "-"
+
+    for run in runs:
+        window = [container(f"{run}-{part}") for part in ("final", "compare", "snapshot")]
+        lines.append(
+            f"| {run} | {data(f'{run}-traffic').get('touched', '?')} | {cell(container(f'{run}-import'))} | "
+            f"{cell(container(f'{run}-dual-compare'))} | {cell(container(f'{run}-dual-snapshot'))} | "
+            + " | ".join(cell(value) for value in window)
+            + f" | {cell(sum(window) if None not in window else None)} |"
+        )
+    lines += ["", "What the write stop's compare and snapshot read:", ""]
+    for run in runs:
+        for part in ("compare", "snapshot"):
+            lines += [f"- {run}-{part}: {line}" for line in log_lines(f"{run}-{part}", PASSES.pattern)]
+    lines += ["", "| Step | Slow queries | Their time |", "| --- | --- | --- |"]
+    for step in steps:
+        count, millis = slow_queries(step["step"])
+        if step["step"].startswith("cut-") and (work / "cluster" / f"mongo-{step['step']}.log").exists():
+            lines.append(f"| {step['step']} | {count} | {millis / 1000:.1f} s |")
+    print("\n".join(lines))
+    sys.exit(0)
+
 if any(step["step"].startswith("bench-") for step in steps):
     # MODE=bench: the import of two images, A B B A; nothing else ran after the check.
     seed = data("seed")

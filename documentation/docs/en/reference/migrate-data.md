@@ -43,8 +43,8 @@ It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OP
 | `check` | `--decode` | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
 | `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
-| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, checks that the log holds every stream 9.x committed since the import up to where the tail has read, then compares the reservations and the parked entries. |
-| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. |
+| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, checks that the log holds every stream 9.x committed since the import up to where the tail has read, then compares the reservations and the parked entries. Once a full comparison has completed, compares again only the instances changed on either side since and those that differed, or compares in full and says why ([Compare](../migrate/data#_5-compare)). |
+| `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. Prints each instance whose state does not rebuild, goes on, and fails once it has walked every aggregate; the next run walks those aggregates again, passing over the snapshots written. Once a walk has completed, writes only the snapshots of the instances the V10 log changed since ([Write the snapshots](../migrate/data#_6-write-the-snapshots)). |
 | `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
 | Option | Meaning |
@@ -321,7 +321,7 @@ It writes into the 9.x store of `source`, and only into a collection with 9.x's 
 
 The checkpoints, format 1, keep where each pass stands:
 
-- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing, and how far `compare` found every stream 9.x committed in the log;
+- per 9.x aggregate: the import, the tail and when its last pass ended, the comparison, the snapshot writing, and how far `compare` found every stream 9.x committed in the log; the comparison and the snapshot writing also record where the V10 log ended when they started, the comparison its fingerprint and the instances that differed (at most 1000), which `compare` and `snapshot` go on from;
 - per `PrepareKey`: the reservation import;
 - the compensation import;
 - per V10 aggregate type: the tags backfill;

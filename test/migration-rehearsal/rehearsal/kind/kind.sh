@@ -22,7 +22,7 @@
 #
 # Environment, besides rehearse.sh's: the images wow-migrate-data:local, wow-migration-rehearsal:local and
 # wow-view-store-server:local, loaded into the cluster; MIGRATE_IMAGE, the migrate-data image a Job runs
-# (wow-migrate-data:local); and for bench_imports, wow-migrate-data:baseline.
+# (wow-migrate-data:local); and for bench_imports and cutover_bench, wow-migrate-data:baseline.
 
 KIND_DIR="$REHEARSAL/kind"
 ROOT="$(cd "$REHEARSAL/../../.." && pwd)"
@@ -147,9 +147,9 @@ PY
 
 migrate() { kind_job "$1" --config "/config/migrate-data-$TARGET_DB.json" "${@:2}"; }
 
-# The tail, a Deployment of one replica (deploy/migrate-data/tail), its log followed into $WORK/tail.log.
+# The tail, a Deployment of one replica (deploy/migrate-data/tail) on TARGET_DB, its log followed into $WORK/tail.log.
 tail_start() {
-  render Deployment migrate-data-tail tail --config /config/migrate-data-example.json | kubectl apply -f - >/dev/null
+  render Deployment migrate-data-tail tail --config "/config/migrate-data-$TARGET_DB.json" | kubectl apply -f - >/dev/null
   kubectl rollout status deployment/migrate-data-tail --timeout=300s >/dev/null
   kubectl logs -f deployment/migrate-data-tail -c migrate-data >"$WORK/tail.log" 2>&1 &
   echo $! >"$WORK/tail-log.pid"
@@ -261,5 +261,68 @@ bench_imports() {
     step "bench-$run-$arm" 0 kind_job import --config "/config/migrate-data-$db.json"
     unset MIGRATE_IMAGE
     kubectl exec deploy/postgres -- dropdb -U postgres "$db"
+  done
+}
+
+# mongo_log NAME START_MS: MongoDB's log since START_MS into cluster/mongo-NAME.log, its slow queries among it, taken as
+# the step ends: kubelet rotates the container's log, so one taken at the end of the run keeps only its last minutes.
+mongo_log() {
+  mkdir -p "$WORK/cluster"
+  kubectl logs deploy/mongo --since-time="$(date -u -d "@$(($2 / 1000))" +%Y-%m-%dT%H:%M:%SZ)" \
+    >"$WORK/cluster/mongo-$1.log" 2>&1 || true
+}
+
+# logged NAME EXPECTED CMD...: step NAME, then MongoDB's log of it (mongo_log); logged NAME compared CMD... runs it as
+# compared does, which passes the differences EXPLAINED_KINDS explains.
+logged() {
+  local name="$1" expected="$2" start
+  shift 2
+  start="$(now_ms)"
+  if [ "$expected" = compared ]; then
+    compared "$name" "$@"
+  else
+    step "$name" "$expected" "$@"
+  fi
+  mongo_log "$name" "$start"
+}
+
+# cutover_bench: the write stop of an online cut-over by two migrate-data images, the baseline
+# (wow-migrate-data:baseline, A) and the candidate (wow-migrate-data:local, B), alternating A B B A (D392 ③), each
+# into a fresh database with 9.x serving:
+# - the import;
+# - the dual run: the tail follows 9.x while the driver writes to it for DUAL_RUN_SECONDS; B first walks every
+#   instance with compare and snapshot, as its run book has them in the dual run, and A, as main's has them in the
+#   write stop, does not;
+# - the tail's last pass, once the writes have ended (tail --once, the Deployment deleted);
+# - the write stop, each step timed: import --final, compare, snapshot.
+# Each step's MongoDB log is kept (mongo_log). Each database is dropped once its run is timed. 9.x's store grows by
+# each run's writes: each run imports it as it then is.
+cutover_bench() {
+  local run=0 arm name
+  for arm in A B B A; do
+    run=$((run + 1))
+    name="cut-$run-$arm"
+    TARGET_DB="cut_${run}_$(tr '[:upper:]' '[:lower:]' <<<"$arm")"
+    createdb "$TARGET_DB"
+    write_config "$TARGET_DB"
+    export MIGRATE_IMAGE=wow-migrate-data:local
+    [ "$arm" = A ] && export MIGRATE_IMAGE=wow-migrate-data:baseline
+    logged "$name-import" 0 migrate import
+    tail_start
+    if [ "$arm" = B ]; then
+      logged "$name-dual-compare" compared migrate compare
+      logged "$name-dual-snapshot" 0 migrate snapshot
+    fi
+    views_traffic_start 9x "$NINEX_URL" "$DUAL_RUN_SECONDS" "$name-views-traffic"
+    step "$name-traffic" 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" \
+      --seconds="$DUAL_RUN_SECONDS" --touched="$WORK/$name-touched.tsv"
+    views_traffic_join "$name-views-traffic"
+    tail_stop
+    logged "$name-tail" 0 migrate tail --once
+    logged "$name-final" 0 migrate import --final
+    logged "$name-compare" compared migrate compare
+    logged "$name-snapshot" 0 migrate snapshot
+    unset MIGRATE_IMAGE
+    kubectl exec deploy/postgres -- dropdb -U postgres "$TARGET_DB"
   done
 }

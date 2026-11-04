@@ -97,6 +97,7 @@ class ImportCoverageTest {
         val snapshots = InMemoryNineXSnapshotSource(NineXExample.snapshots(), source)
         StateComparison(
             snapshots,
+            source,
             NineXExample.plan,
             models,
             { log },

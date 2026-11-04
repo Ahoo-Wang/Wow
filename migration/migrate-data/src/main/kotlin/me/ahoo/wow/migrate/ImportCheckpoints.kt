@@ -48,6 +48,11 @@ internal data class AggregateCheckpoint(
  * was compared, in snapshot order, [completed] is set once every one is, and the counts are those of every run since
  * it started, so a resumed comparison reports, and exits on, the differences an earlier run found. [sample] is the
  * percentage of the instances it compares; another sample starts it over.
+ *
+ * What a comparison again ([StateComparison]) compares since: [since], where the full comparison started, or the last
+ * comparison again; and [differs], the instances found differing, by 9.x aggregate id, each with its kinds of
+ * difference, null once more than [StateComparison.MAX_RECORDED] did. A checkpoint an earlier version wrote has
+ * neither.
  */
 internal data class CompareCheckpoint(
     val sample: Int = 100,
@@ -57,13 +62,23 @@ internal data class CompareCheckpoint(
     val compared: Long = 0,
     val differing: Long = 0,
     val kinds: Map<String, Long> = emptyMap(),
+    val since: ComparisonStart? = null,
+    val differs: Map<String, List<String>>? = null,
 )
+
+/**
+ * Where a comparison started ([CompareCheckpoint.since]): [heads], where the V10 log ended by partition; [at], the
+ * tool's clock; and the [fingerprint] of what its result depends on ([ComparisonFingerprint]).
+ */
+internal data class ComparisonStart(val heads: Map<Int, Long>, val at: Long, val fingerprint: String)
 
 /**
  * Where the snapshot writing of one 9.x aggregate stands (`snapshot`, `import --snapshots`): [after] is the last
  * instance whose V10 snapshot is written, in the import's id order, and [completed] is set once every one is. [failed]
  * counts the instances whose snapshot could not be written: a walk that ends with one is not completed, and starts
- * again from the first instance.
+ * again from the first instance. [heads] is where the V10 log ended, by partition, when the walk started, or when the
+ * last catch-up of a completed walk did: what the log holds after them is what a catch-up writes. A checkpoint an
+ * earlier version wrote has none.
  */
 internal data class SnapshotCheckpoint(
     val after: NineXAggregateId? = null,
@@ -71,6 +86,7 @@ internal data class SnapshotCheckpoint(
     val written: Long = 0,
     val skipped: Long = 0,
     val failed: Long = 0,
+    val heads: Map<Int, Long>? = null,
 )
 
 /**

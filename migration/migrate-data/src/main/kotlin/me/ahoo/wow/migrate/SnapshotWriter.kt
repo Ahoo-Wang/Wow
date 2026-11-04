@@ -29,7 +29,8 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
  * The snapshot writing of one 9.x aggregate since it started: [written] V10 snapshots written, [skipped] already in the
- * store at their version, and the instances whose snapshot [failed].
+ * store at their version, and the instances whose snapshot [failed]; when [caughtUp], those of one catch-up of a
+ * completed walk alone: the instances the V10 log changed since.
  */
 internal data class SnapshotProgress(
     val aggregate: NineXAggregate,
@@ -37,10 +38,18 @@ internal data class SnapshotProgress(
     val skipped: Long,
     val done: Boolean,
     val failed: Long = 0,
+    val caughtUp: Boolean = false,
 ) {
-    fun render(): String =
-        "$aggregate snapshots${if (done) " done" else ""}: ${written + skipped + failed} instances, $written V10 " +
-            "snapshots written, $skipped already there${if (failed > 0) ", $failed failed" else ""}"
+    fun render(): String {
+        val count = written + skipped + failed
+        val instances = when {
+            caughtUp -> " caught up: $count instances the V10 log changed since"
+            done -> " done: $count instances"
+            else -> ": $count instances"
+        }
+        return "$aggregate snapshots$instances, $written V10 snapshots written, $skipped already there" +
+            if (failed > 0) ", $failed failed" else ""
+    }
 }
 
 /**
@@ -56,6 +65,16 @@ internal data class SnapshotProgress(
  *   [ImportOptions.pageSize] at a time, [ImportOptions.concurrency] at a time, and the checkpoint
  *   ([SnapshotCheckpoint]) moves after each page; [ImportOptions.restart] walks every instance again. An instance the
  *   map excludes ([MigrationPlan.excludes]) has no history in the V10 log, and is passed over.
+ * - **Caught up.** A walk records where the V10 log ends, by partition ([EventLog.head]), before its first instance.
+ *   Once it has completed, a run catches up instead: it reads the log's entries after those heads, up to the heads it
+ *   reads first, writes the snapshot of each instance of the aggregate they hold, as the walk does, and records the
+ *   heads it read. So the snapshots written during the dual-run need, at the cut-over, only the instances the log
+ *   changed since. An instance whose log did not change has the history its snapshot was written from: the log only
+ *   grows. A model change between two runs is not covered, by the walk as by the catch-up, as [SnapshotStore.save]
+ *   never writes again a version the store holds. A snapshot is a cache of the log ([SnapshotStore]): one an
+ *   append in flight leaves behind (MongoDB's head may count a sequence above one still landing) only makes
+ *   the host replay that instance's log after it. A completed walk without heads (an earlier version's) is walked
+ *   again.
  * - **Every failure reported.** An instance whose state does not rebuild, an event its model does not read or an
  *   instance missing from the log, which 9.x wrote after the import and the tail brings in, is [report]ed with the
  *   reason, and the walk goes on. A walk that met any ends
@@ -96,7 +115,15 @@ internal class SnapshotWriter(
             logOf(aggregatePlan.target.context),
             storeOf(aggregatePlan.target.context),
         )
-        var checkpoint = checkpoints.load().snapshotsOf(aggregate)?.takeUnless { options.restart } ?: SnapshotCheckpoint()
+        val saved = checkpoints.load().snapshotsOf(aggregate)?.takeUnless { options.restart }
+        if (saved?.completed == true) {
+            saved.heads?.let { return catchUp(target, saved, it).also(progress) }
+            report(
+                "$aggregate: its snapshots were written by an earlier version, which recorded no position of the V10 " +
+                    "log to catch up from, so every instance is walked again.",
+            )
+        }
+        var checkpoint = saved?.takeUnless { it.completed } ?: target.log.heads().let { SnapshotCheckpoint(heads = it) }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = withContext(Dispatchers.IO) {
@@ -126,6 +153,46 @@ internal class SnapshotWriter(
             }
         }
         return progressOf(aggregate, checkpoint).also(progress)
+    }
+
+    /**
+     * Writes the snapshots of the instances of [target] the V10 log holds entries of after [recorded], [checkpoint]'s
+     * heads, up to the heads read first, [ImportOptions.concurrency] at a time, then records those heads. One that
+     * fails is reported and leaves the heads where they were, so the next run reads the same entries again.
+     */
+    private suspend fun catchUp(
+        target: Target,
+        checkpoint: SnapshotCheckpoint,
+        recorded: Map<Int, Long>,
+    ): SnapshotProgress {
+        val heads = target.log.heads()
+        val changed = target.log.changedSince(target.plan.target, recorded, heads)
+            .filterNot { plan.excludes(target.aggregate, it.id) }
+        val permits = Semaphore(options.concurrency)
+        val written = coroutineScope {
+            changed.map { ref ->
+                async { permits.withPermit { write(target, NineXAggregateId(ref.id, ref.tenantId)) } }
+            }.awaitAll()
+        }
+        val progress = SnapshotProgress(
+            aggregate = target.aggregate,
+            written = written.count { it == true }.toLong(),
+            skipped = written.count { it == false }.toLong(),
+            done = true,
+            failed = written.count { it == null }.toLong(),
+            caughtUp = true,
+        )
+        checkpoints.update {
+            it.with(
+                target.aggregate,
+                checkpoint.copy(
+                    written = checkpoint.written + progress.written,
+                    skipped = checkpoint.skipped + progress.skipped,
+                    heads = if (progress.failed == 0L) heads else recorded,
+                ),
+            )
+        }
+        return progress
     }
 
     /**

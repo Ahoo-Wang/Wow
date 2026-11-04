@@ -63,8 +63,10 @@ import kotlin.system.exitProcess
  *   it create the index itself. That index and the rollback `export`, which writes streams back, are the tool's only
  *   writes to a 9.x store.
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
- *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
- *   ones on every run, and `--restart` compares from the first again. It first prints the time zone it runs in, the
+ *   ([StateComparison]), resuming from its checkpoint; once that has completed, it compares again only the instances
+ *   changed on either side since and those that differed, unless what the result depends on changed, which it says;
+ *   `--sample` compares that percentage of the instances, the same ones on every run, and `--restart` compares from
+ *   the first again. It first prints the time zone it runs in, the
  *   one a state that turns a date into an instant with the system's zone rebuilds in. It checks that the log holds
  *   every stream 9.x committed since the full import started, up to where the tail has read ([ImportCoverage]),
  *   which the snapshots cannot show after an instance's latest one. It then checks that every confirmed 9.x
@@ -73,8 +75,10 @@ import kotlin.system.exitProcess
  *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
  *   and execution that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
- *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped). Each
- *   instance whose snapshot it cannot write is printed, and it fails once it has walked every aggregate.
+ *   from its checkpoint; once a walk has completed, it catches up instead: it writes the snapshots of the instances
+ *   the V10 log changed since, so a walk during the dual-run leaves the cut-over only those. `--restart` walks every
+ *   instance again (the snapshots already written are skipped). Each instance whose snapshot it cannot write is
+ *   printed, and it fails once it has walked every aggregate.
  *
  * - `export` writes back to the 9.x store what V10 wrote after the cut-over, for a rollback after V10 has written
  *   ([EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
@@ -448,7 +452,7 @@ internal class MigrateData(
         out.println(
             "Final pass done: the tail from its checkpoint, the reservations and the compensation walked again."
         )
-        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = true) else OK
+        return if (snapshots) snapshot(plan, config, connections, checkpoints, restart = false) else OK
     }
 
     @Suppress("LongParameterList") // A command's inputs.
@@ -468,11 +472,12 @@ internal class MigrateData(
         )
         val comparison = StateComparison(
             snapshots = connections.snapshots,
+            events = connections.source,
             plan = plan,
             models = models(config),
             logOf = connections::logOf,
             checkpoints = checkpoints,
-            options = CompareOptions(config.pageSize, config.concurrency, sample, restart),
+            options = compareOptions(config, sample, restart),
             report = out::println,
         )
         val differing = plan.aggregates.keys.map { comparison.compare(it) }.filterNot { it.passed }
@@ -514,6 +519,19 @@ internal class MigrateData(
         }
         return DIFFERS
     }
+
+    /**
+     * The options of a comparison of [sample] percent: compared again since the last comparison, it reads 9.x
+     * from before then by the final pass's look-back window, which sizes the 9.x nodes' clock skew.
+     */
+    private fun compareOptions(config: MigrationConfig, sample: Int, restart: Boolean) = CompareOptions(
+        pageSize = config.pageSize,
+        concurrency = config.concurrency,
+        sample = sample,
+        restart = restart,
+        fingerprint = ComparisonFingerprint.of(config, sample),
+        lookbackMillis = config.final.lookbackMillis,
+    )
 
     /** Compares the confirmed 9.x keys with the V10 reservations ([ReservationComparison]); the PrepareKeys that differ. */
     private suspend fun compareReservations(
@@ -608,7 +626,8 @@ internal class MigrateData(
             out.println(
                 "FAILED ${failed.sumOf { it.failed }} instances of ${failed.map { it.aggregate }} have no V10 " +
                     "snapshot, each printed above: fix them, then run snapshot again, which walks every instance of " +
-                    "those aggregates again and passes over the snapshots written.",
+                    "those aggregates again, or reads again what the log changed when it was catching up, and " +
+                    "passes over the snapshots written.",
             )
             return FAILED
         }
@@ -776,9 +795,10 @@ internal class MigrateData(
                         stops: the tail from its checkpoint, then the reservations and compensation walked again
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
-                        from the log at its version, and checks the log holds every stream 9.x committed since the
-                        import; exits with 3 when one differs or is missing
-              snapshot  [--restart]  writes the V10 snapshot of every imported instance
+                        from the log at its version, once done those changed since, and checks the log holds every
+                        stream 9.x committed since the import; exits with 3 when one differs or is missing
+              snapshot  [--restart]  writes the V10 snapshot of every imported instance; once done, of those the
+                        V10 log changed since
               export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
                         for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
               --help    prints this
