@@ -29,6 +29,15 @@ def lines(suffix):
     return (work / f"load-{name}.{suffix}").read_text().split("\n")
 
 
+def count(value):
+    """A counter as mongosh's JSON writes it: a number, or a 64-bit Long as its high and low 32 bits."""
+    if isinstance(value, dict):
+        if "$numberLong" in value:
+            return int(value["$numberLong"])
+        return (value["high"] << 32) + (value["low"] & 0xFFFFFFFF)
+    return int(value)
+
+
 cpu = [float(line) for line in lines("cpu") if line.strip()]
 at = [int(line) for line in lines("at") if line.strip()]
 ops = [json.loads(line) for line in lines("ops") if line.startswith("{")]
@@ -49,6 +58,6 @@ def percentile(share):
 print(json.dumps({
     "seconds": round(seconds, 1),
     "cpuCores": round((cpu[1] - cpu[0]) / ticks / seconds, 2),
-    "opsPerSecond": {key: round((ops[1][key] - ops[0][key]) / seconds) for key in ops[0]},
+    "opsPerSecond": {key: round((count(ops[1][key]) - count(ops[0][key])) / seconds) for key in ops[0]},
     "probe": {"reads": len(reads), "p50": percentile(0.5), "p99": percentile(0.99), "max": reads[-1] if reads else None},
 }))

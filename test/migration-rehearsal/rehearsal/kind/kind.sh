@@ -52,6 +52,11 @@ createdb() { kubectl exec deploy/postgres -- createdb -U postgres "$1"; }
 # target, the password from the Secret, the classes where the init containers copy them, and no manifests: the tool
 # reads them from those classes.
 config_json() {
+  # The setting only the sweep's runs carry, as its own line: quotes inside \${…:+…} do not survive a here-document.
+  local parallelism=""
+  if [ -n "${READ_PARALLELISM:-}" ]; then
+    parallelism=$'\n  "readParallelism": '"$READ_PARALLELISM,"
+  fi
   cat <<EOF
 {
   "map": "migration-map.json",
@@ -67,8 +72,7 @@ config_json() {
   "classpath": ["/service/migration-rehearsal", "/service/view-store-server"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
   "lookbackMillis": 20000,
-  "pollIntervalMillis": 500,${READ_PARALLELISM:+
-  "readParallelism": $READ_PARALLELISM,}
+  "pollIntervalMillis": 500,$parallelism
   "final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 }
 EOF
