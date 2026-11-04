@@ -258,13 +258,13 @@ V10 refuses some ids 9.x took: an empty aggregate id (or none at all), a blank o
 
 ### Tags
 
-9.x gave an aggregate tags two ways: its tags command (`default_apply_resource_tags`) set them, its event (`default_resource_tags_applied`) replacing the whole map, and a state implementing `StateAggregateTagsExtractor` derived them on every commit, the derived ones winning. V10 has no tags: each key becomes an access attribute of the state (`@Access`), a field a domain event sets or a function of the state ([Tags and attribute-based access](../migrate/source#tags-and-attribute-based-access)).
+9.x gave an aggregate tags two ways: its tags command (`default_apply_resource_tags`) set them, its event (`default_resource_tags_applied`) replacing the whole map, and a state implementing `StateAggregateTagsExtractor` derived them on every commit, 9.x keeping what it returned: an extractor that merged the tags it had (as the 9.x example's did) kept every value ever applied or derived since the last tags event. V10 has no tags: each key becomes an access attribute of the state (`@Access`), a field a domain event sets or a function of the state ([Tags and attribute-based access](../migrate/source#tags-and-attribute-based-access)).
 
 | Property | Meaning |
 | --- | --- |
 | `key` | The 9.x tag key. |
 | `to` | The V10 access attribute, as the aggregate's Manifest declares it. Left out, the key is left out of the migration. |
-| `source` | Where its values come from. `APPLIED`, the default: the tags event set it, and the mapped tags event writes the state field. `DERIVED`: the 9.x state derived it, and V10 derives it with an `@Access` function. `BOTH`: set and derived, the derived value winning as in 9.x, so V10 derives it and the tags event leaves the values it set out. |
+| `source` | Where its values come from. `APPLIED`, the default: the tags event set it, and the mapped tags event writes the state field. `DERIVED`: the 9.x state derived it, and V10 derives it with an `@Access` function. `BOTH`: set and derived, the extractor having the last word as in 9.x, so V10 derives it and the tags event leaves the values it set out. |
 | `reason` | Required without `to`: why the key is left out. Leaving a key out changes who may read the data, so the map records why, and the check prints it as a warning. |
 
 A value converts by the attribute's Manifest entry: a multiple attribute holds the key's values without duplicates, a single one its one value or `null`; an `INTEGER` attribute reads each value as an integer, a `BOOLEAN` one `true` or `false` in any case.

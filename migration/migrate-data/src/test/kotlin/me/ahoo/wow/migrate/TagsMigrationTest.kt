@@ -42,7 +42,7 @@ import java.math.BigDecimal
 /**
  * 9.x tags as V10 access attributes (D390 work package F), on the example's order: `region` a single attribute and
  * `team` a multiple one (`teams`), both applied; `channel` derived by the 9.x state; `level` applied and derived, the
- * derived value winning; `legacy` left out for a reason.
+ * extractor having the last word; `legacy` left out for a reason.
  */
 class TagsMigrationTest {
     private val order = NineXAggregate("example-service", "order")

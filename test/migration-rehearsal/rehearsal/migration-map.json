@@ -26,7 +26,11 @@
         { "from": "order_pay_duplicated", "to": "OrderPayDuplicated", "retire": true },
         { "from": "order_over_paid", "to": "OrderOverPaid", "retire": true }
       ],
-      "state": { "ignore": ["id"] }
+      "state": { "ignore": ["id"] },
+      "tags": [
+        { "key": "address-country", "reason": "The V10 order declares no access attribute of its address: no access policy of the rehearsal reads it" },
+        { "key": "address-province", "reason": "The V10 order declares no access attribute of its address: no access policy of the rehearsal reads it" }
+      ]
     },
     {
       "from": "example-service.cart",

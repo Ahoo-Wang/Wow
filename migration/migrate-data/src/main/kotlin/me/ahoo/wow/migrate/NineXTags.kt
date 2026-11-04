@@ -21,7 +21,8 @@ import tools.jackson.databind.JsonNode
  * Where a 9.x tag key's values come from ([TagMapping.source]).
  *
  * 9.x gave an aggregate its tags two ways: `ApplyResourceTags` set them (its event replacing the whole map), and a
- * state implementing `StateAggregateTagsExtractor` derived them on every commit, the derived ones winning. V10 has no
+ * state implementing `StateAggregateTagsExtractor` derived them on every commit, 9.x keeping what it returned (the
+ * example's merged the tags it had, applied and derived before, into the ones it derived). V10 has no
  * tags: each becomes an access attribute (`@Access`), a state field a domain event sets, or a function of the state.
  */
 internal enum class TagSource {
@@ -32,8 +33,8 @@ internal enum class TagSource {
     DERIVED,
 
     /**
-     * Both, the derived value winning, as 9.x had it: an `@Access` function in V10, so the tags event leaves its
-     * applied values out (the check warns of them).
+     * Both, the state's extractor having the last word, as 9.x had it: an `@Access` function in V10, so the tags
+     * event leaves its applied values out (the check warns of them).
      */
     BOTH,
 }

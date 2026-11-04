@@ -67,7 +67,7 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 | `@CommandRoute(enabled = false)` | 取决于谁发送这条命令。只由平台发送（Saga、定时器、进程内网关，以及经内部端口调用的其他服务）：在命令类上标注 `@InternalCommand`，公开端口不挂它的路由（[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）。由 9.x 服务手写的用户路由发送：命令保持公开，走生成的路由（[路由、租户与所有权](#routes-tenancy-and-ownership)） |
 | `@AggregateOwner(OwnerPolicy.*)`、`@Spaced` | `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)`；所有者和空间来自调用方。`OwnerPolicy.AGGREGATE_ID` 是 `@AggregateRoot(idSource = AggregateIdSource.OWNER)` |
 | `@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject` | 已移除 |
-| 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Tags` |
+| 无 | 拒绝码上的 `@ErrorCode`、用于之后重命名的 `@Alias`、`@QueryIndex`、`@Access` |
 
 ## 命令体承载什么 {#what-a-command-body-holds}
 
@@ -154,7 +154,7 @@ fun onCommand(command: SubmitOrder): OrderSubmitted = OrderSubmitted(command.ite
 
 - **名字。** V10 的事件名是 `<context>.<aggregate>.<Name>`；9.x 用的是蛇形命名（`order_created`）。不要用 `@Name` 保留 9.x 的拼写：在迁移映射中映射它。
 - **修订号。** V10 形状与 9.x 所存储的不同的事件（去掉了身份字段、删掉了计算属性），要用更高的 `@Revision`，以及一个从修订号 1 升级的 `@Upgrade` 函数，并由一个使用真实 9.x 载荷的测试覆盖。
-- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建事件应用之后都有值：由该事件的 `onSourcing` 赋值的 `lateinit` 没有问题。9.x 在私有时也能找到的处理函数（`@OnCommand`、`@OnSourcing` 或 `@OnEvent` 函数），在 V10 中是编译错误，Kotlin 的 `protected` 处理函数也一样：把它改成 `internal`。只有仅靠名字绑定、没有注解的私有函数才会被忽略。9.x 的 `StateAggregateTagsExtractor` 是状态的一个 `@Tags` 成员。
+- **状态。** `onSourcing` 函数不是私有的，命令产生的每个事件都有一个，哪怕是空的；每个属性在创建事件应用之后都有值：由该事件的 `onSourcing` 赋值的 `lateinit` 没有问题。9.x 在私有时也能找到的处理函数（`@OnCommand`、`@OnSourcing` 或 `@OnEvent` 函数），在 V10 中是编译错误，Kotlin 的 `protected` 处理函数也一样：把它改成 `internal`。只有仅靠名字绑定、没有注解的私有函数才会被忽略。9.x 的 `StateAggregateTagsExtractor`，以及 9.x 打上的标签，变成状态的访问属性（[标签与基于属性的访问](#tags-and-attribute-based-access)）。
 - **没有 setter 的属性。** 9.x 的状态、事件或命令中，用 `val` 持有并边执行边填充的集合或映射（`val items = sortedSetOf<…>()`、`MutableList` 或 `MutableMap` 的 `val`），或类体中 `val` 的值，会像 9.x 那样读回：Wow 的 JSON 会写入这种属性的字段（`ALLOW_FINAL_FIELDS_AS_MUTATORS`，9.x 的 JSON 同样开启，Jackson 3 默认关闭）。计算属性（背后没有字段的 getter）只写出，不读回。
 - **被删除的事件**要退役：删除类和它的溯源函数，在 `retiredEvents` 中列出存储时的名字，并用 `"retire": true` 映射它。
 - **事件与状态中的 Wow 类型。** 存储下来的 `Condition`、`Sort` 或 `Projection`（例如保存的过滤条件）在 V10 中没有对应形式：`Condition` 协议已经没有了，内核的 JSON 没有查询协议的编解码，查询协议的枚举现在也是小写。改存应用自己的类型，用一个 `@Upgrade` 函数把 9.x 的 JSON 升级过去，并写测试覆盖。仍持有查询协议类型（`me.ahoo.wow.api.query`）的事件或状态会被构建拒绝，并给出每一处的路径。
@@ -173,7 +173,7 @@ fun onOrderSubmitted(
 ): CommandRequest<AwaitStockValidation> = CommandRequest.of(AwaitStockValidation, event.ref.id)
 ```
 
-处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。读取 9.x 只读状态聚合标签的 Saga，改读 `event.tags`，即提交之后聚合的标签，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
+处理过 9.x `onError` 的 Saga，要为被拒绝的推导命令加上 `@OnRejected` 处理函数；没有它时，拒绝会让聚合停放。读取 9.x 只读状态聚合标签的 Saga，改读 `event.state` 的访问属性，即提交之后的状态，而不是快照里的。处理其他上下文事件的处理器，通过那个上下文的 `*-api` jar 读取它发布的事件流（[发布与消费事件流](../guide/published-streams)）。
 
 9.x 服务在 Simba 或 `@Scheduled` 里运行的周期作业，如果是从到期的内容推导命令，就是 Saga 的一个 `@OnSchedule` 处理函数，按 cron 规则运行；要等每条命令的结果再发下一条的作业，留在 Wow 之外，通过 `CommandClient` 发送（[定时命令](../guide/scheduling)）。9.x 把已存储事件重新投递给某个处理函数的回填，在 V10 中是一个新名字的处理函数，带 `@OnEvent(start = OnEvent.Start.BEGINNING)`，从事件流的开头读一遍（[重建与重放](../operate/replay)）。
 
@@ -199,6 +199,39 @@ private suspend fun take(name: String, scope: DecideScope) {
 路由由 Manifest 推导：`POST /<context>/<aggregate>/<id>/<command>`，没有租户或所有者前缀，没有自定义动作或方法。固定的租户是宿主配置，9.x 中整个租户共用一个所有者的资源是 `Ownership.TENANT`，ID 即所有者 ID 的资源（`OwnerPolicy.AGGREGATE_ID`，例如用户的购物车）是 `idSource = AggregateIdSource.OWNER`：它不带 ID 地作为调用方自己的聚合提供，命令函数中不再留所有权检查（[每个所有者一个聚合](../guide/ownership#one-aggregate-per-owner)）。只有 `wow.lifecycle.TransferOwner` 能移动所有者：实现了 `OwnerTransferred` 的 9.x 事件，变成一个领域事件和一个推导出转移命令的 Saga。9.x starter 自带的路由按它们所做的事改写，用转换器、快照查询和 `Decision.NoOp`（[HTTP 与 TypeScript 客户端](./http-and-clients)列出了每个路由和请求头）。
 
 标了 `@CommandRoute(enabled = false)` 的命令在 9.x 中没有生成的路由，原因有两种，移植前先弄清是哪一种。如果只有服务自己的流程或其他服务发送它，标注 `@InternalCommand`。如果是 9.x 服务手写的路由应用户的请求发送它，它就是用户的命令，保持公开：生成的路由取代手写的路由。手写路由算出的东西由 `CommandTransformer` 来做，例如由调用方和命令体推导出的 ID；调用方可以操作的另一个范围由 `Wow-Scope` 请求头指明。9.x 视图存储的 `SetViewPreferences`、`SetDatasetWording`、`ClearDatasetWording` 和 `ClaimView` 属于第二种。它们由手写路由发送，所以在 10 中保持公开。前三条走生成的路由，由转换器推导 ID；`ClaimView` 带上指明共享所有者的 `Wow-Scope` 发送。
+
+## 标签与基于属性的访问 {#tags-and-attribute-based-access}
+
+V10 没有标签。聚合的标签原先说明谁能读取它，现在这些变成它的**访问属性**，即状态中标注了 [`@Access`](../reference/annotations#access) 的成员；服务的**访问策略**把它们与调用方的声明比较（[授权命令](../operate/security#authorize-commands)）。
+
+- **状态推出的标签。** 9.x 的 `StateAggregateTagsExtractor` 变成每个键一个 `@Access` 成员：状态的一个属性，或者一个不带参数的函数，类型就是键的类型（`String`、数字、`Boolean` 或枚举；一个键有多个值时，是它们的 `Set`）。V10 在每次提交时推出每一个，就像 9.x 推出标签那样。
+- **命令打上的标签。** 9.x 的 `ApplyResourceTags` 设置的东西是数据：状态中标注了 `@Access` 的字段，由聚合自己的一条领域命令和一个领域事件设置（`TagOrder`、`OrderTagged`），这样由领域检查谁能修改它，日志也记下它。事件的载荷以访问属性的名字指明每个字段，它的溯源函数替换全部这些字段，载荷里没有的字段替换为无值，就像 9.x 替换整个标签映射那样。9.x 的路由 `PUT …/{id}/tags` 现在就是这条命令的路由。
+- **既被打上、又被推出的键**，在 9.x 中取每次提交之后提取器返回的值，由它说了算：它是一个 `@Access` 函数，标签事件设置的值被略去。
+- **没有策略读取的键**被略去，原因写在映射文件里：略去它会改变谁能读取数据。
+- **ABAC 规则。** 9.x 的 `abac.*` 匹配变成聚合的访问策略，即其状态的 `AccessPolicy` Bean。规则匹配的每个标签键，是它的属性与调用方同名声明的一次比较，这些键要全部满足（`allOf`）：
+
+<!-- sample: fragment -->
+
+```kotlin
+@Bean
+fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
+    read { caller ->
+        allOf(
+            OrderStateAccess.REGION isIn caller.claims("region"),
+            OrderStateAccess.TEAMS containsAny caller.claims("teams"),
+        )
+    }
+    write { caller -> OrderStateAccess.OWNER eq caller.subject }
+}
+```
+
+声明是调用方同名的主体属性，前缀也算在名字里：9.x 当作 `abac.region` 匹配的属性就是声明 `abac.region`，除非身份提供方把它命名为 `region`，就像这个示例所假定的那样。策略为它的聚合取代所有者和空间的检查，读取和命令都一样，所以在 9.x 依赖这项检查的地方要重新写出它，就像这里的 `write` 对有所有者的聚合所做的那样。9.x 默认允许的三种情况，在 V10 中被拒绝：
+
+- 没有 `abac.*` 属性的调用方能读取每个聚合。与调用方没有的声明作比较，结果是拒绝：给这样的调用方单独一条规则（`allowIf(caller.hasRole("auditor"))`）。
+- 没有某个键的聚合，对这个键的规则是公开的。没有该属性值的聚合不匹配任何比较：在策略里写明什么是公开的（在 `anyOf` 中写 `OrderStateAccess.REGION.isNull()`，或者 `allowAll()`）。
+- 9.x 开始记录标签之前写入的流，每个调用方都能读取。尚未盖上访问属性的流，在访问策略下对任何调用方都不显示；每条导入的流在访问遍历完成之前都是这样（[迁移数据](./data#_7-the-access-attributes)）。
+
+迁移映射以 `"tags": true` 把 9.x 的标签事件映射到这个领域事件，并把每个标签键映射到它的属性（[映射文件](../reference/migrate-data#tags)）。
 
 ## 迁移映射 {#the-migration-map}
 
@@ -272,7 +305,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 | `expectStateAggregate { aggregateId }` | spec 的 `id` |
 | `expectStateAggregate { version }` | `expectVersion(n)`：提交后的版本，或命令什么都没追加时聚合停留的版本 |
 | `expectStateAggregate { deleted }` | `expectDeleted()` |
-| `expectStateAggregate { ownerId; spaceId }`、标签 | `expectScope(scope)`、`expectTags(tags)` |
+| `expectStateAggregate { ownerId; spaceId }`、标签 | `expectScope(scope)`、`expectAccess(attributes)`：访问属性，按名字给出 |
 
 较小的差异：`expectEvent` 和 saga 的 `expectCommand` 现在要求恰好一个，而 9.x 取第一个匹配项；什么都没提交的命令用 `expectUnchanged()`。
 
