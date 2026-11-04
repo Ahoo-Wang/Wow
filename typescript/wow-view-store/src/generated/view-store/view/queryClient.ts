@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ViewState } from '../types.js';
-import { ViewAggregate, type ViewEvent, type ViewStateField } from './aggregate.js';
+import { type ViewAccess, ViewAggregate, type ViewEvent, type ViewStateField } from './aggregate.js';
 
 /** Queries the snapshots of `view-store.view`: `POST /view-store/view/snapshot/query`. */
-export class ViewSnapshotQueryClient extends SnapshotQueryClient<ViewState, ViewStateField> {
+export class ViewSnapshotQueryClient extends SnapshotQueryClient<ViewState, ViewStateField, ViewAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewAggregate, options);
@@ -14,7 +14,7 @@ export class ViewSnapshotQueryClient extends SnapshotQueryClient<ViewState, View
 
 
 /** Queries the event streams of `view-store.view`, one record per commit: `POST /view-store/view/events/query`. */
-export class ViewEventQueryClient extends EventQueryClient<ViewEvent> {
+export class ViewEventQueryClient extends EventQueryClient<ViewEvent, ViewAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewAggregate, options);
@@ -23,7 +23,7 @@ export class ViewEventQueryClient extends EventQueryClient<ViewEvent> {
 
 
 /** Reads the states of `view-store.view`, at a version or a time, and their traces: `GET /view-store/view/{id}/state`. */
-export class ViewStateClient extends StateClient<ViewState, ViewEvent> {
+export class ViewStateClient extends StateClient<ViewState, ViewEvent, ViewAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(ViewAggregate, options);

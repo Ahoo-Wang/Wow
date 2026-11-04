@@ -67,6 +67,8 @@ outline: deep
 - **为什么。** 读取按记录所带的访问属性判定：策略比较的属性，或者在事件上比较聚合现在的所有者和空间。每条流都记着它们，所以转移之后，聚合的历史跟着聚合走（[谁能看到什么](../guide/event-queries#who-sees-what)）。不带访问属性的记录什么也不授予，而不是对所有调用方都显示。
 - **怎样看它完成。** 新版本的第一个节点会自行开始遍历。某个类型的遍历完成之前，它的 `wow.access.walk.pending` 为 1，完成后为 0；`wow.access.walked` 计数已经遍历的聚合；完成时，执行遍历的节点记录日志 `The access walk of <type> is completed`（[重建与重放](./replay#access-attributes)）。
 
+TypeScript 包随之改变：`@ahoo-wang/wow-client` 不再有 `ApplyTags`、`TagsApplied` 与 `Tags`，记录的 `tags` 改为 `access`，`wow-generator` 生成的客户端为每个聚合的访问属性给出类型。请重新生成客户端；步骤见[命令](../typescript/commands#lifecycle-commands-scope-and-space)。
+
 从 10.0.0 起，对调用方作用域之外的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它的回答一致；预发布版回答 `403 wow.aggregate.forbidden`，现在只有指明这样的聚合的创建命令仍得到它（[所有者、空间与标签](../guide/ownership#what-the-kernel-checks)）。按状态码区分两者的客户端改为显示它的"未找到"回答。
 
 OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出 `access` 的类型：单值为该值或 null，多值为数组，整数为 `int64`；事件流的 `access` 含聚合的 `owner` 与 `space`，在该流盖章之前为 null。预发布版的文档里是 `tags` 成员。由它生成的客户端需重新生成。

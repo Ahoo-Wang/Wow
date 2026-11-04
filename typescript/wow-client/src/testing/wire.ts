@@ -141,7 +141,7 @@ export function snapshotOf<S>(
     ownerId: null,
     spaceId: null,
     deleted: false,
-    tags: {},
+    access: {},
     firstEventTime: 0,
     lastEventTime: 0,
     operator: null,

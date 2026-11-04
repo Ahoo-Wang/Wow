@@ -21,7 +21,6 @@
  * Build queries with the DSL of `@ahoo-wang/wow-client/dsl`.
  */
 export {
-  type ApplyTags,
   CommandClient,
   type CommandClientOptions,
   type CommandOptions,

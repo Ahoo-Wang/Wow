@@ -178,12 +178,48 @@ export interface AggregateModel {
   }[];
   readonly lifecycle: readonly LifecycleModel[];
   readonly queryModels: readonly string[];
-  /** The exact numbers of its state, events (by wire name) and commands; none when it has none. */
+  /** Its access attributes (decision D390), in the Manifest's order. */
+  readonly access: readonly AccessModel[];
+  /**
+   * The exact numbers of its state, events (by wire name), commands and
+   * access attributes; none when it has none.
+   */
   readonly textNumbers?: {
     readonly state?: TextNumbersModel;
     readonly events?: Readonly<Record<string, TextNumbersModel>>;
     readonly commands?: Readonly<Record<string, TextNumbersModel>>;
+    readonly access?: TextNumbersModel;
   };
+}
+
+/** An access attribute of an aggregate: its name, the TypeScript type of a value, and whether it holds several. */
+export interface AccessModel {
+  readonly name: string;
+  /**
+   * A value's type: an integer is a `Long` on the server, typed `string` and
+   * read as its exact text.
+   */
+  readonly type: string;
+  readonly multiple: boolean;
+  /** Whether its values are integers, read as their exact text. */
+  readonly integer: boolean;
+}
+
+/** The TypeScript type of an access attribute's value of the Manifest's `type`. */
+const ACCESS_TYPES: Readonly<Record<string, string>> = {
+  string: 'string',
+  integer: 'string',
+  boolean: 'boolean',
+};
+
+/** The access attributes of `aggregate`, typed. A type this generator does not know takes any scalar. */
+function accessOf(aggregate: ManifestAggregate): AccessModel[] {
+  return (aggregate.access ?? []).map(attribute => ({
+    name: attribute.name,
+    type: ACCESS_TYPES[attribute.type] ?? 'string | number | boolean',
+    multiple: attribute.multiple ?? false,
+    integer: attribute.type === 'integer',
+  }));
 }
 
 /** A bounded context and what its modules declare. */
@@ -238,7 +274,6 @@ export interface ManifestModel {
 const LIFECYCLE_BODIES: Readonly<Record<string, string>> = {
   'wow.lifecycle.TransferOwner': 'TransferOwner',
   'wow.lifecycle.TransferSpace': 'TransferSpace',
-  'wow.lifecycle.ApplyTags': 'ApplyTags',
 };
 
 /** The lifecycle commands `@ahoo-wang/wow-client` sends (decision D113). */
@@ -247,7 +282,6 @@ const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
   'wow.lifecycle.RestoreAggregate',
   'wow.lifecycle.TransferOwner',
   'wow.lifecycle.TransferSpace',
-  'wow.lifecycle.ApplyTags',
 ]);
 
 /** The deepest `state.*` path listed as a query field. */
@@ -958,12 +992,24 @@ function aggregateModel(
       return mark === undefined ? [] : [[command.name, mark]];
     }),
   );
+  const access = accessOf(aggregate);
+  const accessNumbers: Record<string, TextNumbersModel> = Object.fromEntries(
+    access
+      .filter(attribute => attribute.integer)
+      .map(attribute => [
+        attribute.name,
+        attribute.multiple ? { '*': true } : true,
+      ]),
+  );
   const textNumbers = {
     ...(stateNumbers === undefined ? {} : { state: stateNumbers }),
     ...(Object.keys(eventNumbers).length === 0 ? {} : { events: eventNumbers }),
     ...(Object.keys(commandNumbers).length === 0
       ? {}
       : { commands: commandNumbers }),
+    ...(Object.keys(accessNumbers).length === 0
+      ? {}
+      : { access: accessNumbers }),
   };
   const stateKey = schemaKey(aggregate.state.schema);
   const stateSchema =
@@ -991,6 +1037,7 @@ function aggregateModel(
     })),
     lifecycle,
     queryModels: (aggregate.queries ?? []).map(query => query.model),
+    access,
     ...(Object.keys(textNumbers).length === 0 ? {} : { textNumbers }),
   };
 }

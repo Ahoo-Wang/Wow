@@ -153,7 +153,6 @@ export const LifecycleCommands = {
   RESTORE_AGGREGATE: 'wow.lifecycle.RestoreAggregate',
   TRANSFER_OWNER: 'wow.lifecycle.TransferOwner',
   TRANSFER_SPACE: 'wow.lifecycle.TransferSpace',
-  APPLY_TAGS: 'wow.lifecycle.ApplyTags',
 } as const;
 
 /** A {@link LifecycleCommands} value. */
@@ -168,11 +167,6 @@ export interface TransferOwner {
 /** The body of `wow.lifecycle.TransferSpace`. */
 export interface TransferSpace {
   readonly spaceId: string;
-}
-
-/** The body of `wow.lifecycle.ApplyTags`: the tags, names to values. */
-export interface ApplyTags {
-  readonly tags: Readonly<Record<string, readonly string[]>>;
 }
 
 /**

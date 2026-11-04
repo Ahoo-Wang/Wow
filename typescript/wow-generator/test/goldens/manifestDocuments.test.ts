@@ -115,7 +115,7 @@ await products.createProduct({ name: 'n', price: 1 }, { id: 'p-1', wait: WaitPla
 await products.changeProductPrice('p-1', { price: 2 }, { requestId: 'r-1', expectedVersion: 1 });
 await products.publishProduct('p-1');
 await products.deleteAggregate('p-1');
-await products.applyTags('p-1', { tags: { region: ['eu'] } });
+await products.transferSpace('p-1', { spaceId: 'eu' });
 await new catalog.ProductSnapshotQueryClient({ fetcher }).list({ filter: { op: 'eq', field: 'state.status', value: 'PUBLISHED' }, limit: 2 });
 await new catalog.ProductStateClient({ fetcher }).get('p-1', { version: 1 });
 const orders = new ordering.EshopOrderingClient({ fetcher }).order.commands;
@@ -170,8 +170,8 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
       },
       {
         method: 'POST',
-        url: 'http://shop/eshop-catalog/product/p-1/wow.lifecycle.apply-tags',
-        body: '{"tags":{"region":["eu"]}}',
+        url: 'http://shop/eshop-catalog/product/p-1/wow.lifecycle.transfer-space',
+        body: '{"spaceId":"eu"}',
         headers: { 'wow-request-id': GENERATED },
       },
       {

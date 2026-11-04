@@ -2,10 +2,10 @@
 
 import { EventQueryClient, SnapshotQueryClient, StateClient, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { CategoryState } from '../types.js';
-import { CategoryAggregate, type CategoryEvent, type CategoryStateField } from './aggregate.js';
+import { type CategoryAccess, CategoryAggregate, type CategoryEvent, type CategoryStateField } from './aggregate.js';
 
 /** Queries the snapshots of `eshop-catalog.category`: `POST /eshop-catalog/category/snapshot/query`. */
-export class CategorySnapshotQueryClient extends SnapshotQueryClient<CategoryState, CategoryStateField> {
+export class CategorySnapshotQueryClient extends SnapshotQueryClient<CategoryState, CategoryStateField, CategoryAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(CategoryAggregate, options);
@@ -14,7 +14,7 @@ export class CategorySnapshotQueryClient extends SnapshotQueryClient<CategorySta
 
 
 /** Queries the event streams of `eshop-catalog.category`, one record per commit: `POST /eshop-catalog/category/events/query`. */
-export class CategoryEventQueryClient extends EventQueryClient<CategoryEvent> {
+export class CategoryEventQueryClient extends EventQueryClient<CategoryEvent, CategoryAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(CategoryAggregate, options);
@@ -23,7 +23,7 @@ export class CategoryEventQueryClient extends EventQueryClient<CategoryEvent> {
 
 
 /** Reads the states of `eshop-catalog.category`, at a version or a time, and their traces: `GET /eshop-catalog/category/{id}/state`. */
-export class CategoryStateClient extends StateClient<CategoryState, CategoryEvent> {
+export class CategoryStateClient extends StateClient<CategoryState, CategoryEvent, CategoryAccess> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     super(CategoryAggregate, options);

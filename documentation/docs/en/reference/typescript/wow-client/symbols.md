@@ -9,18 +9,20 @@ description: 'Every name @ahoo-wang/wow-client exports, generated from its TSDoc
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client` exports — 132 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
 | `AccessAttributeManifest` | interface | An access attribute of an aggregate: its name, the type of its values, and whether it holds several. | — |
+| `AccessField` | type | The `access.<name>` field paths of the access attributes `A`. | — |
+| `AccessValue` | type | An access attribute's value as a record carries it: a single attribute's value or null, a multiple one's values, distinct and sorted. | — |
+| `AccessValues` | type | A record's access attributes by name, as the aggregate declares them (`@Access` on its state, the Manifest's `access`): a generated client types them as an `<Aggregate>Access` interface instead. | — |
 | `AggregateManifest` | interface | An aggregate type: its state, snapshots, commands, events and query models. | — |
 | `AggregateRef` | interface | One aggregate: its type, its tenant and its id. | — |
 | `AggregateTextNumbers` | interface | The numbers of an aggregate type kept as their exact text (`TextNumbers`). | — |
 | `AggregateType` | interface | An aggregate type: its bounded context and its name. | — |
-| `ApplyTags` | interface | The body of `wow.lifecycle.ApplyTags`: the tags, names to values. | — |
 | `CommandClient` | class | Sends commands to the command routes of a Wow service as its Manifest lists them (`POST /{context}/{aggregate}/{id}/{command}`, the route without`{id}` for a request that names none, `DELETE /{context}/{aggregate}/{id}` for `DeleteAggregate`): the Manifest the client is given, else the service's, fetched once (`GET /wow/manifest`). | — |
 | `CommandClientOptions` | interface | How a `CommandClient` sends, beside how it reaches the service. | — |
 | `CommandManifest` | interface | A command of an aggregate or a context, and the routes that send it. | — |
@@ -48,7 +50,7 @@ Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the fir
 | `EventManifest` | interface | An event of an aggregate and its revision. | — |
 | `EventQueryClient` | class | Queries an aggregate type's event streams on the same engine as its snapshots: one record per commit, `count` counts commits, a condition on an event is an `elementMatch` on `events`, and per-event analytics expand `events` in an aggregation (`elements`). | — |
 | `EventStream` | interface | A record of the `events` query model: one commit of one aggregate and its events. | — |
-| `EventStreamField` | type | The fields of an event stream record a query names: its system fields and `events`, the array an `elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own`name`, `revision` and `body.*`. | — |
+| `EventStreamField` | type | The fields of an event stream record a query names: its system fields, `access` and its built-in `owner` and `space` (a declared attribute is an `AccessField`), and `events`, the array an`elementMatch` filter and an aggregation's `elements` reach an event through, by the event's own `name`, `revision` and `body.*`. | — |
 | `FRAMEWORK_ERROR_PREFIX` | const | The prefix of every framework code, and of no domain code. | — |
 | `FRAMEWORK_RETRIES` | const | What a retry may do of each framework code a retry may get past, by code; a retry of every other code, a domain's among them, is `none`. | — |
 | `FrameworkErrorCode` | type | A `FrameworkErrorCodes` value. | — |
@@ -65,6 +67,7 @@ Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the fir
 | `MANIFEST_FEATURES` | const | The markers of a Manifest's `requires` this client understands, as the Kotlin reader's `ManifestFeatures`: none yet. | — |
 | `MANIFEST_FORMAT` | const | The format of the Manifest this client reads. | — |
 | `Manifest` | interface | A service's Manifest, or a module's fragment (without service), format 1. | — |
+| `NoAccess` | type | The access attributes of an aggregate that declares none: a record's`access` is then empty, and a query names no `access.<name>`. | — |
 | `Operator` | interface | Who sent a command: the opaque id of the authenticated subject, its own tenant, and whether it acted in another tenant or scope. | — |
 | `OwnStateClient` | class | Reads the states of an aggregate type whose id is its owner's (`@AggregateRoot(idSource = OWNER)`, the Manifest's `idSource: "owner"`): by id as `StateClient` does, for a caller with no owner, and the caller's own by no id, `GET /{context}/{aggregate}/state` and`…/state/trace`, its id the owner the caller reads as. | — |
 | `OwnerTransferred` | interface | The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. | — |
@@ -104,14 +107,13 @@ Every name `@ahoo-wang/wow-client` exports — 130 — with its kind and the fir
 | `StateReadResult` | type | A state read: the snapshot and its entity tag, or `notModified` when the state held is current, with its tag and the version the tag names. | — |
 | `StateTrace` | interface | What `GET /{context}/{aggregate}/{id}/state/trace` answers: the aggregate and its commits in version order. | — |
 | `StateTraceOptions` | interface | Which commits a trace reads. | — |
+| `StreamAccess` | type | The `access` of an event stream: the aggregate's current owner and space beside its declared access attributes `A`. | — |
 | `StreamEnd` | interface | The data of the `end` event that ends a resumable streamed list. | — |
 | `StreamEndReason` | type | Why a resumable streamed list ended: `complete` once every record was sent; the others are the server's, and resumable: the stream ran for its hold time, its store had no query permit for its next chunk, or the node is stopping. | — |
 | `StreamOptions` | interface | How a list is streamed: the request's options, and how it resumes. | — |
 | `StreamResumeOptions` | interface | How a streamed list resumes. | — |
 | `SubscriptionManifest` | interface | A subscription of a bounded context: what it reads and what its handler derives. | — |
 | `SystemEvent` | type | The system events the kernel gives every aggregate: the lifecycle events and the schedule events. | — |
-| `Tags` | type | The tags of an aggregate: names to values. | — |
-| `TagsApplied` | interface | The body of `wow.lifecycle.TagsApplied`: the aggregate's tags now. | — |
 | `TargetScope` | interface | The scope a caller allowed to act across scopes acts in: the `Wow-Scope` header. | — |
 | `TextNumbers` | type | Which numbers of a JSON value a client reads and writes as their exact text: an `int64`, `bigint` or `decimal` field of a Manifest, which JavaScript's `number` would round. | — |
 | `TextNumbersByName` | interface | The marks of one member of an object chosen by the value of another. | — |
