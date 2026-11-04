@@ -154,11 +154,42 @@ DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: paidAmount: 9.x 25.00, V10
 
 The summary of each aggregate gives the share of instances that have a 9.x snapshot, how many were compared, and the differing fields by kind. The command exits with `3` when anything differs.
 
+**The imported streams themselves.** A state is compared at its 9.x snapshot's version, so a stream after an instance's latest snapshot is not seen: with 9.x's `version_offset` snapshot strategy, before 9.x writes the snapshot, or for an instance without one. So `compare` also reads the streams 9.x committed since each full import started (less the tail's `lookbackMillis`), on the tail's commit-time index, and checks that the log holds the latest of each instance, by version and command, one log read per instance. It reads up to `final.lookbackMillis` before the tail's checkpoint: during the dual run the tail may still be reading what came after, and after `import --final` that last window is what the final pass read once 9.x had stopped. Each stream missing is printed, and the command exits with `3`:
+
+```text
+MISSING view-store.view t0/0VZwlu3X00016xF v4: 9.x stream 0VZwlu3X00016xG (command 0VZwlu3X00016xH), committed at 2026-11-03T22:33:01.200Z, is not in the log, which holds v3
+```
+
+Import them before the cut-over: one `tail --once` whose `lookbackMillis` reaches back to the earliest one, or `import --restart`. A check that finds nothing missing records how far it read, so the next one reads only what 9.x committed since, less the look-back; `--restart` reads again from each import's start. An aggregate the tail never followed is not checked: its full import, after 9.x stopped, walked every stream.
+
 **Do not cut over on an unexplained difference.** Zero differences may not be reachable: 9.x snapshots can carry defects that V10 does not reproduce, and some aggregates have no snapshot to compare with. So review the differences kind by kind. Each kind must be explained, as a known 9.x defect or an intended change of semantics, and signed off. Where a field exists on one side only by design, list it in the map's `state.ignore`, and where the Skill renamed a state field, in `state.fields`. Review the kinds in a rehearsal, so the real cut-over only confirms them.
 
 `compare --sample 10` compares 10% of the instances, always the same ones, for quicker iterations.
 
 **Compare in the service's time zone.** A state that turns a date into an instant with the system's zone, `LocalDate.atStartOfDay(ZoneId.systemDefault())` say, rebuilds to another instant in another zone: run `compare` in the zone 9.x ran in (`-Duser.timezone`, or `TZ`), as the V10 service must run.
+
+**Compared again, only what changed.** Once a full comparison of an aggregate has completed, `compare` compares again only the instances whose result can have changed since the last comparison started:
+
+- the 9.x snapshots taken since then, by their `snapshotTime`, going back the final pass's look-back window (`final.lookbackMillis`), which covers the 9.x nodes' clocks running behind the tool's;
+- the instances 9.x committed streams of since then, read on the tail's commit-time index;
+- the instances the V10 log holds entries of after where it ended when the last comparison started;
+- the instances the last comparison found differing.
+
+Its summary gives how many it compared, and how many instances differ in all; each difference is printed again. It records where it started, so the next `compare` goes on from there. It checks the reservations and the parked entries in full, on every run.
+
+The result is the full comparison's. One instance's comparison reads its 9.x snapshot, its V10 log up to the snapshot's version, and the map, the Manifests, the V10 classes, the sample, the time zone and the tool, and nothing else. The V10 log only grows. So an instance unchanged on both sides compares as it did. That holds when:
+
+- 9.x stamps each snapshot with the time it takes it, by a clock no further behind the tool's than the look-back window. A snapshot stamped earlier than that is not read again;
+- the map, the Manifests and the files of the classpath, the sample, the time zone and the tool are the ones the last comparison ran with. The tool checks this with a fingerprint of them.
+
+Otherwise it compares in full, and says why, `<aggregate> is compared in full again: <reason>`, when:
+
+- the last comparison ran with an earlier version, which recorded no position to compare again from;
+- the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed since the last comparison;
+- more than 1000 instances differed, too many to record;
+- the 9.x store has no commit-time index to read what 9.x committed since. The tail creates it.
+
+`compare --restart` compares in full whatever was recorded. **`compare` is still required before switching traffic**: comparing again makes it short, and its result is the one to sign off.
 
 **Classify each difference** before explaining it:
 
@@ -169,6 +200,10 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 ## 6. Write the snapshots
 
 `snapshot`, or `import --snapshots`, writes the V10 snapshot of every imported aggregate at its last version, so V10's queries have data the moment traffic arrives. The V10 service's own snapshot subscription then finds them in place.
+
+Once a walk has completed, `snapshot` catches up instead: it writes the snapshot of each instance the V10 log holds entries of after where the log ended when that walk started, or the last catch-up, and records where the log ends now. So a walk during the dual run leaves the cut-over only the instances changed since. `snapshot --restart` walks every instance again.
+
+This is safe because a V10 snapshot is a cache of the log: V10 loads an aggregate from its snapshot and the log after it. An instance whose log did not change has the history its snapshot was written from. On MongoDB, an append in flight while the walk read where the log ended can land below that point, and the catch-up does not see it: that instance keeps its older snapshot, and V10 replays the rest of its log when it loads it. A change of the V10 models between two runs is not covered, by the catch-up or by `--restart`: neither writes a snapshot again at a version the store holds.
 
 ## 7. The access attributes
 
@@ -193,7 +228,7 @@ Run steps 1 and 2, then `import` (step 4) without stopping 9.x. 9.x keeps changi
 
 ### Follow 9.x
 
-`tail` follows the streams 9.x commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap.
+`tail` follows the streams 9.x commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap. Each pass ends at the latest stream committed when it starts, so under steady writes a pass still ends, saves the tail's checkpoint and goes on to the next aggregate, and a stream that becomes visible within the window of its commit time is read by a later pass.
 
 The tail reads each event stream collection by a `(createTime, _id)` index, which 9.x does not create. Without it, the tail refuses to start and prints the command that creates it. Creating it writes to the 9.x store, so it is a prerequisite of the cut-over on the 9.x side: build it before the dual run, when it suits the 9.x database, or let the tool create it (`source.createCommitTimeIndex`). A store the tool reads with read-only credentials needs its owner to build it. `check` warns of each mapped collection without it.
 
@@ -203,12 +238,16 @@ The tail reads each event stream collection by a `(createTime, _id)` index, whic
 
 Through this dual run, start the V10 service's nodes on standby, with [`wow.node.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node is activated, so it never acts on the imported 9.x history.
 
+### Compare and snapshot during the dual run
+
+Once the import is done and the tail follows 9.x, run `compare` and `snapshot`. Each walks every instance once and records where it started. At the cut-over, each then works only on what changed since (steps 5 and 6), which keeps the write stop short. Review the differences the full comparison finds now, so the cut-over only confirms them.
+
 ### The cut-over
 
 1. Stop 9.x writing, and stop the 9.x compensation service.
 2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
-3. Run `compare` and review the result (step 5).
-4. Run `snapshot` (step 6).
+3. Run `compare` and review the result (step 5). After a full comparison during the dual run, it compares only what changed since, unless it says why it compares in full.
+4. Run `snapshot` (step 6). After a walk during the dual run, it writes only the instances the log changed since.
 5. Activate every V10 node: `POST /wow/node/activate` on its internal port, with `Wow-Service: <the node's service>` and a JSON body naming who activates it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the activation ends the write stop. Its subscriptions start reading once the node has started every partition it takes, so the imported history does not slow the activation down: the projections catch up on it afterwards, at most [`wow.subscription.max-catch-ups`](../reference/configuration) (2) partitions of the node at a time, so the commands it admits meanwhile keep the store, and the `subscriptions` health shows their lag until they have. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
 6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams.
 

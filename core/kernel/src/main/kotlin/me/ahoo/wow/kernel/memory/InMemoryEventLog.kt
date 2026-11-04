@@ -116,10 +116,13 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
         AggregatePage.of(refs, limit)
     }
 
+    /** Whether a stream of [type] was appended: the store of a type's history is its streams. */
+    override suspend fun holds(type: AggregateType): Boolean = lock.withLock { streams.keys.any { it.type == type } }
+
     override suspend fun walk(type: AggregateType): AccessWalk? = lock.withLock { walks[type] }
 
     override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = lock.withLock {
-        if (walks[type]?.schema != expected) {
+        if (streams.keys.none { it.type == type } || walks[type]?.schema != expected) {
             return@withLock false
         }
         walks[type] = walk

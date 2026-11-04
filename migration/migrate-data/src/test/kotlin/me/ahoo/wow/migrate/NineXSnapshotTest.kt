@@ -31,6 +31,7 @@ class NineXSnapshotTest {
         order.deleted.assert().isFalse()
         order.tags.assert().isEmpty()
         order.state.assert().isEqualTo(WowJson.mapper.readTree(NineXExample.resource("order-state.json")))
+        order.snapshotTime.assert().isEqualTo(1792004186981)
         NineXExample.snapshot("cart-snapshot.json").state.assert()
             .isEqualTo(WowJson.mapper.readTree(NineXExample.resource("cart-state.json")))
     }
@@ -45,6 +46,11 @@ class NineXSnapshotTest {
         snapshot.tags.assert().containsEntry("region", listOf("east", "west"))
         snapshot.deleted.assert().isTrue()
         snapshot.ownerId.assert().isEmpty()
+        // Without a numeric snapshotTime, it has none: a comparison again reads it as taken since.
+        snapshot.snapshotTime.assert().isNull()
+        NineXSnapshot.parse(
+            """{"_id":"o-1","contextName":"c","aggregateName":"a","version":2,"state":{},"snapshotTime":"now"}""",
+        ).snapshotTime.assert().isNull()
     }
 
     @Test

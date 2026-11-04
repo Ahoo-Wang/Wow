@@ -1,4 +1,4 @@
-# PostgreSQL, which every service uses on the postgres arm (deploy/'s postgres components): one database per service, as
+# PostgreSQL, which every service uses on the postgres arm (deploy/<service>/values-postgres.yaml): one database per service, as
 # each component's ConfigMap expects (postgres:5432/<database>). The mongo arm deploys it too, idle, so both arms run
 # the same backends but one.
 # max_connections covers every node's pool (HikariCP's 10) with room for the runner's reads. The TCP keepalives

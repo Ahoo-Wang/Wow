@@ -59,7 +59,7 @@ Each node advertises the address other nodes reach its internal port at:
 
 On Kubernetes, the eShop's ordering manifests take the node id and the bound address from the pod, and advertise that address, the pod's IP:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -71,20 +71,29 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
+  # The ports the Services and the probes name: the chart's, whatever the image's configuration says.
   - name: SERVER_PORT
-    value: "8083"
+    value: {{ .Values.ports.http | quote }}
   - name: WOW_INTERNAL_PORT
-    value: "9093"
+    value: {{ .Values.ports.internal | quote }}
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # The internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address: a
+  # Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
+  # The namespace a peer's SRV name is in, unless wow.peer.dns.namespaces places the peer elsewhere.
+  - name: WOW_PEER_DNS_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  {{- with .Values.env }}
+  {{- toYaml . | nindent 12 }}
+  {{- end }}
 ```
 
-A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP. The headless service is named after the service, `eshop-ordering-service-cluster`: its SRV records name every node's address, the nodes that are not ready included, and the other services find its nodes there by the service's name alone. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
+A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP. The headless service is named after the service, `eshop-ordering-service-cluster`: its SRV records name every node's address, the nodes that are not ready included, and the other services find its nodes there by the service's name alone. Wow's chart ([Kubernetes](./kubernetes)) renders all of it, and the [eShop ordering's values](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 
@@ -142,31 +151,31 @@ A node opens its public port only once it has started: its backends are up, its 
 2. The node stops taking commands for its partitions, finishes those in flight within `wow.cluster.drain-timeout` (10 seconds), saves its subscriptions' checkpoints and releases its leases. Other nodes take the partitions over.
 3. The internal port closes last.
 
-The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.timeout-per-shutdown-phase` is set. Give the platform's termination grace period at least as much; the eShop manifests use 90 seconds.
+The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.timeout-per-shutdown-phase` is set. Give the platform's termination grace period at least as much; Wow's chart derives it from the same bounds, 90 seconds by default ([Kubernetes](./kubernetes#graceful-shutdown)).
 
 With Spring Boot Actuator on the classpath, the host contributes the node's health to the readiness and liveness groups:
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 36
+  periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+  failureThreshold: {{ .Values.probes.startup.failureThreshold }}
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 2
+  periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  periodSeconds: 10
-  failureThreshold: 3
+  periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
 - **Readiness** fails until the node runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past a hand-over grace period, or while a topic it reads is still joining.

@@ -262,61 +262,89 @@ wow:
         - eshop-ordering.order.SubmitOrder
 ```
 
-它的 Kubernetes 网络策略就是边界。第一条只让网关的 Pod 访问 HTTP 端口；第二条只让 eShop 自己的 Pod 访问内部端口：
+它的 Kubernetes 网络策略（由 Wow 的 chart 渲染）就是边界。第一条只让网关的 Pod 访问 HTTP 端口；第二条只让本服务的节点、eShop 的其他 Pod 及其对端访问内部端口：
 
-<!-- sample: deploy/eshop-ordering/networkpolicy.yaml -->
+<!-- sample: deploy/helm/wow-service/templates/networkpolicy.yaml -->
 
 ```yaml
-# The public port: reachable from the gateway's pods alone, in any namespace, labelled
-# app.kubernetes.io/component: gateway. The shop's clients reach the service through it alone. Label your gateway's pods
-# so, or change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
+{{- include "wow-service.validate" . -}}
+{{- if .Values.networkPolicy.enabled }}
+{{- $name := include "wow-service.name" . -}}
+# The public port: reachable from networkPolicy.public.from alone, the gateway's pods by default (labelled
+# app.kubernetes.io/component: gateway, in any namespace), which verify the callers. Enforced where the cluster's
+# network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-service-public
+  name: {{ $name }}-public
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering-service
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
     - from:
-        - namespaceSelector: {}
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/component: gateway
+        {{- toYaml .Values.networkPolicy.public.from | nindent 8 }}
       ports:
         - port: http
           protocol: TCP
+    {{- if and (include "wow-service.metricsEnabled" .) (eq (include "wow-service.metricsPort" .) "metrics") }}
+    - from:
+        {{- toYaml .Values.networkPolicy.metrics.from | nindent 8 }}
+      ports:
+        - port: metrics
+          protocol: TCP
+    {{- end }}
 ---
-# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: eshop.
-# It takes no token: a node names its service on each request (Wow-Service), and this policy is the
-# boundary. The shop's services reach it there: this service's nodes, the basket's calls and the signals of the waits
-# that cross into it. Enforced where the cluster's network plugin enforces NetworkPolicy; where it is not, keep the
-# internal port off every network but the platform's.
+# The internal port: the cluster channel, the wait signals and the calls of other services. It takes no token: a node
+# names its service on each request (Wow-Service), and this policy is the boundary. It admits the service's own nodes,
+# the pods of its platform (partOf), the peers it calls (their wait signals come back to it), in their namespaces, and
+# networkPolicy.internal.from. Where the network plugin does not enforce NetworkPolicy, keep the internal port off every
+# network but the platform's.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering-service-internal
+  name: {{ $name }}-internal
   labels:
-    app.kubernetes.io/name: eshop-ordering-service
+    {{- include "wow-service.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: eshop-ordering-service
+      {{- include "wow-service.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/part-of: eshop
+              {{- include "wow-service.selectorLabels" . | nindent 14 }}
+        {{- with .Values.partOf }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: {{ . }}
+        {{- end }}
+        {{- range .Values.service.peers }}
+        {{- if .service }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .service }}
+          {{- if and .namespace (ne .namespace $.Release.Namespace) }}
+          namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.networkPolicy.internal.from }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       ports:
         - port: internal
           protocol: TCP
+{{- end }}
 ```
 
 不执行网络策略的网络插件会忽略它们。这时要用别的办法，例如节点的防火墙，让内部端口只在平台的网络上可达，因为没有别的东西关得上它。

@@ -23,7 +23,7 @@ Choose by the rehearsal's measured import time against the stop the business acc
 | Offline | 243.4 s | The full import 98.2 s, compare 23.5 s, snapshots 43.8 s, tags 35.4 s, start of both services 36.3 s |
 | Online | 159.5 s | The final pass 15.2 s, compare 24.2 s, snapshots 46.5 s, tags 38.0 s, activation of both services 29.3 s |
 
-The offline stop grows with the whole history, the online one with what 9.x wrote since the tail last read, plus the steps both share. A history that imports within the window you can stop for goes offline.
+The offline stop grows with the whole history. The online one grows with what changed since the dual run's last tail pass, comparison and snapshot walk, plus the activation. A history that imports within the window you can stop for goes offline.
 
 ## Inventory before any write
 
@@ -81,9 +81,11 @@ The first such write in production ends the rollback window. Either accept that 
 
 From the first import until the switch, 9.x serves and V10 waits: `tail` follows what 9.x writes, and every V10 node starts with `wow.node.standby=true`. A node on standby serves reads and queries of what the import writes, refuses every command with 503 `wow.node.standby`, and runs no subscription, parked retry, job or snapshot maintenance, so nothing V10 does can write. It reports ready, so the read side can be checked against production data before the switch.
 
+Once the import is done and the tail has caught up, run `compare` and `snapshot` during the dual run. Each walks every instance once and records where it started, and the differences the full comparison finds are reviewed and signed off then.
+
 1. **Announce the window, stop 9.x's writes**, as offline does.
 2. **Take and verify the final backup.**
-3. **Final pass.** Stop the tail first: the final pass takes its role, and waits for its lease. `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare` and `snapshot`.
+3. **Final pass.** Stop the tail first: the final pass takes its role, and waits for its lease. `import --final` when the tail followed 9.x until it stopped: one tail pass from its checkpoint, looking back to catch commits that became visible late, then the reservations and the unresolved executions again. It refuses, writing nothing, when an import is incomplete or the tail has fallen behind; the final pass is then `import --restart`, as long as the whole history. Then `compare` and `snapshot`, which after their walks during the dual run read only what changed since. `compare` compares the instances changed on either side and those that differed, and gives the result a full comparison would ([Compare](./data#_5-compare)). It names each aggregate it compares in full again, and why. `snapshot` writes the instances the V10 log changed ([Write the snapshots](./data#_6-write-the-snapshots)). The gate still needs this `compare`: its result is the one to sign off.
 4. **Gate**, as offline does. Otherwise go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**

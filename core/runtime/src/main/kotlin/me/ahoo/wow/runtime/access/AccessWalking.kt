@@ -70,7 +70,8 @@ fun interface AccessSnapshots {
  *   once no node of that one is left (each node is a member of `<group>#access`, serving `<aggregate>@<schema hash>`
  *   for its schema of each type): a rolling deployment that changes the schema starts the walk once the last node of
  *   the old one stopped, so the walk reaches what that node wrote. A walk of this node's schema, once completed, is
- *   not read again.
+ *   not read again. A type whose log holds no store of its history yet ([AccessWalks.holds]) is not claimed, and its
+ *   store is not created: the first run after its first append claims it.
  * - **The walk**: the node that holds the type's walk lease (`<group>#access-walk/<aggregate>`) pages its aggregates
  *   ([AccessWalks.aggregates], [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with its
  *   current attributes ([stampCurrent]), at most [AccessStampOptions.walkRate] aggregates a second. After each page it
@@ -251,6 +252,11 @@ class AccessWalking(
                 return@forEach
             }
             val walks = checkNotNull(walksOf(type))
+            // A type without a store of its history has nothing to walk, and its store is its first append's to
+            // create: the first run after it claims the walk, with heads that reach it.
+            if (!walks.holds(type)) {
+                return@forEach
+            }
             val recorded = walks.walk(type)
             // Another schema's walk stays while a node of it is left.
             if (recorded != null && (recorded.schema == schema || hasMembers(type, recorded.schema))) {

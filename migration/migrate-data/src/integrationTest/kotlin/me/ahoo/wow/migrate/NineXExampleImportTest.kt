@@ -32,10 +32,12 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.postgresql.ds.PGSimpleDataSource
+import tools.jackson.databind.node.ObjectNode
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 
 /**
  * Roadmap 8b.1's and 8b.2's exits: the 9.x example's data, in a 9.x MongoDB store, imported by the command line into
@@ -165,6 +167,60 @@ class NineXExampleImportTest {
             .contains("example-service.order done: 1 instances, 0 streams imported, 1 skipped")
             .contains("Final pass done")
         kernel.stateAt(NineXExample.orderModel, orderRef, 5)!!.version.assert().isEqualTo(5)
+
+        // The snapshots written before catch up on what the tail brought in since: the received order alone.
+        run("snapshot", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert()
+            .contains(
+                "example-service.order snapshots caught up: 1 instances the V10 log changed since, 1 V10 snapshots " +
+                    "written, 0 already there",
+            )
+            .contains("example-service.cart snapshots caught up: 0 instances the V10 log changed since")
+        store.load(orderRef)!!.version.assert().isEqualTo(5)
+
+        // Compared after the broken mapping's comparison, the map is not the one it ran with, so it compares in full;
+        // compared again, only what changed since: a differing snapshot 9.x takes since is found.
+        run("compare", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert().contains(
+            "example-service.order is compared in full again: the map, a Manifest, the classpath (the V10 models), " +
+                "the sample, the time zone or the tool changed since the last comparison.",
+        )
+        val taken = WowJson.mapper.readTree(NineXExample.resource("order-snapshot.json")) as ObjectNode
+        (taken.get("state") as ObjectNode).put("status", "PAID")
+        taken.put("snapshotTime", System.currentTimeMillis())
+        NineXMongoStore.saveSnapshot(nineX, taken.toString())
+        run("compare", "--config", config(target).toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains(
+                "example-service.order compared again: 1 instances changed since the last comparison or differing " +
+                    "then, 1 compared; 1 differ in all; differing fields: status (1)",
+            )
+            .contains("example-service.cart compared again: 0 instances changed")
+
+        // 9.x's snapshot put back as it was taken.
+        NineXMongoStore.saveSnapshot(nineX, NineXExample.resource("order-snapshot.json"))
+
+        // A stream 9.x committed two minutes before the tail's checkpoint, visible only after the tail had read past
+        // it: the states compare equal at 9.x's snapshot (version 4), and the check of the import finds it missing.
+        val committedAt = NineXStream.parse(received).createTime - 120_000
+        NineXMongoStore.insert(
+            nineX,
+            NineXMongoStore.received(received, committedAt)
+                .replace("received-stream", "lost-stream")
+                .replace("received-command", "lost-command"),
+        )
+        run("compare", "--config", config(target).toString(), "--restart").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
+            .contains(
+                "MISSING example-service.order (0)/0VY3GwaK4OmV00E v6: 9.x stream lost-stream (command lost-command), " +
+                    "committed at ${Instant.ofEpochMilli(committedAt)}, is not in the log, which holds v5",
+            )
+            .contains("Comparison done: 1 instances of [example-service.order] miss the latest stream 9.x committed")
     }
 
     @Test

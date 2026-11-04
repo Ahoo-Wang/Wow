@@ -371,7 +371,7 @@ test('Storybook and the packages the site renders or compiles samples against bu
 test('Kotlin, Gradle, console and prose changes skip the TypeScript workflow jobs', () => {
   for (const path of [
     'test/tck/src/main/kotlin/Spec.kt',
-    'deploy/ops/deployment.yaml',
+    'deploy/ops/values.yaml',
     'platform/ops/console/src/main.tsx',
     'platform/ops/console/package.json',
     'config/detekt/detekt.yml',
@@ -657,7 +657,7 @@ test('the migrate-data tool, its Kubernetes recipe and the workflow run the imag
     assert.ok(scopes([path]).migrateDataImage, path);
   for (const path of [
     'core/kernel/src/main/kotlin/A.kt',
-    'deploy/ops/deployment.yaml',
+    'deploy/ops/values.yaml',
     'documentation/docs/en/migrate/data.md',
     '.github/workflows/image-deploy.yml',
     'test/migration-rehearsal/rehearsal/rehearse.sh',
@@ -1085,7 +1085,7 @@ test('the chart, its CI fixtures and ci.yml run the chart jobs', () => {
   ])
     assert.ok(scopes([path]).helm, path);
   for (const path of [
-    'deploy/eshop-ordering/deployment.yaml',
+    'deploy/eshop-ordering/values.yaml',
     'deploy/mongodb/README.md',
     '.github/ga-e2e/cluster.sh',
     '.github/workflows/package-deploy.yml',
@@ -1103,7 +1103,7 @@ test('the chart, its CI fixtures and ci.yml run the chart jobs', () => {
 test('the YAML of deploy/ checks its WOW_ variables, unless the JVM jobs run', () => {
   for (const path of [
     'deploy/helm/wow-service/templates/configmap.yaml',
-    'deploy/eshop-ordering/configmap.yaml',
+    'deploy/eshop-ordering/values.yaml',
   ])
     assert.ok(scopes([path]).deployKeys, path);
   for (const path of [
@@ -1114,7 +1114,7 @@ test('the YAML of deploy/ checks its WOW_ variables, unless the JVM jobs run', (
     assert.ok(!scopes([path]).deployKeys, path);
   assert.ok(
     !scopes([
-      'deploy/eshop-ordering/configmap.yaml',
+      'deploy/eshop-ordering/values.yaml',
       'host/spring-boot/src/main/kotlin/A.kt',
     ]).deployKeys,
   );

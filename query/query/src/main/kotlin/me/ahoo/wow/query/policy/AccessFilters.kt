@@ -57,19 +57,33 @@ import tools.jackson.databind.JsonNode
 object AccessFilters {
     /** [predicate] as a filter, each attribute compared on [fieldOf] of it, or matching nothing where that is null. */
     fun compile(predicate: AccessPredicate, fieldOf: (AccessAttribute<*, *>) -> QueryField<*>?): FilterExpression =
-        compile(predicate, fieldOf, negated = false)
+        compile(predicate, negated = false) { comparison, negated ->
+            fieldOf(comparison.attribute)?.let { comparison(comparison, it, negated) }
+        }
+
+    /**
+     * [predicate] as a filter whose comparisons [comparisonOf] builds, each matching nothing where it gives none: for a
+     * model that holds an attribute as a filter of its own rather than as a field, such as the owner and the space of
+     * a snapshot or a dataset row ([me.ahoo.wow.api.query.OwnerIdFilter], [me.ahoo.wow.api.query.SpaceIdFilter])
+     * under the default rule ([me.ahoo.wow.api.access.ScopeAccess]). [comparisonOf] builds a comparison as it is: a
+     * negated one matches nothing.
+     */
+    fun compileWith(
+        predicate: AccessPredicate,
+        comparisonOf: (AccessPredicate.Comparison) -> FilterExpression?,
+    ): FilterExpression = compile(predicate, negated = false) { comparison, negated ->
+        if (negated) null else comparisonOf(comparison)
+    }
 
     private fun compile(
         predicate: AccessPredicate,
-        fieldOf: (AccessAttribute<*, *>) -> QueryField<*>?,
         negated: Boolean,
+        comparisonOf: (AccessPredicate.Comparison, Boolean) -> FilterExpression?,
     ): FilterExpression = when (predicate) {
-        is AccessPredicate.Comparison -> fieldOf(predicate.attribute)
-            ?.let { comparison(predicate, it, negated) }
-            ?: MatchNoneFilter
-        is AccessPredicate.Not -> compile(predicate.predicate, fieldOf, !negated)
-        is AccessPredicate.AllOf -> junction(predicate.predicates, fieldOf, negated, all = true)
-        is AccessPredicate.AnyOf -> junction(predicate.predicates, fieldOf, negated, all = false)
+        is AccessPredicate.Comparison -> comparisonOf(predicate, negated) ?: MatchNoneFilter
+        is AccessPredicate.Not -> compile(predicate.predicate, !negated, comparisonOf)
+        is AccessPredicate.AllOf -> junction(predicate.predicates, negated, all = true, comparisonOf)
+        is AccessPredicate.AnyOf -> junction(predicate.predicates, negated, all = false, comparisonOf)
         AccessPredicate.Allowed -> if (negated) MatchNoneFilter else MatchAllFilter
         AccessPredicate.Denied -> if (negated) MatchAllFilter else MatchNoneFilter
         AccessPredicate.Unknown -> MatchNoneFilter
@@ -78,11 +92,11 @@ object AccessFilters {
     /** All or one of [predicates]; negated, by De Morgan, one or all of their negations. */
     private fun junction(
         predicates: List<AccessPredicate>,
-        fieldOf: (AccessAttribute<*, *>) -> QueryField<*>?,
         negated: Boolean,
         all: Boolean,
+        comparisonOf: (AccessPredicate.Comparison, Boolean) -> FilterExpression?,
     ): FilterExpression {
-        val operands = predicates.map { compile(it, fieldOf, negated) }
+        val operands = predicates.map { compile(it, negated, comparisonOf) }
         return if (all != negated) and(operands) else or(operands)
     }
 

@@ -1,0 +1,3 @@
+# The clickhouse profile beside the arm's.
+config:
+  SPRING_PROFILES_ACTIVE: mongo,kafka,clickhouse,cosec

@@ -70,6 +70,10 @@ data class BookedSetting(
  *   `ViewCreated` at revision 2, which 9.x cannot read), and nothing else.
  * - `await` waits until V10 holds every touched view at its version; `states` reads every N-th view that is not
  *   deleted, its version and its state without what one version derives (`id`, V10's `kind`), for `driver compare`.
+ *   9.x is read from its snapshots, which it saves after each command and does not save again when a save fails (a
+ *   MongoDB connection reset under load, say). So a 9.x view whose snapshot is older than its booked version is read
+ *   again for a while; one that stays older is printed `STALE` and fails the step: 9.x lost that save, and its state
+ *   cannot be read to compare, which is a failure of the 9.x stand-in, not a difference of the migration.
  * - `verify` renames, in 9.x after the rollback, every view V10 touched, and checks that 9.x applies it on the version
  *   V10 left: 9.x reads what export wrote back.
  * - `settings` sets again every booked preferences and every wording not cleared, and checks that each lands on the
@@ -282,14 +286,41 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         val endpoints = ViewEndpoints.of(required("version"), required("base"))
         val every = options["sample"]?.toInt() ?: 1
         val views = book().filter { !it.deleted }.filterIndexed { index, _ -> index % every == 0 }
-        val states = endpoints.states(views.map { it.ref })
+        val states = endpoints.states(views.map { it.ref }).toMutableMap()
+        val stale = if (endpoints is ViewEndpoints.NineX) landed(endpoints, views, states) else emptyList()
+        stale.forEach { view ->
+            println(
+                "STALE view ${view.ref.id}: 9.x's snapshot is at v${states.getValue(view.ref.id).first}, below its " +
+                    "booked v${view.version}: 9.x lost that snapshot save, so its state cannot be read to compare.",
+            )
+        }
         val out = Endpoints.MAPPER.createObjectNode()
         states.toSortedMap().forEach { (id, versioned) ->
             out.set(id, normalized(versioned.second).put("version", versioned.first))
         }
         File(required("out")).writeText(Endpoints.MAPPER.writeValueAsString(out))
-        println("""{"command":"views-states","sampled":${views.size},"read":${states.size}}""")
-        return if (states.size == views.size) OK else FAILED
+        println("""{"command":"views-states","sampled":${views.size},"read":${states.size},"stale":${stale.size}}""")
+        return if (states.size == views.size && stale.isEmpty()) OK else FAILED
+    }
+
+    /**
+     * Reads again, for up to [STALE_WAIT_SECONDS], each of [views] whose 9.x snapshot in [states] is older than its
+     * booked version, putting what it reads into [states]; the views whose snapshot is still older.
+     */
+    private fun landed(
+        endpoints: ViewEndpoints,
+        views: List<BookedView>,
+        states: MutableMap<String, Pair<Int, JsonNode>>,
+    ): List<BookedView> {
+        fun behind() = views.filter { view -> states[view.ref.id]?.let { it.first < view.version } == true }
+        val deadline = System.nanoTime() + STALE_WAIT_SECONDS * NANOS_PER_SECOND
+        var stale = behind()
+        while (stale.isNotEmpty() && System.nanoTime() < deadline) {
+            Thread.sleep(STALE_POLL_MILLIS)
+            states += endpoints.states(stale.map { it.ref })
+            stale = behind()
+        }
+        return stale
     }
 
     private fun verify(): Int {
@@ -419,6 +450,8 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         const val DELETED = 10
         const val WORKER_SEED = 7919
         const val POLL_MILLIS = 200L
+        const val STALE_WAIT_SECONDS = 30L
+        const val STALE_POLL_MILLIS = 1_000L
         const val MAX_PRINTED = 20
         const val ERROR_KEY = 120
         const val NANOS_PER_SECOND = 1_000_000_000L

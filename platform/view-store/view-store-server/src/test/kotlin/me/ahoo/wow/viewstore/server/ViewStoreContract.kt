@@ -77,7 +77,7 @@ abstract class ViewStoreContract {
         list(ALICE, definition).assert().containsExactly(id)
         list(BOB, definition).assert().isEmpty()
         store.post("/view-store/view/$id/rename-view", """{"title":"Mine"}""", BOB)
-            .assertProblem(FORBIDDEN, "wow.aggregate.forbidden")
+            .assertProblem(NOT_FOUND, "wow.aggregate.not-found")
         store.delete("/view-store/view/$id", ALICE).assertOk()
         list(ALICE, definition).assert().isEmpty()
     }

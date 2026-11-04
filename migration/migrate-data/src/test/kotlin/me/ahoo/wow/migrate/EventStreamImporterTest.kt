@@ -136,6 +136,13 @@ class EventStreamImporterTest {
     fun `a dry run converts every stream and appends none`(): Unit = runTest {
         importer(InMemoryNineXEventSource(NineXExample.streams()), ImportOptions(dryRun = true)).importAll(order)
             .imported.assert().isEqualTo(4)
+        // An instance its page read in part is read on from 9.x, as the import reads it.
+        val inMemory = InMemoryNineXEventSource(NineXExample.streams())
+        val partial = object : NineXEventSource by inMemory {
+            override fun instances(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int, maxStreams: Int) =
+                inMemory.instances(aggregate, after, limit, 1)
+        }
+        importer(partial, ImportOptions(dryRun = true)).importAll(order).imported.assert().isEqualTo(4)
         (0 until log.partitions).all { log.head(it) == null }.assert().isTrue()
         checkpoints.load().aggregates.assert().isEmpty()
     }
@@ -162,7 +169,8 @@ class EventStreamImporterTest {
             val first = NineXExample.stream("order-stream-v1.json")
             val source = InMemoryNineXEventSource(listOf(copyOf(first, "order-1"), copyOf(first, "")))
             val excluding = NineXExample.planExcluding(RefusedIds.EMPTY)
-            importer(source, plan = excluding).importAll(order).also {
+            // A page an instance: the first holds only the excluded one, and appends nothing.
+            importer(source, ImportOptions(pageSize = 1), plan = excluding).importAll(order).also {
                 it.instances.assert().isEqualTo(1)
                 it.imported.assert().isEqualTo(1)
                 it.excluded.assert().isEqualTo(1)
@@ -239,6 +247,74 @@ class EventStreamImporterTest {
             log.read(AggregateRef(NineXExample.orderModel.type, "(0)", streams.first().aggregateId.id)).toList()
                 .map { it.version }.assert().containsExactly(1, 2, 3, 4)
         }
+
+    @Test
+    fun `a stream visible after the tail's cursor passed it is read again, under steady writes`(): Unit =
+        runTest {
+            val first = NineXExample.stream("order-stream-v1.json")
+            val start = first.createTime
+            val written = (1..WRITES).map { copyOf(first, "written-$it", createTime = start + it * TICK) }
+            // Committed between the fifth and the sixth, it becomes visible only once the tail's cursor is past it.
+            val late = copyOf(first, "late", createTime = start + 5 * TICK + TICK / 2)
+            val source = SteadyWrites(InMemoryNineXEventSource(listOf(first)), written, late)
+            val options = ImportOptions(pageSize = 1, concurrency = 1, lookbackMillis = 10 * TICK)
+            now = start
+            importer(source, options).importAll(order)
+            // The tail's passes as `tail` runs them, while 9.x commits a stream at each page the tail reads, four
+            // look-backs long; then one more.
+            var passes = 0
+            while (source.writing) {
+                importer(source, options).tailOnce(order)
+                passes++
+            }
+            importer(source, options).tailOnce(order)
+            // It became visible within the look-back of its commit time, which is what the look-back covers.
+            source.lateDelay!!.assert().isLessThan(options.lookbackMillis)
+            log.read(NineXExample.orderModel.type.ref("(0)", "late")).toList().map { it.version }.assert()
+                .containsExactly(1)
+            (written + first).forEach { stream ->
+                log.read(NineXExample.orderModel.type.ref("(0)", stream.aggregateId.id)).toList().size.assert()
+                    .isEqualTo(1)
+            }
+            // Each pass ends at the latest stream committed when it starts, so the tail saves its checkpoint, and
+            // goes on to the next aggregate, while 9.x writes.
+            passes.assert().isGreaterThan(1)
+        }
+
+    /**
+     * A 9.x store under steady writes: each read by commit time first commits the next of [written]; [late], committed
+     * early, becomes visible only at the first read whose cursor is past its commit time, [lateDelay] after it.
+     */
+    private class SteadyWrites(
+        private val nineX: InMemoryNineXEventSource,
+        written: List<NineXStream>,
+        private val late: NineXStream,
+    ) : NineXEventSource by nineX {
+        private val pending = ArrayDeque(written)
+        private var committedTo = 0L
+        var lateDelay: Long? = null
+            private set
+        val writing: Boolean
+            get() = pending.isNotEmpty()
+
+        override fun committedSince(
+            aggregate: NineXAggregate,
+            from: Long,
+            after: NineXPosition?,
+            limit: Int,
+            until: NineXPosition?,
+        ): List<NineXStream> {
+            pending.removeFirstOrNull()?.let {
+                nineX.add(it)
+                committedTo = it.createTime
+            }
+            if (lateDelay == null && after != null && after.createTime > late.createTime) {
+                nineX.add(late)
+                lateDelay = committedTo - late.createTime
+            }
+            return nineX.committedSince(aggregate, from, after, limit, until)
+        }
+    }
 
     @Test
     fun `the final pass is the tail only when the tail followed 9x until it stopped`(): Unit = runTest {
@@ -340,12 +416,14 @@ class EventStreamImporterTest {
             AppendOutcome.Conflict(0),
             AppendOutcome.Committed(position),
         )
+        appendsOneByOne(flaky)
         importer(
             InMemoryNineXEventSource(listOf(first)),
             target = flaky
         ).importAll(order).imported.assert().isEqualTo(1)
         val broken = mockk<EventLog>()
         coEvery { broken.append(any(), any()) } returns AppendOutcome.Unknown(IllegalStateException("timeout"))
+        appendsOneByOne(broken)
         checkpoints.save(ImportCheckpoints())
         val failure = assertThrows<MigrationException> {
             importer(
@@ -363,6 +441,7 @@ class EventStreamImporterTest {
         val refusing = mockk<EventLog>()
         val cause = IllegalArgumentException("unsupported Unicode escape sequence")
         coEvery { refusing.append(any(), any()) } returns AppendOutcome.Rejected(cause)
+        appendsOneByOne(refusing)
         val failure = assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first)), target = refusing).importAll(order)
         }
@@ -376,8 +455,66 @@ class EventStreamImporterTest {
         val taken = mockk<EventLog>()
         coEvery { taken.append(any(), any()) } returns
             AppendOutcome.AlreadyCommitted(record.copyWith(ref = record.ref.copy(id = "someone-else")))
+        appendsOneByOne(taken)
         assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first)), target = taken).importAll(order)
+        }
+    }
+
+    @Test
+    fun `a page's streams are appended in groups of whole instances, one call of the log each`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val calls = mutableListOf<Int>()
+        var single = 0
+        val counting = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
+                single++
+                return log.append(stream, transport)
+            }
+
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                synchronized(calls) { calls += streams.size }
+                return log.appendAll(streams)
+            }
+        }
+        // Five instances, two of them holding a second stream: seven streams in two groups, by whole instances.
+        val streams = (1..5).map { copyOf(first, "order-$it") } +
+            (1..2).map { copyOf(NineXExample.stream("order-stream-v2.json"), "order-$it") }
+        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2), counting).importAll(order).also {
+            it.imported.assert().isEqualTo(7)
+            it.instances.assert().isEqualTo(5)
+        }
+        calls.sorted().assert().containsExactly(3, 4)
+        single.assert().isEqualTo(0)
+        log.read(NineXExample.orderModel.type.ref("(0)", "order-1")).toList().map { it.version }.assert()
+            .containsExactly(1, 2)
+        // A rerun meets every stream in the log: each instance goes on alone from its first, and skips it.
+        calls.clear()
+        importer(InMemoryNineXEventSource(streams), ImportOptions(concurrency = 2, restart = true), counting)
+            .importAll(order).also {
+                it.imported.assert().isEqualTo(0)
+                it.skipped.assert().isEqualTo(7)
+            }
+        calls.sorted().assert().containsExactly(3, 4)
+    }
+
+    @Test
+    fun `a gap in an instance's 9x versions stops the import before its group is appended`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val third = NineXExample.stream("order-stream-v3.json")
+        val source = InMemoryNineXEventSource(listOf(first, third))
+        assertThrows<MigrationException> { importer(source).importAll(order) }.message.assert()
+            .isEqualTo(
+                "9.x stream ${third.id} of example-service.order/${first.aggregateId} is version 3 where 2 was " +
+                    "expected: the 9.x history has a gap.",
+            )
+        log.read(NineXExample.orderModel.type.ref("(0)", first.aggregateId.id)).toList().assert().isEmpty()
+    }
+
+    /** [log] answering a group commit as the log's own default does: one append after another. */
+    private fun appendsOneByOne(log: EventLog) {
+        coEvery { log.appendAll(any()) } coAnswers {
+            firstArg<List<Pair<EventStreamRecord, ByteArray?>>>().map { (stream, transport) -> log.append(stream, transport) }
         }
     }
 
@@ -403,9 +540,9 @@ class EventStreamImporterTest {
     fun `the import times every phase it runs`() = runTest {
         val inMemory = InMemoryEventLog(4)
         val slowLog = object : EventLog by inMemory {
-            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
-                Thread.sleep(2)
-                return inMemory.append(stream, transport)
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
+                Thread.sleep(2L * streams.size)
+                return inMemory.appendAll(streams)
             }
         }
         val done = importer(InMemoryNineXEventSource(NineXExample.streams()), target = slowLog)
@@ -425,5 +562,7 @@ class EventStreamImporterTest {
 
     private companion object {
         const val MAX_TAIL_AGE = 60_000L
+        const val WRITES = 40
+        const val TICK = 100L
     }
 }

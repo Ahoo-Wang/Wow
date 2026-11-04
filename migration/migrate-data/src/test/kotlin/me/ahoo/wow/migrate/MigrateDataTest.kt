@@ -394,7 +394,11 @@ class MigrateDataTest {
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("Comparing in the time zone ${ZoneId.systemDefault()}: run compare in the one 9.x")
             .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
-            .contains("Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key")
+            .contains("example-service.order imported streams not checked: the tail never followed it")
+            .contains(
+                "Comparison done: every state compared equals its 9.x snapshot, the log holds every stream 9.x " +
+                    "committed since the import up to where the tail has read, every confirmed 9.x key",
+            )
         run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("0 V10 snapshots written, 1 already there")
     }
@@ -490,8 +494,8 @@ class MigrateDataTest {
         )
             .contains(
                 "FAILED 1 instances of [example-service.cart] have no V10 snapshot, each printed above: fix them, then " +
-                    "run snapshot again, which walks every instance of those aggregates again and passes over the " +
-                    "snapshots written.",
+                    "run snapshot again, which walks every instance of those aggregates again, or reads again what " +
+                    "the log changed when it was catching up, and passes over the snapshots written.",
             )
             .doesNotContain("Snapshots done.")
     }

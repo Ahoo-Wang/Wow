@@ -16,7 +16,7 @@ The analytics catalog (the console calls itself Wow Analytics Catalog) is the co
 
 ## Deploy it
 
-[`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) holds Kubernetes manifests for two nodes on MongoDB (or PostgreSQL, through its `postgres` component), built on the same choices as the eShop services ([Deployment Model](./topology)):
+[`deploy/analytics-catalog`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/analytics-catalog) holds its values for Wow's chart, two nodes on MongoDB (or PostgreSQL, with `values-postgres.yaml`), on the same choices as the eShop services ([Kubernetes](./kubernetes)):
 
 1. Build the console, then the server's distribution, which copies the console's build into its `ui/` folder, then the image.
 2. Provide MongoDB and the ClickHouse warehouse the services' Sinks write to. The catalog creates no table in ClickHouse; its account needs `CREATE DATABASE`, `CREATE VIEW` and `DROP VIEW` on the datasets' database, `wow_datasets`, and `SELECT` on the source tables the views read.

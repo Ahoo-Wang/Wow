@@ -106,8 +106,9 @@ class OwnerIdRoutesTest {
         node.post("/shop/basket/put-item", """{"sku":"apple"}""").assertSucceeded().body!!["version"].asInt()
             .assert().isEqualTo(2)
         node.post("/shop/basket/alice/put-item", """{"sku":"pear"}""").assertSucceeded()
+        // Another owner's id reaches nothing: answered as missing, and forbidden to a creation.
         node.post("/shop/basket/bob/put-item", """{"sku":"pear"}""")
-            .assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         node.post("/shop/basket/bob/open-basket").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
         node.get("/shop/basket/alice/state").body!!["state"]["items"].asInt().assert().isEqualTo(2)
     }
@@ -124,7 +125,7 @@ class OwnerIdRoutesTest {
         node.client.delete().uri("/shop/basket").header("X-User", "bob").answer()
             .assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         node.client.delete().uri("/shop/basket/alice").header("X-User", "bob").answer()
-            .assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test

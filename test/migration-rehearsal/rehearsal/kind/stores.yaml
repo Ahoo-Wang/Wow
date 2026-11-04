@@ -92,9 +92,12 @@ spec:
           ports:
             - name: postgres
               containerPort: 5432
+          # Over TCP: on a first start the image runs initdb's scripts on a temporary server that listens on the
+          # socket only, then restarts; a probe on the socket can pass before that restart, and the first createdb
+          # then lands in the gap.
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "postgres", "-d", "example"]
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "example"]
             periodSeconds: 2
 ---
 apiVersion: v1

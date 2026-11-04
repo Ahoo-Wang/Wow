@@ -33,6 +33,30 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
             .toList()
     }
 
+    override fun snapshot(aggregate: NineXAggregate, id: String): NineXSnapshot? =
+        database.getCollection(aggregate.name + SUFFIX)
+            .find(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(ID, id)))
+            .first()
+            ?.let { NineXSnapshot.parse(MongoNineXEventSource.toNode(it)) }
+
+    /**
+     * No index orders `snapshotTime`, so the pages read the collection once in `_id` order, each up to [limit]
+     * snapshots taken since; a document without a numeric `snapshotTime` is taken as one ({ `$not`: { `$lt` } }).
+     */
+    override fun takenSince(aggregate: NineXAggregate, from: Long, after: String?, limit: Int): List<NineXSnapshot> {
+        val filters = listOfNotNull(
+            Filters.eq(CONTEXT_NAME, aggregate.context),
+            Filters.not(Filters.lt(SNAPSHOT_TIME, from)),
+            after?.let { Filters.gt(ID, it) },
+        )
+        return database.getCollection(aggregate.name + SUFFIX)
+            .find(Filters.and(filters))
+            .sort(Sorts.ascending(ID))
+            .limit(limit)
+            .map { NineXSnapshot.parse(MongoNineXEventSource.toNode(it)) }
+            .toList()
+    }
+
     override fun instances(aggregate: NineXAggregate): Long =
         database.getCollection(aggregate.name + MongoNineXEventSource.SUFFIX)
             .countDocuments(Filters.and(Filters.eq(CONTEXT_NAME, aggregate.context), Filters.eq(VERSION, 1)))
@@ -47,5 +71,6 @@ internal class MongoNineXSnapshotSource(private val database: MongoDatabase) : N
         private const val CONTEXT_NAME = "contextName"
         private const val VERSION = "version"
         private const val DELETED = "deleted"
+        private const val SNAPSHOT_TIME = "snapshotTime"
     }
 }

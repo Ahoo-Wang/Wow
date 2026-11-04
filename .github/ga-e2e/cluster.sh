@@ -21,7 +21,8 @@
 #   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway, its Redis with its
 #                                 documents published and the flaky upstream behind it, the probe pods, and on the mongo
 #                                 arm the replica set and Elasticsearch
-#   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
+#   cluster.sh services <arm>     the services in waves, each a release of the wow-service chart (deploy/helm) with the
+#                                 values its build generated and its arm's values files (services/), until ready
 #   cluster.sh dns <file>         what CoreDNS answers for the internal ports' headless Services (SRV and A), for D305
 #   cluster.sh diagnostics <dir>  every pod's description and log (the previous container's too), the events, and
 #                                 each JVM's threads
@@ -51,6 +52,18 @@ IMAGES=(
   "wow-ops-server:local|platform/ops/ops-server|"
   "wow-view-store-server:local|platform/view-store/view-store-server|"
   "wow-analytics-catalog-server:local|platform/analytics/catalog/server|"
+)
+
+# service | its Gradle server module's directory, where generateWowHelmValues wrote build/wow/helm/values.yaml
+SERVICES=(
+  "eshop-catalog|examples/eshop/catalog/catalog-server"
+  "eshop-basket|examples/eshop/basket/basket-server"
+  "eshop-ordering|examples/eshop/ordering/ordering-server"
+  "eshop-inventory|examples/eshop/inventory/inventory-server"
+  "eshop-payment|examples/eshop/payment/payment-server"
+  "ops|platform/ops/ops-server"
+  "view-store|platform/view-store/view-store-server"
+  "analytics-catalog|platform/analytics/catalog/server"
 )
 
 # The waves of services: the platform first (ops records the ledgers), then the contexts others call or send to,
@@ -153,14 +166,27 @@ documents() {
   kill "$forward" 2>/dev/null || true
 }
 
-# The overlay of one service on the arm (services/<service>, deploy/<service> with the scenarios' settings): on the
-# postgres arm, an eShop service's postgres/<service>, which adds deploy/'s postgres component.
+# One service on the arm: its secret, then a release of the chart with, in order, the values its build generated, its
+# deploy/<service>/values.yaml (and values-postgres.yaml on the postgres arm), the run's values (services/values.yaml)
+# and the service's own for the run (services/<service>.yaml, services/<arm>/<service>.yaml), each over the one before.
 service() {
-  local name=$1 arm=$2 dir="$here/services/$1"
-  if [ "$arm" = postgres ] && [ -d "$here/services/postgres/$name" ]; then
-    dir="$here/services/postgres/$name"
+  local name=$1 arm=$2 entry module=""
+  local values=()
+  for entry in "${SERVICES[@]}"; do
+    [ "${entry%%|*}" = "$name" ] && module=${entry#*|}
+  done
+  [ -n "$module" ] || { log "::error::no server module for $name"; return 1; }
+  values+=(-f "$root/$module/build/wow/helm/values.yaml" -f "$root/deploy/$name/values.yaml")
+  if [ "$arm" = postgres ]; then
+    kubectl apply -f "$root/deploy/$name/postgres-secret.yaml"
+    values+=(-f "$root/deploy/$name/values-postgres.yaml")
+  else
+    kubectl apply -f "$root/deploy/$name/secret.yaml"
   fi
-  kubectl apply -k "$dir"
+  values+=(-f "$here/services/values.yaml")
+  [ ! -f "$here/services/$name.yaml" ] || values+=(-f "$here/services/$name.yaml")
+  [ ! -f "$here/services/$arm/$name.yaml" ] || values+=(-f "$here/services/$arm/$name.yaml")
+  helm upgrade --install "$name" "$root/deploy/helm/wow-service" "${values[@]}"
 }
 
 services() {
@@ -170,7 +196,7 @@ services() {
     for name in ${GA_EXCLUDED:-}; do wave=${wave//$name/}; done
     for name in $wave; do service "$name" "$arm"; done
     for name in $wave; do
-      # Every object is named after the service, its spring.application.name (deploy/).
+      # Every object is named after the service, its spring.application.name (the chart's service.name).
       if ! kubectl rollout status "deployment/$name-service" --timeout=600s; then
         log "::error::$name did not become ready on the $arm arm"
         failed=1
@@ -206,7 +232,8 @@ dns() {
 diagnostics() {
   local out=$1 pod container
   mkdir -p "$out/logs"
-  kubectl get all,networkpolicy,configmap,pvc -o wide >"$out/resources.txt" 2>&1 || true
+  kubectl get all,networkpolicy,poddisruptionbudget,configmap,pvc -o wide >"$out/resources.txt" 2>&1 || true
+  helm list -a >"$out/releases.txt" 2>&1 || true
   kubectl get events --sort-by=.lastTimestamp >"$out/events.txt" 2>&1 || true
   kubectl describe pods >"$out/pods.txt" 2>&1 || true
   kubectl -n kube-system get pods -o wide >"$out/kube-system.txt" 2>&1 || true

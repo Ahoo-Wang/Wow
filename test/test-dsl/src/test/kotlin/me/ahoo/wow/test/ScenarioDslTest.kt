@@ -252,11 +252,11 @@ class ScenarioDslTest {
                     headers.assert().containsEntry(RequestFacts.APP_ID, "console")
                 }
             }
-            // Another user's commands are outside the aggregate's scope.
+            // Another user's commands are outside the aggregate's scope: it is not found for them.
             asCaller(bob) {
-                whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
                 fork("as bob") {
-                    whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
+                    whenCommand(Reserve("cap", 1)) { expectRejected(FrameworkCodes.AGGREGATE_NOT_FOUND) }
                 }
             }
             // A scope other than the caller's is one it crosses into, its operator acting elsewhere.

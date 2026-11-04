@@ -46,7 +46,9 @@
 # where it runs after the offline cut-over (where_timings).
 #
 # MODE=bench (kind only) seeds and checks, stops 9.x, then times the import of two migrate-data images, a baseline and
-# a candidate, A B B A (bench_imports), and ends there: the cut-overs and rollbacks do not run.
+# a candidate, A B B A (bench_imports), and ends there: the cut-overs and rollbacks do not run. MODE=cutover (kind
+# only) seeds and checks, then times the write stop of an online cut-over by the two images, A B B A, each after its
+# own import and dual run (cutover_bench), and ends there too.
 #
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # VIEWS_HOME (:view-store-server's installDist), MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal
@@ -70,8 +72,8 @@ SAMPLE="${SAMPLE:-1}"
 FINAL_PASS="${FINAL_PASS:-final}"
 MIGRATE_IN="${MIGRATE_IN:-runner}"
 MODE="${MODE:-rehearsal}"
-if [ "$MODE" = bench ] && [ "$MIGRATE_IN" != kind ]; then
-  echo "MODE=bench runs on the kind arm alone (MIGRATE_IN=kind)" >&2
+if { [ "$MODE" = bench ] || [ "$MODE" = cutover ]; } && [ "$MIGRATE_IN" != kind ]; then
+  echo "MODE=$MODE runs on the kind arm alone (MIGRATE_IN=kind)" >&2
   exit 1
 fi
 MONGO_PORT="${REHEARSAL_MONGO_PORT:-27017}"
@@ -382,9 +384,13 @@ step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv"
 step seed-compensation 0 mongosh_run --eval "var count = $EXECUTIONS, example = 'wow_example_db', compensation = 'compensation_db'" /rehearsal/seed-compensation.js
 step ninex-seeded 0 ninex_streams
 step check 0 migrate check
-if [ "$MODE" = bench ]; then
-  stop_pid ninex
-  bench_imports
+if [ "$MODE" = bench ] || [ "$MODE" = cutover ]; then
+  if [ "$MODE" = bench ]; then
+    stop_pid ninex
+    bench_imports
+  else
+    cutover_bench
+  fi
   log "done: $STEPS"
   python3 "$REHEARSAL/report.py" "$WORK" >"$WORK/report.md"
   cat "$WORK/report.md"

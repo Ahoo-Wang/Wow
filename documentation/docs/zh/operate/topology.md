@@ -59,7 +59,7 @@ flowchart LR
 
 在 Kubernetes 上，eShop 的 ordering 清单从 Pod 取得节点 ID 和绑定的地址，并公布这个地址，即 Pod 的 IP：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -71,20 +71,29 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
+  # The ports the Services and the probes name: the chart's, whatever the image's configuration says.
   - name: SERVER_PORT
-    value: "8083"
+    value: {{ .Values.ports.http | quote }}
   - name: WOW_INTERNAL_PORT
-    value: "9093"
+    value: {{ .Values.ports.internal | quote }}
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # The internal port binds the pod's private address only, and the node advertises that address,
-  # $(POD_IP):9093: a Deployment's pods have no DNS name of their own.
+  # The internal port binds the pod's private address only, and the node advertises that address: a
+  # Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
+  # The namespace a peer's SRV name is in, unless wow.peer.dns.namespaces places the peer elsewhere.
+  - name: WOW_PEER_DNS_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  {{- with .Values.env }}
+  {{- toYaml . | nindent 12 }}
+  {{- end }}
 ```
 
-Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
+Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP。headless Service 以服务的名字命名，即 `eshop-ordering-service-cluster`：它的 SRV 记录列出每个节点的地址，包括尚未就绪的节点，其他服务只凭服务名就在那里找到它的节点。Wow 的 chart（[Kubernetes](./kubernetes)）渲染出这一切，[eShop ordering 的 values](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) 是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 
@@ -142,31 +151,31 @@ spring:
 2. 节点不再接收其分区的命令，在 `wow.cluster.drain-timeout`（10 秒）之内执行完在途的命令，保存订阅的检查点并释放租约。其他节点接管这些分区。
 3. 内部端口最后关闭。
 
-除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段调整到足够长。平台的终止宽限期至少要给这么多；eShop 的清单用的是 90 秒。
+除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主会把 Spring Boot 的关闭阶段调整到足够长。平台的终止宽限期至少要给这么多；Wow 的 chart 用同样的时限推导它，默认 90 秒（[Kubernetes](./kubernetes#graceful-shutdown)）。
 
 类路径上有 Spring Boot Actuator 时，宿主把节点的健康状况加入就绪和存活分组：
 
-<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/helm/wow-service/templates/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 36
+  periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+  failureThreshold: {{ .Values.probes.startup.failureThreshold }}
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
     port: http
-  periodSeconds: 5
-  failureThreshold: 2
+  periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
     port: http
-  periodSeconds: 10
-  failureThreshold: 3
+  periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+  failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
 - **就绪**在以下情况失败：节点尚未运行、它的日志存储、写入需要的某个存储（某个聚合类型的主快照存储）或租约存储不可用、交接宽限期过后它仍没有拥有应得的任何分区，或者它读取的某个主题仍在加入中。

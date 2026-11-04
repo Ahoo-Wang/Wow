@@ -85,14 +85,93 @@ class SnapshotWriterTest {
     }
 
     @Test
-    fun `writing again skips what is written, and a restart finds every snapshot there`() = runTest {
+    fun `writing again catches up on nothing, and a restart finds every snapshot there`() = runTest {
         imported()
         writer().writeAll(order)
-        writer().writeAll(order).written.assert().isEqualTo(1)
+        writer().writeAll(order).also {
+            it.caughtUp.assert().isTrue()
+            it.render().assert().isEqualTo(
+                "example-service.order snapshots caught up: 0 instances the V10 log changed since, 0 V10 snapshots " +
+                    "written, 0 already there",
+            )
+        }
         writer(options = ImportOptions(restart = true)).writeAll(order).also {
+            it.caughtUp.assert().isFalse()
             it.written.assert().isEqualTo(0)
             it.skipped.assert().isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `once a walk has completed, a run writes the snapshots of the instances the log changed since`() = runTest {
+        imported()
+        writer().also {
+            it.writeAll(order)
+            it.writeAll(cart)
+        }
+        val walked = checkpoints.load().snapshotsOf(order)!!.heads!!
+        walked.assert().isNotEmpty()
+        // 9.x commits once more, and the tail brings it in.
+        val last = streams.last { it.aggregate == order }
+        val late = last.copy(
+            id = "late",
+            version = last.version + 1,
+            commandId = "late",
+            requestId = "late",
+            createTime = System.currentTimeMillis(),
+        )
+        val source = InMemoryNineXEventSource(streams + late)
+        EventStreamImporter(source, NineXExample.plan, { log }, checkpoints).tailOnce(order)
+        writer(source).writeAll(order).also {
+            it.caughtUp.assert().isTrue()
+            it.written.assert().isEqualTo(1)
+            it.done.assert().isTrue()
+        }
+        store.load(NineXExample.orderModel.type.ref(late.aggregateId.tenantId, late.aggregateId.id))!!.version
+            .assert().isEqualTo(late.version)
+        // The cart's log did not change.
+        writer(source).writeAll(cart).written.assert().isEqualTo(0)
+        checkpoints.load().snapshotsOf(order)!!.also {
+            it.heads.assert().isNotEqualTo(walked)
+            it.written.assert().isEqualTo(2)
+        }
+        writer(source).writeAll(order).written.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a catch-up whose instance does not rebuild reads the same entries again on the next run`() = runTest {
+        imported()
+        writer().writeAll(cart)
+        val walked = checkpoints.load().snapshotsOf(cart)!!.heads
+        // A cart the log holds since, whose last event the V10 model does not read.
+        val unreadable = InMemoryNineXEventSource(streams + NineXExample.cartRemoving("cart-null", "[null]"))
+        EventStreamImporter(unreadable, NineXExample.plan, { log }, checkpoints, ImportOptions(restart = true))
+            .importAll(cart)
+        repeat(2) {
+            writer().writeAll(cart).also {
+                it.caughtUp.assert().isTrue()
+                it.failed.assert().isEqualTo(1)
+            }
+            checkpoints.load().snapshotsOf(cart)!!.heads.assert().isEqualTo(walked)
+        }
+        printed.last().assert().startsWith("FAILED example.cart/(0)/cart-null, the 9.x instance ")
+    }
+
+    @Test
+    fun `a walk an earlier version completed, recording no heads, is walked again`() = runTest {
+        imported()
+        writer().writeAll(order)
+        checkpoints.update { it.with(order, it.snapshotsOf(order)!!.copy(heads = null)) }
+        writer().writeAll(order).also {
+            it.caughtUp.assert().isFalse()
+            it.skipped.assert().isEqualTo(1)
+            it.done.assert().isTrue()
+        }
+        printed.assert().contains(
+            "example-service.order: its snapshots were written by an earlier version, which recorded no position of " +
+                "the V10 log to catch up from, so every instance is walked again.",
+        )
+        checkpoints.load().snapshotsOf(order)!!.heads.assert().isNotNull()
     }
 
     @Test

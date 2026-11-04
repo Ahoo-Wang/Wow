@@ -26,9 +26,23 @@ internal class InMemoryNineXSnapshotSource(
         snapshots += snapshot
     }
 
+    /** Takes [snapshot] in place of the instance's, as 9.x writes a newer one over it. */
+    fun put(snapshot: NineXSnapshot) {
+        snapshots.removeIf { it.aggregate == snapshot.aggregate && it.aggregateId.id == snapshot.aggregateId.id }
+        snapshots += snapshot
+    }
+
     override fun snapshots(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXSnapshot> =
         snapshots.filter { it.aggregate == aggregate && (after == null || it.aggregateId.id > after.id) }
             .sortedBy { it.aggregateId.id }
+            .take(limit)
+
+    override fun snapshot(aggregate: NineXAggregate, id: String): NineXSnapshot? =
+        snapshots.lastOrNull { it.aggregate == aggregate && it.aggregateId.id == id }
+
+    override fun takenSince(aggregate: NineXAggregate, from: Long, after: String?, limit: Int): List<NineXSnapshot> =
+        snapshots(aggregate, after?.let { NineXAggregateId(it, "") }, Int.MAX_VALUE)
+            .filter { (it.snapshotTime ?: from) >= from }
             .take(limit)
 
     override fun instances(aggregate: NineXAggregate): Long =

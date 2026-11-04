@@ -1,0 +1,48 @@
+# The ops service's own values for the wow-service chart (deploy/helm/wow-service), on MongoDB and Kafka:
+# what the build does not know. Pass them after the values its build generates, so they override them:
+#
+#   ./gradlew :ops-server:generateWowHelmValues
+#   helm install ops deploy/helm/wow-service \
+#     -f platform/ops/ops-server/build/wow/helm/values.yaml -f deploy/ops/values.yaml
+#
+# values-postgres.yaml after these puts the service on PostgreSQL instead.
+image:
+  # The image the released image, tagged with the chart's version (the Wow version) unless image.tag says otherwise; or one built from this repository (README.md).
+  repository: ahoowang/wow-ops-server
+# The ports of the image's own configuration (application.yaml), which the chart sets on the pod.
+ports:
+  http: 8088
+  internal: 9098
+# The nodes share the partitions through leases in the service's database: no ZooKeeper, no consumer group.
+replicas: 2
+# The internal port admits the pods of the platform, labelled app.kubernetes.io/part-of: wow-platform.
+partOf: wow-platform
+config:
+  # The mongo profile keeps the service's data on MongoDB, the replica set at secret.yaml's URI (deploy/mongodb), in a
+  # database of its own; the kafka profile connects it to the other contexts through Kafka; the cosec profile takes the
+  # callers from the CoSec gateway in front of the service.
+  SPRING_PROFILES_ACTIVE: mongo,kafka,cosec
+  WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
+  # The topics the service owns are created by the operator; the node only validates them. The kafka profile's auto
+  # is for trying the service out.
+  WOW_KAFKA_DDL: validate
+  # Fixed once the context's log holds entries.
+  WOW_LOG_PARTITIONS: "64"
+  # Traces and metrics: the node's spans and Micrometer meters go through the OpenTelemetry Java agent, which the
+  # OpenTelemetry Operator injects (podAnnotations, with an Instrumentation resource in the namespace). Without the
+  # agent they are no-ops. It exports to the collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
+# The database's connection: secret.yaml, an example to replace.
+envFrom:
+  - secretRef:
+      name: ops-service-mongo
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-java: "true"
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    memory: 1Gi
