@@ -26,7 +26,6 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.events.EventQueryGateways
-import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -85,7 +84,7 @@ fun queryManifest(): Manifest {
 
 /**
  * The events query gateway of the cart over [log] (decision D235), as the host builds one over a log in memory:
- * the Manifest's events schema, the scope policy, [visibility] and [masks].
+ * the Manifest's events schema, the scope policy and [masks].
  */
 @Suppress("LongParameterList")
 fun cartEvents(
@@ -93,7 +92,6 @@ fun cartEvents(
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     manifest: Manifest = queryManifest(),
-    visibility: EventVisibility = EventVisibility.ALL,
     masks: PayloadMasks = PayloadMasks.NONE,
     storage: QueryBindings<AggregateType> = InMemoryEventQueryStorage.of(log),
     crossTenant: Boolean = false,
@@ -111,8 +109,6 @@ fun cartEvents(
             ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest), crossTenant = crossTenant),
         ),
         entryPolicy = entryPolicy,
-        visibility = visibility,
-        tenants = tenants,
         masks = masks,
     )
 }
@@ -183,12 +179,6 @@ class QueryNode(
                     log,
                     entryPolicy = entryPolicy,
                     manifest = manifest,
-                    // As the host wires it: the latest committed state, visible through the snapshot queries
-                    // (reviews A3-11, R2.3-6).
-                    visibility = EventVisibility.of(
-                        { gateway ?: policyGateway },
-                        hides = policies.isNotEmpty()
-                    ) { ref -> http.reads.committed(ref) },
                     masks = PayloadMasks(manifest),
                     crossTenant = crossTenant,
                 ),

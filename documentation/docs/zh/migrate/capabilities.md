@@ -122,7 +122,7 @@ outline: deep
 | 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | — |
 | 在查询和状态读取中脱敏敏感字段 | 保留 | — |
 | ABAC 查询策略、CoSec 的 `abac.` 属性 | 替代 | 由访问属性与访问策略取代；`wow.query.abac.*` 启动时拒绝。 |
-| 查询策略 SPI 与作用域 | 保留 | — |
+| 查询策略 SPI 与作用域 | 替代 | 作用域保留。拒绝调用方的规则是 `ReadAuthorizer` Bean，收窄行的规则是访问策略；`QueryPolicy` 是 Wow 自己的。 |
 | MongoDB 与 Elasticsearch 上的快照查询 | 保留 | 还有 PostgreSQL。 |
 | 事件流查询与跨聚合的聚合 | 保留 | 快照、事件和数据集共用一个查询引擎。 |
 | HTTP 查询路由（`snapshot/list` 等） | 替代 | `POST /{context}/{aggregate}/{model}/query`，查询种类写在请求体里。 |

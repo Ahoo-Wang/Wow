@@ -21,14 +21,12 @@ import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.policy.QueryPolicy
 import org.junit.jupiter.api.Test
 
 /**
- * A row the application's query policies hide from the snapshot queries is hidden from the reads by id too (review
- * A3-11): the state, a version of it, its trace and its events. The policy here hides a cart of two items from every
- * caller but the admin.
+ * A row the query policies hide from the snapshot queries is hidden from the reads by id too (review A3-11): the
+ * state, a version of it and its trace. The policy here hides a cart of two items from every caller but the admin.
  */
 class StateVisibilityRoutesTest {
     private val hideTwoItems = QueryPolicy { caller, _ ->
@@ -80,64 +78,28 @@ class StateVisibilityRoutesTest {
     }
 
     @Test
-    fun `the events of an aggregate the policies hide are not returned`() {
-        cart("c-one", 1)
-        cart("c-two", 2)
-        val tenantLevel = mapOf("X-Tenant-Level" to "true")
-        fun events(id: String, user: String) = node.query(
-            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
-            user,
-            QueryRoutes.EVENTS,
-            tenantLevel,
-        )
-        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
-        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
-        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun `before its first snapshot an aggregate's events follow the same rule, on the state its log holds`() {
+    fun `before its first snapshot an aggregate's state follows the same rule, on the state its log holds`() {
         val tenantLevel = mapOf("X-Tenant-Level" to "true")
         listOf("c-one" to 1, "c-two" to 2).forEach { (id, quantity) ->
             node.http.post("/shop/cart/$id/add-item", """{"sku":"apple","quantity":$quantity}""", "admin", tenantLevel)
                 .status.assert().isEqualTo(200)
         }
-        fun events(id: String, user: String) = node.query(
-            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
-            user,
-            QueryRoutes.EVENTS,
-            tenantLevel,
-        )
         // No snapshot is written: the state the log holds decides (review R2.3-6), for the state read too (D246).
         node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(200)
         node.http.get("/shop/cart/c-two/state", "alice", tenantLevel).assertNotFound()
         node.http.get("/shop/cart/c-one/state", "alice", tenantLevel).status.assert().isEqualTo(200)
-        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
-        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
-        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
-        // An aggregate with no commit has no streams, for any caller.
-        events("c-none", "admin").body!!.size().assert().isEqualTo(0)
     }
 
     @Test
-    fun `without snapshot queries the policies still hide the state and the events`() {
+    fun `without snapshot queries the policies still hide the state`() {
         // Review R3.3-3: the cart's snapshots are not queried, so its policies are evaluated on its state alone.
         val unqueried = QueryNode(policies = listOf(hideTwoItems), snapshots = { null })
         cart("c-one", 1, unqueried)
         cart("c-two", 2, unqueried)
         val tenantLevel = mapOf("X-Tenant-Level" to "true")
-        fun events(id: String, user: String) = unqueried.query(
-            """{"kind":"list","filter":{"op":"eq","field":"aggregateId","value":"$id"}}""",
-            user,
-            QueryRoutes.EVENTS,
-            tenantLevel,
-        )
         unqueried.http.get("/shop/cart/c-one/state", "alice", tenantLevel).status.assert().isEqualTo(200)
         unqueried.http.get("/shop/cart/c-two/state", "alice", tenantLevel).assertNotFound()
         unqueried.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(200)
-        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
-        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
-        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
         unqueried.query("""{"kind":"list","filter":{"op":"match-all"}}""", "admin", headers = tenantLevel)
             .status.assert().isEqualTo(404)
     }

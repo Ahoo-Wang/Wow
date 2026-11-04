@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.DevelopmentHeaders
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAuthorizer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -34,8 +34,8 @@ import java.net.URLClassLoader
  * code's fault, not the caller's, so the caller is not told its command is invalid.
  *
  * The caller a command function reads as is the one the command records, rebuilt: its tenant, owner and space and
- * its operator, not the request's roles or attributes, which live only with the request; a policy that reads them
- * sees none ([LibrarianRole]). Trusted code reads past every policy, in every tenant.
+ * its operator, not the request's roles or attributes, which live only with the request; a read authorizer that reads
+ * them sees none ([LibrarianRole]). Trusted code is not asked, and reads in every tenant.
  *
  * The host serves the bank's context and the [LibraryModels] module, which only this test's class loader lists.
  */
@@ -103,12 +103,13 @@ class HostDecideQueriesTest {
         // The request's caller is a librarian: it reads the books itself, and a caller without the role does not.
         host.post("/library/book/snapshot/query", count, LIBRARIAN_ALICE).status.assert().isEqualTo(OK)
         host.post("/library/book/snapshot/query", count, ALICE).status.assert().isEqualTo(FORBIDDEN)
-        // The caller rebuilt from its command has no role: the librarian's policy refuses the read, and the command fails.
+        // The caller rebuilt from its command has no role: the librarian's authorizer refuses the read, and the command
+        // fails.
         lend("b-5", COUNT_AS_CALLER, LIBRARIAN_ALICE).also {
             it.status.assert().isEqualTo(FAILED)
             it.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         }
-        // Trusted code reads past the policy, in the command's tenant: the function goes on, and finds no such account.
+        // Trusted code is not asked, and reads in the command's tenant: the function goes on, and finds no such account.
         lend("b-6", COUNT_TRUSTED, LIBRARIAN_ALICE).body!!["code"].asString().assert().isEqualTo(NO_ACCOUNT)
     }
 
@@ -122,9 +123,9 @@ class HostDecideQueriesTest {
     }
 }
 
-/** The library's query policy ([LibrarianRole]) on the test's host. */
+/** The library's read authorizer ([LibrarianRole]) on the test's host. */
 @Configuration(proxyBeanMethods = false)
 class LibraryPolicies {
     @Bean
-    fun librarianRole(): QueryPolicy = LibrarianRole()
+    fun librarianRole(): ReadAuthorizer = LibrarianRole()
 }

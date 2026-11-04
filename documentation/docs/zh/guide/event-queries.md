@@ -66,7 +66,7 @@ perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().co
 
 聚合的访问属性改变时，它更早的流会被重新盖章，通常在几秒之内完成；在那之前，事件查询按这些流原先盖的属性读取它们。状态读取，以及按版本、按时间和 trace 的读取，都在聚合的最新状态上检查，所以从不滞后（[读取状态](./reading-state)）。
 
-服务自己的 `QueryPolicy` 读取状态，而流里不带状态，除非它声明自己不隐藏任何流（`EventsMode.NONE`）。只要有这样的策略生效，每个事件查询都要指明它的聚合，节点在回答之前用快照模型的准入和策略检查这些聚合。状态 schema 脱敏的字段，在事件中同样脱敏。
+拒绝某个调用方的读取授权器，同样在读取任何东西之前拒绝它的事件查询（[授权读取](../operate/security#authorize-reads)）。状态 schema 脱敏的字段，在事件中同样脱敏。
 
 ## 未固定聚合的查询 {#unpinned-queries}
 

@@ -29,8 +29,7 @@ import java.util.concurrent.TimeUnit
  * Observes every query a gateway runs: a span `query <context>.<aggregate>` with its query type, the
  * child of the span the query is asked in, and its time in the [WowMetrics.QUERY_DURATION] timer of [meters], tagged with how
  * it ended: `ok`, `cached`, `error` or `cancelled`. A query of a dataset is tagged with the dataset ([WowMetrics.DATASET])
- * instead of an aggregate type, and timed in [WowMetrics.DATASET_QUERY_DURATION]. The aggregates a pinned events query had checked count in
- * [WowMetrics.EVENTS_PINNED], by how they were read.
+ * instead of an aggregate type, and timed in [WowMetrics.DATASET_QUERY_DURATION].
  */
 @InternalWowApi
 class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : QueryObserver {
@@ -56,20 +55,5 @@ class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : Q
                 outcome.value,
             ).record(nanos, TimeUnit.NANOSECONDS)
         }
-    }
-
-    override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) {
-        pinned(aggregateType, WowMetrics.BATCH_READ, batched)
-        pinned(aggregateType, WowMetrics.POINT_READ, pointReads)
-    }
-
-    private fun pinned(aggregateType: AggregateType, read: String, count: Int) {
-        if (count == 0) return
-        cached.counter(
-            WowMetrics.EVENTS_PINNED,
-            aggregateType.context,
-            aggregateType.name,
-            read
-        ).increment(count.toDouble())
     }
 }

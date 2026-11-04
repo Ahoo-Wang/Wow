@@ -18,22 +18,17 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.DeletionFilter
-import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.SingleQuery
-import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -69,12 +64,10 @@ import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.schema.withConstraints
-import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
-import kotlin.time.toJavaDuration
 
 /**
  * The queries of one aggregate type's read model, each run for an explicit [QueryCaller]: admitted
@@ -154,15 +147,6 @@ interface QueryGateway {
      * policy: a state of the history of an aggregate [admitRecord] admitted, read as the aggregate is now.
      */
     suspend fun maskRecord(record: ObjectNode): ObjectNode = record
-
-    /**
-     * The batch form of [admitRecord], the events model's pinned check: the snapshot records of
-     * the aggregates [ids] of [tenantId], read by one query of this gateway's backend without [caller]'s restrictions,
-     * each admitted for [caller] in memory as [admitRecord] admits it. Null when this gateway queries no backend.
-     */
-    @InternalWowApi
-    suspend fun admitAggregates(tenantId: String, ids: Collection<String>, caller: QueryCaller): AdmittedAggregates? =
-        null
 
     companion object {
         /** The records a [stream] reads per chunk by default. */
@@ -258,41 +242,6 @@ class DefaultQueryGateway(
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
             .withConstraints(constraints)
-
-    /**
-     * One list query of the records `tenantId = ? AND aggregateId IN (?)`, of every deletion state, admitted as
-     * trusted code (no policy restricts it) and run within the caller's timeout and this store's bulkhead; each record
-     * is then admitted for [caller] by one condition built for all of them.
-     */
-    override suspend fun admitAggregates(
-        tenantId: String,
-        ids: Collection<String>,
-        caller: QueryCaller,
-    ): AdmittedAggregates {
-        if (ids.isEmpty()) return AdmittedAggregates.NONE
-        val schema = schemaProvider.schema()
-        val selected = AggregateIdsFilter(ids.distinct())
-        val query = ListQuery(
-            AndFilter(listOf(TenantIdFilter(tenantId), selected, DeletionFilter(DeletionState.ALL))),
-            limit = selected.values.size,
-        )
-        val entry = entryPolicy.admit(caller.entry)
-        val admitted = QueryAdmission.Trusted.list(query, schema, entry)
-            .withTimeout(entryPolicy.timeout(entry)?.toJavaDuration())
-        val admits = admission.recordFilter(
-            AndFilter(listOf(selected, DeletionFilter(DeletionState.ALL))),
-            schema,
-            caller
-        )
-        val stored = mutableSetOf<String>()
-        val visible = mutableSetOf<String>()
-        backend.list(admitted).collect { record ->
-            val id = record.get(SnapshotFields.AGGREGATE_ID)?.stringValue() ?: return@collect
-            stored += id
-            if (admits(record)) visible += id
-        }
-        return AdmittedAggregates(stored, visible)
-    }
 
     /**
      * Reads each backend record by [records], else masks it by the schema's response masks (every caller sees masked
@@ -409,20 +358,6 @@ class DefaultQueryGateway(
 
     private fun finished(queryType: QueryType, trail: QueryAuditTrail?, error: Throwable?) =
         observer.finished(aggregateType, queryType, trail, error)
-}
-
-/**
- * What [QueryGateway.admitAggregates] found: the aggregates that have a [stored] record, and the ones of them the
- * caller may see ([visible]).
- */
-@InternalWowApi
-class AdmittedAggregates(val stored: Set<String>, val visible: Set<String>) {
-    @InternalWowApi
-    companion object {
-        /** No aggregate asked, none found. */
-        @JvmField
-        val NONE: AdmittedAggregates = AdmittedAggregates(emptySet(), emptySet())
-    }
 }
 
 /**

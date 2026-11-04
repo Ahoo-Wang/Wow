@@ -34,7 +34,6 @@ import me.ahoo.wow.query.dataset.QueryDatasetListener
 import me.ahoo.wow.query.dataset.QueryDatasetScope
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.events.EventQueryGateways
-import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
@@ -42,7 +41,6 @@ import me.ahoo.wow.query.observe.QueryLogObserver
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.AccessPolicies
 import me.ahoo.wow.query.policy.AccessQueryPolicy
-import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryOwnership
 import me.ahoo.wow.query.policy.QueryPolicy
@@ -134,7 +132,7 @@ class QueryEngine private constructor(
     /**
      * What a host gives the engine of [manifest], each from its configuration or the application: the [contexts] the
      * node hosts, the backends of the models, the schema sources and masks, the tenant options, the
-     * application's policies, filters and observers, the count caches, the committed states and how events are read.
+     * application's policies, filters and observers, the count caches and how events are read.
      */
     @InternalWowApi
     @Suppress("TooManyFunctions") // One setter per input of the engine.
@@ -162,7 +160,6 @@ class QueryEngine private constructor(
         private var readAuthorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL
         private var snapshotCounts: QueryCountCache? = null
         private var eventCounts: QueryCountCache? = null
-        private var committed: CommittedStates = CommittedStates.NONE
         private var reading: (AggregateType) -> ((EventRecord) -> EventRecord?) = { { it } }
         private var bulkheads: (AggregateType, QueryModel) -> QueryBulkhead? = { _, _ -> null }
         private var unpinned: (AggregateType) -> UnpinnedEvents = { UnpinnedEvents.ALLOW }
@@ -210,7 +207,7 @@ class QueryEngine private constructor(
          */
         fun crossTenant(enabled: Boolean) = apply { crossTenant = enabled }
 
-        /** The application's query policies, after the scope one. */
+        /** Wow's own query policies, after the scope one. */
         fun policies(policies: List<QueryPolicy>) = apply { this.policies = policies }
 
         /**
@@ -253,9 +250,6 @@ class QueryEngine private constructor(
             eventCounts = events
         }
 
-        /** The committed states the events model's visibility reads (the runtime's state reads). */
-        fun committedStates(committed: CommittedStates) = apply { this.committed = committed }
-
         /** How each aggregate type's events are read: as its model reads them now. */
         fun reading(reading: (AggregateType) -> ((EventRecord) -> EventRecord?)) = apply { this.reading = reading }
 
@@ -281,19 +275,8 @@ class QueryEngine private constructor(
             val gatewayPolicies = scope + accessPolicy(access) + policies
             datasets.requireAccess(access)
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only a pinned one hides an aggregate's streams beyond its filter on them: an access policy's filter on
-            // them is its whole rule.
-            val pinned = (scope + policies).any { it.events == EventsMode.PINNED }
             val queried = snapshots.map { it.aggregateType }.toSet()
             val policyGateways = policyGateways(catalog, queried, gatewayPolicies, access)
-            val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
-            val eventVisibility = EventVisibility.of(
-                byType::get,
-                pinned,
-                queried::contains,
-                observer,
-                committed::committed
-            )
             val events = ManifestTypes.events(manifest, contexts).mapNotNull { type ->
                 val binding = eventBackend?.binding(type) ?: return@mapNotNull null
                 EventQueryGateways.create(
@@ -305,8 +288,6 @@ class QueryEngine private constructor(
                     observer = observer,
                     entryPolicy = entryPolicy,
                     counts = eventCounts,
-                    visibility = eventVisibility,
-                    tenants = tenants,
                     masks = masks,
                     reading = reading(type),
                     unpinned = unpinned(type),

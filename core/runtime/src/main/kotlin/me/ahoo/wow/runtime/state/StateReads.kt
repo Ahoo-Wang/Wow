@@ -39,7 +39,7 @@ import kotlin.time.TimeSource
 /**
  * The state point reads of the node's aggregates: the public port's
  * `GET /{context}/{aggregate}/{id}/state` reads [latest], `?version=` and `?at=` read [at], `GET …/{id}/state/trace`
- * reads [trace]; the events query model decides which aggregates a caller sees on [committed].
+ * reads [trace].
  * They read what is committed, for no caller: an entry checks the caller's scope against the state's and
  * admits and masks the state as the snapshot queries do (`me.ahoo.wow.query.state.StateVisibility`).
  */
@@ -61,12 +61,6 @@ interface StateReads {
      * @throws MinVersionNotReachedException when the aggregate stays below [minVersion] through the wait.
      */
     suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>?
-
-    /**
-     * The latest committed state of [ref], as [latest] reads it but outside any [ReplayGate]: the
-     * events model reads it while its query holds a permit of its store's bulkhead, which it must not wait for again.
-     */
-    suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>?
 
     /**
      * The committed state of [ref] at [version], or null when the log does not hold that version. Its replay runs
@@ -97,8 +91,6 @@ interface StateReads {
 
             override suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? =
                 throw MinVersionNotReachedException(ref, minVersion, 0)
-
-            override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? = null
 
             override suspend fun at(ref: AggregateRef, version: Int): Snapshot<JsonNode>? = null
 
@@ -202,8 +194,6 @@ class KernelStateReads(
     class ContextReads(val kernel: Kernel, val snapshots: SnapshotStore)
 
     override suspend fun latest(ref: AggregateRef): Snapshot<JsonNode>? = latest(ref, gate, maxReplay)
-
-    override suspend fun committed(ref: AggregateRef): Snapshot<JsonNode>? = latest(ref, ReplayGate.OPEN, Int.MAX_VALUE)
 
     override suspend fun latest(ref: AggregateRef, minVersion: Int): Snapshot<JsonNode>? {
         require(minVersion >= 1) { "A committed state has a version from 1." }

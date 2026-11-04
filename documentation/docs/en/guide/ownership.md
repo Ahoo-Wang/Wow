@@ -53,7 +53,7 @@ Reads follow the same scope. Query admission adds it to every query of the aggre
 - An `OWNER` aggregate is read within the caller's tenant, owner and space, each where the caller has one: an owner-level caller reads its own, a tenant-level one the whole tenant.
 - A `TENANT` aggregate is read within the caller's tenant and space; the owner is never added. Every caller of the tenant reads a product, a shopper as much as a member of staff.
 
-So `TENANT` does not restrict reads by role. An aggregate that belongs to its tenant but that only some callers may read, such as the failures an operator console lists or the sources of an analytics catalog, needs a read policy of the service's own: a `QueryPolicy` bean that refuses a caller without the role ([Authorize reads](../operate/security#authorize-reads)). Trusted code and the handlers of subscriptions read the whole tenant without a caller, and such a policy steps aside for them.
+So `TENANT` does not restrict reads by role. An aggregate that belongs to its tenant but that only some callers may read, such as the failures an operator console lists or the sources of an analytics catalog, needs a read authorizer of the service's own: a `ReadAuthorizer` bean that refuses a caller without the role ([Authorize reads](../operate/security#authorize-reads)). Trusted code and the handlers of subscriptions read the whole tenant without a caller, and no read authorizer is asked for them.
 
 ## One aggregate per owner
 

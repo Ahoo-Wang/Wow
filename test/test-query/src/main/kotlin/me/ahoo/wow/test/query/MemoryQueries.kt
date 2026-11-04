@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.query
 
+import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -37,7 +38,6 @@ import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.spi.access.AccessValues
@@ -72,7 +72,7 @@ import java.util.concurrent.ConcurrentHashMap
 class MemoryQueries @InternalWowApi constructor(
     private val manifest: Manifest,
     stateTypes: Map<AggregateType, Class<*>> = emptyMap(),
-    private val policies: List<QueryPolicy> = emptyList(),
+    private val access: List<AccessPolicy<*>> = emptyList(),
     private val filters: List<QueryFilter> = emptyList(),
 ) : TenantQueryApi {
     private val storage = InMemoryQueryStorage()
@@ -83,9 +83,8 @@ class MemoryQueries @InternalWowApi constructor(
     private val engine: QueryEngine by lazy {
         QueryEngine.Builder(manifest)
             .snapshots(storage) { aggregateOf(it) != null }
-            .policies(policies)
+            .accessPolicies(access, { state -> this.stateTypes.filterValues { it == state }.keys.toList() })
             .filters(filters)
-            .committedStates(states)
             .build()
     }
 
@@ -201,7 +200,7 @@ class MemoryQueries @InternalWowApi constructor(
         fun of(
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             dependencies: Dependencies = Dependencies.NONE,
-            policies: List<QueryPolicy> = emptyList(),
+            access: List<AccessPolicy<*>> = emptyList(),
             filters: List<QueryFilter> = emptyList(),
         ): MemoryQueries {
             val providers = ModelProvider.load(classLoader)
@@ -215,7 +214,7 @@ class MemoryQueries @InternalWowApi constructor(
                     emptyList()
                 }
             }.associate { it.type to it.stateType }
-            return MemoryQueries(manifest, declared(manifest, classLoader) + built, policies, filters)
+            return MemoryQueries(manifest, declared(manifest, classLoader) + built, access, filters)
         }
 
         /** The state classes [manifest] names by their binary names that [classLoader] has, by aggregate type. */
@@ -243,10 +242,10 @@ class MemoryQueries @InternalWowApi constructor(
  */
 fun memoryQueries(
     dependencies: Dependencies = Dependencies.NONE,
-    policies: List<QueryPolicy> = emptyList(),
+    access: List<AccessPolicy<*>> = emptyList(),
     filters: List<QueryFilter> = emptyList(),
     block: MemoryQueries.() -> Unit = {},
-): MemoryQueries = MemoryQueries.of(dependencies = dependencies, policies = policies, filters = filters).apply(block)
+): MemoryQueries = MemoryQueries.of(dependencies = dependencies, access = access, filters = filters).apply(block)
 
 /**
  * Serves the handlers' reads from a [memoryQueries] holding [states], each an aggregate id to its state, as snapshots of

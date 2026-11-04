@@ -19,23 +19,18 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.NodeQueryApi
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.aggregate
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.error.QueryRequestException
-import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.policy.EventsMode
-import me.ahoo.wow.query.policy.QueryPolicy
+import me.ahoo.wow.query.policy.ReadAction
+import me.ahoo.wow.query.policy.ReadAuthorization
+import me.ahoo.wow.query.policy.ReadAuthorizer
 
 const val LIBRARY = "library"
 const val NO_ACCOUNT = "library.book.no-account"
@@ -120,23 +115,16 @@ class LibraryModels : ModelProvider {
 }
 
 /**
- * Only a librarian reads the library's books: a query policy by the caller's roles, as a platform service has one (the
- * ops service's `ReaderRole`). Trusted code, which has no caller, is not restricted.
+ * Only a librarian reads the library's books: a read authorizer by the caller's roles, as a platform service has one
+ * (the ops service's `ReaderRole`). Trusted code, which has no caller, is not asked.
  */
-class LibrarianRole : QueryPolicy {
-    override val events: EventsMode
-        get() = EventsMode.NONE
-
-    override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
-        val who = caller.caller ?: return MatchAllFilter
-        val roles = who.attributes[DevelopmentHeaders.ROLES_ATTRIBUTE].orEmpty()
-        if (context.aggregateType.context == LIBRARY && LIBRARIAN !in roles) {
-            throw QueryRequestException(
-                "${who.subject} reads no book: it needs $LIBRARIAN.",
-                "LIBRARIAN_REQUIRED",
-                problem = FrameworkCodes.AUTH_FORBIDDEN,
-            )
+class LibrarianRole : ReadAuthorizer {
+    override suspend fun authorize(caller: Caller, read: ReadAction): ReadAuthorization {
+        val roles = caller.attributes[DevelopmentHeaders.ROLES_ATTRIBUTE].orEmpty()
+        return if (read.type.context != LIBRARY || LIBRARIAN in roles) {
+            ReadAuthorization.Allowed
+        } else {
+            ReadAuthorization.Denied.of("${caller.subject} reads no book: it needs $LIBRARIAN.")
         }
-        return MatchAllFilter
     }
 }
