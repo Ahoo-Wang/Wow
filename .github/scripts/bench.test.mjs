@@ -475,7 +475,9 @@ test("the jdk suites pair the head's server on JDK 21 with it on 25", () => {
 });
 
 test('the access suites pair the head with teller callers, without and with a policy of the account', () => {
-  const paired = suitesOf('access').filter(name => SUITES[name].kind === 'paired');
+  const paired = suitesOf('access').filter(
+    name => SUITES[name].kind === 'paired',
+  );
   assert.deepEqual(paired, [
     'access-e1-pg',
     'access-e3-pg',
@@ -1500,14 +1502,23 @@ fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
     ],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
-  assert.match(calls, /^measure --backend=postgres --program=walk --aggregates=1000 --streams=10 --walk=yes --rate=0 /m);
+  assert.match(
+    calls,
+    /^measure --backend=postgres --program=walk --aggregates=1000 --streams=10 --walk=yes --rate=0 /m,
+  );
   // A run with nothing to walk sets no walk rate.
   assert.match(calls, /--walk=none --rate=200 .*\/none-1 $/m);
   const table = measureTable(suite).join('\n');
   // The band is the higher of the two runs without a walk, 25 ms: 2,000/s leaves it.
-  assert.match(table, /\| access-walk-pg@1k \| head-uncapped \| uncapped \| 2\.0 s \| 500 \|/);
+  assert.match(
+    table,
+    /\| access-walk-pg@1k \| head-uncapped \| uncapped \| 2\.0 s \| 500 \|/,
+  );
   assert.match(table, /\| walk-1000 \| 1000\/s \| .* \| yes \|/);
-  assert.match(table, /\| walk-2000 \| 2000\/s \| .* \| \*\*no\*\* \(40\.0 ms > 25\.0 ms\) \|/);
+  assert.match(
+    table,
+    /\| walk-2000 \| 2000\/s \| .* \| \*\*no\*\* \(40\.0 ms > 25\.0 ms\) \|/,
+  );
   assert.deepEqual(pairs(suite), []);
   assert.doesNotMatch(renderReport([suite]), /NaN/);
 });

@@ -1196,14 +1196,27 @@ export function anomalies(suite, noise = {}) {
     // A run that failed, a walk that did not complete, and deposits that failed: that run's numbers do not hold.
     for (const run of suite.runs) {
       const row = (kind, detail) =>
-        rows.push({ suite: labelOf(suite), run: run.name, context: 'measure', kind, detail });
-      if (run.status === 'failed') row('run failed', 'bench.sh failed; see the job log');
+        rows.push({
+          suite: labelOf(suite),
+          run: run.name,
+          context: 'measure',
+          kind,
+          detail,
+        });
+      if (run.status === 'failed')
+        row('run failed', 'bench.sh failed; see the job log');
       if (run.status !== 'ok') continue;
       if (run.measure.walk && !run.measure.walk.completed)
-        row('walk not completed', `${num(run.measure.walk.walked ?? 0, 0)} aggregates walked`);
+        row(
+          'walk not completed',
+          `${num(run.measure.walk.walked ?? 0, 0)} aggregates walked`,
+        );
       const failed = Object.entries(run.measure.e1?.failed ?? {});
       if (failed.length > 0)
-        row('deposits failed', failed.map(([kind, count]) => `${kind} ${count}`).join(', '));
+        row(
+          'deposits failed',
+          failed.map(([kind, count]) => `${kind} ${count}`).join(', '),
+        );
     }
     return rows;
   }
@@ -2470,7 +2483,10 @@ export function roundOrder(arms, round) {
 export function pairs(suite, mode = CALIBRATED) {
   // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
   // round: each compares in a table of its own.
-  if (['component', 'sessions', 'measure'].includes(suite.kind) || suite.arms.length < 2)
+  if (
+    ['component', 'sessions', 'measure'].includes(suite.kind) ||
+    suite.arms.length < 2
+  )
     return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
@@ -2732,13 +2748,18 @@ export function measureTable(suite) {
   ];
   for (const run of suite.runs) {
     if (run.status !== 'ok') {
-      lines.push(`| ${labelOf(suite)} | ${run.name} | **${run.status}** | | | | | | | | |`);
+      lines.push(
+        `| ${labelOf(suite)} | ${run.name} | **${run.status}** | | | | | | | | |`,
+      );
       continue;
     }
     const m = run.measure;
     const walk = m.walk;
     const latency = m.e1?.latencyMs ?? {};
-    const failed = Object.values(m.e1?.failed ?? {}).reduce((sum, n) => sum + n, 0);
+    const failed = Object.values(m.e1?.failed ?? {}).reduce(
+      (sum, n) => sum + n,
+      0,
+    );
     const within =
       !m.walks || !m.e1
         ? ''
@@ -3156,7 +3177,8 @@ function pairTable(suite, mode) {
 
 /** What a suite's runs started from: primed or not, and whether its accounts fit the node's state cache. */
 function primingLines(suite) {
-  if (!suite.accounts || ['component', 'measure'].includes(suite.kind)) return [];
+  if (!suite.accounts || ['component', 'measure'].includes(suite.kind))
+    return [];
   const runs = [...(suite.runs ?? []), ...(suite.probes ?? [])];
   const seconds = range(runs.map(run => run.metrics?.primeSeconds));
   const settled = range(runs.map(run => run.metrics?.settleSeconds));
