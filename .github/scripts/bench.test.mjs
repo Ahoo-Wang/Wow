@@ -3143,6 +3143,29 @@ test('the same-rate diagnostic runs each rate twice a session and nothing else; 
     renderSuite(suite),
     /Profiled: every session's servers ran with a flight recording/,
   );
+  // The slow-disk variant caps the store's writes when each session starts.
+  const slow = mkdtempSync(join(tmpdir(), 'bench-'));
+  const capped = runSuite('axon-pg-same-rate-slow-disk', {
+    benchPath: fakeSessionBench(slow),
+    out: join(slow, 'out'),
+    warmUp: 30,
+    measure: 40,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { axon: '/builds/axon-server' },
+  });
+  assert.equal(capped.storeWriteIops, 1400);
+  const cappedUps = readFileSync(join(slow, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(call => call.startsWith('up '));
+  assert.equal(cappedUps.length, 2);
+  assert.ok(
+    cappedUps.every(call => call.includes(' --store-write-iops=1400 ')),
+  );
+  assert.match(
+    renderSuite(capped),
+    /The store's disk writes capped at 1400 a second/,
+  );
   // Without profile, nothing records.
   const plain = mkdtempSync(join(tmpdir(), 'bench-'));
   const unprofiled = runSuite('axon-pg-same-rate', {
@@ -3204,6 +3227,11 @@ test('a diagnostic suite dumps its sweeps, its second arm set by properties when
       repeats: 2,
       fraction: 0.8,
     }).suites,
-    ['axon-pg-e3-pool', 'axon-pg-e3-reactions', 'axon-pg-same-rate'],
+    [
+      'axon-pg-e3-pool',
+      'axon-pg-e3-reactions',
+      'axon-pg-same-rate',
+      'axon-pg-same-rate-slow-disk',
+    ],
   );
 });

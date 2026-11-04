@@ -1,0 +1,15 @@
+# bench.sh --store-write-iops=<n>: the store's writes capped at <n> a second on the disk that holds Docker's volumes
+# (WOW_BENCH_STORE_DEVICE, which bench.sh finds), over compose.yml: a diagnostic of a slower disk on a fast one. Each
+# WAL flush is a write of its page, so the cap bounds the store's flushes a second; whatever else the disk serves stays
+# uncapped. Linux only (the io controller of cgroup v2, through Docker's blkio options).
+services:
+  mongo:
+    blkio_config:
+      device_write_iops:
+        - path: ${WOW_BENCH_STORE_DEVICE}
+          rate: ${WOW_BENCH_STORE_WRITE_IOPS}
+  postgres:
+    blkio_config:
+      device_write_iops:
+        - path: ${WOW_BENCH_STORE_DEVICE}
+          rate: ${WOW_BENCH_STORE_WRITE_IOPS}

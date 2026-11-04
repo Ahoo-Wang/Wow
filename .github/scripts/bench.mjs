@@ -502,6 +502,29 @@ export const SUITES = {
     answers:
       "A diagnostic of the same-rate view's latency: Wow with no bus and Axon at E1 1,000/s and E3 300/s, each twice a session, nothing else; with profile, every run's flight recording and PostgreSQL's statements.",
   },
+  // The same on a slower disk: PostgreSQL's writes capped at 1,400 a second (bench.sh --store-write-iops). Each WAL
+  // flush is a write of its page; on a runner whose flushes took 0.15–0.2 ms, Wow flushed about 1,800 times a second
+  // at E1 1,000/s (its append and its snapshot, each a transaction) and Axon about 1,000 (its one write), so the cap
+  // binds one and leaves the other headroom, as the runner of axon-pg's slow sessions did with 0.5–0.7 ms flushes.
+  'axon-pg-same-rate-slow-disk': {
+    group: 'axon-diag',
+    kind: 'sessions',
+    scenarios: ['E1', 'E3'],
+    distribution: 'uniform',
+    seedConcurrency: 128,
+    arms: [WOW_NO_BUS, AXON],
+    rates: [
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+      { scenario: 'E1', rate: 1000 },
+      { scenario: 'E3', rate: 300 },
+    ],
+    sweeps: [],
+    own: false,
+    storeWriteIops: 1400,
+    answers:
+      "axon-pg-same-rate with PostgreSQL's disk writes capped at 1,400 a second: whether the same-rate latency follows the store's flushes.",
+  },
   'jdk-e1-pg': {
     group: 'jdk',
     kind: 'paired',
@@ -2930,6 +2953,11 @@ function primingLines(suite) {
           ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
           : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
   ];
+  if (suite.storeWriteIops) {
+    lines.push(
+      `The store's disk writes capped at ${suite.storeWriteIops} a second (\`bench.sh --store-write-iops\`): a diagnostic of a slower disk.`,
+    );
+  }
   if (suite.profiled) {
     lines.push(
       "Profiled: every session's servers ran with a flight recording (`up --jfr`), so the runs carry its cost; each run's recording and PostgreSQL's statements are beside its result.",
@@ -3862,6 +3890,8 @@ export function runSuite(name, options) {
       ? ['--jfr', ...(settings ? [`--jfr-settings=${settings}`] : [])]
       : [];
     if (profile) suite.profiled = true;
+    if (definition.storeWriteIops)
+      suite.storeWriteIops = definition.storeWriteIops;
     // One closed-loop search on the session: every step from 1 (or `from` alone) to the cap (or `from`), or the steps
     // `concurrencies`, short ones when `locate` (SESSIONS.sweep.locate) and full-length ones otherwise, a failing one
     // ending once it measured `failAfter` s.
@@ -4034,6 +4064,9 @@ export function runSuite(name, options) {
               `--seed-concurrency=${seedConcurrency}`,
               ...(primed ? ['--prime'] : []),
               ...recording,
+              ...(definition.storeWriteIops
+                ? [`--store-write-iops=${definition.storeWriteIops}`]
+                : []),
               ...pins,
               `--out=${join(out, `${session}-up`)}`,
             ],
