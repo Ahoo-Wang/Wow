@@ -132,6 +132,7 @@ class WalkRun(
         val context = node.context(ACCOUNT_TYPE.context)
         val log = context.backends.log
         val walksOf = log as AccessWalks
+
         @Suppress("UNCHECKED_CAST") // The account's model, as the node holds it.
         val model = context.models.first { it.type == ACCOUNT_TYPE } as AggregateModel<Any>
         val seedStarted = System.nanoTime()
@@ -162,15 +163,25 @@ class WalkRun(
     }
 
     /**
-     * Appends the accounts' histories, each written by a kernel of its own in memory: without their attributes when
-     * the node walks them, with them otherwise.
+     * Appends the accounts' histories: each a copy of its owner's, written once by a kernel in memory (the account's
+     * events hold no id of it), without their attributes when the node walks them, with them otherwise.
      */
     private suspend fun seed(model: AggregateModel<Any>, log: EventLog) = coroutineScope {
+        val templates = (0 until minOf(OWNERS, aggregates)).associateWith { history(model, it) }
         val permits = Semaphore(SEED_CONCURRENCY)
         (0 until aggregates).chunked(APPEND_BATCH).map { chunk ->
             async {
                 permits.withPermit {
-                    val written = chunk.flatMap { history(model, it) }
+                    val written = chunk.flatMap { index ->
+                        val ref = ACCOUNT_TYPE.ref(TENANT, accountId(index))
+                        templates.getValue(index % OWNERS).map {
+                            it.copyWith(
+                                ref = ref,
+                                commandId = "seed-$index-${it.version}",
+                                requestId = "seed-$index-${it.version}"
+                            )
+                        }
+                    }
                     written.groupBy { Partitioner.partitionOf(it.ref, log.partitions) }.values.forEach { partition ->
                         partition.chunked(APPEND_BATCH).forEach { group -> log.appendAll(group.map { it to null }) }
                     }
@@ -179,7 +190,7 @@ class WalkRun(
         }.awaitAll()
     }
 
-    /** The streams of account [index]: opened, then deposited into, [streams] in all. */
+    /** The streams of account [index]: opened by its owner, then deposited into, [streams] in all. */
     private suspend fun history(model: AggregateModel<Any>, index: Int): List<EventStreamRecord> {
         val memory = InMemoryEventLog()
         val kernel = Kernel(memory)
@@ -209,40 +220,35 @@ class WalkRun(
     }
 
     /** [rate] deposits a second over the warm-up and the measured window, open loop; the measured ones' latencies. */
-    private suspend fun deposits(client: CommandClient): Map<String, Any?> = coroutineScope {
+    private suspend fun deposits(client: CommandClient): Map<String, Any?> {
         val latencies = ConcurrentLinkedQueue<Long>()
         val failures = ConcurrentHashMap<String, LongAdder>()
         val permits = Semaphore(IN_FLIGHT)
         val total = rate * (warmUpSeconds + measureSeconds)
-        val measuredFrom = rate * warmUpSeconds
         val started = System.nanoTime()
-        repeat(total) { index ->
-            val due = started + (index * NANOS_PER_SECOND / rate).toLong()
-            val wait = (due - System.nanoTime()) / NANOS_PER_MILLI.toLong()
-            if (wait > 0) delay(wait)
-            permits.acquire()
-            launch {
-                try {
-                    val ref = ACCOUNT_TYPE.ref(TENANT, accountId((index * PRIME) % aggregates))
-                    val sent = System.nanoTime()
-                    val outcome = runCatching {
-                        client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
+        // The scope ends once every deposit sent has answered, before their latencies are counted.
+        coroutineScope {
+            repeat(total) { index ->
+                val due = started + (index * NANOS_PER_SECOND / rate).toLong()
+                val wait = (due - System.nanoTime()) / NANOS_PER_MILLI.toLong()
+                if (wait > 0) delay(wait)
+                permits.acquire()
+                launch {
+                    try {
+                        deposit(client, index)?.let { (latency, failure) ->
+                            latencies += latency
+                            failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
+                        }
+                    } finally {
+                        permits.release()
                     }
-                    if (index >= measuredFrom) {
-                        latencies += System.nanoTime() - sent
-                        val failure = outcome.exceptionOrNull()?.javaClass?.simpleName
-                            ?: outcome.getOrNull()?.takeIf { it.status != CommandResult.Status.SUCCEEDED }?.status?.name
-                        failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
-                    }
-                } finally {
-                    permits.release()
                 }
             }
         }
         val measured = latencies.toLongArray().apply { sort() }
         fun percentile(p: Double): Double? =
             measured.takeIf { it.isNotEmpty() }?.let { it[((it.size - 1) * p / PERCENT).toInt()] / NANOS_PER_MILLI }
-        mapOf(
+        return mapOf(
             "ops" to measured.size,
             "failed" to failures.mapValues { it.value.sum() },
             "latencyMs" to mapOf(
@@ -252,6 +258,21 @@ class WalkRun(
                 "max" to measured.lastOrNull()?.let { it / NANOS_PER_MILLI },
             ),
         )
+    }
+
+    /**
+     * Deposit [index], to the account it falls on: its latency and why it failed, or null when it is of the warm-up.
+     */
+    private suspend fun deposit(client: CommandClient, index: Int): Pair<Long, String?>? {
+        val ref = ACCOUNT_TYPE.ref(TENANT, accountId((index * PRIME) % aggregates))
+        val sent = System.nanoTime()
+        val outcome = runCatching {
+            client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
+        }
+        if (index < rate * warmUpSeconds) return null
+        val failure = outcome.exceptionOrNull()?.javaClass?.simpleName
+            ?: outcome.getOrNull()?.takeIf { it.status != CommandResult.Status.SUCCEEDED }?.status?.name
+        return (System.nanoTime() - sent) to failure
     }
 
     private companion object {
