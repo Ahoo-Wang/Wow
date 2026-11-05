@@ -1,0 +1,30 @@
+## begin 2026-11-04T21:18:20-0800
+uptime: 21:18  up 4 days, 16 hrs, 2 users, load averages: 1.58 4.27 5.55
+swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
+containers: cocache-redis 
+busiest other processes (% of one core):
+  8.5 91682 taskgated-helper
+  5.0 361 configd
+  2.7 420 WindowServer
+  2.3 461 trustd
+  1.9 493 syspolicyd
+  1.8 614 sysmond
+  1.7 423 cfprefsd
+  1.6 91150 bash
+allowed JVMs (% of one core): 1529 67782 0.0
+other JVMs:
+## end 2026-11-05T00:09:13-0800
+uptime:  0:09  up 4 days, 18:51, 2 users, load averages: 18.56 11.71 8.95
+swap: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)
+containers: cocache-redis 
+busiest other processes (% of one core):
+  5.8 420 WindowServer
+  3.7 879 Stats
+  3.1 614 sysmond
+  2.3 361 configd
+  0.9 44932 Activity Monitor
+  0.6 91150 bash
+  0.3 51614 sed
+  0.3 51611 head
+allowed JVMs (% of one core): 1529 67782 
+other JVMs:

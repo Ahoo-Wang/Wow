@@ -1,0 +1,3 @@
+# The JVMs allowed to run (ALLOW_JVM_PIDS) over this measurement: each sample at 5% of a core or more (their CPU is summed), the lines of their daemon logs since the sample before it (the routine ones counted), and the commands the daemons received (`command <epoch> ...`).
+pid 1529: log /Users/ahoowang/.gradle/daemon/9.8.2/daemon-1529.out.log
+pid 67782: log none

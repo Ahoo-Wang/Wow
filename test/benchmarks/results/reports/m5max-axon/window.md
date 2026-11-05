@@ -1,0 +1,89 @@
+# The host during each measurement of m5max-axon
+
+841 samples. Other CPU and containers in cores, mean / max over the measurement; the allowed JVMs' CPU at its highest sample.
+
+| Measurement | From | To | Other CPU | Busiest container | Allowed JVMs | Other JVMs | Verdict |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| m5max-axon-peak-e1/1-wow-e1-sweep-locate | 1793855948 | 1793856095 | 0.12 / 0.44 | 0.00 | 0.00 | none | ok |
+| m5max-axon-peak-e1/1-wow-e1-sweep | 1793856095 | 1793856179 | 0.09 / 0.19 | 0.00 | 0.00 | none | ok |
+| m5max-axon-peak-e1/1-wow-e1-own | 1793856180 | 1793856245 | 0.09 / 0.20 | 0.00 | 0.00 | none | ok |
+| m5max-axon-peak-e1/1-axon-e1-sweep-locate | 1793856295 | 1793856443 | 0.11 / 0.19 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/1-axon-e1-sweep | 1793856443 | 1793856530 | 0.10 / 0.25 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/1-axon-e1-own | 1793856530 | 1793856599 | 0.24 / 0.36 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-axon-e1-sweep-locate | 1793856646 | 1793856794 | 0.09 / 0.19 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-axon-e1-sweep | 1793856794 | 1793856881 | 0.11 / 0.16 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-axon-e1-own | 1793856881 | 1793856950 | 0.17 / 0.30 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-wow-e1-sweep-locate | 1793857008 | 1793857155 | 0.09 / 0.21 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-wow-e1-sweep | 1793857156 | 1793857240 | 0.11 / 0.23 | 0.00 | – | none | ok |
+| m5max-axon-peak-e1/2-wow-e1-own | 1793857240 | 1793857306 | 0.10 / 0.19 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-wow-e3-sweep-locate | 1793857365 | 1793857518 | 0.11 / 0.25 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-wow-e3-sweep | 1793857519 | 1793857604 | 0.11 / 0.24 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-wow-e3-own | 1793857604 | 1793857670 | 0.15 / 0.29 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-axon-e3-sweep-locate | 1793857721 | 1793857873 | 0.13 / 0.29 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-axon-e3-sweep | 1793857873 | 1793858003 | 0.14 / 0.41 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/1-axon-e3-own | 1793858004 | 1793858069 | 0.12 / 0.19 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-axon-e3-sweep-locate | 1793858116 | 1793858269 | 0.12 / 0.40 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-axon-e3-sweep | 1793858269 | 1793858397 | 0.09 / 0.20 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-axon-e3-own | 1793858397 | 1793858463 | 0.13 / 0.22 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-wow-e3-sweep-locate | 1793858519 | 1793858669 | 0.10 / 0.20 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-wow-e3-sweep | 1793858670 | 1793858754 | 0.11 / 0.20 | 0.00 | – | none | ok |
+| m5max-axon-peak-e3/2-wow-e3-own | 1793858754 | 1793858820 | 0.08 / 0.12 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/1-wow-e1 | 1793858881 | 1793858947 | 0.08 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/1-wow-e3 | 1793858947 | 1793859013 | 0.07 / 0.14 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/1-axon-e1 | 1793859060 | 1793859126 | 0.12 / 0.22 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/1-axon-e3 | 1793859126 | 1793859192 | 0.09 / 0.13 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/2-axon-e1 | 1793859238 | 1793859304 | 0.16 / 0.23 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/2-axon-e3 | 1793859304 | 1793859370 | 0.19 / 0.30 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/2-wow-e1 | 1793859426 | 1793859492 | 0.17 / 0.35 | 0.00 | – | none | ok |
+| m5max-axon-same-rate/2-wow-e3 | 1793859493 | 1793859558 | 0.10 / 0.14 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/1-wow-pool-32-e1-sweep-locate | 1793859594 | 1793859741 | 0.12 / 0.46 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/1-wow-pool-32-e1-sweep | 1793859742 | 1793859826 | 0.08 / 0.15 | 0.01 | – | none | ok |
+| m5max-axon-pool-32-e1/1-axon-pool-32-e1-sweep-locate | 1793859863 | 1793860010 | 0.13 / 0.27 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/1-axon-pool-32-e1-sweep | 1793860011 | 1793860140 | 0.13 / 0.23 | 0.01 | – | none | ok |
+| m5max-axon-pool-32-e1/2-axon-pool-32-e1-sweep-locate | 1793860200 | 1793860348 | 0.09 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/2-axon-pool-32-e1-sweep | 1793860348 | 1793860451 | 0.20 / 0.77 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/2-wow-pool-32-e1-sweep-locate | 1793860489 | 1793860636 | 0.09 / 0.20 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e1/2-wow-pool-32-e1-sweep | 1793860636 | 1793860720 | 0.08 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/1-wow-pool-32-e3-sweep-locate | 1793860759 | 1793860907 | 0.10 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/1-wow-pool-32-e3-sweep | 1793860907 | 1793860993 | 0.09 / 0.13 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/1-axon-pool-32-e3-sweep-locate | 1793861031 | 1793861183 | 0.10 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/1-axon-pool-32-e3-sweep | 1793861183 | 1793861267 | 0.11 / 0.25 | 0.01 | – | none | ok |
+| m5max-axon-pool-32-e3/1-axon-pool-32-e3-sweep-64 | 1793861267 | 1793861311 | 0.12 / 0.29 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/2-axon-pool-32-e3-sweep-locate | 1793861347 | 1793861500 | 0.14 / 0.24 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/2-axon-pool-32-e3-sweep | 1793861501 | 1793861666 | 0.09 / 0.42 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/2-wow-pool-32-e3-sweep-locate | 1793861705 | 1793861854 | 0.11 / 0.23 | 0.00 | – | none | ok |
+| m5max-axon-pool-32-e3/2-wow-pool-32-e3-sweep | 1793861854 | 1793861939 | 0.09 / 0.19 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/1-wow-e1-zipf-sweep-locate | 1793861997 | 1793862144 | 0.14 / 0.41 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/1-wow-e1-zipf-sweep | 1793862145 | 1793862269 | 0.09 / 0.18 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/1-axon-e1-zipf-sweep-locate | 1793862318 | 1793862466 | 0.09 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/1-axon-e1-zipf-sweep | 1793862466 | 1793862551 | 0.11 / 0.22 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/2-axon-e1-zipf-sweep-locate | 1793862600 | 1793862748 | 0.11 / 0.27 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/2-axon-e1-zipf-sweep | 1793862749 | 1793862875 | 0.11 / 0.28 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/2-wow-e1-zipf-sweep-locate | 1793862934 | 1793863070 | 0.10 / 0.29 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-zipf/2-wow-e1-zipf-sweep | 1793863070 | 1793863194 | 0.09 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-wow-e3-zipf-sweep-locate | 1793863253 | 1793863412 | 0.11 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-wow-e3-zipf-sweep-locate-8192 | 1793863412 | 1793863435 | 0.15 / 0.20 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-wow-e3-zipf-sweep | 1793863435 | 1793863549 | 0.12 / 0.43 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-wow-e3-zipf-sweep-128 | 1793863549 | 1793863594 | 0.15 / 0.36 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-axon-e3-zipf-sweep-locate | 1793863671 | 1793863829 | 0.18 / 0.67 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-axon-e3-zipf-sweep | 1793863829 | 1793863989 | 0.13 / 0.23 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/1-axon-e3-zipf-sweep-32 | 1793863989 | 1793864033 | 0.10 / 0.17 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-axon-e3-zipf-sweep-locate | 1793864079 | 1793864238 | 0.14 / 0.46 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-axon-e3-zipf-sweep | 1793864238 | 1793864395 | 0.12 / 0.18 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-wow-e3-zipf-sweep-locate | 1793864452 | 1793864609 | 0.07 / 0.17 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-wow-e3-zipf-sweep-locate-8192 | 1793864610 | 1793864632 | 0.10 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-wow-e3-zipf-sweep | 1793864632 | 1793864765 | 0.10 / 0.21 | 0.00 | – | none | ok |
+| m5max-axon-contention-e3-zipf/2-wow-e3-zipf-sweep-32 | 1793864765 | 1793864809 | 0.09 / 0.14 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-wow-e1-hot-sweep-locate | 1793864867 | 1793865003 | 0.08 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-wow-e1-hot-sweep | 1793865004 | 1793865088 | 0.15 / 0.42 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-wow-e1-hot-sweep-512 | 1793865088 | 1793865132 | 0.21 / 0.38 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-wow-e1-hot-sweep-256 | 1793865132 | 1793865176 | 0.16 / 0.34 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-wow-e1-hot-sweep-128 | 1793865176 | 1793865220 | 0.12 / 0.26 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-axon-e1-hot-sweep-locate | 1793865271 | 1793865421 | 0.15 / 0.28 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/1-axon-e1-hot-sweep | 1793865421 | 1793865505 | 0.13 / 0.24 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/2-axon-e1-hot-sweep-locate | 1793865552 | 1793865702 | 0.15 / 0.67 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/2-axon-e1-hot-sweep | 1793865702 | 1793865786 | 0.11 / 0.21 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/2-wow-e1-hot-sweep-locate | 1793865844 | 1793865980 | 0.08 / 0.15 | 0.00 | – | none | ok |
+| m5max-axon-contention-e1-hot/2-wow-e1-hot-sweep | 1793865980 | 1793866144 | 0.11 / 0.37 | 0.00 | – | none | ok |
+
+81 measurements; void or disturbed: none.

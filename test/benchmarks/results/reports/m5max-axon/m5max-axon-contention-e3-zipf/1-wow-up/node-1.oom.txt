@@ -1,0 +1,34 @@
+# Excerpt of node-1.log of session 1-wow, m5max-axon-contention-e3-zipf (the node log is not committed; D391).
+# Counts over the whole log: 22 lines with OutOfMemoryError, 11 lanes stopped, 314 reads of tables gone after the session's store was removed.
+# The first fatal error with its stack's first lines, then every line that stopped a lane:
+2026-11-04T23:25:25.391-08:00 ERROR 35347 --- [transfer-service] [tcher-worker-18] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000097@1396; its lane stops.
+
+java.lang.OutOfMemoryError: Java heap space
+	at tools.jackson.core.io.ContentReference.construct(ContentReference.java:128) ~[jackson-core-3.1.7.jar:3.1.7]
+	at tools.jackson.core.base.TextualTSFactory._createContentReference(TextualTSFactory.java:378) ~[jackson-core-3.1.7.jar:3.1.7]
+	at tools.jackson.core.base.TextualTSFactory.createParser(TextualTSFactory.java:198) ~[jackson-core-3.1.7.jar:3.1.7]
+	at tools.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:1545) ~[jackson-databind-3.1.7.jar:3.1.7]
+	at me.ahoo.wow.kernel.EventCodec.decode(EventCodec.kt:64) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at me.ahoo.wow.kernel.EventCodec.decodeUnlessRetired(EventCodec.kt:102) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at me.ahoo.wow.kernel.Kernel.evolve$me_ahoo_wow_wow_kernel(Kernel.kt:1167) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at me.ahoo.wow.kernel.Kernel.evolve$me_ahoo_wow_wow_kernel$default(Kernel.kt:1155) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at me.ahoo.wow.kernel.Kernel$replay$3.emit(Kernel.kt:1145) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at me.ahoo.wow.kernel.Kernel$replay$3.emit(Kernel.kt:1141) ~[wow-kernel-10.0.0-beta.1.jar:10.0.0-beta.1]
+	at kotlinx.coroutines.flow.FlowKt__ErrorsKt$catchImpl$2.emit(Errors.kt:154) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+	at kotlinx.coroutines.flow.FlowKt__TransformKt$onEach$$inlined$unsafeTransform$1$2.emit(Emitters.kt:218) ~[kotlinx-coroutines-core-jvm-1.11.0.jar:1.11.0]
+...
+2026-11-04T23:25:25.391-08:00 ERROR 35347 --- [transfer-service] [tcher-worker-18] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000097@1396; its lane stops.
+2026-11-04T23:25:25.573-08:00 ERROR 35347 --- [transfer-service] [tcher-worker-11] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000104@1405; its lane stops.
+2026-11-04T23:25:25.573-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-3] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000020@7399; its lane stops.
+2026-11-04T23:25:29.336-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-6] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onAmountEntered met a fatal error handling transfer.account/(0)/acc-0000000@205916; its lane stops.
+2026-11-04T23:25:29.542-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-7] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000022@7020; its lane stops.
+2026-11-04T23:25:29.542-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-4] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000018@8317; its lane stops.
+2026-11-04T23:25:35.461-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-6] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000017@8998; its lane stops.
+2026-11-04T23:25:35.461-08:00 ERROR 35347 --- [transfer-service] [tcher-worker-14] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000007@21883; its lane stops.
+2026-11-04T23:25:35.461-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-2] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onAmountEntered met a fatal error handling transfer.account/(0)/acc-0000002@63788; its lane stops.
+2026-11-04T23:25:35.655-08:00 ERROR 35347 --- [transfer-service] [tcher-worker-14] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000002@63634; its lane stops.
+2026-11-04T23:25:35.655-08:00 ERROR 35347 --- [transfer-service] [atcher-worker-6] m.a.w.r.subscription.SubscriptionWorker  : Subscription TransferSaga.onPrepared met a fatal error handling transfer.account/(0)/acc-0000004@36467; its lane stops.
+# The node's shutdown (bench.sh down) and its last line:
+2026-11-04T23:26:39.511-08:00  INFO 35347 --- [transfer-service] [ionShutdownHook] o.s.boot.reactor.netty.GracefulShutdown  : Commencing graceful shutdown. Waiting for active requests to complete
+2026-11-04T23:26:39.512-08:00  INFO 35347 --- [transfer-service] [ netty-shutdown] o.s.boot.reactor.netty.GracefulShutdown  : Graceful shutdown complete
+
