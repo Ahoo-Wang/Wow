@@ -962,13 +962,13 @@ Service mode, the default, calls the peer's internal port naming this service (`
 | An evicted key on a deleted aggregate (`evict`) | A tombstone at the deletion's version, which no older state undoes |
 | `StateToCacheDataConverter` (state → cached data) | The generated `<State>View` of the owner's api is the cached value; there is no converter. A reader that needs fewer fields reads them off the view |
 | `QueryApiCacheSource`, `QueryGatewayCacheSource`, `StateCacheSource` (load on a miss) | Nothing to write: a miss reads the owner through the node's typed queries (`snapshots<V>()`), in process or over HTTP as this service, a batch as one `IN` query per tenant |
-| `LoadCacheSourceConfiguration.timeout` | CoCache's load policy: `cocache.caches.[wow.<context>.<aggregate>].load-async-timeout` |
+| `LoadCacheSourceConfiguration.timeout` | CoCache's load policy: `cocache.caches.[wow.<context>.<aggregate>].load-timeout` (a duration with its unit, `5s`) |
 | `ttl` / `ttlAmplitude` (`TtlConfiguration`) | `cocache.caches.[wow.<context>.<aggregate>].ttl` and `ttl-jitter` on each side; `wow.cocache.ttl` for what the owner writes |
 | A `@CoCache` interface or `CacheSpec` per reader, often in a `<context>-cache` module | Inject `StateViewCache<OrderStateView>` (from `wow-cocache-api`, no dependency); delete the declaration and the module |
 | A cache keyed by the aggregate id (`String`) | `StateKey(tenantId, id)`: a key holds the tenant |
 | Cache names and Redis keys of the 9.x caches | New names, `wow.<context>.<aggregate>`: the V10 caches start empty and fill from the owner's writes and the readers' misses; nothing in Redis is migrated |
-| `refreshWindow` on a state cache | None: the caches are versioned, and CoCache refuses an early refresh on them |
-| A reader's index or join cache over another context's state (a name → id index, a code → item join, `JoinCache` of 9.x CoCache) | None in `wow-cocache`: `StateViewCache<V>` is keyed by `StateKey(tenantId, id)` alone. Read the index through the owner's query (`snapshots<V>()` filtered by the name), or keep a CoCache `JoinCache` or `SetCache` of the reader's own, maintained by a subscription of the owner's stream (decision D364 ⑦) |
+| `refreshWindow` on a state cache | None: the caches declare `refresh-window: off`, since the owner writes every version, so CoCache's `cocache.defaults.cache.refresh-window` does not reach them. `cocache.caches.[wow.<context>.<aggregate>].refresh-window` turns it on for one cache, whose refresh reads the owner again |
+| A reader's index or join cache over another context's state (a name → id index, a code → item join, `JoinCache` of 9.x CoCache) | None in `wow-cocache`: `StateViewCache<V>` is keyed by `StateKey(tenantId, id)` alone. Read the index through the owner's query (`snapshots<V>()` filtered by the name), or keep a CoCache `JoinView` or `SetStore` of the reader's own, maintained by a subscription of the owner's stream (decision D364 ⑦) |
 
 A reader that used the cached state to decide a command now asks the owner instead: the cache is a trusted read, and a check that must be consistent belongs to the aggregate it is about ([Peer contexts](#peer-contexts)).
 

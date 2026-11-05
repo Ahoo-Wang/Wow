@@ -15,21 +15,18 @@ package me.ahoo.wow.cocache
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
-import me.ahoo.cocache.api.Cache
 import me.ahoo.cocache.api.CacheReadException
+import me.ahoo.cocache.api.SuspendingVersionedCache
 import me.ahoo.cocache.api.Versioned
-import me.ahoo.cocache.core.CacheRuntime
-import me.ahoo.cocache.core.CacheSpec
-import me.ahoo.cocache.core.ForeignFormatException
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.KeyEncoder
+import me.ahoo.cocache.core.SourceLoadCancelledException
 import me.ahoo.cocache.core.SourceLoadRejectedException
 import me.ahoo.cocache.core.SourceLoadTimeoutException
-import me.ahoo.cocache.core.cacheSpec
-import me.ahoo.cocache.coroutines.SourceLoadCancelledException
-import me.ahoo.cocache.coroutines.SuspendingCache
-import me.ahoo.cocache.coroutines.SuspendingCacheLoader
-import me.ahoo.cocache.coroutines.suspending
-import me.ahoo.cocache.coroutines.suspendingVersionedLoader
+import me.ahoo.cocache.core.SuspendingCacheLoader
+import me.ahoo.cocache.core.VersionedCacheSpec
+import me.ahoo.cocache.core.suspendingVersionedLoader
+import me.ahoo.cocache.core.versionedCacheSpec
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.problem.WowProblemException
@@ -63,12 +60,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   aggregate, else over HTTP as this service, the queries pinned to the key's tenant; a batch read is one query per
  *   tenant, its ids in one `IN`. The fill holds CoCache's lease, which the owner's write takes over: a fill never puts
  *   back a state older than the owner's. An aggregate never created is cached as absent (CoCache's negative cache).
- * - no early refresh (`refreshWindow`): a versioned cache has none, and the owner's writes keep it fresh.
+ * - no early refresh (`refreshWindow = off()`): the owner writes every version after its commit, so a refresh would
+ *   only read the owner again, over HTTP on a reader. The declaration keeps CoCache's global
+ *   `cocache.defaults.cache.refresh-window` off these caches; `cocache.caches.[wow.<context>.<aggregate>].refresh-window`
+ *   still turns it on for one.
  *
- * Each cache is created once, by [factory], which applies the application's CoCache settings to it when it has
- * CoCache's starter (`cocache.caches.[wow.<context>.<aggregate>].*`).
+ * Each cache is created once, by [factory]: CoCache's starter's (its `CoCacheFactory` bean), which applies the
+ * application's CoCache settings to it (`cocache.defaults.cache.*`, `cocache.overrides.cache.*`,
+ * `cocache.caches.[wow.<context>.<aggregate>].*`), else one on the runtime alone, which applies none.
  */
-class StateViewCaches(private val factory: CacheFactory, private val queries: () -> QueryApi) {
+class StateViewCaches(private val factory: CoCacheFactory, private val queries: () -> QueryApi) {
     private val caches = ConcurrentHashMap<AggregateType, Typed<*>>()
 
     /** The cache of the states [viewType] views, created on first use. */
@@ -98,7 +99,7 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         return typed as Typed<V>
     }
 
-    private class Typed<V : Any>(val viewType: Class<V>, val cache: SuspendingCache<StateKey, V>) {
+    private class Typed<V : Any>(val viewType: Class<V>, val cache: SuspendingVersionedCache<StateKey, V>) {
         val reads: StateViewCache<V> = Reads(cache)
     }
 
@@ -107,7 +108,7 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
      * a read since: a reader that falls back on [StateViewUnavailableException] need not log it, and an outage does not
      * flood the log. Each further unavailable read is logged at DEBUG.
      */
-    private class Reads<V : Any>(private val cache: SuspendingCache<StateKey, V>) : StateViewCache<V> {
+    private class Reads<V : Any>(private val cache: SuspendingVersionedCache<StateKey, V>) : StateViewCache<V> {
         override val name: String get() = cache.name
 
         /** Whether the last read the cache could not serve was reported, and none served since. */
@@ -121,7 +122,8 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         /**
          * [read], whose failure to reach the states' source is a [StateViewUnavailableException], [reported]: the
          * owner's read the loader could not make, CoCache's load that timed out, was refused or cancelled, or its
-         * backend's read that failed. A state that does not decode, or any other error, is thrown as it is.
+         * backend's read that failed. Any other error is thrown as it is. A state in the cache that does not decode as
+         * the view is no failure of the cache: CoCache reads it from the owner instead, and keeps the cache's version.
          */
         private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T {
             val failure = try {
@@ -139,7 +141,6 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
             } catch (source: SourceLoadCancelledException) {
                 unavailable(keys, "the read of its owner was cancelled", source)
             } catch (backend: CacheReadException) {
-                if (backend.cause is ForeignFormatException) throw backend
                 unavailable(keys, "the cache's backend failed", backend)
             }
             throw reported(failure)
@@ -168,18 +169,6 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         }
     }
 
-    /** What creates a CoCache cache of a spec: the runtime itself, or CoCache's starter, which applies its settings. */
-    interface CacheFactory {
-        fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V>
-
-        companion object {
-            /** The caches of [runtime], as the spec declares them. */
-            fun of(runtime: CacheRuntime): CacheFactory = object : CacheFactory {
-                override fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V> = runtime.create(spec)
-            }
-        }
-    }
-
     companion object {
         /** The cache of the states of [type]: `wow.<context>.<aggregate>`. */
         fun nameOf(type: AggregateType): String = "wow.$type"
@@ -190,11 +179,12 @@ class StateViewCaches(private val factory: CacheFactory, private val queries: ()
         }
 
         /** The spec of the cache of the states [viewType] views, misses read through [queries]. */
-        fun <V : Any> specOf(viewType: Class<V>, queries: () -> QueryApi): CacheSpec<StateKey, V> =
-            cacheSpec(nameOf(typeOf(viewType))) {
+        fun <V : Any> specOf(viewType: Class<V>, queries: () -> QueryApi): VersionedCacheSpec<StateKey, V> =
+            versionedCacheSpec(nameOf(typeOf(viewType))) {
                 keyEncoder = KeyEncoder { it.toString() }
                 codec = StateViewCodec(viewType)
                 suspendingVersionedLoader(StateViewLoader(viewType, queries))
+                policy { refreshWindow = off() }
             }
     }
 }

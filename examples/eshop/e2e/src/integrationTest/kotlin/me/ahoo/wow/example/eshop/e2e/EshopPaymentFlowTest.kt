@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.e2e
 import io.lettuce.core.RedisURI
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.core.CacheRuntime
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.redis.RedisBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
@@ -105,7 +106,7 @@ class EshopPaymentFlowTest {
     private val reader = CacheRuntime.builder()
         .backend(RedisBackend.standalone(RedisURI.create(redis.host, redis.getMappedPort(REDIS_PORT))))
         .build()
-    private val orders = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) {
+    private val orders = StateViewCaches(CoCacheFactory(reader)) {
         error("The ordering service writes the orders: the test reads none from it.")
     }.of<OrderStateView>()
 

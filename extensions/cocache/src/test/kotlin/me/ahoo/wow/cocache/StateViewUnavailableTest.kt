@@ -26,16 +26,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import me.ahoo.cocache.api.Cache
-import me.ahoo.cocache.api.CacheReadException
 import me.ahoo.cocache.api.spi.CoherenceBackend
+import me.ahoo.cocache.api.spi.ForwardingL1Store
+import me.ahoo.cocache.api.spi.Keyspace
+import me.ahoo.cocache.api.spi.L1Read
+import me.ahoo.cocache.api.spi.L1Store
 import me.ahoo.cocache.api.spi.LeaseRequest
 import me.ahoo.cocache.api.spi.RefreshRequest
-import me.ahoo.cocache.api.spi.RemoteRead
-import me.ahoo.cocache.api.spi.RemoteStore
+import me.ahoo.cocache.core.CacheLayers
 import me.ahoo.cocache.core.CacheRuntime
-import me.ahoo.cocache.core.CacheSpec
-import me.ahoo.cocache.core.ForeignFormatException
+import me.ahoo.cocache.core.CoCacheFactory
+import me.ahoo.cocache.core.Layered
+import me.ahoo.cocache.core.Locks
+import me.ahoo.cocache.core.VersionedCacheSpec
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.cocache.core.policy.CachePolicy
 import me.ahoo.cocache.core.policy.LoadPolicy
@@ -68,7 +71,7 @@ class StateViewUnavailableTest {
     private val backend = InMemoryBackend()
     private val runtime = runtimeOn(backend)
     private val snapshots = mockk<TenantSnapshotQueries<OrderView>>()
-    private val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { queryApiOf(snapshots) }
+    private val caches = StateViewCaches(CoCacheFactory(runtime)) { queryApiOf(snapshots) }
     private val key = StateKey("t", "o-1")
 
     @AfterEach
@@ -143,7 +146,7 @@ class StateViewUnavailableTest {
             }
         }
         val failure = readFailure {
-            StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { noRoute }.of<OrderView>().get(key)
+            StateViewCaches(CoCacheFactory(runtime)) { noRoute }.of<OrderView>().get(key)
         }
         (failure as StateViewUnavailableException).message.assert().contains("no route")
     }
@@ -160,24 +163,43 @@ class StateViewUnavailableTest {
     }
 
     @Test
-    fun `a state that does not decode as its view should be thrown as it is`() = runBlocking<Unit> {
-        caches.writerOf(OrderView::class.java).write(key, OrderView("book"), 1).assert().isTrue()
-        runtimeOn(backend).use { other ->
-            val strict = StateViewCaches(StateViewCaches.CacheFactory.of(other)) { mockk() }.of<StrictOrderView>()
-            val failure = readFailure { strict.get(key) }
-            failure.assert().isNotNull()
-            (failure is StateViewUnavailableException).assert().isFalse()
+    fun `a state that does not decode as its view should be read from its owner, the cache kept as it is`() =
+        runBlocking<Unit> {
+            caches.writerOf(OrderView::class.java).write(key, OrderView("book"), 1).assert().isTrue()
+            val strictSnapshots = mockk<TenantSnapshotQueries<StrictOrderView>>()
+            coEvery { strictSnapshots.state("o-1") } throws IllegalStateException("The order is no StrictOrderView.")
+            val strictApi: TenantQueryApi = mockk {
+                every { tenant(any()) } answers {
+                    mockk<SubscriptionQueries> {
+                        every { snapshots(StrictOrderView::class.java) } returns strictSnapshots
+                    }
+                }
+            }
+            runtimeOn(backend).use { other ->
+                val strict = StateViewCaches(CoCacheFactory(other)) { strictApi }.of<StrictOrderView>()
+                val failure = readFailure { strict.get(key) }
+                (failure is StateViewUnavailableException).assert().isFalse()
+                generateSequence(failure) { it.cause }.any { it.message == "The order is no StrictOrderView." }
+                    .assert().isTrue()
+            }
+            // The owner's state stays at its version: a reader of the view still reads it, without reading the owner.
+            runtimeOn(backend).use { third ->
+                StateViewCaches(CoCacheFactory(third)) { queryApiOf(snapshots) }.of<OrderView>().get(key)
+                    .assert().isEqualTo(OrderView("book"))
+            }
         }
-    }
 
     /** The caches of [backend], each with its policy changed by [policy]: what CoCache's settings would make it. */
     private fun cachesOf(backend: CoherenceBackend, policy: CachePolicy.Builder.() -> Unit): StateViewCaches {
         val runtime = CacheRuntime.builder().backend(backend).build().also { opened += it }
-        val factory = object : StateViewCaches.CacheFactory {
-            override fun <K : Any, V : Any> create(spec: CacheSpec<K, V>): Cache<K, V> =
-                runtime.create(spec.toBuilder().updatePolicy { it.policy() }.build())
+        val settings = object : CacheLayers {
+            override fun <K : Any, V : Any> apply(
+                spec: VersionedCacheSpec<K, V>,
+                locks: Locks,
+            ): Layered<VersionedCacheSpec<K, V>> =
+                CacheLayers.NONE.apply(spec.toBuilder().policy(policy).build(), locks)
         }
-        return StateViewCaches(factory) { queryApiOf(snapshots) }
+        return StateViewCaches(CoCacheFactory(runtime, settings)) { queryApiOf(snapshots) }
     }
 
     private val opened = mutableListOf<CacheRuntime>()
@@ -193,7 +215,7 @@ class StateViewUnavailableTest {
             delay(Duration.ofSeconds(5).toMillis())
             null
         }
-        val cache = cachesOf(backend) { load = LoadPolicy(asyncTimeout = Duration.ofMillis(100)) }.of<OrderView>()
+        val cache = cachesOf(backend) { load = LoadPolicy(timeout = Duration.ofMillis(100)) }.of<OrderView>()
         (readFailure { cache.get(key) } as StateViewUnavailableException).message.assert().contains("in time")
     }
 
@@ -225,26 +247,26 @@ class StateViewUnavailableTest {
     }
 
     @Test
-    fun `a backend whose reads fail should be unavailable, one that holds a foreign format not`() {
+    fun `a backend whose reads fail should be unavailable`() {
         coEvery { snapshots.state(any<String>()) } returns null
         val down = failingBackend(IllegalStateException("Redis is down."))
         val failure = readFailure {
             cachesOf(down) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key)
         } as StateViewUnavailableException
         failure.message.assert().contains("backend")
-        val foreign = failingBackend(ForeignFormatException("wow.shop.order", "t/o-1", 0, null))
-        val unreadable =
-            readFailure { cachesOf(foreign) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key) }
-        (unreadable as CacheReadException).cause.assert().isInstanceOf(ForeignFormatException::class.java)
     }
 
     /** A backend whose every read of a key throws [failure], as a Redis that is down does. */
     private fun failingBackend(failure: RuntimeException): CoherenceBackend {
         val memory = InMemoryBackend()
         return object : CoherenceBackend by memory {
-            override fun store(namespace: String): RemoteStore = object : RemoteStore by memory.store(namespace) {
-                override fun read(key: String, lease: LeaseRequest?, refresh: RefreshRequest?): RemoteRead =
-                    throw failure
+            override fun store(keyspace: Keyspace): L1Store = object : ForwardingL1Store(memory.store(keyspace)) {
+                override suspend fun read(
+                    key: String,
+                    lease: LeaseRequest?,
+                    refresh: RefreshRequest?,
+                    timeout: Duration?,
+                ): L1Read = throw failure
             }
         }
     }
