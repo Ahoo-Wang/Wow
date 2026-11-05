@@ -29,6 +29,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
@@ -296,6 +297,45 @@ abstract class EventLogSpec {
             withTimeout(TAIL_TIMEOUT_MS) {
                 log.tail(Partitioner.partitionOf(ref, log.partitions)).take(history.size).toList()
             }.map { it.stream.accessVersion }.assert().containsExactly(4, 4, 4, 4)
+        }
+
+    @Test
+    fun `a page's stamps are written together, each under its own guard, the later of two that overlap kept`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is AccessStamps, "This log keeps no stamps.")
+            val stamps = log as AccessStamps
+            fun access(
+                region: String
+            ) = linkedMapOf<String, Any?>("owner" to "owner", "space" to null, "region" to region)
+            val (east, west) = listOf(access("east"), access("west"))
+            listOf("a", "b", "c").forEach { id -> (1..3).forEach { log.append(stream(id, it)) } }
+            val (a, b, c) = listOf("a", "b", "c").map { type.ref("tenant", it) }
+            // b's first stream is stamped as of a later version already.
+            stamps.stamp(b, west, asOf = 9, from = 1, until = 2).assert().isEqualTo(1)
+            stamps.stampAll(
+                listOf(
+                    AccessStamp(a, east, asOf = 3, from = 1, until = 3),
+                    AccessStamp(a, east, asOf = 3, from = 3, until = 4),
+                    AccessStamp(b, east, asOf = 3, from = 1, until = 4),
+                    AccessStamp(type.ref("tenant", "none"), east, asOf = 1, from = 1, until = 2),
+                ),
+            ).assert().isEqualTo(5)
+            suspend fun versions(ref: AggregateRef) = log.read(ref).toList().map { it.accessVersion }
+            versions(a).assert().containsExactly(3, 3, 3)
+            versions(b).assert().containsExactly(9, 3, 3)
+            log.read(b).toList().map { it.access }.assert().containsExactly(west, east, east)
+            versions(c).assert().containsExactly(null, null, null)
+            // Two that overlap leave the later version's, in whatever order they are given.
+            stamps.stampAll(
+                listOf(
+                    AccessStamp(c, west, asOf = 7, from = 1, until = 4),
+                    AccessStamp(c, east, asOf = 5, from = 1, until = 4),
+                ),
+            )
+            versions(c).assert().containsExactly(7, 7, 7)
+            log.read(c).toList().map { it.access }.distinct().assert().containsExactly(west)
+            stamps.stampAll(emptyList()).assert().isEqualTo(0)
         }
 
     @Test

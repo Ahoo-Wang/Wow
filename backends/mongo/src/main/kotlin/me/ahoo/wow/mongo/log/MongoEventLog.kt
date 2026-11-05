@@ -21,11 +21,13 @@ import com.mongodb.WriteConcern
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateManyModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -45,6 +47,7 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
@@ -319,16 +322,41 @@ class MongoEventLog(
         if (from >= until) return 0
         return dispatcher.mongo {
             collections.of(ref.type).log.updateMany(
-                Filters.and(
-                    lookups.refFilter(ref),
-                    Filters.gte(VERSION, from),
-                    Filters.lt(VERSION, until),
-                    Filters.or(Filters.exists(ACCESS_VERSION, false), Filters.lte(ACCESS_VERSION, asOf)),
-                ),
+                stampFilter(ref, asOf, from, until),
                 Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
             ).matchedCount.toInt()
         }
     }
+
+    /**
+     * One unordered `bulkWrite` of the stamps' guarded `updateMany`s per aggregate type, each as [stamp] writes one:
+     * each guard holds on the document it writes, so stamps that overlap leave the later version's attributes, in
+     * whatever order the server applies them.
+     */
+    @InternalWowApi
+    override suspend fun stampAll(stamps: List<AccessStamp>): Int {
+        val ranges = stamps.filter { it.from < it.until }
+        if (ranges.isEmpty()) return 0
+        return dispatcher.mongo {
+            ranges.groupBy { it.ref.type }.entries.sumOf { (type, group) ->
+                val updates = group.map {
+                    UpdateManyModel<Document>(
+                        stampFilter(it.ref, it.asOf, it.from, it.until),
+                        Updates.combine(Updates.set(ACCESS, Document(it.access)), Updates.set(ACCESS_VERSION, it.asOf)),
+                    )
+                }
+                collections.of(type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).matchedCount
+            }
+        }
+    }
+
+    /** The streams of [ref] from [from] until [until] not stamped as of a later version than [asOf]. */
+    private fun stampFilter(ref: AggregateRef, asOf: Int, from: Int, until: Int): Bson = Filters.and(
+        lookups.refFilter(ref),
+        Filters.gte(VERSION, from),
+        Filters.lt(VERSION, until),
+        Filters.or(Filters.exists(ACCESS_VERSION, false), Filters.lte(ACCESS_VERSION, asOf)),
+    )
 
     /**
      * Partition by partition, each by the version key (its aggregates' first streams); the cursor is the partition,

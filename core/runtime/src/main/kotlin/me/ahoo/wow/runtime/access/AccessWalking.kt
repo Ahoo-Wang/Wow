@@ -27,6 +27,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
@@ -367,6 +368,37 @@ object AccessSchema {
     }
 
     private const val HASH_BYTES = 8
+}
+
+/**
+ * Writes [stamps] together ([AccessStamps.stampAll]), in writes of at most [batch] streams each: a stamp of more is cut
+ * into chunks of [batch], each written whole in one write. Returns the streams stamped.
+ */
+@InternalWowApi
+suspend fun AccessStamps.stampAllIn(stamps: List<AccessStamp>, batch: Int): Int {
+    require(batch >= 1) { "A write stamps at least one stream." }
+    val chunks = stamps.flatMap { stamp ->
+        (stamp.from until stamp.until step batch).map { from ->
+            stamp.copy(from = from, until = minOf(from + batch, stamp.until))
+        }
+    }
+    var written = 0
+    var bulk = ArrayList<AccessStamp>()
+    var streams = 0
+    chunks.forEach { chunk ->
+        val size = chunk.until - chunk.from
+        if (bulk.isNotEmpty() && streams + size > batch) {
+            written += stampAll(bulk)
+            bulk = ArrayList()
+            streams = 0
+        }
+        bulk += chunk
+        streams += size
+    }
+    if (bulk.isNotEmpty()) {
+        written += stampAll(bulk)
+    }
+    return written
 }
 
 /** Stamps [access] as of [asOf] over the streams of [ref] from [from] until [until], at most [batch] in each stamp. */

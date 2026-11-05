@@ -33,6 +33,7 @@ import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventStreamFields
@@ -178,6 +179,49 @@ class ElasticsearchEventSink internal constructor(
         )
     }
 
+    /**
+     * One `update_by_query` of [stamps], a walk's page: the query an OR of each stamp's documents ([stamped]), the
+     * script each document's own stamp, found by its tenant and aggregate id, under the same guard as [stamp]'s. Stamps
+     * of one aggregate of different attributes or versions are written one at a time, as [stamp] writes them.
+     */
+    override suspend fun stampAll(stamps: List<AccessStamp>): Int {
+        val ranges = stamps.filter { it.from < it.until }
+        if (ranges.isEmpty()) return 0
+        val byRef = ranges.groupBy { it.ref }
+        if (byRef.values.any { group -> group.distinctBy { it.access to it.asOf }.size > 1 }) {
+            return super.stampAll(ranges)
+        }
+        ranges.forEach { require(it.ref.type == type) { "The Sink of $type does not stamp ${it.ref}." } }
+        prepare()
+        val table = byRef.entries.groupBy({ it.key.tenantId }) { (ref, group) ->
+            ref.id to mapOf(ACCESS_PARAM to group.first().access, AS_OF_PARAM to group.first().asOf)
+        }.mapValues { (_, ids) -> ids.toMap() }
+        val params = mapOf(STAMPS_PARAM to JsonData.of(table))
+        val query = Query.of { query ->
+            query.bool { bool ->
+                ranges.forEach { stamp -> bool.should(stamped(stamp.ref, stamp.asOf, stamp.from, stamp.until)) }
+                bool.minimumShouldMatch("1")
+            }
+        }
+        var written = 0
+        repeat(MAX_STAMP_RUNS) {
+            val response = whenShardReady {
+                client.updateByQuery { request ->
+                    request.index(index)
+                        .conflicts(Conflicts.Proceed)
+                        .query(query)
+                        .script { script -> script.source { it.scriptString(STAMP_ALL_SCRIPT) }.params(params) }
+                        .also { if (refresh != null) it.refresh(true) }
+                }.awaitElasticsearch()
+            }
+            written += response.updated()?.toInt() ?: 0
+            if ((response.versionConflicts() ?: 0L) == 0L) return written
+        }
+        throw StorageUnavailableException(
+            "The access attributes of ${byRef.size} aggregates met a concurrent stamp of [$index] $MAX_STAMP_RUNS times.",
+        )
+    }
+
     /** The documents of [ref] from [from] until [until] that a stamp as of [asOf] may write. */
     private fun stamped(ref: AggregateRef, asOf: Int, from: Int, until: Int): Query = Query.of { query ->
         query.bool { bool ->
@@ -266,6 +310,19 @@ class ElasticsearchEventSink internal constructor(
         private const val ACCESS_PARAM = "access"
         private const val AS_OF_PARAM = "asOf"
         private const val ACCESS_VERSION = ElasticsearchEventIndex.ACCESS_VERSION
+
+        private const val STAMPS_PARAM = "stamps"
+
+        /** [STAMP_SCRIPT] of the document's own stamp among [stampAll]'s, by its tenant, then its aggregate id. */
+        private const val STAMP_ALL_SCRIPT =
+            "def tenant = params.$STAMPS_PARAM[ctx._source.${EventStreamFields.TENANT_ID}]; " +
+                "def own = tenant == null ? null : tenant[ctx._source.${EventStreamFields.AGGREGATE_ID}]; " +
+                "if (own == null) { ctx.op = 'noop'; return; } " +
+                "def stamped = ctx._source.$ACCESS_VERSION; " +
+                "if (stamped == null || stamped < own.$AS_OF_PARAM || " +
+                "(stamped == own.$AS_OF_PARAM && ctx._source.${EventStreamFields.ACCESS} != own.$ACCESS_PARAM)) " +
+                "{ ctx._source.${EventStreamFields.ACCESS} = own.$ACCESS_PARAM; " +
+                "ctx._source.$ACCESS_VERSION = own.$AS_OF_PARAM; } else { ctx.op = 'noop'; }"
 
         /** The guard of a stamp, again on the document it writes: see [stamp]. */
         private const val STAMP_SCRIPT =
