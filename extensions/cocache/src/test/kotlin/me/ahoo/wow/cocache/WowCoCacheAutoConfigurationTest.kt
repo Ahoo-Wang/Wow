@@ -73,6 +73,23 @@ class WowCoCacheAutoConfigurationTest {
     }
 
     @Test
+    fun `a service with a runtime of its own, without CoCache's starter, should get the caches on that runtime`() {
+        val runtime = runtimeOn(me.ahoo.cocache.core.memory.InMemoryBackend())
+        ApplicationContextRunner()
+            .withClassLoader(ContractClassLoader(shopManifest(), javaClass.classLoader))
+            .withConfiguration(AutoConfigurations.of(WowCoCacheAutoConfiguration::class.java))
+            .withBean(QueryApi::class.java, { mockk<QueryApi>() })
+            .withBean(CacheRuntime::class.java, { runtime })
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBeanProvider<StateViewCache<OrderView>>(cacheOfOrders).getObject().name
+                    .assert().isEqualTo("wow.shop.order")
+                runtime.cacheNames.assert().contains("wow.shop.order")
+            }
+        runtime.close()
+    }
+
+    @Test
     fun `a service that does not run CoCache should get nothing`() {
         runner.run { context ->
             context.startupFailure.assert().isNull()
