@@ -928,6 +928,11 @@ class WowAutoConfiguration {
         @JvmStatic
         internal fun wowSingleSeams(): BeanFactoryPostProcessor = SingleSeams()
 
+        /** Refuses an application's QueryPolicy bean, which the node no longer applies ([RetiredQueryPolicies]). */
+        @Bean
+        @JvmStatic
+        internal fun wowRetiredQueryPolicies(): BeanFactoryPostProcessor = RetiredQueryPolicies()
+
         /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
         internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
             context.commands.isNotEmpty() ||

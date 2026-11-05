@@ -133,7 +133,7 @@ dependencies {
 | Bean Validation 实现（`spring-boot-starter-validation`） | 在准入时检查每个命令体的 Jakarta 约束，回答 `wow.command.invalid`（400）（[编写聚合](./aggregates#check-its-shape)） |
 | `Observer` | 观察节点的工作：各个阶段，以及它注意到的事，比如一次拒绝 |
 
-这些钩子大多是列表：宿主取该类型的每个 Bean，按 Bean 的顺序（`@Order`、`Ordered` 或 `@Priority`，这是唯一的排序方式）。授权器、变换器、校验器、观察者、失败分类器，以及查询的策略、过滤器和观察者，都是这样的列表：
+这些钩子大多是列表：宿主取该类型的每个 Bean，按 Bean 的顺序（`@Order`、`Ordered` 或 `@Priority`，这是唯一的排序方式）。授权器、变换器、校验器、观察者、失败分类器，以及读取授权器、查询过滤器和查询观察者，都是这样的列表：
 
 - **授权器全部询问。** 只有每个 `CommandAuthorizer` 都允许，命令才被允许；按顺序第一个拒绝的就是答案，其余的不再询问。允许的意思是没有异议，而不是推翻其他授权器，也没有弃权：只管一类事的授权器（比如服务身份可以调用哪些命令，`caller.service`）对它管辖之外的命令一律允许。开启 `wow.cosec.authorizer.enabled` 后，CoSec 的授权器也是其中之一。一个授权器都没有时，命令被允许，但 Wow 内置聚合的系统命令（定时任务的命令和快照重建）除外，公开端口这时拒绝它们（[授权命令](../operate/security#authorize-commands)）。
 - **读取授权器全部询问**，与命令授权器一样：只有每个 `ReadAuthorizer` 都允许，读取才被允许，按顺序第一个拒绝的作答。每个入口的每个调用方都会被询问：公开端口、对端的读取，以及以调用方身份读取的进程内代码；不带调用方读取的受信任进程内代码不被询问。

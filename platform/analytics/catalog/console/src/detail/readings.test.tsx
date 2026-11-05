@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DATASET_ROWS,
   EDITOR,
+  FIRST_RENDER,
   renderConsole,
   SOURCE_ROWS,
 } from "@/app/testing.tsx";
@@ -32,7 +33,11 @@ describe("a source's detail", () => {
     const { commands } = renderConsole(EDITOR, {
       path: open("sources", SOURCE_ROWS[0].aggregateId),
     });
-    const form = await screen.findByRole("form", { name: "Scope" });
+    const form = await screen.findByRole(
+      "form",
+      { name: "Scope" },
+      FIRST_RENDER,
+    );
     const owner = within(form).getByRole("combobox", { name: "Owner column" });
     await userEvent.type(owner, "buyer");
     const references = within(form).getByRole("textbox", {
@@ -66,7 +71,11 @@ describe("a source's detail", () => {
     const { commands } = renderConsole(EDITOR, {
       path: open("sources", SOURCE_ROWS[0].aggregateId),
     });
-    const form = await screen.findByRole("form", { name: "Scope" });
+    const form = await screen.findByRole(
+      "form",
+      { name: "Scope" },
+      FIRST_RENDER,
+    );
     await userEvent.click(
       within(form).getByRole("checkbox", { name: "Platform dimension" }),
     );
@@ -86,7 +95,11 @@ describe("a source's detail", () => {
     const { commands } = renderConsole(EDITOR, {
       path: open("sources", SOURCE_ROWS[0].aggregateId),
     });
-    const form = await screen.findByRole("form", { name: "Sensitivity" });
+    const form = await screen.findByRole(
+      "form",
+      { name: "Sensitivity" },
+      FIRST_RENDER,
+    );
     expect(within(form).getAllByText("Not reviewed")).toHaveLength(3);
     expect(
       within(form).getByRole("spinbutton", { name: "Keep first id" }),
@@ -127,7 +140,11 @@ describe("a source's detail", () => {
         detail: "nothing is not a column.",
       }),
     );
-    const form = await screen.findByRole("form", { name: "Scope" });
+    const form = await screen.findByRole(
+      "form",
+      { name: "Scope" },
+      FIRST_RENDER,
+    );
     await userEvent.click(within(form).getByRole("button", { name: "Save" }));
     expect(await within(form).findByRole("alert")).toHaveTextContent(
       "nothing is not a column.",
@@ -141,6 +158,8 @@ describe("a source's detail", () => {
     expect(
       await screen.findByText(
         /A Wow table: its wow_catalog row declares its scope/,
+        undefined,
+        FIRST_RENDER,
       ),
     ).toBeVisible();
     expect(screen.queryByRole("form", { name: "Scope" })).toBeNull();
@@ -159,7 +178,11 @@ describe("a dataset's detail", () => {
       path: open("datasets", DATASET_ROWS[0].aggregateId),
     });
     expect(
-      await screen.findByText("default:shop:orders lost its column id."),
+      await screen.findByText(
+        "default:shop:orders lost its column id.",
+        undefined,
+        FIRST_RENDER,
+      ),
     ).toBeVisible();
     const form = screen.getByRole("form", { name: "Definition" });
     const editor = within(form).getByRole("textbox", { name: "Definition" });
@@ -189,7 +212,11 @@ describe("a dataset's detail", () => {
     renderConsole(EDITOR, {
       path: open("datasets", DATASET_ROWS[0].aggregateId),
     });
-    const versions = await screen.findByRole("region", { name: "Versions" });
+    const versions = await screen.findByRole(
+      "region",
+      { name: "Versions" },
+      FIRST_RENDER,
+    );
     expect(within(versions).getByText("Serving")).toBeVisible();
     expect(within(versions).getByText("→ shop.order")).toBeVisible();
     expect(
@@ -203,7 +230,11 @@ describe("a dataset's detail", () => {
     const { commands } = renderConsole(EDITOR, {
       path: open("datasets", DATASET_ROWS[2].aggregateId),
     });
-    const versions = await screen.findByRole("region", { name: "Versions" });
+    const versions = await screen.findByRole(
+      "region",
+      { name: "Versions" },
+      FIRST_RENDER,
+    );
     const listed = Array.from(versions.querySelectorAll("summary"));
     expect(listed.map((summary) => summary.textContent)).toEqual([
       expect.stringMatching(/^v2 .*Serving$/),
@@ -239,7 +270,11 @@ describe("a dataset's detail", () => {
       { ...EDITOR, roles: ["analytics.catalog.viewer"] },
       { path: open("datasets", DATASET_ROWS[2].aggregateId) },
     );
-    const versions = await screen.findByRole("region", { name: "Versions" });
+    const versions = await screen.findByRole(
+      "region",
+      { name: "Versions" },
+      FIRST_RENDER,
+    );
     expect(
       within(versions).queryByRole("button", { name: /Roll back to/ }),
     ).toBeNull();
@@ -250,7 +285,11 @@ describe("a dataset's detail", () => {
       path: open("datasets", DATASET_ROWS[0].aggregateId),
     });
     expect(
-      await screen.findByText("Serving while it needs revision"),
+      await screen.findByText(
+        "Serving while it needs revision",
+        undefined,
+        FIRST_RENDER,
+      ),
     ).toBeVisible();
   });
 
@@ -258,7 +297,11 @@ describe("a dataset's detail", () => {
     renderConsole(EDITOR, {
       path: open("datasets", DATASET_ROWS[2].aggregateId),
     });
-    await screen.findByRole("region", { name: "Versions" });
+    await screen.findByRole(
+      "region",
+      { name: "Versions" },
+      FIRST_RENDER,
+    );
     expect(screen.queryByText("Serving while it needs revision")).toBeNull();
   });
 
@@ -266,7 +309,9 @@ describe("a dataset's detail", () => {
     renderConsole(EDITOR, {
       path: open("datasets", DATASET_ROWS[1].aggregateId),
     });
-    expect(await screen.findByText("Awaiting approval")).toBeVisible();
+    expect(
+      await screen.findByText("Awaiting approval", undefined, FIRST_RENDER),
+    ).toBeVisible();
     expect(screen.queryByRole("region", { name: "Versions" })).toBeNull();
   });
 });

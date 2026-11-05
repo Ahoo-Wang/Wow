@@ -94,13 +94,11 @@ class AccessQueryEngineTest {
         vararg policies: AccessPolicy<*>,
         counts: QueryCountCache? = null,
         eventCounts: QueryCountCache? = null,
-        applications: List<QueryPolicy> = emptyList(),
     ): QueryEngine =
         QueryEngine.Builder(MANIFEST)
             .snapshots(storage)
             .events(events)
             .accessPolicies(policies.toList(), AccessFixtures::aggregatesOf)
-            .policies(applications)
             .counts(counts, eventCounts)
             .build()
 
@@ -219,7 +217,6 @@ class AccessQueryEngineTest {
         runBlocking {
             val cache = QueryCountCache({ 1L })
             val engine = engine(documents, eventCounts = cache)
-            AccessQueryPolicy(engine.access).events.assert().isEqualTo(EventsMode.PUSHDOWN)
             // An events query need not name its aggregates.
             engine.pinned(DOCUMENT).assert().isFalse()
             engine.streams(DOCUMENT, alice).assert().containsExactly("d-sales")
@@ -248,17 +245,6 @@ class AccessQueryEngineTest {
         engine.streams(NOTE, caller("alice"), OwnerIdFilter("zed")).assert().containsExactly("n-moved")
         engine.streams(NOTE, caller("emma", scope = Scope.NONE)).assert().hasSize(5)
     }
-
-    @Test
-    fun `an application's policy, which reads the state, should still pin the events of every aggregate`(): Unit =
-        runBlocking {
-            val engine = engine(documents, applications = listOf(QueryPolicy { _, _ -> MatchAllFilter }))
-            engine.pinned(DOCUMENT).assert().isTrue()
-            engine.pinned(NOTE).assert().isTrue()
-            // Both rules hold: the snapshot the pinned policy checks, and the stream the access policy filters.
-            engine.streams(DOCUMENT, caller("bob"), AggregateIdFilter("d-hr")).assert().containsExactly("d-hr")
-            engine.streams(DOCUMENT, alice, AggregateIdFilter("d-hr")).assert().isEmpty()
-        }
 
     @Test
     fun `a governed type whose snapshots are not queried should still have its policy evaluated on its states`(): Unit =

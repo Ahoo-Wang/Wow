@@ -466,8 +466,10 @@ object ArchitectureRules {
         "policy.QueryEntryPolicy", "admission.QueryBudget", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
         "QueryGateway", "QueryModule", "CrossTenantAudit",
         // The application's ports the engine is built of.
-        "policy.QueryPolicy", "policy.ReadAuthorizer", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
+        "policy.ReadAuthorizer", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",
+        // Refused at startup: an application's QueryPolicy bean, which the node no longer applies.
+        "policy.QueryPolicy",
         // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
         "store.StoreQueries", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
         "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
@@ -498,7 +500,7 @@ object ArchitectureRules {
     val ENTRIES_READ_THROUGH_FACADE = DependencyRule(
         name = "the entries admit a state only through wow-query's ReadFacade",
         modules = listOf(RUNTIME, HTTP, COSEC, OBSERVABILITY, SPRING_BOOT).map { it.dir },
-        forbidden = listOf("me.ahoo.wow.query.state.StateVisibility", "me.ahoo.wow.query.events.EventVisibility"),
+        forbidden = listOf("me.ahoo.wow.query.state.StateVisibility"),
     )
 
     /**

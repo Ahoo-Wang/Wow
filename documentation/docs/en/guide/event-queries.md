@@ -66,7 +66,7 @@ An events query shows only the commits of aggregates the caller may see now. Eac
 
 When an aggregate's attributes change, its earlier streams are stamped again, normally within seconds. Until then, an events query reads them by the attributes they were stamped with. A state read, a version, a time and a trace are checked on the aggregate's latest state, so they are never behind ([Read State](./reading-state)).
 
-A `QueryPolicy` of the service's own reads the state, which the streams do not carry, unless it says it hides no stream (`EventsMode.NONE`). While such a policy applies, every events query names its aggregates, and the node checks them against the snapshot model's admission and policies before it answers. Fields the state schema masks are masked in the events too.
+A read authorizer that refuses a caller refuses its events queries too, before anything is read ([Authorize reads](../operate/security#authorize-reads)). Fields the state schema masks are masked in the events too.
 
 ## Unpinned queries
 

@@ -65,7 +65,6 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | --- | --- | --- | --- |
 | `wow.query.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome` | 对聚合类型的快照或事件的一次查询，从准入到结束。`wow.query.type`：`single`、`list`、`paged`、`cursor`、`count`、`aggregation`、`state`、`trace`。`wow.outcome`：`ok`、`cached`（计数或总数来自缓存）、`error`、`cancelled` |
 | `wow.query.dataset.duration` | Timer | `wow.context`, `wow.dataset`, `wow.query.type`, `wow.outcome` | 对数据集的一次查询，从准入到结束；类型与结果同 `wow.query.duration`：`single`、`list`、`paged`、`cursor`、`count`、`aggregation`、`state`、`trace`；`ok`、`cached`、`error`、`cancelled` |
-| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | 限定到聚合的事件查询所指明并检查过的聚合数，按读取方式：一次快照查询批量读取（`wow.read=batch`），或逐个读取（`wow.read=point`） |
 | `wow.query.limit.current` | Gauge | `wow.store` | 存储当前的并发查询上限 |
 | `wow.query.pressure` | Gauge | `wow.store` | 自适应上限处于压力之下期间为 1 |
 | `wow.query.limit.decreases` | Counter | `wow.store` | 自适应上限下调的次数 |

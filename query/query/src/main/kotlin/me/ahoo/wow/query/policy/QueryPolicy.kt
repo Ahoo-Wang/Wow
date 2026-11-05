@@ -13,13 +13,17 @@
 
 package me.ahoo.wow.query.policy
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.filter.QueryContext
 
 /**
- * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]); the port the
- * scope policy implements ([ScopeQueryPolicy]).
+ * A mandatory restriction of an aggregate's queries, evaluated at admission step 2 ([QueryAdmission]): the engine's
+ * own rules, the caller's tenant and the default rule ([ScopeQueryPolicy]), the access policies ([AccessQueryPolicy]),
+ * the store's cost guard on the events ([me.ahoo.wow.query.events.UnpinnedEvents]). It is Wow's, not an
+ * application's: which rows a caller reads is its aggregate's access policy's
+ * ([me.ahoo.wow.api.access.AccessPolicy]), whether it reads a model at all a [ReadAuthorizer]'s.
  *
  * Each policy reads the same query, the one every [QueryFilter][me.ahoo.wow.query.filter.QueryFilter] rewrite
  * produced with the caller's scope and route selection appended, and the [caller] (the identity is an
@@ -28,50 +32,17 @@ import me.ahoo.wow.query.filter.QueryContext
  * (ANDed) after every rewrite, so no filter can remove them; the model's default scope, validation and execution
  * follow. Gateways and admitted point reads run the same stage. A policy uses the query context to decide whether it
  * applies, returning `MatchAllFilter` when it does not. Policies do not replace queries, execute backends, or
- * transform results.
+ * transform results. On the `events` model, each policy's filter is the whole rule: it reads only what each stream
+ * records (its tenant, its aggregate's current access attributes).
  *
- * Policies run one after another by [order], lowest first (9.x `@Order`; policies of one order keep their
- * registration order). Their filters are ANDed, so the order decides only which policy's error, and which audit
- * entry, comes first.
- *
- * Each policy declares how it restricts the `events` model ([events]): whether its filter on
- * the event streams is the whole rule, or the streams of an aggregate follow whether the snapshot queries show it.
+ * Policies run one after another by [order], lowest first (policies of one order keep their registration order).
+ * Their filters are ANDed, so the order decides only which policy's error, and which audit entry, comes first.
  */
+@InternalWowApi
 fun interface QueryPolicy {
     suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression
 
     /** Where this policy runs among the others, lowest first. */
     val order: Int
         get() = 0
-
-    /**
-     * How this policy restricts the `events` model: [EventsMode.PINNED] by default, the rule that holds for any
-     * policy, since one that reads the state cannot be evaluated on the event streams.
-     */
-    val events: EventsMode
-        get() = EventsMode.PINNED
-}
-
-/**
- * How a [QueryPolicy] restricts the event streams of the `events` model. Every policy runs on
- * every events query as on any other; the mode says whether its filter there is enough.
- */
-enum class EventsMode {
-    /**
-     * Its filter on the events model is the whole rule: it reads only what each stream records (its tenant, its
-     * aggregate's current access attributes), so an events query need not name its aggregates. The caller scope and the
-     * access policies are such.
-     */
-    PUSHDOWN,
-
-    /**
-     * The default: its rule reads the state, which the streams do not carry, so an aggregate's streams are shown only
-     * when the snapshot queries of its type show the aggregate. An events query must then name its aggregates (at most
-     * the entry budget's `maxFilterValues`), which one snapshot query checks, and the model's descriptor lists the
-     * constraint `AGGREGATE_REQUIRED`.
-     */
-    PINNED,
-
-    /** It hides no stream: an events query is restricted only by its filter, if any, and it may still refuse a caller. */
-    NONE,
 }

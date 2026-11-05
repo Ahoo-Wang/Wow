@@ -29,9 +29,8 @@ import tools.jackson.databind.JsonNode
 /**
  * Whether a caller sees one aggregate's state as the snapshot queries of its type show it: the state,
  * as the snapshot-shaped record a query reads, admitted by [QueryGateway.admitRecord] of the type's snapshot query
- * gateway, so the caller scope and the application's [me.ahoo.wow.query.policy.QueryPolicy] beans
- * hide from a state read by id, a version, a trace and the events model ([me.ahoo.wow.query.events.EventVisibility])
- * the rows they hide from a query. A type without a snapshot query gateway has no policies to apply, and every state
+ * gateway, so the caller scope and the access policies hide from a state read by id, a version and a trace the rows
+ * they hide from a query. A type without a snapshot query gateway has no policies to apply, and every state
  * of it is visible.
  *
  * What a state read returns is [admitted]: the state masked as the snapshot queries mask it (the 9.x

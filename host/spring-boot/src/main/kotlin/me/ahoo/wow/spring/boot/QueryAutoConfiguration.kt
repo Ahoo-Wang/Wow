@@ -40,7 +40,6 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
 import me.ahoo.wow.query.policy.QueryEntryPolicy
-import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.read.InProcessQueryApi
 import me.ahoo.wow.query.read.ReadModels
@@ -85,11 +84,10 @@ import java.nio.file.Path
  *   any other log not queried), and the [QueryDatasets] of the dataset files ([HostDatasets]);
  * - the [QueryEngine]: this maps `wow.query.*` (sensitivity, the entry gates, the count caches)
  *   and the application's beans (its `QueryBindings<QueryDataset>`, [MaskStrategyResolver], [QuerySchemaSource],
- *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans, and the [AccessPolicy] of each
+ *   [ReadAuthorizer], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans, and the [AccessPolicy] of each
  *   aggregate, which the engine checks against the Manifest) onto [QueryEngine.Builder], whose are
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
- *   of the types whose snapshots are not queried, the events' visibility and the state reads'
- *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
+ *   of the types whose snapshots are not queried and the state reads' [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
  * - the node's typed [NodeQueryApi], in process over the same engine, under `wow.query.budgets.in-process.*`, a
  *   caller's queries and trusted code's;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
@@ -223,8 +221,8 @@ class QueryAutoConfiguration {
 
         /**
          * The node's read side: the [QueryEngine] of the Manifest over the snapshot, events and dataset
-         * backends, the application's schema sources, mask strategies, policies, filters and observers, its count
-         * caches and the node's committed states, under `wow.query.*` (sensitivity, entry policy). The engine
+         * backends, the application's schema sources, mask strategies, access policies, read authorizers, filters and
+         * observers and its count caches, under `wow.query.*` (sensitivity, entry policy). The engine
          * holds every security rule of the read side; this only maps the configuration onto it.
          */
         @Bean
@@ -241,7 +239,6 @@ class QueryAutoConfiguration {
             entryPolicy: QueryEntryPolicy,
             beans: QueryBeans,
             counts: ObjectProvider<QueryCountCache>,
-            reads: ObjectProvider<StateReads>,
             masks: PayloadMasks,
             stores: QueryStores,
             wow: ObjectProvider<WowProperties>,
@@ -258,7 +255,6 @@ class QueryAutoConfiguration {
             // The tenants commands and state reads act in.
             .tenants(node.gateway.tenants)
             .crossTenant(properties.allowCrossTenant)
-            .policies(beans.policies.orderedStream().toList())
             .accessPolicies(
                 beans.access.orderedStream().toList(),
                 node.aggregatesByState(),
@@ -290,7 +286,6 @@ class QueryAutoConfiguration {
                     )
                 },
             )
-            .committedStates { ref -> reads.ifAvailable?.committed(ref) }
             .reading { type ->
                 val context = node.contexts[type.context]
                 // Events read as the model reads them now: current names and revisions, as typed.
@@ -381,7 +376,6 @@ class QueryAutoConfiguration {
             datasetVisibility: ObjectProvider<DatasetVisibility>,
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
-            policies: ObjectProvider<QueryPolicy>,
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
             access: ObjectProvider<AccessPolicy<*>>,
@@ -391,7 +385,6 @@ class QueryAutoConfiguration {
             datasetVisibility,
             strategies,
             sources,
-            policies,
             filters,
             observers,
             access,
@@ -533,7 +526,6 @@ class QueryBeans internal constructor(
     internal val datasetVisibility: ObjectProvider<DatasetVisibility>,
     internal val strategies: ObjectProvider<MaskStrategyResolver>,
     internal val sources: ObjectProvider<QuerySchemaSource>,
-    internal val policies: ObjectProvider<QueryPolicy>,
     internal val filters: ObjectProvider<QueryFilter>,
     internal val observers: ObjectProvider<QueryObserver>,
     internal val access: ObjectProvider<AccessPolicy<*>>,

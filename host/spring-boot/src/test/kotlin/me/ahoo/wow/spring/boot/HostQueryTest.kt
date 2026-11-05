@@ -64,7 +64,6 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
@@ -126,11 +125,11 @@ class ScannedEvents {
     }
 }
 
-/** An application query policy that hides every aggregate from `mallory`. */
+/** A beta application's row filter left as a `QueryPolicy` bean, which the node no longer applies. */
 @Configuration(proxyBeanMethods = false)
-class HideFromMallory {
+class LeftoverQueryPolicy {
     @Bean
-    fun malloryPolicy(): QueryPolicy =
+    fun hideFromMallory(): QueryPolicy =
         QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
 }
 
@@ -258,26 +257,18 @@ class HostQueryTest {
     }
 
     @Test
-    fun `an application's query policy should hide events without a snapshot query gateway`() {
-        startHost(
-            "wow.query.memory.enabled" to false,
-            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java, HideFromMallory::class.java),
-        ).use { host ->
-            val id = host.openAccount("mona")
-            val queries = host.context.getBean(HttpQueries::class.java)
-            queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
-            val events = queries.events(ACCOUNT)!!
-            fun eventsOf(subject: String, aggregate: String = id) = runBlocking {
-                events.list(
-                    ListQuery(AggregateIdFilter(aggregate), limit = 10),
-                    QueryCaller(Caller(subject = subject))
-                ).toList()
-            }
-            eventsOf("mallory").assert().isEmpty()
-            eventsOf("alice").map { it["version"].asInt() }.assert().containsExactly(1)
-            // An aggregate with no committed state has no streams.
-            eventsOf("alice", "no-such-account").assert().isEmpty()
+    fun `a QueryPolicy bean should refuse the start, naming it and where its rule goes`() {
+        val refused = assertThrows<Exception> {
+            startHost(sources = listOf(HostTestApp::class.java, LeftoverQueryPolicy::class.java)).close()
         }
+        val cause = generateSequence<Throwable>(refused) { it.cause }
+            .filterIsInstance<WowConfigurationException>().first()
+        cause.key.assert().isEqualTo(QueryPolicy::class.java.name)
+        cause.reason.assert().contains("hideFromMallory", "no longer applied")
+        // Reported through the host's failure analyzer, as any refused configuration.
+        val analysis = checkNotNull(WowConfigurationFailureAnalyzer().analyze(refused))
+        analysis.description.assert().contains("hideFromMallory")
+        analysis.action.assert().contains("ReadAuthorizer", "AccessPolicy")
     }
 
     @Test

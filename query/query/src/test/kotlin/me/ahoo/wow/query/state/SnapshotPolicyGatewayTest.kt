@@ -34,7 +34,6 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryExecutionException
-import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.spi.json.WowJson
@@ -91,20 +90,6 @@ class SnapshotPolicyGatewayTest {
         StateVisibility.visible(gateway, caller("alice"), stateOwnedBy(null)).assert().isFalse()
         StateVisibility.visible(gateway, caller("alice"), stateOwnedBy("bob")).assert().isFalse()
     }
-
-    @Test
-    fun `the events of an aggregate are hidden under it, and an aggregate with no state shows nothing`(): Unit =
-        runBlocking {
-            val ref = state.ref
-            val ids = listOf(ref.id)
-            // The policy gateway queries no snapshots: each aggregate is read on its own.
-            val visible = EventVisibility.of({ gateway }) { state }
-            visible.visible(type, ref.tenantId, ids, caller("alice")).assert().isEqualTo(ids)
-            visible.visible(type, ref.tenantId, ids, caller("bob")).assert().isEmpty()
-            visible.pins(type).assert().isTrue()
-            val stateless = EventVisibility.of({ gateway }) { null }
-            stateless.visible(type, ref.tenantId, ids, caller("alice")).assert().isEmpty()
-        }
 
     @Test
     fun `the policy schema is compiled once per type, over no storage`(): Unit = runBlocking {

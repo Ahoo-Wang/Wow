@@ -320,6 +320,16 @@ export function catalogEngine(served: readonly DatasetResource[] = []) {
   return engine;
 }
 
+/**
+ * How long to wait for the console's first render of a page
+ * (`renderConsole`), past testing-library's one second. Nothing in it is slow
+ * to answer: the memory sources answer the list and the record at once. What
+ * takes the time is mounting the whole console in jsdom: about 230 ms for a
+ * test file's first mount under coverage on a laptop, and over a second on a
+ * busy CI runner.
+ */
+export const FIRST_RENDER = { timeout: 5_000 } as const;
+
 /** The console over memory sources, as `caller`, on `path`. */
 export function renderConsole(
   caller: CatalogCaller | null,

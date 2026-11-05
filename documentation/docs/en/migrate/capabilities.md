@@ -122,7 +122,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |
 | Masking sensitive fields, in queries and state reads | Kept | — |
 | ABAC query policies, CoSec `abac.` attributes | Replaced | By access attributes and access policies; `wow.query.abac.*` is refused at startup. |
-| Query policy SPI and scopes | Kept | — |
+| Query policy SPI and scopes | Replaced | The scopes are kept. A rule that refuses a caller is a `ReadAuthorizer` bean, one that narrows the rows an access policy; `QueryPolicy` is Wow's own. |
 | Snapshot queries on MongoDB and Elasticsearch | Kept | PostgreSQL as well. |
 | Event stream queries and aggregation across aggregates | Kept | One query engine for snapshots, events and datasets. |
 | HTTP query routes (`snapshot/list` and others) | Replaced | `POST /{context}/{aggregate}/{model}/query`, with the query kind in the body. |

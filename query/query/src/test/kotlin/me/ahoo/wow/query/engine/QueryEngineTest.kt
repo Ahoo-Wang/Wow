@@ -24,7 +24,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
-import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -46,11 +45,8 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.error.QueryError
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
-import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.query.observe.QueryObserver
-import me.ahoo.wow.query.policy.EventsMode
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -143,7 +139,6 @@ class QueryEngineTest {
                 .contexts(setOf("shop"))
                 .events { type -> events.binding(type).takeIf { type == cart } }
                 .policies(listOf(QueryPolicy { _, _ -> MatchNoneFilter }))
-                .committedStates { ref -> state(ref.type, "east", ref) }
                 .datasets(QueryDatasets.NONE, null)
                 .build()
             engine.events.map { it.aggregateType }.assert().containsExactly(cart)
@@ -210,51 +205,20 @@ class QueryEngineTest {
     }
 
     @Test
-    fun `only a pinned policy pins the events queries, checked by the type's snapshots (D254, D259)`(): Unit =
-        runBlocking {
-            val events = InMemoryEventQueryStorage({ emptyList() })
-            val pinned = mutableListOf<Pair<Int, Int>>()
-            val observer = object : QueryObserver {
-                override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) {
-                    pinned += batched to pointReads
-                }
-            }
-
-            fun policy(mode: EventsMode) = object : QueryPolicy {
-                override val events: EventsMode = mode
-
-                override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>) =
-                    if (caller.subject == "admin") MatchAllFilter else MatchNoneFilter
-            }
-
-            fun orders(mode: EventsMode) = builder()
-                .events { type -> events.binding(type) }
-                .policies(listOf(policy(mode)))
-                .observers(listOf(observer))
-                .committedStates { ref -> state(ref.type, "east", ref).takeIf { ref.id == "o-1" } }
-                .build()
-                .events.first { it.aggregateType == order }
-            val admin = QueryCaller(Caller(subject = "admin", tenantId = "acme"))
-            val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme"))
-            listOf(EventsMode.PUSHDOWN, EventsMode.NONE).forEach { mode ->
-                orders(mode).list(ListQuery(MatchAllFilter, limit = 10), alice).toList().assert().isEmpty()
-                orders(mode).describe(QueryEntry.HTTP).constraints
-                    .none { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.assert().isTrue()
-            }
-            val pinnedOrders = orders(EventsMode.PINNED)
-            val refused = runCatching { pinnedOrders.list(ListQuery(MatchAllFilter, limit = 10), alice).toList() }
-                .exceptionOrNull() as QueryError
-            refused.bindingErrors.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
-            pinnedOrders.describe(QueryEntry.HTTP).constraints
-                .single { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.fields.assert().containsExactly(
-                    "aggregateId"
-                )
-            // No snapshot is stored yet: each named order is read on its own, the missing one showing nothing.
-            val named = ListQuery(AggregateIdsFilter(listOf("o-1", "o-2")), limit = 10)
-            pinnedOrders.list(named, admin).toList().assert().isEmpty()
-            pinnedOrders.list(named, alice).toList().assert().isEmpty()
-            pinned.assert().containsExactly(0 to 2, 0 to 2)
-        }
+    fun `a query policy filters the streams, and pins no events query`(): Unit = runBlocking {
+        val events = InMemoryEventQueryStorage({ emptyList() })
+        val orders = builder()
+            .events { type -> events.binding(type) }
+            .policies(
+                listOf(QueryPolicy { caller, _ -> if (caller.subject == "admin") MatchAllFilter else MatchNoneFilter })
+            )
+            .build()
+            .events.first { it.aggregateType == order }
+        val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme"))
+        orders.list(ListQuery(MatchAllFilter, limit = 10), alice).toList().assert().isEmpty()
+        orders.describe(QueryEntry.HTTP).constraints
+            .none { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.assert().isTrue()
+    }
 
     @Test
     fun `the facade with no policy reads every state as it is`(): Unit = runBlocking {

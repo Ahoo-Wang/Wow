@@ -65,7 +65,6 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | --- | --- | --- | --- |
 | `wow.query.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.query.type`, `wow.outcome` | A query of an aggregate type's snapshots or events, from its admission to its end. `wow.query.type`: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`. `wow.outcome`: `ok`, `cached` (its count or total came from the cache), `error`, `cancelled` |
 | `wow.query.dataset.duration` | Timer | `wow.context`, `wow.dataset`, `wow.query.type`, `wow.outcome` | A query of a dataset, from its admission to its end; its types and outcomes as `wow.query.duration`'s: `single`, `list`, `paged`, `cursor`, `count`, `aggregation`, `state`, `trace`; `ok`, `cached`, `error`, `cancelled` |
-| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate.name`, `wow.read` | The aggregates pinned events queries named and checked, by how they were read: by one query of the snapshots (`wow.read=batch`), or one by one (`wow.read=point`) |
 | `wow.query.limit.current` | Gauge | `wow.store` | A store's current bound on concurrent queries |
 | `wow.query.pressure` | Gauge | `wow.store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `wow.store` | The times an adaptive bound went down |
