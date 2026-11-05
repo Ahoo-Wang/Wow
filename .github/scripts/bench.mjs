@@ -236,27 +236,47 @@ export const WALK = {
   rate: 200,
   warmUp: 10,
   measure: 40,
-  rates: [500, 1000, 2000],
+  rates: [100, 250],
   uncapped: 1000000,
 };
 
 /**
- * The runs of a walk suite: the walk uncapped and without load on the baseline's build and the head's, then live E1
- * with nothing to walk, at each rate of WALK.rates, and with nothing to walk again; the two runs without a walk are
- * the A/A band a rate's p99 is held to.
+ * The runs of a walk suite under live E1, each against the two runs with nothing to walk (the A/A band): the baseline's
+ * build and the head's at 500 a second (the merge gate: the head no worse than the baseline), the head at the lower
+ * rates and at 500 with smaller stamp statements, and the head at 500 depositing only into the accounts it walks last
+ * (`targets: last`), which it does not reach meanwhile: contention on the same aggregates set apart from contention
+ * for what they share.
  */
 function walkRuns(head, base) {
+  const rate = walkRate => ({ 'wow.access.walk-rate': walkRate });
+  const live = (arm, id, props, more = {}) => ({
+    arm: withProps(arm, id, props),
+    walk: true,
+    rate: WALK.rate,
+    ...more,
+  });
+  return [
+    { arm: withProps(head, 'none-1', {}), walk: false, rate: WALK.rate },
+    live(base, 'base-500', rate(500)),
+    live(head, 'walk-500', rate(500)),
+    ...WALK.rates.map(walkRate =>
+      live(head, `walk-${walkRate}`, rate(walkRate)),
+    ),
+    live(head, 'walk-500-batch-200', {
+      ...rate(500),
+      'wow.access.stamp-batch': 200,
+    }),
+    live(head, 'disjoint-500', rate(500), { targets: 'last' }),
+    { arm: withProps(head, 'none-2', {}), walk: false, rate: WALK.rate },
+  ];
+}
+
+/** The runs of a walk throughput suite: the walk uncapped and without load, the baseline's build, then the head's. */
+function walkThroughputRuns(head, base) {
   const uncapped = { 'wow.access.walk-rate': WALK.uncapped };
   return [
     { arm: withProps(base, 'base-uncapped', uncapped), walk: true, rate: 0 },
     { arm: withProps(head, 'head-uncapped', uncapped), walk: true, rate: 0 },
-    { arm: withProps(head, 'none-1', {}), walk: false, rate: WALK.rate },
-    ...WALK.rates.map(rate => ({
-      arm: withProps(head, `walk-${rate}`, { 'wow.access.walk-rate': rate }),
-      walk: true,
-      rate: WALK.rate,
-    })),
-    { arm: withProps(head, 'none-2', {}), walk: false, rate: WALK.rate },
   ];
 }
 
@@ -690,14 +710,31 @@ export const SUITES = {
     program: 'walk',
     runs: walkRuns(HEAD_PG, BASE_PG),
     answers:
-      "How fast the access walk stamps a history an import wrote, and what it costs live commands (D390 X-76): on PostgreSQL, the data set's accounts of 10 streams each, appended without attributes on a standby node, walked once it is activated; uncapped and without load on the baseline's build and the head's, then at each walk rate under E1 deposits, against two runs with nothing to walk (their A/A band).",
+      "What the access walk costs live commands (D390 X-76), on PostgreSQL: the data set's accounts of 10 streams each, written by a first node, then without their attributes walked by a second while E1 deposits run; the baseline's build and the head's at 500 a second, the head at 100 and 250, at 500 with 200-stream stamps, and at 500 into accounts it does not reach meanwhile, each against two runs with nothing to walk (their A/A band), with the store's waits and the pool sampled.",
   },
   'access-walk-mongo': {
     group: 'access',
     kind: 'measure',
     program: 'walk',
     runs: walkRuns(HEAD_MONGO, BASE_MONGO),
-    answers: 'The access walk on MongoDB, as access-walk-pg.',
+    answers:
+      'The access walk under live commands on MongoDB, as access-walk-pg.',
+  },
+  'access-walk-throughput-pg': {
+    group: 'access',
+    kind: 'measure',
+    program: 'walk',
+    runs: walkThroughputRuns(HEAD_PG, BASE_PG),
+    answers:
+      "How fast the access walk stamps a history without attributes (D390 X-76), on PostgreSQL: uncapped and without load, the baseline's build against the head's.",
+  },
+  'access-walk-throughput-mongo': {
+    group: 'access',
+    kind: 'measure',
+    program: 'walk',
+    runs: walkThroughputRuns(HEAD_MONGO, BASE_MONGO),
+    answers:
+      'The access walk uncapped on MongoDB, as access-walk-throughput-pg.',
   },
   'jdk-e1-pg-saturation': {
     group: 'jdk-saturation',
@@ -1206,7 +1243,11 @@ export function anomalies(suite, noise = {}) {
       if (run.status === 'failed')
         row('run failed', 'bench.sh failed; see the job log');
       if (run.status !== 'ok') continue;
-      if (run.measure.walk && !run.measure.walk.completed)
+      if (
+        run.measure.walk &&
+        !run.measure.walk.completed &&
+        run.measure.completeWalk !== false
+      )
         row(
           'walk not completed',
           `${num(run.measure.walk.walked ?? 0, 0)} aggregates walked`,
@@ -2732,24 +2773,29 @@ function componentTable(suite) {
 }
 
 /**
- * A walk suite's runs: the walk's time and rate, and the E1 deposits' latencies under it. A rate is within the A/A band
- * when its p99 is at most the higher of the two runs with nothing to walk.
+ * A walk suite's runs: the walk's time and rate (to its completion without deposits, how far it got by their end with
+ * them), the E1 deposits' latencies under it, and what the store's sessions waited on and the pool's peak over the
+ * measured window. A rate is within the A/A band when its p99 is at most the higher of the two runs with nothing to
+ * walk; the merge gate compares the head at 500 a second with the baseline's build at 500, against the A/A pair's
+ * spread.
  */
 export function measureTable(suite) {
   const ok = suite.runs.filter(run => run.status === 'ok');
+  const p99Of = name =>
+    ok.find(run => run.name === name)?.measure.e1?.latencyMs?.p99;
   const band = ok
     .filter(run => run.measure.walks === false)
     .map(run => run.measure.e1?.latencyMs?.p99)
     .filter(Number.isFinite);
   const ceiling = band.length > 1 ? Math.max(...band) : undefined;
   const lines = [
-    '| Suite | Run | Walk rate | Walk | Aggregates/s | E1/s | p50 | p99 | p99.9 | Failed | Within the A/A band |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Suite | Run | Walk rate | Walk | Aggregates/s | E1/s | p50 | p99 | p99.9 | Failed | Within the A/A band | Waits (samples) | Pool peak |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of suite.runs) {
     if (run.status !== 'ok') {
       lines.push(
-        `| ${labelOf(suite)} | ${run.name} | **${run.status}** | | | | | | | | |`,
+        `| ${labelOf(suite)} | ${run.name} | **${run.status}** | | | | | | | | | | |`,
       );
       continue;
     }
@@ -2768,8 +2814,36 @@ export function measureTable(suite) {
           : latency.p99 <= ceiling
             ? 'yes'
             : `**no** (${ms(latency.p99)} > ${ms(ceiling)})`;
+    const rateText = m.walks
+      ? Number(m.walkRate) >= WALK.uncapped
+        ? 'uncapped'
+        : `${num(Number(m.walkRate), 0)}/s${m.targets === 'last' ? ', disjoint' : ''}`
+      : 'nothing to walk';
+    const walkText = !walk
+      ? ''
+      : walk.completed
+        ? `${num(walk.seconds, 1)} s`
+        : m.completeWalk === false
+          ? `${num(walk.walked ?? 0, 0)} in ${num(walk.seconds, 1)} s`
+          : `${num(walk.seconds, 1)} s (**not completed**)`;
+    const waits = Object.entries(m.waits?.events ?? {})
+      .slice(0, 3)
+      .map(([wait, count]) => `${wait} ${count}`)
+      .join(' · ');
+    const pool = m.waits?.poolMax
+      ? `${m.waits.poolMax.active ?? '-'} in use, ${m.waits.poolMax.pending ?? '-'} waiting of ${m.waits.poolMax.total ?? '-'}`
+      : '';
     lines.push(
-      `| ${labelOf(suite)} | ${run.name} | ${m.walks ? (Number(m.walkRate) >= WALK.uncapped ? 'uncapped' : `${num(Number(m.walkRate), 0)}/s`) : 'nothing to walk'} | ${walk ? `${num(walk.seconds, 1)} s${walk.completed ? '' : ' (**not completed**)'}` : ''} | ${walk ? num(walk.aggregatesPerSecond, 0) : ''} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(latency.p99) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${within} |`,
+      `| ${labelOf(suite)} | ${run.name} | ${rateText} | ${walkText} | ${walk ? num(walk.aggregatesPerSecond, 0) : ''} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(latency.p99) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${within} | ${waits ? `${waits} (${m.waits.samples})` : ''} | ${pool} |`,
+    );
+  }
+  const [head, base] = [p99Of('walk-500'), p99Of('base-500')];
+  if (Number.isFinite(head) && Number.isFinite(base) && band.length > 1) {
+    const spread = Math.max(...band) - Math.min(...band);
+    const worse = head - base;
+    lines.push(
+      '',
+      `Merge gate: the head at 500/s ${ms(head)} p99 against the baseline's ${ms(base)}, ${worse > spread ? '**worse**' : 'no worse'} by the A/A pair's spread of ${ms(spread)}.`,
     );
   }
   return lines;
@@ -4059,6 +4133,7 @@ export function runSuite(name, options) {
           `--aggregates=${data.accounts}`,
           `--streams=${WALK.streams}`,
           `--walk=${spec.walk ? 'yes' : 'none'}`,
+          ...(spec.targets ? [`--targets=${spec.targets}`] : []),
           `--rate=${spec.rate}`,
           `--warm-up=${WALK.warmUp}`,
           `--measure=${WALK.measure}`,

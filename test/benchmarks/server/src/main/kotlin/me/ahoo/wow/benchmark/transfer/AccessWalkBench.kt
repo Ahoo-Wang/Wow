@@ -39,6 +39,7 @@ import java.sql.DriverManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.LongAdder
+import javax.sql.DataSource
 import kotlin.system.exitProcess
 
 /**
@@ -67,6 +68,7 @@ fun main(args: Array<String>) {
         rate = options["rate"]?.toInt() ?: 0,
         warmUpSeconds = options["warm-up"]?.toInt() ?: DEFAULT_WARM_UP,
         measureSeconds = options["measure"]?.toInt() ?: DEFAULT_MEASURE,
+        lastTargets = options["targets"] == "last",
     )
     val out = File(options["out"] ?: ".").apply { mkdirs() }
     val node = {
@@ -99,6 +101,9 @@ private const val POLL_MILLIS = 100L
 private const val NANOS_PER_MILLI = 1_000_000.0
 private const val NANOS_PER_SECOND = 1_000_000_000.0
 private const val PERCENT = 100.0
+private const val MILLIS_PER_SECOND = 1_000L
+private const val SAMPLE_MILLIS = 1_000L
+private const val LAST_SHARE = 10
 
 /** One walk run: the history a first node writes, then the second node's walk under the deposits. */
 class WalkRun(
@@ -108,7 +113,12 @@ class WalkRun(
     private val rate: Int,
     private val warmUpSeconds: Int,
     private val measureSeconds: Int,
+    /** Whether the deposits go to the tenth of the accounts the walk reaches last, which it does not reach meanwhile. */
+    private val lastTargets: Boolean = false,
 ) {
+    /** Without deposits the walk is timed to its completion; with them, it is read when they end. */
+    private val complete = rate == 0
+
     init {
         require(aggregates > 0 && streams > 0) { "A walk needs aggregates with streams." }
     }
@@ -122,8 +132,9 @@ class WalkRun(
                 seed(seeding.getBean(CommandClient::class.java))
                 WalkStore.of(backend, seeding.environment).use { store ->
                     // The first node walks the history it wrote: a node starting after it finds it walked.
-                    walked(store, seedStarted)
+                    walked(store, seedStarted) { false }
                     if (walks) store.unstamp()
+                    if (lastTargets) targets = store.lastInWalkOrder(aggregates / LAST_SHARE)
                 }
             } finally {
                 seeding.close()
@@ -131,12 +142,11 @@ class WalkRun(
             val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
             val started = System.nanoTime()
             val walking = node()
+            // The waits are sampled on a connection of their own: the walk's is polled meanwhile.
+            val sampled = WalkStore.of(backend, walking.environment)
             try {
                 WalkStore.of(backend, walking.environment).use { store ->
-                    // The walk is timed while the deposits run, not after them.
-                    val walk = async { if (walks) walked(store, started) else null }
-                    val deposits = if (rate > 0) deposits(walking.getBean(CommandClient::class.java)) else null
-                    mapOf(
+                    measured(walking, store, sampled, started) + mapOf(
                         "schema" to "wow-e2e-bench/measure/1",
                         "program" to "walk",
                         "aggregates" to aggregates,
@@ -147,16 +157,47 @@ class WalkRun(
                         "warmUpSeconds" to warmUpSeconds,
                         "measureSeconds" to measureSeconds,
                         "seedSeconds" to seedSeconds,
-                        "walk" to walk.await(),
-                        "e1" to deposits,
-                        "note" to "In one JVM: the walk's time is from the second node's start to its completion, " +
-                            "the deposits' latencies an open loop over the measured window.",
+                        "completeWalk" to complete,
+                        "targets" to if (lastTargets) "last" else "all",
+                        "note" to "In one JVM: the walk's time is from the second node's start to its completion " +
+                            "without deposits, else to their end; the deposits' latencies an open loop over the " +
+                            "measured window, where the store's waits are sampled.",
                     )
                 }
             } finally {
+                sampled.close()
                 walking.close()
             }
         }
+
+    /**
+     * The second node's walk from [started], timed while the deposits run, and the deposits, the store's waits sampled
+     * on [sampled] over their measured window.
+     */
+    private suspend fun measured(
+        walking: ConfigurableApplicationContext,
+        store: WalkStore,
+        sampled: WalkStore,
+        started: Long,
+    ): Map<String, Any?> = coroutineScope {
+        var over = false
+        val walk = async { if (walks) walked(store, started) { !complete && over } else null }
+        val waits = Waits(sampled, poolOf(walking))
+        val deposits = if (rate > 0) {
+            val sampling = launch {
+                delay(warmUpSeconds * MILLIS_PER_SECOND)
+                while (true) {
+                    waits.sample()
+                    delay(SAMPLE_MILLIS)
+                }
+            }
+            deposits(walking.getBean(CommandClient::class.java)).also { sampling.cancel() }
+        } else {
+            null
+        }
+        over = true
+        mapOf("walk" to walk.await(), "e1" to deposits, "waits" to waits.summary())
+    }
 
     /** Opens the accounts, then deposits into each until it holds [streams] streams. */
     private suspend fun seed(client: CommandClient) = coroutineScope {
@@ -175,11 +216,14 @@ class WalkRun(
         }
     }
 
-    /** Waits for the account's walk in [store] to complete: how long it took from [from], and its rate. */
-    private suspend fun walked(store: WalkStore, from: Long): Map<String, Any?> {
+    /**
+     * Waits for the account's walk in [store] to complete, or for [stop]: how long it took from [from], how far it got
+     * and its rate.
+     */
+    private suspend fun walked(store: WalkStore, from: Long, stop: () -> Boolean): Map<String, Any?> {
         val deadline = from + WALK_TIMEOUT_SECONDS * NANOS_PER_SECOND.toLong()
         var walk = store.walk()
-        while (walk?.completed != true && System.nanoTime() < deadline) {
+        while (walk?.completed != true && System.nanoTime() < deadline && !stop()) {
             delay(POLL_MILLIS)
             walk = store.walk()
         }
@@ -237,7 +281,10 @@ class WalkRun(
      * Deposit [index], to the account it falls on: its latency and why it failed, or null when it is of the warm-up.
      */
     private suspend fun deposit(client: CommandClient, index: Int): Pair<Long, String?>? {
-        val ref = ACCOUNT_TYPE.ref(TENANT, accountId((index * PRIME) % aggregates))
+        val ref = ACCOUNT_TYPE.ref(
+            TENANT,
+            targets?.let { it[(index * PRIME) % it.size] } ?: accountId((index * PRIME) % aggregates),
+        )
         val sent = System.nanoTime()
         val outcome = runCatching {
             client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
@@ -247,6 +294,9 @@ class WalkRun(
             ?: outcome.getOrNull()?.takeIf { it.status != CommandResult.Status.SUCCEEDED }?.status?.name
         return (System.nanoTime() - sent) to failure
     }
+
+    /** The accounts the deposits go to; null for every one. */
+    private var targets: List<String>? = null
 
     private companion object {
         const val TENANT = "(0)"
@@ -275,6 +325,12 @@ sealed interface WalkStore : AutoCloseable {
 
     /** Removes the access attributes from the account's history, and its walk record: a log as an import writes it. */
     fun unstamp()
+
+    /** The ids of the last [count] accounts in the walk's order: those it reaches last. */
+    fun lastInWalkOrder(count: Int): List<String>
+
+    /** What the store's sessions of the log are doing now, by what they wait on: one sample. */
+    fun waits(): Map<String, Int>
 
     companion object {
         const val LOG = "wow_log__${TransferContext.NAME}__${TransferContext.ACCOUNT}"
@@ -319,6 +375,23 @@ sealed interface WalkStore : AutoCloseable {
             }
         }
 
+        /** The walk's order is the version key's: aggregate id, then tenant. */
+        override fun lastInWalkOrder(count: Int): List<String> = connection.prepareStatement(
+            "SELECT aggregate_id FROM $LOG WHERE version = 1 ORDER BY aggregate_id DESC, tenant_id DESC LIMIT ?",
+        ).use { query ->
+            query.setInt(1, count)
+            query.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        }
+
+        /** The active sessions of the database but this one, by wait event (`CPU:running` for none). */
+        override fun waits(): Map<String, Int> = connection.createStatement().use { statement ->
+            statement.executeQuery(
+                "SELECT coalesce(wait_event_type, 'CPU') || ':' || coalesce(wait_event, 'running'), count(*) " +
+                    "FROM pg_stat_activity WHERE datname = current_database() AND state = 'active' " +
+                    "AND pid <> pg_backend_pid() GROUP BY 1",
+            ).use { rows -> buildMap { while (rows.next()) put(rows.getString(1), rows.getInt(2)) } }
+        }
+
         override fun close() = connection.close()
     }
 
@@ -345,6 +418,74 @@ sealed interface WalkStore : AutoCloseable {
             database.getCollection(REGISTRY).updateMany(registry, Updates.unset("access_walk"))
         }
 
+        /** The walk's order: partition by partition, each by the version key. */
+        override fun lastInWalkOrder(count: Int): List<String> = database.getCollection(LOG)
+            .find(Filters.eq("version", 1))
+            .sort(Document("partition", -1).append("aggregate_id", -1).append("tenant_id", -1))
+            .limit(count)
+            .map { it.getString("aggregate_id") }
+            .toList()
+
+        /** The database's operations in progress (`currentOp`), by operation, collection and whether they wait for a lock. */
+        override fun waits(): Map<String, Int> {
+            val current = client.getDatabase("admin")
+                .runCommand(
+                    Document(
+                        "currentOp",
+                        1
+                    ).append("active", true).append("ns", Document("\$regex", "^${database.name}\\."))
+                )
+            return current.getList("inprog", Document::class.java).orEmpty()
+                .groupingBy { op ->
+                    val collection = op.getString("ns").orEmpty().substringAfter('.')
+                    val waiting = if (op.getBoolean("waitingForLock") == true) "lock" else "running"
+                    "${op.getString("op")}:$collection:$waiting"
+                }
+                .eachCount()
+        }
+
         override fun close() = client.close()
+    }
+}
+
+/**
+ * The samples of the store's waits ([WalkStore.waits]) and of the node's connection pool over the measured window: how
+ * often each wait was seen, and the pool's most connections in use and most callers waiting for one.
+ */
+class Waits(private val store: WalkStore, private val pool: (() -> Map<String, Int>)?) {
+    private val seen = HashMap<String, Int>()
+    private val poolMax = HashMap<String, Int>()
+    private var samples = 0
+
+    fun sample() {
+        samples++
+        runCatching { store.waits() }.getOrNull()?.forEach { (wait, count) -> seen.merge(wait, count, Int::plus) }
+        pool?.let { read -> runCatching(read).getOrNull() }?.forEach { (name, value) ->
+            poolMax.merge(name, value, ::maxOf)
+        }
+    }
+
+    fun summary(): Map<String, Any?> = mapOf(
+        "samples" to samples,
+        "events" to seen.entries.sortedByDescending { it.value }.associate { it.key to it.value },
+        "poolMax" to poolMax.takeIf { pool != null },
+    )
+}
+
+/**
+ * The node's JDBC pool, read through its HikariCP pool bean: connections in use, callers waiting for one, its size;
+ * null for a node without one (MongoDB's driver keeps its pool to itself).
+ */
+fun poolOf(context: ConfigurableApplicationContext): (() -> Map<String, Int>)? {
+    val bean = context.getBeansOfType(DataSource::class.java).values.firstNotNullOfOrNull { source ->
+        runCatching { source.javaClass.getMethod("getHikariPoolMXBean").invoke(source) }.getOrNull()
+    } ?: return null
+    fun read(name: String): Int = bean.javaClass.getMethod(name).invoke(bean) as Int
+    return {
+        mapOf(
+            "active" to read("getActiveConnections"),
+            "pending" to read("getThreadsAwaitingConnection"),
+            "total" to read("getTotalConnections"),
+        )
     }
 }

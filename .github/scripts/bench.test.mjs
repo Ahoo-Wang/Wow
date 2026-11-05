@@ -1455,10 +1455,10 @@ test('a mixed suite sends its mix and shows each scenario', () => {
   );
 });
 
-test('the walk suites measure the walk uncapped per build, then live E1 at each rate against two runs without a walk', () => {
+test('the walk suites hold each live arm to the A/A band, gate the merge on the baseline at 500/s, and sample the waits', () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   const benchPath = join(dir, 'bench.sh');
-  // Each run writes its measure.json: the walk at the configured rate, the deposits' p99 by run.
+  // Each run writes its measure.json: the deposits' p99 by run, the waits the store showed.
   writeFileSync(
     benchPath,
     `#!/usr/bin/env node
@@ -1466,14 +1466,17 @@ const fs = require('node:fs');
 const args = process.argv.slice(2);
 const opt = name => args.find(a => a.startsWith('--' + name + '='))?.split('=').slice(1).join('=');
 fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, args.join(' ') + ' ' + (process.env.SPRING_APPLICATION_JSON ?? '') + '\\n');
+const run = opt('out').split('/').pop();
 const rate = JSON.parse(process.env.SPRING_APPLICATION_JSON ?? '{}')['wow.access.walk-rate'];
 const walks = opt('walk') !== 'none';
-const p99 = { 500: 20, 1000: 24, 2000: 40 }[rate] ?? 22;
+const p99 = { 'none-1': 6, 'none-2': 5, 'base-500': 400, 'walk-500': 402, 'walk-100': 9 }[run] ?? 300;
 fs.mkdirSync(opt('out'), { recursive: true });
 fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
   program: 'walk', walks, rate: Number(opt('rate')), walkRate: rate === undefined ? null : String(rate),
-  walk: walks ? { completed: true, walked: 1000, seconds: 2, aggregatesPerSecond: 500 } : null,
-  e1: Number(opt('rate')) > 0 ? { ops: 100, failed: {}, latencyMs: { p50: 5, p99: walks ? p99 : (opt('out').endsWith('none-1') ? 21 : 25), p999: 50 } } : null,
+  completeWalk: Number(opt('rate')) === 0, targets: opt('targets') ?? 'all',
+  walk: walks ? { completed: false, walked: 20000, seconds: 50, aggregatesPerSecond: 400 } : null,
+  e1: { ops: 100, failed: {}, latencyMs: { p50: 2, p99, p999: 50 } },
+  waits: { samples: 40, events: { 'Lock:transactionid': 30, 'IO:WALSync': 12, 'CPU:running': 8, 'IPC:x': 1 }, poolMax: { active: 10, pending: 4, total: 10 } },
 }));
 `,
   );
@@ -1486,41 +1489,60 @@ fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
     repeats: 1,
     fraction: 0.8,
     dataset: '1k',
-    installs: {},
+    installs: { base: '/b' },
   });
   assert.equal(suite.failures, 0);
   assert.deepEqual(
-    suite.runs.map(run => [run.name, run.status]),
+    suite.runs.map(run => run.name),
     [
-      ['base-uncapped', 'unavailable'],
-      ['head-uncapped', 'ok'],
-      ['none-1', 'ok'],
-      ['walk-500', 'ok'],
-      ['walk-1000', 'ok'],
-      ['walk-2000', 'ok'],
-      ['none-2', 'ok'],
+      'none-1',
+      'base-500',
+      'walk-500',
+      'walk-100',
+      'walk-250',
+      'walk-500-batch-200',
+      'disjoint-500',
+      'none-2',
     ],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
-    /^measure --backend=postgres --program=walk --aggregates=1000 --streams=10 --walk=yes --rate=0 /m,
+    /^measure --backend=postgres --install=\/b --program=walk --aggregates=1000 --streams=10 --walk=yes --rate=200 /m,
+  );
+  assert.match(
+    calls,
+    /--targets=last --rate=200 .*disjoint-500 \{"wow.access.walk-rate":500\}$/m,
+  );
+  assert.match(
+    calls,
+    /walk-500-batch-200 \{"wow.access.walk-rate":500,"wow.access.stamp-batch":200\}$/m,
   );
   // A run with nothing to walk sets no walk rate.
   assert.match(calls, /--walk=none --rate=200 .*\/none-1 $/m);
   const table = measureTable(suite).join('\n');
-  // The band is the higher of the two runs without a walk, 25 ms: 2,000/s leaves it.
+  // The band is the higher of the two runs with nothing to walk, 6 ms; the walk's progress by the deposits' end.
   assert.match(
     table,
-    /\| access-walk-pg@1k \| head-uncapped \| uncapped \| 2\.0 s \| 500 \|/,
+    /\| walk-100 \| 100\/s \| 20000 in 50\.0 s \| 400 \| 200 \| .* \| \*\*no\*\* \(9\.0 ms > 6\.0 ms\) \|/,
   );
-  assert.match(table, /\| walk-1000 \| 1000\/s \| .* \| yes \|/);
+  assert.match(table, /\| disjoint-500 \| 500\/s, disjoint \|/);
   assert.match(
     table,
-    /\| walk-2000 \| 2000\/s \| .* \| \*\*no\*\* \(40\.0 ms > 25\.0 ms\) \|/,
+    /Lock:transactionid 30 · IO:WALSync 12 · CPU:running 8 \(40\) \| 10 in use, 4 waiting of 10 \|/,
   );
+  // 402 against 400 ms: within the pair's 1 ms spread? No: 2 ms worse.
+  assert.match(
+    table,
+    /Merge gate: the head at 500\/s 402\.0 ms p99 against the baseline's 400\.0 ms, \*\*worse\*\* by the A\/A pair's spread of 1\.0 ms\./,
+  );
+  assert.deepEqual(anomalies(suite), []);
   assert.deepEqual(pairs(suite), []);
   assert.doesNotMatch(renderReport([suite]), /NaN/);
+  assert.deepEqual(
+    SUITES['access-walk-throughput-pg'].runs.map(run => run.arm.id),
+    ['base-uncapped', 'head-uncapped'],
+  );
 });
 
 test('component suites run each scenario per arm and tolerate a baseline without ComponentBench', () => {
