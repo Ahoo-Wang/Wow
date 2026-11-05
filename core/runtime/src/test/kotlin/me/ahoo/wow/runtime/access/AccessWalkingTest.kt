@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.access.AccessAttribute
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -29,18 +28,15 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
-import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
 import me.ahoo.wow.spi.observation.Observer
@@ -125,73 +121,6 @@ class AccessWalkingTest {
             walking.maintain().assert().isFalse()
             observed.filterIsInstance<ObservedEvent.AccessWalked>().assert().hasSize(2)
         }
-
-    /** [log], counting the reads and writes a walk makes of it. */
-    private class Counted(val log: InMemoryEventLog) :
-        EventLog by log,
-        AccessWalks by log {
-        val histories = ArrayList<Int>()
-        val bulks = ArrayList<Int>()
-        var reads = 0
-
-        override suspend fun histories(refs: List<AggregateRef>) = log.histories(refs).also { histories += refs.size }
-
-        override suspend fun stampAll(stamps: List<AccessStamp>): Int = log.stampAll(
-            stamps
-        ).also { bulks += stamps.size }
-
-        override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int) =
-            log.read(ref, fromVersion, toVersion).also { reads++ }
-    }
-
-    @Test
-    fun `a page is one read of its histories, their stamps in writes of at most a batch, and one rewrite`(): Unit =
-        runBlocking {
-            val log = InMemoryEventLog()
-            unstamped(log, listOf("d-1", "d-2"), "sales", "legal")
-            unstamped(log, listOf("d-3"), "a", "b", "c", "d", "legal")
-            val counted = Counted(log)
-            val rewritten = ArrayList<Int>()
-            val snapshots = object : AccessSnapshots {
-                override suspend fun rewrite(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState) =
-                    error("A page's snapshots are rewritten together.")
-
-                override suspend fun rewriteAll(histories: List<ReplayedHistory>) {
-                    rewritten += histories.size
-                }
-            }
-            val walking = AccessWalking(
-                "office", "service/office", "n-1", listOf(model), Kernel(counted), { counted }, InMemoryLeaseStore(),
-                AccessStampOptions(batch = 4, walkBatch = 3, walkRate = 1_000_000, interval = 1.seconds), snapshots,
-                observer = observer,
-            )
-            walking.maintain().assert().isFalse()
-            counted.histories.assert().containsExactly(3)
-            counted.reads.assert().isEqualTo(0)
-            // d-1 and d-2 together (4 streams), then d-3 in its chunks of at most 4.
-            counted.bulks.assert().containsExactly(2, 1, 1)
-            rewritten.assert().containsExactly(3)
-            listOf("d-1", "d-2").forEach { history(log, it).assert().containsOnly(access("legal")) }
-            history(log, "d-3").assert().hasSize(5).containsOnly(access("legal"))
-            observed.filterIsInstance<ObservedEvent.AccessStamped>().map { it.streams }.assert().containsExactly(9)
-            // Nothing to stamp writes nothing; a write of no stream is refused.
-            counted.stampAllIn(emptyList(), 4).assert().isEqualTo(0)
-            counted.bulks.assert().hasSize(3)
-            assertThrownBy<IllegalArgumentException> { runBlocking { counted.stampAllIn(emptyList(), 0) } }
-        }
-
-    @Test
-    fun `snapshots that rewrite one at a time are rewritten one at a time, a page's each`(): Unit = runBlocking {
-        val log = InMemoryEventLog()
-        unstamped(log, listOf("d-1", "d-2", "d-3"), "sales")
-        val rewritten = ArrayList<String>()
-        val walking = AccessWalking(
-            "office", "service/office", "n-1", listOf(model), Kernel(log), { log }, InMemoryLeaseStore(), options,
-            AccessSnapshots { ref, _, _ -> rewritten += ref.id },
-        )
-        walking.maintain()
-        rewritten.assert().containsExactly("d-1", "d-2", "d-3")
-    }
 
     @Test
     fun `a walk resumes after the page its log records`(): Unit = runBlocking {

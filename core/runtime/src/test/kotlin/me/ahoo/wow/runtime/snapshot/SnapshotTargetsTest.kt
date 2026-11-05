@@ -101,10 +101,6 @@ class SnapshotTargetsTest {
         router.rebuilds!!.rewrite(saved.copyWith(state = """{"x":1}""")).assert().isTrue()
         router.rebuilds!!.markStale(saved.ref).assert().isTrue()
         router.rebuilds!!.pending(order, 1, limit = 10).assert().containsExactly(saved.ref)
-        // A page of rewrites goes to the store of each type: the order's to b, the cart's to a.
-        val rewritten = snapshot(cart, "rewritten")
-        router.rebuilds!!.rewriteAll(listOf(saved, rewritten)).assert().isEqualTo(2)
-        a.load(rewritten.ref).assert().isEqualTo(rewritten)
         router.rebuilds!!.claim(order, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
         router.rebuilds!!.table(order).assert().isEqualTo(b.table(order))
         router.rebuilds!!.mark(order, 2, rebuilding = false, backfilled = true).assert().isEqualTo(SnapshotTable(2))

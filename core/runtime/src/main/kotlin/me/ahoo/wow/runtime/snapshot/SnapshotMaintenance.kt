@@ -29,7 +29,6 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.runtime.access.ReplayedHistory
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -241,54 +240,35 @@ class SnapshotMaintenance(
      */
     suspend fun rebuild(ref: AggregateRef) {
         val model = models[ref.type] ?: return
-        rebuild(model, ref.type, listOf(ref)) { listOfNotNull(recordOf(model, ref)) }
+        rebuild(model, ref) { recordOf(model, ref) }
     }
 
     /**
      * Rebuilds the snapshot of [ref] as [rebuild] does, from [streams], its whole log, already replayed as [state]: the
      * access walk's, which read them to stamp them.
      */
-    suspend fun rebuild(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState) =
-        rebuildAll(listOf(ReplayedHistory(ref, streams, state)))
-
-    /**
-     * Rebuilds the snapshots of [histories], aggregates of one type, as [rebuild] does, each target's in place written
-     * together ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore.rewriteAll]): an access walk's page.
-     */
-    suspend fun rebuildAll(histories: List<ReplayedHistory>) {
-        val type = histories.firstOrNull()?.ref?.type ?: return
-        val model = models[type] ?: return
-        rebuild(model, type, histories.map { it.ref }) {
-            histories.map { recordOf(model, it.ref, it.streams, it.state) }
-        }
+    suspend fun rebuild(ref: AggregateRef, streams: List<EventStreamRecord>, state: CachedState) {
+        val model = models[ref.type] ?: return
+        rebuild(model, ref) { recordOf(model, ref, streams, state) }
     }
 
-    /** Rebuilds the snapshots of [refs], of [type], in each of its targets, from what [recordsOf] gives, read once. */
-    private suspend fun rebuild(
-        model: AggregateModel<*>,
-        type: AggregateType,
-        refs: List<AggregateRef>,
-        recordsOf: suspend () -> List<SnapshotRecord>,
-    ) {
-        var read: List<SnapshotRecord>? = null
-        suspend fun records(): List<SnapshotRecord> = read ?: recordsOf().also { read = it }
-        targets.placementOf(type).targets.forEach { name ->
+    private suspend fun rebuild(model: AggregateModel<*>, ref: AggregateRef, recordOf: suspend () -> SnapshotRecord?) {
+        targets.placementOf(ref.type).targets.forEach { name ->
             val store = storeOf(name)
             val rebuilds = store.rebuilds
             if (rebuilds == null) {
-                logger.debug { "The snapshot store $name cannot rebuild the snapshots of $refs: they are left as they are." }
+                logger.debug { "The snapshot store $name cannot rebuild the snapshot of $ref: it is left as it is." }
                 fellBack()
                 return@forEach
             }
-            val table = rebuilds.table(type)
+            val table = rebuilds.table(ref.type)
             if (table == null || table.revision == model.stateRevision) {
-                rebuilds.rewriteAll(records())
+                recordOf()?.let { rebuilds.rewrite(it) }
             } else {
-                val unmarked = refs.filterNot { rebuilds.markStale(it) }.toSet()
-                if (unmarked.isNotEmpty()) {
-                    records().filter { it.ref in unmarked }.forEach { store.save(it) }
+                if (!rebuilds.markStale(ref)) {
+                    recordOf()?.let { store.save(it) }
                 }
-                rebuilds.mark(type, table.revision, rebuilding = true)?.let { tables[name to type] = it }
+                rebuilds.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
             }
         }
     }

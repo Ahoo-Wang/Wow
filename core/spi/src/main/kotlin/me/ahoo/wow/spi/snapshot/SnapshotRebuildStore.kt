@@ -39,12 +39,6 @@ interface SnapshotRebuildStore {
     suspend fun rewrite(snapshot: SnapshotRecord): Boolean
 
     /**
-     * [rewrite]s each of [snapshots], of distinct refs, in as few writes as the store makes of them: the access walk's
-     * snapshots of a page of aggregates. Returns how many were written.
-     */
-    suspend fun rewriteAll(snapshots: List<SnapshotRecord>): Int = snapshots.count { rewrite(it) }
-
-    /**
      * Marks the snapshot of [ref] stale, so a rebuild rewrites it from the log ([pending]) whatever its state
      * revision; false when there is none.
      */

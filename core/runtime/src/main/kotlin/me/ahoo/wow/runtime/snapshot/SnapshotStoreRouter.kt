@@ -60,9 +60,6 @@ class SnapshotStoreRouter(
 
         override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = of(snapshot.ref.type).rewrite(snapshot)
 
-        override suspend fun rewriteAll(snapshots: List<SnapshotRecord>): Int =
-            snapshots.groupBy { it.ref.type }.entries.sumOf { (type, records) -> of(type).rewriteAll(records) }
-
         override suspend fun markStale(ref: AggregateRef): Boolean = of(ref.type).markStale(ref)
 
         override suspend fun pending(

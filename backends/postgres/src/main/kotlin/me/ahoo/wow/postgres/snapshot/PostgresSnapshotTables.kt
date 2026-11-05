@@ -174,16 +174,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
     """.trimIndent()
 
     /** The in-place write of a rebuild: over the same or a lower version, whatever the revision. */
-    val rewrite = upsert(REWRITE_GUARD)
-
-    /**
-     * [rewrite] of [rows] snapshots of distinct refs as one statement, each row guarded as [rewrite] guards one, in key
-     * order; returns the key of each row written.
-     */
-    fun rewriteRows(rows: Int): String =
-        rewrites.computeIfAbsent(rows) { upsert(REWRITE_GUARD, it, "tenant_id, aggregate_id") }
-
-    private val rewrites = ConcurrentHashMap<Int, String>()
+    val rewrite = upsert("excluded.version >= stored.version")
 
     /** Marks a row stale up to its own version. */
     val markStale = """
@@ -263,9 +254,6 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
 
         /** A save's guard: a higher version, of the same or a higher state revision. */
-        /** A rebuilt snapshot takes the place of the stored one of its version or an earlier one. */
-        private const val REWRITE_GUARD = "excluded.version >= stored.version"
-
         private const val SAVE_GUARD =
             "excluded.version > stored.version AND excluded.state_revision >= stored.state_revision"
 

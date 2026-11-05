@@ -647,23 +647,6 @@ class PostgresEventLog(
         }
     }
 
-    /** One statement by the version key, the refs given as arrays; none of a type whose table does not exist. */
-    override suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>> {
-        val type = refs.firstOrNull()?.type ?: return emptyMap()
-        require(refs.all { it.type == type }) { "The histories of one read are of one aggregate type." }
-        val streams = dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                val table = existing(connection, type) ?: return@autoCommitted emptyList()
-                connection.prepareStatement(table.histories).use { query ->
-                    query.setArray(1, connection.createArrayOf("text", refs.map { it.id }.toTypedArray()))
-                    query.setArray(2, connection.createArrayOf("text", refs.map { it.tenantId }.toTypedArray()))
-                    query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
-                }
-            }
-        }
-        return streams.groupBy { it.ref }
-    }
-
     /** Whether [type]'s table exists: this log made sure of it, or the registry lists it. */
     override suspend fun holds(type: AggregateType): Boolean = dispatcher.jdbc {
         dataSource.autoCommitted { existing(it, type) != null }

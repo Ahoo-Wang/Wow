@@ -440,10 +440,6 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         "WHERE l.aggregate_id = s.aggregate_id AND l.tenant_id = s.tenant_id AND l.version >= s.from_version " +
         "AND l.version < s.until_version AND (l.access_version IS NULL OR l.access_version <= s.as_of)"
 
-    /** The whole histories of the aggregates of two arrays, ids and tenants (`unnest`), by the version key. */
-    val histories = "SELECT $FACTS FROM $log WHERE (aggregate_id, tenant_id) IN " +
-        "(SELECT * FROM unnest(?::text[], ?::text[])) ORDER BY aggregate_id, tenant_id, version"
-
     /**
      * The first page of the table's aggregates, by the version key: each one's first stream, in the key's order
      * (aggregate id, then tenant). Parameter: limit.

@@ -33,7 +33,7 @@ How each context's built-in subscription `wow.access` stamps an aggregate's acce
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.access.capacity` | `Integer` | `100000` | The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. |
-| `wow.access.stamp-batch` | `Integer` | `1000` | The most streams one stamp writes: a long history is stamped in statements of at most this many, and an access walk writes the stamps of a page together in statements of at most this many. |
+| `wow.access.stamp-batch` | `Integer` | `1000` | The most streams one stamp writes: a long history is stamped in statements of at most this many. |
 | `wow.access.walk-batch` | `Integer` | `100` | The aggregates a page of an access walk stamps; the walk records how far it is after each page. |
 | `wow.access.walk-rate` | `Integer` | `500` | The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk puts on the stores. |
 

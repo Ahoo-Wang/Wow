@@ -359,24 +359,6 @@ class MongoEventLog(
     )
 
     /**
-     * One `find` of the refs' version keys, an `$or` of them on the majority's view, in version order; none of a type
-     * whose collection does not exist.
-     */
-    override suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>> {
-        val type = refs.firstOrNull()?.type ?: return emptyMap()
-        require(refs.all { it.type == type }) { "The histories of one read are of one aggregate type." }
-        return dispatcher.mongo {
-            val collection = collections.existing(type) ?: return@mongo emptyMap()
-            collection.committed.find(Filters.or(refs.map(lookups::refFilter)))
-                .projection(FACTS)
-                .sort(Sorts.ascending(VERSION))
-                .map { documents.streamOf(collection.aggregate, it) }
-                .toList()
-                .groupBy { it.ref }
-        }
-    }
-
-    /**
      * Partition by partition, each by the version key (its aggregates' first streams); the cursor is the partition,
      * then [AggregatePage.cursorOf] within it.
      */

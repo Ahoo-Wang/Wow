@@ -116,11 +116,6 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
         AggregatePage.of(refs, limit)
     }
 
-    override suspend fun histories(refs: List<AggregateRef>): Map<AggregateRef, List<EventStreamRecord>> =
-        lock.withLock {
-            refs.mapNotNull { ref -> streams[ref]?.takeIf { it.isNotEmpty() }?.let { ref to it.toList() } }.toMap()
-        }
-
     /** Whether a stream of [type] was appended: the store of a type's history is its streams. */
     override suspend fun holds(type: AggregateType): Boolean = lock.withLock { streams.keys.any { it.type == type } }
 

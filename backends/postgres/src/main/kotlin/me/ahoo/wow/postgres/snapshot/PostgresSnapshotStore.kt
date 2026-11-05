@@ -157,35 +157,6 @@ class PostgresSnapshotStore(
     }
 
     /**
-     * One statement per aggregate type and [PostgresSnapshotTables.MAX_ROWS] snapshots, each autocommitted, the rows in
-     * key order ([PostgresSnapshotTables.rewriteRows]).
-     */
-    override suspend fun rewriteAll(snapshots: List<SnapshotRecord>): Int = dispatcher.jdbc {
-        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
-        if (snapshots.isEmpty()) {
-            0
-        } else {
-            dataSource.autoCommitted { connection ->
-                snapshots.groupBy { it.ref.type.name }.toSortedMap().entries.sumOf { (aggregate, records) ->
-                    val tables = tables(aggregate)
-                    records.sortedWith(KEY_ORDER).chunked(PostgresSnapshotTables.MAX_ROWS).sumOf { rows ->
-                        connection.prepareStatement(tables.rewriteRows(rows.size)).use { rewrite ->
-                            rows.forEachIndexed { row, snapshot ->
-                                bind(rewrite, row * PostgresSnapshotTables.ROW_PARAMETERS, snapshot)
-                            }
-                            rewrite.executeQuery().use { written ->
-                                var count = 0
-                                while (written.next()) count++
-                                count
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
      * Saves [snapshots]: in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
      * one aggregate type with one statement ([PostgresSnapshotTables.saveRows], at most
      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of

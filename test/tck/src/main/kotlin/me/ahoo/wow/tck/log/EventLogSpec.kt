@@ -339,25 +339,6 @@ abstract class EventLogSpec {
         }
 
     @Test
-    fun `a page's histories are read together, each whole and in version order, an aggregate without one left out`(): Unit =
-        runBlocking {
-            val log = createLog()
-            Assumptions.assumeTrue(log is AccessWalks, "This log keeps no walks.")
-            val walks = log as AccessWalks
-            val refs = listOf(type.ref("tenant", "a"), type.ref("tenant ü", "a"), type.ref("tenant", "b"))
-            refs.forEach { ref -> (1..3).forEach { log.append(stream(ref.id, it, tenant = ref.tenantId)) } }
-            log.append(stream("a", 1, aggregate = other))
-            val histories = walks.histories(refs.take(2) + type.ref("tenant", "none"))
-            histories.keys.assert().containsExactlyInAnyOrderElementsOf(refs.take(2))
-            histories.forEach { (ref, streams) ->
-                streams.map { it.ref }.distinct().assert().containsExactly(ref)
-                streams.map { it.version }.assert().containsExactly(1, 2, 3)
-            }
-            walks.histories(emptyList()).assert().isEmpty()
-            walks.histories(listOf(AggregateType(context, "unwritten").ref("tenant", "a"))).assert().isEmpty()
-        }
-
-    @Test
     fun `a type's aggregates are paged once each, in the log's order, whatever their tenants`(): Unit =
         runBlocking {
             val log = createLog()
