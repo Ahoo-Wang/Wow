@@ -14,6 +14,7 @@
 package me.ahoo.wow.cocache
 
 import kotlinx.coroutines.runBlocking
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -29,7 +30,7 @@ import java.time.Duration
 /** The owner's sink: each commit's state, as its view at its version, a deleting commit as a tombstone. */
 class StateViewSinkTest {
     private val runtime = runtimeOn(InMemoryBackend())
-    private val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { error("no miss is read") }
+    private val caches = StateViewCaches(CoCacheFactory(runtime)) { error("no miss is read") }
     private val sink = StateViewSink(OrderView::class.java, caches.writerOf(OrderView::class.java))
     private val key = StateKey("t", "o-1")
 

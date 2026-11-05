@@ -21,6 +21,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -49,8 +50,8 @@ class StateViewCachesTest {
     private val reader = runtimeOn(backend)
     private val snapshots = mockk<TenantSnapshotQueries<OrderView>>()
     private val api = queryApiOf(snapshots)
-    private val readers = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) { api }
-    private val owners = StateViewCaches(StateViewCaches.CacheFactory.of(owner)) { api }
+    private val readers = StateViewCaches(CoCacheFactory(reader)) { api }
+    private val owners = StateViewCaches(CoCacheFactory(owner)) { api }
     private val writer = owners.writerOf(OrderView::class.java)
     private val key = StateKey("t", "o-1")
 
@@ -115,7 +116,7 @@ class StateViewCachesTest {
                 .snapshot(ORDER, "o-1", OrderView("book"), tenantId = "t", version = 2)
                 .snapshot(ORDER, "deleted", OrderView("gone"), tenantId = "t", version = 4, deleted = true)
                 .snapshot(ORDER, "o-9", OrderView("pen"), tenantId = "u", version = 1)
-            val cache = StateViewCaches(StateViewCaches.CacheFactory.of(reader)) { gateway }.of<OrderView>()
+            val cache = StateViewCaches(CoCacheFactory(reader)) { gateway }.of<OrderView>()
             val deleted = StateKey("t", "deleted")
             val keys = listOf(key, deleted, StateKey("t", "absent"), StateKey("u", "o-9"))
             cache.getAll(keys).assert().isEqualTo(
@@ -214,7 +215,7 @@ class StateViewCachesTest {
             fill.await()
             readers.of<OrderView>().get(key).assert().isEqualTo(OrderView("fresh"))
             runtimeOn(backend).use { other ->
-                StateViewCaches(StateViewCaches.CacheFactory.of(other)) { api }.of<OrderView>().get(key)
+                StateViewCaches(CoCacheFactory(other)) { api }.of<OrderView>().get(key)
                     .assert().isEqualTo(OrderView("fresh"))
             }
             coVerify(exactly = 1) { snapshots.state("o-1") }

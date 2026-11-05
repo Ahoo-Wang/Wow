@@ -24,6 +24,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.core.CacheRuntime
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.redis.RedisBackend
 import me.ahoo.cocache.redis.RedisBackendOptions
 import me.ahoo.test.asserts.assert
@@ -62,9 +63,9 @@ class RedisStateViewCachesTest {
     private val firstNode = runtime()
     private val secondNode = runtime()
     private val ownerNode = runtime()
-    private val first = StateViewCaches(StateViewCaches.CacheFactory.of(firstNode)) { api }
-    private val second = StateViewCaches(StateViewCaches.CacheFactory.of(secondNode)) { api }
-    private val writer = StateViewCaches(StateViewCaches.CacheFactory.of(ownerNode)) { api }
+    private val first = StateViewCaches(CoCacheFactory(firstNode)) { api }
+    private val second = StateViewCaches(CoCacheFactory(secondNode)) { api }
+    private val writer = StateViewCaches(CoCacheFactory(ownerNode)) { api }
         .writerOf(RedisOrderView::class.java)
     private val order = AggregateType("shop", "order")
 
