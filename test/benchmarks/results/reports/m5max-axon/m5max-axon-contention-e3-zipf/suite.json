@@ -1,0 +1,1577 @@
+{
+  "schema": "wow-e2e-bench/suite/1",
+  "name": "m5max-axon-contention",
+  "kind": "sessions",
+  "scenarios": [
+    "E1",
+    "E3"
+  ],
+  "distribution": "uniform",
+  "warmUp": 20,
+  "measure": 40,
+  "part": "e3-zipf",
+  "fixedRates": [],
+  "sweepPlan": [
+    {
+      "scenario": "E3",
+      "distribution": "zipf",
+      "label": "E3 zipf",
+      "key": "e3-zipf"
+    }
+  ],
+  "own": false,
+  "share": 0.5,
+  "sweep": {
+    "warmUp": 10,
+    "step": 30,
+    "locate": {
+      "warmUp": 3,
+      "step": 8
+    },
+    "failAfter": 10,
+    "growth": 2,
+    "maxConcurrency": 4096,
+    "gain": 0.05,
+    "limit": 12288
+  },
+  "sessions": [
+    {
+      "name": "1-wow",
+      "arm": "wow",
+      "round": 0,
+      "dir": "1-wow-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 1816,
+          "rssKb": 473600
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1563792
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "wow_checkpoint",
+            "kind": "other",
+            "rows": 512,
+            "totalBytes": 491520,
+            "indexBytes": 81920
+          },
+          {
+            "name": "wow_failure_ledger",
+            "kind": "other",
+            "rows": 0,
+            "totalBytes": 32768,
+            "indexBytes": 24576
+          },
+          {
+            "name": "wow_format",
+            "kind": "other",
+            "rows": 9,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_lease",
+            "kind": "other",
+            "rows": 64,
+            "totalBytes": 90112,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_lease_member",
+            "kind": "other",
+            "rows": 3,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_log__transfer__account",
+            "kind": "events",
+            "rows": 1856447,
+            "totalBytes": 1484455936,
+            "indexBytes": 364404736
+          },
+          {
+            "name": "wow_log__transfer__partition",
+            "kind": "other",
+            "rows": 64,
+            "totalBytes": 851968,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_log_aggregate",
+            "kind": "other",
+            "rows": 1,
+            "totalBytes": 49152,
+            "indexBytes": 32768
+          },
+          {
+            "name": "wow_snapshot__transfer__account",
+            "kind": "snapshots",
+            "rows": 100000,
+            "totalBytes": 43761664,
+            "indexBytes": 9134080
+          },
+          {
+            "name": "wow_snapshot_table",
+            "kind": "other",
+            "rows": 1,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_timer_aggregate",
+            "kind": "other",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 1856515,
+        "snapshots": 100000,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 552570,
+          "AmountLocked": 555013,
+          "Confirmed": 548931,
+          "Deposited": 100001,
+          "Prepared": 555013
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "100001–100001",
+            "stored": 100001,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "547513–616749",
+            "stored": 555013,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "555013",
+            "stored": 555013,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "555013",
+            "stored": 552570,
+            "ok": false
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "552570",
+            "stored": 548931,
+            "ok": false
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": false
+      }
+    },
+    {
+      "name": "1-axon",
+      "arm": "axon",
+      "round": 0,
+      "dir": "1-axon-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 1143,
+          "rssKb": 412864
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1631472
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 2475580,
+            "totalBytes": 1271193600,
+            "indexBytes": 404905984
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 1607,
+            "totalBytes": 1261568,
+            "indexBytes": 491520
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 16,
+            "totalBytes": 638976,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 2475593,
+        "snapshots": 1607,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 568898,
+          "AmountLocked": 568898,
+          "Confirmed": 568898,
+          "Deposited": 100001,
+          "Prepared": 568898
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "100001–100001",
+            "stored": 100001,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "567186–569365",
+            "stored": 568898,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "568898",
+            "stored": 568898,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "568898",
+            "stored": 568898,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "568898",
+            "stored": 568898,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    },
+    {
+      "name": "2-axon",
+      "arm": "axon",
+      "round": 1,
+      "dir": "2-axon-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 1139,
+          "rssKb": 391120
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1643952
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "domainevententry",
+            "kind": "events",
+            "rows": 2169387,
+            "totalBytes": 1113505792,
+            "indexBytes": 354795520
+          },
+          {
+            "name": "snapshotevententry",
+            "kind": "snapshots",
+            "rows": 1404,
+            "totalBytes": 1220608,
+            "indexBytes": 450560
+          },
+          {
+            "name": "tokenentry",
+            "kind": "other",
+            "rows": 16,
+            "totalBytes": 671744,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 2169589,
+        "snapshots": 1404,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 492397,
+          "AmountLocked": 492397,
+          "Confirmed": 492397,
+          "Deposited": 100001,
+          "Prepared": 492397
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "100001–100001",
+            "stored": 100001,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "491299–494074",
+            "stored": 492397,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "492397",
+            "stored": 492397,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "492397",
+            "stored": 492397,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "492397",
+            "stored": 492397,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    },
+    {
+      "name": "2-wow",
+      "arm": "wow",
+      "round": 1,
+      "dir": "2-wow-up",
+      "status": "ok",
+      "startup": [
+        {
+          "node": 1,
+          "readyMs": 1809,
+          "rssKb": 487136
+        }
+      ],
+      "inspected": "ok",
+      "rssKb": [
+        1546032
+      ],
+      "store": {
+        "tables": [
+          {
+            "name": "wow_checkpoint",
+            "kind": "other",
+            "rows": 512,
+            "totalBytes": 434176,
+            "indexBytes": 81920
+          },
+          {
+            "name": "wow_failure_ledger",
+            "kind": "other",
+            "rows": 0,
+            "totalBytes": 32768,
+            "indexBytes": 24576
+          },
+          {
+            "name": "wow_format",
+            "kind": "other",
+            "rows": 9,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_lease",
+            "kind": "other",
+            "rows": 64,
+            "totalBytes": 98304,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_lease_member",
+            "kind": "other",
+            "rows": 3,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_log__transfer__account",
+            "kind": "events",
+            "rows": 2424378,
+            "totalBytes": 1943027712,
+            "indexBytes": 480632832
+          },
+          {
+            "name": "wow_log__transfer__partition",
+            "kind": "other",
+            "rows": 64,
+            "totalBytes": 925696,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_log_aggregate",
+            "kind": "other",
+            "rows": 1,
+            "totalBytes": 49152,
+            "indexBytes": 32768
+          },
+          {
+            "name": "wow_snapshot__transfer__account",
+            "kind": "snapshots",
+            "rows": 100000,
+            "totalBytes": 43909120,
+            "indexBytes": 9183232
+          },
+          {
+            "name": "wow_snapshot_table",
+            "kind": "other",
+            "rows": 1,
+            "totalBytes": 32768,
+            "indexBytes": 16384
+          },
+          {
+            "name": "wow_timer_aggregate",
+            "kind": "other",
+            "rows": 0,
+            "totalBytes": 24576,
+            "indexBytes": 16384
+          }
+        ],
+        "records": 2422938,
+        "snapshots": 100000,
+        "events": {
+          "AccountOpened": 100000,
+          "AmountEntered": 740979,
+          "AmountLocked": 740979,
+          "Confirmed": 740979,
+          "Deposited": 100001,
+          "Prepared": 740979
+        }
+      },
+      "correctness": {
+        "checks": [
+          {
+            "name": "accounts opened",
+            "expected": "100000",
+            "stored": 100000,
+            "ok": true
+          },
+          {
+            "name": "deposits stored",
+            "expected": "100001–100001",
+            "stored": 100001,
+            "ok": true
+          },
+          {
+            "name": "transfers stored",
+            "expected": "728367–796440",
+            "stored": 740979,
+            "ok": true
+          },
+          {
+            "name": "transfer amounts locked",
+            "expected": "740979",
+            "stored": 740979,
+            "ok": true
+          },
+          {
+            "name": "transfers entered or refused",
+            "expected": "740979",
+            "stored": 740979,
+            "ok": true
+          },
+          {
+            "name": "entries confirmed",
+            "expected": "740979",
+            "stored": 740979,
+            "ok": true
+          },
+          {
+            "name": "refusals unlocked",
+            "expected": "0",
+            "stored": 0,
+            "ok": true
+          }
+        ],
+        "comparable": true
+      }
+    }
+  ],
+  "repeats": 2,
+  "p99LimitMs": 200,
+  "dataset": "100k",
+  "accounts": 100000,
+  "primed": true,
+  "cold": false,
+  "aa": false,
+  "arms": [
+    {
+      "id": "wow",
+      "backend": "postgres",
+      "install": "head",
+      "serverArgs": "--wow.transport=none",
+      "sql": "test/benchmarks/server/inspect.sql"
+    },
+    {
+      "id": "axon",
+      "backend": "postgres",
+      "install": "axon",
+      "sql": "test/benchmarks/axon-server/inspect.sql"
+    }
+  ],
+  "refs": {
+    "headRef": "main",
+    "headSha": "cc11b16aa893b58f3a450c9ba62eadde16741e45",
+    "harness": "local Apple M5 Max"
+  },
+  "runner": {
+    "cpu": "unknown",
+    "jdk": "Eclipse Adoptium 25.0.5+8-LTS"
+  },
+  "saturation": {},
+  "rates": {},
+  "runs": [],
+  "failures": 0,
+  "startedAt": "2026-11-05T07:20:04.984Z",
+  "sweeps": [
+    {
+      "name": "1-wow-e3-zipf-sweep",
+      "arm": "wow",
+      "round": 0,
+      "scenario": "E3",
+      "distribution": "zipf",
+      "label": "E3 zipf",
+      "dir": "1-wow-e3-zipf-sweep",
+      "locatedPast": [
+        "1-wow-e3-zipf-sweep-locate-8192"
+      ],
+      "extended": [
+        "1-wow-e3-zipf-sweep-128"
+      ],
+      "status": "ok",
+      "end": "errors",
+      "steps": [
+        {
+          "concurrency": 32,
+          "seconds": 30,
+          "throughput": 1984.2,
+          "ok": 59526,
+          "errors": 0,
+          "sentOk": 84037,
+          "sentFailed": 0,
+          "p50": 7.103,
+          "p99": 129.535,
+          "generatorCores": 0.2896808695366728
+        },
+        {
+          "concurrency": 64,
+          "seconds": 30,
+          "throughput": 2447.4666666666667,
+          "ok": 73424,
+          "errors": 0,
+          "sentOk": 88203,
+          "sentFailed": 0,
+          "p50": 6.079,
+          "p99": 168.959,
+          "generatorCores": 0.3435755361074471
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 10,
+          "throughput": 870.9,
+          "ok": 8709,
+          "errors": 3822,
+          "sentOk": 13605,
+          "sentFailed": 6023,
+          "p50": 266.239,
+          "p99": 9633.791,
+          "generatorCores": 0.14929427644254303
+        },
+        {
+          "concurrency": 128,
+          "seconds": 30,
+          "throughput": 102.43333333333334,
+          "ok": 3073,
+          "errors": 384,
+          "sentOk": 4233,
+          "sentFailed": 512,
+          "p50": 4.927,
+          "p99": 21.503,
+          "generatorCores": 0.050841017875467034
+        }
+      ],
+      "located": [
+        {
+          "concurrency": 1,
+          "seconds": 8,
+          "throughput": 600.75,
+          "ok": 4806,
+          "errors": 0,
+          "sentOk": 6490,
+          "sentFailed": 0,
+          "p50": 1.631,
+          "p99": 2.207,
+          "generatorCores": 0.1970149245179301
+        },
+        {
+          "concurrency": 2,
+          "seconds": 8,
+          "throughput": 205.5,
+          "ok": 1644,
+          "errors": 0,
+          "sentOk": 2284,
+          "sentFailed": 0,
+          "p50": 8.255,
+          "p99": 23.423,
+          "generatorCores": 0.15842640669217492
+        },
+        {
+          "concurrency": 4,
+          "seconds": 8,
+          "throughput": 1133.625,
+          "ok": 9069,
+          "errors": 0,
+          "sentOk": 10230,
+          "sentFailed": 0,
+          "p50": 3.359,
+          "p99": 5.855,
+          "generatorCores": 0.16317794079525993
+        },
+        {
+          "concurrency": 8,
+          "seconds": 8,
+          "throughput": 1655.375,
+          "ok": 13243,
+          "errors": 0,
+          "sentOk": 18421,
+          "sentFailed": 0,
+          "p50": 4.351,
+          "p99": 9.919,
+          "generatorCores": 0.2377117239327976
+        },
+        {
+          "concurrency": 16,
+          "seconds": 8,
+          "throughput": 2468.125,
+          "ok": 19745,
+          "errors": 0,
+          "sentOk": 27115,
+          "sentFailed": 0,
+          "p50": 5.407,
+          "p99": 18.303,
+          "generatorCores": 0.3558811268759986
+        },
+        {
+          "concurrency": 32,
+          "seconds": 8,
+          "throughput": 2660,
+          "ok": 21280,
+          "errors": 0,
+          "sentOk": 29313,
+          "sentFailed": 0,
+          "p50": 5.759,
+          "p99": 61.183,
+          "generatorCores": 0.35950078021870074
+        },
+        {
+          "concurrency": 64,
+          "seconds": 8,
+          "throughput": 2632,
+          "ok": 21056,
+          "errors": 0,
+          "sentOk": 29309,
+          "sentFailed": 0,
+          "p50": 5.695,
+          "p99": 153.599,
+          "generatorCores": 0.35465203614864865
+        },
+        {
+          "concurrency": 128,
+          "seconds": 8,
+          "throughput": 2602.625,
+          "ok": 20821,
+          "errors": 0,
+          "sentOk": 28686,
+          "sentFailed": 0,
+          "p50": 5.631,
+          "p99": 348.159,
+          "generatorCores": 0.36095976431700805
+        },
+        {
+          "concurrency": 256,
+          "seconds": 8,
+          "throughput": 2484.375,
+          "ok": 19875,
+          "errors": 0,
+          "sentOk": 28261,
+          "sentFailed": 0,
+          "p50": 5.759,
+          "p99": 905.215,
+          "generatorCores": 0.3450976604817079
+        },
+        {
+          "concurrency": 512,
+          "seconds": 8,
+          "throughput": 2570.25,
+          "ok": 20562,
+          "errors": 0,
+          "sentOk": 29000,
+          "sentFailed": 0,
+          "p50": 5.887,
+          "p99": 1564.671,
+          "generatorCores": 0.36029265287299916
+        },
+        {
+          "concurrency": 1024,
+          "seconds": 8,
+          "throughput": 2566.75,
+          "ok": 20534,
+          "errors": 0,
+          "sentOk": 30935,
+          "sentFailed": 856,
+          "p50": 6.015,
+          "p99": 2883.583,
+          "generatorCores": 0.36455364888398945
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 8,
+          "throughput": 2879,
+          "ok": 23032,
+          "errors": 0,
+          "sentOk": 35540,
+          "sentFailed": 1386,
+          "p50": 6.687,
+          "p99": 5177.343,
+          "generatorCores": 0.3996889582450653
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 8,
+          "throughput": 3397.625,
+          "ok": 27181,
+          "errors": 0,
+          "sentOk": 40568,
+          "sentFailed": 511,
+          "p50": 9.151,
+          "p99": 7143.423,
+          "generatorCores": 0.4448109183256295
+        },
+        {
+          "concurrency": 8192,
+          "seconds": 8,
+          "throughput": 3665.75,
+          "ok": 29326,
+          "errors": 695,
+          "sentOk": 41282,
+          "sentFailed": 59948,
+          "p50": 49.151,
+          "p99": 8650.751,
+          "generatorCores": 0.4998219630326655
+        }
+      ],
+      "top": 8192,
+      "peak": {
+        "throughput": 2447.4666666666667,
+        "concurrency": 64,
+        "top": false,
+        "generatorCores": 0.3435755361074471,
+        "generatorCpus": 18,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 2447.4666666666667,
+        "concurrency": 64,
+        "p99": 168.959,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "1-axon-e3-zipf-sweep",
+      "arm": "axon",
+      "round": 0,
+      "scenario": "E3",
+      "distribution": "zipf",
+      "label": "E3 zipf",
+      "dir": "1-axon-e3-zipf-sweep",
+      "extended": [
+        "1-axon-e3-zipf-sweep-32"
+      ],
+      "status": "ok",
+      "end": "levelled",
+      "steps": [
+        {
+          "concurrency": 64,
+          "seconds": 30,
+          "throughput": 1758.8333333333333,
+          "ok": 52765,
+          "errors": 0,
+          "sentOk": 69753,
+          "sentFailed": 0,
+          "p50": 4.799,
+          "p99": 202.751,
+          "generatorCores": 0.24421420621988948
+        },
+        {
+          "concurrency": 128,
+          "seconds": 30,
+          "throughput": 1750,
+          "ok": 52500,
+          "errors": 0,
+          "sentOk": 70686,
+          "sentFailed": 0,
+          "p50": 4.831,
+          "p99": 405.503,
+          "generatorCores": 0.23016118161072285
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 30,
+          "throughput": 1713.2666666666667,
+          "ok": 51398,
+          "errors": 0,
+          "sentOk": 72430,
+          "sentFailed": 274,
+          "p50": 4.863,
+          "p99": 6553.599,
+          "generatorCores": 0.22349786518752962
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 15,
+          "throughput": 1747.6666666666667,
+          "ok": 26215,
+          "errors": 1083,
+          "sentOk": 47682,
+          "sentFailed": 1712,
+          "p50": 7.327,
+          "p99": 9830.399,
+          "generatorCores": 0.24490679213727076
+        },
+        {
+          "concurrency": 32,
+          "seconds": 30,
+          "throughput": 1784.8666666666666,
+          "ok": 53546,
+          "errors": 0,
+          "sentOk": 70539,
+          "sentFailed": 0,
+          "p50": 4.767,
+          "p99": 90.111,
+          "generatorCores": 0.2375963819593408
+        }
+      ],
+      "located": [
+        {
+          "concurrency": 1,
+          "seconds": 8,
+          "throughput": 513.625,
+          "ok": 4109,
+          "errors": 0,
+          "sentOk": 5379,
+          "sentFailed": 0,
+          "p50": 1.879,
+          "p99": 2.671,
+          "generatorCores": 0.15919819497793886
+        },
+        {
+          "concurrency": 2,
+          "seconds": 8,
+          "throughput": 798.625,
+          "ok": 6389,
+          "errors": 0,
+          "sentOk": 8690,
+          "sentFailed": 0,
+          "p50": 2.399,
+          "p99": 4.287,
+          "generatorCores": 0.13771052809773923
+        },
+        {
+          "concurrency": 4,
+          "seconds": 8,
+          "throughput": 1285,
+          "ok": 10280,
+          "errors": 0,
+          "sentOk": 14123,
+          "sentFailed": 0,
+          "p50": 2.927,
+          "p99": 5.599,
+          "generatorCores": 0.16344201371557618
+        },
+        {
+          "concurrency": 8,
+          "seconds": 8,
+          "throughput": 1766.375,
+          "ok": 14131,
+          "errors": 0,
+          "sentOk": 19400,
+          "sentFailed": 0,
+          "p50": 3.839,
+          "p99": 11.967,
+          "generatorCores": 0.24236851792273637
+        },
+        {
+          "concurrency": 16,
+          "seconds": 8,
+          "throughput": 1743.75,
+          "ok": 13950,
+          "errors": 0,
+          "sentOk": 19458,
+          "sentFailed": 0,
+          "p50": 4.575,
+          "p99": 39.935,
+          "generatorCores": 0.2242753487845414
+        },
+        {
+          "concurrency": 32,
+          "seconds": 8,
+          "throughput": 1805.875,
+          "ok": 14447,
+          "errors": 0,
+          "sentOk": 19994,
+          "sentFailed": 0,
+          "p50": 4.639,
+          "p99": 93.183,
+          "generatorCores": 0.23639205142313724
+        },
+        {
+          "concurrency": 64,
+          "seconds": 8,
+          "throughput": 1824.875,
+          "ok": 14599,
+          "errors": 0,
+          "sentOk": 20197,
+          "sentFailed": 0,
+          "p50": 4.863,
+          "p99": 197.631,
+          "generatorCores": 0.23584823868404653
+        },
+        {
+          "concurrency": 128,
+          "seconds": 8,
+          "throughput": 1785.375,
+          "ok": 14283,
+          "errors": 0,
+          "sentOk": 19827,
+          "sentFailed": 0,
+          "p50": 4.831,
+          "p99": 405.503,
+          "generatorCores": 0.2270773757807873
+        },
+        {
+          "concurrency": 256,
+          "seconds": 8,
+          "throughput": 1774.625,
+          "ok": 14197,
+          "errors": 0,
+          "sentOk": 20286,
+          "sentFailed": 0,
+          "p50": 4.639,
+          "p99": 794.623,
+          "generatorCores": 0.22385499523522462
+        },
+        {
+          "concurrency": 512,
+          "seconds": 8,
+          "throughput": 1746,
+          "ok": 13968,
+          "errors": 0,
+          "sentOk": 20297,
+          "sentFailed": 0,
+          "p50": 4.639,
+          "p99": 1630.207,
+          "generatorCores": 0.22324175357308423
+        },
+        {
+          "concurrency": 1024,
+          "seconds": 8,
+          "throughput": 1802.625,
+          "ok": 14421,
+          "errors": 0,
+          "sentOk": 21398,
+          "sentFailed": 0,
+          "p50": 5.151,
+          "p99": 3211.263,
+          "generatorCores": 0.23523009296285097
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 8,
+          "throughput": 1851.25,
+          "ok": 14810,
+          "errors": 0,
+          "sentOk": 22715,
+          "sentFailed": 0,
+          "p50": 7.775,
+          "p99": 5079.039,
+          "generatorCores": 0.24556420562877038
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 8,
+          "throughput": 1862.625,
+          "ok": 14901,
+          "errors": 0,
+          "sentOk": 24331,
+          "sentFailed": 193,
+          "p50": 1417.215,
+          "p99": 7045.119,
+          "generatorCores": 0.2686268888294405
+        }
+      ],
+      "top": 4096,
+      "peak": {
+        "throughput": 1784.8666666666666,
+        "concurrency": 32,
+        "top": false,
+        "generatorCores": 0.2375963819593408,
+        "generatorCpus": 18,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 1784.8666666666666,
+        "concurrency": 32,
+        "p99": 90.111,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-axon-e3-zipf-sweep",
+      "arm": "axon",
+      "round": 1,
+      "scenario": "E3",
+      "distribution": "zipf",
+      "label": "E3 zipf",
+      "dir": "2-axon-e3-zipf-sweep",
+      "status": "ok",
+      "end": "levelled",
+      "steps": [
+        {
+          "concurrency": 64,
+          "seconds": 30,
+          "throughput": 1768.6666666666667,
+          "ok": 53060,
+          "errors": 0,
+          "sentOk": 69984,
+          "sentFailed": 0,
+          "p50": 4.735,
+          "p99": 189.439,
+          "generatorCores": 0.24731149755199539
+        },
+        {
+          "concurrency": 128,
+          "seconds": 30,
+          "throughput": 1622.9666666666667,
+          "ok": 48689,
+          "errors": 0,
+          "sentOk": 67131,
+          "sentFailed": 0,
+          "p50": 5.023,
+          "p99": 643.071,
+          "generatorCores": 0.2143455123455181
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 30,
+          "throughput": 1719.1666666666667,
+          "ok": 51575,
+          "errors": 0,
+          "sentOk": 72846,
+          "sentFailed": 0,
+          "p50": 4.831,
+          "p99": 6717.439,
+          "generatorCores": 0.21987765159992353
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 13,
+          "throughput": 1764.7692307692307,
+          "ok": 22942,
+          "errors": 652,
+          "sentOk": 44687,
+          "sentFailed": 1417,
+          "p50": 7.775,
+          "p99": 9895.935,
+          "generatorCores": 0.24459081756285458
+        }
+      ],
+      "located": [
+        {
+          "concurrency": 1,
+          "seconds": 8,
+          "throughput": 511.375,
+          "ok": 4091,
+          "errors": 0,
+          "sentOk": 5395,
+          "sentFailed": 0,
+          "p50": 1.887,
+          "p99": 2.783,
+          "generatorCores": 0.16476674726028626
+        },
+        {
+          "concurrency": 2,
+          "seconds": 8,
+          "throughput": 788.75,
+          "ok": 6310,
+          "errors": 0,
+          "sentOk": 8607,
+          "sentFailed": 0,
+          "p50": 2.399,
+          "p99": 5.023,
+          "generatorCores": 0.16516552173627588
+        },
+        {
+          "concurrency": 4,
+          "seconds": 8,
+          "throughput": 1288.875,
+          "ok": 10311,
+          "errors": 0,
+          "sentOk": 14182,
+          "sentFailed": 0,
+          "p50": 2.927,
+          "p99": 5.631,
+          "generatorCores": 0.15799370635596025
+        },
+        {
+          "concurrency": 8,
+          "seconds": 8,
+          "throughput": 1784.5,
+          "ok": 14276,
+          "errors": 0,
+          "sentOk": 19506,
+          "sentFailed": 0,
+          "p50": 3.807,
+          "p99": 12.415,
+          "generatorCores": 0.23347202774516193
+        },
+        {
+          "concurrency": 16,
+          "seconds": 8,
+          "throughput": 1774.5,
+          "ok": 14196,
+          "errors": 0,
+          "sentOk": 19713,
+          "sentFailed": 0,
+          "p50": 4.479,
+          "p99": 38.399,
+          "generatorCores": 0.24796229020548616
+        },
+        {
+          "concurrency": 32,
+          "seconds": 8,
+          "throughput": 1817.75,
+          "ok": 14542,
+          "errors": 0,
+          "sentOk": 19989,
+          "sentFailed": 0,
+          "p50": 4.639,
+          "p99": 89.599,
+          "generatorCores": 0.23431554208722716
+        },
+        {
+          "concurrency": 64,
+          "seconds": 8,
+          "throughput": 1824.25,
+          "ok": 14594,
+          "errors": 0,
+          "sentOk": 20051,
+          "sentFailed": 0,
+          "p50": 4.831,
+          "p99": 196.607,
+          "generatorCores": 0.23595805969998002
+        },
+        {
+          "concurrency": 128,
+          "seconds": 8,
+          "throughput": 1743.25,
+          "ok": 13946,
+          "errors": 0,
+          "sentOk": 19586,
+          "sentFailed": 0,
+          "p50": 4.959,
+          "p99": 434.175,
+          "generatorCores": 0.22636349705022618
+        },
+        {
+          "concurrency": 256,
+          "seconds": 8,
+          "throughput": 1792.75,
+          "ok": 14342,
+          "errors": 0,
+          "sentOk": 20472,
+          "sentFailed": 0,
+          "p50": 4.607,
+          "p99": 774.143,
+          "generatorCores": 0.2263821848810897
+        },
+        {
+          "concurrency": 512,
+          "seconds": 8,
+          "throughput": 1739.125,
+          "ok": 13913,
+          "errors": 0,
+          "sentOk": 20314,
+          "sentFailed": 0,
+          "p50": 4.735,
+          "p99": 1622.015,
+          "generatorCores": 0.23665678301059517
+        },
+        {
+          "concurrency": 1024,
+          "seconds": 8,
+          "throughput": 1776.5,
+          "ok": 14212,
+          "errors": 0,
+          "sentOk": 21246,
+          "sentFailed": 0,
+          "p50": 5.119,
+          "p99": 3227.647,
+          "generatorCores": 0.23049804535414925
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 8,
+          "throughput": 1865.5,
+          "ok": 14924,
+          "errors": 0,
+          "sentOk": 23084,
+          "sentFailed": 0,
+          "p50": 7.327,
+          "p99": 5079.039,
+          "generatorCores": 0.24997596108819162
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 8,
+          "throughput": 1878.25,
+          "ok": 15026,
+          "errors": 0,
+          "sentOk": 24505,
+          "sentFailed": 1358,
+          "p50": 1368.063,
+          "p99": 6946.815,
+          "generatorCores": 0.2663099400548437
+        }
+      ],
+      "top": 4096,
+      "peak": {
+        "throughput": 1768.6666666666667,
+        "concurrency": 64,
+        "top": false,
+        "generatorCores": 0.24731149755199539,
+        "generatorCpus": 18,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 1768.6666666666667,
+        "concurrency": 64,
+        "p99": 189.439,
+        "lowerBound": false
+      }
+    },
+    {
+      "name": "2-wow-e3-zipf-sweep",
+      "arm": "wow",
+      "round": 1,
+      "scenario": "E3",
+      "distribution": "zipf",
+      "label": "E3 zipf",
+      "dir": "2-wow-e3-zipf-sweep",
+      "locatedPast": [
+        "2-wow-e3-zipf-sweep-locate-8192"
+      ],
+      "extended": [
+        "2-wow-e3-zipf-sweep-32"
+      ],
+      "status": "ok",
+      "end": "errors",
+      "steps": [
+        {
+          "concurrency": 64,
+          "seconds": 30,
+          "throughput": 1995.0666666666666,
+          "ok": 59852,
+          "errors": 0,
+          "sentOk": 83932,
+          "sentFailed": 0,
+          "p50": 6.879,
+          "p99": 335.871,
+          "generatorCores": 0.29526639964241197
+        },
+        {
+          "concurrency": 128,
+          "seconds": 30,
+          "throughput": 2302.4666666666667,
+          "ok": 69074,
+          "errors": 0,
+          "sentOk": 79977,
+          "sentFailed": 0,
+          "p50": 6.143,
+          "p99": 630.783,
+          "generatorCores": 0.3261386536074844
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 30,
+          "throughput": 2543.2,
+          "ok": 76296,
+          "errors": 8313,
+          "sentOk": 104281,
+          "sentFailed": 11748,
+          "p50": 7.743,
+          "p99": 9371.647,
+          "generatorCores": 0.39377410051101486
+        },
+        {
+          "concurrency": 32,
+          "seconds": 30,
+          "throughput": 2562.2,
+          "ok": 76866,
+          "errors": 0,
+          "sentOk": 101554,
+          "sentFailed": 0,
+          "p50": 6.047,
+          "p99": 65.023,
+          "generatorCores": 0.37128190038336656
+        }
+      ],
+      "located": [
+        {
+          "concurrency": 1,
+          "seconds": 8,
+          "throughput": 604.25,
+          "ok": 4834,
+          "errors": 0,
+          "sentOk": 6491,
+          "sentFailed": 0,
+          "p50": 1.623,
+          "p99": 2.207,
+          "generatorCores": 0.2062394759589681
+        },
+        {
+          "concurrency": 2,
+          "seconds": 8,
+          "throughput": 807,
+          "ok": 6456,
+          "errors": 0,
+          "sentOk": 8761,
+          "sentFailed": 0,
+          "p50": 2.383,
+          "p99": 3.759,
+          "generatorCores": 0.12540338092318773
+        },
+        {
+          "concurrency": 4,
+          "seconds": 8,
+          "throughput": 1125.5,
+          "ok": 9004,
+          "errors": 0,
+          "sentOk": 12347,
+          "sentFailed": 0,
+          "p50": 3.359,
+          "p99": 5.983,
+          "generatorCores": 0.15190571640863954
+        },
+        {
+          "concurrency": 8,
+          "seconds": 8,
+          "throughput": 1632.875,
+          "ok": 13063,
+          "errors": 0,
+          "sentOk": 18178,
+          "sentFailed": 0,
+          "p50": 4.383,
+          "p99": 10.815,
+          "generatorCores": 0.2289003278463402
+        },
+        {
+          "concurrency": 16,
+          "seconds": 8,
+          "throughput": 2269.375,
+          "ok": 18155,
+          "errors": 0,
+          "sentOk": 25374,
+          "sentFailed": 0,
+          "p50": 5.631,
+          "p99": 21.375,
+          "generatorCores": 0.3116989554739231
+        },
+        {
+          "concurrency": 32,
+          "seconds": 8,
+          "throughput": 2454.75,
+          "ok": 19638,
+          "errors": 0,
+          "sentOk": 23281,
+          "sentFailed": 0,
+          "p50": 5.983,
+          "p99": 69.631,
+          "generatorCores": 0.32820112259003004
+        },
+        {
+          "concurrency": 64,
+          "seconds": 8,
+          "throughput": 2597.5,
+          "ok": 20780,
+          "errors": 0,
+          "sentOk": 28996,
+          "sentFailed": 0,
+          "p50": 5.727,
+          "p99": 156.671,
+          "generatorCores": 0.3512466452400359
+        },
+        {
+          "concurrency": 128,
+          "seconds": 8,
+          "throughput": 2530.75,
+          "ok": 20246,
+          "errors": 0,
+          "sentOk": 28077,
+          "sentFailed": 0,
+          "p50": 5.791,
+          "p99": 354.303,
+          "generatorCores": 0.35106277928994867
+        },
+        {
+          "concurrency": 256,
+          "seconds": 8,
+          "throughput": 2470.875,
+          "ok": 19767,
+          "errors": 0,
+          "sentOk": 28372,
+          "sentFailed": 0,
+          "p50": 5.823,
+          "p99": 901.119,
+          "generatorCores": 0.3472985980441239
+        },
+        {
+          "concurrency": 512,
+          "seconds": 8,
+          "throughput": 2570.875,
+          "ok": 20567,
+          "errors": 0,
+          "sentOk": 29192,
+          "sentFailed": 0,
+          "p50": 5.919,
+          "p99": 1458.175,
+          "generatorCores": 0.3575116680063634
+        },
+        {
+          "concurrency": 1024,
+          "seconds": 8,
+          "throughput": 2552,
+          "ok": 20416,
+          "errors": 0,
+          "sentOk": 30498,
+          "sentFailed": 789,
+          "p50": 6.143,
+          "p99": 2932.735,
+          "generatorCores": 0.3684070788505917
+        },
+        {
+          "concurrency": 2048,
+          "seconds": 8,
+          "throughput": 2857.875,
+          "ok": 22863,
+          "errors": 0,
+          "sentOk": 36030,
+          "sentFailed": 321,
+          "p50": 6.591,
+          "p99": 5341.183,
+          "generatorCores": 0.39892618113054307
+        },
+        {
+          "concurrency": 4096,
+          "seconds": 8,
+          "throughput": 3457.875,
+          "ok": 27663,
+          "errors": 0,
+          "sentOk": 39692,
+          "sentFailed": 1590,
+          "p50": 9.407,
+          "p99": 6979.583,
+          "generatorCores": 0.4657973715739478
+        },
+        {
+          "concurrency": 8192,
+          "seconds": 8,
+          "throughput": 3850.375,
+          "ok": 30803,
+          "errors": 454,
+          "sentOk": 43333,
+          "sentFailed": 53625,
+          "p50": 37.375,
+          "p99": 9043.967,
+          "generatorCores": 0.544113671923333
+        }
+      ],
+      "top": 8192,
+      "peak": {
+        "throughput": 2562.2,
+        "concurrency": 32,
+        "top": false,
+        "generatorCores": 0.37128190038336656,
+        "generatorCpus": 18,
+        "lowerBound": false
+      },
+      "sustainable": {
+        "throughput": 2562.2,
+        "concurrency": 32,
+        "p99": 65.023,
+        "lowerBound": false
+      }
+    }
+  ],
+  "finishedAt": "2026-11-05T07:46:58.881Z"
+}

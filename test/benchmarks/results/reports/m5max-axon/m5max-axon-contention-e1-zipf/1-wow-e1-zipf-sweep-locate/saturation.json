@@ -1,0 +1,192 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 100000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 26385.125,
+  "saturationConcurrency": 4096,
+  "generatorCores": 2.6204884602010705,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "seconds": 8,
+      "throughput": 1447.25,
+      "ok": 11578,
+      "errors": {},
+      "p50Ms": 0.659,
+      "p99Ms": 1.135,
+      "generatorCores": 0.3779005618912256,
+      "sentOk": 15422,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 2,
+      "seconds": 8,
+      "throughput": 2138.25,
+      "ok": 17106,
+      "errors": {},
+      "p50Ms": 0.911,
+      "p99Ms": 1.287,
+      "generatorCores": 0.19796269918703752,
+      "sentOk": 23378,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 4,
+      "seconds": 8,
+      "throughput": 2639.875,
+      "ok": 21119,
+      "errors": {},
+      "p50Ms": 1.455,
+      "p99Ms": 2.735,
+      "generatorCores": 0.2688616327065021,
+      "sentOk": 28840,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 8,
+      "seconds": 8,
+      "throughput": 2953.25,
+      "ok": 23626,
+      "errors": {},
+      "p50Ms": 1.919,
+      "p99Ms": 9.343,
+      "generatorCores": 0.3535144580676516,
+      "sentOk": 35506,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 16,
+      "seconds": 8,
+      "throughput": 5540.0,
+      "ok": 44320,
+      "errors": {},
+      "p50Ms": 2.351,
+      "p99Ms": 8.191,
+      "generatorCores": 0.6091206596965362,
+      "sentOk": 52313,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 32,
+      "seconds": 8,
+      "throughput": 9221.0,
+      "ok": 73768,
+      "errors": {},
+      "p50Ms": 2.943,
+      "p99Ms": 8.031,
+      "generatorCores": 0.9680396724026775,
+      "sentOk": 101135,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 64,
+      "seconds": 8,
+      "throughput": 13347.75,
+      "ok": 106782,
+      "errors": {},
+      "p50Ms": 4.287,
+      "p99Ms": 10.879,
+      "generatorCores": 1.3479903361558725,
+      "sentOk": 145420,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 128,
+      "seconds": 8,
+      "throughput": 17426.375,
+      "ok": 139411,
+      "errors": {},
+      "p50Ms": 6.815,
+      "p99Ms": 16.895,
+      "generatorCores": 1.7504937312734725,
+      "sentOk": 189782,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 256,
+      "seconds": 8,
+      "throughput": 19097.5,
+      "ok": 152780,
+      "errors": {},
+      "p50Ms": 12.287,
+      "p99Ms": 36.863,
+      "generatorCores": 1.889705478497228,
+      "sentOk": 208323,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 512,
+      "seconds": 8,
+      "throughput": 20094.75,
+      "ok": 160758,
+      "errors": {},
+      "p50Ms": 14.143,
+      "p99Ms": 136.191,
+      "generatorCores": 1.9569699494976833,
+      "sentOk": 219864,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 1024,
+      "seconds": 8,
+      "throughput": 19983.0,
+      "ok": 159864,
+      "errors": {},
+      "p50Ms": 14.527,
+      "p99Ms": 335.871,
+      "generatorCores": 1.8794589376320185,
+      "sentOk": 221513,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 2048,
+      "seconds": 8,
+      "throughput": 24050.5,
+      "ok": 192404,
+      "errors": {
+        "http-429-wow.command.busy": 1078
+      },
+      "p50Ms": 52.479,
+      "p99Ms": 704.511,
+      "generatorCores": 2.0851598576314356,
+      "sentOk": 262490,
+      "sentFailed": 3213
+    },
+    {
+      "concurrency": 4096,
+      "seconds": 8,
+      "throughput": 26385.125,
+      "ok": 211081,
+      "errors": {
+        "http-429-wow.command.busy": 28564
+      },
+      "p50Ms": 50.943,
+      "p99Ms": 1449.983,
+      "generatorCores": 2.6204884602010705,
+      "sentOk": 298937,
+      "sentFailed": 47397
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "7",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-axon/m5max-axon-contention-e1-zipf/1-wow-up"
+  }
+}

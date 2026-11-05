@@ -1,0 +1,67 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 14538.1,
+  "saturationConcurrency": 512,
+  "generatorCores": 1.6046390063310108,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 256,
+      "seconds": 30,
+      "throughput": 14328.533333333333,
+      "ok": 429856,
+      "errors": {},
+      "p50Ms": 6.335,
+      "p99Ms": 111.103,
+      "generatorCores": 1.5888029569496378,
+      "sentOk": 562231,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 512,
+      "seconds": 30,
+      "throughput": 14538.1,
+      "ok": 436143,
+      "errors": {},
+      "p50Ms": 24.191,
+      "p99Ms": 135.167,
+      "generatorCores": 1.6046390063310108,
+      "sentOk": 582015,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 1024,
+      "seconds": 30,
+      "throughput": 14177.033333333333,
+      "ok": 425311,
+      "errors": {},
+      "p50Ms": 62.975,
+      "p99Ms": 185.343,
+      "generatorCores": 1.5544849919875328,
+      "sentOk": 568342,
+      "sentFailed": 0
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "8",
+    "settleSeconds": "8",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-axon/m5max-axon-pool-32-e1/1-axon-pool-32-up"
+  }
+}

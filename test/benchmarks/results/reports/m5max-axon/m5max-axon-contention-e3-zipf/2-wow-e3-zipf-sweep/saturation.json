@@ -1,0 +1,70 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 100000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2543.2,
+  "saturationConcurrency": 4096,
+  "generatorCores": 0.39377410051101486,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 64,
+      "seconds": 30,
+      "throughput": 1995.0666666666666,
+      "ok": 59852,
+      "errors": {},
+      "p50Ms": 6.879,
+      "p99Ms": 335.871,
+      "generatorCores": 0.29526639964241197,
+      "sentOk": 83932,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 128,
+      "seconds": 30,
+      "throughput": 2302.4666666666667,
+      "ok": 69074,
+      "errors": {},
+      "p50Ms": 6.143,
+      "p99Ms": 630.783,
+      "generatorCores": 0.3261386536074844,
+      "sentOk": 79977,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 4096,
+      "seconds": 30,
+      "throughput": 2543.2,
+      "ok": 76296,
+      "errors": {
+        "http-504-wow.wait.timeout": 8313
+      },
+      "p50Ms": 7.743,
+      "p99Ms": 9371.647,
+      "generatorCores": 0.39377410051101486,
+      "sentOk": 104281,
+      "sentFailed": 11748
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "9",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-axon/m5max-axon-contention-e3-zipf/2-wow-up"
+  }
+}

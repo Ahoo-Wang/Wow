@@ -1,0 +1,55 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 14771.0,
+  "saturationConcurrency": 512,
+  "generatorCores": 1.6267519289464547,
+  "availableProcessors": 18,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 256,
+      "seconds": 30,
+      "throughput": 12874.1,
+      "ok": 386223,
+      "errors": {},
+      "p50Ms": 7.135,
+      "p99Ms": 147.455,
+      "generatorCores": 1.3907444124254966,
+      "sentOk": 485293,
+      "sentFailed": 0
+    },
+    {
+      "concurrency": 512,
+      "seconds": 30,
+      "throughput": 14771.0,
+      "ok": 443130,
+      "errors": {},
+      "p50Ms": 24.447,
+      "p99Ms": 128.511,
+      "generatorCores": 1.6267519289464547,
+      "sentOk": 591017,
+      "sentFailed": 0
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "loadJvm": "openjdk version \"25.0.5\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-25.0.5+8 (build 25.0.5+8-LTS) OpenJDK 64-Bit Server VM Temurin-25.0.5+8 (build 25.0.5+8-LTS, mixed mode, sharing)",
+    "stores": "postgres",
+    "storeWriteIops": "",
+    "primed": "true",
+    "primeSeconds": "9",
+    "settleSeconds": "23",
+    "accounts": "100000",
+    "session": "/Users/ahoowang/work/ahoo/Wow/.claude/worktrees/m5max-refresh-0bada9/test/benchmarks/results/e2e/m5max-axon/m5max-axon-pool-32-e1/2-axon-pool-32-up"
+  }
+}

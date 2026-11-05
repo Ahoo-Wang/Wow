@@ -1,0 +1,842 @@
+epoch	load1	load5	load15	foreignCpu	topForeign	foreignContainers	hostCpu	generatorThread	allowedJvmCpu	foreignJvms
+1793855900	1.58	4.27	5.55	40	Stats 8, taskgated-helper 5, configd 5	cocache-redis 0.21%	31		0.0	
+1793855913	2.43	4.36	5.57	15	sysmond 4, claude 3, WindowServer 2	cocache-redis 0.20%	890	4	0.4	
+1793855925	3.96	4.60	5.63	5	WindowServer 1, Stats 1, Shadowrocket 1	cocache-redis 0.19%	862	2	0.0	
+1793855937	5.38	4.88	5.72	13	claude 6, WindowServer 2, Activity Monitor 1	cocache-redis 0.27%	897	22	0.0	
+1793855949	5.00	4.82	5.68	44	launchd 38, sysmond 1, Activity Monitor 1	cocache-redis 0.45%	43	3	0.0	
+1793855961	4.20	4.65	5.61	27	claude 8, Stats 5, claude 3	cocache-redis 0.19%	281	10	0.0	
+1793855974	4.23	4.64	5.59	9	WindowServer 2, Stats 2, claude 1	cocache-redis 0.21%	294	8	0.0	
+1793855986	4.72	4.72	5.61	6	WindowServer 2, sysmond 1, Stats 1	cocache-redis 0.21%	388	10	0.0	
+1793855998	5.42	4.88	5.65	6	sysmond 4, WindowServer 1, Stats 0	cocache-redis 0.21%	520	12	0.0	
+1793856010	5.27	4.87	5.63	1	WindowServer 0, claude 0, launchd 0	cocache-redis 0.23%	664	16	0.0	
+1793856022	5.63	4.96	5.65	12	sysmond 4, Stats 3, WindowServer 2	cocache-redis 0.24%	780	20	0.0	
+1793856035	9.19	5.76	5.93	7	claude 2, WindowServer 1, Stats 1	cocache-redis 0.23%	937	26	0.1	
+1793856047	11.94	6.46	6.17	7	sysmond 4, Activity Monitor 1, WindowServer 1	cocache-redis 0.22%	726	21	0.0	
+1793856059	10.77	6.40	6.15	4	claude 2, Activity Monitor 1, WindowServer 1	cocache-redis 0.21%	623	21	0.0	
+1793856071	8.83	6.18	6.08	9	Stats 3, WindowServer 2, claude 2	cocache-redis 0.21%	1191	36	0.0	
+1793856084	9.50	6.40	6.16	8	sysmond 3, Stats 1, WindowServer 1	cocache-redis 0.28%	1226	41	0.0	
+1793856096	13.31	7.40	6.52	19	sysmond 7, WindowServer 3, MacPacketTunnel 2	cocache-redis 0.40%	35	0	0.0	
+1793856108	13.96	7.73	6.65	8	claude 2, Activity Monitor 2, WindowServer 1	cocache-redis 0.27%	1138	40	0.0	
+1793856120	14.67	8.21	6.84	9	Stats 4, configd 2, claude 1	cocache-redis 0.22%	1113	40	0.0	
+1793856133	14.07	8.30	6.89	12	claude 3, Claude Helper (Renderer) 2, Stats 2	cocache-redis 0.23%	958	32	0.1	
+1793856144	15.43	8.78	7.07	4	Activity Monitor 2, Stats 1, WindowServer 1	cocache-redis 0.30%	1279	40	0.0	
+1793856156	12.61	8.48	7.00	6	sysmond 4, WindowServer 1, claude 0	cocache-redis 0.21%	1274	41	0.0	
+1793856168	14.90	9.11	7.24	2	WindowServer 1, Activity Monitor 0, Google Chrome 0	cocache-redis 0.22%	1272	40	0.0	
+1793856180	16.51	9.77	7.50	20	Stats 6, WindowServer 4, Activity Monitor 3	cocache-redis 0.41%	24	0	0.0	
+1793856193	15.99	9.89	7.57	8	claude 2, WindowServer 1, jstat 1	cocache-redis 0.21%	859	92	0.0	
+1793856205	16.45	10.20	7.71	5	WindowServer 1, Stats 1, claude 1	cocache-redis 0.23%	910	94		
+1793856217	19.58	11.19	8.11	8	sysmond 4, jstat 1, claude 1	cocache-redis 0.22%	933	81		
+1793856229	19.12	11.36	8.20	7	sysmond 3, Activity Monitor 1, WindowServer 1	cocache-redis 0.23%	921	93		
+1793856241	18.64	11.61	8.35	5	WindowServer 1, Stats 1, jstat 1	cocache-redis 0.23%	909	81		
+1793856253	16.31	11.35	8.29	23	claude 7, claude 5, WindowServer 3	cocache-redis 0.39%	67			
+1793856265	13.64	10.99	8.21	12	sysmond 5, Activity Monitor 2, claude 2	cocache-redis 0.23%	490	20		
+1793856277	12.07	10.74	8.16	13	Stats 5, configd 3, WindowServer 2	cocache-redis 0.23%	493	20		
+1793856290	11.08	10.57	8.13	15	sysmond 3, MacPacketTunnel 3, WindowServer 2	cocache-redis 0.21%	110	11		
+1793856302	10.39	10.45	8.13	9	Stats 2, claude 2, deleted 1	cocache-redis 0.20%	240	14		
+1793856314	9.09	10.17	8.06	14	Activity Monitor 4, claude 3, WindowServer 2	cocache-redis 0.19%	256	6		
+1793856326	8.00	9.89	7.99	6	Activity Monitor 2, WindowServer 1, claude 1	cocache-redis 0.22%	350	10		
+1793856338	8.64	9.96	8.04	19	Stats 5, MacPacketTunnel 5, WindowServer 3	cocache-redis 0.22%	500	14		
+1793856351	9.36	10.04	8.10	9	Stats 3, WindowServer 2, Activity Monitor 2	cocache-redis 0.23%	546	18		
+1793856363	9.10	9.97	8.10	9	Stats 3, claude 3, WindowServer 1	cocache-redis 0.22%	510	18		
+1793856375	10.60	10.25	8.23	10	Google Chrome Helper (Aperitif Renderer) 4, claude 2, Google Chrome 1	cocache-redis 0.25%	482	19		
+1793856387	9.28	9.98	8.16	11	Stats 5, configd 3, WindowServer 1	cocache-redis 0.23%	449	19		
+1793856399	9.09	9.91	8.16	16	launchd 6, sysmond 3, Stats 3	cocache-redis 0.22%	456	19		
+1793856412	9.25	9.89	8.18	11	claude 3, Stats 2, WindowServer 2	cocache-redis 0.21%	486	20		
+1793856424	8.44	9.69	8.13	4	Activity Monitor 1, WindowServer 1, Stats 0	cocache-redis 0.20%	469	18		
+1793856436	8.72	9.71	8.16	8	sysmond 3, Google Chrome Helper (Aperitif Renderer) 2, claude 1	cocache-redis 0.21%	477	18		
+1793856448	7.85	9.48	8.10	25	Stats 9, WindowServer 5, configd 4	cocache-redis 0.38%	358	22		
+1793856461	7.44	9.30	8.06	6	MacPacketTunnel 2, WindowServer 1, Stats 1	cocache-redis 0.23%	458	19		
+1793856473	7.66	9.29	8.07	7	sysmond 4, WindowServer 1, claude 0	cocache-redis 0.22%	449	20		
+1793856485	6.61	8.98	7.98	3	claude 2, WindowServer 0, Stats 0	cocache-redis 0.22%	455	20		
+1793856497	6.82	8.95	7.98	11	Stats 4, WindowServer 3, configd 3	cocache-redis 0.24%	463	20		
+1793856510	7.48	9.01	8.01	8	WindowServer 2, Stats 2, claude 2	cocache-redis 0.23%	465	20		
+1793856522	6.80	8.78	7.95	13	sysmond 4, MacPacketTunnel 2, WindowServer 2	cocache-redis 0.19%	517	19		
+1793856534	7.83	8.95	8.02	12	Activity Monitor 4, claude 3, WindowServer 2	cocache-redis 0.38%	6	0		
+1793856546	7.40	8.79	7.98	26	Stats 10, configd 6, WindowServer 3	cocache-redis 0.18%	355	17		
+1793856558	7.17	8.70	7.95	16	Stats 7, configd 5, WindowServer 2	cocache-redis 0.21%	355	17		
+1793856570	7.20	8.63	7.94	31	biomesyncd 9, Activity Monitor 9, configd 4	cocache-redis 0.26%	359	23		
+1793856582	6.70	8.48	7.89	36	MacPacketTunnel 16, Stats 5, configd 4	cocache-redis 0.23%	384	17		
+1793856594	6.51	8.38	7.86	24	Stats 9, configd 5, WindowServer 4	cocache-redis 0.23%	371	17		
+1793856606	5.76	8.13	7.78	25	Stats 8, WindowServer 4, sysmond 3	cocache-redis 0.22%	47			
+1793856619	6.13	8.13	7.79	7	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.20%	504	20		
+1793856631	6.11	8.01	7.75	9	sysmond 4, WindowServer 2, Activity Monitor 1	cocache-redis 0.22%	510	19		
+1793856643	6.43	8.01	7.75	5	WindowServer 1, Stats 1, MacPacketTunnel 0	cocache-redis 0.37%	8	0		
+1793856655	6.09	7.85	7.70	12	sysmond 4, Stats 2, claude 2	cocache-redis 0.19%	228	4		
+1793856667	6.15	7.80	7.68	19	Stats 6, configd 5, WindowServer 4	cocache-redis 0.20%	138	2		
+1793856680	6.36	7.79	7.68	10	sysmond 4, Stats 2, configd 1	cocache-redis 0.22%	330	10		
+1793856692	6.57	7.77	7.67	7	sysmond 1, Activity Monitor 1, Stats 1	cocache-redis 0.22%	523	17		
+1793856704	7.70	7.97	7.75	4	Activity Monitor 1, WindowServer 1, Claude 0	cocache-redis 0.23%	496	18		
+1793856716	8.19	8.06	7.78	5	Stats 3, configd 1, Google Chrome 0	cocache-redis 0.21%	490	20		
+1793856729	7.97	8.02	7.77	18	Stats 4, sysmond 3, claude 2	cocache-redis 0.24%	416	18		
+1793856741	7.88	8.00	7.77	6	claude 2, WindowServer 1, Shadowrocket 1	cocache-redis 0.22%	467	20		
+1793856753	6.90	7.79	7.69	4	WindowServer 1, claude 0, rapportd 0	cocache-redis 0.21%	448	20		
+1793856765	7.05	7.79	7.70	8	Stats 2, claude 2, configd 1	cocache-redis 0.22%	503	19		
+1793856777	9.38	8.28	7.87	7	claude 2, WindowServer 2, Stats 2	cocache-redis 0.22%	459	19		
+1793856790	8.92	8.22	7.85	12	sysmond 4, launchd 3, claude 1	cocache-redis 0.22%	574	17		
+1793856802	7.81	8.01	7.78	7	sysmond 2, WindowServer 1, Activity Monitor 1	cocache-redis 0.23%	458	20		
+1793856814	7.65	7.97	7.77	8	sysmond 3, claude 1, claude 1	cocache-redis 0.23%	452	20		
+1793856826	6.56	7.71	7.69	16	Stats 5, configd 3, claude 3	cocache-redis 0.21%	468	20		
+1793856839	6.95	7.76	7.70	16	sysmond 5, Stats 3, claude 2	cocache-redis 0.22%	456	19		
+1793856851	6.87	7.70	7.68	4	claude 2, Stats 1, configd 1	cocache-redis 0.22%	454	20		
+1793856863	6.11	7.51	7.61	11	sysmond 3, claude 2, WindowServer 2	cocache-redis 0.24%	255	7		
+1793856875	6.12	7.46	7.59	16	sysmond 9, claude 4, Activity Monitor 3	cocache-redis 0.22%	448	20		
+1793856887	6.05	7.39	7.57	30	Google Chrome Helper (Aperitif Renderer) 6, Stats 6, WindowServer 4	cocache-redis 0.31%	301	17		
+1793856900	5.60	7.24	7.51	15	sysmond 4, Stats 3, WindowServer 2	cocache-redis 0.20%	398	16		
+1793856912	6.10	7.27	7.51	12	claude 3, Stats 2, configd 2	cocache-redis 0.22%	404	17		
+1793856924	6.00	7.21	7.49	12	WindowServer 3, Stats 2, Shadowrocket 2	cocache-redis 0.21%	384	16		
+1793856936	5.84	7.11	7.45	12	WindowServer 4, Stats 3, Shadowrocket 2	cocache-redis 0.23%	368	16		
+1793856948	6.01	7.11	7.45	20	Google Chrome Helper (Aperitif Renderer) 9, sysmond 4, Google Chrome 3	cocache-redis 0.45%	14	0		
+1793856960	5.24	6.91	7.37	22	sysmond 7, Activity Monitor 4, WindowServer 2	cocache-redis 0.29%	433			
+1793856972	8.55	7.55	7.59	5	sysmond 3, WindowServer 1, Stats 0	cocache-redis 0.22%	861	4		
+1793856984	8.84	7.65	7.62	3	WindowServer 1, airportd 0, Activity Monitor 0	cocache-redis 0.20%	859	2		
+1793856996	8.40	7.61	7.61	8	Stats 2, configd 2, WindowServer 1	cocache-redis 0.23%	678	17		
+1793857009	7.33	7.41	7.54	10	Stats 3, Google Chrome Helper (Aperitif Renderer) 2, WindowServer 1	cocache-redis 0.47%	17	0		
+1793857021	6.47	7.21	7.47	9	sysmond 3, WindowServer 2, Claude Helper (Renderer) 1	cocache-redis 0.20%	246	25		
+1793857033	6.52	7.20	7.46	10	Activity Monitor 3, sysmond 3, WindowServer 1	cocache-redis 0.20%	288	8		
+1793857045	7.28	7.34	7.51	2	claude 1, claude 0, WindowServer 0	cocache-redis 0.22%	386	10		
+1793857057	6.91	7.26	7.47	14	sysmond 4, Stats 2, WindowServer 2	cocache-redis 0.22%	564	13		
+1793857070	6.55	7.17	7.44	12	sysmond 5, Activity Monitor 2, Stats 2	cocache-redis 0.26%	638	15		
+1793857082	7.13	7.26	7.46	6	WindowServer 2, claude 1, Stats 1	cocache-redis 0.23%	775	20		
+1793857094	8.49	7.56	7.57	9	claude 3, claude 2, claude 1	cocache-redis 0.23%	883	23		
+1793857106	8.50	7.61	7.59	21	sysmond 7, Stats 3, claude 2	cocache-redis 0.23%	726	21		
+1793857119	7.42	7.41	7.52	8	Activity Monitor 2, Stats 2, WindowServer 1	cocache-redis 0.20%	712	21		
+1793857131	8.06	7.55	7.56	3	Activity Monitor 1, WindowServer 1, Stats 0	cocache-redis 0.22%	957	34		
+1793857143	10.46	8.08	7.75	12	sysmond 6, Activity Monitor 2, WindowServer 1	cocache-redis 0.33%	1280	37		
+1793857155	10.85	8.24	7.81	2	claude 1, claude 1, WindowServer 0	cocache-redis 0.28%	34	0		
+1793857167	16.09	9.48	8.26	8	Stats 2, Activity Monitor 2, WindowServer 2	cocache-redis 0.28%	1150	42		
+1793857180	15.11	9.48	8.27	16	sysmond 4, Activity Monitor 2, launchd 2	cocache-redis 0.27%	1160	39		
+1793857192	16.58	10.08	8.51	2	WindowServer 1, Stats 1, configd 0	cocache-redis 0.24%	1168	42		
+1793857204	17.90	10.57	8.70	6	claude 2, Activity Monitor 2, WindowServer 1	cocache-redis 0.25%	1264	39		
+1793857216	20.03	11.41	9.03	23	Stats 5, sysmond 4, configd 3	cocache-redis 0.21%	1306	44		
+1793857229	18.77	11.41	9.06	9	sysmond 4, claude 2, Stats 1	cocache-redis 0.24%	1236	42		
+1793857241	16.88	11.36	9.08	19	sysmond 6, Activity Monitor 3, WindowServer 2	cocache-redis 0.37%	30	0		
+1793857253	15.93	11.33	9.10	19	sysmond 3, PerfPowerTelemetryClientRegistrationService 3, claude 3	cocache-redis 0.23%	845	92		
+1793857265	16.67	11.65	9.23	10	sysmond 4, Activity Monitor 1, WindowServer 1	cocache-redis 0.23%	849	89		
+1793857277	15.19	11.56	9.25	4	claude 1, wifianalyticsd 1, WindowServer 1	cocache-redis 0.24%	867	92		
+1793857289	13.94	11.41	9.22	3	Activity Monitor 1, WindowServer 1, jstat 0	cocache-redis 0.23%	924	84		
+1793857301	13.57	11.46	9.27	6	MacPacketTunnel 2, Activity Monitor 1, jstat 1	cocache-redis 0.20%	911	87		
+1793857313	11.94	11.18	9.20	8	claude 1, WindowServer 1, dasd 1	cocache-redis 0.41%	120			
+1793857325	10.92	10.99	9.16	7	sysmond 4, Stats 1, configd 1	cocache-redis 0.21%	910	6		
+1793857338	10.63	10.92	9.16	9	Stats 2, WindowServer 2, configd 2	cocache-redis 0.20%	870	2		
+1793857350	11.16	11.02	9.22	11	sysmond 3, claude 2, Activity Monitor 1	cocache-redis 0.25%	1084	21		
+1793857362	12.06	11.22	9.32	14	sysmond 6, MacPacketTunnel 4, WindowServer 1	cocache-redis 0.36%	9	0		
+1793857374	10.60	10.93	9.24	25	Stats 10, WindowServer 6, configd 5	cocache-redis 0.18%	208	6		
+1793857387	8.70	10.50	9.11	14	Stats 6, configd 3, claude 2	cocache-redis 0.23%	112	16		
+1793857399	10.52	10.83	9.25	8	sysmond 3, Stats 1, Shadowrocket 1	cocache-redis 0.21%	294	4		
+1793857411	10.72	10.85	9.27	11	claude 3, claude 2, claude 2	cocache-redis 0.21%	448	6		
+1793857423	10.39	10.77	9.27	3	claude 1, WindowServer 1, Claude 0	cocache-redis 0.22%	514	7		
+1793857435	9.68	10.61	9.23	21	Stats 5, sysmond 3, configd 3	cocache-redis 0.21%	597	9		
+1793857448	10.35	10.71	9.29	6	Stats 2, WindowServer 1, configd 1	cocache-redis 0.31%	667	11		
+1793857460	10.41	10.71	9.31	6	MacPacketTunnel 3, WindowServer 1, Shadowrocket 1	cocache-redis 0.20%	435	8		
+1793857472	8.48	10.27	9.17	5	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.21%	625	12		
+1793857484	7.71	10.04	9.11	11	claude 2, Activity Monitor 2, claude 1	cocache-redis 0.22%	802	16		
+1793857496	12.21	10.88	9.42	15	Stats 7, WindowServer 3, configd 2	cocache-redis 0.21%	871	18		
+1793857509	13.67	11.22	9.55	7	Stats 1, claude 1, configd 1	cocache-redis 0.24%	876	13		
+1793857521	14.60	11.52	9.68	24	sysmond 9, Google Chrome Helper (Aperitif Renderer) 4, WindowServer 2	cocache-redis 0.44%	15	3		
+1793857533	13.98	11.50	9.70	5	claude 2, claude 2, WindowServer 1	cocache-redis 0.21%	689	12		
+1793857545	12.78	11.32	9.66	1	WindowServer 0, Claude Helper (Renderer) 0, Claude 0	cocache-redis 0.22%	779	14		
+1793857557	11.18	11.04	9.59	13	sysmond 4, Stats 3, Activity Monitor 2	cocache-redis 0.23%	775	15		
+1793857570	12.72	11.36	9.72	13	launchd 6, Stats 2, Activity Monitor 2	cocache-redis 0.20%	777	16		
+1793857582	10.81	11.00	9.62	10	sysmond 3, Activity Monitor 2, WindowServer 2	cocache-redis 0.21%	774	15		
+1793857594	12.48	11.34	9.76	12	sysmond 4, Activity Monitor 3, WindowServer 1	cocache-redis 0.22%	698	14		
+1793857606	13.29	11.59	9.87	29	Stats 9, mdworker_shared 5, configd 5	cocache-redis 0.32%	318	41		
+1793857619	12.68	11.50	9.86	8	Stats 3, WindowServer 2, configd 2	cocache-redis 0.22%	495	40		
+1793857631	11.49	11.29	9.80	20	sysmond 7, Activity Monitor 4, WindowServer 3	cocache-redis 0.22%	475	40		
+1793857643	9.74	10.91	9.69	13	WindowServer 4, Stats 2, Shadowrocket 2	cocache-redis 0.21%	512	39		
+1793857655	8.85	10.68	9.63	9	WindowServer 3, Stats 2, Activity Monitor 1	cocache-redis 0.20%	302	39		
+1793857667	7.91	10.39	9.54	11	runningboardd 2, claude 2, Stats 2	cocache-redis 0.36%	57	2		
+1793857679	7.09	10.13	9.46	14	claude 5, WindowServer 2, Stats 2	cocache-redis 0.40%	118			
+1793857691	6.22	9.84	9.36	7	claude 2, claude 2, WindowServer 1	cocache-redis 0.20%	500	18		
+1793857703	6.53	9.75	9.34	9	Activity Monitor 3, WindowServer 2, claude 1	cocache-redis 0.19%	574	29		
+1793857715	7.74	9.89	9.39	14	sysmond 4, Stats 3, WindowServer 3	cocache-redis 0.24%	328			
+1793857728	7.82	9.81	9.37	9	Stats 3, WindowServer 2, configd 2	cocache-redis 0.20%	238	7		
+1793857740	6.93	9.55	9.29	16	sysmond 4, Activity Monitor 3, WindowServer 3	cocache-redis 0.21%	271	4		
+1793857752	6.86	9.41	9.24	9	Activity Monitor 3, WindowServer 2, sysmond 2	cocache-redis 0.21%	313	5		
+1793857764	6.87	9.33	9.21	11	claude 3, claude 3, Activity Monitor 2	cocache-redis 0.21%	432	7		
+1793857776	6.60	9.15	9.15	29	com.apple.iCloudHelper 5, launchd 4, sysmond 4	cocache-redis 0.23%	408	8		
+1793857789	7.16	9.18	9.16	12	WindowServer 3, Stats 2, Shadowrocket 2	cocache-redis 0.24%	425	9		
+1793857801	6.73	9.02	9.11	6	claude 2, WindowServer 2, Stats 1	cocache-redis 0.23%	458	8		
+1793857813	6.03	8.76	9.01	13	sysmond 3, claude 2, claude 2	cocache-redis 0.23%	392	9		
+1793857825	6.10	8.69	8.98	23	Stats 7, sysmond 5, configd 4	cocache-redis 0.20%	473	8		
+1793857838	7.03	8.77	9.00	10	Stats 3, WindowServer 2, configd 2	cocache-redis 0.22%	379	8		
+1793857850	6.66	8.62	8.95	6	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.21%	383	8		
+1793857862	7.09	8.61	8.94	9	Activity Monitor 2, sysmond 2, WindowServer 1	cocache-redis 0.23%	452	7		
+1793857874	6.38	8.41	8.86	9	sysmond 4, Activity Monitor 3, MacPacketTunnel 1	cocache-redis 0.21%	418	0		
+1793857886	6.33	8.29	8.81	13	Stats 5, WindowServer 4, configd 2	cocache-redis 0.23%	472	9		
+1793857899	6.13	8.18	8.77	25	sysmond 8, Stats 4, Activity Monitor 4	cocache-redis 0.24%	431	8		
+1793857911	6.43	8.18	8.76	4	Stats 1, WindowServer 1, configd 1	cocache-redis 0.21%	478	8		
+1793857923	6.62	8.14	8.73	5	claude 2, WindowServer 1, Stats 0	cocache-redis 0.22%	412	9		
+1793857935	7.31	8.24	8.76	41	sysmond 17, Activity Monitor 9, Stats 7	cocache-redis 0.23%	418	8		
+1793857948	8.28	8.40	8.81	16	Stats 4, sysmond 4, configd 2	cocache-redis 0.22%	422	8		
+1793857960	7.61	8.25	8.75	11	launchd 4, Activity Monitor 2, Stats 2	cocache-redis 0.22%	408	9		
+1793857972	8.17	8.34	8.77	5	WindowServer 2, claude 1, Stats 1	cocache-redis 0.22%	383	9		
+1793857984	7.62	8.21	8.72	6	Activity Monitor 3, WindowServer 1, claude 0	cocache-redis 0.23%	183	4		
+1793857996	7.77	8.22	8.72	20	Stats 9, configd 5, WindowServer 3	cocache-redis 0.23%	420	9		
+1793858009	7.99	8.26	8.72	19	Stats 5, jstat 4, claude 3	cocache-redis 0.21%	359	20		
+1793858021	7.14	8.07	8.65	6	Stats 2, configd 2, WindowServer 1	cocache-redis 0.22%	130	4		
+1793858033	6.08	7.79	8.54	16	WindowServer 3, Stats 3, claude 3	cocache-redis 0.20%	145	3		
+1793858045	5.30	7.56	8.45	11	sysmond 3, jstat 2, Stats 2	cocache-redis 0.23%	451	6		
+1793858057	5.67	7.53	8.42	9	jstat 2, Activity Monitor 2, Stats 2	cocache-redis 0.21%	325	5		
+1793858069	5.78	7.50	8.40	14	claude 4, claude 2, Stats 2	cocache-redis 0.31%	32	5		
+1793858081	4.96	7.27	8.31	9	claude 2, Stats 1, WindowServer 1	cocache-redis 0.20%	48			
+1793858093	6.31	7.45	8.36	17	sysmond 9, Activity Monitor 5, WindowServer 1	cocache-redis 0.23%	483	20		
+1793858105	6.91	7.55	8.38	1	WindowServer 0, Activity Monitor 0, assetsubscriptiond 0	cocache-redis 0.22%	493	20		
+1793858117	8.02	7.78	8.45	24	sysmond 6, Stats 5, claude 3	cocache-redis 0.42%	39	0		
+1793858129	7.33	7.64	8.39	15	WindowServer 4, Activity Monitor 3, Stats 3	cocache-redis 0.21%	356	31		
+1793858142	7.04	7.55	8.35	40	Claude 21, sysmond 3, WindowServer 3	cocache-redis 0.21%	323	4		
+1793858154	6.80	7.49	8.31	8	claude 2, WindowServer 1, Google Chrome Helper (Aperitif Renderer) 1	cocache-redis 0.22%	460	7		
+1793858166	6.58	7.42	8.28	2	WindowServer 0, claude 0, claude 0	cocache-redis 0.23%	448	8		
+1793858178	6.48	7.35	8.24	9	Stats 2, Activity Monitor 2, WindowServer 2	cocache-redis 0.23%	404	8		
+1793858191	6.72	7.37	8.24	7	sysmond 4, WindowServer 1, Shadowrocket 1	cocache-redis 0.22%	376	8		
+1793858203	5.90	7.16	8.15	8	WindowServer 2, MacPacketTunnel 1, Stats 1	cocache-redis 0.22%	400	8		
+1793858215	5.78	7.09	8.11	6	claude 2, claude 1, WindowServer 1	cocache-redis 0.21%	397	9		
+1793858227	6.36	7.15	8.11	15	Stats 4, sysmond 3, WindowServer 2	cocache-redis 0.23%	436	8		
+1793858239	6.23	7.09	8.08	8	claude 2, Stats 2, WindowServer 1	cocache-redis 0.24%	411	8		
+1793858252	6.27	7.07	8.05	7	Stats 1, claude 1, ContinuityCaptureAgent 1	cocache-redis 0.20%	409	8		
+1793858264	7.49	7.31	8.13	8	Activity Monitor 3, WindowServer 2, claude 1	cocache-redis 0.29%	456	7		
+1793858276	7.41	7.30	8.11	12	configd 4, claude 3, WindowServer 2	cocache-redis 0.29%	528	14		
+1793858288	6.77	7.16	8.05	8	Stats 3, WindowServer 2, configd 2	cocache-redis 0.23%	424	8		
+1793858301	6.79	7.15	8.04	7	claude 3, Stats 2, configd 1	cocache-redis 0.24%	430	8		
+1793858313	6.09	6.98	7.96	7	sysmond 3, WindowServer 1, claude 0	cocache-redis 0.20%	403	9		
+1793858325	5.92	6.91	7.92	4	WindowServer 1, Stats 0, claude 0	cocache-redis 0.20%	410	8		
+1793858337	6.66	7.02	7.94	20	Stats 7, configd 4, claude 2	cocache-redis 0.24%	440	9		
+1793858349	6.79	7.03	7.94	11	launchd 4, Stats 2, WindowServer 1	cocache-redis 0.23%	412	8		
+1793858362	6.82	7.04	7.92	8	sysmond 4, WindowServer 1, Stats 1	cocache-redis 0.25%	408	9		
+1793858374	6.47	6.96	7.88	4	Activity Monitor 1, WindowServer 1, Stats 0	cocache-redis 0.21%	392	9		
+1793858386	7.47	7.16	7.94	8	mdworker_shared 3, claude 2, claude 1	cocache-redis 0.22%	416	8		
+1793858398	7.78	7.23	7.96	22	Stats 5, sysmond 3, WindowServer 3	cocache-redis 0.37%	35	0		
+1793858410	7.30	7.14	7.91	16	WindowServer 4, Stats 3, configd 2	cocache-redis 0.20%	323	4		
+1793858423	6.33	6.94	7.83	12	sysmond 4, Activity Monitor 2, Stats 2	cocache-redis 0.22%	316	4		
+1793858435	6.14	6.87	7.79	10	sysmond 2, WindowServer 2, Stats 2	cocache-redis 0.21%	321	4		
+1793858447	6.32	6.88	7.78	11	claude 3, claude 2, Stats 2	cocache-redis 0.21%	315	4		
+1793858459	6.19	6.83	7.75	10	Activity Monitor 4, Stats 2, WindowServer 2	cocache-redis 0.21%	333	4		
+1793858471	5.32	6.62	7.67	20	sysmond 9, Activity Monitor 3, claude 2	cocache-redis 0.23%	36			
+1793858483	4.92	6.46	7.59	6	sysmond 3, WindowServer 1, Activity Monitor 1	cocache-redis 0.21%	866	4		
+1793858495	6.06	6.66	7.65	4	claude 1, Activity Monitor 1, WindowServer 1	cocache-redis 0.20%	884	2		
+1793858507	7.49	6.94	7.73	9	Stats 3, configd 2, WindowServer 2	cocache-redis 0.26%	1245	55		
+1793858520	6.71	6.79	7.67	17	sysmond 3, Activity Monitor 3, claude 2	cocache-redis 0.43%	14	0		
+1793858532	5.76	6.58	7.57	4	WindowServer 1, Stats 1, configd 1	cocache-redis 0.19%	217	2		
+1793858544	5.58	6.51	7.54	8	sysmond 4, Activity Monitor 2, WindowServer 1	cocache-redis 0.20%	291	4		
+1793858556	5.72	6.51	7.52	9	Stats 4, configd 2, Activity Monitor 2	cocache-redis 0.21%	395	6		
+1793858568	5.95	6.51	7.51	11	sysmond 3, Stats 2, claude 2	cocache-redis 0.22%	476	7		
+1793858581	6.19	6.55	7.51	19	sysmond 14, Shadowrocket 1, WindowServer 1	cocache-redis 0.22%	504	8		
+1793858593	6.11	6.52	7.48	6	claude 2, WindowServer 1, Stats 1	cocache-redis 0.22%	603	10		
+1793858605	6.40	6.57	7.49	4	claude 1, WindowServer 1, claude 0	cocache-redis 0.22%	614	10		
+1793858617	8.12	6.94	7.60	20	Stats 6, configd 4, WindowServer 4	cocache-redis 0.20%	440	7		
+1793858629	7.18	6.78	7.54	12	WindowServer 3, Stats 2, Shadowrocket 1	cocache-redis 0.22%	492	10		
+1793858642	9.02	7.17	7.67	5	WindowServer 1, claude 1, Stats 1	cocache-redis 0.21%	698	14		
+1793858654	8.64	7.18	7.66	6	sysmond 3, Activity Monitor 1, WindowServer 1	cocache-redis 0.21%	1348	43		
+1793858666	10.47	7.63	7.82	3	Activity Monitor 2, WindowServer 1, Google Chrome Helper (Aperitif Renderer) 0	cocache-redis 0.22%	195	0		
+1793858678	10.04	7.69	7.83	9	Stats 2, WindowServer 2, claude 2	cocache-redis 0.21%	769	16		
+1793858691	11.64	8.12	7.99	11	sysmond 4, MacPacketTunnel 2, Stats 1	cocache-redis 0.22%	749	16		
+1793858703	9.90	7.91	7.91	4	Stats 1, WindowServer 1, Activity Monitor 1	cocache-redis 0.22%	786	14		
+1793858715	8.76	7.73	7.85	7	sysmond 3, WindowServer 1, claude 1	cocache-redis 0.21%	785	15		
+1793858727	8.89	7.83	7.88	13	sysmond 4, WindowServer 3, configd 3	cocache-redis 0.30%	730	14		
+1793858739	8.07	7.69	7.83	20	launchd 10, Stats 3, WindowServer 2	cocache-redis 0.18%	659	13		
+1793858752	8.57	7.80	7.87	10	sysmond 4, claude 2, WindowServer 1	cocache-redis 0.21%	750	15		
+1793858764	9.13	7.97	7.93	5	WindowServer 2, Activity Monitor 1, claude 1	cocache-redis 0.19%	561	40		
+1793858776	8.70	7.92	7.91	7	jstat 5, WindowServer 1, claude 0	cocache-redis 0.21%	469	40		
+1793858788	7.51	7.69	7.83	12	mdworker_shared 7, claude 2, WindowServer 1	cocache-redis 0.20%	534	40		
+1793858800	8.25	7.85	7.88	5	Activity Monitor 2, WindowServer 1, claude 1	cocache-redis 0.21%	510	40		
+1793858812	7.40	7.68	7.82	12	sysmond 6, jstat 2, Activity Monitor 2	cocache-redis 0.22%	530	40		
+1793858824	6.77	7.54	7.77	8	docker 4, claude 1, Activity Monitor 1	cocache-redis 0.28%	85			
+1793858836	6.03	7.36	7.70	23	Stats 9, configd 5, WindowServer 4	cocache-redis 0.22%	239			
+1793858848	7.79	7.68	7.81	17	sysmond 7, Activity Monitor 3, WindowServer 2	cocache-redis 0.20%	862	3		
+1793858861	7.97	7.72	7.83	6	Stats 2, WindowServer 1, Activity Monitor 1	cocache-redis 0.20%	852	2		
+1793858873	8.93	7.94	7.90	8	sysmond 4, claude 1, Activity Monitor 1	cocache-redis 0.23%	814	21		
+1793858885	7.71	7.71	7.82	15	jstat 8, runningboardd 2, docker 1	cocache-redis 0.23%	572	71		
+1793858897	7.84	7.73	7.83	5	jstat 2, WindowServer 1, Stats 1	cocache-redis 0.25%	365	15		
+1793858909	7.38	7.63	7.79	5	Activity Monitor 2, WindowServer 1, Stats 1	cocache-redis 0.20%	361	15		
+1793858921	7.16	7.58	7.77	7	sysmond 4, claude 2, WindowServer 1	cocache-redis 0.21%	361	14		
+1793858933	6.29	7.37	7.69	9	sysmond 2, jstat 2, Activity Monitor 1	cocache-redis 0.20%	365	15		
+1793858945	6.11	7.29	7.66	5	jstat 2, WindowServer 1, Stats 0	cocache-redis 0.39%	43	4		
+1793858957	5.94	7.21	7.63	5	jstat 2, Activity Monitor 1, WindowServer 1	cocache-redis 0.21%	304	4		
+1793858969	5.95	7.15	7.60	14	jstat 5, sysmond 4, mdworker_shared 3	cocache-redis 0.19%	295	4		
+1793858981	5.50	7.02	7.54	6	jstat 2, claude 1, WindowServer 1	cocache-redis 0.21%	313	4		
+1793858993	6.39	7.13	7.57	6	jstat 2, claude 1, WindowServer 1	cocache-redis 0.21%	321	5		
+1793859005	6.59	7.14	7.57	3	claude 1, WindowServer 1, Stats 0	cocache-redis 0.19%	290	4		
+1793859017	6.25	7.06	7.54	17	sysmond 6, Activity Monitor 4, docker 3	cocache-redis 0.25%	16			
+1793859029	5.37	6.82	7.44	13	Stats 5, configd 3, WindowServer 2	cocache-redis 0.23%	512	20		
+1793859041	5.89	6.88	7.46	4	Stats 2, WindowServer 1, configd 1	cocache-redis 0.27%	742	50		
+1793859054	6.42	6.96	7.48	7	claude 2, Activity Monitor 2, Stats 1	cocache-redis 0.23%	493	20		
+1793859066	5.51	6.75	7.39	8	jstat 2, WindowServer 1, Stats 1	cocache-redis 0.22%	365	17		
+1793859078	5.40	6.66	7.35	8	sysmond 4, WindowServer 2, Stats 1	cocache-redis 0.22%	348	17		
+1793859090	5.72	6.69	7.35	7	WindowServer 2, jstat 2, Shadowrocket 1	cocache-redis 0.23%	357	17		
+1793859102	5.85	6.68	7.34	22	MacPacketTunnel 8, sysmond 2, claude 2	cocache-redis 0.21%	350	17		
+1793859114	5.51	6.57	7.29	18	Activity Monitor 4, sysmond 4, jstat 2	cocache-redis 0.22%	415	36		
+1793859126	5.28	6.48	7.25	8	WindowServer 2, bash 1, Stats 1	cocache-redis 0.48%	81	1		
+1793859138	5.18	6.40	7.20	6	claude 2, WindowServer 1, jstat 1	cocache-redis 0.21%	321	14		
+1793859150	5.31	6.38	7.19	12	sysmond 4, Activity Monitor 2, WindowServer 1	cocache-redis 0.21%	292	4		
+1793859162	5.10	6.30	7.15	13	MacPacketTunnel 5, jstat 2, claude 2	cocache-redis 0.19%	357	4		
+1793859174	4.86	6.19	7.09	8	claude 2, jstat 2, Activity Monitor 1	cocache-redis 0.21%	268	5		
+1793859186	5.03	6.18	7.08	9	sysmond 2, jstat 2, Activity Monitor 1	cocache-redis 0.20%	312	4		
+1793859198	4.26	5.96	6.99	12	claude 4, claude 2, Activity Monitor 2	cocache-redis 0.27%	78			
+1793859209	4.39	5.93	6.96	1	WindowServer 0, Google Chrome Helper (Aperitif Renderer) 0, Activity Monitor 0	cocache-redis 0.23%	491	20		
+1793859221	5.68	6.16	7.03	12	Stats 3, WindowServer 2, configd 2	cocache-redis 0.24%	503	20		
+1793859234	6.16	6.25	7.05	8	Activity Monitor 4, sysmond 2, WindowServer 1	cocache-redis 0.23%	16	1		
+1793859246	6.56	6.32	7.06	10	Activity Monitor 3, claude 2, WindowServer 2	cocache-redis 0.23%	348	17		
+1793859258	6.75	6.37	7.07	11	MacPacketTunnel 2, claude 2, jstat 2	cocache-redis 0.21%	363	16		
+1793859270	6.64	6.36	7.06	23	sysmond 15, claude 2, WindowServer 1	cocache-redis 0.22%	358	17		
+1793859282	6.22	6.28	7.02	20	biomesyncd 6, jstat 4, MacPacketTunnel 3	cocache-redis 0.21%	366	17		
+1793859294	5.85	6.20	6.98	16	Activity Monitor 5, MacPacketTunnel 4, jstat 2	cocache-redis 0.24%	363	16		
+1793859306	5.76	6.18	6.96	7	Activity Monitor 3, WindowServer 2, claude 1	cocache-redis 0.39%	526	44		
+1793859318	5.38	6.07	6.91	24	Stats 8, configd 5, WindowServer 4	cocache-redis 0.21%	304	4		
+1793859330	5.31	6.03	6.88	15	Stats 6, configd 3, WindowServer 2	cocache-redis 0.17%	295	4		
+1793859342	5.35	6.02	6.87	20	MacPacketTunnel 18, jstat 1, WindowServer 0	cocache-redis 0.22%	435	4		
+1793859354	5.63	6.05	6.86	18	Stats 4, sysmond 4, configd 3	cocache-redis 0.21%	322	4		
+1793859366	5.59	6.03	6.85	30	Stats 13, configd 5, WindowServer 5	cocache-redis 0.26%	116	1		
+1793859378	4.78	5.83	6.76	16	Stats 5, Activity Monitor 3, WindowServer 3	cocache-redis 0.31%	155			
+1793859390	5.00	5.83	6.75	6	claude 2, Stats 1, Activity Monitor 1	cocache-redis 0.19%	870	4		
+1793859403	6.32	6.09	6.83	10	sysmond 4, WindowServer 2, claude 2	cocache-redis 0.19%	860	2		
+1793859415	8.66	6.58	6.99	3	WindowServer 1, claude 1, Shadowrocket 0	cocache-redis 0.22%	632	16		
+1793859427	7.41	6.38	6.92	35	Stats 9, sysmond 6, identityservicesd 6	cocache-redis 0.39%	88	0		
+1793859439	7.78	6.51	6.95	11	Stats 3, configd 2, jstat 2	cocache-redis 0.21%	370	16		
+1793859451	8.35	6.67	7.00	11	claude 3, Stats 2, WindowServer 2	cocache-redis 0.20%	376	15		
+1793859463	8.46	6.76	7.03	14	sysmond 3, WindowServer 2, Stats 2	cocache-redis 0.23%	386	15		
+1793859475	8.37	6.80	7.04	23	sysmond 11, Activity Monitor 3, WindowServer 2	cocache-redis 0.22%	366	14		
+1793859487	7.77	6.72	7.01	8	jstat 3, Stats 2, WindowServer 2	cocache-redis 0.23%	368	14		
+1793859499	7.79	6.76	7.01	9	jstat 2, claude 2, claude 2	cocache-redis 0.18%	290	33		
+1793859511	7.60	6.75	7.01	9	claude 2, jstat 2, Stats 1	cocache-redis 0.22%	301	4		
+1793859523	8.43	6.97	7.08	14	Stats 3, WindowServer 2, jstat 2	cocache-redis 0.22%	303	4		
+1793859535	7.82	6.89	7.05	11	sysmond 4, claude 2, Shadowrocket 2	cocache-redis 0.22%	338	5		
+1793859548	7.00	6.74	7.00	8	jstat 2, WindowServer 2, Stats 1	cocache-redis 0.21%	300	4		
+1793859560	5.94	6.53	6.92	22	sysmond 8, Activity Monitor 4, claude 4	cocache-redis 0.44%	24	0		
+1793859572	5.73	6.46	6.89	5	WindowServer 2, Stats 0, Claude Helper 0	cocache-redis 0.33%	1047	20		
+1793859584	7.86	6.87	7.02	10	Activity Monitor 4, WindowServer 2, mdworker_shared 1	cocache-redis 0.25%	856	23		
+1793859596	7.61	6.85	7.02	46	sysmond 21, Stats 10, WindowServer 5	cocache-redis 0.45%	181	12		
+1793859608	6.71	6.69	6.96	15	Stats 4, Activity Monitor 3, WindowServer 3	cocache-redis 0.21%	285	7		
+1793859621	6.69	6.69	6.95	6	Stats 2, WindowServer 1, configd 1	cocache-redis 0.20%	298	8		
+1793859633	8.01	6.96	7.04	3	WindowServer 1, Shadowrocket 0, Stats 0	cocache-redis 0.21%	377	10		
+1793859645	7.29	6.85	7.00	7	sysmond 4, claude 1, claude 1	cocache-redis 0.22%	487	12		
+1793859657	7.35	6.87	7.01	9	Stats 4, configd 3, WindowServer 1	cocache-redis 0.23%	635	13		
+1793859669	9.70	7.39	7.19	10	launchd 4, Stats 2, WindowServer 1	cocache-redis 0.22%	783	20		
+1793859682	10.58	7.64	7.28	7	claude 3, claude 2, Activity Monitor 1	cocache-redis 0.24%	910	25		
+1793859694	13.89	8.50	7.59	5	Activity Monitor 2, WindowServer 1, claude 1	cocache-redis 0.20%	713	20		
+1793859706	12.31	8.33	7.54	23	Stats 10, deleted 4, configd 3	cocache-redis 0.21%	833	27		
+1793859718	12.08	8.45	7.59	7	Stats 3, WindowServer 2, configd 2	cocache-redis 0.30%	1200	57		
+1793859730	13.01	8.77	7.72	9	symptomsd 4, Stats 1, WindowServer 1	cocache-redis 0.24%	1238	43		
+1793859743	12.68	8.84	7.75	15	sysmond 5, claude 2, WindowServer 1	cocache-redis 0.50%	20	2		
+1793859755	14.35	9.36	7.96	2	WindowServer 1, sysmond 0, MacPacketTunnel 0	cocache-redis 0.24%	1148	43		
+1793859767	16.61	10.02	8.21	12	Stats 5, configd 3, WindowServer 2	cocache-redis 0.24%	1199	39		
+1793859779	17.59	10.55	8.42	6	claude 2, Stats 1, WindowServer 1	cocache-redis 0.25%	1227	43		
+1793859792	16.84	10.62	8.48	8	sysmond 4, WindowServer 2, Stats 1	cocache-redis 0.23%	1276	40		
+1793859804	16.66	10.88	8.60	3	Activity Monitor 1, WindowServer 1, Stats 0	cocache-redis 0.34%	1221	39		
+1793859816	15.29	10.78	8.59	12	Stats 5, configd 2, claude 2	cocache-redis 0.22%	1255	40		
+1793859828	16.78	11.37	8.84	18	Stats 3, WindowServer 3, Shadowrocket 2	cocache-redis 0.41%	126			
+1793859841	14.20	10.99	8.74	10	Stats 2, claude 2, WindowServer 2	cocache-redis 0.37%	1420	44		
+1793859853	15.64	11.42	8.92	6	WindowServer 1, claude 1, claude 1	cocache-redis 0.22%	1044	27		
+1793859865	14.49	11.39	8.95	27	sysmond 7, configd 5, WindowServer 4	cocache-redis 0.42%	226	16		
+1793859877	12.59	11.08	8.87	15	Stats 5, WindowServer 3, configd 3	cocache-redis 0.21%	172	23		
+1793859889	10.90	10.78	8.80	12	MacPacketTunnel 3, WindowServer 2, Stats 2	cocache-redis 0.21%	234	7		
+1793859902	10.24	10.64	8.77	24	Google Chrome Helper (Aperitif Renderer) 11, sysmond 3, Google Chrome 3	cocache-redis 0.19%	466	14		
+1793859914	9.46	10.45	8.74	9	sysmond 4, MacPacketTunnel 2, Activity Monitor 1	cocache-redis 0.25%	707	18		
+1793859926	10.31	10.60	8.81	12	sysmond 4, WindowServer 3, configd 3	cocache-redis 0.22%	955	22		
+1793859938	10.88	10.71	8.88	9	Stats 3, WindowServer 2, configd 2	cocache-redis 0.20%	986	26		
+1793859951	10.85	10.71	8.90	7	claude 2, WindowServer 2, Stats 1	cocache-redis 0.21%	1002	29		
+1793859963	11.38	10.83	8.97	8	claude 3, claude 2, WindowServer 1	cocache-redis 0.23%	982	27		
+1793859975	13.45	11.32	9.18	8	sysmond 4, Activity Monitor 2, claude 1	cocache-redis 0.23%	942	28		
+1793859987	12.74	11.25	9.17	16	Stats 6, configd 2, WindowServer 2	cocache-redis 0.30%	968	24		
+1793860000	13.48	11.48	9.29	13	symptomsd 2, claude 2, launchd 2	cocache-redis 0.23%	1033	22		
+1793860012	14.12	11.66	9.38	12	sysmond 5, Activity Monitor 4, WindowServer 2	cocache-redis 0.19%	621	0		
+1793860024	14.49	11.83	9.48	2	Activity Monitor 0, WindowServer 0, claude 0	cocache-redis 0.22%	917	25		
+1793860036	15.10	12.04	9.58	9	Stats 3, WindowServer 2, claude 1	cocache-redis 0.22%	903	26		
+1793860048	15.67	12.29	9.71	15	sysmond 6, claude 2, claude 2	cocache-redis 0.24%	914	27		
+1793860061	15.50	12.38	9.77	10	configd 2, airportd 2, mDNSResponder 2	cocache-redis 0.23%	952	28		
+1793860073	14.37	12.23	9.75	7	sysmond 2, Activity Monitor 1, WindowServer 1	cocache-redis 0.21%	962	26		
+1793860085	12.93	12.02	9.72	23	sysmond 13, Stats 4, configd 3	cocache-redis 0.24%	1007	28		
+1793860097	12.92	12.04	9.75	14	sysmond 4, claude 3, WindowServer 2	cocache-redis 0.21%	1021	30		
+1793860110	15.37	12.63	10.00	7	sysmond 4, WindowServer 2, Stats 1	cocache-redis 0.60%	914	24		
+1793860122	16.28	12.89	10.12	20	sysmond 15, MacPacketTunnel 3, Claude 1	cocache-redis 0.24%	873	25		
+1793860134	17.63	13.34	10.33	19	Stats 5, sysmond 4, claude 2	cocache-redis 0.23%	1038	30		
+1793860146	18.44	13.67	10.48	10	Stats 5, configd 2, WindowServer 1	cocache-redis 0.18%	366	0		
+1793860159	14.72	13.08	10.33	15	sysmond 4, Activity Monitor 3, WindowServer 2	cocache-redis 0.21%	259	0		
+1793860171	13.57	12.89	10.29	7	sysmond 4, Activity Monitor 1, WindowServer 1	cocache-redis 0.24%	30			
+1793860183	11.79	12.54	10.20	34	biomesyncd 21, BiomeAgent 9, rapportd 1	cocache-redis 0.23%	1119	28		
+1793860195	11.15	12.35	10.17	11	Stats 3, WindowServer 3, configd 2	cocache-redis 0.22%	62	8		
+1793860207	9.51	11.96	10.06	14	sysmond 4, Stats 3, WindowServer 2	cocache-redis 0.20%	264	11		
+1793860220	8.56	11.63	9.97	9	WindowServer 3, Stats 1, Shadowrocket 1	cocache-redis 0.21%	264	14		
+1793860232	7.86	11.38	9.90	6	sysmond 3, claude 1, WindowServer 0	cocache-redis 0.19%	375	10		
+1793860244	7.11	11.03	9.80	15	Activity Monitor 4, Stats 3, claude 2	cocache-redis 0.24%	541	13		
+1793860256	7.49	10.98	9.80	12	Stats 5, WindowServer 2, configd 2	cocache-redis 0.23%	695	18		
+1793860269	8.70	11.08	9.86	8	claude 2, claude 2, WindowServer 1	cocache-redis 0.22%	1055	28		
+1793860281	8.59	10.98	9.83	5	claude 1, WindowServer 1, claude 1	cocache-redis 0.23%	937	26		
+1793860293	8.54	10.88	9.81	2	claude 1, WindowServer 0, bash 0	cocache-redis 0.23%	998	28		
+1793860305	9.30	10.94	9.85	11	claude 2, WindowServer 2, Stats 2	cocache-redis 0.23%	881	27		
+1793860317	10.80	11.20	9.96	10	sysmond 3, WindowServer 1, Activity Monitor 1	cocache-redis 0.22%	1003	28		
+1793860330	10.70	11.17	9.97	9	sysmond 4, claude 1, WindowServer 1	cocache-redis 0.27%	896	26		
+1793860342	13.72	11.81	10.21	1	claude 0, Stats 0, WindowServer 0	cocache-redis 0.22%	970	21		
+1793860354	12.89	11.73	10.21	32	Google Chrome Helper (Aperitif Renderer) 8, Stats 7, WindowServer 6	cocache-redis 0.19%	292	0		
+1793860366	12.25	11.64	10.19	13	Stats 4, mds_stores 2, configd 2	cocache-redis 0.43%	52	1		
+1793860379	9.98	11.17	10.05	5	Activity Monitor 2, claude 1, Stats 1	cocache-redis 0.23%	592	17		
+1793860391	11.15	11.36	10.13	3	claude 1, WindowServer 1, Stats 0	cocache-redis 0.24%	950	28		
+1793860403	10.46	11.20	10.09	17	Stats 5, claude 3, configd 3	cocache-redis 0.19%	1007	29		
+1793860415	13.40	11.83	10.33	7	Stats 2, WindowServer 1, configd 1	cocache-redis 0.21%	974	29		
+1793860428	12.82	11.76	10.32	6	sysmond 3, Stats 1, WindowServer 1	cocache-redis 0.22%	1008	31		
+1793860440	10.89	11.40	10.22	77	Claude Helper (Renderer) 74, claude 2, WindowServer 1	cocache-redis 0.21%	951	27		
+1793860452	11.71	11.56	10.29	32	Stats 10, sysmond 6, WindowServer 5	cocache-redis 0.48%	29	0		
+1793860464	9.49	11.08	10.14	15	Stats 4, WindowServer 3, configd 2	cocache-redis 0.21%	51			
+1793860476	12.02	11.57	10.33	11	Stats 3, claude 2, WindowServer 2	cocache-redis 0.26%	879	30		
+1793860489	10.27	11.21	10.22	18	MacPacketTunnel 5, Activity Monitor 4, WindowServer 2	cocache-redis 0.38%	40	0		
+1793860501	9.00	10.91	10.12	5	claude 3, WindowServer 1, sysmond 0	cocache-redis 0.21%	81	2		
+1793860513	7.86	10.60	10.02	20	Stats 9, configd 5, WindowServer 4	cocache-redis 0.20%	298	8		
+1793860525	7.27	10.34	9.94	9	Stats 3, WindowServer 2, claude 1	cocache-redis 0.20%	376	10		
+1793860538	7.00	10.18	9.89	6	claude 2, WindowServer 1, Stats 1	cocache-redis 0.21%	522	12		
+1793860550	6.72	9.94	9.81	3	Activity Monitor 1, WindowServer 1, claude 0	cocache-redis 0.23%	614	15		
+1793860562	7.12	9.93	9.80	8	sysmond 4, claude 1, Stats 1	cocache-redis 0.23%	795	20		
+1793860574	9.60	10.34	9.95	13	Stats 5, WindowServer 3, configd 3	cocache-redis 0.23%	876	23		
+1793860586	8.67	10.11	9.88	7	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.34%	643	20		
+1793860599	8.68	10.07	9.87	6	Activity Monitor 3, WindowServer 1, Shadowrocket 1	cocache-redis 0.21%	665	22		
+1793860611	7.59	9.76	9.76	7	sysmond 4, claude 2, Activity Monitor 1	cocache-redis 0.21%	735	26		
+1793860623	8.19	9.82	9.78	4	claude 2, Activity Monitor 1, WindowServer 1	cocache-redis 0.24%	1250	36		
+1793860635	9.29	9.97	9.83	7	Stats 2, claude 2, configd 1	cocache-redis 0.42%	22	2		
+1793860648	11.30	10.36	9.97	5	Stats 1, Activity Monitor 1, WindowServer 1	cocache-redis 0.43%	1168	41		
+1793860660	12.90	10.76	10.12	15	MacPacketTunnel 3, runningboardd 2, WeatherWidget 2	cocache-redis 0.24%	1159	39		
+1793860672	16.61	11.63	10.43	3	Activity Monitor 2, WindowServer 1, zed 0	cocache-redis 0.30%	1158	39		
+1793860684	18.86	12.34	10.71	13	sysmond 5, Stats 3, WindowServer 2	cocache-redis 0.42%	954	34		
+1793860696	19.92	12.77	10.88	7	sysmond 4, Stats 1, configd 1	cocache-redis 0.21%	1308	39		
+1793860709	19.85	12.99	10.98	5	Activity Monitor 2, WindowServer 1, Stats 1	cocache-redis 0.22%	1184	37		
+1793860721	16.92	12.67	10.90	6	symptomsd 1, sysmond 1, WindowServer 1	cocache-redis 0.40%	25	0		
+1793860733	14.63	12.32	10.79	4	Activity Monitor 1, WindowServer 1, dasd 0	cocache-redis 0.20%	61			
+1793860745	16.41	12.82	11.00	6	Stats 2, WindowServer 1, configd 1	cocache-redis 0.27%	841	11		
+1793860758	16.33	12.94	11.06	21	sysmond 8, Activity Monitor 3, claude 3	cocache-redis 0.43%	13	1		
+1793860770	13.09	12.39	10.90	7	claude 2, WindowServer 2, claude 1	cocache-redis 0.27%	92	5		
+1793860782	11.76	12.13	10.82	15	MacPacketTunnel 12, claude 1, Activity Monitor 1	cocache-redis 0.22%	290	33		
+1793860794	11.95	12.14	10.85	26	Stats 6, sysmond 6, Activity Monitor 5	cocache-redis 0.22%	409	6		
+1793860806	12.15	12.18	10.88	11	Google Chrome Helper (Aperitif Renderer) 4, Stats 3, configd 2	cocache-redis 0.22%	468	7		
+1793860819	12.58	12.26	10.92	7	Activity Monitor 3, WindowServer 2, Stats 1	cocache-redis 0.24%	345	10		
+1793860831	9.94	11.69	10.74	15	sysmond 9, Activity Monitor 4, WindowServer 1	cocache-redis 0.22%	575	9		
+1793860843	11.10	11.87	10.81	5	claude 3, claude 1, WindowServer 0	cocache-redis 0.22%	649	10		
+1793860855	9.88	11.56	10.72	12	Stats 3, WindowServer 3, claude 2	cocache-redis 0.18%	475	8		
+1793860867	11.70	11.88	10.84	6	Stats 2, WindowServer 2, configd 1	cocache-redis 0.21%	525	9		
+1793860880	12.33	12.01	10.91	6	claude 2, claude 1, Stats 1	cocache-redis 0.21%	800	16		
+1793860892	13.50	12.29	11.02	6	sysmond 4, WindowServer 1, claude 0	cocache-redis 0.19%	860	17		
+1793860904	14.88	12.61	11.15	4	claude 1, claude 1, WindowServer 1	cocache-redis 0.24%	553	6		
+1793860916	13.49	12.43	11.11	11	Stats 3, WindowServer 2, configd 2	cocache-redis 0.20%	802	15		
+1793860928	15.82	12.96	11.31	6	Stats 2, claude 2, configd 1	cocache-redis 0.21%	813	15		
+1793860941	15.19	12.98	11.35	6	WindowServer 2, claude 1, AppleCentauriAlpha 1	cocache-redis 0.22%	536	9		
+1793860953	13.52	12.69	11.27	6	sysmond 3, symptomsd 1, WindowServer 0	cocache-redis 0.21%	814	14		
+1793860965	16.22	13.36	11.53	13	Stats 6, configd 3, WindowServer 2	cocache-redis 0.23%	805	15		
+1793860977	14.58	13.10	11.46	10	Stats 3, claude 2, configd 2	cocache-redis 0.19%	734	14		
+1793860990	13.76	12.99	11.45	12	launchd 4, sysmond 4, claude 1	cocache-redis 0.25%	780	15		
+1793861002	12.03	12.65	11.34	7	sysmond 3, WindowServer 1, runningboardd 1	cocache-redis 0.18%	63			
+1793861013	10.34	12.26	11.22	4	Stats 1, WindowServer 1, Activity Monitor 1	cocache-redis 0.22%	961	28		
+1793861026	11.79	12.49	11.32	8	Activity Monitor 2, sysmond 2, WindowServer 1	cocache-redis 0.25%	25	2		
+1793861038	10.61	12.21	11.24	4	claude 2, WindowServer 1, airportd 0	cocache-redis 0.20%	186	5		
+1793861050	9.16	11.81	11.11	26	Stats 9, WindowServer 6, configd 5	cocache-redis 0.20%	325	19		
+1793861062	8.37	11.55	11.03	16	Activity Monitor 4, sysmond 4, Stats 3	cocache-redis 0.22%	351	4		
+1793861075	8.25	11.36	10.97	11	claude 2, Stats 2, claude 2	cocache-redis 0.23%	441	8		
+1793861087	9.21	11.47	11.01	6	WindowServer 2, Activity Monitor 1, claude 1	cocache-redis 0.25%	610	10		
+1793861099	9.79	11.52	11.03	10	sysmond 5, Activity Monitor 3, claude 1	cocache-redis 0.26%	762	11		
+1793861111	10.58	11.61	11.07	6	Stats 1, WindowServer 1, configd 1	cocache-redis 0.22%	788	11		
+1793861124	10.67	11.59	11.07	10	sysmond 3, claude 2, WindowServer 1	cocache-redis 0.23%	827	12		
+1793861135	12.45	11.96	11.21	8	sysmond 4, claude 2, WindowServer 1	cocache-redis 0.24%	846	11		
+1793861147	12.77	12.04	11.25	6	sysmond 4, claude 1, WindowServer 0	cocache-redis 0.23%	783	10		
+1793861159	12.92	12.09	11.28	12	sysmond 4, Activity Monitor 2, Stats 2	cocache-redis 0.22%	830	10		
+1793861171	13.65	12.30	11.36	8	claude 3, Stats 2, WindowServer 1	cocache-redis 0.24%	857	9		
+1793861184	13.46	12.30	11.38	18	Activity Monitor 8, WindowServer 2, claude 1	cocache-redis 0.41%	58	0		
+1793861196	12.74	12.19	11.35	4	sysmond 3, WindowServer 0, Stats 0	cocache-redis 0.51%	806	11		
+1793861208	12.35	12.13	11.34	25	Stats 8, sysmond 4, configd 3	cocache-redis 0.22%	801	12		
+1793861220	13.42	12.39	11.44	11	sysmond 4, Stats 2, claude 1	cocache-redis 0.23%	791	12		
+1793861233	13.59	12.45	11.48	3	Stats 1, configd 1, WindowServer 0	cocache-redis 0.24%	524	6		
+1793861245	11.97	12.14	11.38	2	WindowServer 1, Shadowrocket 0, Stats 0	cocache-redis 0.25%	471	6		
+1793861257	11.57	12.05	11.36	15	Stats 4, WindowServer 3, configd 2	cocache-redis 0.24%	804	12		
+1793861269	11.10	11.94	11.33	29	sysmond 6, claude 5, Stats 4	cocache-redis 0.39%	669	26		
+1793861282	10.42	11.73	11.26	7	claude 2, Stats 1, claude 1	cocache-redis 0.24%	763	11		
+1793861294	10.88	11.79	11.29	7	Activity Monitor 2, sysmond 2, WindowServer 1	cocache-redis 0.24%	773	11		
+1793861306	12.06	11.99	11.37	5	claude 1, claude 1, claude 1	cocache-redis 0.24%	826	11		
+1793861318	11.02	11.78	11.30	22	Stats 6, claude 4, configd 3	cocache-redis 0.18%	89			
+1793861330	9.65	11.43	11.18	5	WindowServer 1, Shadowrocket 1, Stats 1	cocache-redis 0.23%	992	27		
+1793861342	9.50	11.34	11.15	4	WindowServer 1, Activity Monitor 1, claude 1	cocache-redis 0.23%	27	3		
+1793861354	8.04	10.96	11.02	24	Stats 9, configd 5, WindowServer 5	cocache-redis 0.20%	252	3		
+1793861366	7.20	10.64	10.90	12	Stats 6, WindowServer 4, configd 1	cocache-redis 0.20%	274	6		
+1793861379	6.86	10.45	10.83	10	Activity Monitor 2, Stats 2, claude 2	cocache-redis 0.21%	351	4		
+1793861391	6.95	10.28	10.77	9	sysmond 4, claude 2, WindowServer 2	cocache-redis 0.23%	438	7		
+1793861403	7.57	10.31	10.77	3	claude 1, WindowServer 1, claude 1	cocache-redis 0.24%	595	10		
+1793861415	9.17	10.53	10.84	19	Stats 8, configd 3, WindowServer 3	cocache-redis 0.23%	763	11		
+1793861427	9.53	10.56	10.85	6	WindowServer 2, Stats 2, configd 1	cocache-redis 0.22%	445	7		
+1793861440	9.47	10.49	10.82	19	Google Chrome Helper (Aperitif Renderer) 7, claude 3, Google Chrome 2	cocache-redis 0.22%	802	12		
+1793861452	9.00	10.36	10.77	9	sysmond 4, claude 3, claude 1	cocache-redis 0.24%	789	12		
+1793861464	9.59	10.44	10.79	19	Stats 5, sysmond 4, WindowServer 3	cocache-redis 0.23%	799	10		
+1793861476	9.72	10.42	10.78	19	sysmond 4, Finder 3, WindowServer 2	cocache-redis 0.25%	818	10		
+1793861489	11.00	10.68	10.87	15	sysmond 6, Activity Monitor 4, claude 2	cocache-redis 0.19%	857	9		
+1793861501	11.14	10.74	10.88	6	claude 2, claude 1, WindowServer 1	cocache-redis 0.39%	25	0		
+1793861513	10.98	10.72	10.87	4	claude 1, Activity Monitor 1, WindowServer 1	cocache-redis 0.24%	714	10		
+1793861525	10.31	10.57	10.82	10	Stats 3, sysmond 2, WindowServer 1	cocache-redis 0.24%	760	12		
+1793861538	9.80	10.45	10.77	4	claude 1, Stats 1, configd 1	cocache-redis 0.23%	769	12		
+1793861550	11.09	10.71	10.86	6	claude 3, claude 1, WindowServer 1	cocache-redis 0.22%	432	6		
+1793861562	11.26	10.75	10.87	42	sysmond 9, Stats 5, mdworker_shared 4	cocache-redis 0.22%	787	12		
+1793861574	10.30	10.56	10.80	10	sysmond 4, Stats 2, WindowServer 1	cocache-redis 0.24%	784	11		
+1793861587	9.65	10.42	10.74	8	sysmond 4, Stats 1, Shadowrocket 1	cocache-redis 0.23%	826	11		
+1793861599	11.12	10.70	10.84	11	sysmond 6, Activity Monitor 4, WindowServer 0	cocache-redis 0.23%	791	12		
+1793861611	11.82	10.88	10.90	2	WindowServer 1, claude 0, claude 0	cocache-redis 0.24%	817	10		
+1793861623	11.80	10.90	10.91	9	Stats 2, WindowServer 2, configd 1	cocache-redis 0.23%	781	10		
+1793861636	12.27	11.05	10.96	13	sysmond 3, WindowServer 2, Stats 2	cocache-redis 0.24%	566	9		
+1793861648	11.06	10.83	10.88	4	claude 1, WindowServer 1, claude 1	cocache-redis 0.21%	723	10		
+1793861660	10.95	10.83	10.89	2	claude 1, WindowServer 0, Activity Monitor 0	cocache-redis 0.23%	789	11		
+1793861672	10.00	10.64	10.82	32	sysmond 9, Stats 5, Activity Monitor 4	cocache-redis 0.37%	66			
+1793861684	8.69	10.34	10.71	13	mdworker_shared 3, mdworker_shared 3, WindowServer 2	cocache-redis 0.20%	1459	15		
+1793861697	11.43	10.89	10.90	6	claude 3, WindowServer 1, Stats 0	cocache-redis 0.23%	846	21		
+1793861709	10.04	10.61	10.80	23	sysmond 16, Activity Monitor 2, WindowServer 1	cocache-redis 0.23%	106	4		
+1793861721	8.32	10.20	10.65	22	Stats 10, configd 5, WindowServer 4	cocache-redis 0.18%	331	52		
+1793861733	7.66	10.00	10.57	8	Stats 3, configd 2, WindowServer 2	cocache-redis 0.22%	306	4		
+1793861746	6.47	9.62	10.43	9	claude 2, claude 2, Stats 2	cocache-redis 0.22%	384	6		
+1793861758	6.29	9.48	10.37	6	sysmond 4, WindowServer 1, claude 0	cocache-redis 0.19%	508	7		
+1793861770	6.44	9.38	10.31	2	WindowServer 1, launchd 1, Activity Monitor 0	cocache-redis 0.22%	513	8		
+1793861782	5.84	9.15	10.22	16	Stats 5, WindowServer 3, configd 3	cocache-redis 0.23%	572	8		
+1793861794	7.71	9.44	10.31	13	Stats 3, sysmond 3, WindowServer 2	cocache-redis 0.20%	419	8		
+1793861807	8.37	9.50	10.32	3	Stats 1, configd 1, WindowServer 0	cocache-redis 0.18%	677	12		
+1793861819	8.18	9.42	10.28	6	claude 2, Activity Monitor 2, WindowServer 1	cocache-redis 0.22%	763	14		
+1793861831	11.62	10.14	10.52	10	claude 2, symptomsd 2, claude 1	cocache-redis 0.19%	871	18		
+1793861843	12.22	10.30	10.58	18	Stats 6, WindowServer 3, configd 3	cocache-redis 0.23%	1261	23		
+1793861855	14.75	11.00	10.82	19	WindowServer 4, sysmond 3, Stats 3	cocache-redis 0.43%	28	0		
+1793861868	15.48	11.26	10.92	5	claude 2, Activity Monitor 1, Stats 1	cocache-redis 0.22%	736	15		
+1793861880	14.15	11.12	10.87	4	WindowServer 1, Claude Helper (Renderer) 1, Activity Monitor 1	cocache-redis 0.21%	759	15		
+1793861892	11.95	10.79	10.75	5	Activity Monitor 2, Google Chrome Helper (Aperitif Renderer) 1, WindowServer 1	cocache-redis 0.22%	741	15		
+1793861904	11.15	10.66	10.71	18	Stats 6, WindowServer 3, configd 2	cocache-redis 0.21%	810	16		
+1793861916	15.82	11.71	11.08	8	WindowServer 2, Stats 1, Activity Monitor 1	cocache-redis 0.21%	738	16		
+1793861929	16.64	12.01	11.20	6	Activity Monitor 3, WindowServer 1, Stats 1	cocache-redis 0.19%	779	16		
+1793861941	14.25	11.72	11.11	5	WindowServer 1, sysmond 1, Stats 0	cocache-redis 0.44%	24	2		
+1793861953	12.73	11.48	11.03	28	Stats 8, configd 4, WindowServer 3	cocache-redis 0.21%	120			
+1793861965	11.52	11.26	10.96	11	Stats 3, WindowServer 2, claude 2	cocache-redis 0.20%	866	3		
+1793861978	11.59	11.28	10.97	9	Stats 1, claude 1, sysmond 1	cocache-redis 0.20%	849	2		
+1793861990	15.33	12.10	11.26	8	WindowServer 2, claude 1, claude 1	cocache-redis 0.24%	853	23		
+1793862002	12.08	11.54	11.07	41	WindowServer 19, NotificationCenter 15, claude 2	cocache-redis 0.20%	159	6		
+1793862014	10.61	11.24	10.97	28	Stats 14, configd 4, Activity Monitor 3	cocache-redis 0.19%	268	6		
+1793862026	9.67	11.00	10.89	15	Stats 5, WindowServer 4, configd 2	cocache-redis 0.20%	291	8		
+1793862039	9.65	10.95	10.88	5	Activity Monitor 2, Stats 1, WindowServer 1	cocache-redis 0.22%	373	10		
+1793862051	9.13	10.78	10.82	7	sysmond 3, WindowServer 1, Activity Monitor 1	cocache-redis 0.20%	490	12		
+1793862063	9.06	10.71	10.79	3	claude 2, WindowServer 0, Stats 0	cocache-redis 0.23%	626	15		
+1793862075	9.73	10.79	10.82	15	sysmond 4, Stats 3, claude 3	cocache-redis 0.20%	770	19		
+1793862087	9.29	10.66	10.77	20	sysmond 9, Activity Monitor 3, Stats 2	cocache-redis 0.21%	808	23		
+1793862100	11.70	11.12	10.93	7	launchd 2, WindowServer 1, MacPacketTunnel 1	cocache-redis 0.22%	919	26		
+1793862112	10.67	10.92	10.86	2	WindowServer 1, Activity Monitor 1, Stats 0	cocache-redis 0.23%	843	24		
+1793862124	9.88	10.74	10.80	14	sysmond 3, claude 3, Stats 3	cocache-redis 0.21%	832	29		
+1793862136	12.30	11.21	10.97	12	Stats 4, WindowServer 3, configd 2	cocache-redis 0.23%	865	30		
+1793862149	13.14	11.45	11.05	14	Stats 2, WindowServer 2, claude 2	cocache-redis 0.22%	826	22		
+1793862161	12.85	11.46	11.06	4	claude 1, claude 1, WindowServer 1	cocache-redis 0.22%	851	24		
+1793862173	14.66	11.89	11.22	14	Stats 4, configd 3, WindowServer 2	cocache-redis 0.23%	790	22		
+1793862185	15.05	12.13	11.32	12	sysmond 4, Stats 3, WindowServer 2	cocache-redis 0.22%	833	22		
+1793862197	14.45	12.11	11.32	5	Stats 2, WindowServer 2, configd 1	cocache-redis 0.22%	865	25		
+1793862210	15.34	12.37	11.42	3	WindowServer 1, Stats 0, Activity Monitor 0	cocache-redis 0.19%	649	22		
+1793862222	12.53	11.89	11.27	9	sysmond 3, MacPacketTunnel 2, claude 2	cocache-redis 0.29%	757	23		
+1793862234	12.75	11.97	11.30	18	Stats 6, sysmond 3, configd 3	cocache-redis 0.21%	722	22		
+1793862246	10.52	11.52	11.15	7	Stats 3, WindowServer 2, configd 2	cocache-redis 0.23%	819	27		
+1793862259	9.21	11.20	11.05	4	Shadowrocket 1, WindowServer 1, Stats 1	cocache-redis 0.21%	778	27		
+1793862271	11.02	11.54	11.17	12	sysmond 6, WindowServer 2, Stats 1	cocache-redis 0.42%	60			
+1793862283	9.40	11.18	11.05	27	Stats 13, configd 4, WindowServer 4	cocache-redis 0.34%	373	23		
+1793862295	10.05	11.25	11.07	13	sysmond 3, Stats 3, WindowServer 2	cocache-redis 0.20%	489	20		
+1793862307	9.26	11.01	10.99	5	Stats 2, WindowServer 1, configd 1	cocache-redis 0.20%	487	19		
+1793862320	8.29	10.75	10.90	11	Activity Monitor 3, WindowServer 2, sysmond 2	cocache-redis 0.41%	195	16		
+1793862332	6.97	10.34	10.75	4	claude 2, WindowServer 1, AppleCentauriAlpha 0	cocache-redis 0.20%	301	11		
+1793862344	6.35	10.09	10.66	3	Activity Monitor 1, Claude 1, WindowServer 0	cocache-redis 0.21%	349	10		
+1793862356	6.17	9.88	10.57	12	sysmond 4, Stats 2, WindowServer 2	cocache-redis 0.22%	408	12		
+1793862369	6.33	9.78	10.53	7	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.21%	497	15		
+1793862381	6.38	9.61	10.45	4	WindowServer 1, claude 1, Activity Monitor 1	cocache-redis 0.22%	403	17		
+1793862393	6.40	9.51	10.40	5	sysmond 3, Activity Monitor 1, WindowServer 0	cocache-redis 0.22%	495	16		
+1793862405	6.75	9.49	10.39	26	Stats 7, mdworker_shared 4, mdworker_shared 4	cocache-redis 0.22%	441	17		
+1793862417	5.77	9.14	10.25	6	Stats 1, configd 1, WindowServer 1	cocache-redis 0.22%	418	17		
+1793862430	6.47	9.18	10.25	12	sysmond 4, claude 2, launchd 2	cocache-redis 0.24%	438	16		
+1793862442	6.17	8.99	10.16	4	WindowServer 1, Activity Monitor 1, Stats 1	cocache-redis 0.20%	386	17		
+1793862454	6.67	9.01	10.15	3	Activity Monitor 1, WindowServer 1, claude 0	cocache-redis 0.22%	412	14		
+1793862466	7.65	9.12	10.17	22	Stats 6, sysmond 5, configd 3	cocache-redis 0.39%	46	0		
+1793862478	6.93	8.92	10.09	8	Stats 2, WindowServer 2, configd 1	cocache-redis 0.21%	385	18		
+1793862491	6.92	8.82	10.03	6	claude 2, WindowServer 1, claude 1	cocache-redis 0.24%	394	17		
+1793862503	6.57	8.68	9.97	13	sysmond 5, claude 2, claude 2	cocache-redis 0.23%	404	17		
+1793862515	6.48	8.59	9.92	9	MacPacketTunnel 3, claude 1, claude 1	cocache-redis 0.23%	413	17		
+1793862527	6.40	8.46	9.85	8	Stats 3, configd 2, WindowServer 1	cocache-redis 0.22%	397	18		
+1793862539	6.19	8.35	9.80	11	sysmond 3, WindowServer 2, claude 1	cocache-redis 0.21%	390	18		
+1793862552	5.55	8.10	9.68	8	sysmond 4, WindowServer 2, Stats 1	cocache-redis 0.19%	642	0		
+1793862564	5.01	7.90	9.59	10	sysmond 6, Activity Monitor 1, WindowServer 1	cocache-redis 0.33%	112			
+1793862576	6.03	7.97	9.59	8	Stats 4, configd 2, WindowServer 2	cocache-redis 0.23%	492	20		
+1793862588	5.48	7.79	9.50	4	Stats 2, WindowServer 1, configd 1	cocache-redis 0.21%	565	18		
+1793862601	6.42	7.91	9.53	14	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.38%	34	1		
+1793862613	5.88	7.72	9.43	4	WindowServer 1, Stats 1, configd 0	cocache-redis 0.19%	221	4		
+1793862625	5.82	7.65	9.38	4	WindowServer 1, Activity Monitor 1, Google Chrome 0	cocache-redis 0.21%	328	10		
+1793862637	5.35	7.45	9.28	27	Stats 9, configd 5, WindowServer 4	cocache-redis 0.24%	436	13		
+1793862649	5.38	7.39	9.24	16	Stats 3, sysmond 3, WindowServer 2	cocache-redis 0.24%	436	17		
+1793862662	6.14	7.46	9.23	3	claude 1, Stats 0, WindowServer 0	cocache-redis 0.22%	404	17		
+1793862674	5.50	7.28	9.15	6	claude 4, WindowServer 1, Activity Monitor 0	cocache-redis 0.21%	389	17		
+1793862686	4.99	7.09	9.04	6	claude 3, claude 1, claude 0	cocache-redis 0.22%	388	17		
+1793862698	5.46	7.12	9.03	12	sysmond 4, Stats 2, WindowServer 2	cocache-redis 0.22%	426	17		
+1793862710	5.49	7.07	8.99	7	claude 3, Stats 1, Activity Monitor 1	cocache-redis 0.22%	421	18		
+1793862723	6.14	7.14	8.98	5	WindowServer 2, Stats 0, claude 0	cocache-redis 0.21%	398	18		
+1793862735	6.11	7.10	8.95	10	sysmond 4, claude 2, Activity Monitor 1	cocache-redis 0.21%	527	35		
+1793862747	5.73	6.97	8.87	25	Stats 9, deleted 4, sysmond 4	cocache-redis 0.20%	571	27		
+1793862759	5.89	6.95	8.84	17	launchd 5, Stats 4, WindowServer 1	cocache-redis 0.25%	434	15		
+1793862772	6.61	7.07	8.85	9	sysmond 5, WindowServer 1, Activity Monitor 1	cocache-redis 0.20%	448	18		
+1793862784	6.19	6.96	8.79	6	WindowServer 1, claude 1, claude 1	cocache-redis 0.22%	386	18		
+1793862796	6.29	6.94	8.75	4	Google Chrome Helper (Aperitif Renderer) 2, claude 1, WindowServer 1	cocache-redis 0.20%	393	18		
+1793862808	6.56	6.97	8.74	28	Stats 7, sysmond 6, WindowServer 3	cocache-redis 0.22%	411	17		
+1793862820	5.93	6.82	8.66	10	claude 2, Stats 2, WindowServer 2	cocache-redis 0.22%	462	17		
+1793862833	6.08	6.81	8.63	2	Stats 1, WindowServer 1, configd 0	cocache-redis 0.22%	387	17		
+1793862845	5.52	6.67	8.56	14	sysmond 7, Activity Monitor 3, MacPacketTunnel 2	cocache-redis 0.21%	387	18		
+1793862857	6.35	6.79	8.56	3	Activity Monitor 1, WindowServer 1, sysmond 0	cocache-redis 0.22%	396	18		
+1793862869	6.09	6.71	8.52	14	Stats 5, WindowServer 3, deleted 2	cocache-redis 0.23%	388	18		
+1793862882	6.02	6.67	8.47	34	sysmond 15, Activity Monitor 7, WindowServer 2	cocache-redis 0.28%	213			
+1793862894	5.49	6.54	8.40	6	WindowServer 1, Activity Monitor 1, Stats 1	cocache-redis 0.34%	1089	30		
+1793862906	7.16	6.87	8.49	6	sysmond 3, claude 1, WindowServer 1	cocache-redis 0.20%	882	3		
+1793862918	7.75	7.00	8.51	13	Stats 5, configd 3, claude 3	cocache-redis 0.23%	1101	23		
+1793862930	7.15	6.90	8.46	16	Stats 7, deleted 2, WindowServer 2	cocache-redis 0.33%	33	0		
+1793862943	5.80	6.61	8.33	29	MacPacketTunnel 20, AppleCentauriAlpha 2, WindowServer 2	cocache-redis 0.21%	342	22		
+1793862955	6.06	6.64	8.32	12	sysmond 6, WindowServer 2, Activity Monitor 1	cocache-redis 0.25%	158	4		
+1793862967	5.00	6.38	8.20	7	Activity Monitor 2, claude 2, WindowServer 1	cocache-redis 0.21%	292	8		
+1793862979	4.61	6.25	8.13	12	Stats 4, configd 3, claude 2	cocache-redis 0.21%	371	10		
+1793862991	4.39	6.12	8.05	13	Stats 4, sysmond 4, deleted 1	cocache-redis 0.20%	568	14		
+1793863004	4.51	6.09	8.02	5	WindowServer 1, Stats 1, Shadowrocket 1	cocache-redis 0.22%	707	18		
+1793863016	6.32	6.42	8.11	4	claude 2, WindowServer 1, claude 0	cocache-redis 0.22%	833	24		
+1793863028	6.03	6.35	8.05	3	claude 1, claude 1, WindowServer 0	cocache-redis 0.23%	782	21		
+1793863040	7.32	6.61	8.13	5	Stats 2, configd 1, WindowServer 1	cocache-redis 0.23%	922	28		
+1793863053	9.11	7.03	8.25	19	sysmond 4, MacPacketTunnel 3, WeatherWidget 2	cocache-redis 0.22%	947	27		
+1793863065	9.94	7.29	8.33	4	WindowServer 2, claude 1, Shadowrocket 0	cocache-redis 0.21%	827	28		
+1793863077	8.42	7.08	8.23	1	WindowServer 0, Stats 0, sysmond 0	cocache-redis 0.20%	861	24		
+1793863089	9.84	7.42	8.34	26	launchd 8, Stats 5, sysmond 4	cocache-redis 0.24%	864	26		
+1793863101	9.52	7.45	8.33	8	Stats 3, configd 2, WindowServer 2	cocache-redis 0.23%	821	24		
+1793863114	10.99	7.84	8.46	6	Activity Monitor 2, claude 2, Stats 0	cocache-redis 0.22%	759	25		
+1793863126	10.29	7.80	8.44	5	claude 2, claude 1, WindowServer 1	cocache-redis 0.20%	797	22		
+1793863138	9.94	7.85	8.45	14	Stats 4, sysmond 4, configd 3	cocache-redis 0.23%	799	23		
+1793863150	10.54	8.06	8.51	10	Stats 3, WindowServer 2, configd 2	cocache-redis 0.22%	812	23		
+1793863163	10.93	8.24	8.57	5	claude 2, Stats 1, WindowServer 1	cocache-redis 0.19%	773	26		
+1793863175	10.89	8.33	8.60	4	WindowServer 2, Activity Monitor 1, Shadowrocket 0	cocache-redis 0.22%	770	26		
+1793863187	12.18	8.69	8.72	11	Google Chrome Helper (Aperitif Renderer) 5, Google Chrome 1, claude 1	cocache-redis 0.21%	908	28		
+1793863199	11.94	8.77	8.75	18	Stats 8, configd 5, WindowServer 3	cocache-redis 0.19%	37			
+1793863211	11.18	8.73	8.73	15	Stats 4, WindowServer 3, Activity Monitor 3	cocache-redis 0.24%	1251	35		
+1793863224	11.07	8.79	8.75	6	Activity Monitor 2, sysmond 1, claude 1	cocache-redis 0.19%	858	3		
+1793863236	11.23	8.90	8.79	5	WindowServer 2, Activity Monitor 1, claude 0	cocache-redis 0.20%	1083	22		
+1793863248	12.09	9.18	8.89	6	MacPacketTunnel 2, claude 1, claude 0	cocache-redis 0.24%	43	2		
+1793863260	10.39	8.91	8.80	26	Activity Monitor 6, sysmond 5, Stats 5	cocache-redis 0.20%	226	18		
+1793863272	8.61	8.59	8.69	14	Activity Monitor 3, claude 2, Stats 2	cocache-redis 0.24%	64	1		
+1793863285	7.51	8.36	8.60	5	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.21%	297	4		
+1793863297	6.53	8.09	8.50	5	sysmond 2, Activity Monitor 1, claude 1	cocache-redis 0.23%	363	5		
+1793863309	6.30	7.99	8.46	13	sysmond 4, Stats 3, claude 2	cocache-redis 0.23%	428	7		
+1793863321	7.11	8.09	8.49	11	Stats 4, WindowServer 2, configd 2	cocache-redis 0.23%	445	7		
+1793863334	7.43	8.12	8.49	12	claude 3, WindowServer 2, sysmond 2	cocache-redis 0.23%	444	7		
+1793863346	8.93	8.43	8.60	10	sysmond 4, WindowServer 2, Activity Monitor 1	cocache-redis 0.23%	454	6		
+1793863358	8.60	8.37	8.58	3	claude 1, WindowServer 1, claude 0	cocache-redis 0.21%	438	7		
+1793863370	8.07	8.26	8.53	16	Stats 5, configd 3, sysmond 2	cocache-redis 0.22%	480	7		
+1793863382	6.81	7.97	8.43	6	Stats 1, WindowServer 1, configd 1	cocache-redis 0.22%	527	6		
+1793863395	6.23	7.81	8.36	4	WindowServer 1, Stats 1, Shadowrocket 1	cocache-redis 0.26%	539	6		
+1793863407	7.42	8.01	8.42	15	sysmond 6, Activity Monitor 5, WindowServer 1	cocache-redis 0.19%	275	1		
+1793863419	10.19	8.56	8.61	20	launchd 10, sysmond 4, WindowServer 3	cocache-redis 0.23%	1304	7		
+1793863431	9.14	8.41	8.56	10	Stats 4, configd 3, WindowServer 2	cocache-redis 0.21%	237	2		
+1793863444	8.53	8.30	8.52	17	sysmond 9, Activity Monitor 2, WindowServer 2	cocache-redis 0.23%	432	7		
+1793863456	7.91	8.18	8.47	3	WindowServer 1, Stats 0, Shadowrocket 0	cocache-redis 0.22%	422	6		
+1793863468	8.05	8.20	8.47	3	duetexpertd 1, claude 1, WindowServer 0	cocache-redis 0.22%	231	3		
+1793863480	7.92	8.17	8.46	43	sysmond 15, Activity Monitor 8, Stats 6	cocache-redis 0.21%	260	3		
+1793863493	7.44	8.06	8.42	6	claude 1, claude 1, WindowServer 1	cocache-redis 0.22%	443	7		
+1793863505	7.70	8.09	8.42	8	claude 2, WindowServer 2, claude 1	cocache-redis 0.23%	465	7		
+1793863516	6.83	7.89	8.35	7	sysmond 3, claude 3, WindowServer 0	cocache-redis 0.22%	464	7		
+1793863528	8.81	8.29	8.48	13	Stats 4, WindowServer 3, configd 2	cocache-redis 0.22%	1242	1		
+1793863540	10.08	8.58	8.58	12	Stats 3, claude 2, configd 2	cocache-redis 0.20%	152	2		
+1793863553	8.65	8.33	8.49	6	Stats 2, configd 1, WindowServer 1	cocache-redis 0.27%	26	1		
+1793863565	7.39	8.07	8.40	12	Activity Monitor 4, WindowServer 3, Claude Helper (Renderer) 1	cocache-redis 0.44%	17	0		
+1793863577	5.83	7.70	8.26	8	Activity Monitor 3, WindowServer 2, claude 1	cocache-redis 0.44%	40	0		
+1793863589	5.08	7.47	8.17	36	Stats 11, sysmond 7, WindowServer 4	cocache-redis 0.41%	30	0		
+1793863602	4.46	7.26	8.09	24	sysmond 12, Activity Monitor 5, Stats 1	cocache-redis 0.47%	22			
+1793863614	3.62	6.94	7.96	27	sysmond 7, Activity Monitor 4, WindowServer 4	cocache-redis 0.45%	18			
+1793863626	3.14	6.72	7.87	7	claude 2, WindowServer 1, claude 0	cocache-redis 0.44%	18			
+1793863638	2.60	6.43	7.74	35	sysmond 11, Activity Monitor 6, Stats 5	cocache-redis 0.22%	715	33		
+1793863650	3.44	6.48	7.75	7	WindowServer 2, Shadowrocket 1, Stats 1	cocache-redis 0.23%	200	27		
+1793863663	4.02	6.46	7.71	11	sysmond 4, Claude 2, claude 1	cocache-redis 0.22%	542	20		
+1793863675	3.47	6.26	7.63	25	sysmond 15, Activity Monitor 7, WindowServer 1	cocache-redis 0.22%	255	9		
+1793863687	3.79	6.23	7.60	3	WindowServer 1, MacPacketTunnel 0, claude 0	cocache-redis 0.22%	304	6		
+1793863699	4.80	6.34	7.62	14	Stats 5, WindowServer 4, configd 3	cocache-redis 0.22%	364	4		
+1793863711	4.67	6.26	7.57	14	Stats 4, sysmond 4, claude 2	cocache-redis 0.21%	358	6		
+1793863724	5.94	6.46	7.62	11	Activity Monitor 4, WindowServer 2, Stats 1	cocache-redis 0.22%	444	6		
+1793863736	5.71	6.39	7.58	4	WindowServer 1, searchpartyd 1, Shadowrocket 0	cocache-redis 0.24%	404	6		
+1793863748	5.41	6.29	7.53	21	Stats 7, configd 6, sysmond 4	cocache-redis 0.20%	375	6		
+1793863760	5.11	6.20	7.48	18	Stats 4, MacPacketTunnel 3, WindowServer 3	cocache-redis 0.19%	360	6		
+1793863773	5.73	6.29	7.49	67	biomesyncd 41, BiomeAgent 14, claude 3	cocache-redis 0.23%	330	6		
+1793863785	6.08	6.34	7.49	14	sysmond 4, Activity Monitor 3, WindowServer 3	cocache-redis 0.21%	388	7		
+1793863797	6.22	6.36	7.49	6	claude 1, claude 1, WindowServer 1	cocache-redis 0.20%	303	6		
+1793863809	6.98	6.51	7.52	32	launchd 11, Stats 7, configd 4	cocache-redis 0.22%	244	1		
+1793863821	6.69	6.46	7.49	11	sysmond 3, Stats 3, WindowServer 2	cocache-redis 0.23%	390	6		
+1793863834	6.10	6.34	7.43	10	Activity Monitor 3, Stats 2, configd 1	cocache-redis 0.22%	380	8		
+1793863846	5.55	6.21	7.37	10	mdworker_shared 3, WindowServer 2, launchd 1	cocache-redis 0.24%	366	6		
+1793863858	5.60	6.19	7.34	20	Stats 7, configd 4, sysmond 4	cocache-redis 0.22%	455	6		
+1793863870	5.42	6.13	7.31	22	Stats 6, configd 5, WindowServer 4	cocache-redis 0.22%	395	6		
+1793863882	6.95	6.43	7.39	18	Stats 6, WindowServer 3, configd 2	cocache-redis 0.25%	366	6		
+1793863895	7.51	6.57	7.43	10	sysmond 4, WindowServer 2, Stats 1	cocache-redis 0.22%	354	6		
+1793863907	7.65	6.63	7.44	6	claude 2, WindowServer 1, sysmond 1	cocache-redis 0.21%	367	6		
+1793863919	7.17	6.57	7.40	2	Activity Monitor 1, WindowServer 0, claude 0	cocache-redis 0.21%	426	6		
+1793863931	6.53	6.45	7.35	17	Stats 6, configd 3, WindowServer 3	cocache-redis 0.23%	377	6		
+1793863943	6.04	6.34	7.30	15	sysmond 5, WindowServer 3, Activity Monitor 2	cocache-redis 0.20%	374	6		
+1793863956	5.95	6.32	7.28	8	WindowServer 2, Stats 1, searchpartyd 1	cocache-redis 0.19%	282	2		
+1793863968	6.81	6.48	7.32	2	WindowServer 1, Google Chrome 0, claude 0	cocache-redis 0.20%	404	6		
+1793863980	6.71	6.47	7.30	23	sysmond 7, Stats 6, configd 4	cocache-redis 0.20%	366	4		
+1793863992	5.88	6.29	7.23	17	Stats 6, configd 3, airportd 2	cocache-redis 0.22%	416	26		
+1793864005	5.90	6.28	7.21	15	sysmond 4, WindowServer 2, Stats 2	cocache-redis 0.21%	400	6		
+1793864017	5.91	6.27	7.20	6	WindowServer 3, Activity Monitor 1, Shadowrocket 1	cocache-redis 0.22%	382	6		
+1793864029	5.69	6.21	7.16	4	Activity Monitor 2, WindowServer 0, launchservicesd 0	cocache-redis 0.21%	399	6		
+1793864041	5.64	6.19	7.14	22	Stats 8, WindowServer 6, configd 4	cocache-redis 0.38%	52			
+1793864053	6.28	6.28	7.15	11	MacPacketTunnel 3, Stats 3, WindowServer 2	cocache-redis 0.23%	522	19		
+1793864066	6.54	6.33	7.16	4	WindowServer 1, Stats 1, Shadowrocket 1	cocache-redis 0.21%	486	18		
+1793864078	6.00	6.23	7.11	8	claude 3, WindowServer 1, Stats 1	cocache-redis 0.45%	62	7		
+1793864090	5.47	6.11	7.06	5	claude 2, WindowServer 1, claude 1	cocache-redis 0.20%	248	2		
+1793864102	5.17	6.02	7.02	20	Stats 7, WindowServer 5, configd 4	cocache-redis 0.22%	248	2		
+1793864114	5.47	6.04	7.00	12	Stats 4, configd 3, claude 2	cocache-redis 0.22%	399	6		
+1793864127	5.95	6.12	7.02	8	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.22%	372	6		
+1793864139	6.30	6.18	7.02	12	sysmond 4, Activity Monitor 4, WindowServer 2	cocache-redis 0.22%	354	6		
+1793864151	6.66	6.26	7.04	46	transparencyd 29, secd 9, Activity Monitor 3	cocache-redis 0.23%	364	7		
+1793864163	6.28	6.20	7.00	14	Stats 4, configd 4, Activity Monitor 2	cocache-redis 0.21%	449	6		
+1793864175	6.42	6.22	7.00	16	Stats 3, Activity Monitor 3, WindowServer 3	cocache-redis 0.22%	369	6		
+1793864188	6.03	6.15	6.96	9	sysmond 3, WindowServer 2, Shadowrocket 1	cocache-redis 0.20%	359	6		
+1793864200	5.72	6.08	6.93	7	Activity Monitor 2, launchd 1, claude 1	cocache-redis 0.22%	389	6		
+1793864212	5.70	6.06	6.91	12	Google Chrome Helper (Aperitif Renderer) 4, Stats 3, Google Chrome 1	cocache-redis 0.21%	393	6		
+1793864224	6.16	6.14	6.92	16	Stats 5, configd 3, claude 3	cocache-redis 0.26%	402	6		
+1793864237	6.52	6.21	6.94	7	sysmond 4, Stats 1, WindowServer 1	cocache-redis 0.20%	240	12		
+1793864249	6.67	6.25	6.94	10	Activity Monitor 2, WindowServer 2, claude 1	cocache-redis 0.23%	357	6		
+1793864261	6.48	6.23	6.92	5	Activity Monitor 3, WindowServer 1, claude 0	cocache-redis 0.22%	365	7		
+1793864273	6.18	6.17	6.89	16	Stats 5, configd 4, sysmond 4	cocache-redis 0.23%	376	6		
+1793864285	6.21	6.18	6.88	14	Stats 2, WindowServer 2, Activity Monitor 2	cocache-redis 0.19%	370	7		
+1793864298	6.52	6.25	6.90	7	Activity Monitor 3, WindowServer 1, Stats 1	cocache-redis 0.24%	374	7		
+1793864310	6.84	6.32	6.92	13	sysmond 4, apsd 2, Activity Monitor 2	cocache-redis 0.22%	368	6		
+1793864322	6.91	6.36	6.92	12	MacPacketTunnel 9, claude 0, claude 0	cocache-redis 0.22%	387	8		
+1793864334	6.50	6.29	6.89	16	Stats 6, WindowServer 3, configd 3	cocache-redis 0.21%	376	6		
+1793864347	6.56	6.32	6.89	11	sysmond 3, Activity Monitor 3, Stats 2	cocache-redis 0.21%	374	6		
+1793864359	6.26	6.27	6.86	12	Activity Monitor 8, WindowServer 1, sysmond 1	cocache-redis 0.19%	404	6		
+1793864371	6.00	6.21	6.83	5	Activity Monitor 3, WindowServer 1, Shadowrocket 0	cocache-redis 0.22%	420	6		
+1793864383	5.54	6.10	6.78	18	Stats 6, configd 5, WindowServer 4	cocache-redis 0.19%	410	6		
+1793864395	5.22	6.01	6.74	18	sysmond 6, Stats 5, Activity Monitor 2	cocache-redis 0.29%	23	1		
+1793864408	4.56	5.83	6.67	11	claude 2, WindowServer 2, claude 2	cocache-redis 0.33%	39			
+1793864420	6.02	6.10	6.75	3	WindowServer 1, Stats 0, Activity Monitor 0	cocache-redis 0.20%	868	3		
+1793864432	6.24	6.14	6.76	13	sysmond 9, Activity Monitor 2, bash 0	cocache-redis 0.20%	871	2		
+1793864444	8.35	6.61	6.91	13	Stats 5, WindowServer 3, configd 3	cocache-redis 0.22%	692	18		
+1793864456	7.81	6.56	6.89	10	Stats 3, claude 2, configd 2	cocache-redis 0.21%	214	12		
+1793864469	7.32	6.51	6.87	17	Activity Monitor 7, claude 2, WindowServer 2	cocache-redis 0.21%	254	3		
+1793864481	6.58	6.38	6.82	9	sysmond 4, claude 3, WindowServer 1	cocache-redis 0.22%	287	6		
+1793864493	6.38	6.34	6.80	2	WindowServer 1, claude 0, rapportd 0	cocache-redis 0.22%	368	6		
+1793864505	7.65	6.61	6.89	9	Stats 2, WindowServer 2, mdworker_shared 2	cocache-redis 0.21%	437	7		
+1793864517	7.16	6.54	6.86	8	claude 2, Stats 1, claude 1	cocache-redis 0.20%	444	7		
+1793864530	8.21	6.81	6.95	5	launchd 2, WindowServer 1, Shadowrocket 1	cocache-redis 0.24%	446	7		
+1793864542	8.78	6.98	7.01	2	WindowServer 1, Stats 0, configd 0	cocache-redis 0.22%	438	7		
+1793864554	7.99	6.90	6.98	2	claude 1, Google Chrome 1, claude 0	cocache-redis 0.23%	823	6		
+1793864566	7.44	6.82	6.95	9	Stats 3, WindowServer 3, configd 2	cocache-redis 0.20%	641	9		
+1793864578	8.38	7.05	7.03	6	Stats 2, claude 1, WindowServer 1	cocache-redis 0.20%	661	6		
+1793864591	7.87	6.99	7.00	3	WindowServer 1, Stats 0, Activity Monitor 0	cocache-redis 0.21%	248	2		
+1793864603	7.17	6.87	6.96	3	Activity Monitor 1, WindowServer 1, claude 0	cocache-redis 0.21%	282	3		
+1793864615	6.66	6.78	6.93	4	Activity Monitor 1, symptomsd 1, WindowServer 1	cocache-redis 0.22%	1284	15		
+1793864627	6.97	6.85	6.95	15	claude 3, Stats 3, claude 3	cocache-redis 0.20%	240	2		
+1793864640	6.04	6.64	6.88	10	sysmond 3, Stats 1, claude 1	cocache-redis 0.24%	444	7		
+1793864652	6.97	6.82	6.93	4	WindowServer 1, claude 1, Stats 1	cocache-redis 0.22%	430	7		
+1793864664	6.59	6.74	6.91	11	claude 3, claude 2, Activity Monitor 2	cocache-redis 0.24%	215	3		
+1793864676	6.16	6.65	6.87	21	Stats 6, WindowServer 3, sysmond 3	cocache-redis 0.22%	248	2		
+1793864689	4.93	6.36	6.76	7	claude 2, Stats 2, configd 1	cocache-redis 0.23%	447	7		
+1793864701	5.37	6.40	6.77	10	claude 3, sysmond 2, Activity Monitor 1	cocache-redis 0.23%	426	7		
+1793864713	6.07	6.51	6.80	6	sysmond 4, ps 1, bash 0	cocache-redis 0.21%	449	8		
+1793864725	6.61	6.62	6.84	17	Stats 5, claude 3, configd 3	cocache-redis 0.21%	610	7		
+1793864737	7.89	6.88	6.93	18	sysmond 7, Activity Monitor 4, claude 2	cocache-redis 0.24%	608	7		
+1793864750	8.26	7.04	6.99	8	sysmond 3, claude 2, WindowServer 1	cocache-redis 0.21%	412	7		
+1793864762	7.60	6.94	6.95	3	WindowServer 2, Stats 1, configd 0	cocache-redis 0.21%	232	1		
+1793864774	6.51	6.73	6.88	7	sysmond 4, MacPacketTunnel 2, Activity Monitor 1	cocache-redis 0.22%	424	7		
+1793864786	6.04	6.62	6.83	14	Stats 5, WindowServer 3, configd 3	cocache-redis 0.21%	450	7		
+1793864798	7.39	6.91	6.94	5	Stats 2, WindowServer 1, configd 1	cocache-redis 0.22%	460	7		
+1793864811	8.08	7.06	6.99	22	sysmond 6, Google Chrome 4, WindowServer 2	cocache-redis 0.35%	36	0		
+1793864823	7.22	6.92	6.94	6	claude 1, WindowServer 1, runningboardd 1	cocache-redis 0.42%	19			
+1793864835	7.43	6.97	6.95	17	Stats 5, sysmond 4, configd 3	cocache-redis 0.20%	874	3		
+1793864847	8.39	7.20	7.03	11	Stats 4, WindowServer 3, configd 2	cocache-redis 0.20%	859	2		
+1793864860	11.09	7.84	7.27	18	sysmond 4, launchd 3, Stats 2	cocache-redis 0.24%	440	10		
+1793864872	10.28	7.78	7.25	8	WindowServer 2, claude 2, claude 2	cocache-redis 0.24%	101	9		
+1793864884	8.90	7.60	7.19	6	Activity Monitor 2, WindowServer 1, Shadowrocket 0	cocache-redis 0.21%	269	8		
+1793864896	8.32	7.51	7.17	15	Stats 6, configd 4, WindowServer 3	cocache-redis 0.19%	282	8		
+1793864908	7.86	7.45	7.15	10	sysmond 4, Stats 2, configd 2	cocache-redis 0.21%	362	10		
+1793864921	7.60	7.40	7.14	9	WindowServer 2, Shadowrocket 1, Stats 1	cocache-redis 0.24%	422	11		
+1793864933	7.04	7.29	7.10	8	sysmond 3, claude 1, WindowServer 1	cocache-redis 0.21%	545	14		
+1793864945	6.95	7.26	7.09	3	WindowServer 1, Activity Monitor 1, Shadowrocket 0	cocache-redis 0.23%	351	10		
+1793864957	6.35	7.12	7.04	5	Stats 2, configd 1, WindowServer 0	cocache-redis 0.20%	715	21		
+1793864969	6.62	7.16	7.06	12	sysmond 5, Stats 2, WindowServer 2	cocache-redis 0.22%	449	12		
+1793864982	6.81	7.18	7.07	9	sysmond 3, WindowServer 1, claude 1	cocache-redis 0.22%	694	21		
+1793864994	5.95	6.98	7.00	3	Activity Monitor 1, WindowServer 1, claude 0	cocache-redis 0.22%	1161	48		
+1793865006	7.70	7.31	7.12	42	Stats 13, WindowServer 6, configd 5	cocache-redis 0.37%	1000	62		
+1793865018	8.81	7.58	7.22	6	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.24%	684	20		
+1793865031	10.23	7.94	7.35	8	sysmond 3, WindowServer 2, Activity Monitor 1	cocache-redis 0.22%	461	14		
+1793865043	8.66	7.68	7.26	6	Activity Monitor 2, WindowServer 1, MacPacketTunnel 1	cocache-redis 0.24%	566	17		
+1793865055	13.35	8.73	7.64	17	Stats 5, sysmond 3, WindowServer 3	cocache-redis 0.23%	1139	47		
+1793865067	15.68	9.39	7.89	16	sysmond 4, Stats 3, WindowServer 2	cocache-redis 0.22%	1123	46		
+1793865080	14.89	9.52	7.96	9	Activity Monitor 2, Stats 2, claude 2	cocache-redis 0.22%	1291	54		
+1793865092	15.56	9.86	8.10	6	WindowServer 2, claude 1, Stats 0	cocache-redis 0.22%	657	17		
+1793865104	14.84	10.01	8.19	38	mdworker_shared 7, mdworker_shared 7, mdworker_shared 6	cocache-redis 0.24%	668	20		
+1793865116	13.09	9.79	8.13	35	Google Chrome Helper (Aperitif Renderer) 10, sysmond 10, Activity Monitor 4	cocache-redis 0.22%	433	12		
+1793865128	12.63	9.89	8.20	6	Stats 2, WindowServer 2, configd 1	cocache-redis 0.23%	472	13		
+1793865141	12.60	9.96	8.24	6	WindowServer 1, Stats 1, Activity Monitor 1	cocache-redis 0.20%	424	12		
+1793865153	13.05	10.13	8.32	34	sysmond 24, Activity Monitor 6, WindowServer 2	cocache-redis 0.22%	442	12		
+1793865165	11.92	10.05	8.32	8	sysmond 4, claude 3, WindowServer 0	cocache-redis 0.25%	714	21		
+1793865177	11.15	9.95	8.31	26	Stats 9, WindowServer 5, configd 4	cocache-redis 0.42%	33	0		
+1793865189	9.21	9.58	8.20	10	launchd 3, WindowServer 2, Stats 2	cocache-redis 0.22%	708	19		
+1793865202	12.06	10.17	8.43	11	sysmond 4, WindowServer 1, claude 1	cocache-redis 0.22%	686	20		
+1793865214	13.22	10.51	8.58	3	WindowServer 1, Stats 0, Activity Monitor 0	cocache-redis 0.23%	692	20		
+1793865226	11.94	10.32	8.54	20	Stats 8, configd 4, WindowServer 2	cocache-redis 0.36%	23			
+1793865238	11.64	10.31	8.56	16	MacPacketTunnel 6, Stats 3, configd 2	cocache-redis 0.23%	624	19		
+1793865251	11.78	10.38	8.61	5	WindowServer 2, Stats 1, Shadowrocket 1	cocache-redis 0.22%	122	18		
+1793865263	12.34	10.56	8.69	5	sysmond 4, WindowServer 1, claude 0	cocache-redis 0.23%	351	14		
+1793865275	9.96	10.13	8.57	5	Activity Monitor 1, WindowServer 1, claude 1	cocache-redis 0.20%	257	6		
+1793865287	8.97	9.91	8.51	19	Stats 6, PerfPowerServices 3, configd 3	cocache-redis 0.20%	274	6		
+1793865299	7.95	9.64	8.44	11	Stats 3, configd 2, WindowServer 2	cocache-redis 0.20%	279	8		
+1793865312	7.82	9.55	8.42	10	Activity Monitor 3, Stats 2, WindowServer 2	cocache-redis 0.21%	381	7		
+1793865324	6.75	9.23	8.32	9	Activity Monitor 3, WindowServer 2, airportd 1	cocache-redis 0.20%	178	8		
+1793865336	6.39	9.07	8.28	21	Stats 7, sysmond 4, Activity Monitor 3	cocache-redis 0.22%	216	8		
+1793865348	6.44	8.99	8.26	28	Stats 9, configd 5, WindowServer 4	cocache-redis 0.23%	84	4		
+1793865360	5.61	8.68	8.16	10	WindowServer 3, Shadowrocket 2, Stats 2	cocache-redis 0.20%	165	9		
+1793865373	5.13	8.47	8.09	12	WindowServer 2, Stats 2, claude 2	cocache-redis 0.21%	177	8		
+1793865385	5.24	8.33	8.05	13	sysmond 4, Activity Monitor 2, claude 2	cocache-redis 0.20%	159	8		
+1793865397	4.74	8.13	7.98	6	WindowServer 2, claude 1, claude 1	cocache-redis 0.20%	193	8		
+1793865409	5.01	8.02	7.94	25	Stats 9, configd 5, WindowServer 4	cocache-redis 0.20%	175	8		
+1793865421	4.77	7.87	7.89	21	sysmond 10, Stats 3, symptomsd 2	cocache-redis 0.36%	17	1		
+1793865434	4.73	7.70	7.83	8	Activity Monitor 3, Stats 2, configd 1	cocache-redis 0.21%	164	9		
+1793865446	4.31	7.51	7.76	7	sysmond 4, WindowServer 1, Activity Monitor 1	cocache-redis 0.21%	178	9		
+1793865458	3.87	7.31	7.69	4	Activity Monitor 2, WindowServer 1, configd 0	cocache-redis 0.21%	173	8		
+1793865470	3.94	7.16	7.63	24	Stats 8, configd 5, WindowServer 4	cocache-redis 0.20%	185	9		
+1793865482	3.72	7.01	7.56	20	Stats 8, Activity Monitor 3, configd 3	cocache-redis 0.19%	182	9		
+1793865495	4.09	6.93	7.53	10	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.19%	225	8		
+1793865507	4.35	6.90	7.51	15	sysmond 4, claude 4, claude 2	cocache-redis 0.33%	21	0		
+1793865519	3.53	6.59	7.39	22	launchd 5, claude 3, sysmond 3	cocache-redis 0.23%	1186	49		
+1793865531	4.04	6.60	7.38	9	Stats 5, WindowServer 2, configd 2	cocache-redis 0.23%	465	19		
+1793865543	4.05	6.52	7.34	9	Stats 3, claude 2, deleted 1	cocache-redis 0.23%	461	16		
+1793865556	5.21	6.67	7.38	10	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.22%	246	10		
+1793865568	5.26	6.63	7.36	5	WindowServer 2, claude 1, Stats 1	cocache-redis 0.21%	280	27		
+1793865580	5.52	6.61	7.34	4	claude 1, WindowServer 1, Activity Monitor 1	cocache-redis 0.22%	274	7		
+1793865592	5.58	6.59	7.32	20	Stats 9, configd 5, WindowServer 3	cocache-redis 0.20%	286	8		
+1793865604	5.37	6.50	7.28	67	find 54, sysmond 4, WindowServer 3	cocache-redis 0.21%	200	7		
+1793865617	4.84	6.35	7.21	12	WindowServer 2, Stats 2, Activity Monitor 2	cocache-redis 0.20%	187	9		
+1793865629	4.52	6.20	7.15	9	sysmond 3, Activity Monitor 2, WindowServer 1	cocache-redis 0.20%	174	8		
+1793865641	4.13	6.06	7.08	2	WindowServer 1, claude 0, configd 0	cocache-redis 0.19%	170	9		
+1793865653	3.81	5.93	7.02	23	Stats 8, configd 5, sysmond 3	cocache-redis 0.21%	188	9		
+1793865665	4.14	5.90	6.99	15	Stats 5, configd 3, WindowServer 3	cocache-redis 0.20%	183	9		
+1793865678	3.73	5.75	6.93	13	symptomsd 3, Stats 2, WindowServer 2	cocache-redis 0.20%	173	8		
+1793865690	3.63	5.63	6.87	8	symptomsd 2, WindowServer 2, Stats 1	cocache-redis 0.20%	158	8		
+1793865702	3.54	5.54	6.82	3	WindowServer 1, Activity Monitor 1, Shadowrocket 0	cocache-redis 0.35%	29	0		
+1793865714	3.21	5.37	6.74	18	Stats 5, sysmond 4, WindowServer 3	cocache-redis 0.19%	200	8		
+1793865726	3.91	5.46	6.75	16	Stats 4, configd 3, WindowServer 3	cocache-redis 0.19%	173	9		
+1793865739	3.63	5.32	6.68	21	Activity Monitor 5, sysmond 4, claude 2	cocache-redis 0.20%	168	9		
+1793865751	3.63	5.26	6.64	5	WindowServer 2, Shadowrocket 1, Stats 0	cocache-redis 0.20%	153	8		
+1793865763	3.54	5.18	6.60	9	sysmond 5, Activity Monitor 2, WindowServer 1	cocache-redis 0.21%	225	8		
+1793865775	3.54	5.11	6.54	7	Stats 3, claude 1, claude 1	cocache-redis 0.20%	172	9		
+1793865787	3.22	4.99	6.49	8	Stats 2, WindowServer 2, configd 2	cocache-redis 0.44%	30	0		
+1793865800	3.69	4.99	6.46	16	sysmond 6, WindowServer 2, Stats 2	cocache-redis 0.46%	1335	21		
+1793865812	4.58	5.14	6.49	6	Activity Monitor 2, WindowServer 1, claude 1	cocache-redis 0.20%	859	3		
+1793865824	6.01	5.43	6.57	6	sysmond 3, Claude 1, claude 0	cocache-redis 0.20%	896	2		
+1793865836	7.28	5.72	6.66	12	Stats 3, sysmond 2, WindowServer 2	cocache-redis 0.21%	697	18		
+1793865848	6.53	5.62	6.62	11	Stats 3, WindowServer 3, Shadowrocket 2	cocache-redis 0.20%	172	5		
+1793865861	5.92	5.52	6.56	5	WindowServer 2, Stats 1, claude 1	cocache-redis 0.19%	246	12		
+1793865873	6.25	5.60	6.58	15	sysmond 8, Activity Monitor 4, WindowServer 1	cocache-redis 0.19%	309	8		
+1793865885	5.46	5.46	6.51	1	claude 0, WindowServer 0, claude 0	cocache-redis 0.20%	301	7		
+1793865897	5.16	5.39	6.48	12	sysmond 3, Stats 3, configd 2	cocache-redis 0.22%	407	11		
+1793865910	6.21	5.62	6.54	14	launchd 3, WindowServer 2, claude 2	cocache-redis 0.24%	532	15		
+1793865922	6.19	5.63	6.53	5	WindowServer 1, Activity Monitor 1, claude 0	cocache-redis 0.23%	652	18		
+1793865934	7.56	5.94	6.63	6	sysmond 4, WindowServer 0, claude 0	cocache-redis 0.23%	705	20		
+1793865946	9.44	6.42	6.79	9	WindowServer 3, configd 3, claude 1	cocache-redis 0.23%	464	12		
+1793865958	9.26	6.47	6.80	4	Stats 2, configd 1, WindowServer 1	cocache-redis 0.23%	684	20		
+1793865971	11.75	7.14	7.03	9	sysmond 3, WindowServer 1, claude 1	cocache-redis 0.22%	1213	50		
+1793865983	15.21	8.05	7.36	37	sysmond 17, Activity Monitor 9, claude 2	cocache-redis 0.27%	731	44		
+1793865995	17.67	8.95	7.69	21	Stats 10, configd 3, WindowServer 3	cocache-redis 0.22%	324	12		
+1793866007	16.71	9.03	7.73	8	WindowServer 2, Stats 2, Activity Monitor 1	cocache-redis 0.22%	737	19		
+1793866020	16.96	9.47	7.91	3	Stats 1, WindowServer 1, configd 1	cocache-redis 0.22%	694	20		
+1793866032	16.98	9.70	8.01	4	WindowServer 2, Activity Monitor 1, Shadowrocket 0	cocache-redis 0.21%	712	21		
+1793866044	14.01	9.40	7.93	18	Stats 6, sysmond 3, configd 3	cocache-redis 0.23%	439	13		
+1793866056	13.92	9.52	7.99	9	Stats 4, configd 2, WindowServer 2	cocache-redis 0.22%	722	21		
+1793866068	12.61	9.39	7.96	8	WindowServer 2, Stats 2, Shadowrocket 1	cocache-redis 0.23%	668	19		
+1793866081	12.24	9.47	8.02	3	Google Chrome Helper (Aperitif Renderer) 1, Stats 0, WindowServer 0	cocache-redis 0.22%	729	21		
+1793866093	11.31	9.36	7.99	6	sysmond 4, WindowServer 1, Shadowrocket 0	cocache-redis 0.22%	434	12		
+1793866105	11.50	9.46	8.05	16	Stats 5, sysmond 4, WindowServer 3	cocache-redis 0.22%	1086	47		
+1793866117	12.82	9.81	8.19	12	Stats 3, PerfPowerServices 2, configd 2	cocache-redis 0.19%	1156	46		
+1793866130	16.80	10.82	8.58	4	claude 1, Stats 1, configd 1	cocache-redis 0.23%	1321	56		
+1793866142	21.57	12.04	9.04	6	sysmond 4, WindowServer 1, Stats 0	cocache-redis 0.23%	1116	33		
