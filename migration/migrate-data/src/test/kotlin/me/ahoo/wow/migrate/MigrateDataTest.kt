@@ -255,6 +255,11 @@ class MigrateDataTest {
         printed.assert().contains("Final pass done").contains("Snapshots done.")
         val ref = NineXExample.orderModel.type.ref(last.aggregateId.tenantId, last.aggregateId.id)
         log.read(ref).toList().map { it.version }.assert().containsExactly(1, 2, 3, 4, 5)
+        // The snapshots stamped the history, the stream the final pass imported too, and the walk is recorded once.
+        log.read(ref).toList().map { it.accessVersion }.assert().containsOnly(5)
+        printed.lines().count { it.startsWith("${NineXExample.orderModel.type}: its access walk is recorded") }
+            .assert().isEqualTo(1)
+        log.walk(NineXExample.orderModel.type)!!.completed.assert().isTrue()
         run("import", "--config", config, "--final", "--restart").assert().isEqualTo(MigrateData.USAGE_ERROR)
         run("import", "--config", config, "--final", "--dry-run").assert().isEqualTo(MigrateData.USAGE_ERROR)
     }

@@ -25,6 +25,8 @@ import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.spi.access.AccessValues
+import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -125,6 +127,12 @@ class NineXExampleImportTest {
             WowJson.mapper.readTree(NineXExample.resource("order-state.json")),
         ).assert().isTrue()
         kernel.stateAt(NineXExample.orderModel, orderRef, 4, snapshot)!!.version.assert().isEqualTo(4)
+        // The imported history carries the state's attributes as of its last version, and the walk is recorded, so
+        // the V10 nodes do not walk it again.
+        log.read(orderRef).toList().map { it.accessVersion }.assert().containsOnly(4)
+        log.read(orderRef).toList().map { it.access }.distinct().assert()
+            .containsExactly(AccessValues.ofStream(emptyMap(), snapshot.scope))
+        (log as AccessWalks).walk(NineXExample.orderModel.type)!!.completed.assert().isTrue()
         run("import", "--config", config.toString(), "--restart", "--snapshots").assert().isEqualTo(MigrateData.OK)
         output.toString().assert().contains("example-service.order snapshots done: 1 instances, 0 V10 snapshots written, 1 already there")
 
@@ -178,6 +186,9 @@ class NineXExampleImportTest {
             )
             .contains("example-service.cart snapshots caught up: 0 instances the V10 log changed since")
         store.load(orderRef)!!.version.assert().isEqualTo(5)
+        // The catch-up stamped the stream the tail received, as of the new last version; the ones before it hold the
+        // same attributes already.
+        log.read(orderRef).toList().map { it.accessVersion }.assert().containsExactly(4, 4, 4, 4, 5)
 
         // Compared after the broken mapping's comparison, the map is not the one it ran with, so it compares in full;
         // compared again, only what changed since: a differing snapshot 9.x takes since is found.

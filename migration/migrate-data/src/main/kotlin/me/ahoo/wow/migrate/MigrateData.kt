@@ -626,7 +626,9 @@ internal class MigrateData(
             progress = { out.println(it.render()) },
             report = out::println,
         )
-        val failed = plan.aggregates.keys.map { writer.writeAll(it) }.filter { it.failed > 0 }
+        val written = plan.aggregates.keys.map { writer.writeAll(it) }
+        writer.recordWalks(written)
+        val failed = written.filter { it.failed > 0 }
         if (failed.isNotEmpty()) {
             out.println(
                 "FAILED ${failed.sumOf { it.failed }} instances of ${failed.map { it.aggregate }} have no V10 " +
