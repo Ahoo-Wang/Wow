@@ -70,10 +70,13 @@ data class BookedSetting(
  *   `ViewCreated` at revision 2, which 9.x cannot read), and nothing else.
  * - `await` waits until V10 holds every touched view at its version; `states` reads every N-th view that is not
  *   deleted, its version and its state without what one version derives (`id`, V10's `kind`), for `driver compare`.
- *   9.x is read from its snapshots, which it saves after each command and does not save again when a save fails (a
- *   MongoDB connection reset under load, say). So a 9.x view whose snapshot is older than its booked version is read
- *   again for a while; one that stays older is printed `STALE` and fails the step: 9.x lost that save, and its state
- *   cannot be read to compare, which is a failure of the 9.x stand-in, not a difference of the migration.
+ *   9.x is read from its snapshots, the only state its view store serves. 9.x saves one after each command and
+ *   acknowledges the command's state event whether the save succeeds or not, so a save that fails (a MongoDB
+ *   connection reset, say) is dropped, and the view's snapshot stays at the version before until its next command:
+ *   9.x's events still hold the version, and loading the view reads them. So a 9.x view whose snapshot is older than
+ *   its booked version is read again for a while; one that stays older is printed `STALE` and left out of the file,
+ *   listed under `$stale` with its snapshot's version and its booked one, and `compare` leaves it out on both sides
+ *   and counts it. The migration's own check of that snapshot is `migrate-data compare`'s, at the snapshot's version.
  * - `verify` renames, in 9.x after the rollback, every view V10 touched, and checks that 9.x applies it on the version
  *   V10 left: 9.x reads what export wrote back.
  * - `settings` sets again every booked preferences and every wording not cleared, and checks that each lands on the
@@ -291,16 +294,25 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         stale.forEach { view ->
             println(
                 "STALE view ${view.ref.id}: 9.x's snapshot is at v${states.getValue(view.ref.id).first}, below its " +
-                    "booked v${view.version}: 9.x lost that snapshot save, so its state cannot be read to compare.",
+                    "booked v${view.version}: 9.x dropped that snapshot save, and compare leaves the view out.",
             )
         }
+        val staleIds = stale.mapTo(HashSet()) { it.ref.id }
         val out = Endpoints.MAPPER.createObjectNode()
-        states.toSortedMap().forEach { (id, versioned) ->
+        states.toSortedMap().filterKeys { it !in staleIds }.forEach { (id, versioned) ->
             out.set(id, normalized(versioned.second).put("version", versioned.first))
+        }
+        if (stale.isNotEmpty()) {
+            val listed = out.putObject(Endpoints.STALE)
+            stale.forEach { view ->
+                listed.putObject(
+                    view.ref.id
+                ).put("snapshot", states.getValue(view.ref.id).first).put("booked", view.version)
+            }
         }
         File(required("out")).writeText(Endpoints.MAPPER.writeValueAsString(out))
         println("""{"command":"views-states","sampled":${views.size},"read":${states.size},"stale":${stale.size}}""")
-        return if (states.size == views.size && stale.isEmpty()) OK else FAILED
+        return if (states.size == views.size) OK else FAILED
     }
 
     /**

@@ -60,7 +60,8 @@ data class BookedOrder(val ref: OrderRef, val status: String, val version: Int, 
  *   wrote and its version in the touched file.
  * - `await` waits until the rehearsal host holds every touched order at its version: the tail's lag behind 9.x.
  * - `states` reads every N-th order's state; `compare` compares two such files (of orders, or of views), numbers by
- *   value, and exits with 3 when one differs.
+ *   value, and exits with 3 when one differs. It leaves out, on both sides, the instances either file lists as stale
+ *   (`views states` on 9.x), and counts them.
  * - `access` reads a tenant's orders under the access policy, once the access walk has stamped them: a caller of the
  *   region most of them are tagged with reads every N-th order's state, and its streams, when it is of that region,
  *   and neither otherwise; and no stream of another order is among the events it finds.
@@ -340,10 +341,11 @@ class RehearsalDriver(private val args: List<String>) {
     private fun compare(left: File, right: File): Int {
         val a = Endpoints.MAPPER.readTree(left)
         val b = Endpoints.MAPPER.readTree(right)
-        val ids = (a.propertyNames() + b.propertyNames()).toSortedSet()
+        val stale = listOf(a, b).flatMap { it.get(Endpoints.STALE)?.propertyNames().orEmpty() }.toSet()
+        val ids = (a.propertyNames() + b.propertyNames()).filter { it != Endpoints.STALE && it !in stale }.toSortedSet()
         val differing = ids.filter { id -> a.get(id) == null || b.get(id) == null || !same(a.get(id), b.get(id)) }
         differing.take(MAX_PRINTED).forEach { System.err.println("DIFFERS $it: ${a.get(it)} / ${b.get(it)}") }
-        println("""{"command":"compare","instances":${ids.size},"differing":${differing.size}}""")
+        println("""{"command":"compare","instances":${ids.size},"differing":${differing.size},"stale":${stale.size}}""")
         return if (differing.isEmpty()) OK else DIFFERS
     }
 

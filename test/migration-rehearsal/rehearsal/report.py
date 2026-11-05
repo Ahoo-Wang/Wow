@@ -317,6 +317,9 @@ lines += [
     f"V10 view store read them {data('dual-run-views-lag').get('caughtUpMillis', '?')} ms after the writes stopped.",
     f"- Compare: " + "; ".join(log_lines("compare", r"^view-store\.[a-z_]+ compared:")),
     f"- Before V10 writes: 9.x views vs V10: {data('rollback-before-views-compare')}.",
+    f"- 9.x snapshots behind their views' events (a dropped 9.x snapshot save), left out of the view comparisons: "
+    f"{data('offline-9x-views-states').get('stale', '?')} before the offline cut-over, "
+    f"{data('rollback-before-views-states').get('stale', '?')} after the rollback before V10 writes.",
     f"- After V10 writes ({data('v10-views').get('commands', '?')} V10 renames of "
     f"{data('v10-views').get('touched', '?')} views): "
     + "; ".join(log_lines("export", r"^(EQUAL|DIFFERS) view-store"))
