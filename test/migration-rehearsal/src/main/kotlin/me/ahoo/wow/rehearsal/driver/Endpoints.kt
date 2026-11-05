@@ -260,6 +260,9 @@ sealed class Endpoints(val base: URI) {
         val REQUEST_TIMEOUT: Duration = Duration.ofSeconds(30)
         val MAPPER: JsonMapper = JsonMapper.builder().build()
 
+        /** The instances a states file leaves out, 9.x's snapshot of each behind its booked version (ViewsDriver). */
+        const val STALE = "\$stale"
+
         fun of(version: String, base: String): Endpoints = when (version) {
             "9x" -> NineX(URI.create(base))
             "v10" -> V10(URI.create(base))
