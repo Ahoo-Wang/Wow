@@ -172,11 +172,8 @@ class QueryAdmission(
         caller: QueryCaller,
     ): ObjectNode? = record.takeIf(recordFilter(selection, schema, caller))?.let { schema.maskRecord(it) }
 
-    /**
-     * The in-memory condition [admitRecord] evaluates, built once for every record [selection] chooses: the batch of
-     * the events model's pinned check admits each record of its aggregates with it.
-     */
-    internal suspend fun recordFilter(
+    /** The in-memory condition [admitRecord] evaluates on the record [selection] chooses. */
+    private suspend fun recordFilter(
         selection: FilterExpression,
         schema: QueryModelSchema,
         caller: QueryCaller,

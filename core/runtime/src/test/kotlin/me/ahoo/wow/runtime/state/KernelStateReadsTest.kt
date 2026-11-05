@@ -68,7 +68,6 @@ class KernelStateReadsTest {
         val otherType = AggregateType(CONTEXT, "basket").ref("t", "c-1")
         listOf(otherContext, otherType).forEach { ref ->
             reads.latest(ref).assert().isNull()
-            reads.committed(ref).assert().isNull()
             reads.at(ref, 1).assert().isNull()
             reads.at(ref, Instant.MAX).assert().isNull()
             reads.trace(ref, 1, 1, 1).assert().isEmpty()
@@ -80,7 +79,6 @@ class KernelStateReadsTest {
         )
         snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart(), 1, Scope.NONE, 1L, 1L))
         partial.latest(cart).assert().isNull()
-        partial.committed(cart).assert().isNull()
         partial.at(cart, 1).assert().isNull()
         partial.at(cart, Instant.MAX).assert().isNull()
         partial.trace(cart, 1, 1, 1).assert().isEmpty()
@@ -96,7 +94,6 @@ class KernelStateReadsTest {
     @Test
     fun `NONE reads nothing`(): Unit = runBlocking {
         StateReads.NONE.latest(cart).assert().isNull()
-        StateReads.NONE.committed(cart).assert().isNull()
         StateReads.NONE.at(cart, 1).assert().isNull()
         StateReads.NONE.at(cart, Instant.MAX).assert().isNull()
         StateReads.NONE.trace(cart, 1, 1, 1).assert().isEmpty()
@@ -114,17 +111,16 @@ class KernelStateReadsTest {
     @Test
     fun `the latest state is the snapshot, else the log before the first snapshot (D246)`(): Unit = runBlocking {
         reads.latest(cart).assert().isNull()
-        reads.committed(cart).assert().isNull()
         addItems(2)
-        // No snapshot yet: the latest state, and the committed one, are the log replayed.
-        listOf(reads.latest(cart)!!, reads.committed(cart)!!).forEach { read ->
+        // No snapshot yet: the latest state is the log replayed.
+        reads.latest(cart)!!.let { read ->
             read.version.assert().isEqualTo(2)
             read.scope.assert().isEqualTo(Scope("alice", null))
             read.state["items"].asInt().assert().isEqualTo(3)
         }
         // Once a snapshot is written, it is the state read, even behind the log's head (D69).
         snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
-        listOf(reads.latest(cart)!!, reads.committed(cart)!!).forEach { read ->
+        reads.latest(cart)!!.let { read ->
             read.version.assert().isEqualTo(1)
             read.state["items"].asInt().assert().isEqualTo(1)
         }
@@ -262,8 +258,6 @@ class KernelStateReadsTest {
             runCatching { read() }.exceptionOrNull()!!.message.assert().isEqualTo("busy")
         }
         gated.assert().containsExactly(cart, cart, cart, cart)
-        // The events model's committed state is read outside the gate.
-        refusing.committed(cart)!!.version.assert().isEqualTo(1)
         // A snapshot is read without a replay.
         snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
         refusing.latest(cart)!!.version.assert().isEqualTo(1)
@@ -272,7 +266,7 @@ class KernelStateReadsTest {
     }
 
     @Test
-    fun `a replay longer than the bound is refused, the committed state unbounded`(): Unit = runBlocking {
+    fun `a replay longer than the bound is refused`(): Unit = runBlocking {
         val bounded = KernelStateReads(
             registry,
             mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), snapshots)),
@@ -290,7 +284,6 @@ class KernelStateReadsTest {
             refused.limit.assert().isEqualTo(2)
             refused.cause.assert().isInstanceOf(ReplayLimitExceededException::class.java)
         }
-        bounded.committed(cart)!!.version.assert().isEqualTo(4)
         bounded.at(cart, 2)!!.version.assert().isEqualTo(2)
         bounded.trace(cart, 1, 4, 4).assert().hasSize(4)
         // Counted from the snapshot when it fits.

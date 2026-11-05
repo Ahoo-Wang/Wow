@@ -107,10 +107,6 @@ class ScopeQueryPolicy(
     /** The read side's scope rules, which an HTTP caller is checked against again. */
     private val targets = QueryTargets(tenants, crossTenant)
 
-    /** Each stream records its tenant, and its aggregate's current owner and space. */
-    override val events: EventsMode
-        get() = EventsMode.PUSHDOWN
-
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         targets.recheck(context.aggregateType, caller)
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER

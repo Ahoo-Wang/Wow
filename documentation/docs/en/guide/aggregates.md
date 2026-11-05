@@ -243,7 +243,7 @@ suspend fun onCommand(command: LendBook, queries: QueryApi, scope: DecideScope):
 }
 ```
 
-The rebuilt caller has no roles, policies or claims. They live only with the request, and a command may be decided on another node, or taken from its command topic. A query policy that reads them sees none, and one that requires a role refuses the read.
+The rebuilt caller has no roles, policies or claims. They live only with the request, and a command may be decided on another node, or taken from its command topic. A read authorizer that reads them sees none, and one that requires a role refuses the read.
 
 For a read that no policy should restrict, take a `NodeQueryApi` and read with `trusted()`.
 

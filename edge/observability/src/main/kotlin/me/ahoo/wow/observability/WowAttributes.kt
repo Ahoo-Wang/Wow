@@ -100,7 +100,6 @@ object WowMetrics {
     const val KIND: String = "wow.kind"
     const val GROUP: String = WowAttributes.GROUP
     const val PARTITION: String = "wow.partition"
-    const val READ: String = "wow.read"
 
     /** OpenTelemetry's attribute of an error's type: the problem code of a refusal. */
     const val ERROR_TYPE: String = WowAttributes.ERROR_TYPE
@@ -108,8 +107,6 @@ object WowMetrics {
     /** The topic a message came from. */
     const val TOPIC: String = WowAttributes.MESSAGING_DESTINATION
 
-    const val BATCH_READ: String = "batch"
-    const val POINT_READ: String = "point"
     const val PARKED_OUTCOME: String = "parked"
     const val SKIPPED_OUTCOME: String = "skipped"
     const val PAUSED_KIND: String = "paused"
@@ -397,14 +394,6 @@ object WowMetrics {
         ),
     )
 
-    val EVENTS_PINNED: MetricSpec = MetricSpec.counter(
-        "wow.query.events.pinned",
-        "The aggregates events queries named and a pinned query policy had checked, by how they were read: by one " +
-            "snapshot query, or one by one.",
-        tags = listOf(CONTEXT, AGGREGATE, READ),
-        values = mapOf(READ to listOf(BATCH_READ, POINT_READ)),
-    )
-
     val QUERY_LIMIT_CURRENT: MetricSpec = MetricSpec.gauge(
         "wow.query.limit.current",
         "How many queries a store runs at once now, its query bulkhead's limit.",
@@ -431,7 +420,7 @@ object WowMetrics {
         ACCESS_WALKED, ACCESS_WALK_PENDING, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
-        EVENTS_PINNED, QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,
+        QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,
     )
 
     /** The attributes of a span no metric carries: one value per aggregate, command, request or timer. */

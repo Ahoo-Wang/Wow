@@ -34,7 +34,6 @@ import me.ahoo.wow.spi.json.query.EventFields
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -53,11 +52,10 @@ import tools.jackson.databind.node.ObjectNode
  *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading]), an
  *   event the aggregate retired left out, and each body masked by its event's schema ([masks]),
  * for every caller alike.
- * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events]). The scope and the access
- *   policies filter them on what each records, the aggregate's current owner, space and access attributes. While a
- *   pinned one applies, an aggregate the snapshot queries of its type hide from the caller has no streams for
- *   it ([visibility]): [EventVisibilityPolicy] joins the policy step, and the descriptor lists
- *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED], as under [UnpinnedEvents.REFUSE].
+ * - **Visibility.** The scope and the access policies filter the streams on what each records, the aggregate's
+ *   current owner, space and access attributes: an events query need not name its aggregates, unless the store refuses
+ *   one that does not ([UnpinnedEvents.REFUSE]), and its descriptor then lists
+ *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED].
  * - **Counts.** [counts] must be the events model's own cache: a cache is keyed by aggregate type, not by model.
  *
  * Free filtering reads the write store: the PostgreSQL and MongoDB logs index only `(aggregateId, tenantId, version)`,
@@ -83,29 +81,23 @@ object EventQueryGateways {
         observer: QueryObserver = QueryObserver.NONE,
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
         counts: QueryCountCache? = null,
-        visibility: EventVisibility = EventVisibility.ALL,
-        tenants: TenantPolicy = TenantPolicy.CALLERS,
         masks: PayloadMasks = PayloadMasks.NONE,
         reading: (EventRecord) -> EventRecord? = { it },
         unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW,
         authorizer: ReadAuthorizer = ReadAuthorizer.ALLOW_ALL,
     ): QueryGateway {
         val refuses = unpinned == UnpinnedEvents.REFUSE
-        val pinned = refuses || visibility.pins(aggregateType)
         return DefaultQueryGateway(
             aggregateType = aggregateType,
             backend = backend,
             schemaProvider = schemaProvider,
             filters = filters,
-            policies = policies + listOfNotNull(
-                UnpinnedEventsPolicy().takeIf { refuses },
-                EventVisibilityPolicy(visibility, tenants, entryPolicy),
-            ),
+            policies = policies + listOfNotNull(UnpinnedEventsPolicy().takeIf { refuses }),
             observer = observer,
             entryPolicy = entryPolicy,
             counts = counts,
             records = EventStreamRecords.reader(aggregateType, masks, reading),
-            constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { pinned }),
+            constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { refuses }),
             model = QueryModel.EVENTS,
             authorizer = authorizer,
         )

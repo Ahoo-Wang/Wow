@@ -169,10 +169,6 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
     /** Right after the scope, before the application's policies. */
     override val order: Int = ScopeQueryPolicy.ORDER + 1
 
-    /** Its filter on the events is the whole rule: each stream records its aggregate's current attributes. */
-    override val events: EventsMode
-        get() = EventsMode.PUSHDOWN
-
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val acting = caller.caller
         if (acting == null || acting.service) {
