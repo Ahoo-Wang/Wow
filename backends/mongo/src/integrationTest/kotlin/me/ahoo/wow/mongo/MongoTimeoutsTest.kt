@@ -28,8 +28,10 @@ class MongoTimeoutsTest {
     @Test
     fun `a call that outlasts its timeout fails as transient, a write's outcome unknown`() {
         // A server that does not answer in time stands for a reply lost on the way: the call fails instead of waiting.
-        val database = MongoDatabases.of(MongoLogFixture.client, MongoLogFixture.DATABASE, SHORT)
-        val slow = database.getCollection("wow_timeouts_probe").also { it.insertOne(Document("n", 1)) }
+        // The probe is written with the stores' own timeout, so a slow server fails only the call under test.
+        MongoDatabases.of(MongoLogFixture.client, MongoLogFixture.DATABASE).getCollection(PROBE)
+            .insertOne(Document("n", 1))
+        val slow = MongoDatabases.of(MongoLogFixture.client, MongoLogFixture.DATABASE, SHORT).getCollection(PROBE)
         val failure = assertThrownBy<MongoException> {
             slow.find(Document("\$where", "sleep($SLEEP_MS) || true")).first()
         }.actual()
@@ -51,5 +53,6 @@ class MongoTimeoutsTest {
     private companion object {
         val SHORT = 200.milliseconds
         const val SLEEP_MS = 2_000
+        const val PROBE = "wow_timeouts_probe"
     }
 }
