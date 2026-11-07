@@ -88,7 +88,7 @@ The configuration surface was settled once before 10.0.0, without aliases: a ren
 | `StateViewCaches.specOf(...)`: a `CacheSpec` | A `VersionedCacheSpec` |
 | `me.ahoo.cocache:cocache-coroutines` | Gone: the suspending views are in `cocache-core` |
 
-**Configuration.** Spring Boot ignores a CoCache key it no longer knows, without a warning, so check every `cocache.*` key:
+**Configuration.** A key CoCache 8 does not define fails the start under `cocache.caches.[<name>]`: a CoCache 6 `ttl-forever` or `load-async-timeout` there, or a cache name with dots written without its brackets (`cocache.caches.wow.eshop-ordering.order.ttl`). Anywhere else, `cocache.defaults` and `cocache.overrides` included, Spring Boot ignores it without a warning, so a CoCache 6 `cocache.defaults.ttl` no longer applies. Check every `cocache.*` key:
 
 | CoCache 6 | CoCache 8 |
 | --- | --- |
@@ -102,7 +102,7 @@ The configuration surface was settled once before 10.0.0, without aliases: a ren
 | `fill-in-transaction`, `invalidate-fills-on-rollback` | Under `cocache.defaults.cache.*` or `cocache.caches.[<name>].*` |
 | `refresh-window` on a state view's cache: refused at start | Off by Wow's declaration, so `cocache.defaults.cache.refresh-window` does not reach it; `cocache.caches.[wow.<context>.<aggregate>].refresh-window` turns it on for one |
 
-An entry under `cocache.caches` that names no cache, or a key its type does not have, fails the start. [CoCache's upgrade guide](https://cocache.ahoo.me/guide/upgrade) lists the rest, the Redis ACL among them.
+An entry under `cocache.caches` that names no cache, or a key its type does not have, fails the start too; `cocache.caches-validation: warn` logs these instead. [CoCache's upgrade guide](https://cocache.ahoo.me/guide/upgrade) lists the rest, the Redis ACL among them.
 
 **Deleting a state.** CoCache's endpoint deletes a state view's key with `evict`, which keeps its version; `?purge=true` drops the version and needs `management.endpoint.cocache.allow-purge` ([Drop a state from the cache](../guide/extensions/cocache#drop-a-state-from-the-cache)).
 

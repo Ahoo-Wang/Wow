@@ -88,7 +88,7 @@ OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出
 | `StateViewCaches.specOf(...)`：一个 `CacheSpec` | 一个 `VersionedCacheSpec` |
 | `me.ahoo.cocache:cocache-coroutines` | 已移除：挂起视图在 `cocache-core` 中 |
 
-**配置。** Spring Boot 会忽略 CoCache 不再认识的键，且不给出警告，所以请检查每个 `cocache.*` 键：
+**配置。** `cocache.caches.[<name>]` 下 CoCache 8 没有定义的键会导致启动失败：例如那里 CoCache 6 的 `ttl-forever` 或 `load-async-timeout`，或者含点的缓存名没有写方括号（`cocache.caches.wow.eshop-ordering.order.ttl`）。其它位置的这类键，包括 `cocache.defaults` 与 `cocache.overrides` 下的，Spring Boot 会忽略且不给出警告，因此 CoCache 6 的 `cocache.defaults.ttl` 不再生效。请检查每个 `cocache.*` 键：
 
 | CoCache 6 | CoCache 8 |
 | --- | --- |
@@ -102,7 +102,7 @@ OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出
 | `fill-in-transaction`、`invalidate-fills-on-rollback` | 移到 `cocache.defaults.cache.*` 或 `cocache.caches.[<name>].*` 下 |
 | 状态视图缓存上的 `refresh-window`：启动时拒绝 | 由 Wow 的声明关闭，`cocache.defaults.cache.refresh-window` 不作用于它；`cocache.caches.[wow.<context>.<aggregate>].refresh-window` 为单个缓存开启 |
 
-`cocache.caches` 下没有对应缓存的条目，或缓存类型没有的键，都会导致启动失败。其余变化（包括 Redis ACL）见 [CoCache 的升级指南](https://cocache.ahoo.me/guide/upgrade)。
+`cocache.caches` 下没有对应缓存的条目，或缓存类型没有的键，同样会导致启动失败；`cocache.caches-validation: warn` 改为只记录警告。其余变化（包括 Redis ACL）见 [CoCache 的升级指南](https://cocache.ahoo.me/guide/upgrade)。
 
 **删除状态。** CoCache 的端点以 `evict` 删除状态视图的键，保留其版本；`?purge=true` 连版本一起删除，需要 `management.endpoint.cocache.allow-purge`（[从缓存中删除状态](../guide/extensions/cocache#drop-a-state-from-the-cache)）。
 
