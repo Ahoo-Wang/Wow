@@ -376,8 +376,9 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     val currentVersion = "SELECT coalesce(max(version), 0) FROM $log WHERE aggregate_id = ? AND tenant_id = ?"
 
+    /** A page of an aggregate's streams by version ([me.ahoo.wow.spi.log.VersionPages]): from, to, and the page's size last. */
     val read = "SELECT $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version BETWEEN ? AND ? " +
-        "ORDER BY version"
+        "ORDER BY version LIMIT ?"
 
     /**
      * The tail of an aggregate from a version and the request keys of its latest streams before it, one statement:
@@ -418,8 +419,9 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             "UNION ALL SELECT 2 AS part, $factNulls, $read FROM s ORDER BY part, version"
     }
 
+    /** A page of an aggregate's entries by version ([me.ahoo.wow.spi.log.VersionPages]), as [read]'s. */
     val entries = "SELECT partition, sequence, $FACTS, transport FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
-        "AND version BETWEEN ? AND ? ORDER BY version"
+        "AND version BETWEEN ? AND ? ORDER BY version LIMIT ?"
 
     val position = "SELECT partition, sequence FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version = ?"
 
