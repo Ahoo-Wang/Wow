@@ -14,6 +14,7 @@
 package me.ahoo.wow.cocache
 
 import me.ahoo.cocache.core.CacheRuntime
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.Manifest
@@ -28,6 +29,7 @@ import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.ConfigurationCondition
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.format.datetime.standard.DurationFormatterUtils
@@ -42,8 +44,10 @@ import java.time.Duration
  *
  * - **The readers**: a lazy `StateViewCache<V>` bean of each state view the peer contracts on the class path name
  *   ([StateViewCacheRegistrar]), from the service's [StateViewCaches], whose misses read through the node's
- *   [QueryApi]. Its caches are created at startup, through CoCache's starter when the application has it, so
- *   `cocache.caches.[wow.<context>.<aggregate>].*` applies to them.
+ *   [QueryApi]. Its caches are created at startup, through the starter's [CoCacheFactory] when the application has
+ *   it, so CoCache's settings (`cocache.defaults.cache.*`, `cocache.caches.[wow.<context>.<aggregate>].*`) apply to
+ *   them. They are created even under `spring.main.lazy-initialization` (`@Lazy(false)`): the starter checks, once the
+ *   singletons exist, that every `cocache.caches.[name]` names a cache, and a cache created later is not one yet.
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
  *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */
@@ -51,15 +55,16 @@ import java.time.Duration
 @Conditional(WowCoCacheAutoConfiguration.RunsCoCache::class)
 class WowCoCacheAutoConfiguration {
     @Bean
+    @Lazy(false)
     fun wowStateViewCaches(
         runtime: CacheRuntime,
+        factories: ObjectProvider<CoCacheFactory>,
         beanFactory: ConfigurableListableBeanFactory,
         queries: ObjectProvider<QueryApi>,
     ): StateViewCaches {
-        val classLoader = classLoaderOf(beanFactory)
-        val factory = StarterCaches.factoryOf(beanFactory, classLoader) ?: StateViewCaches.CacheFactory.of(runtime)
+        val factory = factories.ifAvailable ?: CoCacheFactory(runtime)
         return StateViewCaches(factory) { queries.getObject() }.apply {
-            declare(ContractViews.onClassPath(classLoader).values)
+            declare(ContractViews.onClassPath(classLoaderOf(beanFactory)).values)
         }
     }
 
