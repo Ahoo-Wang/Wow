@@ -39,6 +39,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -294,6 +295,24 @@ class TimerRunnerTest {
         eventually { status("pay").status == TimerStatus.FIRED }
         fatals.isFatal.assert().isFalse()
     }
+
+    @Test
+    fun `a stack overflow outside the sending leaves the timer to the next load, never the node's`(): Unit =
+        runBlocking {
+            val fatals = NodeFatals("node-1")
+            val overflowing = AtomicBoolean(true)
+            val claiming = object : TimerStore by store {
+                override suspend fun settle(changes: List<TimerChange>): Int {
+                    if (overflowing.compareAndSet(true, false)) throw StackOverflowError()
+                    return store.settle(changes)
+                }
+            }
+            store.put(timer("pay"))
+            runner(timers = claiming, loop = loop(fatals = fatals)).startPartition(0)
+            eventually { status("pay").status == TimerStatus.FIRED }
+            fired.assert().containsExactly(timer("pay").id)
+            fatals.isFatal.assert().isFalse()
+        }
 
     @Test
     fun `a parking that is not written leaves the ledger alone`(): Unit = runBlocking {

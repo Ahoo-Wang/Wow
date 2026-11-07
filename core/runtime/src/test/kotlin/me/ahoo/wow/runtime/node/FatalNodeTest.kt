@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
@@ -265,6 +266,28 @@ class FatalNodeTest {
             eventually(20.seconds) { two.context(BANK).ownership.owned == (0 until PARTITIONS).toSet() }
             eventually(15.seconds) { audited["node-2"].orEmpty().contains(id) }
             one.fatals.count.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a node that met a fatal error before it started should not start, nor one on standby be activated`(): Unit =
+        runBlocking {
+            val early = node("node-1")
+            early.fatals.record(Component.NODE, "background", OutOfMemoryError("not really"))
+            assertThrows<IllegalStateException> { runBlocking { early.start() } }.message.assert().contains(
+                "fatal error"
+            )
+
+            val standby = node("node-2")
+            standby.start(standby = true)
+            standby.fatals.record(Component.NODE, "background", OutOfMemoryError("not really"))
+            assertThrows<IllegalStateException> {
+                runBlocking {
+                    standby.activate(
+                        "ops"
+                    )
+                }
+            }.message.assert().contains("fatal error")
+            standby.context(BANK).ownership.isRunning.assert().isFalse()
         }
 
     private companion object {

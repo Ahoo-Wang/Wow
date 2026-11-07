@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.Checkpoint
@@ -353,19 +354,12 @@ internal class SubscriptionWorker(
                     is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
                     is Item.Retry -> runRetry(ref, item)
                 }
-            } catch (fatal: VirtualMachineError) {
-                if (!NodeFatals.isFatal(fatal)) {
-                    throw fatal
-                }
+            } catch (error: VirtualMachineError) {
+                // An operator's retry fails with it, whatever it is, rather than wait on a lane that stops.
+                (item as? Item.Retry)?.result?.completeExceptionally(error)
                 // The lane stops here, still active, so the aggregate's later entries queue behind it unhandled.
-                fatals.record(
-                    ObservedEvent.Fatal.Component.SUBSCRIPTION,
-                    "$group/${subscription.name}",
-                    fatal,
-                    partition
-                )
-                (item as? Item.Retry)?.result?.completeExceptionally(fatal)
-                throw fatal
+                fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", error, partition)
+                throw error
             }
         }
     }

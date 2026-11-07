@@ -14,9 +14,12 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -24,12 +27,15 @@ import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.health.NodeFatal
 import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -229,6 +235,42 @@ class SubscriptionRetryTest {
         ledger.parked("recursive", cart("x"))!!.reason.assert().contains(StackOverflowError::class.java.name)
         handled.versionsOf("y").assert().containsExactly(1)
         fatals.isFatal.assert().isFalse()
+    }
+
+    @Test
+    fun `an operator's retry that meets a virtual machine error fails with it, fatal or not`(): Unit = runBlocking {
+        // X-80: the retry's caller never waits on a lane that stopped.
+        listOf(OutOfMemoryError("not really") to true, StackOverflowError() to false).forEach { (error, fatal) ->
+            val fatals = NodeFatals("node-1")
+            val reading = AtomicReference<Throwable?>()
+            val failing = object : EventLog by log {
+                override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+                    reading.get()?.let { thrown -> flow { throw thrown } } ?: log.readEntries(ref, fromVersion, toVersion)
+            }
+            val name = "retried-$fatal"
+            val parking = Subscription(name, SubscriptionFilter("shop")) { entry ->
+                check(entry.ref.id != "x") { "x is broken" }
+            }
+            // A group of its own, so the subscription reads the log from its start.
+            val runtime = SubscriptionRuntime(
+                "group-$fatal",
+                failing,
+                checkpoints,
+                ledger,
+                listOf(parking),
+                testOptions(maxAttempts = 1),
+                Clock.systemUTC(),
+                fatals = fatals,
+            )
+            if (fatal) appender.append("x")
+            runtime.start(setOf(0, 1))
+            eventually { ledger.isParked(name, cart("x")) }
+            reading.set(error)
+            runCatching { runtime.retry(name, cart("x")) }.exceptionOrNull().assert().isInstanceOf(error.javaClass)
+            runtime.stop()
+            fatals.isFatal.assert().isEqualTo(fatal)
+            ledger.isParked(name, cart("x")).assert().isTrue()
+        }
     }
 
     private suspend fun reachedEnd(subscription: String): Boolean = setOf(0, 1).all { partition ->

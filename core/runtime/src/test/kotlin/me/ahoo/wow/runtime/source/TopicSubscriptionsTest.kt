@@ -45,6 +45,7 @@ import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The subscriptions of another context's published topic (decision D134) over [InMemoryTopics]: partitions leased by
@@ -128,6 +129,20 @@ class TopicSubscriptionsTest {
             }
         }
     }
+
+    @Test
+    fun `a node that steps out of a topic's group should hand its partitions to the other and join it no more`(): Unit =
+        runBlocking {
+            // X-80: after a fatal error the node holds no partition of the topic, and never takes one again.
+            val one = start("node-1")
+            val two = start("node-2")
+            eventually { listOf(one, two).all { it.ownership!!.owned.isNotEmpty() } }
+            one.stepOut(10.seconds)
+            eventually { two.ownership!!.owned == (0 until PARTITIONS).toSet() }
+            one.ownership!!.owned.assert().isEmpty()
+            one.stop()
+            assertThrows<IllegalStateException> { runBlocking { one.start() } }.message.assert().contains("stepped out")
+        }
 
     @Test
     fun `the partitions should be leased across the nodes by HRW and each record handled once`(): Unit = runBlocking {

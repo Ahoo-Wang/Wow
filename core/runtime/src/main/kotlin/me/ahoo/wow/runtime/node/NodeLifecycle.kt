@@ -76,7 +76,7 @@ import kotlin.time.TimeSource
  * partition's new owner. Its liveness and readiness stay `DOWN` until the process ends
  * ([me.ahoo.wow.runtime.health.NodeHealth]), and the host's stop ends the rest. A node that is starting steps out once
  * its start ends, and one that is stopping hands off as it stops; a node on standby holds nothing, and is not
- * activated any more.
+ * activated any more; a node that has not started does not start.
  */
 internal class NodeLifecycle(private val assembly: NodeAssembly, private val listener: (ServiceNode.Step) -> Unit) {
     private val service = assembly.service
@@ -130,6 +130,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     /** Starts the node ([ServiceNode.start]), on standby when [standby] says so. */
     suspend fun start(standby: Boolean): Unit = lock.withLock {
         check(state == ServiceNode.State.NEW) { "Node $node is $state; a node starts once." }
+        check(!assembly.fatals.isFatal) { "Node $node met a fatal error; it does not start." }
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         JdkCheck.PROCESS.warnOnce()
         state = ServiceNode.State.STARTING

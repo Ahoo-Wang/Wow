@@ -32,6 +32,7 @@ class KernelHooksTest {
     data class Touch(val reason: String)
     data class Refuse(val reason: String)
     data class Boom(val reason: String)
+    data class Exhaust(val fatal: Boolean)
 
     data class Opened(val by: String)
     data class Touched(val reason: String)
@@ -63,6 +64,12 @@ class KernelHooksTest {
         decide<Boom> { _, command ->
             onAppendFailure { trail += "undo ${command.reason}" }
             onAppendFailure { check(command.reason != "fragile") { "undo failed" } }
+            throw UnsupportedOperationException("boom")
+        }
+        decide<Exhaust> { _, command ->
+            onAppendFailure { trail += "undo first" }
+            onAppendFailure { throw if (command.fatal) OutOfMemoryError("not really") else StackOverflowError() }
+            onAppendFailure { trail += "undo last" }
             throw UnsupportedOperationException("boom")
         }
         after(exclude = setOf(Open::class.java)) { _, command -> listOf(Audited(command.javaClass.simpleName)) }
@@ -162,6 +169,26 @@ class KernelHooksTest {
     }
 
     @Test
+    fun `a compensation's fatal error is thrown once every compensation ran, the failure it undoes joined to it`() =
+        runTest {
+            // X-80: an out of memory is the node's, never a failure to log and go on from.
+            val log = opened()
+            val fatal = runCatching { Kernel(log).execute(model, command(Exhaust(fatal = true))) }.exceptionOrNull()
+            fatal.assert().isInstanceOf(OutOfMemoryError::class.java)
+            fatal?.suppressed?.single()?.message.assert().isEqualTo("boom")
+            trail.assert().containsExactly("undo last", "undo first")
+        }
+
+    @Test
+    fun `a compensation's stack overflow joins the failure it undoes, as any failure of it`() = runTest {
+        val log = opened()
+        val failure = runCatching { Kernel(log).execute(model, command(Exhaust(fatal = false))) }.exceptionOrNull()
+        failure?.message.assert().isEqualTo("boom")
+        failure?.suppressed?.single().assert().isInstanceOf(StackOverflowError::class.java)
+        trail.assert().containsExactly("undo last", "undo first")
+    }
+
+    @Test
     fun `a conflict runs the attempt's compensations before deciding again`() = runTest {
         val log = opened()
         val racing = object : EventLog by log {
@@ -188,6 +215,38 @@ class KernelHooksTest {
         }
         Kernel(unknown).execute(model, command(Touch("x"))).assert().isInstanceOf(CommandOutcome.Unknown::class.java)
         trail.assert().isEmpty()
+    }
+
+    @Test
+    fun `an after-append action's fatal error is thrown once every action ran, the events committed`() = runTest {
+        val exhausting = aggregate<Counter>("test", "counter") {
+            initial { Counter(it.id) }
+            decide<Open>(Creation.REQUIRED) { _, command ->
+                afterAppend { throw OutOfMemoryError("not really") }
+                afterAppend { trail += "notified" }
+                Decision.events(Opened(command.by))
+            }
+            evolve<Opened> { }
+        }
+        val log = InMemoryEventLog()
+        runCatching { Kernel(log).execute(exhausting, command(Open("me"))) }.exceptionOrNull()
+            .assert().isInstanceOf(OutOfMemoryError::class.java)
+        trail.assert().containsExactly("notified")
+        log.read(ref).toList().map { it.version }.assert().containsExactly(1)
+    }
+
+    @Test
+    fun `an after-append action's stack overflow does not fail the committed command`() = runTest {
+        val recursing = aggregate<Counter>("test", "counter") {
+            initial { Counter(it.id) }
+            decide<Open>(Creation.REQUIRED) { _, command ->
+                afterAppend { throw StackOverflowError() }
+                Decision.events(Opened(command.by))
+            }
+            evolve<Opened> { }
+        }
+        Kernel(InMemoryEventLog()).execute(recursing, command(Open("me")))
+            .assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }
 
     @Test
