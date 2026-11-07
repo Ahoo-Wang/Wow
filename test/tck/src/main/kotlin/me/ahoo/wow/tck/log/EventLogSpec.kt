@@ -1230,7 +1230,7 @@ abstract class EventLogSpec {
         const val DEFAULT_PARTITIONS = 8
 
         /** The streams of one aggregate a long read's appends commit at a time. */
-        const val APPEND_GROUP = 64
+        private const val APPEND_GROUP = 64
         const val CONTEXT_SUFFIX = 12
         const val TAIL_TIMEOUT_MS = 30_000L
     }
