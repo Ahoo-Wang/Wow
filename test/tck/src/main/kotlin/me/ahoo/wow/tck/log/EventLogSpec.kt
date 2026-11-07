@@ -645,7 +645,7 @@ abstract class EventLogSpec {
 
     @Test
     fun `a long read is whole and in order across its pages, read and readEntries alike`(): Unit = runBlocking {
-        // X-80: a backend reads a page of VersionPages.SIZE streams at a time; its pages join with no gap nor repeat.
+        // A backend reads a page of VersionPages.SIZE streams at a time; its pages join with no gap nor repeat.
         val log = createLog()
         val ref = type.ref("tenant", "long")
         val count = 2 * VersionPages.SIZE + 3
