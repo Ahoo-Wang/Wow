@@ -57,6 +57,7 @@ import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.ObservedEvent
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
@@ -102,6 +103,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     private val stateCacheCapacity = wiring.stateCacheCapacity
     private val stateCacheBytes = wiring.stateCacheBytes
     private val committedHandlers = wiring.committedHandlers
+    private val fatals = wiring.fatals
 
     private fun membershipOf(leases: LeaseStore): ServiceMembership = wiring.membershipOf(leases)
 
@@ -128,6 +130,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
                 // The default log group's runtime has the group's name and checkpoints too, and tells their orphans.
                 tellsOrphans = false,
                 catchUps = catchUps,
+                fatals = fatals,
             )
         }
 
@@ -160,7 +163,12 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val parts = logGroupsOf(context, models, backends)
         val groups = parts.map { it.withLog(handoffOf(context, it.log, states)) }
         val routed = routedLog(groups)
-        val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
+        val log = PartitionAppendQueue(
+            routed,
+            options.appendQueue,
+            wiring.contextOf(Component.APPEND_QUEUE, context),
+            capacity = options.executor.maxInFlight,
+        )
         val names = ContextCommandTypes(models, contracts)
         val reserved = reservationsOf(backends, groups)
         val kernel = kernelOf(log, backends, reserved, codec, names, states)
@@ -218,6 +226,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         views.forExecutor(),
         inFlight,
         clock = clock,
+        fatals = fatals,
     )
 
     /**
@@ -262,6 +271,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         backends.leases,
         options.cluster,
         logGroups.first().subscriptions,
+        wiring.contextOf(Component.OWNERSHIP, group.name),
         // Connected ahead of the first forward, so its timeout is not spent opening a connection.
         peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
         intake = intake,
@@ -297,6 +307,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
             clock = clock,
             cutover = ImportCutover.groupOf(context),
             catchUps = catchUps,
+            fatals = fatals,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }

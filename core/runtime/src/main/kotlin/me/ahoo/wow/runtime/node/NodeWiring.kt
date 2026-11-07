@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.node
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.FailureClassification
@@ -23,15 +24,18 @@ import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.PeerEvents
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
+import kotlin.coroutines.CoroutineContext
 
 /**
  * What every part of a [ServiceNode] shares: its identity and [address], its options and plug-ins, the node-wide
@@ -71,7 +75,13 @@ internal class NodeWiring(
     val membershipOf: (LeaseStore) -> ServiceMembership,
     /** The `@OnCommitted` handlers of a context's sagas: hops of its waits. */
     val committedHandlers: (String) -> Set<String>,
+    /** The node's fatal errors, which its loops record and the handler of its scopes catches. */
+    val fatals: NodeFatals,
 ) {
+    /** Where [component]'s coroutines on [name] run: the default dispatcher, with the node's handler of fatal errors. */
+    fun contextOf(component: Component, name: String): CoroutineContext =
+        Dispatchers.Default + fatals.contextOf(component, name)
+
     /**
      * The node's permits of partitions reading behind their head, which every subscription runtime of the node shares
      * ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.maxCatchUps]); null when it bounds none.

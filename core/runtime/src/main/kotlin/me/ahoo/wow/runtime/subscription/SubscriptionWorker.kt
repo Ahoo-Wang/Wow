@@ -38,6 +38,7 @@ import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
@@ -98,6 +99,11 @@ import kotlin.random.Random
  * before [importedThrough], or a record a peer published so. A saga or a reactor passes over an imported record of a
  * peer's topic as it passes over an entry outside its filter, since 9.x already acted on it; a projection takes it,
  * and so does every subscription of the log, a compensation's parked retry of an imported entry among them.
+ *
+ * A [VirtualMachineError] (out of memory, say) is no failure of the handler: it is neither retried nor parked, since
+ * the JVM is not to be trusted after one. Its lane records it as its node's fatal error ([fatals]) and stops, its entry
+ * incomplete, so the checkpoint stays below it; the node hands the partition off, and its new owner handles the entry
+ * again from the checkpoint. The worker's other lanes go on until then.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -120,6 +126,8 @@ internal class SubscriptionWorker(
     private val random: Random = Random.Default,
     /** The sequence up to which the partition of the log holds imported history; 0 for none, and for a topic. */
     private val importedThrough: Long = 0L,
+    /** Where a lane records the fatal error that stops it: its node's. */
+    private val fatals: NodeFatals = NodeFatals.NONE,
 ) {
     private val permits = Semaphore(options.maxInFlight)
 
@@ -339,9 +347,21 @@ internal class SubscriptionWorker(
                     null
                 }
             } ?: return
-            when (item) {
-                is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
-                is Item.Retry -> runRetry(ref, item)
+            try {
+                when (item) {
+                    is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
+                    is Item.Retry -> runRetry(ref, item)
+                }
+            } catch (fatal: VirtualMachineError) {
+                // The lane stops here, still active, so the aggregate's later entries queue behind it unhandled.
+                fatals.record(
+                    ObservedEvent.Fatal.Component.SUBSCRIPTION,
+                    "$group/${subscription.name}",
+                    fatal,
+                    partition
+                )
+                (item as? Item.Retry)?.result?.completeExceptionally(fatal)
+                throw fatal
             }
         }
     }
@@ -447,7 +467,7 @@ internal class SubscriptionWorker(
      * A handler may fail with anything: a [CancellationException] that is not this lane's own, such as
      * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError], is a failure like any other, retried and
      * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
-     * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
+     * retries, and a [VirtualMachineError] (out of memory, say) propagates at once, to stop the lane ([drain]).
      *
      * Each failure is classified ([classification]): an unrecoverable one returns at once, so
      * the aggregate parks without a retry; a recoverable one is retried within the budget; a systemic one, or any
@@ -478,10 +498,7 @@ internal class SubscriptionWorker(
                 succeeded(ref)
                 return Result.failure(rejected)
             } catch (fatal: VirtualMachineError) {
-                logger.error(fatal) {
-                    "Subscription ${subscription.name} met a fatal error handling $ref@" +
-                        "${sourced.stream.version}; its lane stops."
-                }
+                // Never retried: the lane stops ([drain]).
                 throw fatal
             } catch (failure: Throwable) {
                 // The lane's own cancellation propagates; any other is the handler's failure.

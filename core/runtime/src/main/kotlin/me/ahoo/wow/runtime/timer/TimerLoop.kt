@@ -27,6 +27,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
@@ -52,15 +54,20 @@ import kotlin.time.TimeSource
  * acquisition until their hand-off ([me.ahoo.wow.runtime.cluster.PartitionOwnership]).
  *
  * [rounds] counts the rounds that read the stores, for the tests of the one query per round.
+ *
+ * A [VirtualMachineError] a send meets is recorded as the node's fatal error ([fatals]) and ends that send, its timer
+ * left claimed: nothing sends it again here, and the next owner of its partition does once the claim lapses.
  */
 @InternalWowApi
 class TimerLoop(
     internal val options: TimerOptions = TimerOptions(),
     internal val clock: Clock = Clock.systemUTC(),
     context: CoroutineContext = Dispatchers.Default,
+    /** Where a send records the fatal error it meets, and the handler of what escapes the loop: its node's. */
+    internal val fatals: NodeFatals = NodeFatals.NONE,
 ) {
     private val root = SupervisorJob()
-    internal val scope = CoroutineScope(context + root)
+    internal val scope = CoroutineScope(context + root + fatals.contextOf(Component.TIMER, TIMERS))
     private val runners = CopyOnWriteArraySet<TimerRunner>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private val lifecycle = Mutex()
@@ -136,6 +143,8 @@ class TimerLoop(
     }
 
     private companion object {
+        /** The name of the loop's work, every context's timers. */
+        const val TIMERS = "timers"
         val logger = KotlinLogging.logger {}
         val TICK = 1.milliseconds
     }

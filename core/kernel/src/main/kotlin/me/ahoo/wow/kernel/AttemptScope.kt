@@ -174,32 +174,49 @@ internal class AttemptScope(
     /**
      * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
      * They run whether or not the attempt is cancelled: an attempt cancelled while deciding, say a
-     * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
+     * saga's lane stopped by a handover, must still undo what its decide functions did outside the log. A
+     * [VirtualMachineError] one of them meets is thrown once they all ran, [cause] joining it: it is the node's, never a
+     * failure to log and go on from.
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun compensate(cause: Throwable? = null) {
         val registered = compensations ?: return
+        var fatal: VirtualMachineError? = null
         withContext(NonCancellable) {
             registered.asReversed().forEach { compensation ->
                 try {
                     compensation()
+                } catch (error: VirtualMachineError) {
+                    fatal = fatal ?: error
                 } catch (failure: Throwable) {
                     cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
                 }
             }
         }
+        fatal?.let { error ->
+            cause?.takeIf { it !== error }?.let(error::addSuppressed)
+            throw error
+        }
     }
 
+    /**
+     * Runs the after-append actions: a failure of one is logged, the events being committed; a [VirtualMachineError]
+     * one meets is thrown once they all ran.
+     */
     @Suppress("TooGenericExceptionCaught")
     suspend fun afterAppend(version: Int) {
         committed = version
+        var fatal: VirtualMachineError? = null
         afterAppendActions?.forEach { action ->
             try {
                 action()
+            } catch (error: VirtualMachineError) {
+                fatal = fatal ?: error
             } catch (failure: Throwable) {
                 logger.warn(failure) { "An after-append action failed; the events are committed." }
             }
         }
+        fatal?.let { throw it }
     }
 }
 

@@ -21,8 +21,10 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -85,6 +87,7 @@ class TimerRunnerTest {
         maxFireRate: Double? = null,
         pollInterval: Duration = 5.milliseconds,
         maxBusyRetries: Int = 20,
+        fatals: NodeFatals = NodeFatals.NONE,
     ): TimerLoop = TimerLoop(
         TimerOptions(
             pollInterval = pollInterval,
@@ -96,6 +99,7 @@ class TimerRunnerTest {
             maxBusyRetries = maxBusyRetries,
         ),
         clock,
+        fatals = fatals,
     ).also { loops += it }
 
     private fun runner(
@@ -251,17 +255,30 @@ class TimerRunnerTest {
     }
 
     @Test
-    fun `a fatal error leaves the claim to lapse and the timer to be sent again`(): Unit = runBlocking {
-        answers["pay"] = OutOfMemoryError("not really")
-        store.put(timer("pay"))
-        runner().startPartition(0)
-        eventually { fired.size == 1 }
-        status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
-        answers.clear()
-        clock.advance(CLAIM)
-        eventually { status("pay").status == TimerStatus.FIRED }
-        fired.size.assert().isEqualTo(2)
-    }
+    fun `a fatal error is the node's, its timer sent again by the partition's next owner, never here`(): Unit =
+        runBlocking {
+            // X-80: nothing retries it in this process; the claim lapses for the next owner.
+            val fatals = NodeFatals("node-1")
+            answers["pay"] = OutOfMemoryError("not really")
+            store.put(timer("pay"))
+            val runner = runner(loop = loop(fatals = fatals))
+            runner.startPartition(0)
+            eventually { fired.size == 1 && fatals.isFatal }
+            fatals.first!!.component.assert().isEqualTo(Component.TIMER)
+            fatals.first!!.name.assert().isEqualTo(SHOP)
+            fatals.first!!.partition.assert().isEqualTo(0)
+            status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
+            answers.clear()
+            clock.advance(CLAIM)
+            delay(100)
+            fired.size.assert().isEqualTo(1)
+            ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+            // Handed off: the partition's next owner sends it once the claim lapsed.
+            runner.stopPartition(0)
+            runner(loop = loop()).startPartition(0)
+            eventually { status("pay").status == TimerStatus.FIRED }
+            fired.size.assert().isEqualTo(2)
+        }
 
     @Test
     fun `a parking that is not written leaves the ledger alone`(): Unit = runBlocking {

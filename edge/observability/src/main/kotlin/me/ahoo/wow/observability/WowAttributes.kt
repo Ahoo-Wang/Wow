@@ -368,6 +368,15 @@ object WowMetrics {
         tags = listOf(TOPIC),
     )
 
+    val FATAL_ERRORS: MetricSpec = MetricSpec.counter(
+        "wow.node.fatal.errors",
+        "The virtual machine errors (out of memory, a stack overflow) the node's own work met, by the part of the " +
+            "node that met them and the error's class: the first makes the node fatal, its liveness down until the " +
+            "process ends.",
+        tags = listOf(KIND, ERROR_TYPE),
+        values = mapOf(KIND to ObservedEvent.Fatal.Component.entries.map { it.value }),
+    )
+
     val TIMER_DELAY: MetricSpec = MetricSpec.timer(
         "wow.timer.delay",
         "How late a timer fires after its due time.",
@@ -419,7 +428,7 @@ object WowMetrics {
         STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
         ACCESS_WALKED, ACCESS_WALK_PENDING, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
-        BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
+        BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, FATAL_ERRORS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
         QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,
     )
 

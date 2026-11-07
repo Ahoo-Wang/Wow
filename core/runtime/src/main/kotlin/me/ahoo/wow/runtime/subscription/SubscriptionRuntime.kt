@@ -35,12 +35,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.FailureClassification
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -104,6 +106,11 @@ class SubscriptionRuntime internal constructor(
      * runtime of the node shares; null for no bound.
      */
     private val catchUps: Semaphore? = null,
+    /**
+     * Where its lanes record the fatal error that stops one, and the handler of what escapes its coroutines: its
+     * node's ([NodeFatals]).
+     */
+    private val fatals: NodeFatals = NodeFatals.NONE,
 ) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -121,6 +128,7 @@ class SubscriptionRuntime internal constructor(
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         cutover: String? = null,
         catchUps: Semaphore? = null,
+        fatals: NodeFatals = NodeFatals.NONE,
     ) : this(
         group,
         LogSource(log),
@@ -136,6 +144,7 @@ class SubscriptionRuntime internal constructor(
         classification,
         cutover = cutover,
         catchUps = catchUps,
+        fatals = fatals,
     )
 
     private val lifecycle = Mutex()
@@ -179,7 +188,7 @@ class SubscriptionRuntime internal constructor(
         check(running == null) { "Subscription group $group is already running." }
         partitions.forEach(::requirePartition)
         val root = SupervisorJob()
-        val run = Running(root, CoroutineScope(context + root))
+        val run = Running(root, CoroutineScope(context + root + fatals.contextOf(Component.SUBSCRIPTION, group)))
         var started = false
         try {
             // Who read the stream before this start: a subscription that starts where it joins reads it from the
@@ -575,6 +584,7 @@ class SubscriptionRuntime internal constructor(
             checkpoint = start.checkpoint,
             parked = start.parked,
             importedThrough = checkNotNull(importedThrough[partition]) { "The cut-over of $partition is read first." },
+            fatals = fatals,
         ).also {
             part.workers += it
             run.workers[subscription.name to partition] = it

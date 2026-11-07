@@ -56,8 +56,11 @@ config: {}
 # SPRING_APPLICATION_JSON in the ConfigMap.
 settings: {}
 
-# The JVM's options (JAVA_OPTS of the image's start script).
-javaOpts: -XX:MaxRAMPercentage=75.0
+# The JVM's options (JAVA_OPTS of the image's start script): the heap three quarters of the memory limit, and an
+# OutOfMemoryError ends the process, so the pod restarts and the other nodes take its partitions over (an error the
+# node meets also fails its liveness, but the process lives on until the probe restarts it). A javaOpts of your own
+# replaces these: keep -XX:+ExitOnOutOfMemoryError in it.
+javaOpts: -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError
 
 # The Secrets and ConfigMaps of the store addresses and credentials, as the container's envFrom.
 envFrom: []

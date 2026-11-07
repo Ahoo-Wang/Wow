@@ -749,6 +749,27 @@ public final class me/ahoo/wow/spi/observation/ObservedEvent$Backpressured : me/
 	public final fun getSubscription ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Fatal : me/ahoo/wow/spi/observation/ObservedEvent {
+	public final fun getComponent ()Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public final fun getError ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component : java/lang/Enum {
+	public static final field APPEND_QUEUE Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field EXECUTOR Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field LEDGER Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field MEMBERSHIP Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field NODE Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field OWNERSHIP Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field SUBSCRIPTION Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static final field TIMER Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getValue ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+	public static fun values ()[Lme/ahoo/wow/spi/observation/ObservedEvent$Fatal$Component;
+}
+
 public final class me/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed : me/ahoo/wow/spi/observation/ObservedEvent {
 	public final fun getOutcome ()Lme/ahoo/wow/spi/observation/ObservedEvent$ForwardFailed$Outcome;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;

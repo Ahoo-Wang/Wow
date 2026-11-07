@@ -12,7 +12,7 @@ ports:
   internal: 9091
 config:
   SPRING_PROFILES_ACTIVE: dev
-javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+ExitOnOutOfMemoryError -XX:+UseSerialGC -XX:ActiveProcessorCount=2
 resources:
   requests:
     cpu: 100m

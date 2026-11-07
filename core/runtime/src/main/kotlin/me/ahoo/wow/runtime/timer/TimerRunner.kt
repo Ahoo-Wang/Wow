@@ -30,6 +30,7 @@ import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -225,15 +226,16 @@ class TimerRunner(
 
     /**
      * Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. Whatever ends the attempt
-     * unsettled leaves the timer to the next load, not stuck as being sent.
+     * unsettled leaves the timer to the next load, not stuck as being sent; a [VirtualMachineError] is the node's fatal
+     * error ([TimerLoop.fatals]), which nothing retries here: the timer stays marked as being sent, so no load of this
+     * node sends it again, and the next owner of the partition sends it once its claim lapses.
      */
     @Suppress("TooGenericExceptionCaught") // Rethrown once the timer is no longer marked as being sent.
     private suspend fun fire(part: Part, timer: Timer) {
         try {
             attempt(part, timer)
         } catch (fatal: VirtualMachineError) {
-            part.sending.remove(timer.id)
-            logger.error(fatal) { "Sending the timer ${timer.id} met a fatal error." }
+            loop.fatals.record(Component.TIMER, context, fatal, part.partition)
             throw fatal
         } catch (escaped: Throwable) {
             part.sending.remove(timer.id)

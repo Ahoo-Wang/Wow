@@ -31,7 +31,10 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.command.CommandIntake
+import me.ahoo.wow.runtime.health.NodeFatal
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
@@ -59,6 +62,13 @@ import kotlin.time.TimeSource
  *
  * [listener] hears each [ServiceNode.Step] once it is done. A step that fails is logged and the next ones still run;
  * [stop] then throws the first failure. It logs as the [ServiceNode].
+ *
+ * **A fatal error** ([NodeFatals]: a [VirtualMachineError], out of memory say, that the node's own work met) stops the
+ * node at once, in the background, as [stop] does: nothing in the process is to be trusted after one, so the node
+ * holds nothing it would no longer do. It hands off every partition, so the other nodes take them over from their
+ * checkpoints even where nothing restarts this one, then refuses commands and closes the rest. Its liveness stays
+ * `DOWN` until the process ends ([me.ahoo.wow.runtime.health.NodeHealth]); the host's own stop then does nothing. A node
+ * that is starting stops once its start ends.
  */
 internal class NodeLifecycle(private val assembly: NodeAssembly, private val listener: (ServiceNode.Step) -> Unit) {
     private val service = assembly.service
@@ -254,7 +264,34 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     }
 
     /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
-    private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val background =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "background"))
+
+    /** Runs the stop a fatal error starts: apart from [background], which the stop cancels. */
+    private val stopping =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "stop"))
+
+    init {
+        assembly.fatals.listen { fatal -> stopping.launch { stopFatally(fatal) } }
+    }
+
+    /** Stops the node after its first fatal error [fatal] (see the class description). */
+    private suspend fun stopFatally(fatal: NodeFatal) {
+        logger.error {
+            "Node $node of $service stops after its fatal error in ${fatal.component.value} ${fatal.name}: it hands " +
+                "off its partitions, so the other nodes take them over from their checkpoints, and serves no command " +
+                "until its process ends."
+        }
+        try {
+            stop()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            logger.warn(failure) {
+                "Node $node of $service did not stop cleanly after its fatal error; the leases it kept lapse on their own."
+            }
+        }
+    }
 
     /**
      * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration, in the

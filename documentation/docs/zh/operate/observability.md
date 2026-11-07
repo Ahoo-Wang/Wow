@@ -22,18 +22,28 @@ outline: deep
 
 | 组件 | 何时 `DOWN`（未就绪） | 何时 `DEGRADED` |
 | --- | --- | --- |
-| `node` | 节点没有在运行：启动中、排空中或已停止 | |
+| `node` | 节点没有在运行：启动中、排空中或已停止；或者它遇到了[致命错误](#fatal-errors)，此后一直如此 | |
 | `stores` | 某个日志，或写入需要的某个存储（存放日志的存储、某个聚合类型的主快照存储），持续失败了 `wow.health.stores.down-after`（15 秒），期间没有成功过 | 其中某个在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `secondaryStores` | 从不：写入路径之外的每个存储实例（额外的快照存储、查询或搜索存储）按与 `stores` 相同的规则变为 `DOWN`，但它的故障只降级它所服务的读取，不影响节点，所以就绪检查不包含它 | 它在 `wow.health.stores.window`（1 分钟）内失败过 |
 | `ownership` | 它的租约存储不可用，或者在 `wow.health.ownership.handover-grace`（1 分钟）之后，节点仍没有拥有某个租约组中应得的任何分区 | 它在这么长时间内拥有的分区集合不是它应得的那份，或者租约存储最近失败过 |
 | `topics` | 它读取的另一个上下文的某个主题仍在加入中（除非 `wow.health.topics.required: false`） | 在 `wow.health.topics.required: false` 时仍在加入中 |
 | `subscriptions` | 从不 | 某个订阅落后了 `lag-degraded-at`（10,000）个条目，有 `parked-degraded-at`（100）个停放条目或比上一次采样时多，或暂停了某个分区 |
 | `executor` | | 执行器的在途量达到其上限的 `saturation`（90%） |
-| `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。只有这一项会让存活探针失败 | |
+| `liveness` | 节点卡住超过 `wow.health.liveness.stall-timeout`（3 分钟）：它的调度器没有运转，后端驱动调用的线程什么也不运行，分区的一次协调没有结束，或者在每个日志都有响应的情况下在途的命令没有完成。或者节点遇到了[致命错误](#fatal-errors)：此后直到进程结束。只有这一项会让存活探针失败 | |
 
 降级的组件不会改变分组的状态：它的作用是让人看到并据此报警。存活探针从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。探针不能等待的东西（日志的头部、订阅的落后量、停放的条目），节点每隔 `wow.node.sample-interval`（10 秒）采样一次，所以探针能立即得到回答。同一次采样同时供健康与 gauge 使用，每个订阅按它的组和名字区分：每个上下文的 `snapshot` 订阅各自独立，有自己的停放计数，最多计到 `wow.node.max-parked`。
 
 响应除了状态之外还显示什么，由 Actuator 自己的设置决定（`management.endpoint.health.show-details`，默认 `never`）。详情包含计数、状态和异常类名，从不包含消息或地址。探针的写法见 [Kubernetes](./kubernetes#probes)。
+
+### 致命错误 {#fatal-errors}
+
+节点自身工作遇到的 `VirtualMachineError`（`OutOfMemoryError`、`StackOverflowError`、JVM 的内部错误）不是这项工作的失败：无论它出现在订阅的处理函数、定时器的发送、命令的执行，还是节点的某个循环里（租约的协调与续约、成员资格、某个上下文的追加队列、台账的发布器）。出现之后，JVM 的状态已不可信，重试可能再次遇到同样的错误，所以它既不重试，也不停放到失败台账。节点从此是致命的：
+
+- `liveness` 与 `node` 一直为 `DOWN`，直到进程结束，不论节点处于什么状态：进程内没有任何东西能让它们恢复。它们的详情在 `fatal` 下给出第一个致命错误：遇到它的节点部分（`component`：`subscription`、`timer`、`executor`、`ownership`、`membership`、`append-queue`、`ledger`、`node`），它在运行什么（`name`：订阅及其组、上下文、租约组），`partition`，错误的类（`error`），以及距今多久（`fatalMillis`）；`liveness` 另给出遇到了几个（`fatalErrors`）。
+- 第一个以 ERROR 记录一次，带调用栈；每一个都计入 `wow.node.fatal.errors`。
+- 节点自行停止，如同优雅关闭：先交出它的分区，让其他节点从检查点接手（停止的 lane 持有的条目在那里再处理一次，一如既往至少一次），然后拒绝命令（`wow.node.closing`），关闭其余部分。所以即使没有任何东西依据 liveness 行动，工作也会转移。
+
+用 `-XX:+ExitOnOutOfMemoryError` 运行 JVM，让进程中任何地方（包括请求中）的 `OutOfMemoryError` 立即结束进程，由编排器重新启动它。chart 的默认 `javaOpts` 与 Wow 构建的镜像都设置了它（[Kubernetes](./kubernetes#memory)）；对没有这样运行的 JVM，节点自身的规则是兜底。
 
 ## 指标与追踪 {#metrics-and-traces}
 
@@ -88,4 +98,5 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.timer.delay` 持续增长 | 定时器触发得晚了 | 节点的负载、定时器的存储 |
 | `wow.subscription.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
 | `wow.reservation.losses` 大于 0 | 有唯一键被两个聚合同时依赖 | 指明该键及其持有者的错误日志；预留的存活时间 |
+| `wow.node.fatal.errors` 大于 0 | 某个节点内存耗尽，或遇到了 JVM 的其他错误，并已停止 | 它的 ERROR 日志；堆的大小（[Kubernetes](./kubernetes#memory)） |
 | `error.type=wow.command.busy` 的 `wow.command.refusals` | 节点在负载下拒绝命令 | 节点数、存储的延迟 |

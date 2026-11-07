@@ -22,6 +22,10 @@ import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.runtime.health.NodeFatal
+import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
@@ -143,25 +147,55 @@ class SubscriptionRetryTest {
     }
 
     @Test
-    fun `a fatal virtual machine error is not taken for a handler failure`(): Unit = runBlocking {
-        val attempts = AtomicInteger()
-        val handled = Handled()
-        val fatal = Subscription("fatal", SubscriptionFilter("shop")) { entry ->
-            if (entry.ref.id == "x") {
-                attempts.incrementAndGet()
-                throw OutOfMemoryError("not really")
+    fun `a fatal virtual machine error stops its lane as the node's, neither retried nor parked, the others going on`(): Unit =
+        runBlocking {
+            // X-80: the lane records the node's fatal error and stops; the checkpoint stays below its entry.
+            val fatals = NodeFatals("node-1")
+            val attempts = AtomicInteger()
+            val handled = Handled()
+            val fatal = Subscription("fatal", SubscriptionFilter("shop")) { entry ->
+                if (entry.ref.id == "x") {
+                    attempts.incrementAndGet()
+                    throw OutOfMemoryError("not really")
+                }
+                handled.record(entry)
             }
-            handled.record(entry)
-        }
-        val runtime = runtime(listOf(fatal), testOptions(stopTimeout = 100.milliseconds))
-        listOf("x", "y").forEach { appender.append(it) }
-        runtime.start(setOf(0, 1))
-        eventually { handled.size == 1 && attempts.get() == 1 }
-        runtime.stop()
+            val partition = Partitioner.partitionOf(cart("x"), 2)
+            // An aggregate of the same partition, in a lane of its own.
+            val other = (1..100).map { "y$it" }.first { Partitioner.partitionOf(cart(it), 2) == partition }
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                checkpoints,
+                ledger,
+                listOf(fatal),
+                testOptions(stopTimeout = 100.milliseconds),
+                Clock.systemUTC(),
+                fatals = fatals,
+            )
+            val first = appender.append("x")
+            listOf(other, "x", other).forEach { appender.append(it) }
+            runtime.start(setOf(0, 1))
+            eventually { handled.versionsOf(other).size == 2 && fatals.isFatal }
+            delay(50)
+            runtime.stop()
 
-        attempts.get().assert().isEqualTo(1)
-        ledger.isParked("fatal", cart("x")).assert().isFalse()
-    }
+            attempts.get().assert().isEqualTo(1)
+            handled.versionsOf("x").assert().isEmpty()
+            ledger.isParked("fatal", cart("x")).assert().isFalse()
+            fatals.first.assert().isEqualTo(
+                NodeFatal(
+                    Component.SUBSCRIPTION,
+                    "group/fatal",
+                    partition,
+                    OutOfMemoryError::class.java.name,
+                    fatals.first!!.at,
+                ),
+            )
+            fatals.count.assert().isEqualTo(1)
+            // The partition's next owner handles the entry again, from the checkpoint.
+            checkpoints.load("group", "fatal", partition)!!.assert().isLessThan(first)
+        }
 
     private suspend fun reachedEnd(subscription: String): Boolean = setOf(0, 1).all { partition ->
         val end = appender.ends[partition] ?: 0L

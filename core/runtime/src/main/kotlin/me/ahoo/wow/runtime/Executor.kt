@@ -27,8 +27,10 @@ import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.QueuedCommand
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.wait.WaitContext
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -63,6 +65,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
  * returns when the commands already taken have finished, or its timeout passed.
  *
+ * A [VirtualMachineError] (out of memory, say) a batch meets is recorded as the node's fatal error ([fatals]) and fails
+ * the batch's leader; the node then hands its partitions off.
+ *
  * When [views] are given, each commit's shared state is recorded in them before the lane moves on to the aggregate's
  * next batch, while nothing can change the state: the context's state consumers (the snapshot
  * subscription, the subscriptions of annotated processors) read it. It is taken just before the append
@@ -81,6 +86,8 @@ class Executor(
     /** The node's bound on its commands in flight, shared by the executors of all its contexts. */
     private val limit: InFlightLimit = InFlightLimit(),
     private val clock: Clock = Clock.systemUTC(),
+    /** Where a batch records the [VirtualMachineError] it meets, which then fails its caller: its node's. */
+    private val fatals: NodeFatals = NodeFatals.NONE,
 ) {
     private val lanes = ConcurrentHashMap<AggregateRef, Lane>()
     private val inFlight = AtomicInteger()
@@ -183,6 +190,10 @@ class Executor(
                 }
             }
             return outcomes.first()
+        } catch (fatal: VirtualMachineError) {
+            // The node's fatal error; its caller fails with it, and the lane moves on to the next command.
+            fatals.record(Component.EXECUTOR, model.type.toString(), fatal)
+            throw fatal
         } finally {
             // Before the lane moves on: the aggregate's next batch expects its own.
             views?.forget(own.command.ref)

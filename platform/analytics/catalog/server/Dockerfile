@@ -37,6 +37,10 @@ EXPOSE 8087 9097
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8087"]
 
+# An OutOfMemoryError ends the process, so its orchestrator starts it again and the other nodes take its partitions
+# over; a JAVA_OPTS of your own replaces this (the wow-service chart's javaOpts keeps it).
+ENV JAVA_OPTS="-XX:+ExitOnOutOfMemoryError"
+
 USER 10001
 STOPSIGNAL SIGTERM
 

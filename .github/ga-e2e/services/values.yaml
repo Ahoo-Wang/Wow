@@ -5,7 +5,7 @@
 # Capacity, so every node fits one runner: the heap within the lowered memory limit, one GC thread, two cores' worth of
 # default pools; the log's partitions (64 in deploy/), fewer leases and polls per node; the startup gets five minutes on
 # the runner's shared four cores.
-javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+javaOpts: -XX:MaxRAMPercentage=70.0 -XX:+ExitOnOutOfMemoryError -XX:+UseSerialGC -XX:ActiveProcessorCount=2
 resources:
   requests:
     cpu: 50m

@@ -35,6 +35,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.PausedPartition
@@ -47,6 +48,7 @@ import me.ahoo.wow.runtime.subscription.ThrottledPartition
 import me.ahoo.wow.runtime.subscription.retryForever
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -113,6 +115,8 @@ class TopicSubscriptions internal constructor(
     private val membership: ServiceMembership? = null,
     /** The node's permits of partitions reading behind their head, shared by its runtimes; null for no bound. */
     private val catchUps: Semaphore? = null,
+    /** The node's fatal errors: its runtime's lanes record theirs, and its scopes' handler records what escapes them. */
+    private val fatals: NodeFatals = NodeFatals.NONE,
 ) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -136,6 +140,7 @@ class TopicSubscriptions internal constructor(
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         membership: ServiceMembership? = null,
         catchUps: Semaphore? = null,
+        fatals: NodeFatals = NodeFatals.NONE,
     ) : this(
         service,
         topic,
@@ -158,6 +163,7 @@ class TopicSubscriptions internal constructor(
         classification,
         membership,
         catchUps,
+        fatals,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -225,7 +231,7 @@ class TopicSubscriptions internal constructor(
      */
     suspend fun start(): Unit = lifecycle.withLock {
         check(scope == null) { "The subscriptions of $topic on $node are already started." }
-        val root = CoroutineScope(context + SupervisorJob())
+        val root = CoroutineScope(context + SupervisorJob() + fatals.contextOf(Component.OWNERSHIP, group.name))
         scope = root
         started = CompletableDeferred()
         joinFailures = 0
@@ -284,6 +290,7 @@ class TopicSubscriptions internal constructor(
             observer,
             classification,
             catchUps = catchUps,
+            fatals = fatals,
         )
         val ownership = PartitionOwnership(
             group,
@@ -293,7 +300,7 @@ class TopicSubscriptions internal constructor(
             leases,
             cluster,
             runtime,
-            context,
+            context + fatals.contextOf(Component.OWNERSHIP, group.name),
             membership = membership,
         )
         ownership.start()
