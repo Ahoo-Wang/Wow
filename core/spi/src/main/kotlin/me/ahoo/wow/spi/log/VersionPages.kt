@@ -21,8 +21,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * How a backend reads an aggregate's streams by version ([EventLog.read], [EventLog.readEntries]): a page of at most
  * [SIZE] streams at a time, by the version key, each page emitted before the next is read. A read then holds one page,
  * whatever the aggregate's history: a replay from version 1 of an aggregate of hundreds of thousands of streams, which
- * held them all (X-80), holds 512. Each page is a call of its own, so a long read holds no connection between pages; a
- * read within one page is one call, as before.
+ * held them all, holds 512. Each page is a call of its own, so a long read holds no connection between pages; a read
+ * within one page is one call, as before.
  */
 @InternalWowApi
 object VersionPages {
