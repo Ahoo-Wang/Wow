@@ -88,7 +88,7 @@ OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出
 | `StateViewCaches.specOf(...)`：一个 `CacheSpec` | 一个 `VersionedCacheSpec` |
 | `me.ahoo.cocache:cocache-coroutines` | 已移除：挂起视图在 `cocache-core` 中 |
 
-**配置。** `cocache.caches.[<name>]` 下 CoCache 8 没有定义的键会导致启动失败：例如那里 CoCache 6 的 `ttl-forever` 或 `load-async-timeout`，或者含点的缓存名没有写方括号（`cocache.caches.wow.eshop-ordering.order.ttl`）。其它位置的这类键，包括 `cocache.defaults` 与 `cocache.overrides` 下的，Spring Boot 会忽略且不给出警告，因此 CoCache 6 的 `cocache.defaults.ttl` 不再生效。请检查每个 `cocache.*` 键：
+**配置。** `cocache.caches.[<name>]`、`cocache.defaults` 与 `cocache.overrides` 下 CoCache 8 没有定义的键会导致启动失败，错误信息会说明这个键应写在哪里：例如 CoCache 6 的 `ttl-forever` 或 `load-async-timeout`，CoCache 6 的 `cocache.defaults.ttl`（现为 `cocache.defaults.cache.ttl`）或 `cocache.defaults.key-prefix`（现为 `cocache.key-prefix`），或者含点的缓存名没有写方括号（`cocache.caches.wow.eshop-ordering.order.ttl`）。`cocache` 下其它位置的这类键，例如 `cocache.redis.*` 下的，Spring Boot 会忽略且不给出警告。请检查每个 `cocache.*` 键：
 
 | CoCache 6 | CoCache 8 |
 | --- | --- |

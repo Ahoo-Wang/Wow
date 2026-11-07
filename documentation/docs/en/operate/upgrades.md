@@ -88,7 +88,7 @@ The configuration surface was settled once before 10.0.0, without aliases: a ren
 | `StateViewCaches.specOf(...)`: a `CacheSpec` | A `VersionedCacheSpec` |
 | `me.ahoo.cocache:cocache-coroutines` | Gone: the suspending views are in `cocache-core` |
 
-**Configuration.** A key CoCache 8 does not define fails the start under `cocache.caches.[<name>]`: a CoCache 6 `ttl-forever` or `load-async-timeout` there, or a cache name with dots written without its brackets (`cocache.caches.wow.eshop-ordering.order.ttl`). Anywhere else, `cocache.defaults` and `cocache.overrides` included, Spring Boot ignores it without a warning, so a CoCache 6 `cocache.defaults.ttl` no longer applies. Check every `cocache.*` key:
+**Configuration.** A key CoCache 8 does not define fails the start under `cocache.caches.[<name>]`, `cocache.defaults` and `cocache.overrides`, and the message says where the key goes: a CoCache 6 `ttl-forever` or `load-async-timeout`, a CoCache 6 `cocache.defaults.ttl` (now `cocache.defaults.cache.ttl`) or `cocache.defaults.key-prefix` (now `cocache.key-prefix`), or a cache name with dots written without its brackets (`cocache.caches.wow.eshop-ordering.order.ttl`). Anywhere else under `cocache`, such as `cocache.redis.*`, Spring Boot ignores it without a warning. Check every `cocache.*` key:
 
 | CoCache 6 | CoCache 8 |
 | --- | --- |
