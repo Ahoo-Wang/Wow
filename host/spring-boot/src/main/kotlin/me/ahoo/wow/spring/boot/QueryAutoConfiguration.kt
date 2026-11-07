@@ -162,7 +162,7 @@ class QueryAutoConfiguration {
         @InternalWowApi
         fun wowEventQueryBackend(
             manifest: Manifest,
-            node: ServiceNode,
+            models: WowModels,
             backends: HostBackends,
             wow: ObjectProvider<WowProperties>,
         ): EventQueryBackend {
@@ -194,7 +194,8 @@ class QueryAutoConfiguration {
                 indexes = { type, plan -> indexed(type)?.manageIndexes(type, plan) ?: QueryIndexReport.NONE },
                 manages = { type -> indexed(type) != null },
             ) { type -> storeOf(type)?.let(byStore::get)?.binding(type) }
-            val unserved = ManifestTypes.events(manifest, node.contexts.keys)
+            // The node's contexts, without the node: the node's state rebuilds replay under these stores' bounds.
+            val unserved = ManifestTypes.events(manifest, models.models.mapTo(HashSet()) { it.type.context })
                 .filter { backend.binding(it) == null }
             if (unserved.isNotEmpty()) {
                 logger.info {
@@ -301,38 +302,47 @@ class QueryAutoConfiguration {
         /**
          * How the queries of each store run: the bulkheads of the stores (`wow.stores.<name>.query.
          * max-concurrent`, `wow.query.max-concurrent`, else the provider's from its pool), and whether each type's
-         * events queries that name no aggregate run.
+         * events queries that name no aggregate run. They are built before the node, which replays its states under
+         * them ([wowReplayGate]), so they take none of its beans: the node's write pressure is read as the bounds adapt
+         * ([HostQueryNode]), and the events backend, which the application's may build over the node, when a query asks.
          */
         @Bean
         @InternalWowApi
         fun wowQueryStores(
-            node: ServiceNode,
+            node: HostQueryNode,
             properties: QueryProperties,
             backends: HostBackends,
-            events: EventQueryBackend,
+            events: ObjectProvider<EventQueryBackend>,
             wow: ObjectProvider<WowProperties>,
         ): QueryStores {
             val settings = wow.ifAvailable
+            val backend by lazy { events.getObject() }
             // The bounds are wow-query's: the host maps its properties onto their settings.
             return QueryStores.of(
                 properties.storeSettings(settings?.stores.orEmpty()),
                 backends.stores,
-                { name -> HostQueryBulkheads.pressureOf(node, name, backends.stores[name]) },
-            ) { type -> HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings) }
+                { name -> HostQueryBulkheads.pressureOf(node::started, name, backends.stores[name]) },
+            ) { type -> HostQueryBulkheads.unpinned(type, backend.storeOf(type), properties.events.unpinned, settings) }
         }
 
         /**
          * Evaluates the adaptive query bounds of the stores every period of their options, from the
          * bean's start to its end.
          */
+        /** The node whose write pressure the stores' query bounds adapt to, once the context has built it. */
+        @Bean
+        @InternalWowApi
+        fun wowQueryNode(nodes: ObjectProvider<ServiceNode>): HostQueryNode = HostQueryNode(nodes)
+
         @Bean(initMethod = "start", destroyMethod = "close")
         @InternalWowApi
         fun wowAdaptiveQueryLimits(stores: QueryStores): AdaptiveQueryLimits =
             AdaptiveQueryLimits(stores.limits, AdaptiveLimitOptions.DEFAULT_INTERVAL)
 
         /**
-         * How the state reads replay the log of an aggregate without a snapshot: under the query
-         * bulkhead of its log store, as that store's queries run.
+         * How the state reads replay the log of an aggregate without a snapshot, and the node's subscriptions
+         * rebuild a state: under the query bulkhead of its log store, as that store's queries run. The node is built
+         * with it ([ServiceNode]'s `replayGate`), so it depends on no bean of the node's.
          */
         @Bean
         @ConditionalOnMissingBean

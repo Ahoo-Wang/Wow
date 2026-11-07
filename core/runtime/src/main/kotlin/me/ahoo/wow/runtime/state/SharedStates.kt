@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.state
 
+import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -26,6 +27,7 @@ import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.runtime.Stripes
 import me.ahoo.wow.spi.log.EventStreamRecord
 import java.util.TreeMap
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
@@ -118,6 +120,9 @@ class SharedStateOptions @InternalWowApi constructor(
  *   base of its next entry; and in any case once it is older than [SharedStateOptions.maxAge] or the views exceed
  *   [SharedStateOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
  *   parked never holds views for long. A view missing for any reason costs its reader a rebuild, never a wrong state.
+ * - **Rebuilding**: a reader's rebuild of a state from the snapshot store and the log runs one an aggregate at a time,
+ *   under the [gate] ([rebuild]): the readers that miss the same hot aggregate at once replay its log once, not once
+ *   each, and then evolve the view the rebuild left.
  */
 @InternalWowApi
 class SharedStates(
@@ -125,6 +130,11 @@ class SharedStates(
     readers: Map<String, Set<AggregateType>>,
     private val options: SharedStateOptions = SharedStateOptions(),
     private val timeSource: TimeSource = TimeSource.Monotonic,
+    /**
+     * How a rebuild replays the log: the node's gate, the query bulkhead of the log's store, so the rebuilds of the
+     * subscriptions cannot take every connection the appends draw from; [ReplayGate.OPEN] runs each at once.
+     */
+    val gate: ReplayGate = ReplayGate.OPEN,
 ) {
     /** The readers, by name, with the aggregate types each reads. */
     val readers: Map<String, Set<AggregateType>> = readers.mapValues { it.value.toSet() }
@@ -235,6 +245,35 @@ class SharedStates(
             return
         }
         Stripes.pick(stripes, ref).pass(reader, ref, version, readers)
+    }
+
+    /** The rebuild of each aggregate that runs now ([rebuild]), done once it ends, however it ends. */
+    private val rebuilding = ConcurrentHashMap<AggregateRef, CompletableDeferred<Unit>>()
+
+    /** The number of rebuilds that run now: at most one an aggregate. */
+    val rebuilds: Int get() = rebuilding.size
+
+    /**
+     * Runs [replay], a reader's rebuild of [ref]'s state, under the [gate], and returns what it gives, unless another
+     * reader's rebuild of [ref] runs already: then it waits for that one to end, however it ends, and returns null, so
+     * the caller looks again for the view that rebuild left, and rebuilds itself only without one. A rebuild that
+     * fails, is cancelled or is refused by the gate ends like one that succeeds: one of the readers that waited
+     * for it rebuilds next, and the others wait for that one; none fails with it.
+     *
+     * A wait is cancellable: a reader's own timeout, or the end of its lane, ends it, not the rebuild it waits for.
+     */
+    suspend fun <T : Any> rebuild(ref: AggregateRef, replay: suspend () -> T): T? {
+        val mine = CompletableDeferred<Unit>()
+        rebuilding.putIfAbsent(ref, mine)?.let { running ->
+            running.await()
+            return null
+        }
+        try {
+            return gate.replay(ref, replay)
+        } finally {
+            rebuilding.remove(ref, mine)
+            mine.complete(Unit)
+        }
     }
 
     /** One stripe of the views: at most [capacity] of them and [maxBytes] of their states, under its own lock. */

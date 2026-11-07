@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.SharedStateOptions
 import me.ahoo.wow.runtime.state.SharedStateReader
 import me.ahoo.wow.runtime.state.SharedStates
@@ -94,6 +95,8 @@ class SnapshotSubscription(
     private val active: (AggregateType) -> Boolean = { true },
     /** How many snapshots one write of a partition holds at most ([SnapshotOptions.writeBatch]). */
     private val writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH,
+    /** How the rebuilds of its own [views], when none are given, replay the log ([SharedStates.rebuild]). */
+    gate: ReplayGate = ReplayGate.OPEN,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val written = LruMap<AggregateRef, Written>(capacity)
@@ -111,6 +114,7 @@ class SnapshotSubscription(
         codec,
         mapOf(name to this.models.keys),
         SharedStateOptions(capacity),
+        gate = gate,
     )
 
     private val reader = SharedStateReader(name, models, kernel, codec, this.views, store)

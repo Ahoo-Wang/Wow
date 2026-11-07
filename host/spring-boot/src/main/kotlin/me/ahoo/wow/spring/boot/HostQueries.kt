@@ -41,6 +41,8 @@ import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StorePool
 import me.ahoo.wow.spi.store.WritePressure
 import me.ahoo.wow.spi.store.facet
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 
@@ -250,14 +252,16 @@ internal object HostSnapshotQueryStores {
  */
 internal object HostQueryBulkheads {
     /**
-     * The write pressure of [store]: its appends' latency as [node] measures it, when a log of the
-     * node is on it, and the callers waiting for a connection of its pool, when it says.
+     * The write pressure of [store], read at each sample: its appends' latency as the started [node] measures it, when
+     * a log of the node is on it, and the callers waiting for a connection of its pool, when it says. Without a
+     * started node (not built yet, or stopped), its appends give none.
      */
-    fun pressureOf(node: ServiceNode, name: String, store: Store?): WritePressure {
-        val latency = node.writePressure(name) ?: WritePressure.NONE
-        if (store == null) return latency
-        val pool = store.facet<StorePool>() ?: return latency
-        return WritePressure { latency.sample().waiting(pool.waitingForConnection() ?: 0) }
+    fun pressureOf(node: () -> ServiceNode?, name: String, store: Store?): WritePressure {
+        val pool = store?.facet<StorePool>()
+        return WritePressure {
+            val latency = (node()?.writePressure(name) ?: WritePressure.NONE).sample()
+            pool?.let { latency.waiting(it.waitingForConnection() ?: 0) } ?: latency
+        }
     }
 
     /**
@@ -272,6 +276,26 @@ internal object HostQueryBulkheads {
     ): UnpinnedEvents = properties?.aggregates?.get("${type.context}.${type.name}")?.query?.events?.unpinned
         ?: store?.let { properties?.stores?.get(it)?.query?.events?.unpinned }
         ?: global
+}
+
+/**
+ * The node whose write pressure the stores' query bounds adapt to ([HostQueryBulkheads.pressureOf]), taken once the
+ * context has built every singleton. The bounds cannot take the node as a parameter: the node is built with the
+ * gate its state rebuilds replay under ([me.ahoo.wow.runtime.state.ReplayGate]), which is built over them.
+ */
+@InternalWowApi
+class HostQueryNode(private val nodes: ObjectProvider<ServiceNode>) : SmartInitializingSingleton {
+    @Volatile
+    private var node: ServiceNode? = null
+
+    /** The node once it started and until it stopped; null before it is built, before it starts and once it stopped. */
+    fun started(): ServiceNode? = node?.takeIf {
+        it.state == ServiceNode.State.RUNNING || it.state == ServiceNode.State.STOPPING
+    }
+
+    override fun afterSingletonsInstantiated() {
+        node = nodes.ifAvailable
+    }
 }
 
 /**

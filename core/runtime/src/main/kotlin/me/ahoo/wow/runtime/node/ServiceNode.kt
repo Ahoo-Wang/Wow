@@ -37,6 +37,7 @@ import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.source.TopicSubscriptions
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.RuntimeFailures
 import me.ahoo.wow.runtime.timer.TimerLoop
@@ -157,6 +158,12 @@ class ServiceNode @InternalWowApi constructor(
      * host's query API, resolved when a handler first reads; none by default, and a read then fails.
      */
     queries: ContextQueries = ContextQueries.NONE,
+    /**
+     * How the rebuilds of the subscriptions' states replay the log ([me.ahoo.wow.runtime.state.SharedStates.rebuild]):
+     * the Spring Boot host passes its gate over the query bulkhead of the log's store, the one its state reads replay
+     * under too; [ReplayGate.OPEN], the default for a node built without it, runs each replay at once.
+     */
+    replayGate: ReplayGate = ReplayGate.OPEN,
 ) {
     private val assembly = NodeAssembly(
         service,
@@ -179,6 +186,7 @@ class ServiceNode @InternalWowApi constructor(
         caller,
         failureClassifiers,
         queries,
+        replayGate,
     )
 
     /** This node's internal address: the cluster channel and the signals reach it there. Known once [hasAddress]. */

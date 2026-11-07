@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
@@ -36,6 +37,8 @@ internal class SnapshotAssembly(
     private val log: EventLog,
     private val codec: EventCodec,
     private val observer: Observer = Observer.NONE,
+    /** How the backfills' rebuilds replay the log ([SnapshotMaintenance]). */
+    private val gate: ReplayGate = ReplayGate.OPEN,
 ) {
     /** The aggregate types each target store keeps. */
     private val stores: Map<String, Set<AggregateType>> = targets?.storesOf(snapshotted.map { it.type }).orEmpty()
@@ -75,6 +78,7 @@ internal class SnapshotAssembly(
     ): SnapshotMaintenance? = targets?.takeIf { snapshotted.isNotEmpty() }?.let {
         SnapshotMaintenance(
             context, group, node, snapshotted, it, kernel, codec, log, leases, progress, options, address, observer,
+            gate,
         )
     }
 }

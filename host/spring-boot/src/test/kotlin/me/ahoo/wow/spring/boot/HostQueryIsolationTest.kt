@@ -28,6 +28,7 @@ import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryBounds
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.Ddl
@@ -125,6 +126,21 @@ class HostQueryIsolationTest {
             // A read of a type whose log store is not the node's runs under no bulkhead: at once.
             runBlocking { gate.replay(AggregateType("elsewhere", "thing").ref("t", "x")) { "read" } }.assert()
                 .isEqualTo("read")
+        }
+    }
+
+    @Test
+    fun `the node should rebuild its states under the replay gate of the query bulkheads`() {
+        startHost().use { host ->
+            val gate = host.context.getBean(ReplayGate::class.java)
+            gate.toString().assert().startsWith("ReplayGate(")
+            // The gate is built before the node, and the node's subscriptions rebuild their states under it.
+            host.context.getBean(ServiceNode::class.java).contexts.values.map { it.views.gate }
+                .assert().isNotEmpty().containsOnly(gate)
+        }
+        startHost("wow.query.max-concurrent" to 0).use { host ->
+            host.context.getBean(ServiceNode::class.java).contexts.values.map { it.views.gate }
+                .assert().containsOnly(ReplayGate.OPEN)
         }
     }
 
