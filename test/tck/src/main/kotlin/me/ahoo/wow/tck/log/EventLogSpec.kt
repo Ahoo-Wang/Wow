@@ -655,13 +655,19 @@ abstract class EventLogSpec {
             // Another aggregate's streams between, which no page of this one takes.
             log.append(stream("between", index + 1))
         }
-        fun versions(from: Int, to: Int = Int.MAX_VALUE) = runBlocking { log.read(ref, from, to).toList().map { it.version } }
+        fun versions(
+            from: Int,
+            to: Int = Int.MAX_VALUE
+        ) = runBlocking { log.read(ref, from, to).toList().map { it.version } }
 
         val read = log.read(ref).toList()
         read.map { it.version }.assert().isEqualTo((1..count).toList())
         read[VersionPages.SIZE].assertSameAs(appended[VersionPages.SIZE])
         versions(1, VersionPages.SIZE).assert().isEqualTo((1..VersionPages.SIZE).toList())
-        versions(VersionPages.SIZE, VersionPages.SIZE + 1).assert().containsExactly(VersionPages.SIZE, VersionPages.SIZE + 1)
+        versions(
+            VersionPages.SIZE,
+            VersionPages.SIZE + 1
+        ).assert().containsExactly(VersionPages.SIZE, VersionPages.SIZE + 1)
         versions(VersionPages.SIZE + 1).assert().isEqualTo((VersionPages.SIZE + 1..count).toList())
         versions(count + 1).assert().isEmpty()
         val entries = log.readEntries(ref).toList()
