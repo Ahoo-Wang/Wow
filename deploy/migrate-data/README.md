@@ -87,6 +87,6 @@ Deleting the tail stops it after its current pass: the Pod receives `SIGTERM` an
 
 ## Choices
 
-- **Memory.** The image sets `JAVA_OPTS=-XX:MaxRAMPercentage=75.0`: the heap is three quarters of the container's limit, 2 GiB here. An import holds a page of instances with their streams, at most ten streams per instance (`pageSize`), so give a larger page more. A `JAVA_OPTS` of your own replaces the image's.
+- **Memory.** The image sets `JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`: the heap is three quarters of the container's limit, 2 GiB here, and an `OutOfMemoryError` ends the process, so the Job runs it again from its checkpoint instead of leaving it hung. An import holds a page of instances with their streams, at most ten streams per instance (`pageSize`), so give a larger page more. A `JAVA_OPTS` of your own replaces the image's.
 - **Time zone.** `compare` rebuilds states in the time zone 9.x ran in when domain code turns dates into instants with the system's zone: set `TZ`.
 - **Retries.** A Job retries only what a new Pod can fix. The tool's own verdicts fail it at once (`podFailurePolicy`), and an evicted Pod is not counted against its retries.

@@ -110,12 +110,18 @@ class ServiceMembership(
 
     /**
      * Stops taking part in [group]: heartbeats the record without it at once, or, for the last group, leaves the
-     * service and stops the heartbeats and the reads.
+     * service and stops the heartbeats and the reads. The group leaves the record's list before the store is called, so
+     * no heartbeat lists it again, even one that waits on the store meanwhile; a leave of a group left already, one
+     * whose call was cancelled say, still brings the record and the heartbeats in line.
      */
-    suspend fun leave(group: String): Unit = lock.withLock {
-        val read = joined.remove(group) ?: return@withLock
-        reads -= read
+    suspend fun leave(group: String) {
+        joined.remove(group)?.let { reads -= it }
         stuckGroups -= group
+        lock.withLock { heartbeatWithout() }
+    }
+
+    /** After a [leave]: the record without the groups left, or, with none joined, no record nor heartbeat. */
+    private suspend fun heartbeatWithout() {
         if (joined.isEmpty()) {
             running?.cancelAndJoin()
             running = null

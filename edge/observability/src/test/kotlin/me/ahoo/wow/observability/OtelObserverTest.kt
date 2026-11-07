@@ -312,6 +312,9 @@ class OtelObserverTest {
                 observer.observed(ObservedEvent.StoreFellBack(SALES, capability, it))
             }
         }
+        ObservedEvent.Fatal.Component.entries.forEach {
+            observer.observed(ObservedEvent.Fatal(it, "svc/sales", "java.lang.OutOfMemoryError"))
+        }
         fun tags(meter: String, tag: String) =
             telemetry.meters.find(meter).counters().mapNotNull { it.id.getTag(tag) }.toSortedSet()
         tags(WowMetrics.SIGNAL_DROPS.name, WowMetrics.REASON).assert()
@@ -324,6 +327,25 @@ class OtelObserverTest {
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.CAPABILITY).assert()
             .containsExactly("snapshot-rebuild", "snapshot-tail-read")
         tags(WowMetrics.STORE_FALLBACKS.name, WowMetrics.REASON).assert().containsExactly("failed", "unsupported")
+        tags(WowMetrics.FATAL_ERRORS.name, WowMetrics.KIND).assert().containsExactly(
+            "append-queue",
+            "executor",
+            "ledger",
+            "membership",
+            "node",
+            "ownership",
+            "subscription",
+            "timer",
+        )
+    }
+
+    @Test
+    fun `a fatal error should be counted by the part of the node that met it and the error's class`() {
+        val fatal = ObservedEvent.Fatal(ObservedEvent.Fatal.Component.TIMER, "sales", "java.lang.OutOfMemoryError")
+        repeat(2) { observer.observed(fatal) }
+        telemetry.meters.get(WowMetrics.FATAL_ERRORS.name)
+            .tags(WowMetrics.FATAL_ERRORS.tagsOf("timer", "java.lang.OutOfMemoryError"))
+            .counter().count().assert().isEqualTo(2.0)
     }
 
     @Test

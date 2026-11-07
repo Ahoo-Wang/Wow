@@ -318,4 +318,46 @@ sealed class ObservedEvent {
         override fun fields() =
             listOf("topic" to topic, "partition" to partition, "offset" to offset, "parked" to parked)
     }
+
+    /**
+     * A fatal error of the virtual machine (an [OutOfMemoryError], an [InternalError], an [UnknownError]; a
+     * [StackOverflowError] is a failure of the work that met it, not this) that the node's [component] met in its work on
+     * [name]: the subscription with its group, the context, the lease group. The
+     * node is fatal from then on, its liveness `DOWN` until the process ends. [name] is text, the application's names;
+     * [error] is the error's class, its full name.
+     */
+    class Fatal @InternalWowApi constructor(
+        val component: Component,
+        val name: String,
+        val error: String,
+    ) : ObservedEvent() {
+        override fun fields() = listOf("component" to component, "name" to name, "error" to error)
+
+        /** The part of the node whose work met the error. */
+        enum class Component(val value: String) {
+            /** A subscription's handling of an entry, in any of the node's subscription runtimes. */
+            SUBSCRIPTION("subscription"),
+
+            /** The sending of a timer, or the loop that reads and fires the timers. */
+            TIMER("timer"),
+
+            /** The execution of a command. */
+            EXECUTOR("executor"),
+
+            /** The ownership of a lease group: its reconcile, renewals, routes or a topic's join. */
+            OWNERSHIP("ownership"),
+
+            /** The node's membership in its service: its heartbeat and its read of the members. */
+            MEMBERSHIP("membership"),
+
+            /** A context's queue of appends to its log. */
+            APPEND_QUEUE("append-queue"),
+
+            /** The publisher of the failure ledger to the ops context. */
+            LEDGER("ledger"),
+
+            /** Any other work of the node: its background jobs, its detached commands. */
+            NODE("node"),
+        }
+    }
 }

@@ -46,7 +46,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Components** ([health]), each `UP`, `DEGRADED` or `DOWN` by the [options]:
  *
- * - `node`: the node's lifecycle state; `DOWN` unless it is `RUNNING`.
+ * - `node`: the node's lifecycle state; `DOWN` unless it is `RUNNING`, and `DOWN` for good once the node is fatal
+ *   ([NodeFatals]), with the fatal error under `fatal`.
  * - `ownership`: each lease group the node takes part in (each context's; each topic's it reads):
  * the partitions it owns against its share by HRW, the members, whether a hand-over is in progress,
  *   and the context's lease store. `DOWN` when the lease store is down, when the ownership does not run, or when the
@@ -76,8 +77,12 @@ import kotlin.time.Duration.Companion.seconds
  * **Readiness** ([readiness], whether the node can serve traffic): `node`, `stores`, `ownership` and `topics`; `DOWN`
  * when one of them is, `UP` otherwise (a degraded node still serves).
  *
- * **Liveness** ([liveness], whether the process is stuck, so a restart helps): `DOWN` only when the node runs and,
- * for [HealthOptions.stallTimeout], one of these holds:
+ * **Liveness** ([liveness], whether the process is stuck, so a restart helps): `DOWN` from the node's first fatal error
+ * ([ServiceNode.fatals]: an error of the JVM its own work met, out of memory say; [NodeFatals.isFatal]) until the
+ * process ends, whatever the node's state, with that error under `fatal` (the part of the node, what it ran, the
+ * partition, the error's class, when) and the count of them under `fatalErrors`: nothing in the process recovers from
+ * it. Otherwise
+ * `DOWN` only when the node runs and, for [HealthOptions.stallTimeout], one of these holds:
  *
  * - `dispatcher`: its dispatcher has not ticked;
  * - `drivers`: the dispatcher of the backends' blocking driver calls ([drivers]) has not run a tick of its own. Every
@@ -232,8 +237,20 @@ class NodeHealth(
         return ComponentHealth(READINESS, if (down) HealthStatus.DOWN else HealthStatus.UP, components = parts)
     }
 
-    /** Whether the process is stuck (see the class description): `DOWN` only then. */
-    fun liveness(): ComponentHealth {
+    /** Whether the process is stuck or fatal (see the class description): `DOWN` only then. */
+    fun liveness(): ComponentHealth = fatalLiveness() ?: stallLiveness()
+
+    /** `DOWN` with the node's first fatal error, for good; null while it has met none. */
+    private fun fatalLiveness(): ComponentHealth? = node.fatals.first?.let { fatal ->
+        ComponentHealth(
+            LIVENESS,
+            HealthStatus.DOWN,
+            linkedMapOf("state" to node.state.name, FATAL to details(fatal), "fatalErrors" to node.fatals.count),
+        )
+    }
+
+    /** `DOWN` while one of the stalls of the class description holds. */
+    private fun stallLiveness(): ComponentHealth {
         val now = nanos()
         val limit = node.inFlight
         val inFlight = limit.inFlight
@@ -278,10 +295,22 @@ class NodeHealth(
         return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
     }
 
-    private fun nodeState(): ComponentHealth = ComponentHealth(
-        NODE,
-        if (node.state == ServiceNode.State.RUNNING) HealthStatus.UP else HealthStatus.DOWN,
-        linkedMapOf("service" to node.service, "node" to node.node, "state" to node.state.name),
+    private fun nodeState(): ComponentHealth {
+        val fatal = node.fatals.first
+        val details =
+            linkedMapOf<String, Any?>("service" to node.service, "node" to node.node, "state" to node.state.name)
+        fatal?.let { details[FATAL] = details(it) }
+        val up = node.state == ServiceNode.State.RUNNING && fatal == null
+        return ComponentHealth(NODE, if (up) HealthStatus.UP else HealthStatus.DOWN, details)
+    }
+
+    /** What a probe shows of [fatal]: the class alone of its error, whose message may carry data. */
+    private fun details(fatal: NodeFatal): Map<String, Any?> = linkedMapOf(
+        "component" to fatal.component.value,
+        "name" to fatal.name,
+        "partition" to fatal.partition,
+        "error" to fatal.error,
+        "fatalMillis" to (clock.millis() - fatal.at).coerceAtLeast(0),
     )
 
     private fun stores(): ComponentHealth = ComponentHealth.of(
@@ -541,6 +570,9 @@ class NodeHealth(
         const val SUBSCRIPTIONS: String = "subscriptions"
         const val EXECUTOR: String = "executor"
         const val LEASE_STORE: String = "leaseStore"
+
+        /** The detail of `node` and `liveness` that holds the node's first fatal error. */
+        const val FATAL: String = "fatal"
 
         /** The liveness's stalls, in the order it lists them. */
         const val STALLED_DISPATCHER: String = "dispatcher"

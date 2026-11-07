@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.FailureClassification
@@ -35,6 +36,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.ServiceMembership
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.PausedPartition
@@ -47,6 +49,7 @@ import me.ahoo.wow.runtime.subscription.ThrottledPartition
 import me.ahoo.wow.runtime.subscription.retryForever
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -113,6 +116,8 @@ class TopicSubscriptions internal constructor(
     private val membership: ServiceMembership? = null,
     /** The node's permits of partitions reading behind their head, shared by its runtimes; null for no bound. */
     private val catchUps: Semaphore? = null,
+    /** The node's fatal errors: its runtime's lanes record theirs, and its scopes' handler records what escapes them. */
+    private val fatals: NodeFatals = NodeFatals.NONE,
 ) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -136,6 +141,7 @@ class TopicSubscriptions internal constructor(
         classification: FailureClassification = RuntimeFailures.DEFAULT,
         membership: ServiceMembership? = null,
         catchUps: Semaphore? = null,
+        fatals: NodeFatals = NodeFatals.NONE,
     ) : this(
         service,
         topic,
@@ -158,6 +164,7 @@ class TopicSubscriptions internal constructor(
         classification,
         membership,
         catchUps,
+        fatals,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -225,7 +232,8 @@ class TopicSubscriptions internal constructor(
      */
     suspend fun start(): Unit = lifecycle.withLock {
         check(scope == null) { "The subscriptions of $topic on $node are already started." }
-        val root = CoroutineScope(context + SupervisorJob())
+        check(!steppedOut) { "$node stepped out of the group of $topic after a fatal error." }
+        val root = CoroutineScope(context + SupervisorJob() + fatals.contextOf(Component.OWNERSHIP, group.name))
         scope = root
         started = CompletableDeferred()
         joinFailures = 0
@@ -284,6 +292,7 @@ class TopicSubscriptions internal constructor(
             observer,
             classification,
             catchUps = catchUps,
+            fatals = fatals,
         )
         val ownership = PartitionOwnership(
             group,
@@ -293,10 +302,14 @@ class TopicSubscriptions internal constructor(
             leases,
             cluster,
             runtime,
-            context,
+            context + fatals.contextOf(Component.OWNERSHIP, group.name),
             membership = membership,
         )
         ownership.start()
+        if (steppedOut) {
+            // Joined as the node stepped out: out again at once.
+            ownership.stepOut(cluster.reconcileTimeout)
+        }
         return Running(runtime, ownership, partitions)
     }
 
@@ -336,6 +349,27 @@ class TopicSubscriptions internal constructor(
     suspend fun awaitStarted() {
         started.await()
     }
+
+    /**
+     * Leaves the group for good after the node's fatal error ([PartitionOwnership.stepOut]): joins no more, and hands off
+     * what it holds within [bound], renewing no lease from then on. [stop] ends the rest.
+     */
+    internal suspend fun stepOut(bound: Duration) {
+        steppedOut = true
+        val locked = withTimeoutOrNull(bound) { lifecycle.lock() } != null
+        try {
+            withTimeoutOrNull(bound) { joining?.cancelAndJoin() }
+            running?.ownership?.stepOut(bound)
+        } finally {
+            if (locked) {
+                lifecycle.unlock()
+            }
+        }
+    }
+
+    /** Whether the node stepped out of the topic's group for good ([stepOut]): it joins it no more. */
+    @Volatile
+    private var steppedOut = false
 
     /** Hands off the partitions held, saving every checkpoint, and leaves the group; stopping twice does nothing. */
     suspend fun stop(): Unit = lifecycle.withLock {

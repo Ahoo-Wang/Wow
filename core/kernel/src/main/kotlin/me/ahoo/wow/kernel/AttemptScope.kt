@@ -174,34 +174,61 @@ internal class AttemptScope(
     /**
      * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
      * They run whether or not the attempt is cancelled: an attempt cancelled while deciding, say a
-     * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
+     * saga's lane stopped by a handover, must still undo what its decide functions did outside the log. A fatal error
+     * of the JVM one of them meets ([isFatal]) is thrown once they all ran, [cause] joining it: it is the node's, never a
+     * failure to log and go on from.
      */
     @Suppress("TooGenericExceptionCaught")
     suspend fun compensate(cause: Throwable? = null) {
         val registered = compensations ?: return
+        var fatal: Throwable? = null
         withContext(NonCancellable) {
             registered.asReversed().forEach { compensation ->
                 try {
                     compensation()
                 } catch (failure: Throwable) {
+                    if (isFatal(failure)) {
+                        fatal = fatal ?: failure
+                        return@forEach
+                    }
                     cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
                 }
             }
         }
+        fatal?.let { error ->
+            cause?.takeIf { it !== error }?.let(error::addSuppressed)
+            throw error
+        }
     }
 
+    /**
+     * Runs the after-append actions: a failure of one is logged, the events being committed; a fatal error of the JVM
+     * one meets ([isFatal]) is thrown once they all ran.
+     */
     @Suppress("TooGenericExceptionCaught")
     suspend fun afterAppend(version: Int) {
         committed = version
+        var fatal: Throwable? = null
         afterAppendActions?.forEach { action ->
             try {
                 action()
             } catch (failure: Throwable) {
-                logger.warn(failure) { "An after-append action failed; the events are committed." }
+                if (isFatal(failure)) {
+                    fatal = fatal ?: failure
+                } else {
+                    logger.warn(failure) { "An after-append action failed; the events are committed." }
+                }
             }
         }
+        fatal?.let { throw it }
     }
 }
+
+/**
+ * Whether [failure] is a fatal error of the JVM, the node's to handle rather than the attempt's: a [VirtualMachineError]
+ * but a [StackOverflowError], which unwinds its own thread alone (the runtime's `NodeFatals.isFatal`).
+ */
+private fun isFatal(failure: Throwable): Boolean = failure is VirtualMachineError && failure !is StackOverflowError
 
 /** The kernel's logger: an attempt's warnings are the kernel's. */
 private val logger = KotlinLogging.logger(Kernel::class.java.name)

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.node
 
+import kotlinx.coroutines.Dispatchers
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.EventCodec
@@ -35,6 +36,7 @@ import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.PeerEvents
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
@@ -54,6 +56,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -131,6 +134,9 @@ internal class NodeAssembly(
     /** How every subscription of the node classifies its handler's failures. */
     private val classification = RuntimeFailures.of(failureClassifiers)
 
+    /** The fatal errors the node's work meets: the first makes the node fatal, until the process ends. */
+    val fatals = NodeFatals(node, observer, clock)
+
     init {
         require(service.isNotBlank()) { "A node names its service." }
         require(node.isNotBlank()) { "A node has an id." }
@@ -186,7 +192,14 @@ internal class NodeAssembly(
 
     private fun membershipOf(leases: LeaseStore): ServiceMembership = synchronized(memberships) {
         memberships.getOrPut(untracked(leases)) {
-            ServiceMembership(service, node, { address }, leases, options.cluster)
+            ServiceMembership(
+                service,
+                node,
+                { address },
+                leases,
+                options.cluster,
+                Dispatchers.Default + fatals.contextOf(Component.MEMBERSHIP, service),
+            )
         }
     }
 
@@ -243,7 +256,7 @@ internal class NodeAssembly(
     }
 
     /** The node's one firing loop of every context's timers. */
-    val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
+    val timerLoop: TimerLoop = TimerLoop(options.timers, clock, fatals = fatals)
 
     /**
      * The aggregate states each context's cache keeps: the configured capacity, or null when it
@@ -293,6 +306,7 @@ internal class NodeAssembly(
         stateCacheBytes,
         ::membershipOf,
         committedHandlers,
+        fatals,
     )
 
     private val contextAssembly = ContextAssembly(wiring)
@@ -338,6 +352,7 @@ internal class NodeAssembly(
         observer = observer,
         peers = PeerCommands(contracts, sender),
         clock = clock,
+        detachedContext = wiring.contextOf(Component.NODE, "gateway"),
     )
 
     /**
@@ -398,6 +413,7 @@ internal class NodeAssembly(
             { wire -> sender.send(wire) },
             clock = clock,
             ids = admission.ids.global,
+            context = wiring.contextOf(Component.LEDGER, publishing.context),
             available = available,
             availability = topics?.partitionRefresh ?: publishing.interval,
         )

@@ -28,8 +28,10 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -225,15 +227,20 @@ class TimerRunner(
 
     /**
      * Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. Whatever ends the attempt
-     * unsettled leaves the timer to the next load, not stuck as being sent.
+     * unsettled leaves the timer to the next load, not stuck as being sent; a fatal error ([NodeFatals.isFatal]) is the
+     * node's ([TimerLoop.fatals]), which nothing retries here: the timer stays marked as being sent, so no load of this
+     * node sends it again, and the next owner of the partition sends it once its claim lapses.
      */
     @Suppress("TooGenericExceptionCaught") // Rethrown once the timer is no longer marked as being sent.
     private suspend fun fire(part: Part, timer: Timer) {
         try {
             attempt(part, timer)
         } catch (fatal: VirtualMachineError) {
-            part.sending.remove(timer.id)
-            logger.error(fatal) { "Sending the timer ${timer.id} met a fatal error." }
+            if (NodeFatals.isFatal(fatal)) {
+                loop.fatals.record(Component.TIMER, context, fatal, part.partition)
+            } else {
+                part.sending.remove(timer.id)
+            }
             throw fatal
         } catch (escaped: Throwable) {
             part.sending.remove(timer.id)
@@ -266,11 +273,12 @@ class TimerRunner(
         }
         val outcome = try {
             firer.fire(claimed)
-        } catch (fatal: VirtualMachineError) {
-            throw fatal
         } catch (failure: Throwable) {
-            // Only this runner's own cancellation stops the attempt: a cancellation the sending
-            // threw itself, or an Error such as a missing class, is a failed attempt, retried and then parked.
+            if (NodeFatals.isFatal(failure)) {
+                throw failure
+            }
+            // Only this runner's own cancellation stops the attempt: a cancellation the sending threw itself, or an
+            // Error such as a missing class or a stack overflow, is a failed attempt, retried and then parked.
             currentCoroutineContext().ensureActive()
             failed(part, claimed, failure, now)
             return

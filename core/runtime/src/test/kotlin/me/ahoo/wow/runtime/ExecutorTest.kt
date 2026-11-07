@@ -32,12 +32,15 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -50,6 +53,8 @@ class ExecutorTest {
     data class Hold(val gate: String)
     data class Push(val amount: Int)
     data class Fail(val reason: String)
+    data class Exhaust(val reason: String)
+    data class Recurse(val depth: Int)
     data class Sleep(val millis: Long)
     data class Added(val amount: Int)
 
@@ -85,6 +90,8 @@ class ExecutorTest {
             Decision.events(Added(0))
         }
         decide<Fail>(Creation.ALLOWED) { _, body -> throw UnsupportedOperationException("failed ${body.reason}") }
+        decide<Exhaust>(Creation.ALLOWED) { _, body -> throw OutOfMemoryError("not really: ${body.reason}") }
+        decide<Recurse>(Creation.ALLOWED) { _, _ -> throw StackOverflowError() }
         evolve<Added> { total += it.amount }
     }
     private val cache = LruStateCache(capacity = 16)
@@ -94,6 +101,29 @@ class ExecutorTest {
     private fun command(id: String, body: Any): Command<Any> {
         val n = sequence.incrementAndGet()
         return Command("c-$n", "r-$n", model.type.ref("t", id), body)
+    }
+
+    @Test
+    fun `a fatal error is the node's and fails its caller, and the aggregate's lane moves on`(): Unit = runBlocking {
+        // X-80: recorded once by the executor, whoever runs the command.
+        val fatals = NodeFatals("node-1")
+        val recording = Executor(Kernel(InMemoryEventLog(), states = cache), fatals = fatals)
+        assertThrows<OutOfMemoryError> { recording.execute(model, command("a", Exhaust("x"))) }
+        fatals.first!!.component.assert().isEqualTo(Component.EXECUTOR)
+        fatals.first!!.name.assert().isEqualTo(model.type.toString())
+        fatals.first!!.error.assert().isEqualTo(OutOfMemoryError::class.java.name)
+        recording.execute(model, command("a", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        recording.activeLanes.assert().isEqualTo(0)
+        recording.commandsInFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a stack overflow fails its command alone, never the node`(): Unit = runBlocking {
+        val fatals = NodeFatals("node-1")
+        val recording = Executor(Kernel(InMemoryEventLog(), states = cache), fatals = fatals)
+        assertThrows<StackOverflowError> { recording.execute(model, command("a", Recurse(1))) }
+        fatals.isFatal.assert().isFalse()
+        recording.execute(model, command("a", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }
 
     @Test

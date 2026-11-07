@@ -14,18 +14,28 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.HandlerTimeoutException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.CommandBusyException
+import me.ahoo.wow.runtime.health.NodeFatal
+import me.ahoo.wow.runtime.health.NodeFatals
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -143,24 +153,124 @@ class SubscriptionRetryTest {
     }
 
     @Test
-    fun `a fatal virtual machine error is not taken for a handler failure`(): Unit = runBlocking {
+    fun `a fatal virtual machine error stops its lane as the node's, neither retried nor parked, the others going on`(): Unit =
+        runBlocking {
+            // X-80: the lane records the node's fatal error and stops; the checkpoint stays below its entry.
+            val fatals = NodeFatals("node-1")
+            val attempts = AtomicInteger()
+            val handled = Handled()
+            val fatal = Subscription("fatal", SubscriptionFilter("shop")) { entry ->
+                if (entry.ref.id == "x") {
+                    attempts.incrementAndGet()
+                    throw OutOfMemoryError("not really")
+                }
+                handled.record(entry)
+            }
+            val partition = Partitioner.partitionOf(cart("x"), 2)
+            // An aggregate of the same partition, in a lane of its own.
+            val other = (1..100).map { "y$it" }.first { Partitioner.partitionOf(cart(it), 2) == partition }
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                checkpoints,
+                ledger,
+                listOf(fatal),
+                testOptions(stopTimeout = 100.milliseconds),
+                Clock.systemUTC(),
+                fatals = fatals,
+            )
+            val first = appender.append("x")
+            listOf(other, "x", other).forEach { appender.append(it) }
+            runtime.start(setOf(0, 1))
+            eventually { handled.versionsOf(other).size == 2 && fatals.isFatal }
+            delay(50)
+            runtime.stop()
+
+            attempts.get().assert().isEqualTo(1)
+            handled.versionsOf("x").assert().isEmpty()
+            ledger.isParked("fatal", cart("x")).assert().isFalse()
+            fatals.first.assert().isEqualTo(
+                NodeFatal(
+                    Component.SUBSCRIPTION,
+                    "group/fatal",
+                    partition,
+                    OutOfMemoryError::class.java.name,
+                    fatals.first!!.at,
+                ),
+            )
+            fatals.count.assert().isEqualTo(1)
+            // The partition's next owner handles the entry again, from the checkpoint.
+            checkpoints.load("group", "fatal", partition)!!.assert().isLessThan(first)
+        }
+
+    @Test
+    fun `a stack overflow is a handler failure, retried and parked, never the node's`(): Unit = runBlocking {
+        // X-80: one poison entry must not make every owner of its partition step out in turn.
+        val fatals = NodeFatals("node-1")
         val attempts = AtomicInteger()
         val handled = Handled()
-        val fatal = Subscription("fatal", SubscriptionFilter("shop")) { entry ->
+        val recursive = Subscription("recursive", SubscriptionFilter("shop")) { entry ->
             if (entry.ref.id == "x") {
                 attempts.incrementAndGet()
-                throw OutOfMemoryError("not really")
+                throw StackOverflowError()
             }
             handled.record(entry)
         }
-        val runtime = runtime(listOf(fatal), testOptions(stopTimeout = 100.milliseconds))
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(recursive),
+            testOptions(maxAttempts = 3),
+            Clock.systemUTC(),
+            fatals = fatals,
+        )
         listOf("x", "y").forEach { appender.append(it) }
         runtime.start(setOf(0, 1))
-        eventually { handled.size == 1 && attempts.get() == 1 }
+        eventually { ledger.isParked("recursive", cart("x")) && reachedEnd("recursive") }
         runtime.stop()
 
-        attempts.get().assert().isEqualTo(1)
-        ledger.isParked("fatal", cart("x")).assert().isFalse()
+        attempts.get().assert().isEqualTo(3)
+        ledger.parked("recursive", cart("x"))!!.reason.assert().contains(StackOverflowError::class.java.name)
+        handled.versionsOf("y").assert().containsExactly(1)
+        fatals.isFatal.assert().isFalse()
+    }
+
+    @Test
+    fun `an operator's retry that meets a virtual machine error fails with it, fatal or not`(): Unit = runBlocking {
+        // X-80: the retry's caller never waits on a lane that stopped.
+        listOf(OutOfMemoryError("not really") to true, StackOverflowError() to false).forEach { (error, fatal) ->
+            val fatals = NodeFatals("node-1")
+            val reading = AtomicReference<Throwable?>()
+            val failing = object : EventLog by log {
+                override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+                    reading.get()?.let { thrown -> flow { throw thrown } } ?: log.readEntries(ref, fromVersion, toVersion)
+            }
+            val name = "retried-$fatal"
+            val parking = Subscription(name, SubscriptionFilter("shop")) { entry ->
+                check(entry.ref.id != "x") { "x is broken" }
+            }
+            // A group of its own, so the subscription reads the log from its start.
+            val runtime = SubscriptionRuntime(
+                "group-$fatal",
+                failing,
+                checkpoints,
+                ledger,
+                listOf(parking),
+                testOptions(maxAttempts = 1),
+                Clock.systemUTC(),
+                fatals = fatals,
+            )
+            if (fatal) appender.append("x")
+            runtime.start(setOf(0, 1))
+            eventually { ledger.isParked(name, cart("x")) }
+            reading.set(error)
+            runCatching { runtime.retry(name, cart("x")) }.exceptionOrNull().assert().isInstanceOf(error.javaClass)
+            runtime.stop()
+            fatals.isFatal.assert().isEqualTo(fatal)
+            ledger.isParked(name, cart("x")).assert().isTrue()
+        }
     }
 
     private suspend fun reachedEnd(subscription: String): Boolean = setOf(0, 1).all { partition ->

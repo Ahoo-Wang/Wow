@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.manifest.ManifestCheck
@@ -195,6 +196,13 @@ class ServiceNode @InternalWowApi constructor(
 
     /** The commands in flight in the executors of every context: one bound for the node. */
     internal val inFlight: InFlightLimit get() = assembly.inFlight
+
+    /**
+     * The fatal errors the node's work met ([NodeFatals]): after the first, the node is fatal until its process ends,
+     * its liveness and readiness `DOWN` ([me.ahoo.wow.runtime.health.NodeHealth]).
+     */
+    @InternalWowApi
+    val fatals: NodeFatals get() = assembly.fatals
 
     /** The aggregate models this node serves, the built-in job aggregates among them. */
     @InternalWowApi

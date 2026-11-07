@@ -31,7 +31,7 @@ docker run --rm -v /path/to/migration:/config:ro -e WOW_PG_PASSWORD \
 - 服务的类（`classpath`）；
 - 检查点文件可写的位置，或者把检查点保存在目标里。
 
-它以用户 10001 运行。堆是容器内存上限的 75%（`JAVA_OPTS=-XX:MaxRAMPercentage=75.0`）；你自己设置的 `JAVA_OPTS` 会替换它。在 Kubernetes 上，[`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) 把每个命令作为 Job 运行在存储旁边（[在存储旁边运行](../migrate/data#run-it-next-to-the-stores)）。
+它以用户 10001 运行。堆是容器内存上限的 75%，`OutOfMemoryError` 会结束进程（`JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`）；你自己设置的 `JAVA_OPTS` 会替换它。在 Kubernetes 上，[`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) 把每个命令作为 Job 运行在存储旁边（[在存储旁边运行](../migrate/data#run-it-next-to-the-stores)）。
 
 `migrate-data --help` 打印用法并以 `0` 退出。
 

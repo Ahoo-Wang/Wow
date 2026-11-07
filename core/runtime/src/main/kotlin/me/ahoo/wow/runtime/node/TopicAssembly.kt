@@ -123,6 +123,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 observer = observer,
                 classification = classification,
                 catchUps = catchUps,
+                fatals = wiring.fatals,
             )
         }
     }
@@ -163,6 +164,7 @@ internal class TopicAssembly(private val wiring: NodeWiring, private val manifes
                 observer = observer,
                 classification = classification,
                 catchUps = catchUps,
+                fatals = wiring.fatals,
             )
         }.toMap()
     }

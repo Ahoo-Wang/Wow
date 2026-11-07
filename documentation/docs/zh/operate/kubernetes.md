@@ -123,6 +123,12 @@ chart 也在 `oci://registry-1.docker.io/ahoowang/wow-service` 和 `oci://regist
 
 Wow 为 JDK 21 构建，也能在 JDK 21 上运行，但生产环境请用 JDK 25。各后端在虚拟线程上执行阻塞的驱动调用（JDBC、MongoDB 和 Kafka 客户端）。JDK 24 之前，在 `synchronized` 代码中阻塞的虚拟线程（驱动和 Java agent 常常如此）会钉住它所在的载体线程。这样的线程一多，别的线程就没有载体可用：节点的每个存储和主题调用都不再返回，它的租约失效，其他节点接管它的分区。节点的存活检查随后在 `wow.health.liveness.stall-timeout` 之后失败，Kubernetes 重启它（[健康](./observability#health)）。JDK 24 及以后，这些线程可以卸载。运行在更早 JDK 上的节点启动时会就此警告一次。
 
+## 内存 {#memory}
+
+chart 默认的 `javaOpts` 是 `-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`：堆是容器内存上限的四分之三，`OutOfMemoryError` 会结束进程，于是 Kubernetes 重新启动这个 Pod，其间其他节点接手它的分区。Wow 构建的镜像也设置了 `-XX:+ExitOnOutOfMemoryError`。你自己的 `javaOpts` 会替换默认值：请在其中保留 `-XX:+ExitOnOutOfMemoryError`。没有它时，节点自身工作遇到 `OutOfMemoryError` 仍会退出它的租约组，其存活检查一直失败直到进程结束（[致命错误](./observability#fatal-errors)），但进程中其他地方的错误（例如某个请求中的）就交给 JVM 了。
+
+按节点高峰时持有的东西确定堆的大小，而不是按平均值：状态缓存，除非 `wow.state-cache.capacity` 限定了它，否则是堆的十分之一（[Wow 推导的值](./configuration#what-wow-derives)）；在途的命令，最多 `wow.executor.max-in-flight` 个，每个都带着它的聚合加载的状态，对于历史很长且近期没有快照的聚合，这意味着重放它的事件；以及每个订阅在它运行的每个分区中持有的条目，最多到它的在途上限。如果内存上限在负载下装不下这些，过载就会变成重启。
+
 ## 共用的设置 {#shared-settings}
 
 服务的每个节点都从 ConfigMap 获得相同的配置，以环境变量形式提供，由 Spring Boot 按宽松规则绑定：即 values 中的 `config`，如上面 ordering 的那样，写成规范形式（`wow.log.partitions` 写作 `WOW_LOG_PARTITIONS`）。映射键是环境变量表达不了的（带短横线或点）的键，以树的形式写在 `settings` 下，chart 把它渲染为 `SPRING_APPLICATION_JSON`。数据库的连接来自一个 Secret，经 `envFrom` 提供。内部端口不需要密钥：网络就是它的边界。
@@ -285,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型的主快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住时失败，从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。
+就绪检查在节点无法提供服务时失败：节点运行之前；它的日志、写入所需的存储（某个类型的主快照存储）或租约存储宕机时；交接宽限期过后它仍不拥有自己应得的分区时；或者它读取的某个主题仍在加入时。存活检查只在节点卡住或遇到致命错误时失败（[致命错误](./observability#fatal-errors)），从不因存储宕机而失败，排空期间也不会失败，所以一次宕机不会让所有 Pod 同时重启。启动探针给节点三分钟启动（`probes.startup`）。
 
 ## 优雅关闭 {#graceful-shutdown}
 

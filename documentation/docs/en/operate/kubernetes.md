@@ -123,6 +123,12 @@ The image runs the service's Gradle distribution (`./gradlew :eshop-ordering-ser
 
 Wow is built for JDK 21 and runs on it, but run it on JDK 25 in production. The backends make their blocking driver calls (JDBC, the MongoDB and Kafka clients) on virtual threads. Before JDK 24, a virtual thread that blocks inside `synchronized` code, as drivers and Java agents often do, pins the carrier thread it runs on. Enough of them at once leave no carrier for the others: every store and topic call of the node stops returning, its leases lapse, and the other nodes take its partitions. The node's liveness then fails after `wow.health.liveness.stall-timeout`, and Kubernetes restarts it ([Health](./observability#health)). JDK 24 and later let those threads unmount. A node on an earlier JDK warns of this once when it starts.
 
+## Memory
+
+The chart's default `javaOpts` is `-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`: the heap is three quarters of the container's memory limit, and an `OutOfMemoryError` ends the process, so Kubernetes starts the pod again and the other nodes take its partitions over meanwhile. The images Wow builds set `-XX:+ExitOnOutOfMemoryError` too. A `javaOpts` of your own replaces the default: keep `-XX:+ExitOnOutOfMemoryError` in it. Without it the node still steps out of its lease groups on an `OutOfMemoryError` its own work meets, and its liveness fails until the process ends ([Fatal errors](./observability#fatal-errors)), but an error elsewhere in the process, a request's say, leaves it to the JVM.
+
+Size the heap for what a node holds at its peak, not for its average: the state cache, a tenth of the heap unless `wow.state-cache.capacity` bounds it ([What Wow derives](./configuration#what-wow-derives)); the commands in flight, up to `wow.executor.max-in-flight`, each with the state its aggregate loads, which for an aggregate with a long history and no recent snapshot means its events replayed; and the entries each subscription holds in each partition it runs, up to its in-flight bound. A memory limit the heap cannot fit those in under load turns overload into restarts.
+
 ## Shared settings
 
 Every node of a service gets the same configuration from the ConfigMap, as environment variables that Spring Boot binds relaxed: `config` in the values, as the ordering's above shows, in the canonical form (`wow.log.partitions` is `WOW_LOG_PARTITIONS`). A key whose map key an environment variable cannot carry, one with dashes or dots, goes under `settings` as a tree, which the chart renders as `SPRING_APPLICATION_JSON`. The database's connection comes from a Secret, through `envFrom`. The internal port needs no secret: the network is its boundary.
@@ -285,7 +291,7 @@ livenessProbe:
   failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
 ```
 
-Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck, never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`).
+Readiness fails while the node cannot serve: before it runs, while its log, a store its writes need (a type's primary snapshot store) or its lease store is down, while it owns none of its share of partitions past the hand-over grace, or while a topic it reads is still joining. Liveness fails only when the node is stuck or has met a fatal error ([Fatal errors](./observability#fatal-errors)), never for a storage outage and not while it drains, so an outage does not restart every pod at once. The startup probe gives a node three minutes to start (`probes.startup`).
 
 ## Graceful shutdown
 

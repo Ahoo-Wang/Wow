@@ -28,6 +28,10 @@ COPY --from=build --chown=10001:10001 ${WORK_HOME} ${WORK_HOME}
 WORKDIR ${WORK_HOME}
 EXPOSE 8084 9094
 
+# An OutOfMemoryError ends the process, so its orchestrator starts it again and the other nodes take its partitions
+# over; a JAVA_OPTS of your own replaces this (the wow-service chart's javaOpts keeps it).
+ENV JAVA_OPTS="-XX:+ExitOnOutOfMemoryError"
+
 USER 10001
 STOPSIGNAL SIGTERM
 

@@ -23,6 +23,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -31,9 +32,13 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.command.CommandIntake
+import me.ahoo.wow.runtime.health.NodeFatal
+import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
+import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
 import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
@@ -59,6 +64,19 @@ import kotlin.time.TimeSource
  *
  * [listener] hears each [ServiceNode.Step] once it is done. A step that fails is logged and the next ones still run;
  * [stop] then throws the first failure. It logs as the [ServiceNode].
+ *
+ * **A fatal error** ([NodeFatals]: an out of memory or another error of the JVM that the node's own work met) makes the
+ * node step out of every lease group at once, in the background: the heap is the whole process's, so nothing in it is
+ * to be trusted after one, and the node holds nothing it would no longer do. Step 1 of [stop] runs, each group's leave
+ * being [PartitionOwnership.stepOut][me.ahoo.wow.runtime.cluster.PartitionOwnership.stepOut]: the node leaves the
+ * members and hands off every partition, so the other nodes take them over from their checkpoints even where nothing
+ * restarts this one, within [ClusterOptions.reconcileTimeout][me.ahoo.wow.runtime.cluster.ClusterOptions.reconcileTimeout];
+ * a hand-off that takes longer or fails (a hand-off needs memory too) renews no lease from then on, so the others take
+ * the partitions once the leases expire. The gateway stays open: a command the node is still given goes to its
+ * partition's new owner. Its liveness and readiness stay `DOWN` until the process ends
+ * ([me.ahoo.wow.runtime.health.NodeHealth]), and the host's stop ends the rest. A node that is starting steps out once
+ * its start ends, and one that is stopping hands off as it stops; a node on standby holds nothing, and is not
+ * activated any more; a node that has not started does not start.
  */
 internal class NodeLifecycle(private val assembly: NodeAssembly, private val listener: (ServiceNode.Step) -> Unit) {
     private val service = assembly.service
@@ -112,6 +130,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     /** Starts the node ([ServiceNode.start]), on standby when [standby] says so. */
     suspend fun start(standby: Boolean): Unit = lock.withLock {
         check(state == ServiceNode.State.NEW) { "Node $node is $state; a node starts once." }
+        check(!assembly.fatals.isFatal) { "Node $node met a fatal error; it does not start." }
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         JdkCheck.PROCESS.warnOnce()
         state = ServiceNode.State.STARTING
@@ -181,6 +200,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     /** Activates a node started on standby ([ServiceNode.activate]). */
     suspend fun activate(by: String, reason: String? = null): Activation = lock.withLock {
         check(state == ServiceNode.State.RUNNING) { "Node $node is $state; only a running node is activated." }
+        check(!assembly.fatals.isFatal) { "Node $node met a fatal error; it is not activated." }
         if (!standby) {
             return@withLock activation ?: Activation(node, null, by, reason, activated = false)
         }
@@ -254,7 +274,75 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
     }
 
     /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
-    private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val background =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "background"))
+
+    /** Runs the step-out a fatal error starts, apart from [background], which a stop cancels. */
+    private val stepping =
+        CoroutineScope(SupervisorJob() + Dispatchers.Default + assembly.fatals.contextOf(Component.NODE, "step-out"))
+
+    init {
+        assembly.fatals.listen { fatal -> stepping.launch { stepOut(fatal) } }
+    }
+
+    /**
+     * Steps out of every lease group after the node's first fatal error [fatal] (see the class description): each
+     * context's and topic's group in parallel, each on its own, so one that fails again leaves the others to go on; an
+     * error that escapes one is the handler's of [stepping].
+     */
+    private suspend fun stepOut(fatal: NodeFatal) {
+        val bound = options.cluster.reconcileTimeout
+        // A start or a stop stuck on a store holds the lock: past the bound, the step-out goes on without it.
+        val locked = withTimeoutOrNull(bound) { lock.lock() } != null
+        try {
+            // A stop under way hands off itself, and a start that failed holds nothing.
+            if (!locked || state == ServiceNode.State.RUNNING) {
+                stepOut(fatal, bound)
+            }
+        } finally {
+            if (locked) {
+                lock.unlock()
+            }
+        }
+    }
+
+    private suspend fun stepOut(fatal: NodeFatal, bound: Duration) {
+        logger.error {
+            "Node $node of $service steps out of its lease groups after its fatal error in ${fatal.component.value} " +
+                "${fatal.name}: it hands off its partitions within $bound, so the other nodes take them over from their " +
+                "checkpoints, and forwards the commands it is still given. Its liveness is DOWN until its process ends."
+        }
+        supervisorScope {
+            ledgerPublisher?.let { publisher ->
+                launch {
+                    withTimeoutOrNull(bound) { quietly("stop publishing its ledger") { publisher.stop() } }
+                }
+            }
+            contexts.values.forEach { context ->
+                launch {
+                    context.ownership.stepOut(bound)
+                    withTimeoutOrNull(bound) {
+                        quietly("leave the snapshot maintenance of ${context.context}") {
+                            context.snapshotMaintenance?.stop()
+                        }
+                        quietly("leave the access walks of ${context.context}") { context.accessWalking?.stop() }
+                    }
+                }
+            }
+            topicSubscriptions.values.forEach { launch { it.stepOut(bound) } }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // A step of the step-out that fails leaves the next ones to run.
+    private suspend fun quietly(action: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Node $node of $service failed to $action after its fatal error; stepping out on." }
+        }
+    }
 
     /**
      * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration, in the

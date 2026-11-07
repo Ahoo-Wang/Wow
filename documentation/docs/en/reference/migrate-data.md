@@ -31,7 +31,7 @@ The image holds the tool alone, on JDK 25. Mount into it:
 - the services' classes (`classpath`);
 - a writable place for the checkpoint file, or keep the checkpoints in the target.
 
-It runs as user 10001. Its heap is 75% of the container's memory limit (`JAVA_OPTS=-XX:MaxRAMPercentage=75.0`); a `JAVA_OPTS` of your own replaces that. On Kubernetes, [`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) runs each command as a Job next to the stores ([Run it next to the stores](../migrate/data#run-it-next-to-the-stores)).
+It runs as user 10001. Its heap is 75% of the container's memory limit, and an `OutOfMemoryError` ends the process (`JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`); a `JAVA_OPTS` of your own replaces that. On Kubernetes, [`deploy/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/migrate-data) runs each command as a Job next to the stores ([Run it next to the stores](../migrate/data#run-it-next-to-the-stores)).
 
 `migrate-data --help` prints the usage and exits with `0`.
 
