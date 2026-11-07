@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.core.ResolvableType
@@ -58,6 +59,17 @@ class WowCoCacheAutoConfigurationTest {
             runtime.policy("wow.shop.order")!!.ttl.assert().isEqualTo(Duration.ofMinutes(5))
             context.getBeansOfType(PublishedSinks::class.java).assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `the caches should be created at startup, so the cache's own settings name them, even with lazy beans`() {
+        runner.withInitializer { it.addBeanFactoryPostProcessor(LazyInitializationBeanFactoryPostProcessor()) }
+            .withPropertyValues("cocache.backend=memory", "cocache.caches.[wow.shop.order].ttl=5m")
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBean(CacheRuntime::class.java).policy("wow.shop.order")!!.ttl.assert()
+                    .isEqualTo(Duration.ofMinutes(5))
+            }
     }
 
     @Test
