@@ -28,12 +28,17 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * The fatal errors of one [node]'s own work: a [VirtualMachineError] (out of memory, a stack overflow, an internal
- * error of the virtual machine) that one of its loops met. After one, the JVM's state is not to be trusted, and a
- * retry could loop on the same error, so nothing retries that work in the process: the first fatal error makes the node
- * fatal for good ([first]). [NodeHealth] then reports its liveness and readiness `DOWN` until the process ends, so its
- * orchestrator restarts it, and the node hands off what it holds ([listen]), so the other nodes take the work over from
- * its checkpoints even where nothing restarts it.
+ * The fatal errors of one [node]'s own work ([isFatal]): an [OutOfMemoryError], an [InternalError] or an [UnknownError]
+ * of the virtual machine that one of its loops met. After one, the JVM's state is not to be trusted (the heap is the
+ * whole process's), and a retry could loop on the same error, so nothing retries that work in the process: the first
+ * fatal error makes the node fatal for good ([first]). [NodeHealth] then reports its liveness and readiness `DOWN`
+ * until the process ends, so its orchestrator restarts it, and the node hands off what it holds ([listen]), so the
+ * other nodes take the work over from its checkpoints even where nothing restarts it.
+ *
+ * A [StackOverflowError] is not fatal: it happens on one thread alone, whose stack unwinds as for any exception, so the
+ * JVM is unharmed, and it happens again on the same input. A handler that overflows its stack fails as one that throws
+ * [NotImplementedError] does, retried and then parked in the failure ledger: were it fatal, one poison entry would make
+ * every node that takes the partition over step out in turn, until the whole cluster stood still.
  *
  * Each error is recorded once ([record]), by whoever meets it first: the loop that met it, which knows what it was
  * doing, or the handler of the uncaught failures ([handler]) of the node's coroutine scopes, each of which carries the
@@ -78,7 +83,7 @@ class NodeFatals private constructor(
 
     /**
      * Records [error], which [component]'s work on [name] (in [partition], when it runs one) met: the node is fatal from
-     * now on. An error recorded already is not recorded again.
+     * now on. An error recorded already is not recorded again, and one that is not fatal ([isFatal]) not at all.
      */
     fun record(
         component: ObservedEvent.Fatal.Component,
@@ -86,6 +91,9 @@ class NodeFatals private constructor(
         error: VirtualMachineError,
         partition: Int? = null,
     ) {
+        if (!isFatal(error)) {
+            return
+        }
         if (!keeps) {
             logger.error(error) { "${where(component, name, partition)} met a fatal error; its work stops." }
             return
@@ -116,13 +124,13 @@ class NodeFatals private constructor(
     }
 
     /**
-     * The handler of the failures that escape a coroutine of the node's scopes: a [VirtualMachineError] is
+     * The handler of the failures that escape a coroutine of the node's scopes: a fatal error ([isFatal]) is
      * [record]ed as the scope's part of the node ([contextOf]) met it; any other failure ended a coroutine nothing
      * restarts, and is logged at ERROR.
      */
     val handler: CoroutineExceptionHandler = CoroutineExceptionHandler { context, failure ->
         val loop = context[NodeLoop]
-        if (failure is VirtualMachineError) {
+        if (failure is VirtualMachineError && isFatal(failure)) {
             record(loop?.component ?: ObservedEvent.Fatal.Component.NODE, loop?.name ?: node, failure)
         } else {
             logger.error(failure) {
@@ -166,6 +174,13 @@ class NodeFatals private constructor(
     companion object {
         /** Records nothing: each error is logged, and the scopes get no handler. */
         val NONE: NodeFatals = NodeFatals("", Observer.NONE, Clock.systemUTC(), keeps = false)
+
+        /**
+         * Whether [error] is fatal to a node: a [VirtualMachineError] but a [StackOverflowError], which fails the work
+         * that met it like any other error (see the class description).
+         */
+        @JvmStatic
+        fun isFatal(error: Throwable): Boolean = error is VirtualMachineError && error !is StackOverflowError
         private val logger = KotlinLogging.logger {}
     }
 }

@@ -281,6 +281,21 @@ class TimerRunnerTest {
         }
 
     @Test
+    fun `a stack overflow the sending throws is a failed attempt, retried, never the node's`(): Unit = runBlocking {
+        val fatals = NodeFatals("node-1")
+        answers["pay"] = StackOverflowError()
+        store.put(timer("pay"))
+        runner(loop = loop(fatals = fatals)).startPartition(0)
+        eventually { status("pay").attempts == 1 }
+        status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
+        status("pay").outcome.assert().startsWith(StackOverflowError::class.java.name)
+        answers.clear()
+        clock.advance(1.seconds)
+        eventually { status("pay").status == TimerStatus.FIRED }
+        fatals.isFatal.assert().isFalse()
+    }
+
+    @Test
     fun `a parking that is not written leaves the ledger alone`(): Unit = runBlocking {
         answers["pay"] = IllegalStateException("down")
         val refusing = object : TimerStore by store {

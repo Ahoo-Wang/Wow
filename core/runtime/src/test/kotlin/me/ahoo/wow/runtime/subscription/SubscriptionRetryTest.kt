@@ -197,6 +197,40 @@ class SubscriptionRetryTest {
             checkpoints.load("group", "fatal", partition)!!.assert().isLessThan(first)
         }
 
+    @Test
+    fun `a stack overflow is a handler failure, retried and parked, never the node's`(): Unit = runBlocking {
+        // X-80: one poison entry must not make every owner of its partition step out in turn.
+        val fatals = NodeFatals("node-1")
+        val attempts = AtomicInteger()
+        val handled = Handled()
+        val recursive = Subscription("recursive", SubscriptionFilter("shop")) { entry ->
+            if (entry.ref.id == "x") {
+                attempts.incrementAndGet()
+                throw StackOverflowError()
+            }
+            handled.record(entry)
+        }
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(recursive),
+            testOptions(maxAttempts = 3),
+            Clock.systemUTC(),
+            fatals = fatals,
+        )
+        listOf("x", "y").forEach { appender.append(it) }
+        runtime.start(setOf(0, 1))
+        eventually { ledger.isParked("recursive", cart("x")) && reachedEnd("recursive") }
+        runtime.stop()
+
+        attempts.get().assert().isEqualTo(3)
+        ledger.parked("recursive", cart("x"))!!.reason.assert().contains(StackOverflowError::class.java.name)
+        handled.versionsOf("y").assert().containsExactly(1)
+        fatals.isFatal.assert().isFalse()
+    }
+
     private suspend fun reachedEnd(subscription: String): Boolean = setOf(0, 1).all { partition ->
         val end = appender.ends[partition] ?: 0L
         end == 0L || checkpoints.load("group", subscription, partition) == end

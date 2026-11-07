@@ -30,7 +30,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.state_cache.invalidations` | Counter | `wow.context` | 因落后于日志而从状态缓存丢弃的状态：分区属主读到了该聚合更新的流，是另一个节点在不持该分区租约时提交的 |
 | `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`wow.capability`：`snapshot-tail-read`（存储在一次往返中读出快照及其后的日志尾部）、`snapshot-rebuild`（快照存储的原地重建）。`wow.reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unsupported`（存储没有这项能力） |
 | `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键：来自追加后内核的确认，或 `reservation` 订阅的确认 |
-| `wow.node.fatal.errors` | Counter | `wow.kind`, `error.type` | 节点自身工作遇到的虚拟机错误（内存耗尽、栈溢出），按遇到它的节点部分：`subscription`、`timer`、`executor`、`ownership`、`membership`、`append-queue`、`ledger`、`node`；以及错误的类。第一个使节点致命：其 liveness 与 readiness 一直为 down，直到进程结束（[致命错误](../operate/observability#fatal-errors)） |
+| `wow.node.fatal.errors` | Counter | `wow.kind`, `error.type` | 节点自身工作遇到的 JVM 致命错误（`OutOfMemoryError`、`InternalError`），按遇到它的节点部分：`subscription`、`timer`、`executor`、`ownership`、`membership`、`append-queue`、`ledger`、`node`；以及错误的类。第一个使节点致命：其 liveness 与 readiness 一直为 down，直到进程结束（[致命错误](../operate/observability#fatal-errors)） |
 
 ### 订阅 {#subscriptions}
 

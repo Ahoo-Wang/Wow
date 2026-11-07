@@ -320,8 +320,9 @@ sealed class ObservedEvent {
     }
 
     /**
-     * A [VirtualMachineError] (out of memory, a stack overflow, an internal error of the virtual machine) that the
-     * node's [component] met in its work on [name]: the subscription with its group, the context, the lease group. The
+     * A fatal error of the virtual machine (an [OutOfMemoryError], an [InternalError], an [UnknownError]; a
+     * [StackOverflowError] is a failure of the work that met it, not this) that the node's [component] met in its work on
+     * [name]: the subscription with its group, the context, the lease group. The
      * node is fatal from then on, its liveness `DOWN` until the process ends. [name] is text, the application's names;
      * [error] is the error's class, its full name.
      */

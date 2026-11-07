@@ -55,8 +55,9 @@ import kotlin.time.TimeSource
  *
  * [rounds] counts the rounds that read the stores, for the tests of the one query per round.
  *
- * A [VirtualMachineError] a send meets is recorded as the node's fatal error ([fatals]) and ends that send, its timer
- * left claimed: nothing sends it again here, and the next owner of its partition does once the claim lapses.
+ * A fatal error a send meets ([NodeFatals.isFatal]: out of memory, say) is recorded as the node's ([fatals]) and ends that
+ * send, its timer left claimed: nothing sends it again here, and the next owner of its partition does once the claim
+ * lapses. A [StackOverflowError] is a failed attempt, as any error.
  */
 @InternalWowApi
 class TimerLoop(

@@ -370,9 +370,9 @@ object WowMetrics {
 
     val FATAL_ERRORS: MetricSpec = MetricSpec.counter(
         "wow.node.fatal.errors",
-        "The virtual machine errors (out of memory, a stack overflow) the node's own work met, by the part of the " +
-            "node that met them and the error's class: the first makes the node fatal, its liveness down until the " +
-            "process ends.",
+        "The fatal errors of the virtual machine (out of memory, an internal error) the node's own work met, by the " +
+            "part of the node that met them and the error's class: the first makes the node fatal, its liveness down " +
+            "until the process ends.",
         tags = listOf(KIND, ERROR_TYPE),
         values = mapOf(KIND to ObservedEvent.Fatal.Component.entries.map { it.value }),
     )

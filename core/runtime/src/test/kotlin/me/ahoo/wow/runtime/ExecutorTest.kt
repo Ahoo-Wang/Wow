@@ -54,6 +54,7 @@ class ExecutorTest {
     data class Push(val amount: Int)
     data class Fail(val reason: String)
     data class Exhaust(val reason: String)
+    data class Recurse(val depth: Int)
     data class Sleep(val millis: Long)
     data class Added(val amount: Int)
 
@@ -90,6 +91,7 @@ class ExecutorTest {
         }
         decide<Fail>(Creation.ALLOWED) { _, body -> throw UnsupportedOperationException("failed ${body.reason}") }
         decide<Exhaust>(Creation.ALLOWED) { _, body -> throw OutOfMemoryError("not really: ${body.reason}") }
+        decide<Recurse>(Creation.ALLOWED) { _, _ -> throw StackOverflowError() }
         evolve<Added> { total += it.amount }
     }
     private val cache = LruStateCache(capacity = 16)
@@ -113,6 +115,15 @@ class ExecutorTest {
         recording.execute(model, command("a", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         recording.activeLanes.assert().isEqualTo(0)
         recording.commandsInFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a stack overflow fails its command alone, never the node`(): Unit = runBlocking {
+        val fatals = NodeFatals("node-1")
+        val recording = Executor(Kernel(InMemoryEventLog(), states = cache), fatals = fatals)
+        assertThrows<StackOverflowError> { recording.execute(model, command("a", Recurse(1))) }
+        fatals.isFatal.assert().isFalse()
+        recording.execute(model, command("a", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
     }
 
     @Test

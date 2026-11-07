@@ -41,12 +41,12 @@ class NodeFatalsTest {
     @Test
     fun `the first error should make the node fatal, each error recorded and observed once`() {
         val heap = OutOfMemoryError("Java heap space")
-        val stack = StackOverflowError()
+        val internal = InternalError("a JIT failure")
         fatals.isFatal.assert().isFalse()
 
         fatals.record(Component.SUBSCRIPTION, "svc/bank/audit", heap, partition = 3)
         fatals.record(Component.SUBSCRIPTION, "svc/bank/audit", heap, partition = 3)
-        fatals.record(Component.EXECUTOR, "bank.account", stack)
+        fatals.record(Component.EXECUTOR, "bank.account", internal)
 
         fatals.isFatal.assert().isTrue()
         fatals.first.assert().isEqualTo(
@@ -55,7 +55,7 @@ class NodeFatalsTest {
         fatals.count.assert().isEqualTo(2)
         observed.assert().containsExactly(
             ObservedEvent.Fatal(Component.SUBSCRIPTION, "svc/bank/audit", "java.lang.OutOfMemoryError"),
-            ObservedEvent.Fatal(Component.EXECUTOR, "bank.account", "java.lang.StackOverflowError"),
+            ObservedEvent.Fatal(Component.EXECUTOR, "bank.account", "java.lang.InternalError"),
         )
     }
 
@@ -104,6 +104,21 @@ class NodeFatalsTest {
         fatals.first!!.component.assert().isEqualTo(Component.NODE)
         fatals.first!!.name.assert().isEqualTo("node-1")
         fatals.count.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a stack overflow should not be fatal, recorded neither by a loop nor by the handler`(): Unit = runBlocking {
+        // X-80: it unwinds its own thread alone and comes back on the same input; fatal, it would stop every owner.
+        NodeFatals.isFatal(StackOverflowError()).assert().isFalse()
+        NodeFatals.isFatal(OutOfMemoryError()).assert().isTrue()
+        NodeFatals.isFatal(InternalError()).assert().isTrue()
+        NodeFatals.isFatal(UnknownError()).assert().isTrue()
+        NodeFatals.isFatal(NotImplementedError()).assert().isFalse()
+        fatals.record(Component.SUBSCRIPTION, "svc/bank/audit", StackOverflowError(), partition = 0)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + fatals.contextOf(Component.NODE, "jobs"))
+        scope.launch { throw StackOverflowError() }.join()
+        fatals.isFatal.assert().isFalse()
+        observed.assert().isEmpty()
     }
 
     @Test

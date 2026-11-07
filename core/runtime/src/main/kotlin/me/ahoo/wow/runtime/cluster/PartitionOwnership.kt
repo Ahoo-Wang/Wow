@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.TimeMark
@@ -121,6 +122,11 @@ data class RenewalRound(
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
+ *
+ * [stepOut] is the leave of a node that met a fatal error ([me.ahoo.wow.runtime.health.NodeFatals]): for good, within a
+ * bound, and whatever the hand-off comes to, renewing no lease from then on, so a partition it could not hand off is
+ * the others' once its lease expires. It keeps reading the routes, so a command the node is still given goes to the
+ * partition's new owner.
  */
 @InternalWowApi
 class PartitionOwnership internal constructor(
@@ -235,6 +241,12 @@ class PartitionOwnership internal constructor(
     @Volatile
     private var stuck = false
 
+    /**
+     * Whether the node stepped out of the group for good ([stepOut]): it neither joins, reconciles nor renews any
+     * more. Set before anything else of the step-out, so a start racing it backs out.
+     */
+    private val steppedOut = AtomicBoolean()
+
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
@@ -279,6 +291,7 @@ class PartitionOwnership internal constructor(
      */
     suspend fun start(reads: Job? = null): Unit = lifecycle.withLock {
         check(running == null) { "$node is already part of $group." }
+        check(!steppedOut.get()) { "$node stepped out of $group after a fatal error." }
         requireAddress(address)
         val started = mutableListOf<SubscriptionRuntime>()
         var joined = false
@@ -305,14 +318,16 @@ class PartitionOwnership internal constructor(
         val run = Running(root, CoroutineScope(context + root))
         running = run
         // Before the first acquisition: the leases acquired first must not wait for the last one to be renewed.
-        run.upkeep.launch {
-            while (true) {
+        run.renewals = run.upkeep.launch {
+            while (!steppedOut.get()) {
                 val started = timeSource.markNow()
                 quietly("renew leases") { renew() }
                 delay(options.renewInterval - started.elapsedNow())
             }
         }
         membership.join(group.name, ::membersRead)
+        // A step-out that ran meanwhile saw no running ownership to leave: this start leaves, and fails.
+        check(!steppedOut.get()) { "$node stepped out of $group after a fatal error while joining it." }
         refreshRoutes()
         val own = if (reads == null) Job() else null
         val release = own?.let { held ->
@@ -393,6 +408,64 @@ class PartitionOwnership internal constructor(
     }
 
     /**
+     * Leaves the group for good, the node having met a fatal error: leaves the members at once, so the others take its
+     * partitions on their next round, and hands off every partition it holds as [stop] does, within [bound]. Whatever
+     * the hand-off comes to, done, past [bound], or failed (out of memory again, say), the node renews no lease from then
+     * on: a partition it still holds is the others' once its lease expires, and its subscriptions, intake and timers
+     * are stopped, within [bound] again. It reconciles no more, but keeps reading the routes, so a command it is still
+     * given is forwarded to the partition's new owner; [stop] ends that. Stepping out twice does nothing.
+     */
+    internal suspend fun stepOut(bound: Duration) {
+        if (!steppedOut.compareAndSet(false, true)) {
+            return
+        }
+        // A start or a stop stuck on a store holds the lifecycle: past the bound, the step-out goes on without it.
+        val locked = withTimeoutOrNull(bound) { lifecycle.lock() } != null
+        try {
+            running?.let { stepOut(it, bound) }
+        } finally {
+            if (locked) {
+                lifecycle.unlock()
+            }
+        }
+    }
+
+    private suspend fun stepOut(run: Running, bound: Duration) {
+        var handed = false
+        try {
+            handed = withTimeoutOrNull(bound) {
+                // Out of the members first: the reconcile may wait on a store, an acquisition not cancellable, and
+                // until it ends the group would stay on the node's record, its share by HRW the others' to leave.
+                run.membershipJob.cancel()
+                quietly("leave $group") { membership.leave(group.name) }
+                run.membershipJob.join()
+                reconcileLock.withLock {
+                    target = emptySet()
+                    handOff(gates.keys.toList())
+                }
+                true
+            } == true
+        } finally {
+            // Not one lease more is renewed, and nothing the node still holds takes a command.
+            run.renewals?.cancel()
+            gates.values.forEach { it.accepting = false }
+            if (!handed) {
+                logger.error {
+                    "$node did not hand off its partitions of $group within $bound after its fatal error; it renews " +
+                        "none of their leases, which expire within ${options.leaseTtl} for the others to take."
+                }
+                withContext(NonCancellable) {
+                    withTimeoutOrNull(bound) {
+                        timers.forEach { quietly("stop the timers of $group") { it.stop() } }
+                        quietly("stop the command intake of $group") { intake?.stop() }
+                        runtimes.forEach { quietly("stop the subscriptions of $group") { it.stop() } }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Stops at once without handing off or leaving, as a crash would: the node's membership and leases expire on
      * their own. For tests of failures.
      */
@@ -455,7 +528,7 @@ class PartitionOwnership internal constructor(
 
     /** [reconcile], the partitions it acquires reading once [reads] completes when given. */
     private suspend fun reconcile(reads: Job?): Unit = reconcileLock.withLock {
-        if (running == null) {
+        if (running == null || steppedOut.get()) {
             return@withLock
         }
         reconciling = timeSource.markNow()
@@ -478,9 +551,12 @@ class PartitionOwnership internal constructor(
 
     /**
      * Reads the owners into [routes], beside the members the membership read last; a change of the members wakes the
-     * reconciler.
+     * reconciler. Once the node stepped out ([stepOut]), the membership reads no members for it, so it reads them here.
      */
     suspend fun refreshRoutes() {
+        if (steppedOut.get()) {
+            membership.refresh()
+        }
         val members = membership.membersOf(group.name)
         val byNode = members.associateBy { it.node }
         val leased = leases.owners(group.name)
@@ -808,6 +884,10 @@ class PartitionOwnership internal constructor(
         val membershipJob = SupervisorJob(root)
         val membership = CoroutineScope(scope.coroutineContext + membershipJob)
         val upkeep = scope
+
+        /** The renewals' loop, which [stepOut] ends. */
+        @Volatile
+        var renewals: Job? = null
     }
 
     private companion object {

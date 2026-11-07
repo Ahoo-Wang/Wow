@@ -37,11 +37,13 @@ outline: deep
 
 ### 致命错误 {#fatal-errors}
 
-节点自身工作遇到的 `VirtualMachineError`（`OutOfMemoryError`、`StackOverflowError`、JVM 的内部错误）不是这项工作的失败：无论它出现在订阅的处理函数、定时器的发送、命令的执行，还是节点的某个循环里（租约的协调与续约、成员资格、某个上下文的追加队列、台账的发布器）。出现之后，JVM 的状态已不可信，重试可能再次遇到同样的错误，所以它既不重试，也不停放到失败台账。节点从此是致命的：
+节点自身工作遇到的 JVM 致命错误（`OutOfMemoryError`、`InternalError`、`UnknownError`）不是这项工作的失败：无论它出现在订阅的处理函数、定时器的发送、命令的执行，还是节点的某个循环里（租约的协调与续约、成员资格、某个上下文的追加队列、台账的发布器）。出现之后，JVM 的状态已不可信，因为堆是整个进程共用的，重试也可能再次遇到同样的错误，所以它既不重试，也不停放到失败台账。节点从此是致命的：
 
 - `liveness` 与 `node` 一直为 `DOWN`，直到进程结束，不论节点处于什么状态：进程内没有任何东西能让它们恢复。它们的详情在 `fatal` 下给出第一个致命错误：遇到它的节点部分（`component`：`subscription`、`timer`、`executor`、`ownership`、`membership`、`append-queue`、`ledger`、`node`），它在运行什么（`name`：订阅及其组、上下文、租约组），`partition`，错误的类（`error`），以及距今多久（`fatalMillis`）；`liveness` 另给出遇到了几个（`fatalErrors`）。
 - 第一个以 ERROR 记录一次，带调用栈；每一个都计入 `wow.node.fatal.errors`。
-- 节点自行停止，如同优雅关闭：先交出它的分区，让其他节点从检查点接手（停止的 lane 持有的条目在那里再处理一次，一如既往至少一次），然后拒绝命令（`wow.node.closing`），关闭其余部分。所以即使没有任何东西依据 liveness 行动，工作也会转移。
+- 节点退出所有租约组，如同优雅关闭的第一步：离开成员并交出它的分区，让其他节点从检查点接手（停止的 lane 持有的条目在那里再处理一次，一如既往至少一次）。它的其他 lane 照常处理，直到交接把它们排空。交接本身也需要内存：超过 `wow.cluster.reconcile-timeout`（1 分钟）仍未完成、或者失败的交接，会让节点不再续约任何租约，租约过期后（`wow.cluster.lease-ttl`）由其他节点接手。网关不关闭，仍收到的命令转给分区的新属主。所以即使没有任何东西依据 liveness 行动，工作也会转移；进程结束时，宿主的停止会收尾。
+
+`StackOverflowError` 不是致命错误。它只让出事的那一个线程展开栈，JVM 不受损，而且对同一输入一定会重现：栈溢出的处理函数与抛出 `NotImplementedError` 的一样失败，先重试，再停放。如果它是致命的，一个这样的条目会让接手其分区的每个节点依次退出。
 
 用 `-XX:+ExitOnOutOfMemoryError` 运行 JVM，让进程中任何地方（包括请求中）的 `OutOfMemoryError` 立即结束进程，由编排器重新启动它。chart 的默认 `javaOpts` 与 Wow 构建的镜像都设置了它（[Kubernetes](./kubernetes#memory)）；对没有这样运行的 JVM，节点自身的规则是兜底。
 
@@ -98,5 +100,5 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.timer.delay` 持续增长 | 定时器触发得晚了 | 节点的负载、定时器的存储 |
 | `wow.subscription.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
 | `wow.reservation.losses` 大于 0 | 有唯一键被两个聚合同时依赖 | 指明该键及其持有者的错误日志；预留的存活时间 |
-| `wow.node.fatal.errors` 大于 0 | 某个节点内存耗尽，或遇到了 JVM 的其他错误，并已停止 | 它的 ERROR 日志；堆的大小（[Kubernetes](./kubernetes#memory)） |
+| `wow.node.fatal.errors` 大于 0 | 某个节点内存耗尽，或遇到了 JVM 的其他致命错误，已交出它的分区，等待重启 | 它的 ERROR 日志；堆的大小（[Kubernetes](./kubernetes#memory)） |
 | `error.type=wow.command.busy` 的 `wow.command.refusals` | 节点在负载下拒绝命令 | 节点数、存储的延迟 |

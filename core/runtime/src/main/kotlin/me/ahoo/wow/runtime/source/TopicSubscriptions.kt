@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.FailureClassification
@@ -231,6 +232,7 @@ class TopicSubscriptions internal constructor(
      */
     suspend fun start(): Unit = lifecycle.withLock {
         check(scope == null) { "The subscriptions of $topic on $node are already started." }
+        check(!steppedOut) { "$node stepped out of the group of $topic after a fatal error." }
         val root = CoroutineScope(context + SupervisorJob() + fatals.contextOf(Component.OWNERSHIP, group.name))
         scope = root
         started = CompletableDeferred()
@@ -304,6 +306,10 @@ class TopicSubscriptions internal constructor(
             membership = membership,
         )
         ownership.start()
+        if (steppedOut) {
+            // Joined as the node stepped out: out again at once.
+            ownership.stepOut(cluster.reconcileTimeout)
+        }
         return Running(runtime, ownership, partitions)
     }
 
@@ -343,6 +349,27 @@ class TopicSubscriptions internal constructor(
     suspend fun awaitStarted() {
         started.await()
     }
+
+    /**
+     * Leaves the group for good after the node's fatal error ([PartitionOwnership.stepOut]): joins no more, and hands off
+     * what it holds within [bound], renewing no lease from then on. [stop] ends the rest.
+     */
+    internal suspend fun stepOut(bound: Duration) {
+        steppedOut = true
+        val locked = withTimeoutOrNull(bound) { lifecycle.lock() } != null
+        try {
+            withTimeoutOrNull(bound) { joining?.cancelAndJoin() }
+            running?.ownership?.stepOut(bound)
+        } finally {
+            if (locked) {
+                lifecycle.unlock()
+            }
+        }
+    }
+
+    /** Whether the node stepped out of the topic's group for good ([stepOut]): it joins it no more. */
+    @Volatile
+    private var steppedOut = false
 
     /** Hands off the partitions held, saving every checkpoint, and leaves the group; stopping twice does nothing. */
     suspend fun stop(): Unit = lifecycle.withLock {

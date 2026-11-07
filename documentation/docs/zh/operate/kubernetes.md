@@ -125,7 +125,7 @@ Wow 为 JDK 21 构建，也能在 JDK 21 上运行，但生产环境请用 JDK 2
 
 ## 内存 {#memory}
 
-chart 默认的 `javaOpts` 是 `-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`：堆是容器内存上限的四分之三，`OutOfMemoryError` 会结束进程，于是 Kubernetes 重新启动这个 Pod，其间其他节点接手它的分区。Wow 构建的镜像也设置了 `-XX:+ExitOnOutOfMemoryError`。你自己的 `javaOpts` 会替换默认值：请在其中保留 `-XX:+ExitOnOutOfMemoryError`。没有它时，节点自身工作遇到 `OutOfMemoryError` 仍会停止，其存活检查一直失败直到进程结束（[致命错误](./observability#fatal-errors)），但进程中其他地方的错误（例如某个请求中的）就交给 JVM 了。
+chart 默认的 `javaOpts` 是 `-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`：堆是容器内存上限的四分之三，`OutOfMemoryError` 会结束进程，于是 Kubernetes 重新启动这个 Pod，其间其他节点接手它的分区。Wow 构建的镜像也设置了 `-XX:+ExitOnOutOfMemoryError`。你自己的 `javaOpts` 会替换默认值：请在其中保留 `-XX:+ExitOnOutOfMemoryError`。没有它时，节点自身工作遇到 `OutOfMemoryError` 仍会退出它的租约组，其存活检查一直失败直到进程结束（[致命错误](./observability#fatal-errors)），但进程中其他地方的错误（例如某个请求中的）就交给 JVM 了。
 
 按节点高峰时持有的东西确定堆的大小，而不是按平均值：状态缓存，除非 `wow.state-cache.capacity` 限定了它，否则是堆的十分之一（[Wow 推导的值](./configuration#what-wow-derives)）；在途的命令，最多 `wow.executor.max-in-flight` 个，每个都带着它的聚合加载的状态，对于历史很长且近期没有快照的聚合，这意味着重放它的事件；以及每个订阅在它运行的每个分区中持有的条目，最多到它的在途上限。如果内存上限在负载下装不下这些，过载就会变成重启。
 

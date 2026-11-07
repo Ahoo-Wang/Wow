@@ -65,8 +65,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
  * returns when the commands already taken have finished, or its timeout passed.
  *
- * A [VirtualMachineError] (out of memory, say) a batch meets is recorded as the node's fatal error ([fatals]) and fails
- * the batch's leader; the node then hands its partitions off.
+ * A fatal error ([NodeFatals.isFatal]: out of memory, say) a batch meets is recorded as the node's ([fatals]) and fails
+ * the batch's leader; the node then hands its partitions off. A [StackOverflowError] fails the batch as any error does.
  *
  * When [views] are given, each commit's shared state is recorded in them before the lane moves on to the aggregate's
  * next batch, while nothing can change the state: the context's state consumers (the snapshot
@@ -191,7 +191,7 @@ class Executor(
             }
             return outcomes.first()
         } catch (fatal: VirtualMachineError) {
-            // The node's fatal error; its caller fails with it, and the lane moves on to the next command.
+            // The node's fatal error, unless it is a stack overflow; its caller fails with it, and the lane moves on.
             fatals.record(Component.EXECUTOR, model.type.toString(), fatal)
             throw fatal
         } finally {

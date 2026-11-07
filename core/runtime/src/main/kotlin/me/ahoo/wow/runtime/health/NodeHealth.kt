@@ -78,9 +78,10 @@ import kotlin.time.Duration.Companion.seconds
  * when one of them is, `UP` otherwise (a degraded node still serves).
  *
  * **Liveness** ([liveness], whether the process is stuck, so a restart helps): `DOWN` from the node's first fatal error
- * ([ServiceNode.fatals]: a [VirtualMachineError], out of memory say, that its own work met) until the process ends,
- * whatever the node's state, with that error under `fatal` (the part of the node, what it ran, the partition, the
- * error's class, when) and the count of them under `fatalErrors`: nothing in the process recovers from it. Otherwise
+ * ([ServiceNode.fatals]: an error of the JVM its own work met, out of memory say; [NodeFatals.isFatal]) until the
+ * process ends, whatever the node's state, with that error under `fatal` (the part of the node, what it ran, the
+ * partition, the error's class, when) and the count of them under `fatalErrors`: nothing in the process recovers from
+ * it. Otherwise
  * `DOWN` only when the node runs and, for [HealthOptions.stallTimeout], one of these holds:
  *
  * - `dispatcher`: its dispatcher has not ticked;

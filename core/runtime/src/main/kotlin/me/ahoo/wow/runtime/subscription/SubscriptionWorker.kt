@@ -100,10 +100,11 @@ import kotlin.random.Random
  * peer's topic as it passes over an entry outside its filter, since 9.x already acted on it; a projection takes it,
  * and so does every subscription of the log, a compensation's parked retry of an imported entry among them.
  *
- * A [VirtualMachineError] (out of memory, say) is no failure of the handler: it is neither retried nor parked, since
- * the JVM is not to be trusted after one. Its lane records it as its node's fatal error ([fatals]) and stops, its entry
- * incomplete, so the checkpoint stays below it; the node hands the partition off, and its new owner handles the entry
- * again from the checkpoint. The worker's other lanes go on until then.
+ * A fatal error ([NodeFatals.isFatal]: out of memory, say) is no failure of the handler: it is neither retried nor
+ * parked, since the JVM is not to be trusted after one. Its lane records it as its node's fatal error ([fatals]) and
+ * stops, its entry incomplete, so the checkpoint stays below it; the node hands the partition off, and its new owner
+ * handles the entry again from the checkpoint. The worker's other lanes go on until the hand-off drains them. A
+ * [StackOverflowError] is not fatal: it fails the handling like any error, retried and then parked.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -353,6 +354,9 @@ internal class SubscriptionWorker(
                     is Item.Retry -> runRetry(ref, item)
                 }
             } catch (fatal: VirtualMachineError) {
+                if (!NodeFatals.isFatal(fatal)) {
+                    throw fatal
+                }
                 // The lane stops here, still active, so the aggregate's later entries queue behind it unhandled.
                 fatals.record(
                     ObservedEvent.Fatal.Component.SUBSCRIPTION,
@@ -465,9 +469,10 @@ internal class SubscriptionWorker(
 
     /**
      * A handler may fail with anything: a [CancellationException] that is not this lane's own, such as
-     * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError], is a failure like any other, retried and
-     * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
-     * retries, and a [VirtualMachineError] (out of memory, say) propagates at once, to stop the lane ([drain]).
+     * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError] or [StackOverflowError], is a
+     * failure like any other, retried and then parked, so the lane goes on and the checkpoint moves. Only the
+     * cancellation of the lane itself stops the retries, and a fatal error ([NodeFatals.isFatal]: out of memory, say)
+     * propagates at once, to stop the lane ([drain]).
      *
      * Each failure is classified ([classification]): an unrecoverable one returns at once, so
      * the aggregate parks without a retry; a recoverable one is retried within the budget; a systemic one, or any
@@ -497,10 +502,11 @@ internal class SubscriptionWorker(
                 // The handler reached a decision: what it depends on answers.
                 succeeded(ref)
                 return Result.failure(rejected)
-            } catch (fatal: VirtualMachineError) {
-                // Never retried: the lane stops ([drain]).
-                throw fatal
             } catch (failure: Throwable) {
+                if (NodeFatals.isFatal(failure)) {
+                    // Never retried: the lane stops ([drain]).
+                    throw failure
+                }
                 // The lane's own cancellation propagates; any other is the handler's failure.
                 currentCoroutineContext().ensureActive()
                 failure
