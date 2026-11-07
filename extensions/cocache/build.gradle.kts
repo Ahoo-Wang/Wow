@@ -17,6 +17,8 @@ dependencies {
     compileOnly("org.springframework:spring-context")
     testImplementation("org.springframework:spring-context")
     testImplementation("me.ahoo.cocache:cocache-spring-boot-starter")
+    // CoCache's backend with faults to inject (HookedBackend): a Redis whose reads fail.
+    testImplementation("me.ahoo.cocache:cocache-test")
     // ApplicationContextRunner, and the import selector that reads this module's auto-configuration metadata.
     testImplementation("org.springframework.boot:spring-boot-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-test")

@@ -28,12 +28,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cocache.api.CacheReadException
 import me.ahoo.cocache.api.spi.CoherenceBackend
-import me.ahoo.cocache.api.spi.ForwardingL1Store
-import me.ahoo.cocache.api.spi.Keyspace
-import me.ahoo.cocache.api.spi.L1Read
-import me.ahoo.cocache.api.spi.L1Store
-import me.ahoo.cocache.api.spi.LeaseRequest
-import me.ahoo.cocache.api.spi.RefreshRequest
 import me.ahoo.cocache.core.CacheLayers
 import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.core.CoCacheFactory
@@ -47,6 +41,7 @@ import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.cocache.core.policy.CachePolicy
 import me.ahoo.cocache.core.policy.LoadPolicy
 import me.ahoo.cocache.core.policy.ReadFailureMode
+import me.ahoo.cocache.test.HookedBackend
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.problem.Retry
 import me.ahoo.wow.api.problem.WowProblemException
@@ -254,26 +249,11 @@ class StateViewUnavailableTest {
     @Test
     fun `a backend whose reads fail should be unavailable`() {
         coEvery { snapshots.state(any<String>()) } returns null
-        val down = failingBackend(IllegalStateException("Redis is down."))
+        val down = HookedBackend(InMemoryBackend()).apply { failReads = true }
         val failure = readFailure {
             cachesOf(down) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key)
         } as StateViewUnavailableException
         failure.cause.assert().isInstanceOf(CacheReadException::class.java)
-    }
-
-    /** A backend whose every read of a key throws [failure], as a Redis that is down does. */
-    private fun failingBackend(failure: RuntimeException): CoherenceBackend {
-        val memory = InMemoryBackend()
-        return object : CoherenceBackend by memory {
-            override fun store(keyspace: Keyspace): L1Store = object : ForwardingL1Store(memory.store(keyspace)) {
-                override suspend fun read(
-                    key: String,
-                    lease: LeaseRequest?,
-                    refresh: RefreshRequest?,
-                    timeout: Duration?,
-                ): L1Read = throw failure
-            }
-        }
     }
 
     private companion object {
