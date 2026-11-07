@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.log.EventLogSpec
@@ -762,6 +763,70 @@ class PostgresEventLogTest : EventLogSpec() {
             healthy.read(type.ref("tenant", "a")).toList().size.assert().isEqualTo(1)
         }
 
+    @Test
+    fun `a long read takes one statement a page, a read within a page one`(): Unit = runBlocking {
+        // X-80: a replay from version 1 once held a hot aggregate's whole history; now it holds a page.
+        val prepared = ConcurrentLinkedQueue<String>()
+        val context = PostgresFixture.newContext()
+        val log = PostgresEventLog(preparing(PostgresFixture.dataSource, prepared), context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "account")
+        val long = type.ref("tenant", "long")
+        val count = 2 * VersionPages.SIZE + 3
+        (1..count).chunked(GROUP_OF_STREAMS).forEach { versions ->
+            log.appendAll(versions.map { stream(long, it) to null })
+        }
+        val short = type.ref("tenant", "short")
+        (1..SHORT).forEach { log.append(stream(short, it)) }
+        fun pages(read: suspend () -> Int): Pair<Int, Map<Boolean, Int>> {
+            prepared.clear()
+            val size = runBlocking { read() }
+            // A page of entries names the partition and sequence first.
+            val statements = prepared.filter { it.endsWith("ORDER BY version LIMIT ?") }
+            return size to statements.groupingBy { it.startsWith("SELECT partition, sequence") }.eachCount()
+        }
+
+        pages { log.read(long).toList().size }.assert().isEqualTo(count to mapOf(false to 3))
+        pages { log.readEntries(long).toList().size }.assert().isEqualTo(count to mapOf(true to 3))
+        pages { log.read(short).toList().size }.assert().isEqualTo(SHORT to mapOf(false to 1))
+        pages { log.readEntries(short).toList().size }.assert().isEqualTo(SHORT to mapOf(true to 1))
+        // A page that reaches the end of the range asked for is the last.
+        pages { log.read(long, 1, VersionPages.SIZE).toList().size }.assert().isEqualTo(VersionPages.SIZE to mapOf(false to 1))
+        pages { log.read(long).take(1).toList().size }.assert().isEqualTo(1 to mapOf(false to 1))
+    }
+
+    private fun stream(ref: AggregateRef, version: Int) = EventStreamRecord(
+        ref,
+        version,
+        "c-${ref.id}-$version",
+        "r-${ref.id}-$version",
+        "${ref.type}.Act",
+        version.toLong(),
+        listOf(EventRecord("${ref.type}.Acted", 1, "{}")),
+        Scope.NONE,
+    )
+
+    /** [target], recording the statement of each `prepareStatement` of its connections in [prepared]. */
+    private fun preparing(target: DataSource, prepared: ConcurrentLinkedQueue<String>): DataSource {
+        fun <T : Any> proxy(type: Class<T>, delegate: T, intercept: (String, Array<Any?>) -> Any?): T = type.cast(
+            Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
+                val arguments = args ?: emptyArray()
+                intercept(method.name, arguments) ?: try {
+                    method.invoke(delegate, *arguments)
+                } catch (thrown: InvocationTargetException) {
+                    throw thrown.targetException
+                }
+            },
+        )
+        return proxy(DataSource::class.java, target) { name, _ ->
+            if (name != "getConnection") return@proxy null
+            val connection = target.connection
+            proxy(Connection::class.java, connection) { method, arguments ->
+                if (method == "prepareStatement") (arguments.firstOrNull() as? String)?.let(prepared::add)
+                null
+            }
+        }
+    }
+
     private fun groupWaitsOnLock(): Boolean = PostgresFixture.dataSource.connection.use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery(
@@ -816,5 +881,7 @@ class PostgresEventLogTest : EventLogSpec() {
         const val PER_PARTITION = GROUPS
         const val ROUNDS = 100
         const val REQUESTS = 32
+        const val GROUP_OF_STREAMS = 64
+        const val SHORT = 5
     }
 }

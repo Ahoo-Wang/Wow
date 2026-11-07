@@ -16,6 +16,7 @@ package me.ahoo.wow.tck.log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -46,6 +47,7 @@ import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -642,6 +644,42 @@ abstract class EventLogSpec {
     }
 
     @Test
+    fun `a long read is whole and in order across its pages, read and readEntries alike`(): Unit = runBlocking {
+        // A backend reads a page of VersionPages.SIZE streams at a time; its pages join with no gap nor repeat.
+        val log = createLog()
+        val ref = type.ref("tenant", "long")
+        val count = 2 * VersionPages.SIZE + 3
+        val appended = (1..count).map { stream("long", it) }
+        appended.chunked(APPEND_GROUP).forEachIndexed { index, group ->
+            log.appendAll(group.map { it to null }).assert().allMatch { it is AppendOutcome.Committed }
+            // Another aggregate's streams between, which no page of this one takes.
+            log.append(stream("between", index + 1))
+        }
+        fun versions(
+            from: Int,
+            to: Int = Int.MAX_VALUE
+        ) = runBlocking { log.read(ref, from, to).toList().map { it.version } }
+
+        val read = log.read(ref).toList()
+        read.map { it.version }.assert().isEqualTo((1..count).toList())
+        read[VersionPages.SIZE].assertSameAs(appended[VersionPages.SIZE])
+        versions(1, VersionPages.SIZE).assert().isEqualTo((1..VersionPages.SIZE).toList())
+        versions(
+            VersionPages.SIZE,
+            VersionPages.SIZE + 1
+        ).assert().containsExactly(VersionPages.SIZE, VersionPages.SIZE + 1)
+        versions(VersionPages.SIZE + 1).assert().isEqualTo((VersionPages.SIZE + 1..count).toList())
+        versions(count + 1).assert().isEmpty()
+        val entries = log.readEntries(ref).toList()
+        entries.map { it.stream.version }.assert().isEqualTo((1..count).toList())
+        entries.map { it.position.sequence }.assertIncreasingAfter(0)
+        log.readEntries(ref, 2 * VersionPages.SIZE).toList().map { it.stream.version }
+            .assert().isEqualTo((2 * VersionPages.SIZE..count).toList())
+        // A read stopped after its first stream reads no more.
+        log.read(ref).first().version.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `readTail gives the tail from a version and the latest earlier request keys, newest first`(): Unit =
         runBlocking {
             val log = createLog()
@@ -1190,6 +1228,9 @@ abstract class EventLogSpec {
 
     protected companion object {
         const val DEFAULT_PARTITIONS = 8
+
+        /** The streams of one aggregate a long read's appends commit at a time. */
+        private const val APPEND_GROUP = 64
         const val CONTEXT_SUFFIX = 12
         const val TAIL_TIMEOUT_MS = 30_000L
     }

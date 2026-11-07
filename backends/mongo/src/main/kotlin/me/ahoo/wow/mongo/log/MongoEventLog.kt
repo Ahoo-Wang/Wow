@@ -61,6 +61,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPacer
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.log.requireChains
 import org.bson.BsonArray
 import org.bson.BsonDocument
@@ -298,19 +299,22 @@ class MongoEventLog(
     /** Every partition of the log: a lookup of the request key without the aggregate seeks it in each. */
     private val everyPartition: Bson = Filters.`in`(PARTITION, (0 until partitions).toList())
 
-    override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
-        val streams = dispatcher.mongo {
-            val collection = collections.of(ref.type)
-            collection.committed.find(
-                Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
-            )
-                .projection(FACTS)
-                .sort(Sorts.ascending(VERSION))
-                .map { documents.streamOf(collection.aggregate, it) }
-                .toList()
+    /** A page of [VersionPages.SIZE] streams a `find`, each emitted before the next is read. */
+    override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
+        VersionPages.byVersion(fromVersion, toVersion, EventStreamRecord::version) { from ->
+            dispatcher.mongo {
+                val collection = collections.of(ref.type)
+                collection.committed.find(
+                    Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, from), Filters.lte(VERSION, toVersion)),
+                )
+                    .projection(FACTS)
+                    .sort(Sorts.ascending(VERSION))
+                    .limit(VersionPages.SIZE)
+                    .batchSize(VersionPages.SIZE)
+                    .map { documents.streamOf(collection.aggregate, it) }
+                    .toList()
+            }
         }
-        streams.forEach { emit(it) }
-    }
 
     /**
      * One update of the range by the version key, on the streams not stamped as of a later version. A stream not
@@ -472,18 +476,21 @@ class MongoEventLog(
         }
     }
 
-    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
-        val entries = dispatcher.mongo {
-            val collection = collections.of(ref.type)
-            collection.committed.find(
-                Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
-            )
-                .sort(Sorts.ascending(VERSION))
-                .map { documents.entryOf(collection.aggregate, it) }
-                .toList()
+    /** A page of [VersionPages.SIZE] entries a `find`, as [read]. */
+    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+        VersionPages.byVersion(fromVersion, toVersion, { it.stream.version }) { from ->
+            dispatcher.mongo {
+                val collection = collections.of(ref.type)
+                collection.committed.find(
+                    Filters.and(lookups.refFilter(ref), Filters.gte(VERSION, from), Filters.lte(VERSION, toVersion)),
+                )
+                    .sort(Sorts.ascending(VERSION))
+                    .limit(VersionPages.SIZE)
+                    .batchSize(VersionPages.SIZE)
+                    .map { documents.entryOf(collection.aggregate, it) }
+                    .toList()
+            }
         }
-        entries.forEach { emit(it) }
-    }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
         collections.of(ref.type).committed.find(Filters.and(lookups.refFilter(ref), Filters.eq(VERSION, version)))
