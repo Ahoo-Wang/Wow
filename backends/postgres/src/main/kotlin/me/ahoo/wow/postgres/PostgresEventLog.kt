@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPacer
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
 import me.ahoo.wow.spi.schema.EnsuredOnce
@@ -553,22 +554,24 @@ class PostgresEventLog(
             AppendOutcome.Unknown(failure)
         }
 
-    override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
-        val streams = dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                withTable(connection, ref.type) { table ->
-                    connection.prepareStatement(table.read).use { query ->
-                        query.setString(1, ref.id)
-                        query.setString(2, ref.tenantId)
-                        query.setInt(3, fromVersion)
-                        query.setInt(4, toVersion)
-                        query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+    /** A page of [VersionPages.SIZE] streams a statement, each emitted before the next is read. */
+    override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
+        VersionPages.byVersion(fromVersion, toVersion, EventStreamRecord::version) { from ->
+            dispatcher.jdbc {
+                dataSource.autoCommitted { connection ->
+                    withTable(connection, ref.type) { table ->
+                        connection.prepareStatement(table.read).use { query ->
+                            query.setString(1, ref.id)
+                            query.setString(2, ref.tenantId)
+                            query.setInt(3, from)
+                            query.setInt(4, toVersion)
+                            query.setInt(5, VersionPages.SIZE)
+                            query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+                        }
                     }
                 }
             }
         }
-        streams.forEach { emit(it) }
-    }
 
     /** One statement by the version key, autocommitted: a stamp of a range writes it whole or not at all. */
     @InternalWowApi
@@ -765,24 +768,26 @@ class PostgresEventLog(
         }
     }
 
-    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
-        val entries = dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                withTable(connection, ref.type) { table ->
-                    connection.prepareStatement(table.entries).use { query ->
-                        query.setString(1, ref.id)
-                        query.setString(2, ref.tenantId)
-                        query.setInt(3, fromVersion)
-                        query.setInt(4, toVersion)
-                        query.executeQuery().use { rows ->
-                            rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+    /** A page of [VersionPages.SIZE] entries a statement, as [read]. */
+    override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+        VersionPages.byVersion(fromVersion, toVersion, { it.stream.version }) { from ->
+            dispatcher.jdbc {
+                dataSource.autoCommitted { connection ->
+                    withTable(connection, ref.type) { table ->
+                        connection.prepareStatement(table.entries).use { query ->
+                            query.setString(1, ref.id)
+                            query.setString(2, ref.tenantId)
+                            query.setInt(3, from)
+                            query.setInt(4, toVersion)
+                            query.setInt(5, VersionPages.SIZE)
+                            query.executeQuery().use { rows ->
+                                rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+                            }
                         }
                     }
                 }
             }
         }
-        entries.forEach { emit(it) }
-    }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
         dataSource.autoCommitted { connection ->

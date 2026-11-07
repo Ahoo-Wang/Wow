@@ -13,9 +13,7 @@
 
 package me.ahoo.wow.kernel
 
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -89,11 +87,16 @@ internal class StateHistory(
         if (base.version == version) {
             return base
         }
-        val streams = log.read(ref, base.version + 1, version).toList()
-        if (streams.firstOrNull()?.version != base.version + 1 || streams.last().version != version) {
-            return null
-        }
-        return kernel.replay(model, base, streams)
+        // Folded as the log is read, never held whole: a subscription far behind its base folds a long tail.
+        var current: CachedState? = base
+        log.read(ref, base.version + 1, version)
+            .takeWhile { current != null }
+            .collect { stream ->
+                val at = checkNotNull(current)
+                // A version the log does not hold ends it: the state at [version] cannot be told.
+                current = if (stream.version == at.version + 1) kernel.evolve(model, at, stream) else null
+            }
+        return current?.takeIf { it.version == version }
     }
 
     suspend fun <S : Any> stateAt(

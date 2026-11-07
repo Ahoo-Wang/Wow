@@ -62,6 +62,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
@@ -432,6 +433,33 @@ class MongoEventLogTest : EventLogSpec() {
             .toList()
         reads.assert().isNotEmpty()
         reads.forEach { it.assert().startsWith("IXSCAN") }
+    }
+
+    @Test
+    fun `a long read takes one find a page, a read within a page one, and no getMore`(): Unit = runBlocking {
+        // X-80: a replay from version 1 once held a hot aggregate's whole history; now it holds a page.
+        val context = MongoLogFixture.newContext()
+        val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        val count = 2 * VersionPages.SIZE + 3
+        (1..count).chunked(GROUP_OF_STREAMS).forEach { versions ->
+            log.appendAll(versions.map { stream("long", it, aggregate = type) to null })
+        }
+        (1..SHORT).forEach { log.append(stream("short", it, aggregate = type)) }
+        val events = collection(context, "order")
+        fun sent(read: suspend () -> Int): Pair<Int, List<String>> {
+            val (size, sent) = CountedMongo.commandsOf { runBlocking { read() } }
+            return size to sent.filter { it.collection == events || it.name == "getMore" }.map { it.name }
+        }
+
+        sent { log.read(type.ref("tenant", "long")).toList().size }.assert().isEqualTo(count to List(3) { "find" })
+        sent { log.readEntries(type.ref("tenant", "long")).toList().size }
+            .assert().isEqualTo(count to List(3) { "find" })
+        sent { log.read(type.ref("tenant", "short")).toList().size }.assert().isEqualTo(SHORT to listOf("find"))
+        sent { log.readEntries(type.ref("tenant", "short")).toList().size }.assert().isEqualTo(SHORT to listOf("find"))
+        // A page that reaches the end of the range asked for is the last.
+        sent { log.read(type.ref("tenant", "long"), 1, VersionPages.SIZE).toList().size }
+            .assert().isEqualTo(VersionPages.SIZE to listOf("find"))
     }
 
     @Test
@@ -1070,5 +1098,7 @@ class MongoEventLogTest : EventLogSpec() {
         const val FIRST_TOUCHES = 100
         const val SETTLE_MS = 100L
         const val OVERSIZED_BYTES = 17 * 1024 * 1024
+        const val GROUP_OF_STREAMS = 64
+        const val SHORT = 5
     }
 }
