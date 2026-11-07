@@ -46,8 +46,10 @@ import java.time.Duration
  *   ([StateViewCacheRegistrar]), from the service's [StateViewCaches], whose misses read through the node's
  *   [QueryApi]. Its caches are created at startup, through the starter's [CoCacheFactory] when the application has
  *   it, so CoCache's settings (`cocache.defaults.cache.*`, `cocache.caches.[wow.<context>.<aggregate>].*`) apply to
- *   them. They are created even under `spring.main.lazy-initialization` (`@Lazy(false)`): the starter checks, once the
- *   singletons exist, that every `cocache.caches.[name]` names a cache, and a cache created later is not one yet.
+ *   them. They are created at startup even under `spring.main.lazy-initialization` (`@Lazy(false)`), so the starter's
+ *   check that every `cocache.caches.[name]` names a cache, made once the singletons exist, finds them, and a name
+ *   CoCache refuses fails the start rather than a first read. (The starter's `CacheNameContributor` would only relax
+ *   the check, and this module does not compile against the starter.)
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
  *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */

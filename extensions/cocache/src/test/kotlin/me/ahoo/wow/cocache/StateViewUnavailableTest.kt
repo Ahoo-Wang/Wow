@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import me.ahoo.cocache.api.CacheReadException
 import me.ahoo.cocache.api.spi.CoherenceBackend
 import me.ahoo.cocache.api.spi.ForwardingL1Store
 import me.ahoo.cocache.api.spi.Keyspace
@@ -38,6 +39,9 @@ import me.ahoo.cocache.core.CacheRuntime
 import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.Layered
 import me.ahoo.cocache.core.Locks
+import me.ahoo.cocache.core.SourceLoadCancelledException
+import me.ahoo.cocache.core.SourceLoadRejectedException
+import me.ahoo.cocache.core.SourceLoadTimeoutException
 import me.ahoo.cocache.core.VersionedCacheSpec
 import me.ahoo.cocache.core.memory.InMemoryBackend
 import me.ahoo.cocache.core.policy.CachePolicy
@@ -216,7 +220,8 @@ class StateViewUnavailableTest {
             null
         }
         val cache = cachesOf(backend) { load = LoadPolicy(timeout = Duration.ofMillis(100)) }.of<OrderView>()
-        (readFailure { cache.get(key) } as StateViewUnavailableException).message.assert().contains("in time")
+        (readFailure { cache.get(key) } as StateViewUnavailableException).cause.assert()
+            .isInstanceOf(SourceLoadTimeoutException::class.java)
     }
 
     @Test
@@ -234,7 +239,7 @@ class StateViewUnavailableTest {
         val first = async(Dispatchers.Default) { cache.get(key) }
         loading.await()
         val failure = readFailure { cache.get(StateKey("t", "o-2")) } as StateViewUnavailableException
-        failure.message.assert().contains("in flight")
+        failure.cause.assert().isInstanceOf(SourceLoadRejectedException::class.java)
         release.complete(Unit)
         first.await().assert().isNull()
     }
@@ -243,7 +248,7 @@ class StateViewUnavailableTest {
     fun `a read of the owner that cancels itself should be unavailable`() {
         coEvery { snapshots.state("o-1") } throws CancellationException("The owner's read gave up.")
         val failure = readFailure { caches.of<OrderView>().get(key) } as StateViewUnavailableException
-        failure.message.assert().contains("cancelled")
+        failure.cause.assert().isInstanceOf(SourceLoadCancelledException::class.java)
     }
 
     @Test
@@ -253,7 +258,7 @@ class StateViewUnavailableTest {
         val failure = readFailure {
             cachesOf(down) { readFailure = ReadFailureMode.THROW }.of<OrderView>().get(key)
         } as StateViewUnavailableException
-        failure.message.assert().contains("backend")
+        failure.cause.assert().isInstanceOf(CacheReadException::class.java)
     }
 
     /** A backend whose every read of a key throws [failure], as a Redis that is down does. */

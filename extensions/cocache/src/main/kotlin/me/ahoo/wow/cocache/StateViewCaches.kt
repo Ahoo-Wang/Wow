@@ -15,14 +15,11 @@ package me.ahoo.wow.cocache
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
-import me.ahoo.cocache.api.CacheReadException
 import me.ahoo.cocache.api.SuspendingVersionedCache
 import me.ahoo.cocache.api.Versioned
+import me.ahoo.cocache.core.CacheFailures
 import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.core.KeyEncoder
-import me.ahoo.cocache.core.SourceLoadCancelledException
-import me.ahoo.cocache.core.SourceLoadRejectedException
-import me.ahoo.cocache.core.SourceLoadTimeoutException
 import me.ahoo.cocache.core.SuspendingCacheLoader
 import me.ahoo.cocache.core.VersionedCacheSpec
 import me.ahoo.cocache.core.suspendingVersionedLoader
@@ -121,10 +118,12 @@ class StateViewCaches(private val factory: CoCacheFactory, private val queries: 
 
         /**
          * [read], whose failure to reach the states' source is a [StateViewUnavailableException], [reported]: the
-         * owner's read the loader could not make, CoCache's load that timed out, was refused or cancelled, or its
-         * backend's read that failed. Any other error is thrown as it is. A state in the cache that does not decode as
-         * the view is no failure of the cache: CoCache reads it from the owner instead, and keeps the cache's version.
+         * owner's read the loader could not make, or a failure CoCache calls transient ([CacheFailures.isTransient]),
+         * its load of the owner that timed out, was refused or cancelled, or its backend's read that failed. Any other
+         * error is thrown as it is. A state in the cache that does not decode as the view is no failure of the cache:
+         * CoCache reads it from the owner instead, and keeps the cache's version.
          */
+        @Suppress("TooGenericExceptionCaught") // CoCache classifies its failures; any other is rethrown as it is.
         private inline fun <T> served(keys: Collection<StateKey>, read: () -> T): T {
             val failure = try {
                 return read().also {
@@ -134,14 +133,15 @@ class StateViewCaches(private val factory: CoCacheFactory, private val queries: 
                 }
             } catch (unavailable: StateViewUnavailableException) {
                 unavailable
-            } catch (source: SourceLoadTimeoutException) {
-                unavailable(keys, "its owner did not answer in time", source)
-            } catch (source: SourceLoadRejectedException) {
-                unavailable(keys, "too many reads of its owner are in flight", source)
-            } catch (source: SourceLoadCancelledException) {
-                unavailable(keys, "the read of its owner was cancelled", source)
-            } catch (backend: CacheReadException) {
-                unavailable(keys, "the cache's backend failed", backend)
+            } catch (failure: RuntimeException) {
+                if (!CacheFailures.isTransient(failure)) {
+                    throw failure
+                }
+                StateViewUnavailableException(
+                    keys,
+                    "The states $keys in $name cannot be served now: ${failure.message}",
+                    failure,
+                )
             }
             throw reported(failure)
         }
@@ -158,9 +158,6 @@ class StateViewCaches(private val factory: CoCacheFactory, private val queries: 
             }
             return failure
         }
-
-        private fun unavailable(keys: Collection<StateKey>, reason: String, cause: Throwable) =
-            StateViewUnavailableException(keys, "The states $keys in $name cannot be served: $reason.", cause)
 
         override fun toString(): String = "StateViewCache($name)"
 

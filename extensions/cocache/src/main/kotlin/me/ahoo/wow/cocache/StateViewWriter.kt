@@ -32,24 +32,12 @@ class StateViewWriter<V : Any> internal constructor(
     private val ttl: Duration?,
 ) {
     /** Writes [view] under [key] at [version]: true when written, false when the cache holds that version or a later. */
-    suspend fun write(key: StateKey, view: V, version: Int): Boolean {
-        val put = if (ttl == null) {
-            cache.putIfNewer(key, view, version.toLong())
-        } else {
-            cache.putIfNewer(key, view, version.toLong(), ttl)
-        }
-        return put == VersionedPut.Written
-    }
+    suspend fun write(key: StateKey, view: V, version: Int): Boolean =
+        cache.putIfNewer(key, view, version.toLong(), ttl) == VersionedPut.Written
 
     /** Writes the tombstone of [key], deleted at [version]: true when written, false when the cache holds a later one. */
-    suspend fun delete(key: StateKey, version: Int): Boolean {
-        val put = if (ttl == null) {
-            cache.invalidateIfNewer(key, version.toLong())
-        } else {
-            cache.invalidateIfNewer(key, version.toLong(), ttl)
-        }
-        return put == VersionedPut.Written
-    }
+    suspend fun delete(key: StateKey, version: Int): Boolean =
+        cache.invalidateIfNewer(key, version.toLong(), ttl) == VersionedPut.Written
 
     override fun toString(): String = "StateViewWriter(${cache.name})"
 }
