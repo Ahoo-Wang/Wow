@@ -29,6 +29,7 @@ import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.ConfigurationCondition
+import org.springframework.context.annotation.Lazy
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.format.datetime.standard.DurationFormatterUtils
@@ -45,7 +46,8 @@ import java.time.Duration
  *   ([StateViewCacheRegistrar]), from the service's [StateViewCaches], whose misses read through the node's
  *   [QueryApi]. Its caches are created at startup, through the starter's [CoCacheFactory] when the application has
  *   it, so CoCache's settings (`cocache.defaults.cache.*`, `cocache.caches.[wow.<context>.<aggregate>].*`) apply to
- *   them.
+ *   them. They are created even under `spring.main.lazy-initialization` (`@Lazy(false)`): the starter checks, once the
+ *   singletons exist, that every `cocache.caches.[name]` names a cache, and a cache created later is not one yet.
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
  *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */
@@ -53,6 +55,7 @@ import java.time.Duration
 @Conditional(WowCoCacheAutoConfiguration.RunsCoCache::class)
 class WowCoCacheAutoConfiguration {
     @Bean
+    @Lazy(false)
     fun wowStateViewCaches(
         runtime: CacheRuntime,
         factories: ObjectProvider<CoCacheFactory>,
