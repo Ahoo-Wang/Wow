@@ -115,8 +115,8 @@ internal class NodeAssembly(
      * host's query API, resolved when a handler first reads; none by default, and a read then fails.
      */
     val queries: ContextQueries = ContextQueries.NONE,
-    /** How the rebuilds of the subscriptions' states replay the log; each at once by default. */
-    replayGate: ReplayGate = ReplayGate.OPEN,
+    /** How the rebuilds of the subscriptions' states replay the log: the [ServiceNode]'s gate. */
+    replayGate: ReplayGate,
 ) {
     /** The jobs of each context's `@OnSchedule` handlers, by the name of the subscription that runs each. */
     private val declaredJobs: Map<String, Map<String, ScheduleJob>> =

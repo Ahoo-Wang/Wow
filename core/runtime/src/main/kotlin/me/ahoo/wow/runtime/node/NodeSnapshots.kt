@@ -27,8 +27,8 @@ import me.ahoo.wow.spi.observation.Observer
 internal class NodeSnapshots(
     private val manifest: Manifest,
     private val observer: Observer = Observer.NONE,
-    /** How the backfills' rebuilds replay the log. */
-    private val gate: ReplayGate = ReplayGate.OPEN,
+    /** How the backfills' rebuilds replay the log: the node's gate. */
+    private val gate: ReplayGate,
 ) {
     /**
      * Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them, and a built-in
