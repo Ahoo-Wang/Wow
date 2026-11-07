@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.cocache
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -30,6 +32,7 @@ import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.read.StateView
 import me.ahoo.wow.api.read.TenantSnapshotQueries
 import me.ahoo.wow.cocache.api.StateKey
 import me.ahoo.wow.manifest.QueryManifest
@@ -228,6 +231,34 @@ class StateViewCachesTest {
         codec.decode("""{"item":"pen","added":true}""".toByteArray()).assert().isEqualTo(OrderView("pen"))
         codec.toString().assert().contains(OrderView::class.java.name)
     }
+
+    /** How an order is paid: a polymorphic value, its kind written as a type id. */
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
+    @JsonSubTypes(JsonSubTypes.Type(Card::class, name = "card"), JsonSubTypes.Type(Wire::class, name = "wire"))
+    sealed interface Payment
+
+    data class Card(val last4: String) : Payment
+
+    data class Wire(val iban: String, val reference: String) : Payment
+
+    /** A view whose fields hold polymorphic values, alone and in a list and a map. */
+    @StateView("shop.payment")
+    data class PaymentView(val payment: Payment, val attempts: List<Payment>, val byMethod: Map<String, Payment>)
+
+    @Test
+    fun `a view's polymorphic fields should be read by another node with their types and every field`() =
+        runBlocking<Unit> {
+            val view = PaymentView(
+                payment = Wire("DE89", "o-1"),
+                attempts = listOf(Card("4242"), Wire("DE89", "o-1")),
+                byMethod = mapOf("card" to Card("4242"), "wire" to Wire("DE89", "o-1")),
+            )
+            owners.writerOf(PaymentView::class.java).write(key, view, 1).assert().isTrue()
+            readers.of<PaymentView>().get(key).assert().isEqualTo(view)
+            String(StateViewCodec(PaymentView::class.java).encode(view)).assert()
+                .contains("""{"kind":"card","last4":"4242"}""")
+                .contains("""{"kind":"wire","iban":"DE89","reference":"o-1"}""")
+        }
 
     /** A view of a state that holds its lines in a getter-only set, filled by sourcing. */
     class BasketView {
