@@ -40,6 +40,7 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
+import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.policy.AccessFixtures.DEPARTMENT
@@ -57,7 +58,9 @@ import me.ahoo.wow.query.policy.AccessFixtures.documents
 import me.ahoo.wow.query.policy.AccessFixtures.record
 import me.ahoo.wow.query.policy.AccessFixtures.state
 import me.ahoo.wow.query.policy.AccessFixtures.stream
+import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.state.StateVisibility
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
@@ -270,6 +273,56 @@ class AccessQueryEngineTest {
         gateway.count(CountQuery(MatchAllFilter), both).count.assert().isEqualTo(2)
         gateway.count(CountQuery(MatchAllFilter), alice).count.assert().isEqualTo(1)
         cache.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a governed dataset's rows should be read by their aggregate's current attributes`(): Unit = runBlocking {
+        val rows = InMemoryDatasetStorage()
+        fun row(id: String, document: String, tenant: String = "acme") =
+            WowJson.mapper.createObjectNode().put("row_id", id).put("tenant_id", tenant).put("document_id", document)
+        val binding = rows.put(
+            "document_rows",
+            listOf(
+                row("r1", "d-sales"),
+                row("r2", "d-sales"),
+                row("r3", "d-hr"),
+                // Of an aggregate the warehouse holds no attributes of.
+                row("r4", "d-none"),
+                row("r5", "d-sales", tenant = "other"),
+            ),
+        )
+        // d-hr was a sales document; its newer commit moved it to hr.
+        rows.putAccess(DOCUMENT, "acme", "d-hr", 1, mapOf("owner" to "zed", "department" to "sales"))
+        rows.putAccess(DOCUMENT, "acme", "d-sales", 1, mapOf("owner" to "zed", "department" to "sales"))
+        rows.putAccess(
+            DOCUMENT,
+            "acme",
+            "d-hr",
+            2,
+            mapOf("owner" to "zed", "department" to "hr", "sharedWith" to listOf("bob"))
+        )
+        rows.putAccess(DOCUMENT, "other", "d-sales", 1, mapOf("owner" to "zed", "department" to "sales"))
+        val dataset = QueryDataset.of(AggregateType("docs", "document_rows")) {
+            tenant("tenant_id")
+            identity("row_id")
+            access("docs.document", "document_id")
+            storage(binding)
+            listOf("row_id", "tenant_id", "document_id").forEach { field(it) { types(QueryValueType.STRING) } }
+        }
+        val engine = QueryEngine.Builder(MANIFEST)
+            .datasets(QueryDatasets(listOf(dataset)), rows)
+            .accessPolicies(listOf(documents), AccessFixtures::aggregatesOf)
+            .build()
+        suspend fun ids(caller: QueryCaller): List<String> =
+            engine.datasets[dataset.name]!!.list(ListQuery(MatchAllFilter, limit = 100), caller).toList()
+                .map { it["row_id"].stringValue() }
+        ids(alice).assert().containsExactlyInAnyOrder("r1", "r2")
+        ids(caller("bob")).assert().containsExactly("r3")
+        ids(caller("dan")).assert().isEmpty()
+        // A grant of every aggregate reads no attributes, the row of d-none among them.
+        ids(auditor).assert().containsExactlyInAnyOrder("r1", "r2", "r3", "r4")
+        ids(QueryCaller(Caller.ofService("basket", "acme"))).assert().containsExactlyInAnyOrder("r1", "r2", "r3", "r4")
+        ids(QueryCaller.IN_PROCESS).assert().hasSize(5)
     }
 
     @Test

@@ -64,7 +64,7 @@ class ClickHouseSinkSchema(
 ) {
     private val prefix = prefixOf(type)
     val stateEvents: String = "${prefix}_state_events"
-    val state: String = "${prefix}_state"
+    val state: String = stateOf(type)
     val events: String = "${prefix}_events"
     val stateFlat: String = "${prefix}_state_flat"
     val stateView: String = "${prefix}_state_mv"
@@ -236,6 +236,12 @@ class ClickHouseSinkSchema(
 
         /** The names of [type]'s tables start with `<ctx>_<agg>`, lower case, other characters than `[a-z0-9_]` as `_`. */
         fun prefixOf(type: AggregateType): String = "${type.context}_${type.name}".lowercase().replace(INVALID, "_")
+
+        /**
+         * The name of [type]'s `_state`, its current state: one row per aggregate after `FINAL`, its newest commit's,
+         * with the access attributes after it, which a dataset bound to [type] reads its rows by.
+         */
+        fun stateOf(type: AggregateType): String = "${prefixOf(type)}_state"
 
         /** The names of every table and view of [type], whether it keeps its history or not. */
         fun namesOf(type: AggregateType): List<String> = prefixOf(type).let { prefix ->

@@ -47,9 +47,10 @@ internal class ClickHouseAggregationCompiler(
     private val admitted: AdmittedQuery<AggregationQuery>,
     table: ClickHouseTable,
     private val source: String,
+    access: ClickHouseDatasetAccess? = null,
 ) {
     private val parameters = SqlParameters()
-    private val filters = ClickHouseFilterCompiler(admitted, table, parameters)
+    private val filters = ClickHouseFilterCompiler(admitted, table, parameters, access)
     private val query = admitted.query
 
     fun compile(window: GroupWindow): ClickHouseStatement {

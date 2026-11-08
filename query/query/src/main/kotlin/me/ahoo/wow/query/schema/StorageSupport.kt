@@ -186,10 +186,17 @@ class StorageSupport @InternalWowApi constructor(
      * operand and the descriptor lists an ARRAY_EQUALITY constraint.
      */
     val arrayEquality: SupportMode = SupportMode.NATIVE,
+    /**
+     * The restriction of a dataset bound to an aggregate ([me.ahoo.wow.query.dataset.DatasetAccess]): its rows by the
+     * current access attributes of the aggregate each row is of. NATIVE or NONE, and NONE unless the storage declares
+     * it: an access policy then reads none of such a dataset's rows but for a predicate that grants every aggregate.
+     */
+    val datasetAccess: SupportMode = SupportMode.NONE,
 ) {
     init {
         require(parallelArraySort != SupportMode.RESIDUAL) { "Parallel array sort has no residual implementation." }
         require(arrayEquality != SupportMode.RESIDUAL) { "Array equality has no residual implementation." }
+        require(datasetAccess != SupportMode.RESIDUAL) { "A dataset's access has no residual implementation." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -199,12 +206,16 @@ class StorageSupport @InternalWowApi constructor(
 
     override fun toString(): String =
         "StorageSupport(paging=$paging, aggregation=$aggregation, parallelArraySort=$parallelArraySort, " +
-            "absentValues=$absentValues, arrayEquality=$arrayEquality)"
+            "absentValues=$absentValues, arrayEquality=$arrayEquality, datasetAccess=$datasetAccess)"
 
-    private fun valueFields(): List<Any?> = listOf(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
+    private fun valueFields(): List<Any?> =
+        listOf(paging, aggregation, parallelArraySort, absentValues, arrayEquality, datasetAccess)
 
     companion object {
-        /** Everything native: the default for a schema whose storage declares nothing else. */
+        /**
+         * Everything native but a dataset's access, which a storage declares itself: the default for a schema whose
+         * storage declares nothing else.
+         */
         @JvmField
         val NATIVE = StorageSupport()
 

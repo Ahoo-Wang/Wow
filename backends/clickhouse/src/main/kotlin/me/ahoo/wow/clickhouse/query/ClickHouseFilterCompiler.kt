@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.ContainsFilter
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
@@ -48,6 +49,7 @@ import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.resolve.ignoreCase
@@ -69,6 +71,9 @@ import java.util.concurrent.TimeUnit
  * filters included (a dataset's identity, tenant, owner and space are its own columns); values are bound as typed
  * parameters.
  *
+ * A dataset bound to an aggregate reads an access policy's restriction as one semi-join on the aggregate's current
+ * access records ([ClickHouseDatasetAccess]).
+ *
  * Null semantics follow the canonical matrix (`FilterSemantics`, MongoDB's): NE and NOT_IN also match a NULL, and
  * comparisons never do. A NULL is the table's only missing value (`AbsentValues.AS_MISSING`), so EXISTS reads it as
  * missing, and an array column stores no NULL, so an empty array is its missing value.
@@ -77,6 +82,8 @@ internal class ClickHouseFilterCompiler(
     private val admitted: AdmittedQuery<*>,
     private val table: ClickHouseTable,
     private val parameters: SqlParameters,
+    /** The current access records of a dataset bound to an aggregate; null for a dataset bound to none. */
+    private val access: ClickHouseDatasetAccess? = null,
 ) {
     @Suppress("CyclomaticComplexMethod")
     fun compile(filter: FilterExpression): String = when (filter) {
@@ -113,6 +120,12 @@ internal class ClickHouseFilterCompiler(
         is EndsWithFilter -> "endsWith(${folded(filter.field, filter.stringComparison.ignoreCase)}, " +
             "${foldedText(filter.value, filter.stringComparison.ignoreCase)})"
         is ExpressionFilter -> expressionComparison(filter)
+        // The one ELEMENT_MATCH a dataset's storage reads: an access policy's restriction (DatasetAccess).
+        is ElementMatchFilter -> {
+            val predicate = DatasetAccess.predicateOf(filter)
+            if (predicate == null || access == null) throw unsupported(filter)
+            access.compile(predicate, admitted, table, parameters)
+        }
         // Admission never lets the others through: a dataset's storage grants no capability they need.
         else -> throw unsupported(filter)
     }

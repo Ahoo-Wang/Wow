@@ -140,6 +140,9 @@ class QueryDataset @InternalWowApi constructor(
         require(unavailable == null || unavailable.isNotBlank()) { "Dataset [$name] names why it is unavailable." }
         val declared = declaration.fields.keys
         require(declared.isNotEmpty()) { "Dataset [$name] declares no field." }
+        require(DatasetAccess.FIELD !in declared) {
+            "Dataset [$name] declares [${DatasetAccess.FIELD}], the name of its aggregate's access attributes."
+        }
         (scope.fields + listOfNotNull(identity, eventTime)).forEach { field ->
             require(field in declared) { "Dataset [$name] names undeclared field [$field]." }
         }

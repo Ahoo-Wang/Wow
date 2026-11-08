@@ -188,10 +188,11 @@ abstract class AccessFilterSpec {
         val SHARED_WITH = AccessAttribute.multiple<Document, String>("sharedWith", String::class.java)
     }
 
-    private companion object {
-        const val ACCESS = "access"
-        const val CONTEXT_SUFFIX = 12
+    internal companion object {
+        private const val ACCESS = "access"
+        private const val CONTEXT_SUFFIX = 12
 
+        /** The matrix's documents, each with the attributes it holds now. */
         val RECORDS = listOf(
             AccessRecord(
                 "d1",
@@ -232,13 +233,13 @@ abstract class AccessFilterSpec {
             AccessRecord("d6", owner = "bob", values = mapOf("department" to "hr")),
         )
 
-        fun eq(attribute: AccessAttribute<*, *>, value: Any) = Comparison(
+        private fun eq(attribute: AccessAttribute<*, *>, value: Any) = Comparison(
             attribute,
             AccessOperator.EQUAL,
             listOf(value)
         )
 
-        fun treeOf(value: Any?): JsonNode = WowJson.mapper.valueToTree(value)
+        private fun treeOf(value: Any?): JsonNode = WowJson.mapper.valueToTree(value)
 
         /** [value] as an access record stores it: an integer a long, several values distinct and sorted. */
         fun stored(value: Any): Any = when (value) {
@@ -247,9 +248,10 @@ abstract class AccessFilterSpec {
             else -> value
         }
 
-        val SALES = eq(Attributes.DEPARTMENT, "sales")
-        val SHARED_WITH_BOB = Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS, listOf("bob"))
+        private val SALES = eq(Attributes.DEPARTMENT, "sales")
+        private val SHARED_WITH_BOB = Comparison(Attributes.SHARED_WITH, AccessOperator.CONTAINS, listOf("bob"))
 
+        /** Each predicate of the matrix, by the name of its case. */
         val CASES: List<Pair<String, AccessPredicate>> = listOf(
             "allowed" to Allowed,
             "denied" to Denied,

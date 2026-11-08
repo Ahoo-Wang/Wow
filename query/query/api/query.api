@@ -2166,6 +2166,7 @@ public final class me/ahoo/wow/query/schema/StorageSupport {
 	public final fun getAbsentValues ()Lme/ahoo/wow/query/schema/AbsentValues;
 	public final fun getAggregation ()Lme/ahoo/wow/query/schema/AggregationSupport;
 	public final fun getArrayEquality ()Lme/ahoo/wow/query/schema/SupportMode;
+	public final fun getDatasetAccess ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getPaging ()Lme/ahoo/wow/query/schema/PagingSupport;
 	public final fun getParallelArraySort ()Lme/ahoo/wow/query/schema/SupportMode;
 	public fun hashCode ()I
