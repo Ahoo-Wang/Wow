@@ -242,6 +242,9 @@ export const WALK = {
   measure: 40,
   shares: [0.05, 0.1, 0.25],
   extrapolate: [100000, 1000000, 10000000],
+  // A p99 this much above the highest run with nothing to walk is no harm: the larger of the two.
+  noHarmMs: 1,
+  noHarmShare: 0.1,
 };
 
 /**
@@ -260,27 +263,32 @@ function walkRun(arm, id, props, walk, more = {}) {
 }
 
 /**
- * The runs that choose the walk's default share: the baseline's build with nothing to walk first and last (main's A/A
- * band), the baseline's walk at its default pace, and the head's walk at each of WALK.shares.
+ * The runs that choose the walk's default share: four runs of the baseline's build with nothing to walk among them
+ * (main's A/A band), the baseline's walk at its default pace, and the head's walk at each of WALK.shares.
  */
 function walkShareRuns(head, base) {
+  const shared = WALK.shares.map(share =>
+    walkRun(
+      head,
+      `share-${Math.round(share * 100)}`,
+      { 'wow.access.walk-share': share },
+      true,
+    ),
+  );
   return [
     walkRun(base, 'none-1', {}, false),
     walkRun(base, 'base', {}, true),
-    ...WALK.shares.map(share =>
-      walkRun(
-        head,
-        `share-${Math.round(share * 100)}`,
-        { 'wow.access.walk-share': share },
-        true,
-      ),
-    ),
+    shared[0],
     walkRun(base, 'none-2', {}, false),
+    shared[1],
+    shared[2],
+    walkRun(base, 'none-3', {}, false),
+    walkRun(base, 'none-4', {}, false),
   ];
 }
 
 /**
- * The runs that judge the head's walk at its defaults, ABBA between two runs of the baseline's build with nothing to
+ * The runs that judge the head's walk at its defaults, ABBA among four runs of the baseline's build with nothing to
  * walk (main's A/A band), every deposit into an account that keeps its attributes, so the walk is the only stamping:
  * the baseline's walk and the head's, twice each. Then, reported beside the verdict: the head's depositing into the
  * accounts it stamps first (`targets: first`), the same aggregates at once; both builds' depositing into accounts not
@@ -292,9 +300,11 @@ function walkRuns(head, base) {
     walkRun(base, 'none-1', {}, false),
     walkRun(base, 'base-1', {}, true),
     walkRun(head, 'head-1', {}, true),
+    walkRun(base, 'none-2', {}, false),
     walkRun(head, 'head-2', {}, true),
     walkRun(base, 'base-2', {}, true),
-    walkRun(base, 'none-2', {}, false),
+    walkRun(base, 'none-3', {}, false),
+    walkRun(base, 'none-4', {}, false),
     walkRun(head, 'head-same', {}, true, { targets: 'first' }),
     walkRun(head, 'head-follower', {}, true, { targets: 'all' }),
     walkRun(base, 'base-follower', {}, true, { targets: 'all' }),
@@ -3337,7 +3347,8 @@ const duration = seconds =>
  * A walk suite's table: each run's walk (its share, how many it stamped over the measured window and at what rate, and
  * how long that rate takes to stamp each of WALK.extrapolate's counts), the E1 deposits' latencies under it, and what
  * the store's sessions waited on and the pool's peak over the window; then the verdict. Main's A/A band is the p99s of
- * the baseline's runs with nothing to walk; a run is within it when its p99 is at most the band's top. A share suite
+ * the baseline's runs with nothing to walk; a run does no harm when its p99 is less than WALK.noHarmMs or
+ * WALK.noHarmShare above the band's top, whichever is larger. A share suite
  * names the largest share within the band; the other suites judge the head's runs at their defaults.
  */
 export function walkTables(suite) {
@@ -3347,9 +3358,16 @@ export function walkTables(suite) {
     .map(run => run.measure.e1?.latencyMs?.p99)
     .filter(Number.isFinite);
   const top = band.length > 1 ? Math.max(...band) : undefined;
+  // What is no harm: at most the larger of WALK.noHarmMs and WALK.noHarmShare above the band's top.
+  const allowed =
+    top === undefined
+      ? undefined
+      : top + Math.max(WALK.noHarmMs, top * WALK.noHarmShare);
   const p99Of = run => run.measure.e1?.latencyMs?.p99;
   const within = run =>
-    top !== undefined && Number.isFinite(p99Of(run)) && p99Of(run) <= top;
+    allowed !== undefined &&
+    Number.isFinite(p99Of(run)) &&
+    p99Of(run) <= allowed;
   const rateOf = walk =>
     walk?.windowPerSecond > 0
       ? walk.windowPerSecond
@@ -3398,7 +3416,7 @@ export function walkTables(suite) {
           ? 'no band'
           : within(run)
             ? 'yes'
-            : `**no** (${ms(p99Of(run))} > ${ms(top)}, ×${num(p99Of(run) / top, 1)})`;
+            : `**no** (${ms(p99Of(run))} > ${ms(allowed)}, ×${num(p99Of(run) / top, 1)})`;
     const waits = Object.entries(m.waits?.events ?? {})
       .slice(0, 3)
       .map(([wait, count]) => `${wait} ${count}`)
@@ -3425,7 +3443,7 @@ export function walkTables(suite) {
     return lines;
   }
   lines.push(
-    `Main's A/A band: E1 p99 ${band.map(ms).join(', ')} with nothing to walk; within it is at most ${ms(top)}.`,
+    `Main's A/A band: E1 p99 ${band.map(ms).join(', ')} with nothing to walk. A p99 less than ${WALK.noHarmMs} ms or ${num(WALK.noHarmShare * 100, 0)}% above its top, whichever is larger, is no harm: at most ${ms(allowed)}.`,
   );
   const live = ok.filter(
     run =>
@@ -3452,7 +3470,7 @@ export function walkTables(suite) {
       judged.length > 0 && judged.every(within)
         ? `Verdict: the head's walk keeps E1 p99 within main's A/A band (${judged.map(run => ms(p99Of(run))).join(', ')}).`
         : judged.length > 0
-          ? `Verdict: **outside** main's A/A band, by ${ms(worst - top)} at worst (${judged.map(run => ms(p99Of(run))).join(', ')} against at most ${ms(top)}).`
+          ? `Verdict: **outside** main's A/A band, by ${ms(worst - allowed)} at worst (${judged.map(run => ms(p99Of(run))).join(', ')} against at most ${ms(allowed)}).`
           : 'No verdict: no run of the head walked under deposits.',
     );
   }

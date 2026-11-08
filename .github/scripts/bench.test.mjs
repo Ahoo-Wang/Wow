@@ -554,9 +554,11 @@ test('the walk share suites run the head at each share between two runs with not
   const benchPath = fakeWalkBench(dir, {
     'none-1': 6,
     'none-2': 5,
+    'none-3': 4,
+    'none-4': 5.5,
     base: 120,
     'share-5': 5.5,
-    'share-10': 6,
+    'share-10': 6.9,
     'share-25': 9,
   });
   const suite = runSuite('access-walk-share-pg', {
@@ -573,7 +575,16 @@ test('the walk share suites run the head at each share between two runs with not
   assert.equal(suite.program, 'walk');
   assert.deepEqual(
     suite.runs.map(run => run.name),
-    ['none-1', 'base', 'share-5', 'share-10', 'share-25', 'none-2'],
+    [
+      'none-1',
+      'base',
+      'share-5',
+      'none-2',
+      'share-10',
+      'share-25',
+      'none-3',
+      'none-4',
+    ],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
@@ -590,17 +601,17 @@ test('the walk share suites run the head at each share between two runs with not
   // 2,000 aggregates in the 40 s window: 50 a second, 100k in 2,000 s, 1M in 5.6 h, 10M in 2.3 days.
   assert.match(
     table,
-    /\| share-10 \| head \| 10% \| 2000 in 40\.0 s \| 50 \| 33 min \| 5\.6 h \| 2\.3 d \| 200 \| 2\.0 ms \| 6\.0 ms \| 50\.0 ms \| 0 \| yes \| IO:WALSync 12 · CPU:running 8 · IPC:x 1 \(40\) \| 3 in use, 0 waiting of 10 \| 1\.20, 0\.80 \|/,
+    /\| share-10 \| head \| 10% \| 2000 in 40\.0 s \| 50 \| 33 min \| 5\.6 h \| 2\.3 d \| 200 \| 2\.0 ms \| 6\.9 ms \| 50\.0 ms \| 0 \| yes \| IO:WALSync 12 · CPU:running 8 · IPC:x 1 \(40\) \| 3 in use, 0 waiting of 10 \| 1\.20, 0\.80 \|/,
   );
   assert.match(
     table,
-    /\| share-25 \| head \| 25% .* \*\*no\*\* \(9\.0 ms > 6\.0 ms, ×1\.5\) \|/,
+    /\| share-25 \| head \| 25% .* \*\*no\*\* \(9\.0 ms > 7\.0 ms, ×1\.5\) \|/,
   );
   assert.match(table, /\| base \| base \| none \(walk-rate\) \|/);
   assert.match(table, /\| none-1 \| base \| nothing to walk \|/);
   assert.match(
     table,
-    /Main's A\/A band: E1 p99 6\.0 ms, 5\.0 ms with nothing to walk; within it is at most 6\.0 ms\./,
+    /Main's A\/A band: E1 p99 6\.0 ms, 5\.0 ms, 4\.0 ms, 5\.5 ms with nothing to walk\. A p99 less than 1 ms or 10% above its top, whichever is larger, is no harm: at most 7\.0 ms\./,
   );
   assert.match(table, /Default share: 10%, the largest within the band\./);
   assert.deepEqual(anomalies(suite), []);
@@ -615,6 +626,8 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
   const benchPath = fakeWalkBench(dir, {
     'none-1': 6,
     'none-2': 5,
+    'none-3': 5.5,
+    'none-4': 4,
     'base-1': 120,
     'base-2': 110,
     'head-1': 6,
@@ -636,9 +649,11 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
       'none-1',
       'base-1',
       'head-1',
+      'none-2',
       'head-2',
       'base-2',
-      'none-2',
+      'none-3',
+      'none-4',
       'head-same',
       'head-follower',
       'base-follower',
@@ -663,10 +678,10 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
     table,
     /\| head-follower \| head \| default, deposits follow unstamped \|/,
   );
-  // The runs beside the verdict and the idle one are not judged: 8 ms against at most 6 is the worst of the two judged.
+  // The runs beside the verdict and the idle one are not judged: 8 ms against at most 7 (6, plus 1) is the worst judged.
   assert.match(
     table,
-    /Verdict: \*\*outside\*\* main's A\/A band, by 2\.0 ms at worst \(6\.0 ms, 8\.0 ms against at most 6\.0 ms\)\./,
+    /Verdict: \*\*outside\*\* main's A\/A band, by 1\.0 ms at worst \(6\.0 ms, 8\.0 ms against at most 7\.0 ms\)\./,
   );
   // Without the baseline's build, its runs are unavailable and there is no band.
   const alone = runSuite('access-walk-pg', {
@@ -681,7 +696,7 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
   });
   assert.equal(
     alone.runs.filter(run => run.status === 'unavailable').length,
-    5,
+    7,
   );
   assert.match(
     walkTables(alone).join('\n'),
