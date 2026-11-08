@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.transfer
 import com.mongodb.client.MongoClients
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
+import com.sun.management.OperatingSystemMXBean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -37,6 +38,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.core.env.Environment
 import java.io.File
+import java.lang.management.ManagementFactory
 import java.sql.DriverManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -60,7 +62,7 @@ import kotlin.system.exitProcess
  * the first accounts the walk reaches, which keep theirs too, so it stamps what the deposits write; `all`, every
  * account, none stamped, so the built-in `wow.access` subscription also stamps the history of each one a deposit
  * reaches first, as it does after a change of the access schema. It writes `measure.json` to `--out`: the
- * deposits' latencies, and the walk's progress: how many it stamped over the measured window and at what rate, and how
+ * deposits' latencies, the CPU used over the window, and the walk's progress: how many it stamped over the measured window and at what rate, and how
  * far it got from the second node's start; with `--complete=yes`, it waits for the walk's completion.
  *
  * Run it on the install's class path with main class `AccessWalkBenchKt`; bench.sh's `measure` command does.
@@ -113,6 +115,7 @@ private const val WALK_TIMEOUT_SECONDS = 3_600L
 private const val POLL_MILLIS = 100L
 private const val NANOS_PER_MILLI = 1_000_000.0
 private const val NANOS_PER_SECOND = 1_000_000_000.0
+private const val MICROS_PER_SECOND = 1_000_000.0
 private const val PERCENT = 100.0
 private const val MILLIS_PER_SECOND = 1_000L
 private const val SAMPLE_MILLIS = 1_000L
@@ -171,7 +174,7 @@ class WalkRun(
             val sampled = WalkStore.of(backend, walking.environment)
             try {
                 WalkStore.of(backend, walking.environment).use { store ->
-                    measured(walking, store, sampled, started) + mapOf(
+                    measured(backend, walking, store, sampled, started) + mapOf(
                         "schema" to "wow-e2e-bench/measure/1",
                         "program" to "walk",
                         "aggregates" to aggregates,
@@ -202,6 +205,7 @@ class WalkRun(
      * on [sampled] over their measured window.
      */
     private suspend fun measured(
+        backend: String,
         walking: ConfigurableApplicationContext,
         store: WalkStore,
         sampled: WalkStore,
@@ -210,10 +214,12 @@ class WalkRun(
         var over = false
         val walk = async { if (walks) walked(store, started) { !complete && over } else null }
         val waits = Waits(sampled, poolOf(walking))
+        val cpu = CpuUse("wow-e2e-bench-$backend")
         // The measured window starts after the warm-up, from the second node's start: the deposits' or, without
         // them, the walk's own.
         val sampling = launch {
             delay(warmUpSeconds * MILLIS_PER_SECOND)
+            cpu.start()
             while (true) {
                 waits.sample()
                 delay(SAMPLE_MILLIS)
@@ -227,8 +233,14 @@ class WalkRun(
         }
         sampling.cancel()
         over = true
+        val used = cpu.end()
         val progress = waits.progress().takeIf { walks }
-        mapOf("walk" to walk.await()?.plus(progress.orEmpty()), "e1" to deposits, "waits" to waits.summary())
+        mapOf(
+            "walk" to walk.await()?.plus(progress.orEmpty()),
+            "e1" to deposits,
+            "waits" to waits.summary(),
+            "cpu" to used
+        )
     }
 
     /** Opens the accounts, then deposits into each until it holds [streams] streams. */
@@ -571,6 +583,44 @@ class Waits(private val store: WalkStore, private val pool: (() -> Map<String, I
         "events" to seen.entries.sortedByDescending { it.value }.associate { it.key to it.value },
         "poolMax" to poolMax.takeIf { pool != null },
     )
+}
+
+/**
+ * The CPU this JVM (the node and the deposits' client) and the store's container used over the measured window, in
+ * cores. The store's comes from its cgroup through `docker exec`, read only at the window's two ends, so the reading
+ * costs the run nothing it measures; null where a reading fails (no Docker, no cgroup v2).
+ */
+class CpuUse(private val container: String) {
+    private class Reading(val nanos: Long, val jvm: Double?, val store: Double?)
+
+    private var from: Reading? = null
+
+    fun start() {
+        from = read()
+    }
+
+    fun end(): Map<String, Any?> {
+        val start = from ?: return emptyMap()
+        val end = read()
+        val seconds = (end.nanos - start.nanos) / NANOS_PER_SECOND
+        fun cores(of: (Reading) -> Double?): Double? = of(end)?.let { last -> of(start)?.let { (last - it) / seconds } }
+        return mapOf("windowSeconds" to seconds, "jvmCores" to cores { it.jvm }, "storeCores" to cores { it.store })
+    }
+
+    private fun read() = Reading(System.nanoTime(), jvmSeconds(), storeSeconds())
+
+    private fun jvmSeconds(): Double? = (ManagementFactory.getOperatingSystemMXBean() as? OperatingSystemMXBean)
+        ?.processCpuTime?.takeIf { it >= 0 }?.let { it / NANOS_PER_SECOND }
+
+    private fun storeSeconds(): Double? = runCatching {
+        val process = ProcessBuilder("docker", "exec", container, "cat", "/sys/fs/cgroup/cpu.stat")
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().readText()
+        process.waitFor()
+        output.lineSequence().first { it.startsWith("usage_usec") }.substringAfter(' ').trim().toLong() /
+            MICROS_PER_SECOND
+    }.getOrNull()
 }
 
 /**

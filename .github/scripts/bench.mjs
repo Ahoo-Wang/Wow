@@ -3358,15 +3358,15 @@ export function walkTables(suite) {
     count >= 1000000 ? `${count / 1000000}M` : `${count / 1000}k`,
   );
   const lines = [
-    `| Run | Build | Share | Walked in the window | Aggregates/s | ${counts.join(' | ')} | E1/s | p50 | p99 | p99.9 | Failed | Within main's A/A band | Waits (samples) | Pool peak |`,
-    `| --- | --- | --- | --- | --- | ${counts.map(() => '---').join(' | ')} | --- | --- | --- | --- | --- | --- | --- | --- |`,
+    `| Run | Build | Share | Walked in the window | Aggregates/s | ${counts.join(' | ')} | E1/s | p50 | p99 | p99.9 | Failed | Within main's A/A band | Waits (samples) | Pool peak | CPU (JVM, store cores) |`,
+    `| --- | --- | --- | --- | --- | ${counts.map(() => '---').join(' | ')} | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
   ];
   const arms = new Map(suite.arms.map(arm => [arm.id, arm]));
   for (const run of suite.runs) {
     const install = arms.get(run.arm)?.install ?? '';
     if (run.status !== 'ok') {
       lines.push(
-        `| ${run.name} | ${install} | **${run.status}** |${' |'.repeat(counts.length + 12)}`,
+        `| ${run.name} | ${install} | **${run.status}** |${' |'.repeat(counts.length + 13)}`,
       );
       continue;
     }
@@ -3406,11 +3406,14 @@ export function walkTables(suite) {
     const pool = m.waits?.poolMax
       ? `${m.waits.poolMax.active ?? '-'} in use, ${m.waits.poolMax.pending ?? '-'} waiting of ${m.waits.poolMax.total ?? '-'}`
       : '';
+    const cpu = Number.isFinite(m.cpu?.jvmCores)
+      ? `${num(m.cpu.jvmCores, 2)}, ${num(m.cpu.storeCores, 2)}`
+      : '';
     const times = WALK.extrapolate.map(count =>
       walk && rate > 0 ? duration(count / rate) : '',
     );
     lines.push(
-      `| ${run.name} | ${install} | ${shareText} | ${walked} | ${walk ? num(rate, 0) : ''} | ${times.join(' | ')} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(p99Of(run)) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${verdict} | ${waits ? `${waits} (${m.waits.samples})` : ''} | ${pool} |`,
+      `| ${run.name} | ${install} | ${shareText} | ${walked} | ${walk ? num(rate, 0) : ''} | ${times.join(' | ')} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(p99Of(run)) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${verdict} | ${waits ? `${waits} (${m.waits.samples})` : ''} | ${pool} | ${cpu} |`,
     );
   }
   lines.push('');

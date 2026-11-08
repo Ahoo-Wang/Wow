@@ -534,6 +534,7 @@ fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
   walk: walks ? { completed: false, walked: 3000, seconds: 50, aggregatesPerSecond: 60, windowWalked: 2000, windowSeconds: 40, windowPerSecond: 50 } : null,
   e1: rate > 0 ? { ops: 100, failed: {}, latencyMs: { p50: 2, p99, p999: 50 } } : null,
   waits: { samples: 40, events: { 'IO:WALSync': 12, 'CPU:running': 8, 'IPC:x': 1, 'LWLock:y': 1 }, poolMax: { active: 3, pending: 0, total: 10 } },
+  cpu: { windowSeconds: 40, jvmCores: 1.2, storeCores: 0.8 },
 }));
 `,
   );
@@ -589,7 +590,7 @@ test('the walk share suites run the head at each share between two runs with not
   // 2,000 aggregates in the 40 s window: 50 a second, 100k in 2,000 s, 1M in 5.6 h, 10M in 2.3 days.
   assert.match(
     table,
-    /\| share-10 \| head \| 10% \| 2000 in 40\.0 s \| 50 \| 33 min \| 5\.6 h \| 2\.3 d \| 200 \| 2\.0 ms \| 6\.0 ms \| 50\.0 ms \| 0 \| yes \| IO:WALSync 12 · CPU:running 8 · IPC:x 1 \(40\) \| 3 in use, 0 waiting of 10 \|/,
+    /\| share-10 \| head \| 10% \| 2000 in 40\.0 s \| 50 \| 33 min \| 5\.6 h \| 2\.3 d \| 200 \| 2\.0 ms \| 6\.0 ms \| 50\.0 ms \| 0 \| yes \| IO:WALSync 12 · CPU:running 8 · IPC:x 1 \(40\) \| 3 in use, 0 waiting of 10 \| 1\.20, 0\.80 \|/,
   );
   assert.match(
     table,
