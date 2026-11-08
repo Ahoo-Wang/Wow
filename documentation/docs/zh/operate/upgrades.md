@@ -122,3 +122,33 @@ OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出
 3. 以新版本启动属主与读方。缓存从空开始：属主的提交重新写入状态，读方未命中时向属主读取。
 
 回滚按相反方向执行同样的步骤。
+
+### wow-cosec 升级到 CoSec 8.0.0-alpha.3
+
+`wow-cosec` 跟随 CoSec 的预发布版本，已从 8.0.0-alpha.2 升级到 8.0.0-alpha.3。网关模式的服务（`wow.cosec.mode: gateway`）不持有 CoSec 的密钥、文档或 Redis，代码和配置键都不用改。要改的是它前面的 CoSec 网关，以及用 Redis 中的文档自己做决定的服务。
+
+**CoSec 的 Redis 中的数据。** CoSec 8.0.0-alpha.3 构建在 CoCache 8 之上，而 CoCache 8 读不了 alpha.2 通过 CoCache 6 写入的内容。仍是旧格式的文档或吊销记录会按拒绝处理：请求得到 503，被吊销的令牌也一样。在所有 CoSec 实例停止后，二选一：用 `cosec-migrate cocache8 --redis <uri> --key-prefix <prefix> --out <dir>` 迁移数据（先加 `--dry-run` 试运行），或者清空这个 Redis，再用 `cosec-migrate publish --to-redis` 重新发布文档。
+
+**统一的键前缀。** 节点若仍设置下面任何一个键，就不会启动，错误信息会列出要迁移的键族。放在其它前缀下的吊销记录和 API Key 不会再被读取，请先把它们复制到新前缀下：
+
+| CoSec 8.0.0-alpha.2 | CoSec 8.0.0-alpha.3 |
+| --- | --- |
+| `cosec.authorization.snapshot.key-prefix` | `cosec.key-prefix` |
+| `cosec.authorization.cache.key-prefix` | `cosec.key-prefix` |
+| `cosec.api-key.key-prefix` | `cosec.key-prefix` |
+
+**网关**（[配置 CoSec Gateway](./security#configure-the-cosec-gateway)）：
+
+- 通过 `http://` 或 `https://` 指向自有服务的路由需要元数据 `cosec-identity: true`，否则服务读不到调用方。指向 `lb://` 的路由仍像之前一样转发身份。
+- 凭据默认不再向下游转发：`Authorization` 请求头、API Key 请求头、`authorization` 查询参数和 `authorization` Cookie。网关模式的服务不读取其中任何一个；自己读取它们的服务要设置 `cosec.gateway.identity.forward-authorization: true`，并位于会收到身份的路由之后。
+- 网关在应用端口上暴露 `health` 以外的 Actuator 端点时不会启动。
+
+**行为变化。**
+
+- `cosec.authorization.snapshot.revalidate-interval` 必须在 1 秒到 5 分钟之间，否则节点不会启动。
+- 含未配对 UTF-16 代理项的 ID 会被拒绝：出现在令牌中是 401，出现在控制 API 中是 400。
+- 文档读取的请求头如果以不同的值重复发送，回答 400。
+- 超出 CoSec 成本上限的路径模式无法编译（控制面回答 422）。
+- 自己实现的 `SnapshotDocumentStore` 必须产生 32 字节的 SHA-256 摘要。
+
+[CoSec 的升级指南](https://cosec.ahoo.me/operations/upgrading#from-8-0-0-alpha-2)列出了其余内容，包括控制面的变化。

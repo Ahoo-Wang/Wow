@@ -122,3 +122,33 @@ An entry under `cocache.caches` that names no cache, or a key its type does not 
 3. Start the owner and the readers on the new version. The caches start empty: the owner's commits write the states again, and a reader's miss reads the owner.
 
 A rollback is the same steps the other way.
+
+### wow-cosec on CoSec 8.0.0-alpha.3
+
+`wow-cosec` follows CoSec's pre-releases and moved from 8.0.0-alpha.2 to 8.0.0-alpha.3. A service in gateway mode (`wow.cosec.mode: gateway`) holds no secret, documents or Redis of CoSec's, and changes neither code nor keys. The CoSec gateway in front of it changes, and so does a service that decides for itself with documents in Redis.
+
+**The data in CoSec's Redis.** CoSec 8.0.0-alpha.3 builds on CoCache 8, which does not read what alpha.2 wrote through CoCache 6. A document or a revocation still in the old form fails closed: the request is answered 503, for a revoked token too. With every CoSec instance stopped, either move the data with `cosec-migrate cocache8 --redis <uri> --key-prefix <prefix> --out <dir>` (`--dry-run` first), or empty that Redis and publish the documents again with `cosec-migrate publish --to-redis`.
+
+**One key prefix.** A node that still sets one of these does not start, and the message names the key families that move. Copy the revocations and API keys kept under another prefix to the new one first, since they are no longer read there:
+
+| CoSec 8.0.0-alpha.2 | CoSec 8.0.0-alpha.3 |
+| --- | --- |
+| `cosec.authorization.snapshot.key-prefix` | `cosec.key-prefix` |
+| `cosec.authorization.cache.key-prefix` | `cosec.key-prefix` |
+| `cosec.api-key.key-prefix` | `cosec.key-prefix` |
+
+**The gateway** ([Configure the CoSec Gateway](./security#configure-the-cosec-gateway)):
+
+- A route to your own service by `http://` or `https://` needs the metadata `cosec-identity: true`; without it the service reads no caller. A route to `lb://` forwards the identity as before.
+- Credentials no longer go downstream by default: the `Authorization` header, the API key header, the `authorization` query parameter and the `authorization` cookie. A service in gateway mode reads none of them; one that reads them itself sets `cosec.gateway.identity.forward-authorization: true` and sits behind a route that receives the identity.
+- A gateway that exposes an Actuator endpoint other than `health` on its application port does not start.
+
+**Behaviour.**
+
+- `cosec.authorization.snapshot.revalidate-interval` must be between 1 second and 5 minutes, or the node does not start.
+- An id with an unpaired UTF-16 surrogate is refused: 401 in a token, 400 on the control API.
+- A header that a document reads, sent more than once with different values, is answered 400.
+- A path pattern over CoSec's cost bound does not compile (422 on the control plane).
+- A `SnapshotDocumentStore` of your own must produce a 32-byte SHA-256 digest.
+
+[CoSec's upgrade guide](https://cosec.ahoo.me/operations/upgrading#from-8-0-0-alpha-2) has the rest, the control plane among it.
