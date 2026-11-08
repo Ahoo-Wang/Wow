@@ -35,8 +35,10 @@ import me.ahoo.wow.kernel.AggregateModel
  * }
  * ```
  *
- * A check fails, too, when the policy compares an attribute [model] does not declare: one of another state's, as the
- * service's start refuses it.
+ * A check fails, too, when the policy compares an attribute [model] does not declare, which a node does not refuse at
+ * its start. A policy's references are typed by its state (`AccessAttribute<in S, V>`, generated in `<State>Access`),
+ * so such a comparison hardly compiles; one that does, as in a policy built against another version of the state,
+ * matches no aggregate when a node evaluates it (it fails closed), and the node logs it once.
  */
 fun <S : Any> accessPolicySpec(
     model: AggregateModel<S>,

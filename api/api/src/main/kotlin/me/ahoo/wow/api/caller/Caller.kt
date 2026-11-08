@@ -19,17 +19,18 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 /**
  * Who sends a command or runs a query, as the edge authenticated it: the facts admission takes a
  * command's identity from (identity comes from the principal, never from the path or the body), and the
- * facts a query policy restricts a query by. Commands and queries share it: the edge resolves one per request.
+ * facts an access policy ([me.ahoo.wow.api.access.AccessPolicy]) compares and a read authorizer (`ReadAuthorizer`)
+ * decides by. Commands and queries share it: the edge resolves one per request.
  *
  * - [tenantId] is the caller's tenant; a principal without one is in [DEFAULT_TENANT].
  * - [scope] is the caller's owner and space: the scope it acts in.
  * - [subject] is the principal's opaque id, for authorizers, logs and the [Operator] of what it commits; null for an
  *   anonymous caller.
  * - [crossScope] says the caller may act in another tenant or scope by naming it (the `Wow-Scope` header).
- * - [attributes] are further facts about the principal an authorizer or a query policy may read (roles, policies,
- *   claims). They live only as long as the request: none of them is written into a fact,
- *   but for the standard attribute [APP], the calling application, which the edge records as the
- *   command's request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
+ * - [attributes] are further facts about the principal (roles, policies, claims) that an authorizer, a read authorizer
+ *   (`ReadAuthorizer`) or an access policy ([me.ahoo.wow.api.access.AccessPolicy]) may read. They live only as long
+ *   as the request: none of them is written into a fact, but for the standard attribute [APP], the calling
+ *   application, which the edge records as the command's request fact [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
  * - [service] says the caller is a service identity: another service of the system, which names itself on the
  *   internal port that only the platform's own services reach, calling for a saga of its own. Only such a caller may assert the root command a call
  *   acts for (its tenant, scope, operator and causation, the `Wow-Call` header); the edge refuses that header from
@@ -64,7 +65,8 @@ class Caller @InternalWowApi constructor(
     /**
      * The application the caller calls from: the first value of its [APP] attribute, which only its
      * resolver sets, from what it authenticated (CoSec's resolver: the application CoSec authorized the request in);
-     * null when it has none. Query policies read it here, and a command records it as its request fact
+     * null when it has none. Access policies ([me.ahoo.wow.api.access.AccessPolicy]) and read authorizers
+     * (`ReadAuthorizer`) read it here, and a command records it as its request fact
      * [me.ahoo.wow.api.decide.RequestFacts.APP_ID].
      */
     val app: String? get() = attributes[APP]?.firstOrNull()?.takeIf { it.isNotBlank() }
