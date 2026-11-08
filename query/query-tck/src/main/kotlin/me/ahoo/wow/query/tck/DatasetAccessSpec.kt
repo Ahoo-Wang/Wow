@@ -61,7 +61,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
 
 /**
- * The access restriction of a dataset bound to an aggregate (D390 C4, [DatasetAccess]) on a dataset backend: each row
+ * The access restriction of a dataset bound to an aggregate ([DatasetAccess]) on a dataset backend: each row
  * is read by the current access attributes of the aggregate it is of, as the kernel's [AccessPredicate.allows] decides
  * on them, over every predicate of [AccessFilterSpec]'s matrix and its documents.
  *
