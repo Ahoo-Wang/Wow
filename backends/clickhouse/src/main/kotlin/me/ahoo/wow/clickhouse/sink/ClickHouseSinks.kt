@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.policy.GovernedAggregates
 
 /**
  * The ClickHouse Sinks of a service: [sinkOf] gives the [ClickHouseSink] of an aggregate the
@@ -33,6 +34,8 @@ class ClickHouseSinks internal constructor(
     private val statements: ClickHouseStatements,
     private val manifest: Manifest,
     val options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
+    /** Which aggregates an access policy governs, which `wow_catalog` records; null: unknown, empty in each row. */
+    private val governed: GovernedAggregates? = null,
 ) {
     init {
         val types = manifest.contexts.flatMap { context ->
@@ -48,21 +51,34 @@ class ClickHouseSinks internal constructor(
     }
 
     /** The Sinks over a client-v2 [client]; the client is the caller's to close. */
-    constructor(client: Client, manifest: Manifest, options: ClickHouseSinkOptions = ClickHouseSinkOptions()) :
-        this(ClientStatements(client), manifest, options)
+    constructor(
+        client: Client,
+        manifest: Manifest,
+        options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
+        governed: GovernedAggregates? = null,
+    ) : this(ClientStatements(client), manifest, options, governed)
 
     /** The Sink of [aggregate] of [context]. */
     fun sinkOf(context: String, aggregate: String): ClickHouseSink {
         val type = AggregateType(context, aggregate)
         val schema = schemaOf(type)
-        return ClickHouseSink(schema, statements, options.ddl, options.batchSize, catalogOf(schema))
+        // The entries are asked for when the Sink describes its tables: whether a policy governs the aggregate is the
+        // query engine's to say, which the node assembling its sinks has not built yet.
+        return ClickHouseSink(schema, statements, options.ddl, options.batchSize, catalog = { catalogOf(schema) })
     }
 
     /** The `wow_catalog` entries of [type]'s tables. */
     fun catalogOf(type: AggregateType): List<CatalogEntry> = catalogOf(schemaOf(type))
 
     private fun catalogOf(schema: ClickHouseSinkSchema): List<CatalogEntry> =
-        CatalogEntries.of(manifest, aggregateOf(schema.type), schema)
+        CatalogEntries.of(manifest, aggregateOf(schema.type), schema, accessOf(schema.type))
+
+    /** [type]'s [CatalogEntry.access]: whether its policy decides its rows, empty when [governed] is unknown. */
+    private fun accessOf(type: AggregateType): String = when {
+        governed == null -> ""
+        governed.governs(type) -> ClickHouseCatalog.ACCESS_POLICY
+        else -> ClickHouseCatalog.ACCESS_DEFAULT
+    }
 
     private fun aggregateOf(type: AggregateType): AggregateManifest {
         val aggregate = manifest.contexts.firstOrNull { it.name == type.context }

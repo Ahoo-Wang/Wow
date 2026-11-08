@@ -69,7 +69,10 @@ object DatasetFixtures {
     )
 
     /** The shop's members as the Sink keeps their state: the customer's phone and card inside `state`. */
-    val MEMBERS: SourceState = SourceState().apply {
+    val MEMBERS: SourceState = members()
+
+    /** [MEMBERS], their `wow_catalog` row saying [access] of whether an access policy decides their rows. */
+    fun members(access: String = "DEFAULT"): SourceState = SourceState().apply {
         val columns = listOf(
             SourceColumn("id", "String"),
             SourceColumn("tenant_id", "String"),
@@ -87,7 +90,18 @@ object DatasetFixtures {
                 tableUuid = "uuid-members",
                 tableEngine = "ReplacingMergeTree",
                 columns = columns,
-                enrichment = WowEnrichment("shop-service", "shop", "member", "state", "TENANT", "f", "wow_sink", "t"),
+                // Its service says no access policy decides the members' rows: the catalog's datasets read them.
+                enrichment = WowEnrichment(
+                    "shop-service",
+                    "shop",
+                    "member",
+                    "state",
+                    "TENANT",
+                    "f",
+                    "wow_sink",
+                    "t",
+                    access = access,
+                ),
                 tenantColumn = "tenant_id",
                 ownerColumn = "owner_id",
                 spaceColumn = "space_id",

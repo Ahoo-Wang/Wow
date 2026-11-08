@@ -29,6 +29,7 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.ExpressionFilter
+import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -58,6 +59,7 @@ import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.StringComparison
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.resolve.ResolvedField
 import me.ahoo.wow.query.resolve.ignoreCase
@@ -87,8 +89,12 @@ internal class RecordScope(
     }
 }
 
-/** Evaluates admitted filters with the canonical semantics, every operator a schema can grant included. */
-internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
+/**
+ * Evaluates admitted filters with the canonical semantics, every operator a schema can grant included. A dataset's
+ * access restriction ([DatasetAccess]) reads the current access record [access] gives of each row's aggregate, and
+ * matches nothing where it gives none.
+ */
+internal class InMemoryFilters(private val query: AdmittedQuery<*>, private val access: RowAccess? = null) {
     @Suppress("CyclomaticComplexMethod") // One exhaustive table: a branch per kind of filter.
     fun matches(filter: FilterExpression, scope: RecordScope): Boolean = when (filter) {
         MatchAllFilter -> true
@@ -104,7 +110,9 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
         is OwnerIdFilter -> system(filter, scope) == filter.value
         is SpaceIdFilter -> system(filter, scope) == filter.value
         is DeletionFilter -> deletion(filter, scope)
-        is ElementMatchFilter -> {
+        is ElementMatchFilter -> if (filter.field == DatasetAccess.FIELD) {
+            access?.of(scope.record)?.let { accessMatches(filter.predicate, it) } == true
+        } else {
             val container = query.field(filter.field)
             scope.values(container).flattened().filter { it.isObject }
                 .any { matches(filter.predicate, scope.enter(container.physicalField, it)) }
@@ -131,10 +139,28 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    /**
+     * [predicate] of an access [record]: each field is an attribute of the record, its values compared as those of
+     * any field.
+     */
+    private fun accessMatches(predicate: FilterExpression, record: JsonNode): Boolean = when (predicate) {
+        MatchAllFilter -> true
+        MatchNoneFilter -> false
+        is AndFilter -> predicate.operands.all { accessMatches(it, record) }
+        is OrFilter -> predicate.operands.any { accessMatches(it, record) }
+        is NorFilter -> predicate.operands.none { accessMatches(it, record) }
+        is FieldPredicate -> compare(predicate, record.valuesAt(predicate.field), temporal = null)
+        else -> throw QueryExecutionException("An access restriction compares no [${predicate.operator}].")
+    }
+
     private fun field(filter: FilterExpression, scope: RecordScope): Boolean {
-        val field = query.field(checkNotNull((filter as? me.ahoo.wow.api.query.FieldPredicate)?.field))
-        val values = scope.values(field)
+        val field = query.field(checkNotNull((filter as? FieldPredicate)?.field))
+        return compare(filter, scope.values(field), field.temporal)
+    }
+
+    /** Whether [values], those a field holds, pass the field predicate [filter]; a date field compares instants. */
+    @Suppress("CyclomaticComplexMethod")
+    private fun compare(filter: FilterExpression, values: List<JsonNode>, temporal: Temporal?): Boolean {
         return when (filter) {
             is EqualFilter -> values.any { it.matches(filter.value.operandNode()) }
             is NotEqualFilter -> values.none { it.matches(filter.value.operandNode()) }
@@ -147,12 +173,12 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
             is ContainsAllFilter -> filter.values.map { it.operandNode() }.all { operand ->
                 values.flattened().any { it.sameValue(operand) }
             }
-            is GreaterThanFilter -> range(values, field, filter.value) { it > 0 }
-            is GreaterThanOrEqualFilter -> range(values, field, filter.value) { it >= 0 }
-            is LessThanFilter -> range(values, field, filter.value) { it < 0 }
-            is LessThanOrEqualFilter -> range(values, field, filter.value) { it <= 0 }
-            is BetweenFilter -> range(values, field, filter.lowerBound) { it >= 0 } &&
-                range(values, field, filter.upperBound) { it <= 0 }
+            is GreaterThanFilter -> range(values, temporal, filter.value) { it > 0 }
+            is GreaterThanOrEqualFilter -> range(values, temporal, filter.value) { it >= 0 }
+            is LessThanFilter -> range(values, temporal, filter.value) { it < 0 }
+            is LessThanOrEqualFilter -> range(values, temporal, filter.value) { it <= 0 }
+            is BetweenFilter -> range(values, temporal, filter.lowerBound) { it >= 0 } &&
+                range(values, temporal, filter.upperBound) { it <= 0 }
             is ContainsFilter -> text(
                 values,
                 filter.stringComparison
@@ -179,9 +205,8 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
     }
 
     /** Whether some stored value orders against [operand] as [accepts] says; a date field compares instants. */
-    private fun range(values: List<JsonNode>, field: ResolvedField, operand: Any?, accepts: (Int) -> Boolean): Boolean {
+    private fun range(values: List<JsonNode>, temporal: Temporal?, operand: Any?, accepts: (Int) -> Boolean): Boolean {
         val bound = operand.operandNode()
-        val temporal = field.temporal
         return values.flattened().filterNot { it.isNull }.any { value ->
             val order = if (temporal == Temporal.Date) {
                 val left = value.epochMillis(temporal)

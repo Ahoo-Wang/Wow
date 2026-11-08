@@ -116,6 +116,13 @@ class ClickHouseCatalogIntegrationTest {
         )
         row.references.assert().containsExactly(SourceReference("state.memberId", "crm", "member"))
         row.eventRevisions.assert().isEqualTo(mapOf("order_paid" to 2))
+        // A wow_catalog of an earlier Sink says nothing of an access policy; once the Sink adds the column, its rows do.
+        row.access.assert().isEmpty()
+        execute(
+            "ALTER TABLE $DATABASE.wow_catalog ADD COLUMN IF NOT EXISTS `access` LowCardinality(String) AFTER columns_hash",
+        )
+        execute("ALTER TABLE $DATABASE.wow_catalog UPDATE access = 'POLICY' WHERE fingerprint = 'f-1' SETTINGS mutations_sync = 1")
+        catalog.catalogRows(DATABASE, STATE).single { it.fingerprint == "f-1" }.access.assert().isEqualTo("POLICY")
         catalog.catalogChanges(DATABASE).keys.assert().containsExactly(STATE)
         val table = catalog.table(DATABASE, STATE)!!
         CatalogTrust.evaluate(table, listOf(row), TrustedWriters.of(mapOf(container.username to listOf("shop"))))

@@ -58,8 +58,9 @@ class ClickHouseDatasetBindings @JvmOverloads constructor(
     override fun createBinding(key: QueryDataset): QueryBackendBinding<QueryBackend> {
         val storage = ClickHouseDatasetStorage.of(key, options.database)
         val metadata = ClickHouseTableMetadata(options.metadataTtl) { executor.table(storage.database, storage.table) }
+        val access = key.scope.access?.let { ClickHouseDatasetAccess(key, options.database) }
         return QueryBackendBinding(
-            ClickHouseDatasetQueryBackend(key, storage, executor, metadata),
+            ClickHouseDatasetQueryBackend(key, storage, executor, metadata, access),
             ClickHouseQuerySchemaAdapter(key, storage, metadata),
         )
     }
@@ -67,7 +68,9 @@ class ClickHouseDatasetBindings @JvmOverloads constructor(
 
 /**
  * The four query primitives over one dataset's table, compiled to parameterized SQL ([ClickHouseFilterCompiler],
- * [ClickHouseAggregationCompiler]); a dataset that deduplicates reads `FINAL`. Every statement runs under the
+ * [ClickHouseAggregationCompiler]); a dataset that deduplicates reads `FINAL`. A dataset bound to an aggregate reads
+ * an access policy's restriction on that aggregate's current access records, the Sink's `_state` in the database the
+ * Sink writes to ([ClickHouseDatasetAccess]). Every statement runs under the
  * query's timeout as `max_execution_time`, and a count stops after `limit + 1` matches.
  *
  * A record carries the dataset's declared fields at its root, decimals exact and dates as ISO-8601
@@ -82,6 +85,8 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     private val storage: ClickHouseDatasetStorage,
     private val executor: ClickHouseExecutor,
     private val metadata: ClickHouseTableMetadata,
+    /** The current access records of the aggregate the dataset is bound to; null for a dataset bound to none. */
+    private val access: ClickHouseDatasetAccess? = null,
 ) : QueryBackend {
     override val aggregateType: AggregateType = dataset.name
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
@@ -118,7 +123,10 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         val table = metadata.table()
         emitAll(
-            executor.rows(ClickHouseAggregationCompiler(query, table, source(table)).compile(window), query.timeout)
+            executor.rows(
+                ClickHouseAggregationCompiler(query, table, source(table), access).compile(window),
+                query.timeout
+            )
         )
     }
 
@@ -130,7 +138,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         table: ClickHouseTable
     ): Long {
         val parameters = SqlParameters()
-        val where = ClickHouseFilterCompiler(admitted, table, parameters).compile(filter)
+        val where = ClickHouseFilterCompiler(admitted, table, parameters, access).compile(filter)
         val matches = "SELECT 1 FROM ${source(table)} WHERE $where"
         val sql = if (limit == null) {
             "SELECT count() AS total FROM ${source(table)} WHERE $where"
@@ -152,7 +160,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
     private inner class Select(private val admitted: AdmittedQuery<Queryable<*>>, private val table: ClickHouseTable) {
         private val query = admitted.query
         private val parameters = SqlParameters()
-        private val filters = ClickHouseFilterCompiler(admitted, table, parameters)
+        private val filters = ClickHouseFilterCompiler(admitted, table, parameters, access)
         private val columns = columns(query.projection)
         private val sort: List<Pair<TypedColumn, Sort.Direction>> = query.sort.map {
             filters.columnOf(it.field) to it.direction

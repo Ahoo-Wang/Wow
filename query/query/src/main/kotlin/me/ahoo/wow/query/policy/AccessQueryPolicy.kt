@@ -32,10 +32,13 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.dataset.DatasetAccess
 import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.StorageSupport
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.json.query.SnapshotFields
@@ -153,10 +156,14 @@ class AccessPolicies private constructor(
  *   owner and the space among them (`access.owner`, `access.space`): a stream is stamped again whenever its aggregate's
  *   attributes change, so the events of an aggregate show while it shows, whichever commit wrote them. A stream not
  *   yet stamped (`access` null) is never read. An events query need not name its aggregates.
- * - **Datasets.** A dataset whose scope binds a governed aggregate ([QueryDataset.scope]) reads none of its rows but
- *   for a predicate that grants every aggregate, until its rows are filtered through the aggregate's current
- *   attributes, which the dataset's storage does not keep yet. A dataset bound to no governed aggregate is left to
- *   the default rule.
+ * - **Datasets.** A dataset whose scope binds a governed aggregate ([QueryDataset.scope]) reads the rows whose
+ *   aggregate the predicate lets the caller read by that aggregate's current attributes, whatever a row recorded when
+ *   it was written: the whole predicate is one restriction ([DatasetAccess]), which the dataset's storage compiles as
+ *   one semi-join of the dataset's id column on the aggregates' current access records (on ClickHouse, the Sink's
+ *   `_state`). A row whose aggregate the storage holds no attributes of is never read. A predicate that grants every
+ *   aggregate restricts nothing and reads no access record; on a storage that does not declare
+ *   [StorageSupport.datasetAccess] any other predicate reads none of the rows, logged once. A dataset bound to no
+ *   governed aggregate is left to the default rule.
  *
  * An attribute the aggregate does not have ([AccessPolicies.declares]) matches nothing, and is logged once: the policy
  * fails closed. Between a change of an aggregate's attributes and the stamp of its earlier streams, an events query
@@ -165,6 +172,7 @@ class AccessPolicies private constructor(
 @InternalWowApi
 class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
     private val undeclared = ConcurrentHashMap.newKeySet<Pair<AggregateType, String>>()
+    private val unrestricted = ConcurrentHashMap.newKeySet<AggregateType>()
 
     /** Right after the scope, before the application's policies. */
     override val order: Int = ScopeQueryPolicy.ORDER + 1
@@ -178,8 +186,7 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
         if (profile is DatasetQueryModelProfile) {
             val bound = profile.dataset.scope.access?.aggregate ?: return MatchAllFilter
             val policy = access.of(bound) ?: return MatchAllFilter
-            // The rows are not yet filtered through the aggregate's current attributes: only a grant of all reads.
-            return AccessFilters.compile(policy.read(acting)) { null }
+            return dataset(profile.dataset, bound, policy.read(acting), context.schema.storage)
         }
         val type = context.aggregateType
         val policy = access.of(type) ?: return MatchAllFilter
@@ -198,6 +205,33 @@ class AccessQueryPolicy(private val access: AccessPolicies) : QueryPolicy {
             MatchAllFilter -> fields.recorded
             else -> AndFilter(listOf(fields.recorded, filter))
         }
+    }
+
+    /**
+     * [predicate] of [type] on the rows of [dataset], each read by its aggregate's current access record: the one
+     * restriction of [DatasetAccess], none for a grant of every aggregate, and nothing on a [storage] that cannot read
+     * the records.
+     */
+    private fun dataset(
+        dataset: QueryDataset,
+        type: AggregateType,
+        predicate: AccessPredicate,
+        storage: StorageSupport,
+    ): FilterExpression {
+        val filter = AccessFilters.compile(predicate) { attribute ->
+            DatasetAccess.fieldOf(attribute).takeIf { declares(type, attribute) }
+        }
+        if (filter === MatchAllFilter || filter === MatchNoneFilter) return filter
+        if (storage.datasetAccess == SupportMode.NONE) {
+            if (unrestricted.add(dataset.name)) {
+                logger.warn {
+                    "The storage of dataset ${dataset.name} cannot read the access attributes of $type, which its " +
+                        "rows are of: its rows are read only by a policy that grants every aggregate."
+                }
+            }
+            return MatchNoneFilter
+        }
+        return DatasetAccess.restriction(filter)
     }
 
     /** Whether [type] has [attribute], logging once a comparison of one it does not have. */

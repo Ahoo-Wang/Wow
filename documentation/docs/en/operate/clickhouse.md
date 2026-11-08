@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS `default`.`wow_catalog`
     `event_revisions` Map(String, UInt32),
     `fingerprint` String,
     `columns_hash` String,
+    `access` LowCardinality(String),
     `written_at` DateTime64(3, 'UTC') DEFAULT now64(3),
     `writer` String MATERIALIZED currentUser()
 )
@@ -382,7 +383,7 @@ Wow 9.x's BI sync also created a table of commands, `<ctx>_<agg>_command`, fille
 
 ## wow_catalog
 
-The sink appends one row per table it keeps to the database's `wow_catalog`, from the Manifest rather than from the table's name: the table and its role (`state_events`, `state`, `events`, `state_flat`), the service, context and aggregate it belongs to, the aggregate's ownership and the columns of its tenant, owner and space, its sensitive values and references by path, and its events' revisions. Analytics tools and the analytics catalog read it to know what a table holds and how to scope and mask it. A failed write to it is logged and never fails the sink.
+The sink appends one row per table it keeps to the database's `wow_catalog`, from the Manifest rather than from the table's name: the table and its role (`state_events`, `state`, `events`, `state_flat`), the service, context and aggregate it belongs to, the aggregate's ownership and the columns of its tenant, owner and space, its sensitive values and references by path, and its events' revisions, and whether an access policy of the aggregate decides its rows (`access`: `POLICY` or `DEFAULT`, as the service's access policies say; empty in a row an earlier version wrote). Analytics tools and the analytics catalog read it to know what a table holds and how to scope and mask it; the catalog's datasets read no table whose aggregate has a policy, or whose row does not say. A failed write to it is logged and never fails the sink. `auto` adds `access` to a `wow_catalog` an earlier version created, and `validate` refuses one without it, its writes failing until it is added ([Upgrade a Deployment](./upgrades#from-a-10-0-0-pre-release)).
 
 ## Datasets
 

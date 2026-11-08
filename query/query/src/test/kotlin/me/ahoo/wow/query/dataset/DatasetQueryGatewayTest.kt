@@ -28,19 +28,26 @@ import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.ContainsAllFilter
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.ElementMatchFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.NorFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.PagedQuery
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -60,6 +67,7 @@ import me.ahoo.wow.query.backend.QueryBindings
 import me.ahoo.wow.query.error.QueryDatasetUnavailableException
 import me.ahoo.wow.query.error.QueryErrors
 import me.ahoo.wow.query.error.QueryScopeRequiredException
+import me.ahoo.wow.query.memory.InMemoryDatasetStorageAdapter
 import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
 import me.ahoo.wow.query.policy.AccessFixtures
 import me.ahoo.wow.query.policy.AccessQueryPolicy
@@ -71,6 +79,7 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.spi.json.WowJson
@@ -107,37 +116,42 @@ class DatasetQueryGatewayTest {
     @Test
     fun `the rows of a dataset bound to a governed aggregate are read by its policy, not by the caller's owner`() =
         runTest {
-            fun bound(aggregate: AggregateType) = QueryDataset(
-                orders.name,
-                QueryDatasetScope.of(
-                    tenant = orders.scope.tenant,
-                    owner = orders.scope.owner,
-                    access = QueryDatasetAccess.of(aggregate, QueryField("order_id")),
-                ),
-                orders.declaration,
-                orders.identity,
-            )
-
-            suspend fun admitted(dataset: QueryDataset, vararg policies: AccessPolicy<*>): FilterExpression {
+            suspend fun admitted(
+                dataset: QueryDataset,
+                vararg policies: AccessPolicy<*>,
+                adapter: QueryStorageAdapter = ACCESS_ADAPTER,
+                caller: QueryCaller = U1,
+            ): FilterExpression {
                 val backend = RecordingBackend()
                 val access = AccessFixtures.policies(*policies)
-                val caller = QueryCaller(
-                    Caller(
-                        tenantId = "t1",
-                        scope = Scope("u1"),
-                        subject = "u1",
-                        attributes = mapOf("departments" to listOf("sales")),
-                    ),
-                    QueryEntry.HTTP,
+                gateway(
+                    backend,
+                    dataset,
+                    listOf(ScopeQueryPolicy(access = access), AccessQueryPolicy(access)),
+                    adapter = adapter
                 )
-                gateway(backend, dataset, listOf(ScopeQueryPolicy(access = access), AccessQueryPolicy(access)))
                     .count(CountQuery(MatchAllFilter), caller)
                 return (backend.admitted.single().query as CountQuery).filter
             }
-            // D390 C4 filters the rows through the aggregate's current attributes; until then none but a grant reads.
-            admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents).assert().isSameAs(MatchNoneFilter)
+            // The whole predicate is one restriction on the aggregate's current attributes, the tenant beside it.
+            val restricted = admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents) as AndFilter
+            restricted.operands.single { it is TenantIdFilter }
+            restricted.operands.single { DatasetAccess.predicateOf(it) != null }
+                .let(DatasetAccess::predicateOf).assert().isEqualTo(SALES_OR_SHARED)
+            // A storage that cannot read the attributes reads none of the rows.
+            admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents, adapter = ADAPTER)
+                .assert().isSameAs(MatchNoneFilter)
+            // A grant of every aggregate reads no attributes: the tenant alone, here and on any storage.
             val open = accessPolicy<AccessFixtures.DocumentState> { readWrite { allowAll() } }
             admitted(bound(AccessFixtures.DOCUMENT), open).assert().isInstanceOf(TenantIdFilter::class.java)
+            admitted(bound(AccessFixtures.DOCUMENT), open, adapter = ADAPTER).assert()
+                .isInstanceOf(TenantIdFilter::class.java)
+            // A service reading as itself, and trusted code, are read by no access policy.
+            val service = QueryCaller(Caller(tenantId = "t1", subject = "billing", service = true), QueryEntry.HTTP)
+            admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents, caller = service).assert()
+                .isInstanceOf(TenantIdFilter::class.java)
+            admitted(bound(AccessFixtures.DOCUMENT), AccessFixtures.documents, caller = QueryCaller.IN_PROCESS)
+                .assert().isSameAs(MatchAllFilter)
             // An aggregate without a policy of its own, or none bound: the dataset's owner column, as for any dataset.
             (admitted(bound(AccessFixtures.NOTE), AccessFixtures.documents) as AndFilter).operands.assert().hasSize(2)
             (admitted(orders, AccessFixtures.documents) as AndFilter).operands.assert().hasSize(2)
@@ -146,6 +160,95 @@ class DatasetQueryGatewayTest {
             UnavailableDatasetQueryGateway(orders.withUnavailable("rebuilding")).maskRecord(record).assert()
                 .isSameAs(record)
         }
+
+    @Test
+    fun `no filter, sort or projection of the caller's reaches an access restriction`() = runTest {
+        val access = AccessFixtures.policies(AccessFixtures.documents)
+        val backend = RecordingBackend()
+        val gateway = gateway(
+            backend,
+            bound(AccessFixtures.DOCUMENT),
+            listOf(ScopeQueryPolicy(access = access), AccessQueryPolicy(access)),
+            adapter = ACCESS_ADAPTER,
+        )
+        val city = QueryField("city")
+        val written = listOf(
+            EqualFilter(city, "Hangzhou"),
+            OrFilter(listOf(EqualFilter(city, "Hangzhou"), EqualFilter(city, "Shanghai"))),
+            NorFilter(listOf(EqualFilter(city, "Hangzhou"))),
+            MatchAllFilter,
+        )
+        written.forEach { filter ->
+            gateway.list(
+                ListQuery(
+                    filter,
+                    Projection(include = listOf(city)),
+                    listOf(Sort(city, Sort.Direction.DESC)),
+                    limit = 10,
+                ),
+                U1,
+            ).toList()
+        }
+        backend.admitted.map { admitted ->
+            val operands = ((admitted.query as ListQuery).filter as AndFilter).operands
+            operands.mapNotNull(DatasetAccess::predicateOf).single()
+        }.assert().containsOnly(SALES_OR_SHARED)
+        // The caller cannot name the attributes: in a filter, under any operator, in a sort or a projection.
+        val own = ElementMatchFilter(DatasetAccess.FIELD, EqualFilter(QueryField("department"), "hr"))
+        val refused = listOf(
+            ListQuery(own, limit = 10),
+            ListQuery(OrFilter(listOf(own, EqualFilter(city, "Hangzhou"))), limit = 10),
+            ListQuery(NorFilter(listOf(own)), limit = 10),
+            ListQuery(MatchAllFilter, sort = listOf(Sort(DatasetAccess.FIELD, Sort.Direction.ASC)), limit = 10),
+            ListQuery(MatchAllFilter, Projection(include = listOf(DatasetAccess.FIELD)), limit = 10),
+        )
+        refused.forEach { query ->
+            assertThrows<QuerySchemaValidationException> { gateway.list(query, U1).toList() }
+                .message.assert().contains("[@access]")
+        }
+        // Nor can trusted code: only admission appends it.
+        assertThrows<QuerySchemaValidationException> {
+            gateway.count(CountQuery(own), QueryCaller.IN_PROCESS)
+        }.message.assert().contains("[@access]")
+        assertThrows<IllegalArgumentException> {
+            QueryDataset.of(orders.name) {
+                tenant("tenant_id")
+                field("tenant_id") { types(QueryValueType.STRING) }
+                field(DatasetAccess.FIELD.path) { types(QueryValueType.STRING) }
+            }
+        }
+    }
+
+    @Test
+    fun `an access restriction is read only on a dataset bound to an aggregate, by a storage that reads it`() = runTest {
+        val restriction = DatasetAccess.restriction(EqualFilter(QueryField("department"), "sales"))
+        val appending = QueryPolicy { _, _ -> restriction }
+        val count = CountQuery(MatchAllFilter)
+        // A dataset bound to no aggregate has no access attributes: an unknown field, even appended.
+        assertThrows<QuerySchemaValidationException> {
+            gateway(policies = listOf(appending), adapter = ACCESS_ADAPTER).count(count, QueryCaller.IN_PROCESS)
+        }.message.assert().contains("[@access]")
+        // A storage that does not declare it never receives one.
+        assertThrows<QuerySchemaValidationException> {
+            gateway(dataset = bound(AccessFixtures.DOCUMENT), policies = listOf(appending))
+                .count(count, QueryCaller.IN_PROCESS)
+        }.message.assert().contains("access attributes")
+        val backend = RecordingBackend()
+        gateway(backend, bound(AccessFixtures.DOCUMENT), listOf(appending), adapter = ACCESS_ADAPTER)
+            .count(count, QueryCaller.IN_PROCESS)
+        (backend.admitted.single().query as CountQuery).filter.assert().isEqualTo(restriction)
+    }
+
+    private fun bound(aggregate: AggregateType) = QueryDataset(
+        orders.name,
+        QueryDatasetScope.of(
+            tenant = orders.scope.tenant,
+            owner = orders.scope.owner,
+            access = QueryDatasetAccess.of(aggregate, QueryField("order_id")),
+        ),
+        orders.declaration,
+        orders.identity,
+    )
 
     @Test
     fun `an HTTP caller built directly reaches no further than the read side's rules (R5-C-1)`() = runTest {
@@ -501,11 +604,15 @@ class DatasetQueryGatewayTest {
         }
     }
 
-    private fun catalog(dataset: QueryDataset, backend: QueryBackend = RecordingBackend()): QuerySchemaCatalog {
+    private fun catalog(
+        dataset: QueryDataset,
+        backend: QueryBackend = RecordingBackend(),
+        adapter: QueryStorageAdapter = ADAPTER,
+    ): QuerySchemaCatalog {
         val datasets = QueryDatasets(listOf(dataset))
         return QuerySchemaCatalog(
             storages = QueryBackendStorages(
-                datasetBindings = { QueryBackendBinding(backend, ADAPTER) },
+                datasetBindings = { QueryBackendBinding(backend, adapter) },
                 datasets = datasets
             ),
             compiler = QueryModelCompiler.of(datasets = datasets),
@@ -518,10 +625,11 @@ class DatasetQueryGatewayTest {
         dataset: QueryDataset = orders,
         policies: List<QueryPolicy> = emptyList(),
         entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+        adapter: QueryStorageAdapter = ADAPTER,
     ): DatasetQueryGateway = DefaultDatasetQueryGateway(
         dataset = dataset,
         backend = backend,
-        schemaProvider = catalog(dataset, backend).provider(dataset.name, QueryModel.DATASET),
+        schemaProvider = catalog(dataset, backend, adapter).provider(dataset.name, QueryModel.DATASET),
         policies = policies,
         entryPolicy = entryPolicy,
     )
@@ -558,6 +666,24 @@ class DatasetQueryGatewayTest {
     private companion object {
         val OTHER = AggregateType("analytics", "other")
         val ADAPTER = InMemoryQueryStorageAdapter
+        val ACCESS_ADAPTER = InMemoryDatasetStorageAdapter
+        val U1 = QueryCaller(
+            Caller(
+                tenantId = "t1",
+                scope = Scope("u1"),
+                subject = "u1",
+                attributes = mapOf("departments" to listOf("sales"))
+            ),
+            QueryEntry.HTTP,
+        )
+
+        /** What the documents' policy lets [U1] read: a sales document, or one shared with u1. */
+        val SALES_OR_SHARED = OrFilter(
+            listOf(
+                InFilter(QueryField("department"), listOf("sales")),
+                ContainsAllFilter(QueryField("sharedWith"), listOf("u1")),
+            ),
+        )
     }
 }
 

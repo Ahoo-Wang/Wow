@@ -82,16 +82,21 @@ internal object DatasetBinder {
 
     private val NAME = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
+    /** A Wow source's `access` when its service says the default rule reads its aggregate's rows (`wow_catalog`). */
+    private const val DEFAULT_RULE = "DEFAULT"
+
     sealed interface Result {
         data class Bound(val dataset: BoundDataset) : Result
 
-        data class Invalid(val problems: List<String>) : Result
+        /** Why it does not bind; [forbidden] when a source it reads is one the catalog may not read at all. */
+        data class Invalid(val problems: List<String>, val forbidden: Boolean = false) : Result
     }
 
     /** [definition] over [sources], each source it names by id as the catalog has it now, or null when it has none. */
     @Suppress("CyclomaticComplexMethod", "LongMethod") // One check after another, each adding its problem.
     fun bind(definition: DatasetDefinition, sources: Map<String, SourceState?>, approvedOnly: Boolean = false): Result {
         val problems = mutableListOf<String>()
+        var forbidden = false
         val aliases = linkedMapOf<String, BoundSource>()
         definition.sources.forEach { source ->
             if (!NAME.matches(source.alias)) {
@@ -100,6 +105,7 @@ internal object DatasetBinder {
                 problems += "The alias ${source.alias} names one source only."
             } else {
                 val state = sources[source.sourceId]
+                forbidden = forbidden || state != null && governs(state)
                 val unusable = unusable(source.sourceId, state, approvedOnly)
                 if (unusable != null) problems += unusable else aliases[source.alias] = BoundSource(source.alias, source.sourceId, state!!)
             }
@@ -111,7 +117,7 @@ internal object DatasetBinder {
         if (subject == null && definition.sources.none { it.alias == definition.subject }) {
             problems += "The subject ${definition.subject} is not an alias of the sources."
             // Every join and reference is read from the subject on: without it, nothing else can be checked.
-            return Result.Invalid(problems)
+            return Result.Invalid(problems, forbidden)
         }
 
         fun parse(text: String, what: String): DatasetExpression? = try {
@@ -246,7 +252,7 @@ internal object DatasetBinder {
             val what = "The filter ${index + 1}"
             parse(filter, what)?.let { resolve(it, joined, what) }
         }
-        if (problems.isNotEmpty() || subject == null) return Result.Invalid(problems.distinct())
+        if (problems.isNotEmpty() || subject == null) return Result.Invalid(problems.distinct(), forbidden)
         return Result.Bound(
             BoundDataset(
                 subject = subject,
@@ -269,7 +275,34 @@ internal object DatasetBinder {
         state.missing -> "The source $id's table is gone."
         state.status == SourceStatus.DRAFT -> "The source $id is a draft: it is reviewed first."
         approvedOnly && !state.approved -> "The source $id awaits an approver's approval."
+        governs(state) -> governed(id, state)
         else -> null
+    }
+
+    /**
+     * Whether [state] is a Wow table whose aggregate's rows an access policy decides: only its service says an
+     * aggregate is read by the default rule, so a row that does not say reads as a policy's.
+     */
+    private fun governs(state: SourceState): Boolean =
+        state.exists && state.kind == SourceKind.WOW && state.enrichment?.access != DEFAULT_RULE
+
+    /**
+     * Why the Wow source [id] ([state]) is not one a dataset of the catalog reads: its aggregate's rows are read by
+     * an access policy of its own, or its `wow_catalog` row does not say they are not, and only the service that has
+     * the policy can evaluate it.
+     */
+    private fun governed(id: String, state: SourceState): String {
+        val enrichment = state.enrichment
+        val aggregate = enrichment?.let { "${it.context}.${it.aggregate}" } ?: "its aggregate"
+        val why = if (enrichment?.access.isNullOrEmpty()) {
+            "its wow_catalog row does not say whether an access policy decides the rows of $aggregate, which reads " +
+                "as one does until that service's Sink writes the row again"
+        } else {
+            "the access policy of $aggregate decides its rows"
+        }
+        return "The source $id cannot be read by the catalog's datasets: $why, and only the service that owns " +
+            "$aggregate can evaluate the policy. Serve this dataset from that service instead: a dataset file bound " +
+            "to $aggregate (scope.access)."
     }
 
     /**

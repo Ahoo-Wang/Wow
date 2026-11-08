@@ -67,7 +67,9 @@ data class SourceReference(val path: String, val context: String, val aggregate:
 /**
  * The trusted `wow_catalog` row a Wow source adopted: the aggregate the table is of ([service],
  * [context], [aggregate], [role] such as `state_flat`, [ownership]), the row's [fingerprint], the account that wrote it
- * ([writer]) and when ([writtenAt]), and each event's revision.
+ * ([writer]) and when ([writtenAt]), and each event's revision. [access] is whether the aggregate's rows are read by
+ * an access policy of its own (`POLICY`) or by its scope's columns (`DEFAULT`), as its service says; empty in a row
+ * an earlier Sink wrote, which the catalog reads as `POLICY`.
  */
 data class WowEnrichment(
     val service: String,
@@ -79,4 +81,5 @@ data class WowEnrichment(
     val writer: String,
     val writtenAt: String,
     val eventRevisions: Map<String, Int> = emptyMap(),
+    val access: String = "",
 )

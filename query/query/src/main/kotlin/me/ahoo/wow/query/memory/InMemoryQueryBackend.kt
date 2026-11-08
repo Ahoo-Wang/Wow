@@ -122,6 +122,8 @@ class InMemoryQueryBackend internal constructor(
     override val aggregateType: AggregateType,
     private val records: suspend () -> List<ObjectNode>,
     private val delay: Duration,
+    /** The current access record of each row's aggregate, for a dataset bound to one ([InMemoryDatasetStorage]). */
+    private val access: RowAccess? = null,
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
 
@@ -137,7 +139,7 @@ class InMemoryQueryBackend internal constructor(
     }
 
     private suspend fun matched(query: AdmittedQuery<Queryable<*>>): List<ObjectNode> {
-        val filters = InMemoryFilters(query)
+        val filters = InMemoryFilters(query, access)
         val matched = records().filter { filters.matches(query.query.filter, RecordScope(it)) }
         return matched.sortedWith(comparator(query, query.query.sort))
     }
@@ -182,7 +184,7 @@ class InMemoryQueryBackend internal constructor(
 
     override suspend fun count(query: AdmittedQuery<CountQuery>): Long {
         receive(query)
-        val filters = InMemoryFilters(query)
+        val filters = InMemoryFilters(query, access)
         val matches = records().count { filters.matches(query.query.filter, RecordScope(it)) }
         // As `count(*)` over `LIMIT limit + 1`: never more than one past the limit.
         return query.query.limit?.let { minOf(matches.toLong(), it + 1L) } ?: matches.toLong()
@@ -190,7 +192,7 @@ class InMemoryQueryBackend internal constructor(
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         receive(query)
-        InMemoryAggregation(query).run(records(), window).forEach { emit(it) }
+        InMemoryAggregation(query, access).run(records(), window).forEach { emit(it) }
     }
 
     private fun sortKey(query: AdmittedQuery<*>, sort: Sort, record: ObjectNode): JsonNode? =
@@ -268,33 +270,24 @@ class InMemoryQueryBackend internal constructor(
  * the strict storage-family table ([storageFamilies]) allows for its values, full-text search excepted; HAVING, top-N
  * by a metric, dense fill and the windows are RESIDUAL, so the core computes them.
  */
-internal object InMemoryQueryStorageAdapter : QueryStorageAdapter {
-    private val VALUE_CAPABILITIES = listOf(
-        QueryCapability.EXACT_MATCH,
-        QueryCapability.LITERAL_MATCH,
-        QueryCapability.RANGE,
-        QueryCapability.SORT,
-        QueryCapability.CURSOR_SORT,
-        QueryCapability.AGGREGATE_TERMS,
-        QueryCapability.AGGREGATE_NUMERIC,
-        QueryCapability.AGGREGATE_TEMPORAL,
-    )
+internal object InMemoryQueryStorageAdapter :
+    QueryStorageAdapter by InMemoryStorageAdapter(InMemoryStorageAdapter.SUPPORT)
 
-    /** What the in-memory storage computes itself and what it leaves to the core. */
-    val SUPPORT: StorageSupport = StorageSupport(
-        aggregation = AggregationSupport(
-            having = SupportMode.RESIDUAL,
-            topN = SupportMode.RESIDUAL,
-            denseFill = SupportMode.RESIDUAL,
-        ),
-    )
+/**
+ * The facts of [InMemoryQueryStorageAdapter] with a dataset's access restriction ([InMemoryDatasetStorage], which
+ * holds the current access record of each aggregate).
+ */
+internal object InMemoryDatasetStorageAdapter :
+    QueryStorageAdapter by InMemoryStorageAdapter(InMemoryStorageAdapter.DATASET_SUPPORT)
 
+/** The in-memory storage's facts, under [support]. */
+internal class InMemoryStorageAdapter(private val support: StorageSupport) : QueryStorageAdapter {
     override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = QueryStorageFacts(
         bindings = logicalSchema.values.filterKeys { it.segments.isNotEmpty() }.mapValues { (path, value) ->
             val capabilities = capabilitiesOf(value)
             QueryValueBindings(capabilities.associateWith { QueryFieldBindingTemplate(path, null) }, path, path)
         },
-        storage = SUPPORT,
+        storage = support,
     )
 
     private fun capabilitiesOf(value: QueryValueSchema): Set<QueryCapability> {
@@ -309,6 +302,34 @@ internal object InMemoryQueryStorageAdapter : QueryStorageAdapter {
             if (families.all { sets -> sets.isNotEmpty() && sets.all(Set<*>::isNotEmpty) }) capabilities += capability
         }
         return capabilities
+    }
+
+    companion object {
+        private val VALUE_CAPABILITIES = listOf(
+            QueryCapability.EXACT_MATCH,
+            QueryCapability.LITERAL_MATCH,
+            QueryCapability.RANGE,
+            QueryCapability.SORT,
+            QueryCapability.CURSOR_SORT,
+            QueryCapability.AGGREGATE_TERMS,
+            QueryCapability.AGGREGATE_NUMERIC,
+            QueryCapability.AGGREGATE_TEMPORAL,
+        )
+
+        /** What the in-memory storage computes itself and what it leaves to the core. */
+        val SUPPORT: StorageSupport = StorageSupport(
+            aggregation = AggregationSupport(
+                having = SupportMode.RESIDUAL,
+                topN = SupportMode.RESIDUAL,
+                denseFill = SupportMode.RESIDUAL,
+            ),
+        )
+
+        /** [SUPPORT], and the access restriction of a dataset bound to an aggregate. */
+        val DATASET_SUPPORT: StorageSupport = StorageSupport(
+            aggregation = SUPPORT.aggregation,
+            datasetAccess = SupportMode.NATIVE,
+        )
     }
 }
 

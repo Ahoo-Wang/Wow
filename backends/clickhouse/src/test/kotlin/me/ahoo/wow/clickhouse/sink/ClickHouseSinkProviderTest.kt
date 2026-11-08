@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
@@ -86,6 +87,14 @@ class ClickHouseSinkProviderTest {
             config("endpoint" to "http://127.0.0.1:1", resources = StoreResources.of(mapOf("m" to manifest)))
         )
         own.close()
+        // The host's answer of which aggregates an access policy governs, when it has one.
+        val governed = GovernedAggregates { true }
+        provider.open(
+            config(
+                "endpoint" to "http://127.0.0.1:1",
+                resources = StoreResources.of(mapOf("m" to manifest, "g" to governed)),
+            ),
+        ).close()
         assertThrows<IllegalStateException> { provider.open(config("endpoint" to "http://127.0.0.1:1")) }
         val neither = config("sink.enabled" to "true", resources = StoreResources.of(mapOf("m" to manifest)))
         assertThrows<IllegalArgumentException> {

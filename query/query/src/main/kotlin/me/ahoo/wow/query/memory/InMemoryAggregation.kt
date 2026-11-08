@@ -45,9 +45,12 @@ import kotlin.math.sqrt
  * fill and windows are declared RESIDUAL by the in-memory storage, so the core computes them and they never arrive
  * here.
  */
-internal class InMemoryAggregation(private val admitted: AdmittedQuery<AggregationQuery>) {
+internal class InMemoryAggregation(
+    private val admitted: AdmittedQuery<AggregationQuery>,
+    access: RowAccess? = null,
+) {
     private val query = admitted.query
-    private val filters = InMemoryFilters(admitted)
+    private val filters = InMemoryFilters(admitted, access)
 
     fun run(records: List<ObjectNode>, window: GroupWindow): List<ObjectNode> {
         val scopes = records.map(::RecordScope).filter { filters.matches(query.filter, it) }.flatMap(::expand)

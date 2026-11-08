@@ -716,7 +716,7 @@ private fun AggregationSupport.withResidualWindows() = AggregationSupport(
 )
 
 private fun StorageSupport.withAggregation(aggregation: AggregationSupport) =
-    StorageSupport(paging, aggregation, parallelArraySort, absentValues, arrayEquality)
+    StorageSupport(paging, aggregation, parallelArraySort, absentValues, arrayEquality, datasetAccess)
 
 /** This schema with every window computed by the core, so a spec can hold the storage's native windows to it. */
 internal fun QueryModelSchema.withResidualWindows() = QueryModelSchema(

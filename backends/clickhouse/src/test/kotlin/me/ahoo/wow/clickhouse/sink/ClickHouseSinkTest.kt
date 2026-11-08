@@ -41,7 +41,7 @@ class ClickHouseSinkTest {
         sink.write(listOf(recordOf(version = 2)))
         sink.write(emptyList())
         statements.executed.assert().isEqualTo(
-            listOf(ClickHouseCatalog.ddl("default")) + sink.schema.ddl +
+            listOf(ClickHouseCatalog.ddl("default"), ClickHouseCatalog.migration("default")) + sink.schema.ddl +
                 sink.schema.flatView(FlatLineage(listOf(sink.schema.flatFingerprint))),
         )
         statements.inserts.map { it.first }.assert().containsOnly("`default`.`shop_order_state_events`")

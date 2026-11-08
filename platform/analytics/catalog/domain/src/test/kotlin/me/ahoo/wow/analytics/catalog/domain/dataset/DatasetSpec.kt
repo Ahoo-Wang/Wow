@@ -486,6 +486,22 @@ class DatasetSpec {
     }
 
     @Test
+    fun `a published dataset whose source an access policy now governs should need revision`() = spec {
+        drafted()
+        givenCommands(PublishDataset)
+        // The members' service now says their access policy decides their rows: the catalog cannot read them.
+        catalog[MEMBERS_ID] = DatasetFixtures.members(access = "POLICY")
+        whenCommand(RecompileDataset) {
+            expectEventTypes(DatasetNeedsRevision::class)
+            expectState {
+                problems.single().assert().contains("the access policy of shop.member decides its rows")
+                // No longer served, though its view still gives its columns: its queries are answered 409.
+                serving().assert().isNull()
+            }
+        }
+    }
+
+    @Test
     fun `publishing should take an approver when the switch says so, or when it computes from sensitive values`() {
         policy = policy.copy(approvePublications = true)
         spec {

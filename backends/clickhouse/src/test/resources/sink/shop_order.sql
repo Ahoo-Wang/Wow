@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `default`.`wow_catalog`
     `event_revisions` Map(String, UInt32),
     `fingerprint` String,
     `columns_hash` String,
+    `access` LowCardinality(String),
     `written_at` DateTime64(3, 'UTC') DEFAULT now64(3),
     `writer` String MATERIALIZED currentUser()
 )

@@ -73,6 +73,8 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.withUniqueSort
+import me.ahoo.wow.query.dataset.DatasetAccess
+import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.filter.withPredicateField
@@ -340,11 +342,30 @@ internal class QueryResolver(
     }
 
     private fun elementMatch(expression: ElementMatchFilter, at: At): FilterExpression {
+        if (expression.field == DatasetAccess.FIELD) return datasetAccess(expression, at)
         val reference = reference(expression.field, at.scope, expression.requiredCapability())
         requireValid(!at.metric) { QueryViolation.MetricFilterElementMatch }
         val container = register(reference, at.scope)
         val inner = At(elementScope(reference, container), at.trusted, at.metric)
         return ElementMatchFilter(container, storedEvents(filter(expression.predicate, inner), inner.scope))
+    }
+
+    /**
+     * A dataset's access restriction ([DatasetAccess]): only admission appends it, at the root of a query of a dataset
+     * bound to an aggregate, and only a storage that declares it ([me.ahoo.wow.query.schema.StorageSupport]'s
+     * `datasetAccess`) reads it; any other is an unknown field, so a caller never names `@access`. Its predicate
+     * compares the access record's attributes, not the dataset's fields: it is checked to be in the restriction's
+     * vocabulary and passed on as the policy compiled it.
+     */
+    private fun datasetAccess(expression: ElementMatchFilter, at: At): FilterExpression {
+        val bound = (schema.profile as? DatasetQueryModelProfile)?.dataset?.scope?.access
+        requireValid(at.trusted && !at.metric && at.scope === ROOT && bound != null) {
+            QueryViolation.UnknownField(DatasetAccess.FIELD)
+        }
+        requireValid(schema.storage.datasetAccess != SupportMode.NONE) {
+            QueryViolation.StorageUnsupported("the access attributes of a dataset's aggregate")
+        }
+        return ElementMatchFilter(DatasetAccess.FIELD, DatasetAccess.requireComparisons(expression.predicate))
     }
 
     /**

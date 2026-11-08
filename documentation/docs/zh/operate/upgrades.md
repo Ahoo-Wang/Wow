@@ -67,6 +67,15 @@ outline: deep
 - **为什么。** 读取按记录所带的访问属性判定：策略比较的属性，或者在事件上比较聚合现在的所有者和空间。每条流都记着它们，所以转移之后，聚合的历史跟着聚合走（[谁能看到什么](../guide/event-queries#who-sees-what)）。不带访问属性的记录什么也不授予，而不是对所有调用方都显示。
 - **怎样看它完成。** 新版本的第一个节点会自行开始遍历。某个类型的遍历完成之前，它的 `wow.access.walk.pending` 为 1，完成后为 0；`wow.access.walked` 计数已经遍历的聚合；完成时，执行遍历的节点记录日志 `The access walk of <type> is completed`（[重建与重放](./replay#access-attributes)）。
 
+如果数据集的行属于有访问策略的聚合，每一行按 ClickHouse Sink 的 `_state` 中该聚合最新一次提交的属性读取（[数据集](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)）。遍历盖章的是日志，不是数仓，所以有一段时间，对受策略限制的每个调用方，有些行是隐藏的：
+
+- **最后一次由预发布版写入的聚合的行。** 它在 `_state` 中最新的一行不带属性（`access` 为空），所以它的行一直隐藏，直到它的下一次提交。
+- **某个版本新声明了访问属性之后。** 每个聚合最新的一行没有这个属性，所以对它的比较看不到任何值，直到该聚合的下一次提交。
+
+要在那之前让它们显示，就从日志重新填充数仓：重置每个这类聚合的 Sink 订阅 `wow.clickhouse-sink.<aggregate>`，它会用日志现在记录的属性把每次提交重新写一遍，`_state` 保留每个聚合最新的一行（[重建与重放](./replay#access-attributes)、[重建数仓](./clickhouse#rebuild-the-warehouse)）。
+
+`wow_catalog` 新增 `access` 列：该聚合的访问策略是否决定它的行（[wow_catalog](./clickhouse#wow-catalog)）。`wow.clickhouse.ddl: auto` 的 Sink 在第一次检查时补上它；`validate` 的 Sink 在这一列存在之前拒绝写入：`ALTER TABLE <database>.wow_catalog ADD COLUMN IF NOT EXISTS access LowCardinality(String) AFTER columns_hash`。较早版本的 Sink 写下的行没有说明是否有策略，所以分析目录按有策略处理：基于这些表的目录数据集转为需要修订，查询答 `409 wow.query.dataset-unavailable`，直到拥有该聚合的服务运行这个版本，它的 Sink 在启动后第一次检查时重新写出这些行。不需要重放。聚合有策略的表仍然被拒绝：它的数据集改由拥有该聚合的服务提供（[数据集](../data/datasets#define-a-dataset)）。
+
 TypeScript 包随之改变：`@ahoo-wang/wow-client` 不再有 `ApplyTags`、`TagsApplied` 与 `Tags`，记录的 `tags` 改为 `access`，`wow-generator` 生成的客户端为每个聚合的访问属性给出类型。请重新生成客户端；步骤见[命令](../typescript/commands#lifecycle-commands-scope-and-space)。
 
 从 10.0.0 起，对调用方作用域之外的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它的回答一致；预发布版回答 `403 wow.aggregate.forbidden`，现在只有指明这样的聚合的创建命令仍得到它（[所有者、空间与标签](../guide/ownership#what-the-kernel-checks)）。按状态码区分两者的客户端改为显示它的"未找到"回答。

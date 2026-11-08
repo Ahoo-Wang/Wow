@@ -66,7 +66,8 @@ internal class ClickHouseTableMetadata(
  * What a dataset's table proves about its declaration,
  * from `system.columns`. The declaration is the contract and the table only confirms it: every declared field must be
  * a root column of a supported type whose family matches the declared types, a non-null declaration needs a
- * non-`Nullable` column, and the scope and identity columns must be neither `Nullable` nor arrays. `FINAL` needs an
+ * non-`Nullable` column, and the scope and identity columns must be neither `Nullable` nor arrays; the column of the
+ * aggregate ids of a dataset bound to an aggregate is a `String`, as the Sink's `aggregate_id` is. `FINAL` needs an
  * engine that merges rows. Any mismatch fails the compile, so the Catalog keeps the previous schema and reports it; a
  * column the declaration does not name is never exposed.
  */
@@ -111,6 +112,9 @@ internal class ClickHouseQuerySchemaAdapter(
             if (QueryField(name) in keys) {
                 if (column.nullable) throw invalid("keys on the Nullable column [$name]")
                 if (column.array) throw invalid("keys on the array column [$name]")
+            }
+            if (QueryField(name) == dataset.scope.access?.id && column.family != ClickHouseTypeFamily.STRING) {
+                throw invalid("holds its aggregate's ids in [$name], which is not a String column")
             }
             val native = QueryFieldBindingTemplate(path, setOf(QueryStorageType(column.family.name)))
             QueryValueBindings(column.capabilities().associateWith { native }, path, path)
@@ -164,7 +168,9 @@ internal class ClickHouseQuerySchemaAdapter(
         /**
          * Paging, HAVING, top-N, percentiles, distinct counts and FIRST / LAST run natively; dense fill and every
          * window (TOTAL, RANK, RUNNING, PREVIOUS) are the core's, so they share one implementation with every
-         * storage. A `NULL` is a table's only missing value, and a dataset's rows have no elements to expand.
+         * storage. A `NULL` is a table's only missing value, and a dataset's rows have no elements to expand. A
+         * dataset bound to an aggregate reads its rows by the aggregate's current access records
+         * ([ClickHouseDatasetAccess]).
          */
         val STORAGE_SUPPORT = StorageSupport(
             aggregation = AggregationSupport(
@@ -174,6 +180,7 @@ internal class ClickHouseQuerySchemaAdapter(
             parallelArraySort = SupportMode.NONE,
             absentValues = AbsentValues.AS_MISSING,
             arrayEquality = SupportMode.NONE,
+            datasetAccess = SupportMode.NATIVE,
         )
 
         /**

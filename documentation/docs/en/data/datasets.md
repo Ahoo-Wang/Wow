@@ -65,6 +65,8 @@ posted as `DraftDataset` to `POST /analytics-catalog/dataset/draft-dataset`; the
 
 The catalog checks a definition against the catalog when it is drafted or revised (`ReviseDataset`), and refuses one that names an unknown source or column, joins across tenants, or calls a function outside the set.
 
+**A Wow table of an aggregate with an access policy is no source of the catalog's datasets.** That aggregate's rows are decided by its policy, which only the service that owns it can evaluate, so the catalog refuses a definition that reads such a table, as its subject or joined, when it is drafted, revised or published, and a published dataset that comes to read one needs revision. Serve such a dataset from the owning service instead, in a dataset file bound to the aggregate ([Publish Datasets from a Service](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)). The catalog knows from each table's `wow_catalog` row, which the owning service's sink writes ([ClickHouse](../operate/clickhouse#wow-catalog)); a row an earlier sink wrote does not say, and reads as a policy's until that service, upgraded, writes it again.
+
 ## Publish and version
 
 `PublishDataset` compiles the definition into the next version, a ClickHouse view named `ds_<context>_<name>_v<N>` in the datasets' database (`wow_datasets`), which is the only DDL the catalog runs. Every node that serves queries reads the publications, what changed every 5 seconds and everything every 5 minutes, and from then on answers `POST /wow/dataset/<context>/<name>/query` from that version, each value masked as its sources say. A node is ready only once it has read them.

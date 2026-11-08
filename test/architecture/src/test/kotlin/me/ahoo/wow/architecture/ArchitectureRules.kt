@@ -465,6 +465,8 @@ object ArchitectureRules {
         "engine.QueryEngine", "engine.ManifestTypes", "engine.CommittedStates", "engine.ReadFacade",
         "policy.QueryEntryPolicy", "admission.QueryBudget", "cache.QueryCountCache", "cache.QueryCountCacheOptions",
         "QueryGateway", "QueryModule", "CrossTenantAudit",
+        // Which aggregates the engine's access policies govern, a resource the host gives the Sinks it opens.
+        "policy.GovernedAggregates",
         // The application's ports the engine is built of.
         "policy.ReadAuthorizer", "observe.QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
         "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility",

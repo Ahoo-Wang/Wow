@@ -15,6 +15,7 @@ package me.ahoo.wow.query.policy
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.access.AccessAttribute
+import me.ahoo.wow.api.access.AccessAttributes
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.access.accessPolicy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -71,6 +72,20 @@ class AccessPoliciesTest {
         access.governs(LEDGER).assert().isFalse()
         access.of(LEDGER).assert().isNull()
         AccessPolicies.NONE.governed.assert().isEmpty()
+    }
+
+    @Test
+    fun `a policy that compares only the owner and the space should govern its aggregate as any other`() {
+        val owners = accessPolicy<NoteState> {
+            read { caller -> anyOf(NoteAccess.OWNER eq caller.subject, NoteAccess.SPACE isIn caller.claims("spaces")) }
+            write { denyAll() }
+        }
+        val access = policies(documents, owners)
+        access.governs(NOTE).assert().isTrue()
+        // What the host gives a Sink to record: the reader elsewhere cannot evaluate it either.
+        val governed = GovernedAggregates(access::governs)
+        governed.governs(NOTE).assert().isTrue()
+        governed.governs(LEDGER).assert().isFalse()
     }
 
     @Test
@@ -150,3 +165,6 @@ class AccessPoliciesTest {
     private fun <V : Any> single(name: String, type: Class<V>): AccessAttribute.Single<DocumentState, V> =
         AccessAttribute.single(name, type)
 }
+
+/** A note's built-in attributes, the only ones it has. */
+private object NoteAccess : AccessAttributes<NoteState>()

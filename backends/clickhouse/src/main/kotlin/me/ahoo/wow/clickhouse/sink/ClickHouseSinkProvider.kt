@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.ClickHouseClients
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.sink.Sink
@@ -59,7 +60,10 @@ class ClickHouseSinkProvider : SinkProvider {
     override fun open(config: SinkConfig): StreamSinks {
         val manifest = config.resources.resource(Manifest::class.java, null, config.key)
         val client = ClickHouseClients.clientOf(config.resources, config.key, "The ClickHouse Sink", config::option)
-        val sinks = ClickHouseSinks(client.client, manifest, options(config))
+        // Which aggregates an access policy governs, as the host's query engine says: recorded in wow_catalog.
+        val governed = GovernedAggregates::class.java.takeIf(config.resources::has)
+            ?.let { config.resources.resource(it, null, config.key) }
+        val sinks = ClickHouseSinks(client.client, manifest, options(config), governed)
         return object : StreamSinks {
             override val processor: String = ClickHouseSinks.PROCESSOR
 

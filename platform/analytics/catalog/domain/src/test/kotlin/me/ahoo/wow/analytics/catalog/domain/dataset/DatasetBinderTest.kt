@@ -318,4 +318,32 @@ class DatasetBinderTest {
             ),
         )
     }
+
+    @Test
+    fun `a Wow source whose aggregate an access policy governs should be read by no dataset of the catalog`() {
+        val governed = SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = "POLICY"))
+        fun forbidden(sources: Map<String, SourceState?>) =
+            (DatasetBinder.bind(DEFINITION, sources) as DatasetBinder.Result.Invalid).forbidden
+
+        // Joined: the policy of the members decides their rows, which the catalog cannot evaluate.
+        forbidden(governed).assert().isTrue()
+        // Invalid for another reason, a source missing: no version is forbidden to serve for it.
+        forbidden(SOURCES - ORDERS_ID).assert().isFalse()
+        problems(DEFINITION, governed).single().assert()
+            .contains("The source $MEMBERS_ID cannot be read by the catalog's datasets")
+            .contains("the access policy of shop.member decides its rows")
+            .contains("Serve this dataset from that service instead", "scope.access")
+        // The subject alike.
+        val members = DatasetDefinition(
+            sources = listOf(DatasetSource("m", MEMBERS_ID)),
+            subject = "m",
+            columns = listOf(DatasetColumn("state", from = "m.state")),
+        )
+        problems(members, governed).single().assert().contains("the access policy of shop.member decides its rows")
+        // A row of an earlier Sink says nothing of a policy: read as one, until its service writes it again.
+        problems(members, SOURCES + (MEMBERS_ID to DatasetFixtures.members(access = ""))).single().assert()
+            .contains("does not say whether an access policy decides the rows of shop.member")
+        // Its service says the default rule reads them: the dataset binds as before.
+        bound(members).subject.id.assert().isEqualTo(MEMBERS_ID)
+    }
 }
