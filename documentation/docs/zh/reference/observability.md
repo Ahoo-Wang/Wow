@@ -59,6 +59,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` �
 | `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | 为一个聚合的历史盖章所用的时间：`change`、`walk`、`catch-up` |
 | `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | 该类型的访问遍历在本节点盖过章的聚合 |
 | `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 按日志的记录，该类型的访问遍历完成之前为 1，之后为 0：在此之前，访问策略下的事件查询不包含遍历尚未到达的流 |
+| `wow.access.walk.walked` | Gauge | `wow.context`, `wow.aggregate.name` | 按日志的记录，该类型的访问遍历已盖过章的聚合数：每个节点报的值相同，重启也不丢 |
 
 ### 查询 {#queries}
 

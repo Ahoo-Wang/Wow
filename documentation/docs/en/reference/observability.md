@@ -59,6 +59,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.access.stamp.duration` | Timer | `wow.context`, `wow.aggregate.name`, `wow.reason` | How long stamping one aggregate's history took: `change`, `walk`, `catch-up` |
 | `wow.access.walked` | Counter | `wow.context`, `wow.aggregate.name` | Aggregates the type's access walk stamped on this node |
 | `wow.access.walk.pending` | Gauge | `wow.context`, `wow.aggregate.name` | 1 until the type's access walk completes, as its log records it, else 0: until then an events query under an access policy leaves out the streams the walk has not reached |
+| `wow.access.walk.walked` | Gauge | `wow.context`, `wow.aggregate.name` | Aggregates the type's access walk has stamped, as its log records it: every node reports the same, and it survives restarts |
 
 ### Queries
 

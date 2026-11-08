@@ -27,6 +27,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.spi.StorageBusyException
 import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
@@ -41,7 +43,8 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -74,9 +77,19 @@ fun interface AccessSnapshots {
  *   not read again. A type whose log holds no store of its history yet ([AccessWalks.holds]) is not claimed, and its
  *   store is not created: the first run after its first append claims it.
  * - **The walk**: the node that holds the type's walk lease (`<group>#access-walk/<aggregate>`) pages its aggregates
- *   ([AccessWalks.aggregates], [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with its
- *   current attributes ([stampCurrent]), at most [AccessStampOptions.walkRate] aggregates a second. After each page it
- *   records its cursor and count, so another node or a restart resumes it there; past the last page it is completed.
+ *   ([AccessWalks.aggregates], at most [AccessStampOptions.walkBatch] a page) and stamps each one's whole history with
+ *   its current attributes ([stampCurrent]), one aggregate after another, each in statements of its own. After each
+ *   page it records its cursor and count, so another node or a restart resumes it there; past the last page it is
+ *   completed.
+ * - **Its pace**: the walk is background work on the store the commands write to, so it takes a bounded share of it
+ *   by construction ([WalkPace]): after each aggregate it waits so that its stamping took at most
+ *   [AccessStampOptions.walkShare] of the time, and so that it stamps at most [AccessStampOptions.walkRate] a second.
+ *   Its own statements slow down as the store's load rises, from any node, and the pace with them. Each second it
+ *   reads whether the log store's writes pressed ([ReplayGate.pressed]): the share halves while they do, down to an
+ *   eighth, and comes back an eighth a second while they do not. Its history reads run under the log store's query
+ *   bulkhead ([ReplayGate.replay]); one the bulkhead refuses is a press too, and the aggregate is read again. A page
+ *   holds as many aggregates as the last pace stamps in an interval, so the walk records its cursor about every
+ *   interval, and it renews its lease within a page.
  * - **After the heads**: the walk reaches every stream up to its heads. A stream after them that carries no attributes
  *   (a node of an earlier version still running, an import) is the follower's: [AccessStamping] stamps its aggregate
  *   when it reads it ([covers]).
@@ -99,6 +112,8 @@ class AccessWalking(
     private val snapshots: AccessSnapshots = AccessSnapshots.NONE,
     private val address: () -> String = { node },
     private val observer: Observer = Observer.NONE,
+    /** Where the walk's history reads run, and whether the log store's writes are pressed. */
+    private val gate: ReplayGate = ReplayGate.OPEN,
     private val time: TimeSource = TimeSource.Monotonic,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
@@ -120,11 +135,17 @@ class AccessWalking(
     /** While no walk of a type is recorded: the head of a partition read before the last read found none. */
     private val unclaimed = ConcurrentHashMap<Pair<AggregateType, Int>, Long>()
 
+    /** The pace of each type's walk on this node. */
+    private val paces = ConcurrentHashMap<AggregateType, WalkPace>()
+
     @Volatile
     private var loop: Job? = null
 
     /** The walk of each type, as this node last read or claimed it. */
     fun walks(): Map<AggregateType, AccessWalk> = walked.toMap()
+
+    /** The share of the time the walk of [type] takes now on this node ([WalkPace.share]); null before it walked here. */
+    fun share(type: AggregateType): Double? = paces[type]?.share
 
     /**
      * Adds [stamps], another store of [type]'s history (an index of its streams, which a sink writes and follows the
@@ -223,11 +244,19 @@ class AccessWalking(
         model: AggregateModel<*>,
         ref: AggregateRef,
         cause: ObservedEvent.AccessStamped.Cause,
+    ): Stamped? = stampCurrent(model, ref, cause) { log -> log.read(ref).toList() }
+
+    /** [stampCurrent], reading [ref]'s whole history from its log with [history]. */
+    private suspend fun stampCurrent(
+        model: AggregateModel<*>,
+        ref: AggregateRef,
+        cause: ObservedEvent.AccessStamped.Cause,
+        history: suspend (EventLog) -> List<EventStreamRecord>,
     ): Stamped? {
         val log = logOf(ref.type) ?: return null
         val stamps = log as? AccessStamps ?: return null
         val started = time.markNow()
-        val streams = log.read(ref).toList()
+        val streams = history(log)
         val state = kernel.replayed(model, ref, streams) ?: return null
         val head = streams.last().version
         val access = AccessValues.ofStream(kernel.accessOf(model, state.state), state.scope)
@@ -285,11 +314,19 @@ class AccessWalking(
         leases.acquire(lease, 0, node, options.leaseTtl) ?: return false
         val walks = checkNotNull(walksOf(type))
         val model = models.getValue(type)
+        val pace = paces.computeIfAbsent(type) { WalkPace(options.walkShare, options.walkRate, time) }
         var walk = start
+        var renewed = time.markNow()
         while (!deadline.hasPassedNow()) {
-            val began = time.markNow()
-            val page = walks.aggregates(type, walk.cursor, options.walkBatch)
-            page.refs.forEach { stampCurrent(model, it, ObservedEvent.AccessStamped.Cause.WALK) }
+            val page = walks.aggregates(type, walk.cursor, pace.pageOf(options.walkBatch, options.interval))
+            page.refs.forEach { ref ->
+                stampPaced(model, ref, pace)
+                // A slow pace may hold a page longer than a share of the lease: it is renewed within the page.
+                if (renewed.elapsedNow() >= options.leaseTtl / LEASE_RENEWALS) {
+                    leases.renew(lease, listOf(0), node, options.leaseTtl)
+                    renewed = time.markNow()
+                }
+            }
             val next = walk.copy(
                 cursor = page.next ?: walk.cursor,
                 walked = walk.walked + page.refs.size,
@@ -310,11 +347,32 @@ class AccessWalking(
                 return false
             }
             leases.renew(lease, listOf(0), node, options.leaseTtl)
-            // At most walkRate aggregates a second.
-            val least = (page.refs.size * NANOS_PER_SECOND / options.walkRate).nanoseconds
-            delay(least - began.elapsedNow())
+            renewed = time.markNow()
         }
         return true
+    }
+
+    /**
+     * Stamps [ref] as the walk does, its history read under the log store's query bulkhead, then waits as [pace] says;
+     * a read the bulkhead refuses presses the pace, and is tried again a period later.
+     */
+    private suspend fun stampPaced(model: AggregateModel<*>, ref: AggregateRef, pace: WalkPace) {
+        while (true) {
+            pace.sense { gate.pressed(ref.type) }
+            val began = time.markNow()
+            try {
+                stampCurrent(model, ref, ObservedEvent.AccessStamped.Cause.WALK) { log ->
+                    gate.replay(ref) { log.read(ref).toList() }
+                }
+            } catch (busy: StorageBusyException) {
+                logger.debug(busy) { "The access walk of ${ref.type} gives way: the log store refused to read $ref." }
+                pace.press()
+                delay(WalkPace.PERIOD)
+                continue
+            }
+            delay(pace.pause(began.elapsedNow()))
+            return
+        }
     }
 
     private suspend fun hasMembers(type: AggregateType, schema: String): Boolean =
@@ -335,8 +393,80 @@ class AccessWalking(
 
     @InternalWowApi
     companion object {
-        private const val NANOS_PER_SECOND = 1_000_000_000L
+        /** The renewals of a walk's lease within its time to live, at the least. */
+        private const val LEASE_RENEWALS = 3
         private val logger = KotlinLogging.logger {}
+    }
+}
+
+/**
+ * The pace of one type's access walk on a node: the [share] of the time it takes, from [most] (the configured one) down
+ * to an eighth of it, and at most [rate] aggregates a second.
+ *
+ * - **A share by construction**: after an aggregate whose stamping took `t`, the walk waits `t * (1 - share) / share`
+ *   ([pause]). Its stamping takes longer as the store's load rises, from whichever node, so the pace follows the store,
+ *   not this node's view of it.
+ * - **Giving way**: once a [PERIOD] ([sense]), the share halves when the log store's writes pressed, and else comes
+ *   back by an eighth of [most]: additive increase, multiplicative decrease, never below an eighth of [most], so the
+ *   walk ends in bounded time however long the writes press.
+ * - **Pages**: as many aggregates as the last pace stamps in an interval ([pageOf]).
+ */
+internal class WalkPace(
+    private val most: Double,
+    private val rate: Int,
+    private val time: TimeSource = TimeSource.Monotonic,
+) {
+    init {
+        require(most > 0.0 && most <= 1.0) { "A walk takes a share of the time above 0 and at most 1." }
+        require(rate >= 1) { "A walk stamps at least one aggregate a second." }
+    }
+
+    /** The least share: an eighth of [most]. */
+    val least: Double = most / STEPS
+
+    /** The share of the time the walk takes now. */
+    @Volatile
+    var share: Double = most
+        private set
+
+    private var sensed: TimeMark? = null
+
+    /** The last aggregate's stamping and pause together. */
+    private var cycle: Duration? = null
+
+    /** Halves the share when [pressed] says the writes pressed, else adds back an eighth of [most]; once a [PERIOD]. */
+    fun sense(pressed: () -> Boolean) {
+        if (sensed?.let { it.elapsedNow() < PERIOD } == true) return
+        sensed = time.markNow()
+        if (pressed()) press() else share = minOf(most, share + least)
+    }
+
+    /** Halves the share, down to [least]. */
+    fun press() {
+        share = maxOf(least, share / 2)
+    }
+
+    /** The wait after an aggregate whose stamping [took]: at most [share] of the time, at most [rate] a second. */
+    fun pause(took: Duration): Duration {
+        val shared = took * ((1 - share) / share)
+        val rated = 1.seconds / rate - took
+        val pause = maxOf(shared, rated, Duration.ZERO)
+        cycle = took + pause
+        return pause
+    }
+
+    /** The aggregates of a page: as many as the last pace stamps in [interval], from 1 to [batch]. */
+    fun pageOf(batch: Int, interval: Duration): Int =
+        cycle?.takeIf { it.isPositive() }?.let { (interval / it).toInt().coerceIn(1, batch) } ?: batch
+
+    override fun toString(): String = "WalkPace(share=$share, most=$most, rate=$rate)"
+
+    companion object {
+        /** How often the pace reads the writes' pressure: the period the stores' adaptive query bounds read it in. */
+        val PERIOD: Duration = 1.seconds
+
+        /** The steps between the least share and the most: the least is an eighth. */
+        private const val STEPS = 8
     }
 }
 

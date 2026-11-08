@@ -458,7 +458,7 @@ class WowProperties {
     /**
      * How the access attributes are stamped over the histories: by the built-in subscription `wow.access`, in stamps of a
      * bounded number of streams, remembering the last attributes of a bounded number of aggregates; and by the access
-     * walk of each aggregate type, a page of aggregates at a time, at a bounded rate.
+     * walk of each aggregate type, a page of aggregates at a time, at a bounded rate and a bounded share of the time.
      */
     @InternalWowApi
     class Access {
@@ -468,17 +468,27 @@ class WowProperties {
         /** The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. */
         var capacity: Int = AccessStampOptions.DEFAULT_CAPACITY
 
-        /** The aggregates a page of an access walk stamps; the walk records how far it is after each page. */
+        /**
+         * The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every
+         * five seconds at its pace.
+         */
         var walkBatch: Int = AccessStampOptions.DEFAULT_WALK_BATCH
 
         /**
-         * The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk
-         * puts on the stores.
+         * The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large
+         * its share.
          */
         var walkRate: Int = AccessStampOptions.DEFAULT_WALK_RATE
 
+        /**
+         * The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at
+         * most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it
+         * gives way, down to an eighth of it. Raise it in a maintenance window to walk faster.
+         */
+        var walkShare: Double = AccessStampOptions.DEFAULT_WALK_SHARE
+
         /** The node's stamping options. */
-        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity, walkBatch, walkRate)
+        fun options(): AccessStampOptions = AccessStampOptions(stampBatch, capacity, walkBatch, walkRate, walkShare)
     }
 
     /**

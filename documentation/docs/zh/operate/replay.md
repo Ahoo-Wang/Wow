@@ -50,9 +50,12 @@ curl -X POST "http://<service>/<context>/<aggregate>/wow.snapshot.rebuild" \
 日志开始记录访问属性之前追加的流（10.0 beta 写入的，或者从 9.x 导入的）没有访问属性，beta 写下的快照也没有：盖章之前，访问策略下的事件查询不包含这些流，快照查询不包含这些快照；以所有者身份或在某个空间里行事的调用方，其事件查询也不包含这些流。每个聚合类型的访问遍历为它们盖章：
 
 - **何时运行。** 当类型的日志没有记录遍历，或者记录的是另一种访问模式（模型声明的属性、各自的类型以及是否多值）的遍历、而该模式的节点已一个不剩时，节点为该类型认领遍历。所以记录访问属性的版本的第一个节点会遍历 beta 写下的日志；声明了新属性的滚动部署，会在上一版本的最后一个节点停下之后遍历。日志里还没有任何流的类型没有遍历，遍历也不为它创建集合或表：它的第一次追加创建它们，之后的下一轮再认领遍历。迁移之后，`migrate-data snapshot` 自己为导入的历史盖章，并把每个类型的遍历记为完成，节点就不再遍历它（[访问属性](../migrate/data#_7-the-access-attributes)）。
-- **做什么。** 同一时刻只有一个节点逐页取出该类型的聚合，用每个聚合当前状态的属性为它的整段历史盖章，并重写它的快照，每秒最多 `wow.access.walk-rate` 个聚合（默认 500）。遍历到达认领时日志各分区头之前的流；在这之后不带属性的流（仍在运行的 beta 节点写的，或者导入的），由 `wow.access` 读到时为其聚合盖章。
-- **续跑。** 每页 `wow.access.walk-batch` 个聚合（默认 100）之后，遍历把进度记在日志的注册表里，所以重启后或换一个节点都从那里继续。
-- **观察。** 类型的遍历完成之前，`wow.access.walk.pending` 为 1，还没有遍历的类型不报告它；`wow.access.walked` 计数遍历过的聚合，`wow.access.stamped` 按原因计数盖过章的流（[指标](../reference/observability#metrics)）。注册表保存每个遍历的模式、日志头、游标、计数与是否完成：PostgreSQL 上用 `SELECT context, aggregate, access_walk FROM wow_log_aggregate`，MongoDB 上看 `wow_log_aggregate` 文档的 `access_walk` 字段。完成时，执行遍历的节点记录日志 `The access walk of <type> is completed: <n> aggregates stamped.`
+- **做什么。** 同一时刻只有一个节点逐页取出该类型的聚合，一个接一个地用每个聚合当前状态的属性为它的整段历史盖章，并重写它的快照，每个聚合都用各自的短语句：遍历不会从一个聚合到下一个聚合持有锁或连接，任一时刻最多占用日志存储的一个连接。遍历到达认领时日志各分区头之前的流；在这之后不带属性的流（仍在运行的 beta 节点写的，或者导入的），由 `wow.access` 读到时为其聚合盖章。
+- **节奏。** 遍历是后台工作，与命令共用同一个存储，所以无论负载如何，它只占其中有界的一份。每个聚合之后，遍历等待一段时间，使盖章所用的时间至多占总时间的 `wow.access.walk-share`（默认 10%）：一个聚合用了 3 ms，之后就等 27 ms。存储繁忙时（无论来自哪个节点），遍历自己的语句变慢，节奏也随之变慢。遍历每秒读一次日志存储的写入是否受压，判据与该存储的自适应查询上限相同（有调用方在等连接，或追加明显慢于平常）：受压期间份额减半，最低到 `walk-share` 的八分之一；不再受压后每秒加回八分之一。遍历读取每段历史时走日志存储的查询隔板，与查询和状态重建共用；被隔板拒绝的读取算作受压，遍历一秒后重读该聚合。每秒盖章的聚合数不超过 `wow.access.walk-rate`（默认 500）。查询上限固定的存储（设置了 `wow.stores.<name>.query.max-concurrent` 或 `wow.query.max-concurrent`）读不到压力：遍历保持它的份额。
+- **用时。** 按份额，遍历每秒盖章的聚合数约为 `walk-share` 除以一个聚合的用时：在基准的 4 核 runner 上、每秒 200 条命令时，PostgreSQL 上约每秒 TBD 个，MongoDB 上约 TBD 个，10 万个聚合约需 TBD。写入受压期间降到八分之一，但仍会完成。遍历尚未到达的流不带当前属性：在它到达之前，访问策略下的事件查询不包含它们。
+- **调优。** 要在维护窗口里（集群没有流量时）遍历得更快，调高 `wow.access.walk-share`，最高到 `1`：遍历随即按存储和 `walk-rate` 允许的速度运行，写入受压时仍会让路。结束后请改回：整个集群是否空闲只有运维知道，任何节点都看不到。若遍历期间（`wow.access.walk.pending` 为 1）命令的延迟上升，就调低它。
+- **续跑。** 每页之后，遍历把进度记在日志的注册表里，所以重启后或换一个节点都从那里继续。一页的聚合数为按当前节奏约五秒能盖章的数量，至多 `wow.access.walk-batch`（默认 100）。
+- **观察。** 类型的遍历完成之前，`wow.access.walk.pending` 为 1，还没有遍历的类型不报告它；`wow.access.walk.walked` 是日志注册表记录的遍历已盖章的聚合数，每个节点报的值相同；`wow.access.walked` 计数本节点遍历过的聚合，`wow.access.stamped` 按原因计数盖过章的流（[指标](../reference/observability#metrics)）。估算剩余：用该类型的聚合数减去 `wow.access.walk.walked`，再除以最近几分钟遍历的速率（各节点 `rate(wow_access_walked_total[5m])` 之和）。注册表保存每个遍历的模式、日志头、游标、计数与是否完成：PostgreSQL 上用 `SELECT context, aggregate, access_walk FROM wow_log_aggregate`，MongoDB 上看 `wow_log_aggregate` 文档的 `access_walk` 字段。完成时，执行遍历的节点记录日志 `The access walk of <type> is completed: <n> aggregates stamped.`
 
 记录标签的版本建的 Sink 表在启动时会被拒绝，并指明是哪张表；它保存的都是日志里有的内容，所以删掉它，再重置这个 Sink 的订阅，它就会从日志重新填充。
 

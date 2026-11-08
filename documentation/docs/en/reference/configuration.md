@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 281 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 282 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, pointing at the migration guide's page of the keys of earlier versions. So does an environment variable under a Wow group (`WOW_KAFKA_…`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`; each map's own keys are listed below it, its entry written `<name>` or `[<context>.<aggregate>]`. [Module Configuration Keys](./module-configuration) lists the keys of the platform services, of wow-cosid and of wow-cocache. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -34,8 +34,9 @@ How each context's built-in subscription `wow.access` stamps an aggregate's acce
 | --- | --- | --- | --- |
 | `wow.access.capacity` | `Integer` | `100000` | The aggregates whose last stamped attributes the subscription remembers, sparing it a read of the stream before. |
 | `wow.access.stamp-batch` | `Integer` | `1000` | The most streams one stamp writes: a long history is stamped in statements of at most this many. |
-| `wow.access.walk-batch` | `Integer` | `100` | The aggregates a page of an access walk stamps; the walk records how far it is after each page. |
-| `wow.access.walk-rate` | `Integer` | `500` | The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk puts on the stores. |
+| `wow.access.walk-batch` | `Integer` | `100` | The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every five seconds at its pace. |
+| `wow.access.walk-rate` | `Integer` | `500` | The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large its share. |
+| `wow.access.walk-share` | `Double` | `0.1` | The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster. |
 
 ## `wow.aggregates.[<context>.<aggregate>]`
 

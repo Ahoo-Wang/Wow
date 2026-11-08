@@ -229,7 +229,8 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
     /**
      * The built-in subscription `wow.access` of [context] and the context's access walks, in the lease [group]: each
      * type's history is stamped and walked on its log group's own log ([parts], before the hand-over wraps it), when
-     * that log keeps stamps and walks; the walks rewrite the snapshots through the context's [maintenance].
+     * that log keeps stamps and walks; the walks rewrite the snapshots through the context's [maintenance], read the
+     * histories under the node's replay gate and give way to its log stores' write pressure.
      */
     @Suppress("LongParameterList")
     private fun stampingOf(
@@ -245,7 +246,7 @@ internal class ContextAssembly(private val wiring: NodeWiring) {
         val snapshots = maintenance?.let { AccessSnapshots(it::rebuild) } ?: AccessSnapshots.NONE
         val walking = AccessWalking(
             context, group, node, models, kernel, logs::get, backends.leases, options.access, snapshots, { address },
-            observer,
+            observer, wiring.replayGate,
         )
         return AccessStamping(context, models, kernel, { logs[it] as? AccessStamps }, options.access, walking, observer)
     }

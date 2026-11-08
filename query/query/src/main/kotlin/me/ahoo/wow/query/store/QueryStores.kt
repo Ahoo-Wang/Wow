@@ -58,6 +58,12 @@ class QueryStores(
         return bulkhead.run(read)
     }
 
+    /**
+     * Whether the writes of [store] pressed in the last period its adaptive bound read ([AdaptiveQueryLimit.pressed]);
+     * false for a store whose bound does not adapt, or none.
+     */
+    fun pressed(store: String?): Boolean = store != null && limits.any { it.bulkhead.store == store && it.pressed }
+
     override fun toString(): String = "QueryStores(${all.joinToString()})"
 
     @InternalWowApi

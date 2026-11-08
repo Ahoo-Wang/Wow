@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -32,15 +33,20 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.spi.StorageBusyException
+import me.ahoo.wow.spi.access.AccessStamp
 import me.ahoo.wow.spi.access.AccessStamps
 import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -253,6 +259,126 @@ class AccessWalkingTest {
         options,
         observer = observer,
     )
+
+    /** [log], recording the reads and stamps the walk makes, in order, by aggregate id. */
+    private class Recording(val log: InMemoryEventLog) :
+        EventLog by log,
+        AccessWalks by log {
+        val calls = CopyOnWriteArrayList<String>()
+
+        override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
+            calls += "read ${ref.id}"
+            return log.read(ref, fromVersion, toVersion)
+        }
+
+        override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
+            calls += "stamp ${ref.id}"
+            return log.stamp(ref, access, asOf, from, until)
+        }
+
+        override suspend fun stampAll(stamps: List<AccessStamp>): Int {
+            calls += "stampAll"
+            return log.stampAll(stamps)
+        }
+    }
+
+    /** A gate that counts the walk's reads by aggregate id, refuses the first [refusals] and says whether [pressed]. */
+    private class Gate(var refusals: Int = 0, val pressed: Boolean = false) : ReplayGate {
+        val replayed = CopyOnWriteArrayList<String>()
+
+        override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
+            if (refusals > 0) {
+                refusals--
+                throw StorageBusyException("The log store runs as many queries as it allows at once.")
+            }
+            replayed += ref.id
+            return read()
+        }
+
+        override fun pressed(type: AggregateType): Boolean = pressed
+    }
+
+    private fun gated(log: EventLog, gate: ReplayGate, options: AccessStampOptions = this.options) = AccessWalking(
+        "office",
+        "service/office",
+        "n-1",
+        listOf(model),
+        Kernel(log),
+        { log },
+        InMemoryLeaseStore(),
+        options,
+        observer = observer,
+        gate = gate,
+    )
+
+    @Test
+    fun `a walk reads and stamps one aggregate after another, each in statements of its own, never a page at once`(): Unit =
+        runBlocking {
+            val log = Recording(InMemoryEventLog())
+            unstamped(log.log, listOf("d-1", "d-2", "d-3"), "sales", "legal")
+            walkingOf(log).maintain().assert().isFalse()
+            log.calls.assert().containsExactly(
+                "read d-1",
+                "stamp d-1",
+                "read d-2",
+                "stamp d-2",
+                "read d-3",
+                "stamp d-3",
+            )
+            listOf(
+                "d-1",
+                "d-2",
+                "d-3"
+            ).forEach { history(log.log, it).assert().containsExactly(access("legal"), access("legal")) }
+        }
+
+    @Test
+    fun `a walk reads each history under the replay gate, and gives way while the writes press`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("d-1", "d-2"), "sales")
+        val gate = Gate(pressed = true)
+        val walking = gated(log, gate)
+        walking.share(type).assert().isNull()
+        walking.maintain().assert().isFalse()
+        gate.replayed.assert().containsExactly("d-1", "d-2")
+        // Sensed once in the run's first second: halved.
+        walking.share(type).assert().isEqualTo(AccessStampOptions.DEFAULT_WALK_SHARE / 2)
+        listOf("d-1", "d-2").forEach { history(log, it).assert().containsExactly(access("sales")) }
+        // The follower's catch-up reads its history directly.
+        walking.stampCurrent(model, type.ref("tenant", "d-1"), Cause.CATCH_UP)
+        gate.replayed.assert().containsExactly("d-1", "d-2")
+    }
+
+    @Test
+    fun `a read the gate refuses presses the walk, which reads that aggregate again and goes on`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("d-1", "d-2"), "sales")
+        val gate = Gate(refusals = 1)
+        val walking = gated(log, gate, AccessStampOptions(walkBatch = 2, walkRate = 1_000_000, walkShare = 0.8))
+        walking.maintain().assert().isFalse()
+        gate.replayed.assert().containsExactly("d-1", "d-2")
+        log.walk(type)!!.let {
+            it.completed.assert().isTrue()
+            it.walked.assert().isEqualTo(2)
+        }
+        // Halved by the refusal; the next second's calm sense adds back an eighth.
+        walking.share(type)!!.assert().isLessThan(0.8)
+        listOf("d-1", "d-2").forEach { history(log, it).assert().containsExactly(access("sales")) }
+    }
+
+    @Test
+    fun `a walk ends however long the writes press, at an eighth of its share`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        val ids = (1..6).map { "d-$it" }
+        unstamped(log, ids, "sales")
+        val walking =
+            gated(log, Gate(pressed = true), AccessStampOptions(walkBatch = 2, walkRate = 1_000_000, walkShare = 1.0))
+        withTimeout(10.seconds) {
+            while (log.walk(type)?.completed != true) walking.maintain()
+        }
+        walking.share(type)!!.assert().isBetween(1.0 / 8, 0.5)
+        ids.forEach { history(log, it).assert().containsExactly(access("sales")) }
+    }
 
     @Test
     fun `a run that fails is logged and the next one runs, and stopping leaves the membership`(): Unit = runBlocking {

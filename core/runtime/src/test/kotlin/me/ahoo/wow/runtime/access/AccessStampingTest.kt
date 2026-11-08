@@ -125,6 +125,8 @@ class AccessStampingTest {
             { AccessStampOptions(capacity = 0) },
             { AccessStampOptions(walkBatch = 0) },
             { AccessStampOptions(walkRate = 0) },
+            { AccessStampOptions(walkShare = 0.0) },
+            { AccessStampOptions(walkShare = 1.5) },
             { AccessStampOptions(interval = Duration.ZERO) },
             { AccessStampOptions(leaseTtl = 1.seconds) },
             { AccessStampOptions(memberTtl = 1.seconds) },
@@ -132,6 +134,14 @@ class AccessStampingTest {
         AccessStampOptions(walkRate = 7).assert().isEqualTo(AccessStampOptions(walkRate = 7))
             .hasSameHashCodeAs(AccessStampOptions(walkRate = 7))
             .isNotEqualTo(AccessStampOptions())
-        AccessStampOptions().toString().assert().contains("walkBatch=100", "walkRate=500", "interval=5s")
+        AccessStampOptions(walkShare = 0.5).assert().isNotEqualTo(AccessStampOptions())
+        AccessStampOptions(walkShare = 1.0).walkShare.assert().isEqualTo(1.0)
+        AccessStampOptions().toString().assert()
+            .contains(
+                "walkBatch=100",
+                "walkRate=500",
+                "walkShare=${AccessStampOptions.DEFAULT_WALK_SHARE}",
+                "interval=5s"
+            )
     }
 }
