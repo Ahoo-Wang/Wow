@@ -232,6 +232,78 @@ export function cpuLayout(definition, total) {
   };
 }
 
+// kind `measure`, measure `walk` (bench.sh measure --program=walk, AccessWalkBench): the access walk of the data set's
+// accounts of `streams` streams each under `rate` E1 deposits a second, open loop, over `warmUp` and `measure` seconds;
+// the shares of the share suites, and the aggregate counts the walk's measured rate extrapolates to.
+export const WALK = {
+  streams: 10,
+  rate: 200,
+  warmUp: 10,
+  measure: 40,
+  shares: [0.05, 0.1, 0.25],
+  extrapolate: [100000, 1000000, 10000000],
+};
+
+/**
+ * A run of a walk suite: [arm] (the build and its properties), whether the second node has anything to [walk], the
+ * deposits a second, and more of bench.sh's options. The node that seeds the history walks what it seeded at the
+ * baseline's pace, or, on the head's build, with the whole share, so that the measured walk starts from it at once.
+ */
+function walkRun(arm, id, props, walk, more = {}) {
+  return {
+    arm: withProps(arm, id, props),
+    walk,
+    rate: WALK.rate,
+    ...(arm.install === 'head' ? { seed: { 'wow.access.walk-share': 1 } } : {}),
+    ...more,
+  };
+}
+
+/**
+ * The runs that choose the walk's default share: the baseline's build with nothing to walk first and last (main's A/A
+ * band), the baseline's walk at its default pace, and the head's walk at each of WALK.shares.
+ */
+function walkShareRuns(head, base) {
+  return [
+    walkRun(base, 'none-1', {}, false),
+    walkRun(base, 'base', {}, true),
+    ...WALK.shares.map(share =>
+      walkRun(
+        head,
+        `share-${Math.round(share * 100)}`,
+        { 'wow.access.walk-share': share },
+        true,
+      ),
+    ),
+    walkRun(base, 'none-2', {}, false),
+  ];
+}
+
+/**
+ * The runs that judge the head's walk at its defaults, ABBA between two runs of the baseline's build with nothing to
+ * walk (main's A/A band): the baseline's walk and the head's, twice each; then the head's walk depositing only into the
+ * tenth of the accounts it reaches last (`targets: last`), which it does not reach meanwhile, and both builds' walks
+ * without deposits, how fast each walks an idle store.
+ */
+function walkRuns(head, base) {
+  return [
+    walkRun(base, 'none-1', {}, false),
+    walkRun(base, 'base-1', {}, true),
+    walkRun(head, 'head-1', {}, true),
+    walkRun(head, 'head-2', {}, true),
+    walkRun(base, 'base-2', {}, true),
+    walkRun(base, 'none-2', {}, false),
+    walkRun(head, 'head-disjoint', {}, true, { targets: 'last' }),
+    walkRun(base, 'base-idle', {}, true, { rate: 0 }),
+    walkRun(head, 'head-idle', {}, true, { rate: 0 }),
+  ];
+}
+
+/** The distinct arms of [runs], by id. */
+const armsOfRuns = runs => [
+  ...new Map(runs.map(run => [run.arm.id, run.arm])).values(),
+];
+
 export const SUITES = {
   'e1-mongo-uniform': {
     group: 'ab',
@@ -663,6 +735,41 @@ export const SUITES = {
     arms: [ACCESS_CLAIMS_PG, ACCESS_DATASET_PG],
     answers:
       "What an access policy costs a dataset query (D390 C4): one node's list page, count and aggregation of a dataset of 1,000,000 rows over 100,000 accounts on ClickHouse, without a policy of the account and with one whose predicate compares each account's current owner with an analyst's claims (a tenth of them), read by a semi-join on the Sink's `_state`.",
+  },
+  'access-walk-share-pg': {
+    group: 'access-walk',
+    kind: 'measure',
+    measure: 'walk',
+    runs: walkShareRuns(HEAD_PG, BASE_PG),
+    arms: armsOfRuns(walkShareRuns(HEAD_PG, BASE_PG)),
+    answers:
+      "Which share of the log store the access walk may take under live commands (X-77), on PostgreSQL: the data set's accounts of 10 streams each, written by a first node, then without their attributes walked by a second while 200 E1 deposits a second run; the head's walk at each share against the baseline's at its default pace, between two runs of the baseline with nothing to walk (main's A/A band). The default is the largest share within the band.",
+  },
+  'access-walk-share-mongo': {
+    group: 'access-walk',
+    kind: 'measure',
+    measure: 'walk',
+    runs: walkShareRuns(HEAD_MONGO, BASE_MONGO),
+    arms: armsOfRuns(walkShareRuns(HEAD_MONGO, BASE_MONGO)),
+    answers: 'The walk share on MongoDB, as access-walk-share-pg.',
+  },
+  'access-walk-pg': {
+    group: 'access-walk',
+    kind: 'measure',
+    measure: 'walk',
+    runs: walkRuns(HEAD_PG, BASE_PG),
+    arms: armsOfRuns(walkRuns(HEAD_PG, BASE_PG)),
+    answers:
+      "What the access walk costs live commands (X-77), on PostgreSQL: as access-walk-share-pg, the head's walk at its defaults against the baseline's, ABBA between two runs of the baseline with nothing to walk (main's A/A band); then the head's into accounts it does not reach meanwhile, and both builds' walks without deposits. The head passes when each of its runs' p99 is within the band.",
+  },
+  'access-walk-mongo': {
+    group: 'access-walk',
+    kind: 'measure',
+    measure: 'walk',
+    runs: walkRuns(HEAD_MONGO, BASE_MONGO),
+    arms: armsOfRuns(walkRuns(HEAD_MONGO, BASE_MONGO)),
+    answers:
+      'The access walk under live commands on MongoDB, as access-walk-pg.',
   },
   'jdk-e1-pg-saturation': {
     group: 'jdk-saturation',
@@ -1132,6 +1239,32 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
 export function anomalies(suite, noise = {}) {
   const thresholds = noise[noiseLabel(suite)];
   const rows = [];
+  if (suite.kind === 'measure' && suite.program === 'walk') {
+    // A run that failed, and deposits that failed: that run's numbers do not hold.
+    for (const run of suite.runs) {
+      const row = (kind, detail) =>
+        rows.push({
+          suite: labelOf(suite),
+          run: run.name,
+          context: 'walk',
+          kind,
+          detail,
+        });
+      if (run.status === 'failed')
+        row('run failed', 'bench.sh failed; see the job log');
+      if (run.status !== 'ok') continue;
+      const failed = Object.entries(run.measure.e1?.failed ?? {});
+      if (failed.length > 0)
+        row(
+          'deposits failed',
+          failed.map(([kind, count]) => `${kind} ${count}`).join(', '),
+        );
+      const walk = run.measure.walks ? run.measure.walk : undefined;
+      if (walk && !walk.completed && !(walk.windowWalked > 0))
+        row('walk stalled', 'the walk stamped none over the measured window');
+    }
+    return rows;
+  }
   if (suite.kind === 'measure') {
     // A query answered other than 200: its times are not the query's, which the tables leave out.
     for (const run of suite.runs.filter(it => it.status === 'ok')) {
@@ -2048,6 +2181,7 @@ export function resolveInputs({
       'jdk-saturation',
       'access',
       'access-dataset',
+      'access-walk',
     ],
     ab: ['ab'],
     head: ['head'],
@@ -2058,6 +2192,7 @@ export function resolveInputs({
     'jdk-saturation': ['jdk-saturation'],
     access: ['access'],
     'access-dataset': ['access-dataset'],
+    'access-walk': ['access-walk'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -2148,11 +2283,11 @@ export function parseJob(id) {
 }
 
 /**
- * Whether a sessions suite runs the baseline's build beside the head's: an arm of it. A baseline suite (group `ab`)
- * has its own rule, its A/A runs needing none.
+ * Whether a sessions or measure suite runs the baseline's build beside the head's: an arm of it. A baseline suite
+ * (group `ab`) has its own rule, its A/A runs needing none.
  */
 export const usesBase = name =>
-  SUITES[name]?.kind === 'sessions' &&
+  ['sessions', 'measure'].includes(SUITES[name]?.kind) &&
   SUITES[name].arms.some(arm => arm.install === 'base');
 
 /**
@@ -3183,6 +3318,138 @@ export function quantile(values, q) {
   ];
 }
 
+/** [seconds] as a duration of seconds, minutes, hours or days. */
+const duration = seconds =>
+  !Number.isFinite(seconds)
+    ? '-'
+    : seconds < 120
+      ? `${num(seconds, 0)} s`
+      : seconds < 7200
+        ? `${num(seconds / 60, 0)} min`
+        : seconds < 172800
+          ? `${num(seconds / 3600, 1)} h`
+          : `${num(seconds / 86400, 1)} d`;
+
+/**
+ * A walk suite's table: each run's walk (its share, how many it stamped over the measured window and at what rate, and
+ * how long that rate takes to stamp each of WALK.extrapolate's counts), the E1 deposits' latencies under it, and what
+ * the store's sessions waited on and the pool's peak over the window; then the verdict. Main's A/A band is the p99s of
+ * the baseline's runs with nothing to walk; a run is within it when its p99 is at most the band's top. A share suite
+ * names the largest share within the band; the other suites judge the head's runs at their defaults.
+ */
+export function walkTables(suite) {
+  const ok = suite.runs.filter(run => run.status === 'ok');
+  const band = ok
+    .filter(run => run.measure.walks === false)
+    .map(run => run.measure.e1?.latencyMs?.p99)
+    .filter(Number.isFinite);
+  const top = band.length > 1 ? Math.max(...band) : undefined;
+  const p99Of = run => run.measure.e1?.latencyMs?.p99;
+  const within = run =>
+    top !== undefined && Number.isFinite(p99Of(run)) && p99Of(run) <= top;
+  const rateOf = walk =>
+    walk?.windowPerSecond > 0
+      ? walk.windowPerSecond
+      : walk?.aggregatesPerSecond;
+  const counts = WALK.extrapolate.map(count =>
+    count >= 1000000 ? `${count / 1000000}M` : `${count / 1000}k`,
+  );
+  const lines = [
+    `| Run | Build | Share | Walked in the window | Aggregates/s | ${counts.join(' | ')} | E1/s | p50 | p99 | p99.9 | Failed | Within main's A/A band | Waits (samples) | Pool peak |`,
+    `| --- | --- | --- | --- | --- | ${counts.map(() => '---').join(' | ')} | --- | --- | --- | --- | --- | --- | --- | --- |`,
+  ];
+  const arms = new Map(suite.arms.map(arm => [arm.id, arm]));
+  for (const run of suite.runs) {
+    const install = arms.get(run.arm)?.install ?? '';
+    if (run.status !== 'ok') {
+      lines.push(
+        `| ${run.name} | ${install} | **${run.status}** |${' |'.repeat(counts.length + 12)}`,
+      );
+      continue;
+    }
+    const m = run.measure;
+    const walk = m.walks ? m.walk : undefined;
+    const latency = m.e1?.latencyMs ?? {};
+    const failed = Object.values(m.e1?.failed ?? {}).reduce(
+      (sum, n) => sum + n,
+      0,
+    );
+    const rate = rateOf(walk);
+    const share = !m.walks
+      ? 'nothing to walk'
+      : m.walkShare
+        ? `${num(Number(m.walkShare) * 100, 0)}%`
+        : install === 'base'
+          ? 'none (walk-rate)'
+          : 'default';
+    const shareText = `${share}${m.targets === 'last' ? ', disjoint' : ''}${m.rate === 0 ? ', no deposits' : ''}`;
+    const walked = !walk
+      ? ''
+      : walk.completed
+        ? `completed: ${num(walk.walked ?? 0, 0)} in ${num(walk.seconds, 1)} s`
+        : `${num(walk.windowWalked ?? 0, 0)} in ${num(walk.windowSeconds, 1)} s`;
+    const verdict =
+      !m.e1 || !m.walks
+        ? ''
+        : top === undefined
+          ? 'no band'
+          : within(run)
+            ? 'yes'
+            : `**no** (${ms(p99Of(run))} > ${ms(top)}, ×${num(p99Of(run) / top, 1)})`;
+    const waits = Object.entries(m.waits?.events ?? {})
+      .slice(0, 3)
+      .map(([wait, count]) => `${wait} ${count}`)
+      .join(' · ');
+    const pool = m.waits?.poolMax
+      ? `${m.waits.poolMax.active ?? '-'} in use, ${m.waits.poolMax.pending ?? '-'} waiting of ${m.waits.poolMax.total ?? '-'}`
+      : '';
+    const times = WALK.extrapolate.map(count =>
+      walk && rate > 0 ? duration(count / rate) : '',
+    );
+    lines.push(
+      `| ${run.name} | ${install} | ${shareText} | ${walked} | ${walk ? num(rate, 0) : ''} | ${times.join(' | ')} | ${m.rate || ''} | ${m.e1 ? ms(latency.p50) : ''} | ${m.e1 ? ms(p99Of(run)) : ''} | ${m.e1 ? ms(latency.p999) : ''} | ${m.e1 ? failed : ''} | ${verdict} | ${waits ? `${waits} (${m.waits.samples})` : ''} | ${pool} |`,
+    );
+  }
+  lines.push('');
+  if (top === undefined) {
+    lines.push('No verdict: the runs with nothing to walk did not both pass.');
+    return lines;
+  }
+  lines.push(
+    `Main's A/A band: E1 p99 ${band.map(ms).join(', ')} with nothing to walk; within it is at most ${ms(top)}.`,
+  );
+  const live = ok.filter(
+    run =>
+      run.measure.walks &&
+      run.measure.e1 &&
+      arms.get(run.arm)?.install === 'head',
+  );
+  if (suite.name.startsWith('access-walk-share')) {
+    const passing = live
+      .filter(run => run.measure.targets !== 'last' && within(run))
+      .map(run => Number(run.measure.walkShare))
+      .filter(Number.isFinite);
+    lines.push(
+      passing.length > 0
+        ? `Default share: ${num(Math.max(...passing) * 100, 0)}%, the largest within the band.`
+        : '**No share is within the band.**',
+    );
+  } else {
+    const judged = live.filter(
+      run => run.measure.targets !== 'last' && run.measure.rate > 0,
+    );
+    const worst = Math.max(...judged.map(p99Of).filter(Number.isFinite));
+    lines.push(
+      judged.length > 0 && judged.every(within)
+        ? `Verdict: the head's walk keeps E1 p99 within main's A/A band (${judged.map(run => ms(p99Of(run))).join(', ')}).`
+        : judged.length > 0
+          ? `Verdict: **outside** main's A/A band, by ${ms(worst - top)} at worst (${judged.map(run => ms(p99Of(run))).join(', ')} against at most ${ms(top)}).`
+          : 'No verdict: no run of the head walked under deposits.',
+    );
+  }
+  return lines;
+}
+
 /**
  * A `measure` suite's tables: per query, each arm's p50, p95 and p99 (the median of its runs'), its A/A band (the
  * spread of its runs' p50s), the second arm's p50 against the first's, and ClickHouse's work for one query.
@@ -3243,6 +3510,23 @@ export function measureTables(suite) {
 /** The Markdown summary of one suite. */
 export function renderSuite(suite) {
   const definition = SUITES[suite.name];
+  if (suite.kind === 'measure' && suite.program === 'walk') {
+    const lines = [
+      `## ${labelOf(suite)}`,
+      '',
+      definition?.answers ?? '',
+      '',
+      `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores. ${num(suite.accounts ?? 0, 0)} accounts of ${WALK.streams} streams; E1 at ${WALK.rate}/s, open loop, warm-up ${WALK.warmUp} s, measured ${WALK.measure} s; the runs in this order, on one runner.`,
+      '',
+      ...walkTables(suite),
+      '',
+    ];
+    const found = anomalyTable(anomalies(suite));
+    if (found.length > 0) lines.push('Anomalies:', '', ...found, '');
+    if (suite.failures > 0)
+      lines.push(`**${suite.failures} run(s) failed**; see the job log.`, '');
+    return `${lines.join('\n')}\n`;
+  }
   if (suite.kind === 'measure') {
     const lines = [
       `## ${labelOf(suite)}`,
@@ -3712,6 +3996,7 @@ export function runSuite(name, options) {
     schema: 'wow-e2e-bench/suite/1',
     name,
     kind: definition.kind,
+    ...(definition.measure === 'walk' ? { program: 'walk' } : {}),
     scenario: definition.scenario,
     ...(sessions ? { scenarios: definition.scenarios } : {}),
     distribution: definition.distribution,
@@ -4042,6 +4327,55 @@ export function runSuite(name, options) {
         run.profile = jfrViews(join(out, run.dir));
         save();
       }
+    }
+  } else if (definition.kind === 'measure' && definition.measure === 'walk') {
+    for (const spec of definition.runs) {
+      const runName = spec.arm.id;
+      const run = { name: runName, arm: spec.arm.id, status: 'failed' };
+      if (spec.arm.install === 'base' && !installs.base) {
+        // No baseline given: the head's runs alone.
+        run.status = 'unavailable';
+        suite.runs.push(run);
+        save();
+        continue;
+      }
+      const dir = join(out, runName);
+      const status = bench(
+        benchPath,
+        [
+          'measure',
+          '--program=walk',
+          `--backend=${spec.arm.backend}`,
+          ...(installs[spec.arm.install]
+            ? [`--install=${installs[spec.arm.install]}`]
+            : []),
+          `--aggregates=${data.accounts}`,
+          `--streams=${WALK.streams}`,
+          `--walk=${spec.walk ? 'yes' : 'none'}`,
+          ...(spec.targets ? [`--targets=${spec.targets}`] : []),
+          `--rate=${spec.rate}`,
+          `--warm-up=${WALK.warmUp}`,
+          `--measure=${WALK.measure}`,
+          ...Object.entries(spec.seed ?? {}).map(
+            ([key, value]) => `--seed.${key}=${value}`,
+          ),
+          ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+          `--out=${dir}`,
+        ],
+        spec.arm.props,
+      );
+      const file = join(dir, 'measure.json');
+      if (status === 0 && existsSync(file)) {
+        run.status = 'ok';
+        run.measure = readJson(file);
+      } else if (status === 3) {
+        // A build older than AccessWalkBench: nothing to compare, not a failure.
+        run.status = 'unavailable';
+      } else {
+        suite.failures++;
+      }
+      suite.runs.push(run);
+      save();
     }
   } else if (definition.kind === 'measure') {
     suite.measureRuns = MEASURE.runs;

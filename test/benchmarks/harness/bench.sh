@@ -23,6 +23,9 @@
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
 #   bench.sh measure  [--backend=postgres] [--runs=200] [--warm-up-runs=20] [options]   (the access scale check: one
 #                      node's dataset queries on ClickHouse, each timed; the arm's access mode in SPRING_APPLICATION_JSON)
+#   bench.sh measure  --program=walk --backend=mongo|postgres [--name=value ...]   (the access walk's scale check in
+#                      one JVM against one store, AccessWalkBench: the walk of --aggregates accounts of --streams streams
+#                      under --rate deposits a second; its other options passed through)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
@@ -81,7 +84,7 @@ CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:24.8.14.39-alpine
 CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
-  sed -n '14,53p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,58p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -588,8 +591,7 @@ clickhouse() { curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/" --dat
 # Each query of the dataset (a list page, a count, an aggregation) is sent --warm-up-runs times, then --runs times
 # timed by curl; the times, one answer of each and ClickHouse's query log of the timed ones go to --out, with
 # measure.json naming them.
-measure() {
-  parse "$@"
+measure_dataset() {
   check_java
   BACKEND=$(opt backend postgres)
   HEAP=$(opt heap 1g)
@@ -654,6 +656,46 @@ measure() {
   printf '{"schema":"wow-e2e-bench/measure/1","measure":"dataset-access","runs":%s,"warmUpRuns":%s,"shapes":["list","count","aggregate"]}\n' \
     "$runs" "$warm" >"$OUT/measure.json"
   log "results in $OUT"
+}
+
+# The access walk's scale check (X-77's, test/benchmarks/README.md): on fresh containers, AccessWalkBench on the
+# install's class path, which runs its two nodes in its own JVM against the store and writes measure.json to --out.
+# Exit 3 when the install has no AccessWalkBench, a baseline older than it.
+measure_walk() {
+  check_java
+  BACKEND=$(opt backend mongo)
+  local main=me.ahoo.wow.benchmark.transfer.AccessWalkBenchKt
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure-walk-$BACKEND")
+  mkdir -p "$OUT"
+  local install jar class
+  install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
+  class="$(echo "$main" | tr . /).class"
+  for jar in "$install"/lib/benchmark-server*.jar; do
+    if [ -f "$jar" ] && "$SERVER_JAVA/bin/jar" tf "$jar" | grep -q "^$class$"; then break; fi
+    jar=""
+  done
+  if [ -z "$jar" ]; then log "$install has no ${main##*.}"; exit 3; fi
+  trap down EXIT
+  down
+  log "starting kafka and $BACKEND"
+  stores_up "$BACKEND"
+  pin_containers "$BACKEND"
+  pin server-cpus
+  log "measure walk on $BACKEND"
+  ${PREFIX[@]+"${PREFIX[@]}"} "$SERVER_JAVA/bin/java" -Xms"$(opt heap 2g)" -Xmx"$(opt heap 2g)" -XX:+UseG1GC \
+    -cp "$install/lib/*" "$main" --backend="$BACKEND" ${PASS[@]+"${PASS[@]}"} --out="$OUT" 2>&1 \
+    | tee "$OUT/measure.log" >&2
+  log "results in $OUT"
+}
+
+# measure: the scale check --program names, dataset-access (the default) or walk.
+measure() {
+  parse "$@"
+  case "$(opt program dataset-access)" in
+    dataset-access) measure_dataset ;;
+    walk) measure_walk ;;
+    *) log "unknown program $(opt program ""): dataset-access or walk"; exit 2 ;;
+  esac
 }
 
 command=${1:-}
