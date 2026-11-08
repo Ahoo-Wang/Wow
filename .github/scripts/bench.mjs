@@ -281,9 +281,11 @@ function walkShareRuns(head, base) {
 
 /**
  * The runs that judge the head's walk at its defaults, ABBA between two runs of the baseline's build with nothing to
- * walk (main's A/A band): the baseline's walk and the head's, twice each; then the head's walk depositing only into the
- * tenth of the accounts it reaches last (`targets: last`), which it does not reach meanwhile, and both builds' walks
- * without deposits, how fast each walks an idle store.
+ * walk (main's A/A band), every deposit into an account that keeps its attributes, so the walk is the only stamping:
+ * the baseline's walk and the head's, twice each. Then, reported beside the verdict: the head's depositing into the
+ * accounts it stamps first (`targets: first`), the same aggregates at once; both builds' depositing into accounts not
+ * stamped (`targets: all`), each of which the `wow.access` subscription also stamps at its first deposit, as after a
+ * change of the access schema; and the head's walk without deposits.
  */
 function walkRuns(head, base) {
   return [
@@ -293,8 +295,9 @@ function walkRuns(head, base) {
     walkRun(head, 'head-2', {}, true),
     walkRun(base, 'base-2', {}, true),
     walkRun(base, 'none-2', {}, false),
-    walkRun(head, 'head-disjoint', {}, true, { targets: 'last' }),
-    walkRun(base, 'base-idle', {}, true, { rate: 0 }),
+    walkRun(head, 'head-same', {}, true, { targets: 'first' }),
+    walkRun(head, 'head-follower', {}, true, { targets: 'all' }),
+    walkRun(base, 'base-follower', {}, true, { targets: 'all' }),
     walkRun(head, 'head-idle', {}, true, { rate: 0 }),
   ];
 }
@@ -743,7 +746,7 @@ export const SUITES = {
     runs: walkShareRuns(HEAD_PG, BASE_PG),
     arms: armsOfRuns(walkShareRuns(HEAD_PG, BASE_PG)),
     answers:
-      "Which share of the log store the access walk may take under live commands (X-77), on PostgreSQL: the data set's accounts of 10 streams each, written by a first node, then without their attributes walked by a second while 200 E1 deposits a second run; the head's walk at each share against the baseline's at its default pace, between two runs of the baseline with nothing to walk (main's A/A band). The default is the largest share within the band.",
+      "Which share of the log store the access walk may take under live commands (X-77), on PostgreSQL: the data set's accounts of 10 streams each, written by a first node, then without their attributes walked by a second while 200 E1 deposits a second run; every deposit into an account that keeps its attributes and the store settled before each run, so the walk is the only stamping; the head's walk at each share against the baseline's at its default pace, between two runs of the baseline with nothing to walk (main's A/A band). The default is the largest share within the band.",
   },
   'access-walk-share-mongo': {
     group: 'access-walk',
@@ -760,7 +763,7 @@ export const SUITES = {
     runs: walkRuns(HEAD_PG, BASE_PG),
     arms: armsOfRuns(walkRuns(HEAD_PG, BASE_PG)),
     answers:
-      "What the access walk costs live commands (X-77), on PostgreSQL: as access-walk-share-pg, the head's walk at its defaults against the baseline's, ABBA between two runs of the baseline with nothing to walk (main's A/A band); then the head's into accounts it does not reach meanwhile, and both builds' walks without deposits. The head passes when each of its runs' p99 is within the band.",
+      "What the access walk costs live commands (X-77), on PostgreSQL: as access-walk-share-pg, the head's walk at its defaults against the baseline's, ABBA between two runs of the baseline with nothing to walk (main's A/A band). The head passes when each of those runs' p99 is within the band. Beside the verdict: the head's depositing into the accounts it stamps first, both builds' depositing into accounts not stamped (the wow.access subscription also stamps each at its first deposit), and the head's walk without deposits.",
   },
   'access-walk-mongo': {
     group: 'access-walk',
@@ -3382,7 +3385,7 @@ export function walkTables(suite) {
         : install === 'base'
           ? 'none (walk-rate)'
           : 'default';
-    const shareText = `${share}${m.targets === 'last' ? ', disjoint' : ''}${m.rate === 0 ? ', no deposits' : ''}`;
+    const shareText = `${share}${{ first: ', same aggregates', all: ', deposits follow unstamped' }[m.targets] ?? ''}${m.rate === 0 ? ', no deposits' : ''}`;
     const walked = !walk
       ? ''
       : walk.completed
@@ -3426,7 +3429,7 @@ export function walkTables(suite) {
   );
   if (suite.name.startsWith('access-walk-share')) {
     const passing = live
-      .filter(run => run.measure.targets !== 'last' && within(run))
+      .filter(run => run.measure.targets === 'stamped' && within(run))
       .map(run => Number(run.measure.walkShare))
       .filter(Number.isFinite);
     lines.push(
@@ -3436,7 +3439,7 @@ export function walkTables(suite) {
     );
   } else {
     const judged = live.filter(
-      run => run.measure.targets !== 'last' && run.measure.rate > 0,
+      run => run.measure.targets === 'stamped' && run.measure.rate > 0,
     );
     const worst = Math.max(...judged.map(p99Of).filter(Number.isFinite));
     lines.push(

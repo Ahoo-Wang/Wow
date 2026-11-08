@@ -530,7 +530,7 @@ const p99 = ${JSON.stringify(p99s)}[run] ?? 300;
 fs.mkdirSync(opt('out'), { recursive: true });
 fs.writeFileSync(opt('out') + '/measure.json', JSON.stringify({
   program: 'walk', walks, rate, walkRate: null, walkShare: share === undefined ? null : String(share),
-  completeWalk: false, targets: opt('targets') ?? 'all',
+  completeWalk: false, targets: opt('targets') ?? 'stamped',
   walk: walks ? { completed: false, walked: 3000, seconds: 50, aggregatesPerSecond: 60, windowWalked: 2000, windowSeconds: 40, windowPerSecond: 50 } : null,
   e1: rate > 0 ? { ops: 100, failed: {}, latencyMs: { p50: 2, p99, p999: 50 } } : null,
   waits: { samples: 40, events: { 'IO:WALSync': 12, 'CPU:running': 8, 'IPC:x': 1, 'LWLock:y': 1 }, poolMax: { active: 3, pending: 0, total: 10 } },
@@ -638,24 +638,31 @@ test("the walk suites judge the head at its defaults, ABBA, against main's A/A b
       'head-2',
       'base-2',
       'none-2',
-      'head-disjoint',
-      'base-idle',
+      'head-same',
+      'head-follower',
+      'base-follower',
       'head-idle',
     ],
   );
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
-    /--backend=mongo .*--targets=last --rate=200 .*\/head-disjoint $/m,
+    /--backend=mongo .*--targets=all --rate=200 .*\/head-follower $/m,
   );
-  assert.match(calls, /--install=\/b .*--walk=yes --rate=0 .*\/base-idle $/m);
+  assert.match(calls, /--walk=yes --targets=first --rate=200 .*\/head-same $/m);
+  assert.match(calls, /--install=\/b .*--targets=all .*\/base-follower $/m);
+  assert.match(calls, /--walk=yes --rate=0 .*\/head-idle $/m);
   const table = walkTables(suite).join('\n');
   assert.match(
     table,
     /\| head-idle \| head \| default, no deposits \| 2000 in 40\.0 s \| 50 \|/,
   );
-  assert.match(table, /\| head-disjoint \| head \| default, disjoint \|/);
-  // The disjoint and idle runs are not judged: 8 ms against at most 6 is the worst of the two judged.
+  assert.match(table, /\| head-same \| head \| default, same aggregates \|/);
+  assert.match(
+    table,
+    /\| head-follower \| head \| default, deposits follow unstamped \|/,
+  );
+  // The runs beside the verdict and the idle one are not judged: 8 ms against at most 6 is the worst of the two judged.
   assert.match(
     table,
     /Verdict: \*\*outside\*\* main's A\/A band, by 2\.0 ms at worst \(6\.0 ms, 8\.0 ms against at most 6\.0 ms\)\./,

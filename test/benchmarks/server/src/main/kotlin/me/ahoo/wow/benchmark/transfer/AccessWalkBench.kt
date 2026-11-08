@@ -24,8 +24,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRequest
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.benchmark.transfer.TransferContext.ACCOUNT_TYPE
@@ -48,10 +50,16 @@ import kotlin.system.exitProcess
  *
  * A first node opens `--aggregates` accounts and deposits into each until it has `--streams` streams, then completes
  * its walk of them; the options `--seed.<name>=<value>` are its alone (`--seed.wow.access.walk-share=1`: it walks what
- * it seeded unbounded). Unless `--walk=none` (the A/A arm, nothing to walk), the store's history then loses its access
- * attributes and the account's walk record, as a log an import wrote holds none. A second node then starts: its walk
- * stamps the accounts as its `wow.access.*` options pace it, while `--rate` deposits a second (E1, open loop, none at
- * 0) go to the same accounts, over `--measure` seconds after `--warm-up`. It writes `measure.json` to `--out`: the
+ * it seeded unbounded). The store's history then loses its access attributes, as a log an import wrote holds none,
+ * except the accounts the deposits go to, and the account's walk record unless `--walk=none` (the A/A arm: the same
+ * history, with its walk recorded as completed, so nothing is walked); the store then settles (a vacuum and a
+ * checkpoint), so the measured window pays for neither that rewrite nor the seeding. A second node then starts: its
+ * walk stamps the accounts as its `wow.access.*` options pace it, while `--rate` deposits a second (E1, open loop, none
+ * at 0) run over `--measure` seconds after `--warm-up`. `--targets` says where they go: `stamped` (the default), the
+ * tenth of the accounts the walk reaches last, which keep their attributes, so the walk is the only stamping; `first`,
+ * the first accounts the walk reaches, which keep theirs too, so it stamps what the deposits write; `all`, every
+ * account, none stamped, so the built-in `wow.access` subscription also stamps the history of each one a deposit
+ * reaches first, as it does after a change of the access schema. It writes `measure.json` to `--out`: the
  * deposits' latencies, and the walk's progress: how many it stamped over the measured window and at what rate, and how
  * far it got from the second node's start; with `--complete=yes`, it waits for the walk's completion.
  *
@@ -70,7 +78,7 @@ fun main(args: Array<String>) {
         rate = options["rate"]?.toInt() ?: 0,
         warmUpSeconds = options["warm-up"]?.toInt() ?: DEFAULT_WARM_UP,
         measureSeconds = options["measure"]?.toInt() ?: DEFAULT_MEASURE,
-        lastTargets = options["targets"] == "last",
+        targetMode = options["targets"] ?: TARGETS_STAMPED,
         complete = options["complete"] == "yes",
     )
     val out = File(options["out"] ?: ".").apply { mkdirs() }
@@ -110,6 +118,11 @@ private const val MILLIS_PER_SECOND = 1_000L
 private const val SAMPLE_MILLIS = 1_000L
 private const val LAST_SHARE = 10
 private const val SEED = "seed."
+private const val SEED_ATTEMPTS = 8
+private const val FIRST_ACCOUNTS = 1_000
+private const val TARGETS_STAMPED = "stamped"
+private const val TARGETS_FIRST = "first"
+private const val TARGETS_ALL = "all"
 
 /** One walk run: the history a first node writes, then the second node's walk under the deposits. */
 class WalkRun(
@@ -119,8 +132,8 @@ class WalkRun(
     private val rate: Int,
     private val warmUpSeconds: Int,
     private val measureSeconds: Int,
-    /** Whether the deposits go to the tenth of the accounts the walk reaches last, which it does not reach meanwhile. */
-    private val lastTargets: Boolean = false,
+    /** Where the deposits go: [TARGETS_STAMPED], [TARGETS_FIRST] or [TARGETS_ALL] (the class says). */
+    private val targetMode: String = TARGETS_STAMPED,
     /** Whether the walk is timed to its completion; else it is read when the measured window ends. */
     private val complete: Boolean = false,
 ) {
@@ -137,8 +150,14 @@ class WalkRun(
                 WalkStore.of(backend, seeding.environment).use { store ->
                     // The first node walks the history it wrote: a node starting after it finds it walked.
                     walked(store, seedStarted) { false }
-                    if (walks) store.unstamp()
-                    if (lastTargets) targets = store.lastInWalkOrder(aggregates / LAST_SHARE)
+                    val kept = when (targetMode) {
+                        TARGETS_ALL -> emptyList()
+                        TARGETS_FIRST -> store.inWalkOrder(FIRST_ACCOUNTS, last = false)
+                        else -> store.inWalkOrder(aggregates / LAST_SHARE, last = true)
+                    }
+                    targets = kept.takeIf { it.isNotEmpty() }
+                    store.unstamp(kept, walkRecord = !walks)
+                    store.settle()
                 }
             } finally {
                 seeding.close()
@@ -165,7 +184,7 @@ class WalkRun(
                         "measureSeconds" to measureSeconds,
                         "seedSeconds" to seedSeconds,
                         "completeWalk" to complete,
-                        "targets" to if (lastTargets) "last" else "all",
+                        "targets" to targetMode,
                         "note" to "In one JVM: the walk's rate is over the measured window, its time from the " +
                             "second node's start to its completion (--complete=yes) or to the window's end; the " +
                             "deposits' latencies an open loop over the measured window, where the store's waits " +
@@ -219,14 +238,28 @@ class WalkRun(
             launch {
                 permits.withPermit {
                     val ref = ACCOUNT_TYPE.ref(TENANT, accountId(index))
-                    val open = OpenAccount("owner-${index % OWNERS}", BALANCE)
-                    client.wait(CommandRequest.builder(ref, open).wait(WaitPlan.COMMITTED).build())
-                    repeat(streams - 1) {
-                        client.wait(CommandRequest.builder(ref, Deposit(1)).wait(WaitPlan.COMMITTED).build())
-                    }
+                    seeded(client, ref, "seed-$index-0", OpenAccount("owner-${index % OWNERS}", BALANCE))
+                    repeat(streams - 1) { seeded(client, ref, "seed-$index-${it + 1}", Deposit(1)) }
                 }
             }
         }
+    }
+
+    /**
+     * Sends [body] until it is answered. A store that stalls times a wait out, which says nothing of the command: the
+     * same request id is safe to send again, and the run must not fail on the seeding, which it does not measure.
+     */
+    private suspend fun seeded(client: CommandClient, ref: AggregateRef, requestId: String, body: Any) {
+        val request = CommandRequest.builder(ref, body).wait(WaitPlan.COMMITTED).requestId(requestId).build()
+        repeat(SEED_ATTEMPTS - 1) {
+            try {
+                client.wait(request)
+                return
+            } catch (_: WowProblemException) {
+                delay(MILLIS_PER_SECOND)
+            }
+        }
+        client.wait(request)
     }
 
     /**
@@ -336,11 +369,17 @@ sealed interface WalkStore : AutoCloseable {
     /** The account's walk record; null when none is recorded. */
     fun walk(): WalkRecord?
 
-    /** Removes the access attributes from the account's history, and its walk record: a log as an import writes it. */
-    fun unstamp()
+    /**
+     * Removes the access attributes from the history of every account but [except], as an import writes a log. The
+     * account's walk record goes too, unless [walkRecord] keeps it: a run with nothing to walk.
+     */
+    fun unstamp(except: List<String>, walkRecord: Boolean)
 
-    /** The ids of the last [count] accounts in the walk's order: those it reaches last. */
-    fun lastInWalkOrder(count: Int): List<String>
+    /** Flushes what the seeding and [unstamp] left to do: the measured window pays for neither. */
+    fun settle()
+
+    /** The ids of the first [count] accounts in the walk's order, or the [last] ones: those it reaches last. */
+    fun inWalkOrder(count: Int, last: Boolean): List<String>
 
     /** What the store's sessions of the log are doing now, by what they wait on: one sample. */
     fun waits(): Map<String, Int>
@@ -378,9 +417,15 @@ sealed interface WalkStore : AutoCloseable {
             }
         }
 
-        override fun unstamp() {
+        override fun unstamp(except: List<String>, walkRecord: Boolean) {
+            connection.prepareStatement(
+                "UPDATE $LOG SET access = NULL, access_version = NULL WHERE aggregate_id <> ALL(?)",
+            ).use {
+                it.setArray(1, connection.createArrayOf("text", except.toTypedArray()))
+                it.executeUpdate()
+            }
+            if (walkRecord) return
             connection.createStatement().use {
-                it.executeUpdate("UPDATE $LOG SET access = NULL, access_version = NULL")
                 it.executeUpdate(
                     "UPDATE $REGISTRY SET access_walk = NULL " +
                         "WHERE context = '${TransferContext.NAME}' AND aggregate = '${TransferContext.ACCOUNT}'",
@@ -388,12 +433,24 @@ sealed interface WalkStore : AutoCloseable {
             }
         }
 
+        /** Each its own transaction: a vacuum runs outside one. */
+        override fun settle() {
+            connection.createStatement().use {
+                it.execute("VACUUM")
+                it.execute("CHECKPOINT")
+            }
+        }
+
         /** The walk's order is the version key's: aggregate id, then tenant. */
-        override fun lastInWalkOrder(count: Int): List<String> = connection.prepareStatement(
-            "SELECT aggregate_id FROM $LOG WHERE version = 1 ORDER BY aggregate_id DESC, tenant_id DESC LIMIT ?",
-        ).use { query ->
-            query.setInt(1, count)
-            query.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        override fun inWalkOrder(count: Int, last: Boolean): List<String> {
+            val direction = if (last) "DESC" else "ASC"
+            return connection.prepareStatement(
+                "SELECT aggregate_id FROM $LOG WHERE version = 1 " +
+                    "ORDER BY aggregate_id $direction, tenant_id $direction LIMIT ?",
+            ).use { query ->
+                query.setInt(1, count)
+                query.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+            }
         }
 
         /** The active sessions of the database but this one, by wait event (`CPU:running` for none). */
@@ -422,22 +479,29 @@ sealed interface WalkStore : AutoCloseable {
             return WalkRecord(walk.getBoolean("completed") == true, (walk["walked"] as? Number)?.toLong() ?: 0)
         }
 
-        override fun unstamp() {
+        override fun unstamp(except: List<String>, walkRecord: Boolean) {
             database.getCollection(LOG)
                 .updateMany(
-                    Filters.exists("version"),
+                    Filters.nin("aggregate_id", except),
                     Updates.combine(Updates.unset("access"), Updates.unset("access_version"))
                 )
-            database.getCollection(REGISTRY).updateMany(registry, Updates.unset("access_walk"))
+            if (!walkRecord) database.getCollection(REGISTRY).updateMany(registry, Updates.unset("access_walk"))
+        }
+
+        override fun settle() {
+            client.getDatabase("admin").runCommand(Document("fsync", 1))
         }
 
         /** The walk's order: partition by partition, each by the version key. */
-        override fun lastInWalkOrder(count: Int): List<String> = database.getCollection(LOG)
-            .find(Filters.eq("version", 1))
-            .sort(Document("partition", -1).append("aggregate_id", -1).append("tenant_id", -1))
-            .limit(count)
-            .map { it.getString("aggregate_id") }
-            .toList()
+        override fun inWalkOrder(count: Int, last: Boolean): List<String> {
+            val direction = if (last) -1 else 1
+            return database.getCollection(LOG)
+                .find(Filters.eq("version", 1))
+                .sort(Document("partition", direction).append("aggregate_id", direction).append("tenant_id", direction))
+                .limit(count)
+                .map { it.getString("aggregate_id") }
+                .toList()
+        }
 
         /** The database's operations in progress (`currentOp`), by operation, collection and whether they wait for a lock. */
         override fun waits(): Map<String, Int> {
