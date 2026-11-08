@@ -203,7 +203,9 @@ class Dataset(private val state: DatasetState) {
             }
         }
         if (artifact == null) {
-            return needsRevision((compiled as DatasetCompilation.Invalid).problems, holds(current, warehouse))
+            val invalid = compiled as DatasetCompilation.Invalid
+            // A source the catalog may not read: no version of the dataset is served, whatever its view still gives.
+            return needsRevision(invalid.problems, !invalid.forbidden && holds(current, warehouse))
         }
         val problems = incompatibility(current, artifact, warehouse)
         if (problems.isNotEmpty()) return needsRevision(problems, holds(current, warehouse))

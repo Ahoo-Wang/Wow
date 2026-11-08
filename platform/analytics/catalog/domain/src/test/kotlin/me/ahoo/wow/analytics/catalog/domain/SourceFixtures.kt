@@ -109,6 +109,7 @@ object SourceFixtures {
         writtenAt: String = "2026-10-19 10:00:00.000",
         table: WarehouseTable = STATE_TABLE,
         tableUuid: String = table.uuid,
+        access: String = "DEFAULT",
     ): CatalogRow = CatalogRow(
         database = table.database,
         table = table.name,
@@ -128,5 +129,6 @@ object SourceFixtures {
         columnsHash = CatalogTrust.columnsHash(table.columns),
         writtenAt = writtenAt,
         writer = writer,
+        access = access,
     )
 }

@@ -455,6 +455,7 @@ export type SourceTableMissing = Record<string, unknown>;
 
 /** - key: `me.ahoo.wow.analytics.catalog.api.source.WowEnrichment` */
 export interface WowEnrichment {
+  access?: string;
   aggregate: string;
   context: string;
   eventRevisions?: Record<string, number>;

@@ -137,7 +137,17 @@ class DatasetViewIntegrationTest {
                         SourceColumn("version", "UInt32"),
                         SourceColumn("state", "String"),
                     ),
-                    enrichment = WowEnrichment("shop-service", "shop", "member", "state", "TENANT", "f", "w", "t"),
+                    enrichment = WowEnrichment(
+                        "shop-service",
+                        "shop",
+                        "member",
+                        "state",
+                        "TENANT",
+                        "f",
+                        "w",
+                        "t",
+                        access = "DEFAULT",
+                    ),
                     tenantColumn = "tenant_id",
                     ownerColumn = "owner_id",
                     sensitivity = listOf(

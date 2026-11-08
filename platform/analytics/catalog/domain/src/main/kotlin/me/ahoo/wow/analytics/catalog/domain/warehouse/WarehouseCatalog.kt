@@ -115,4 +115,6 @@ data class CatalogRow(
     val columnsHash: String,
     val writtenAt: String,
     val writer: String,
+    /** `POLICY` or `DEFAULT` ([me.ahoo.wow.analytics.catalog.api.source.WowEnrichment.access]); empty in a row of an earlier Sink. */
+    val access: String = "",
 )

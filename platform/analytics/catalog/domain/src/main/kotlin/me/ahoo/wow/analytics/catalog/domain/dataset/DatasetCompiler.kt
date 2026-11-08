@@ -24,7 +24,11 @@ import me.ahoo.wow.analytics.catalog.domain.source.SourceState
 sealed interface DatasetCompilation {
     data class Compiled(val artifact: DatasetArtifact) : DatasetCompilation
 
-    data class Invalid(val problems: List<String>) : DatasetCompilation
+    /**
+     * Why it does not compile; [forbidden] when it reads a source the catalog may not read at all (a Wow table whose
+     * aggregate an access policy governs), so no version of it is served, whatever its view still gives.
+     */
+    data class Invalid(val problems: List<String>, val forbidden: Boolean = false) : DatasetCompilation
 }
 
 /**
@@ -64,7 +68,7 @@ object DatasetCompiler {
         title: String? = null,
         approvedOnly: Boolean = false,
     ): DatasetCompilation = when (val bound = DatasetBinder.bind(definition, sources, approvedOnly)) {
-        is DatasetBinder.Result.Invalid -> DatasetCompilation.Invalid(bound.problems)
+        is DatasetBinder.Result.Invalid -> DatasetCompilation.Invalid(bound.problems, bound.forbidden)
         is DatasetBinder.Result.Bound ->
             DatasetCompilation.Compiled(compile(bound.dataset, context, name, version, database, title))
     }

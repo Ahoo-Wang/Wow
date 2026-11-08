@@ -45,6 +45,9 @@ data class CatalogReference(val path: String, val context: String, val aggregate
  * - [references]: each value that refers to an aggregate, by path.
  * - [eventRevisions]: the revision of each event of the aggregate.
  * - [columnsHash]: [ClickHouseCatalog.columnsHash] of the columns the Sink expects the table to have.
+ * - [access]: whether the aggregate's rows are read by an access policy of its own ([ClickHouseCatalog.ACCESS_POLICY])
+ *   or by the default rule, its scope's columns ([ClickHouseCatalog.ACCESS_DEFAULT]), as the service that has the
+ *   policies decides; empty when the Sink was told neither, which a reader takes as a policy's.
  * - [fingerprint]: a digest of all of the above, the key a row replaces an older one of the same content by.
  */
 @InternalWowApi
@@ -62,6 +65,7 @@ data class CatalogEntry(
     val references: List<CatalogReference>,
     val eventRevisions: Map<String, Int>,
     val columnsHash: String,
+    val access: String = "",
 ) {
     val fingerprint: String by lazy {
         ClickHouseCatalog.sha256(
@@ -72,6 +76,7 @@ data class CatalogEntry(
                     references.map { listOf(it.path, it.context, it.aggregate) },
                     eventRevisions.toSortedMap(),
                     columnsHash,
+                    access,
                 ),
             ),
         )
@@ -100,6 +105,15 @@ object ClickHouseCatalog {
     /** The format of its rows; raised only by an incompatible change. */
     const val FORMAT: Int = 1
 
+    /** The `access` of an aggregate read by an access policy of its own: no reader but its service decides its rows. */
+    const val ACCESS_POLICY: String = "POLICY"
+
+    /** The `access` of an aggregate read by the default rule: its tenant, owner and space columns. */
+    const val ACCESS_DEFAULT: String = "DEFAULT"
+
+    /** The column a `wow_catalog` of an earlier version lacks, which a Sink that creates its tables adds. */
+    val ACCESS: ClickHouseColumn = ClickHouseColumn("access", "LowCardinality(String)")
+
     /** The columns of `wow_catalog`, in order, with their ClickHouse types. */
     val COLUMNS: List<ClickHouseColumn> = listOf(
         ClickHouseColumn("format", "UInt32"),
@@ -122,6 +136,7 @@ object ClickHouseCatalog {
         ClickHouseColumn("event_revisions", "Map(String, UInt32)"),
         ClickHouseColumn("fingerprint", "String"),
         ClickHouseColumn("columns_hash", "String"),
+        ACCESS,
         ClickHouseColumn("written_at", "DateTime64(3, 'UTC') DEFAULT now64(3)"),
         ClickHouseColumn("writer", "String MATERIALIZED currentUser()"),
     )
@@ -131,6 +146,14 @@ object ClickHouseCatalog {
         "CREATE TABLE IF NOT EXISTS ${identifier(database)}.${identifier(TABLE)}\n(\n" +
             COLUMNS.joinToString(",\n") { "    ${identifier(it.name)} ${it.type}" } +
             "\n)\nENGINE = ReplacingMergeTree(written_at)\nORDER BY (`database`, `table`, fingerprint)"
+
+    /**
+     * The statement that adds [ACCESS] to [database]'s `wow_catalog` of an earlier version; its rows keep it empty,
+     * which a reader takes as a policy's, until their service's Sink writes them again.
+     */
+    fun migration(database: String): String =
+        "ALTER TABLE ${identifier(database)}.${identifier(TABLE)} " +
+            "ADD COLUMN IF NOT EXISTS ${identifier(ACCESS.name)} ${ACCESS.type} AFTER columns_hash"
 
     /**
      * The digest of [columns] the catalog compares with the table's own: SHA-256, in lower-case
@@ -171,6 +194,7 @@ object ClickHouseCatalog {
             ).apply { entry.eventRevisions.forEach { (name, revision) -> put(name, revision) } }
             put("fingerprint", entry.fingerprint)
             put("columns_hash", entry.columnsHash)
+            put("access", entry.access)
         },
     )
 

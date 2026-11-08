@@ -320,6 +320,7 @@ class Source(private val state: SourceState) {
                     writer = row.writer,
                     writtenAt = row.writtenAt,
                     eventRevisions = row.eventRevisions,
+                    access = row.access,
                 ),
                 tenantColumn = row.tenantColumn,
                 ownerColumn = row.ownerColumn.ifEmpty { null },

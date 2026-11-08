@@ -219,7 +219,7 @@
       "description" : "A data source of the warehouse: a Wow table or an analyst's table, its scope and its sensitivity",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.source.SourceState",
-        "fingerprint" : "f12bcabeb4bb61316220cb11b1eda045d88ef736fc2e998b547e38eba8160bcc"
+        "fingerprint" : "d954de4f60b6130683567cdff73a8f7a32dd7a990c1702e3238b134cb4d81ade"
       },
       "snapshot" : {
         "enabled" : true
@@ -1516,6 +1516,9 @@
     "me.ahoo.wow.analytics.catalog.api.source.WowEnrichment" : {
       "type" : "object",
       "properties" : {
+        "access" : {
+          "type" : "string"
+        },
         "aggregate" : {
           "type" : "string"
         },

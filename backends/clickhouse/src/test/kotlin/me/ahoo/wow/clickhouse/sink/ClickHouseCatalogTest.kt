@@ -24,16 +24,71 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
 
 class ClickHouseCatalogTest {
     private val statements = RecordingStatements()
 
-    private fun sinks(options: ClickHouseSinkOptions = ClickHouseSinkOptions()) =
-        ClickHouseSinks(statements, CatalogFixtures.MANIFEST, options)
+    private fun sinks(
+        options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
+        governed: GovernedAggregates? = null,
+    ) = ClickHouseSinks(statements, CatalogFixtures.MANIFEST, options, governed)
+
+    @Test
+    fun `each entry should say whether an access policy decides the aggregate's rows, empty when unknown`() {
+        val governed = sinks(governed = { it == CatalogFixtures.MEMBER })
+        governed.catalogOf(CatalogFixtures.MEMBER).map { it.access }.distinct().assert()
+            .containsExactly(ClickHouseCatalog.ACCESS_POLICY)
+        governed.catalogOf(CatalogFixtures.STORE).map { it.access }.distinct().assert()
+            .containsExactly(ClickHouseCatalog.ACCESS_DEFAULT)
+        val unknown = sinks().catalogOf(CatalogFixtures.MEMBER)
+        unknown.map { it.access }.distinct().assert().containsExactly("")
+        // A changed answer is another row's content.
+        unknown.first().fingerprint.assert().isNotEqualTo(
+            governed.catalogOf(CatalogFixtures.MEMBER).first().fingerprint
+        )
+        val row = WowJson.mapper.readTree(
+            ClickHouseCatalog.rowOf("default", governed.catalogOf(CatalogFixtures.MEMBER).first(), "uuid"),
+        )
+        row["access"].asString().assert().isEqualTo(ClickHouseCatalog.ACCESS_POLICY)
+    }
+
+    @Test
+    fun `the policies are asked when the sink describes its tables, never while the node assembles its sinks`(): Unit =
+        runTest {
+            var asked = 0
+            val sink = sinks(governed = { asked++ == Int.MIN_VALUE }).sinkOf("crm", "member")
+            asked.assert().isEqualTo(0)
+            statements.create(sink.schema)
+            sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
+            asked.assert().isEqualTo(1)
+            statements.catalog.single().second.lines().first().assert().contains("\"access\":\"DEFAULT\"")
+        }
+
+    @Test
+    fun `auto should add the access column to an earlier wow_catalog, and validate refuse one without it`(): Unit =
+        runTest {
+            val auto = sinks().sinkOf("crm", "member")
+            statements.create(auto.schema)
+            auto.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
+            statements.executed.assert().contains(ClickHouseCatalog.migration("default"))
+            ClickHouseCatalog.migration("default").assert().isEqualTo(
+                "ALTER TABLE `default`.`wow_catalog` ADD COLUMN IF NOT EXISTS `access` LowCardinality(String) " +
+                    "AFTER columns_hash",
+            )
+            val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.VALIDATE)).sinkOf("crm", "member")
+            statements.create(sink.schema)
+            statements.tables["default.wow_catalog"] = ClickHouseCatalog.COLUMNS - ClickHouseCatalog.ACCESS
+            assertThrows<IllegalStateException> { sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER))) }
+                .message.assert().contains("default.wow_catalog has no access column", "ddl=auto", "ADD COLUMN")
+            statements.tables["default.wow_catalog"] = ClickHouseCatalog.COLUMNS
+            sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
+        }
 
     @Test
     fun `the entries should say whose each table is, and what in it is sensitive or refers to an aggregate`() {
@@ -137,7 +192,7 @@ class ClickHouseCatalogTest {
             schema,
             statements,
             Ddl.VALIDATE,
-            catalog = sinks().catalogOf(CatalogFixtures.MEMBER),
+            catalog = { sinks().catalogOf(CatalogFixtures.MEMBER) },
             recheckEvery = 1.milliseconds,
             clock = {
                 now += 10
@@ -188,6 +243,7 @@ class ClickHouseCatalogTest {
         ddl.assert().startsWith("CREATE TABLE IF NOT EXISTS `analytics`.`wow_catalog`")
             .contains("`writer` String MATERIALIZED currentUser()")
             .contains("`table_uuid` UUID")
+            .contains("`access` LowCardinality(String)")
             .endsWith("ENGINE = ReplacingMergeTree(written_at)\nORDER BY (`database`, `table`, fingerprint)")
         ClickHouseCatalog.columnsHash(listOf(ClickHouseColumn("id", "String"))).assert()
             .isEqualTo(ClickHouseCatalog.sha256("id String"))

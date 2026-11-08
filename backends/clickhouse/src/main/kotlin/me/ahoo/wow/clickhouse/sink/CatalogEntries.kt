@@ -46,7 +46,13 @@ internal object CatalogEntries {
     private const val OWNER_COLUMN = "owner_id"
     private const val SPACE_COLUMN = "space_id"
 
-    fun of(manifest: Manifest, aggregate: AggregateManifest, schema: ClickHouseSinkSchema): List<CatalogEntry> {
+    /** The entries of [aggregate]'s tables in [schema], its rows read as [access] says ([CatalogEntry.access]). */
+    fun of(
+        manifest: Manifest,
+        aggregate: AggregateManifest,
+        schema: ClickHouseSinkSchema,
+        access: String = "",
+    ): List<CatalogEntry> {
         val marks = SchemaMarks(manifest.defs, schema.type.context)
         val state = marks.of(aggregate.state.schema, STATE, event = "", revision = 0)
         val events = aggregate.events.map { marks.of(it.schema, "", it.name, it.revision) }
@@ -68,6 +74,7 @@ internal object CatalogEntries {
             references = marked.mapNotNull { it.reference }.distinct(),
             eventRevisions = aggregate.events.associate { it.name to it.revision },
             columnsHash = ClickHouseCatalog.columnsHash(columns.getValue(table)),
+            access = access,
         )
         return buildList {
             if (schema.aggregate.history) {

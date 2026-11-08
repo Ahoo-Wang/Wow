@@ -39,6 +39,7 @@ import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.observe.QueryObserver
+import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.ReadAuthorizer
 import me.ahoo.wow.query.read.InProcessQueryApi
@@ -219,6 +220,17 @@ class QueryAutoConfiguration {
                 Path.of(properties.dataset.configDirectory),
                 beanFactory.beanClassLoader ?: QueryAutoConfiguration::class.java.classLoader,
             )
+
+        /**
+         * Which of the service's aggregates its access policies govern, as its [QueryEngine] resolved them: what the
+         * ClickHouse Sink records of each aggregate in `wow_catalog`, so that the analytics catalog refuses their rows.
+         * Asked when a Sink describes its tables, once the node has started.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @InternalWowApi
+        fun wowGovernedAggregates(engine: ObjectProvider<QueryEngine>): GovernedAggregates =
+            GovernedAggregates { type -> engine.getObject().access.governs(type) }
 
         /**
          * The node's read side: the [QueryEngine] of the Manifest over the snapshot, events and dataset

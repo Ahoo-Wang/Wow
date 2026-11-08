@@ -51,7 +51,8 @@ import kotlin.time.Duration.Companion.minutes
  *   leaves a newer one's view as it is, and validates it by existence only.
  * - **Catalog**: once its tables are created or validated (at once with `ddl=none`), the Sink
  *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
- *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
+ *   table's current uuid; `auto` creates `wow_catalog` when it is missing and adds the column an earlier version's
+ *   lacks ([ClickHouseCatalog.migration]), and `validate` refuses a `wow_catalog` without it. A table whose uuid the account cannot read
  *   gets no row, and a failed write is logged and never fails the Sink's write.
  */
 @InternalWowApi
@@ -60,11 +61,13 @@ class ClickHouseSink internal constructor(
     private val statements: ClickHouseStatements,
     private val ddl: Ddl = Ddl.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
-    private val catalog: List<CatalogEntry> = emptyList(),
+    /** The `wow_catalog` entries of the tables, asked for when the Sink first describes them. */
+    catalog: () -> List<CatalogEntry> = { emptyList() },
     private val recheckEvery: Duration = DEFAULT_RECHECK,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : Sink {
     private val preparation = Mutex()
+    private val catalog by lazy(catalog)
 
     /** When the tables were last created or validated, by [clock]; null before the first time. */
     @Volatile
@@ -223,6 +226,7 @@ class ClickHouseSink internal constructor(
      */
     private suspend fun create(): FlatLineage {
         statements.execute(ClickHouseCatalog.ddl(schema.database))
+        statements.execute(ClickHouseCatalog.migration(schema.database))
         schema.ddl.forEach { statements.execute(it) }
         val lineage = lineage()
         val fingerprint = schema.flatFingerprint
@@ -254,6 +258,12 @@ class ClickHouseSink internal constructor(
                     else -> null
                 }
             }
+        }
+        val catalogColumns = statements.columns(schema.database, ClickHouseCatalog.TABLE)
+        check(catalogColumns.isEmpty() || catalogColumns.any { it.name == ClickHouseCatalog.ACCESS.name }) {
+            "${schema.database}.${ClickHouseCatalog.TABLE} has no ${ClickHouseCatalog.ACCESS.name} column, which " +
+                "says whether each aggregate's access policy decides its rows: a Sink with ddl=auto adds it, or run " +
+                "${ClickHouseCatalog.migration(schema.database)}."
         }
         check(problems.isEmpty()) {
             "The ClickHouse tables of ${schema.type} in ${schema.database} are not the Sink's: ${problems.joinToString(

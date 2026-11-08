@@ -56,6 +56,7 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.policy.GovernedAggregates
 import me.ahoo.wow.query.policy.QueryEntryPolicy
 import me.ahoo.wow.query.policy.QueryPolicy
 import me.ahoo.wow.query.policy.ReadAuthorization
@@ -281,6 +282,10 @@ class HostQueryTest {
             val id = host.openAccount("mona", tellerHeaders)
             val engine = host.context.getBean(QueryEngine::class.java)
             engine.access.governs(ACCOUNT).assert().isTrue()
+            // What a Sink records in wow_catalog of each aggregate: whether its policy decides its rows.
+            val governed = host.context.getBean(GovernedAggregates::class.java)
+            governed.governs(ACCOUNT).assert().isTrue()
+            governed.governs(AggregateType(BANK, "ledger")).assert().isFalse()
             fun accounts(caller: Caller) = runBlocking {
                 engine.snapshots(ACCOUNT)!!.list(ListQuery(MatchAllFilter, limit = 10), QueryCaller(caller)).toList()
             }

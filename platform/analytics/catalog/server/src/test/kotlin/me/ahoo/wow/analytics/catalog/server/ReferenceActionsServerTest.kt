@@ -93,6 +93,7 @@ class ReferenceActionsServerTest {
             columnsHash = CatalogTrust.columnsHash(MEMBER_STATE.columns),
             writtenAt = "2026-10-19 10:00:00.000",
             writer = "wow_sink",
+            access = "DEFAULT",
         )
         val members = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, MEMBER_STATE.name)
         eventually("the members' Wow table adopted") {

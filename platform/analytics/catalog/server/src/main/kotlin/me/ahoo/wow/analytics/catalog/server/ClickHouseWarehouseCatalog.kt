@@ -76,13 +76,16 @@ class ClickHouseWarehouseCatalog(
     }
 
     override suspend fun catalogRows(database: String, table: String): List<CatalogRow> {
-        if (!hasCatalog(database)) {
+        val columns = catalogColumns(database)
+        if (columns.isEmpty()) {
             return emptyList()
         }
+        // A wow_catalog of an earlier Sink has no access column: its rows say nothing of a policy, read as one.
+        val access = if (ACCESS in columns) ACCESS else "'' AS $ACCESS"
         return rows(
             "SELECT `database`, `table`, toString(table_uuid) AS table_uuid, role, service, context, aggregate, " +
                 "ownership, tenant_column, owner_column, space_column, sensitive, `references`, event_revisions, " +
-                "fingerprint, columns_hash, toString(written_at) AS written_at, writer " +
+                "fingerprint, columns_hash, toString(written_at) AS written_at, writer, $access " +
                 "FROM ${identifier(database)}.$CATALOG FINAL " +
                 "WHERE format = $FORMAT AND `database` = {database:String} AND `table` = {table:String}",
             mapOf("database" to database, "table" to table),
@@ -105,6 +108,12 @@ class ClickHouseWarehouseCatalog(
         mapOf("database" to database),
     ).isNotEmpty()
 
+    /** The columns of [database]'s `wow_catalog`; none when it has none. */
+    private suspend fun catalogColumns(database: String): Set<String> = rows(
+        "SELECT name FROM system.columns WHERE database = {database:String} AND table = '$CATALOG'",
+        mapOf("database" to database),
+    ).mapTo(HashSet()) { it.text("name") }
+
     private suspend fun rows(sql: String, parameters: Map<String, Any>): List<JsonNode> = withContext(Dispatchers.IO) {
         client.query(sql, parameters, QuerySettings().setFormat(ClickHouseFormat.JSONEachRow)).await().use { response ->
             response.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank).map(json::readTree).toList()
@@ -118,6 +127,7 @@ class ClickHouseWarehouseCatalog(
         const val ENGINE: String = "clickhouse"
         const val CATALOG: String = "wow_catalog"
         const val FORMAT: Int = 1
+        private const val ACCESS = "access"
         private const val SOURCE_TABLES =
             "engine != 'MaterializedView' AND name != '$CATALOG' AND NOT startsWith(name, '.inner')"
         private val json: JsonMapper = JsonMapper.builder().build()
@@ -149,6 +159,7 @@ class ClickHouseWarehouseCatalog(
             columnsHash = row.text("columns_hash"),
             writtenAt = row.text("written_at"),
             writer = row.text("writer"),
+            access = row.text("access"),
         )
 
         /**

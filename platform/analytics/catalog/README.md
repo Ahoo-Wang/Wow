@@ -17,7 +17,9 @@ in `wow_datasets` (the only DDL the catalog runs); every node serving queries re
 snapshots (`DatasetPublicationWatcher`: what changed every 5 seconds, everything every 5 minutes) and serves the current
 version under `/wow/dataset/<context>/<name>/query`, each value masked as its sources say. Those queries are the data
 plane's: they need no catalog role, only the node's query policies (each caller reads its own tenant's, owner's and
-space's rows; ABAC), and run under the dataset bulkhead (`wow.query.dataset.max-concurrent`, 8). A column whose source
+space's rows), and run under the dataset bulkhead (`wow.query.dataset.max-concurrent`, 8). No dataset reads a Wow table
+whose aggregate has an access policy, or whose `wow_catalog` row does not say it has none: only the service that owns
+the aggregate can evaluate its policy, so such a definition is refused and a published one stops serving. A column whose source
 declares it a reference (or a Wow table's `aggregate_id`) is declared `REFERENCE` to that aggregate, so a row's action
 goes to the service that owns it. A retired dataset's views are
 dropped 7 days later. A change of a source recompiles the datasets that read it (`DatasetRecompilation`): what compiles

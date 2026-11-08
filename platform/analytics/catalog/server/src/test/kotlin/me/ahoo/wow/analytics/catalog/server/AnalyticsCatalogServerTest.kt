@@ -344,6 +344,7 @@ class AnalyticsCatalogServerTest {
                 columnsHash = CatalogTrust.columnsHash(STATE.columns),
                 writtenAt = writtenAt,
                 writer = "wow_sink",
+                access = "DEFAULT",
             )
     }
 }

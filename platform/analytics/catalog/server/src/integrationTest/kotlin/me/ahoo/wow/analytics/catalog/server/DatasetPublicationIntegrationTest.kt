@@ -64,6 +64,7 @@ class DatasetPublicationIntegrationTest {
                 "`sensitive` Array(Tuple(path String, level String, mask String, event String, revision UInt32)), " +
                 "`references` Array(Tuple(path String, context String, aggregate String)), " +
                 "`event_revisions` Map(String, UInt32), `fingerprint` String, `columns_hash` String, " +
+                "`access` LowCardinality(String), " +
                 "`written_at` DateTime64(3, 'UTC') DEFAULT now64(3), `writer` String MATERIALIZED currentUser()) " +
                 "ENGINE = ReplacingMergeTree(written_at) ORDER BY (`database`, `table`, fingerprint)",
         )
@@ -98,10 +99,11 @@ class DatasetPublicationIntegrationTest {
         execute(
             "INSERT INTO $DATABASE.wow_catalog (format, `database`, `table`, table_uuid, role, service, context, " +
                 "aggregate, ownership, tenant_column, owner_column, space_column, sensitive, `references`, " +
-                "event_revisions, fingerprint, columns_hash) VALUES (1, '$DATABASE', 'shop_order_state', '$uuid', " +
-                "'state', 'shop-service', 'shop', 'order', 'OWNER', 'tenant_id', 'owner_id', '', " +
+                "event_revisions, fingerprint, columns_hash, access) VALUES (1, '$DATABASE', 'shop_order_state', " +
+                "'$uuid', 'state', 'shop-service', 'shop', 'order', 'OWNER', 'tenant_id', 'owner_id', '', " +
                 "[('state.phone', 'DISPLAY', '{\"keepPrefix\":3,\"keepSuffix\":4}', '', 0)], [], {}, 'f-1', " +
-                "'${CatalogTrust.columnsHash(columns)}')",
+                // No access policy of the orders: the default rule reads their rows, which the catalog's datasets may.
+                "'${CatalogTrust.columnsHash(columns)}', 'DEFAULT')",
         )
     }
 
