@@ -356,6 +356,7 @@ class AccessWalking(
      * Stamps [ref] as the walk does, its history read under the log store's query bulkhead, then waits as [pace] says;
      * a read the bulkhead refuses presses the pace, and is tried again a period later.
      */
+    @Suppress("TooGenericExceptionCaught") // Only a refusal is the walk's to wait out; the rest is rethrown.
     private suspend fun stampPaced(model: AggregateModel<*>, ref: AggregateRef, pace: WalkPace) {
         while (true) {
             pace.sense { gate.pressed(ref.type) }
@@ -364,8 +365,9 @@ class AccessWalking(
                 stampCurrent(model, ref, ObservedEvent.AccessStamped.Cause.WALK) { log ->
                     gate.replay(ref) { log.read(ref).toList() }
                 }
-            } catch (busy: StorageBusyException) {
-                logger.debug(busy) { "The access walk of ${ref.type} gives way: the log store refused to read $ref." }
+            } catch (failure: Exception) {
+                if (!refused(failure)) throw failure
+                logger.debug(failure) { "The log store refused the access walk's read of $ref." }
                 pace.press()
                 delay(WalkPace.PERIOD)
                 continue
@@ -374,6 +376,12 @@ class AccessWalking(
             return
         }
     }
+
+    /** Whether the store did not admit the call: a bound throws [StorageBusyException] as the cause of its own error. */
+    private fun refused(failure: Throwable): Boolean =
+        generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }
+            .take(MAX_CAUSES)
+            .any { it is StorageBusyException }
 
     private suspend fun hasMembers(type: AggregateType, schema: String): Boolean =
         leases.members(members).any { servedOf(type, schema) in it.groups }
@@ -395,6 +403,9 @@ class AccessWalking(
     companion object {
         /** The renewals of a walk's lease within its time to live, at the least. */
         private const val LEASE_RENEWALS = 3
+
+        /** How deep a failure's causes are searched for a refusal. */
+        private const val MAX_CAUSES = 8
         private val logger = KotlinLogging.logger {}
     }
 }
@@ -409,7 +420,7 @@ class AccessWalking(
  * - **Giving way**: once a [PERIOD] ([sense]), the share halves when the log store's writes pressed, and else comes
  *   back by an eighth of [most]: additive increase, multiplicative decrease, never below an eighth of [most], so the
  *   walk ends in bounded time however long the writes press.
- * - **Pages**: as many aggregates as the last pace stamps in an interval ([pageOf]).
+ * - **Pages**: as many aggregates as the last pace stamps in an interval ([pageOf]), one to learn the pace from.
  */
 internal class WalkPace(
     private val most: Double,
@@ -455,9 +466,14 @@ internal class WalkPace(
         return pause
     }
 
-    /** The aggregates of a page: as many as the last pace stamps in [interval], from 1 to [batch]. */
-    fun pageOf(batch: Int, interval: Duration): Int =
-        cycle?.takeIf { it.isPositive() }?.let { (interval / it).toInt().coerceIn(1, batch) } ?: batch
+    /**
+     * The aggregates of a page: as many as the last pace stamps in [interval], from 1 to [batch]; one before the first
+     * aggregate, whose cost says what the pace is, and [batch] when the last one cost nothing to measure.
+     */
+    fun pageOf(batch: Int, interval: Duration): Int {
+        val last = cycle ?: return 1
+        return if (last.isPositive()) (interval / last).toInt().coerceIn(1, batch) else batch
+    }
 
     override fun toString(): String = "WalkPace(share=$share, most=$most, rate=$rate)"
 

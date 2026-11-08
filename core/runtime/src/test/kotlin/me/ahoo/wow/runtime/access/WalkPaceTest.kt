@@ -74,7 +74,8 @@ class WalkPaceTest {
     @Test
     fun `a page holds what the last pace stamps in an interval, from one to the batch`() {
         val pace = WalkPace(0.1, 1_000_000)
-        pace.pageOf(100, 5.seconds).assert().isEqualTo(100)
+        // One aggregate first, whose cost says what the pace is.
+        pace.pageOf(100, 5.seconds).assert().isEqualTo(1)
         // 10 ms stamping, 90 ms waiting: 50 in five seconds.
         pace.pause(10.milliseconds)
         pace.pageOf(100, 5.seconds).assert().isEqualTo(50)

@@ -47,6 +47,7 @@ import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -119,15 +120,20 @@ class AccessWalkingTest {
             val walking = walking(log)
             walking.maintain().assert().isFalse()
             ids.forEach { history(log, it).assert().containsExactly(access("legal"), access("legal")) }
-            val walk = AccessWalk(AccessSchema.of(model), heads(log), log.aggregates(type, null, 2).next, 3, true)
+            // One aggregate to learn the pace from, then a page of two, then the empty page after a full one.
+            val walk = AccessWalk(AccessSchema.of(model), heads(log), log.aggregates(type, null, 3).next, 3, true)
             log.walk(type).assert().isEqualTo(walk)
             walking.walks().assert().isEqualTo(mapOf(type to walk))
-            observed.filterIsInstance<ObservedEvent.AccessWalked>().map { it.aggregates }.assert().containsExactly(2, 1)
+            observed.filterIsInstance<ObservedEvent.AccessWalked>().map { it.aggregates }.assert().containsExactly(
+                1,
+                2,
+                0
+            )
             observed.filterIsInstance<ObservedEvent.AccessStamped>().filter { it.cause == Cause.WALK }.sumOf { it.streams }
                 .assert().isEqualTo(6)
             // A completed walk is not walked again.
             walking.maintain().assert().isFalse()
-            observed.filterIsInstance<ObservedEvent.AccessWalked>().assert().hasSize(2)
+            observed.filterIsInstance<ObservedEvent.AccessWalked>().assert().hasSize(3)
         }
 
     @Test
@@ -291,7 +297,11 @@ class AccessWalkingTest {
         override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
             if (refusals > 0) {
                 refusals--
-                throw StorageBusyException("The log store runs as many queries as it allows at once.")
+                // As a query bulkhead refuses: its own error, the store's refusal as the cause.
+                throw IllegalStateException(
+                    "Retry later.",
+                    StorageBusyException("The log store runs as many queries as it allows at once."),
+                )
             }
             replayed += ref.id
             return read()
@@ -369,6 +379,17 @@ class AccessWalkingTest {
     }
 
     @Test
+    fun `a failure of the gate that is no refusal fails the run`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("d-1"), "sales")
+        val broken = object : ReplayGate {
+            override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T = error("The log is down.")
+        }
+        assertThrows<IllegalStateException> { gated(log, broken).maintain() }
+        log.walk(type)!!.walked.assert().isEqualTo(0)
+    }
+
+    @Test
     fun `a walk ends however long the writes press, at an eighth of its share`(): Unit = runBlocking {
         val log = InMemoryEventLog()
         val ids = (1..6).map { "d-$it" }
@@ -407,7 +428,8 @@ class AccessWalkingTest {
             while (walking.maintain()) continue
         }
         log.walk(type)!!.completed.assert().isTrue()
-        renewals.first().assert().isLessThan(3)
+        // Pages of one and two end at one and three aggregates: a renewal at two is within the page.
+        renewals.assert().contains(2)
     }
 
     @Test
