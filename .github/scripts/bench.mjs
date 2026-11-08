@@ -3406,8 +3406,11 @@ export function walkTables(suite) {
     const pool = m.waits?.poolMax
       ? `${m.waits.poolMax.active ?? '-'} in use, ${m.waits.poolMax.pending ?? '-'} waiting of ${m.waits.poolMax.total ?? '-'}`
       : '';
+    const gc = Number.isFinite(m.cpu?.gcMillis)
+      ? ` (GC ${num(m.cpu.gcMillis, 0)} ms)`
+      : '';
     const cpu = Number.isFinite(m.cpu?.jvmCores)
-      ? `${num(m.cpu.jvmCores, 2)}, ${num(m.cpu.storeCores, 2)}`
+      ? `${num(m.cpu.jvmCores, 2)}, ${num(m.cpu.storeCores, 2)}${gc}`
       : '';
     const times = WALK.extrapolate.map(count =>
       walk && rate > 0 ? duration(count / rate) : '',

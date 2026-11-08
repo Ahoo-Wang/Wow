@@ -148,22 +148,27 @@ class WalkRun(
         runBlocking(Dispatchers.Default) {
             val seedStarted = System.nanoTime()
             val seeding = node(true)
-            try {
+            val environment = seeding.environment
+            val kept = try {
                 seed(seeding.getBean(CommandClient::class.java))
-                WalkStore.of(backend, seeding.environment).use { store ->
+                WalkStore.of(backend, environment).use { store ->
                     // The first node walks the history it wrote: a node starting after it finds it walked.
                     walked(store, seedStarted) { false }
-                    val kept = when (targetMode) {
+                    when (targetMode) {
                         TARGETS_ALL -> emptyList()
                         TARGETS_FIRST -> store.inWalkOrder(FIRST_ACCOUNTS, last = false)
                         else -> store.inWalkOrder(aggregates / LAST_SHARE, last = true)
                     }
-                    targets = kept.takeIf { it.isNotEmpty() }
-                    store.unstamp(kept, walkRecord = !walks)
-                    store.settle()
                 }
             } finally {
                 seeding.close()
+            }
+            // After the first node is gone, its leases released: a store this busy would cost it some to expiry, which
+            // the second node would then wait out or take over inside its measured window.
+            WalkStore.of(backend, environment).use { store ->
+                targets = kept.takeIf { it.isNotEmpty() }
+                store.unstamp(kept, walkRecord = !walks)
+                store.settle()
             }
             val seedSeconds = (System.nanoTime() - seedStarted) / NANOS_PER_SECOND
             val started = System.nanoTime()
@@ -296,7 +301,7 @@ class WalkRun(
 
     /** [rate] deposits a second over the warm-up and the measured window, open loop; the measured ones' latencies. */
     private suspend fun deposits(client: CommandClient): Map<String, Any?> {
-        val latencies = ConcurrentLinkedQueue<Long>()
+        val latencies = ConcurrentLinkedQueue<Pair<Int, Long>>()
         val failures = ConcurrentHashMap<String, LongAdder>()
         val permits = Semaphore(IN_FLIGHT)
         val total = rate * (warmUpSeconds + measureSeconds)
@@ -311,7 +316,7 @@ class WalkRun(
                 launch {
                     try {
                         deposit(client, index)?.let { (latency, failure) ->
-                            latencies += latency
+                            latencies += index to latency
                             failure?.let { failures.computeIfAbsent(it) { LongAdder() }.increment() }
                         }
                     } finally {
@@ -320,7 +325,7 @@ class WalkRun(
                 }
             }
         }
-        val measured = latencies.toLongArray().apply { sort() }
+        val measured = latencies.map { it.second }.toLongArray().apply { sort() }
         fun percentile(p: Double): Double? =
             measured.takeIf { it.isNotEmpty() }?.let { it[((it.size - 1) * p / PERCENT).toInt()] / NANOS_PER_MILLI }
         return mapOf(
@@ -332,8 +337,19 @@ class WalkRun(
                 "p999" to percentile(P999),
                 "max" to measured.lastOrNull()?.let { it / NANOS_PER_MILLI },
             ),
+            "perSecond" to perSecond(latencies),
         )
     }
+
+    /** Each measured second's deposits, by when each was due: how many, and their slowest, so a stall shows when it was. */
+    private fun perSecond(latencies: Collection<Pair<Int, Long>>): List<Map<String, Any?>> =
+        latencies.groupBy { (index, _) -> index / rate - warmUpSeconds }.toSortedMap().map { (second, deposits) ->
+            mapOf(
+                "second" to second,
+                "ops" to deposits.size,
+                "maxMs" to deposits.maxOf { it.second } / NANOS_PER_MILLI,
+            )
+        }
 
     /**
      * Deposit [index], to the account it falls on: its latency and why it failed, or null when it is of the warm-up.
@@ -591,7 +607,7 @@ class Waits(private val store: WalkStore, private val pool: (() -> Map<String, I
  * costs the run nothing it measures; null where a reading fails (no Docker, no cgroup v2).
  */
 class CpuUse(private val container: String) {
-    private class Reading(val nanos: Long, val jvm: Double?, val store: Double?)
+    private class Reading(val nanos: Long, val jvm: Double?, val store: Double?, val gcMillis: Long, val gcs: Long)
 
     private var from: Reading? = null
 
@@ -604,10 +620,25 @@ class CpuUse(private val container: String) {
         val end = read()
         val seconds = (end.nanos - start.nanos) / NANOS_PER_SECOND
         fun cores(of: (Reading) -> Double?): Double? = of(end)?.let { last -> of(start)?.let { (last - it) / seconds } }
-        return mapOf("windowSeconds" to seconds, "jvmCores" to cores { it.jvm }, "storeCores" to cores { it.store })
+        return mapOf(
+            "windowSeconds" to seconds,
+            "jvmCores" to cores { it.jvm },
+            "storeCores" to cores { it.store },
+            "gcMillis" to end.gcMillis - start.gcMillis,
+            "gcs" to end.gcs - start.gcs,
+        )
     }
 
-    private fun read() = Reading(System.nanoTime(), jvmSeconds(), storeSeconds())
+    private fun read(): Reading {
+        val collectors = ManagementFactory.getGarbageCollectorMXBeans()
+        return Reading(
+            System.nanoTime(),
+            jvmSeconds(),
+            storeSeconds(),
+            collectors.sumOf { it.collectionTime.coerceAtLeast(0) },
+            collectors.sumOf { it.collectionCount.coerceAtLeast(0) },
+        )
+    }
 
     private fun jvmSeconds(): Double? = (ManagementFactory.getOperatingSystemMXBean() as? OperatingSystemMXBean)
         ?.processCpuTime?.takeIf { it >= 0 }?.let { it / NANOS_PER_SECOND }
