@@ -152,6 +152,9 @@ CoSec Gateway（`cosec-gateway-server`，镜像 `ghcr.io/ahoo-wang/cosec-gateway
 - **它只写一次客户端地址。** 从 Spring Cloud Gateway 4.1 起，X-Forwarded 头过滤器只为 `trusted-proxies` 匹配的对端写入，所以只设 `for-append: false` 不起作用。`trusted-proxies: ".*"` 加上 `for-append: false`，把它接受的对端写成唯一的 `X-Forwarded-For`，替换客户端带来的值；`forwarded.enabled: false` 不发送服务会优先采用的 `Forwarded` 头。
 - **它重试丢失的连接，从不重试回答。** `Retry` 过滤器在 `IOException` 或 `TimeoutException` 时把请求重发一次，`POST` 也一样：重试带着同一个 `CoSec-Request-Id`，或客户端的 `Wow-Request-Id`，所以服务把它当作重复请求回答。`series: INFORMATIONAL` 不匹配任何最终状态，所以不会重试任何响应。连接池中的连接最多空闲 15 秒，所以很少会复用到已经消失的 Pod 的连接。
 - **它按自己 Redis 中的 CoSec 文档做决定。** 网关从 Redis 读取 CoSec 8 的文档（schema 2：平台文档，以及每个应用、每个租户各一份），这个 Redis 必须以 `maxmemory-policy noeviction` 运行：网关在启动时检查它，不满足就不启动。在流量到达之前用 `cosec-migrate publish --to-redis` 发布文档：平台文档存在之前，网关对每个路由的请求都回答 503，并报告自己未就绪。没有任何 Wow 服务连接这个 Redis。
+- **它只把身份转发给声明了的路由。** 只有指向已注册服务的路由（`lb://`），或元数据写了 `cosec-identity: true` 的路由，才会收到 `CoSec-Identity`。下面的路由指向 Kubernetes Service 的 URL，所以每条都带这个元数据；缺了它，路由后面的服务读不到调用方，以 401 回答。不要把它加到指向第三方的路由上。
+- **它不转发凭据。** 默认情况下，它会从转发的每个请求中去掉 `Authorization` 请求头、API Key 请求头、`authorization` 查询参数和 `authorization` Cookie。网关模式的服务不读取其中任何一个。
+- **它的应用端口上只暴露 Actuator 的 `health`。** 按文档做决定的网关，只要在应用端口上通过 HTTP 暴露了 `health` 以外的 Actuator 端点，就不会启动。要么像这里一样只暴露 `health`，要么用 `management.server.port` 把 Actuator 放到单独的端口上，并用网络策略保护。
 
 <!-- sample: .github/ga-e2e/gateway/gateway.yaml#settings -->
 
