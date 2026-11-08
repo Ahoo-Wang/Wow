@@ -17,12 +17,14 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.admission.AdaptiveLimitOptions
+import me.ahoo.wow.query.admission.AdaptiveQueryLimit
 import me.ahoo.wow.query.admission.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StorePool
+import me.ahoo.wow.spi.store.WritePressureSample
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -113,6 +115,24 @@ class QueryStoresTest {
         val type = AggregateType("shop", "order")
         QueryStores().unpinned(type).assert().isEqualTo(UnpinnedEvents.ALLOW)
         QueryStores(unpinned = { UnpinnedEvents.REFUSE }).unpinned(type).assert().isEqualTo(UnpinnedEvents.REFUSE)
+    }
+
+    @Test
+    fun `a store's writes should press when its adaptive bound's last period pressed`() {
+        val bulkhead = QueryBulkhead("main", 2)
+        var waiting = 1
+        val limit = AdaptiveQueryLimit(bulkhead, { WritePressureSample(10, null, null, waiting) })
+        val bounded = QueryStores(mapOf("main" to bulkhead, "reports" to QueryBulkhead("reports", 1)), listOf(limit))
+        bounded.pressed("main").assert().isFalse()
+        limit.evaluate()
+        bounded.pressed("main").assert().isTrue()
+        // A store whose bound does not adapt, another, or none: nothing presses.
+        bounded.pressed("reports").assert().isFalse()
+        bounded.pressed("other").assert().isFalse()
+        bounded.pressed(null).assert().isFalse()
+        waiting = 0
+        limit.evaluate()
+        bounded.pressed("main").assert().isFalse()
     }
 
     /** A store; an `acme` one is queried, over a pool of 24 connections its appends share: 6 at once, up to 12. */

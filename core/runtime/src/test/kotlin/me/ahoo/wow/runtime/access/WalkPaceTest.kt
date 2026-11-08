@@ -81,6 +81,8 @@ class WalkPaceTest {
         pace.pageOf(20, 5.seconds).assert().isEqualTo(20)
         pace.pause(1.seconds)
         pace.pageOf(100, 5.seconds).assert().isEqualTo(1)
+        // A stamping that took no time and no wait says nothing of the pace: a whole batch.
+        WalkPace(1.0, Int.MAX_VALUE).apply { pause(Duration.ZERO) }.pageOf(100, 5.seconds).assert().isEqualTo(100)
         pace.toString().assert().isEqualTo("WalkPace(share=0.1, most=0.1, rate=1000000)")
     }
 

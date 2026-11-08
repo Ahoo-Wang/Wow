@@ -45,8 +45,10 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedEvent.AccessStamped.Cause
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -246,7 +248,7 @@ class AccessWalkingTest {
 
     private fun walkingOf(
         log: EventLog,
-        leases: InMemoryLeaseStore = InMemoryLeaseStore(),
+        leases: LeaseStore = InMemoryLeaseStore(),
         options: AccessStampOptions = this.options,
     ) = AccessWalking(
         "office",
@@ -378,6 +380,34 @@ class AccessWalkingTest {
         }
         walking.share(type)!!.assert().isBetween(1.0 / 8, 0.5)
         ids.forEach { history(log, it).assert().containsExactly(access("sales")) }
+    }
+
+    @Test
+    fun `a page that takes longer than a third of the lease renews the lease within it`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        unstamped(log, listOf("d-1", "d-2", "d-3"), "sales")
+        val leases = InMemoryLeaseStore()
+        // The aggregates the walk had stamped at each renewal of its lease.
+        val renewals = CopyOnWriteArrayList<Int>()
+        val renewing = object : LeaseStore by leases {
+            override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration) =
+                leases.renew(group, partitions, owner, ttl).also {
+                    renewals += observed.count { it is ObservedEvent.AccessStamped && it.cause == Cause.WALK }
+                }
+        }
+        // 10 aggregates a second, a page of three: a third of the 240 ms lease passes within the page.
+        val options = AccessStampOptions(
+            walkBatch = 3,
+            walkRate = 10,
+            interval = 200.milliseconds,
+            leaseTtl = 240.milliseconds,
+        )
+        val walking = walkingOf(log, options = options, leases = renewing)
+        withTimeout(10.seconds) {
+            while (walking.maintain()) continue
+        }
+        log.walk(type)!!.completed.assert().isTrue()
+        renewals.first().assert().isLessThan(3)
     }
 
     @Test
