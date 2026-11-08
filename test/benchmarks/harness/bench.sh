@@ -21,6 +21,8 @@
 #   bench.sh saturate [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
+#   bench.sh measure  [--backend=postgres] [--runs=200] [--warm-up-runs=20] [options]   (the access scale check: one
+#                      node's dataset queries on ClickHouse, each timed; the arm's access mode in SPRING_APPLICATION_JSON)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh inspect  --reuse [the session's options] [--sql=<file>]   (the servers' RSS and the store, after a session's runs)
 #   bench.sh down
@@ -73,6 +75,10 @@ READY=()
 # The session `up` leaves for runs with --reuse: its settings, servers and targets.
 SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
+# The access scale check's ClickHouse (bench.sh measure): the image the tests run, on a port of its own.
+CLICKHOUSE=wow-e2e-bench-clickhouse
+CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:24.8.14.39-alpine
+CLICKHOUSE_URL=http://127.0.0.1:18123
 
 usage() {
   sed -n '14,53p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -164,6 +170,7 @@ down() {
     for _ in $(seq 1 150); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
   done
   compose down -v --remove-orphans >/dev/null 2>&1 || true
+  docker rm -f "$CLICKHOUSE" >/dev/null 2>&1 || true
 }
 
 # The --name=value options, one name=value per line in OPTIONS (bash 3.2 has no associative arrays); the ones the
@@ -571,6 +578,84 @@ component() {
   log "results in $OUT"
 }
 
+# One statement $1 on the scale check's ClickHouse, its answer on stdout.
+clickhouse() { curl -sS --fail-with-body -u bench:bench "$CLICKHOUSE_URL/" --data-binary "$1"; }
+
+# The access scale check (D390 C4's, test/benchmarks/README.md): on fresh containers, ClickHouse seeded with 100,000
+# accounts' access records in each of two tenants and a dataset of 1,000,000 rows over them in each
+# (measure/dataset-access.sql), and one node of the server, whose access mode the arm gives (SPRING_APPLICATION_JSON:
+# benchmark.access `claims`, no policy of the accounts, or `dataset`, one an analyst's claims pass for a tenth of them).
+# Each query of the dataset (a list page, a count, an aggregation) is sent --warm-up-runs times, then --runs times
+# timed by curl; the times, one answer of each and ClickHouse's query log of the timed ones go to --out, with
+# measure.json naming them.
+measure() {
+  parse "$@"
+  check_java
+  BACKEND=$(opt backend postgres)
+  HEAP=$(opt heap 1g)
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-measure")
+  mkdir -p "$OUT/config/wow/dataset"
+  local runs warm
+  runs=$(opt runs 200)
+  warm=$(opt warm-up-runs 20)
+  trap down EXIT
+  down
+  log "starting $BACKEND and ClickHouse"
+  OPTIONS="${OPTIONS}no-bus=true
+"
+  stores_up "$BACKEND"
+  pin_containers "$BACKEND"
+  docker run -d --name "$CLICKHOUSE" -p 18123:8123 --ulimit nofile=262144:262144 \
+    -e CLICKHOUSE_USER=bench -e CLICKHOUSE_PASSWORD=bench "$CLICKHOUSE_IMAGE" >/dev/null
+  local store; store=$(opt store-cpus "$(opt server-cpus "")")
+  if [ -n "$store" ]; then docker update --cpuset-cpus "$store" "$CLICKHOUSE" >/dev/null; fi
+  local attempt
+  for attempt in $(seq 1 150); do
+    if clickhouse "SELECT 1" >/dev/null 2>&1; then break; fi
+    sleep 0.2
+  done
+  log "seeding ClickHouse"
+  local statement
+  while IFS= read -r -d ';' statement; do
+    statement=$(printf '%s\n' "$statement" | grep -v '^--' | sed '/^[[:space:]]*$/d')
+    if [ -n "$statement" ]; then clickhouse "$statement" >/dev/null; fi
+  done <"$HARNESS/measure/dataset-access.sql"
+  cp "$HARNESS/measure/transfer.account_rows.json" "$OUT/config/wow/dataset/"
+  OPTIONS="${OPTIONS}server-args=$(opt server-args "") --wow.transport=none --wow.clickhouse.endpoint=$CLICKHOUSE_URL --wow.clickhouse.username=bench --wow.clickhouse.password=bench --wow.query.dataset.config-directory=$OUT/config
+"
+  start_node 1
+  await_node 1
+  local url="${TARGETS[0]}/wow/dataset/transfer/account_rows/query"
+  local -a shapes=(list count aggregate)
+  local -a bodies=(
+    '{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"created_at","direction":"desc"}],"limit":50}'
+    '{"kind":"count","filter":{"op":"match-all"}}'
+    '{"kind":"aggregate","filter":{"op":"match-all"},"groupBy":[{"type":"terms","field":"branch","alias":"branch"}],"metrics":[{"type":"count","alias":"rows"},{"type":"numeric","function":"sum","expression":{"type":"field","field":"amount"},"alias":"amount"}],"sort":[{"field":"rows","direction":"desc"}]}'
+  )
+  local index i since
+  for index in "${!shapes[@]}"; do
+    local shape=${shapes[$index]} body=${bodies[$index]}
+    log "$shape: $warm untimed, then $runs timed"
+    for i in $(seq 1 "$warm"); do
+      curl -s -o /dev/null -H 'Content-Type: application/json' --data-binary "$body" "$url"
+    done
+    since=$(clickhouse "SELECT toUnixTimestamp64Milli(now64(3))")
+    for i in $(seq 1 "$runs"); do
+      curl -s -o /dev/null -w '%{http_code} %{time_total}\n' -H 'Content-Type: application/json' \
+        --data-binary "$body" "$url" >>"$OUT/$shape.times"
+    done
+    curl -s -H 'Content-Type: application/json' --data-binary "$body" "$url" >"$OUT/$shape.json"
+    clickhouse "SYSTEM FLUSH LOGS" >/dev/null
+    clickhouse "SELECT query_duration_ms, read_rows, read_bytes, memory_usage FROM system.query_log
+      WHERE type = 'QueryFinish' AND event_time_microseconds >= fromUnixTimestamp64Milli(toInt64($since))
+        AND query LIKE '%account_rows%' AND query NOT LIKE '%system.query_log%'
+      FORMAT JSONEachRow" >"$OUT/$shape.log.jsonl"
+  done
+  printf '{"schema":"wow-e2e-bench/measure/1","measure":"dataset-access","runs":%s,"warmUpRuns":%s,"shapes":["list","count","aggregate"]}\n' \
+    "$runs" "$warm" >"$OUT/measure.json"
+  log "results in $OUT"
+}
+
 command=${1:-}
 if [ -z "$command" ]; then usage; fi
 shift
@@ -579,6 +664,7 @@ case "$command" in
   run) run "$@" ;;
   saturate) saturate "$@" ;;
   component) component "$@" ;;
+  measure) measure "$@" ;;
   up) up "$@" ;;
   inspect) inspect "$@" ;;
   down) down ;;

@@ -1,0 +1,15 @@
+{
+  "title": "Account rows",
+  "identity": "id",
+  "eventTime": "created_at",
+  "scope": { "tenant": "tenant_id", "access": { "aggregate": "transfer.account", "id": "account_id" } },
+  "storage": { "table": "account_rows" },
+  "fields": {
+    "id": { "types": ["string"], "nullable": false },
+    "tenant_id": { "types": ["string"], "nullable": false },
+    "account_id": { "types": ["string"], "nullable": false },
+    "branch": { "types": ["string"], "nullable": false },
+    "amount": { "types": ["decimal"], "nullable": false },
+    "created_at": { "types": ["string"], "semantic": { "type": "temporal-date" }, "nullable": false }
+  }
+}

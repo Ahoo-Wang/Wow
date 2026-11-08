@@ -72,7 +72,9 @@ class MongoBackend {
  * Who the benchmark's clients are; outside development the host wants that said in a bean. Anonymous, unless
  * `benchmark.access` says otherwise: `claims` makes every request a teller's, a caller with a subject and a role whose
  * claims travel with each command, and `policy` also holds the accounts to an access policy the teller passes, so the
- * two compare the write path's cost under a policy.
+ * two compare the write path's cost under a policy. `dataset` makes every request an analyst's, whose claims name the
+ * owners it reads, and holds the accounts to a policy that compares each account's owner with them: the access scale
+ * check's (bench.sh measure), where a dataset of the accounts' rows reads them by that comparison.
  */
 @Configuration(proxyBeanMethods = false)
 class BenchCallers {
@@ -80,6 +82,7 @@ class BenchCallers {
     fun benchCallerResolver(environment: Environment): CallerResolver =
         when (environment.getProperty(ACCESS, NONE)) {
             NONE -> CallerResolver.ANONYMOUS
+            DATASET -> CallerResolver { ANALYST }
             else -> CallerResolver { TELLER }
         }
 
@@ -90,11 +93,25 @@ class BenchCallers {
         readWrite { caller -> anyOf(AccessAttribute.OWNER eq caller.subject, allowIf(caller.hasRole("teller"))) }
     }
 
+    @Bean
+    @ConditionalOnProperty(ACCESS, havingValue = DATASET)
+    fun accountOwnersAccess(): AccessPolicy<AccountState> = accessPolicy {
+        // The analyst owns no account: the second comparison decides, one of a disjunction, as a policy's often is.
+        readWrite { caller ->
+            anyOf(AccessAttribute.OWNER eq caller.subject, AccessAttribute.OWNER isIn caller.claims(OWNERS))
+        }
+    }
+
     private companion object {
         const val ACCESS = "benchmark.access"
         const val NONE = "none"
         const val POLICY = "policy"
+        const val DATASET = "dataset"
+        const val OWNERS = "owners"
         val TELLER = Caller.of(subject = "bench-teller", attributes = mapOf("roles" to listOf("teller")))
+
+        /** Reads the accounts of 10 of the scale check's 100 owners (`u0` to `u9`): a tenth of them. */
+        val ANALYST = Caller.of(subject = "bench-analyst", attributes = mapOf(OWNERS to (0 until 10).map { "u$it" }))
     }
 }
 

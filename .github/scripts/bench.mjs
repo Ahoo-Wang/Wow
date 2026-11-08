@@ -118,6 +118,11 @@ const ACCESS_CLAIMS_MONGO = withProps(HEAD_MONGO, 'claims', {
 const ACCESS_POLICY_MONGO = withProps(HEAD_MONGO, 'policy', {
   'benchmark.access': 'policy',
 });
+// The dataset read path's cost under an access policy (bench.sh measure): with one an analyst's claims pass for a tenth
+// of the accounts, whose dataset rows ClickHouse then reads by a semi-join on the accounts' current access records.
+const ACCESS_DATASET_PG = withProps(HEAD_PG, 'policy', {
+  'benchmark.access': 'dataset',
+});
 // The `jdk-saturation` suites' closed-loop searches an arm, in turn (ABBA), each from empty stores: the arm's
 // saturation is their median, and their spread its A/A band on the runner (saturationSamples).
 const SATURATION_SAMPLES = 4;
@@ -651,6 +656,14 @@ export const SUITES = {
     arms: [ACCESS_CLAIMS_MONGO, ACCESS_POLICY_MONGO],
     answers: 'E3 on MongoDB, as access-e3-pg.',
   },
+  'access-dataset-ch': {
+    group: 'access-dataset',
+    kind: 'measure',
+    measure: 'dataset-access',
+    arms: [ACCESS_CLAIMS_PG, ACCESS_DATASET_PG],
+    answers:
+      "What an access policy costs a dataset query (D390 C4): one node's list page, count and aggregation of a dataset of 1,000,000 rows over 100,000 accounts on ClickHouse, without a policy of the account and with one whose predicate compares each account's current owner with an analyst's claims (a tenth of them), read by a semi-join on the Sink's `_state`.",
+  },
   'jdk-e1-pg-saturation': {
     group: 'jdk-saturation',
     kind: 'paired',
@@ -725,6 +738,11 @@ function cliff(arm, answers) {
 
 // kind `component` (L1): per scenario, one run of each arm through bench.sh's `component` command.
 export const COMPONENT = { ops: 20000, warmUpOps: 2000, concurrency: 64 };
+
+// kind `measure`: rounds of one run of each arm, ABBA, through bench.sh's `measure` command, each sending every query
+// `warmUpRuns` times untimed, then `runs` times timed; a difference within the A/A band (the spread of an arm's two
+// runs) is no result (D392 ③).
+export const MEASURE = { runs: 200, warmUpRuns: 20, rounds: 2 };
 
 // The views of a flight recording the profile summarizes, and how many of each view's lines it keeps.
 export const JFR_VIEWS = [
@@ -1114,6 +1132,23 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
 export function anomalies(suite, noise = {}) {
   const thresholds = noise[noiseLabel(suite)];
   const rows = [];
+  if (suite.kind === 'measure') {
+    // A query answered other than 200: its times are not the query's, which the tables leave out.
+    for (const run of suite.runs.filter(it => it.status === 'ok')) {
+      for (const [shape, measured] of Object.entries(run.measure.shapes)) {
+        if (measured.failed > 0) {
+          rows.push({
+            suite: labelOf(suite),
+            run: run.name,
+            context: shape,
+            kind: 'failed queries',
+            detail: `${measured.failed} of ${measured.timed} answered other than 200`,
+          });
+        }
+      }
+    }
+    return rows;
+  }
   if (suite.kind === 'component') {
     // More store round trips or allocations per operation than the baseline: a regression of the core path's cost.
     for (const head of suite.runs.filter(
@@ -2012,6 +2047,7 @@ export function resolveInputs({
       'jdk',
       'jdk-saturation',
       'access',
+      'access-dataset',
     ],
     ab: ['ab'],
     head: ['head'],
@@ -2021,6 +2057,7 @@ export function resolveInputs({
     jdk: ['jdk'],
     'jdk-saturation': ['jdk-saturation'],
     access: ['access'],
+    'access-dataset': ['access-dataset'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -2401,7 +2438,10 @@ export function roundOrder(arms, round) {
 export function pairs(suite, mode = CALIBRATED) {
   // A component suite has a head and a baseline too, but no rounds, and a sessions suite runs several scenarios a
   // round: each compares in a table of its own.
-  if (['component', 'sessions'].includes(suite.kind) || suite.arms.length < 2)
+  if (
+    ['component', 'sessions', 'measure'].includes(suite.kind) ||
+    suite.arms.length < 2
+  )
     return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
@@ -3085,9 +3125,146 @@ function primingLines(suite) {
   return [...lines, ''];
 }
 
+/**
+ * A `measure` run's results from bench.sh's --out [dir] (measure.json and the files it names): per query, each timed
+ * answer's milliseconds and HTTP status, the answer's size (rows, the count, groups), and ClickHouse's query log of
+ * the timed queries; undefined when measure.json is missing.
+ */
+export function readMeasure(dir) {
+  const manifest = readJsonIfThere(join(dir, 'measure.json'));
+  if (!manifest) return undefined;
+  const shapes = {};
+  for (const shape of manifest.shapes) {
+    const lines = existsSync(join(dir, `${shape}.times`))
+      ? readFileSync(join(dir, `${shape}.times`), 'utf8')
+          .split('\n')
+          .filter(Boolean)
+      : [];
+    const timed = lines.map(line => {
+      const [code, seconds] = line.trim().split(/\s+/);
+      return { code: Number(code), ms: Number(seconds) * 1000 };
+    });
+    const ok = timed.filter(it => it.code === 200).map(it => it.ms);
+    const answer = readJsonIfThere(join(dir, `${shape}.json`));
+    const log = existsSync(join(dir, `${shape}.log.jsonl`))
+      ? readFileSync(join(dir, `${shape}.log.jsonl`), 'utf8')
+          .split('\n')
+          .filter(Boolean)
+          .map(line => JSON.parse(line))
+      : [];
+    const median = values => quantile(values, 0.5);
+    shapes[shape] = {
+      timed: timed.length,
+      failed: timed.length - ok.length,
+      p50: quantile(ok, 0.5),
+      p95: quantile(ok, 0.95),
+      p99: quantile(ok, 0.99),
+      answer: Array.isArray(answer)
+        ? answer.length
+        : (answer?.count ?? answer?.list?.length ?? null),
+      clickhouse: {
+        queries: log.length,
+        durationMs: median(log.map(it => Number(it.query_duration_ms))),
+        readRows: median(log.map(it => Number(it.read_rows))),
+        readBytes: median(log.map(it => Number(it.read_bytes))),
+        memory: median(log.map(it => Number(it.memory_usage))),
+      },
+    };
+  }
+  return { runs: manifest.runs, warmUpRuns: manifest.warmUpRuns, shapes };
+}
+
+/** The [q] quantile of [values] (nearest rank), null for none. */
+export function quantile(values, q) {
+  const finite = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (finite.length === 0) return null;
+  return finite[
+    Math.min(finite.length - 1, Math.max(0, Math.ceil(q * finite.length) - 1))
+  ];
+}
+
+/**
+ * A `measure` suite's tables: per query, each arm's p50, p95 and p99 (the median of its runs'), its A/A band (the
+ * spread of its runs' p50s), the second arm's p50 against the first's, and ClickHouse's work for one query.
+ */
+export function measureTables(suite) {
+  const [a, b] = suite.arms.map(arm => arm.id);
+  const ok = suite.runs.filter(run => run.status === 'ok');
+  const shapes = [
+    ...new Set(ok.flatMap(run => Object.keys(run.measure.shapes))),
+  ];
+  const of = (arm, shape, key) =>
+    ok
+      .filter(run => run.arm === arm)
+      .map(run => run.measure.shapes[shape]?.[key])
+      .filter(Number.isFinite);
+  const med = values => quantile(values, 0.5);
+  const lines = [
+    `Each query sent ${suite.warmUpRuns ?? '?'} times untimed, then ${suite.measureRuns ?? '?'} times timed (curl's total time), a run of each arm a round, ABBA.`,
+    '',
+    `| Query | Arm | p50 | p95 | p99 | A/A band | Failed | Answer |`,
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const shape of shapes) {
+    for (const arm of [a, b]) {
+      const p50s = of(arm, shape, 'p50');
+      const answer = ok.find(run => run.arm === arm)?.measure.shapes[shape]
+        ?.answer;
+      lines.push(
+        `| ${shape} | ${arm} | ${ms(med(p50s))} | ${ms(med(of(arm, shape, 'p95')))} | ${ms(med(of(arm, shape, 'p99')))} | ${p50s.length > 1 ? `${num(spread(p50s) * 100)}%` : '-'} | ${of(arm, shape, 'failed').reduce((x, y) => x + y, 0)} | ${answer ?? '-'} |`,
+      );
+    }
+  }
+  lines.push(
+    '',
+    `| Query | ${b} p50 / ${a} p50 | Within the A/A band | ClickHouse ${a}: ms, rows, bytes, memory | ClickHouse ${b}: ms, rows, bytes, memory |`,
+    '| --- | --- | --- | --- | --- |',
+  );
+  for (const shape of shapes) {
+    const first = of(a, shape, 'p50');
+    const second = of(b, shape, 'p50');
+    const ratio = med(second) / med(first);
+    const band = Math.max(spread(first), spread(second));
+    const clickhouse = arm => {
+      const work = ok
+        .filter(run => run.arm === arm)
+        .map(run => run.measure.shapes[shape]?.clickhouse)
+        .filter(Boolean);
+      const m = key => med(work.map(it => it[key]).filter(Number.isFinite));
+      return `${num(m('durationMs'), 0)} ms, ${num(m('readRows'), 0)}, ${num(m('readBytes'), 0)}, ${num(m('memory'), 0)}`;
+    };
+    lines.push(
+      `| ${shape} | ${Number.isFinite(ratio) ? `×${num(ratio, 2)}` : '-'} | ${Number.isFinite(ratio) ? (Math.abs(ratio - 1) <= band ? 'yes: no conclusion' : 'no') : '-'} | ${clickhouse(a)} | ${clickhouse(b)} |`,
+    );
+  }
+  return lines;
+}
+
 /** The Markdown summary of one suite. */
 export function renderSuite(suite) {
   const definition = SUITES[suite.name];
+  if (suite.kind === 'measure') {
+    const lines = [
+      `## ${labelOf(suite)}`,
+      '',
+      definition?.answers ?? '',
+      '',
+      `Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`,
+      '',
+      ...suite.arms.map(
+        arm =>
+          `- \`${arm.id}\`: ${arm.props ? propsText(arm.props) : 'as built'}`,
+      ),
+      '',
+      ...measureTables(suite),
+      '',
+    ];
+    const found = anomalyTable(anomalies(suite));
+    if (found.length > 0) lines.push('Anomalies:', '', ...found, '');
+    if (suite.failures > 0)
+      lines.push(`**${suite.failures} run(s) failed**; see the job log.`, '');
+    return `${lines.join('\n')}\n`;
+  }
   const lines = [
     `## ${labelOf(suite)}${suite.aa ? ' (A/A: head against head)' : ''}`,
     '',
@@ -3517,7 +3694,7 @@ export function runSuite(name, options) {
             },
           ]
         : pairedArms
-      : definition.kind === 'sessions'
+      : definition.kind === 'sessions' || definition.kind === 'measure'
         ? definition.arms
         : definition.kind === 'component'
           ? installs.base && !aa
@@ -3863,6 +4040,37 @@ export function runSuite(name, options) {
           },
         );
         run.profile = jfrViews(join(out, run.dir));
+        save();
+      }
+    }
+  } else if (definition.kind === 'measure') {
+    suite.measureRuns = MEASURE.runs;
+    suite.warmUpRuns = MEASURE.warmUpRuns;
+    for (let round = 0; round < Math.max(rounds, MEASURE.rounds); round++) {
+      for (const arm of roundOrder(arms, round)) {
+        const runName = `${round + 1}-${arm.id}`;
+        const dir = join(out, runName);
+        const status = bench(
+          benchPath,
+          [
+            'measure',
+            `--backend=${arm.backend}`,
+            `--runs=${MEASURE.runs}`,
+            `--warm-up-runs=${MEASURE.warmUpRuns}`,
+            ...(cpuset.server ? [`--server-cpus=${cpuset.server}`] : []),
+            `--out=${dir}`,
+          ],
+          arm.props,
+        );
+        const run = { name: runName, arm: arm.id, round, status: 'failed' };
+        const measured = status === 0 ? readMeasure(dir) : undefined;
+        if (measured) {
+          run.status = 'ok';
+          run.measure = measured;
+        } else {
+          suite.failures++;
+        }
+        suite.runs.push(run);
         save();
       }
     }
