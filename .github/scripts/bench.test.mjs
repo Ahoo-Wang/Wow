@@ -18,7 +18,6 @@ import { test } from 'node:test';
 import {
   anomalies,
   MEASURE,
-  measureTables,
   quantile,
   readMeasure,
   aaSpread,
