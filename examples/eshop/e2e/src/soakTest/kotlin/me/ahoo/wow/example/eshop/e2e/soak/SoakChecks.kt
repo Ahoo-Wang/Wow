@@ -113,21 +113,24 @@ class SoakChecks(
     }
 
     /**
-     * Tracks each lease without a live owner; one still without after [OWNERLESS_LIMIT] is a stall, reported once with
-     * a thread dump of the context's nodes, and closed when the partition has an owner again.
+     * Tracks each lease that needs an owner ([LeaseLiveness]) and has no live one; one still without after
+     * [OWNERLESS_LIMIT] is a stall, reported once with a thread dump of the context's nodes, and closed when the
+     * partition has an owner again or needs none any more.
      */
     private fun sampleLeases(database: SoakDatabase) {
         val now = System.currentTimeMillis()
-        database.leases().forEach { (key, lease) ->
-            val id = "${database.context}|$key"
+        // The leases first: a walk is completed before its lease is released, so a released lease read here finds
+        // its walk completed.
+        val leases = database.leases()
+        val required = LeaseLiveness.requiringOwner(leases, database.walksDue(), database::walkLeaseGroup)
+        val context = "${database.context}|"
+        unowned.keys.filter { it.startsWith(context) && it.removePrefix(context) !in required }
+            .forEach { closeStall(it, now, owner = null) }
+        required.forEach { (key, lease) ->
+            val id = "$context$key"
             val (owner, expiresAt) = lease
             if (expiresAt > now) {
-                unowned.remove(id)
-                if (stalled.remove(id)) {
-                    stalls.lastOrNull { it["lease"] == id }?.set("ended", now)
-                    stalls.lastOrNull { it["lease"] == id }?.set("owner", owner)
-                    log("lease $id has an owner again: $owner")
-                }
+                closeStall(id, now, owner)
                 return@forEach
             }
             invariants.partitionsOwned.check()
@@ -152,6 +155,16 @@ class SoakChecks(
                 invariants.partitionsOwned.violate(stall)
                 log("lease $id has had no owner since $since (last $owner); thread dumps ${dumps.map { it.name }}")
             }
+        }
+    }
+
+    /** The lease [id] waits for no owner any more: [owner] holds it, or (null) it needs none. */
+    private fun closeStall(id: String, now: Long, owner: String?) {
+        unowned.remove(id)
+        if (stalled.remove(id)) {
+            stalls.lastOrNull { it["lease"] == id }?.set("ended", now)
+            stalls.lastOrNull { it["lease"] == id }?.set("owner", owner)
+            log(if (owner != null) "lease $id has an owner again: $owner" else "lease $id needs no owner any more")
         }
     }
 
