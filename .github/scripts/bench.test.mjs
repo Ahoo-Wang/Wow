@@ -17,6 +17,10 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   anomalies,
+  MEASURE,
+  measureTables,
+  quantile,
+  readMeasure,
   aaSpread,
   anomaliesOf,
   AXON_INSTALL,
@@ -371,7 +375,17 @@ if (process.env.SPRING_APPLICATION_JSON?.includes('bench.signals.enabled')) {
 }
 // The head is the build without --install, the baseline the one with it.
 const head = !opt('install');
-if (command === 'saturate') {
+if (command === 'measure') {
+  // The policy's arm answers each query in 12 ms, the other in 10; one of the policy's list answers fails.
+  const policy = (process.env.SPRING_APPLICATION_JSON ?? '').includes('"dataset"');
+  fs.writeFileSync(out + '/measure.json', JSON.stringify({ runs: 4, warmUpRuns: 1, shapes: ['list', 'count'] }));
+  const seconds = policy ? '0.012' : '0.010';
+  fs.writeFileSync(out + '/list.times', ['200', '200', '200', policy ? '500' : '200'].map(code => code + ' ' + seconds).join('\\n') + '\\n');
+  fs.writeFileSync(out + '/count.times', ['200 ' + seconds, '200 ' + seconds].join('\\n') + '\\n');
+  fs.writeFileSync(out + '/list.json', JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ id: 'r' + i }))));
+  fs.writeFileSync(out + '/count.json', JSON.stringify({ count: policy ? 100000 : 1000000 }));
+  fs.writeFileSync(out + '/list.log.jsonl', JSON.stringify({ query_duration_ms: '4', read_rows: '1000', read_bytes: '20000', memory_usage: '1048576' }) + '\\n');
+} else if (command === 'saturate') {
   // FAKE_STALLED_SATURATION names a label whose search stalls at concurrency 1.
   const stalled = opt('label') === process.env.FAKE_STALLED_SATURATION;
   fs.writeFileSync(out + '/saturation.json', JSON.stringify(stalled ? { saturationThroughput: 40, saturationConcurrency: 1 } : { saturationThroughput: 150, saturationConcurrency: 16 }));
@@ -491,6 +505,70 @@ test('the access suites pair the head with teller callers, without and with a po
       [{ 'benchmark.access': 'claims' }, { 'benchmark.access': 'policy' }],
     );
   }
+});
+
+test('the access-dataset suite times each dataset query of both arms, ABBA, and judges them by the A/A band', () => {
+  assert.deepEqual(suitesOf('access-dataset'), ['access-dataset-ch']);
+  assert.deepEqual(
+    SUITES['access-dataset-ch'].arms.map(arm => arm.props),
+    [{ 'benchmark.access': 'claims' }, { 'benchmark.access': 'dataset' }],
+  );
+  const dir = mkdtempSync(join(tmpdir(), 'bench-'));
+  const benchPath = fakeBench(dir);
+  const suite = runSuite('access-dataset-ch', {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    out: join(dir, 'results', 'access-dataset-ch'),
+  });
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.status]),
+    [
+      ['1-claims', 'ok'],
+      ['1-policy', 'ok'],
+      ['2-policy', 'ok'],
+      ['2-claims', 'ok'],
+    ],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').trim().split('\n');
+  assert.equal(calls.length, 4);
+  for (const call of calls)
+    assert.match(
+      call,
+      new RegExp(
+        `^measure --backend=postgres --runs=${MEASURE.runs} --warm-up-runs=${MEASURE.warmUpRuns} `,
+      ),
+    );
+  assert.match(calls[1], /"benchmark.access":"dataset"/);
+  const list = suite.runs[1].measure.shapes.list;
+  assert.equal(list.timed, 4);
+  assert.equal(list.failed, 1);
+  assert.equal(list.p50, 12);
+  assert.equal(list.answer, 50);
+  assert.equal(list.clickhouse.readRows, 1000);
+  assert.equal(suite.runs[0].measure.shapes.count.answer, 1000000);
+  assert.equal(suite.runs[0].measure.shapes.count.clickhouse.queries, 0);
+  const text = renderSuite(suite);
+  assert.match(
+    text,
+    /\| list \| claims \| 10\.0 ms \| 10\.0 ms \| 10\.0 ms \| 0\.0% \| 0 \| 50 \|/,
+  );
+  assert.match(text, /\| list \| policy \| 12\.0 ms .* \| 2 \| 50 \|/);
+  assert.match(text, /\| count \| ×1\.20 \| no \|/);
+  // The policy's failed list answers, one a run.
+  assert.deepEqual(
+    anomalies(suite).map(row => [row.run, row.context, row.kind]),
+    [
+      ['1-policy', 'list', 'failed queries'],
+      ['2-policy', 'list', 'failed queries'],
+    ],
+  );
+  assert.match(text, /Anomalies:/);
+  assert.equal(readMeasure(join(dir, 'nothing')), undefined);
+  assert.equal(quantile([], 0.5), null);
+  assert.equal(quantile([3, 1, 2], 0.99), 3);
 });
 
 test('the jdk-saturation suites take closed-loop samples alone, ABBA, and judge them by their A/A spread', () => {
