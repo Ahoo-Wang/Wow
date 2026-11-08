@@ -41,13 +41,32 @@ outline: deep
 | `title` | 数据集叫什么 |
 | `identity` | 标识一行的列 |
 | `eventTime` | 相对时间过滤默认读取的列 |
-| `scope` | 每一行的租户、所有者和空间所在的列，以及可选的标签：只有作用域包含某一行的调用方才能看到它。改用 `"platform": true` 则表示每个租户都能读取的数据集 |
+| `scope` | 每一行的租户、所有者和空间所在的列：只有作用域包含某一行的调用方才能看到它。改用 `"platform": true` 则表示每个租户都能读取的数据集。`access` 指明每一行属于哪个聚合，此时由该聚合的访问策略决定能读哪些行（[见下文](#rows-of-an-aggregate-with-an-access-policy)） |
 | `storage` | 后端的绑定：在 ClickHouse 上，是它读取的 `table` |
 | `fields` | 每一列：它的 `types`、`nullable`、可选的 `semantic` 类型、`enum` 值和 `description` |
 
 字段也可以用 `"sensitive": {"level": "confidential", "keepSuffix": 4}` 脱敏，与带 `@Sensitive` 的状态字段一样。
 
 工作目录中 `<wow.query.dataset.config-directory>/wow/dataset/`（默认 `config/wow/dataset/`）下的文件，优先于类路径上的同名文件，所以运维人员不用重新构建就能调整一个数据集。
+
+## 有访问策略的聚合的行 {#rows-of-an-aggregate-with-an-access-policy}
+
+如果数据集的每一行都属于某一个聚合，就在作用域里指明这个聚合，以及存放每行聚合 id 的列：
+
+<!-- sample: fragment -->
+
+```json
+"scope": { "tenant": "tenant_id", "access": { "aggregate": "shop.order", "id": "order_id" } }
+```
+
+该聚合有访问策略时，由策略的 `read` 决定能读哪些行，取代所有者和空间列：
+
+- **按聚合现在的样子。** 调用方能读某行所属聚合现在的样子时，这一行才显示，与这一行写入时记录了什么无关。在 ClickHouse 上，用的是 Sink 写入的数据库里 `<context>_<aggregate>_state` 中该聚合最新一次提交的属性，所以转移或属性变更会在 Sink 写入那次提交之后反映到数据集里。
+- **一个聚合的行要么全显示，要么全不显示。** 策略的整个谓词按聚合判定，从不按某一行自己的列判定；数据集的每种操作（列表、分页、计数、聚合）读到的都是同样的行。
+- **没有属性，就没有行。** 数仓里没有某个聚合的属性时，对受策略限制的每个调用方，这个聚合的行都隐藏：Sink 还没写入的聚合，或者最后一次由预发布版写入的聚合（[升级部署](../operate/upgrades#from-a-10-0-0-pre-release)）。对某个调用方授予全部聚合的策略，让它读到所有行。
+- **服务与受信任代码。** 以服务自身身份读取的服务，以及受信任的进程内代码，不受访问策略约束，只受租户限制，与任何查询一样。
+
+id 列是 `String` 列，聚合必须是本服务的聚合：绑定到本服务没有的聚合的数据集会被拒绝。没有访问策略的聚合，其行仍由所有者和空间列决定，与任何数据集一样。
 
 ## 行从哪里来 {#where-the-rows-come-from}
 

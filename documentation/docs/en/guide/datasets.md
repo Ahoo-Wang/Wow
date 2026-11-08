@@ -41,13 +41,32 @@ A dataset is a JSON file named `<context>.<dataset>.json`, on the class path und
 | `title` | What the dataset is called |
 | `identity` | The column that identifies a row |
 | `eventTime` | The column a relative-time filter reads by default |
-| `scope` | The columns of each row's tenant, owner and space, and optionally its tags: a row is shown only to callers whose scope it is in. `"platform": true` instead marks a dataset every tenant reads |
+| `scope` | The columns of each row's tenant, owner and space: a row is shown only to callers whose scope it is in. `"platform": true` instead marks a dataset every tenant reads. `access` names the aggregate each row is of, whose access policy then decides the rows ([below](#rows-of-an-aggregate-with-an-access-policy)) |
 | `storage` | The backend's binding: on ClickHouse, the `table` it reads |
 | `fields` | Each column: its `types`, `nullable`, an optional `semantic` type, `enum` values and a `description` |
 
 A field may also be masked, with `"sensitive": {"level": "confidential", "keepSuffix": 4}`, as a `@Sensitive` state field is.
 
 A file in the working directory, `<wow.query.dataset.config-directory>/wow/dataset/` (`config/wow/dataset/` by default), takes precedence over the class path's file of the same name, so an operator can adjust a dataset without a new build.
+
+## Rows of an aggregate with an access policy
+
+A dataset whose rows are each of one aggregate names that aggregate in its scope, with the column holding each row's aggregate id:
+
+<!-- sample: fragment -->
+
+```json
+"scope": { "tenant": "tenant_id", "access": { "aggregate": "shop.order", "id": "order_id" } }
+```
+
+When the aggregate has an access policy, the policy's `read` decides the rows, in place of the owner and space columns:
+
+- **By what the aggregate is now.** A row shows exactly when the caller may read its aggregate as it is now, whatever the row recorded when it was written. On ClickHouse these are the attributes of the aggregate's newest commit in the sink's `<context>_<aggregate>_state`, in the database the sink writes to, so a transfer or a changed attribute shows in the dataset once the sink has written that commit.
+- **All of an aggregate's rows or none.** The policy's whole predicate is decided on the aggregate, never on a row's own columns, and every operation of the dataset (a list, a page, a count, an aggregation) reads the same rows.
+- **No attributes, no rows.** A row is hidden from every caller the policy restricts when the warehouse holds no attributes of its aggregate: an aggregate the sink has not written yet, or one last written by a pre-release ([Upgrade a Deployment](../operate/upgrades#from-a-10-0-0-pre-release)). A policy that grants a caller every aggregate reads every row.
+- **Services and trusted code.** A service reading as itself and trusted in-process code are read by no access policy, bounded by the tenant, as for any query.
+
+The id column is a `String` column, and the aggregate one of the service's: a dataset bound to an aggregate the service does not have is refused. An aggregate without an access policy leaves the rows to the owner and space columns, as for any dataset.
 
 ## Where the rows come from
 

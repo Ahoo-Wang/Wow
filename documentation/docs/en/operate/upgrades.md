@@ -67,6 +67,13 @@ A log a released beta wrote still loads. Its streams and snapshots carry no acce
 - **Why.** A read decides by the access attributes a record carries: the policy's, or, on the events, the aggregate's owner and space of now, which each stream records so that its history follows the aggregate after a transfer ([Who sees what](../guide/event-queries#who-sees-what)). A record that carries none grants nothing, rather than showing to every caller.
 - **How to watch it finish.** The first node of the new version starts the walks on its own. `wow.access.walk.pending` reads 1 for a type until its walk completes, and 0 once it has. `wow.access.walked` counts the aggregates walked so far, and the walking node logs `The access walk of <type> is completed` when it is done ([Rebuild and Replay](./replay#access-attributes)).
 
+A dataset whose rows are an aggregate's with an access policy reads each row by the attributes of the aggregate's newest commit in the ClickHouse sink's `_state` ([Datasets](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)). The walks stamp the log, not the warehouse, so for a while some rows are hidden from every caller the policy restricts:
+
+- **Rows of an aggregate last written by a pre-release.** Its newest row in `_state` carries no attributes (`access` empty), so its rows are hidden until its next commit.
+- **After a version declares a new access attribute.** Each aggregate's newest row lacks it, so a comparison of it sees no value, until the aggregate's next commit.
+
+To show them before then, fill the warehouse again from the log: reset the sink's subscription of each such aggregate, `wow.clickhouse-sink.<aggregate>`, which writes every commit again with the attributes the log holds now, the newest of each aggregate kept in `_state` ([Rebuild and Replay](./replay#access-attributes), [Rebuild the warehouse](./clickhouse#rebuild-the-warehouse)).
+
 The TypeScript packages follow: `@ahoo-wang/wow-client` has no `ApplyTags`, `TagsApplied` or `Tags`, a record's `tags` is its `access`, and a client `wow-generator` writes types each aggregate's access attributes. Regenerate the clients; [Commands](../typescript/commands#lifecycle-commands-scope-and-space) lists the steps.
 
 A command on an aggregate outside the caller's scope is answered `404 wow.aggregate.not-found` from 10.0.0, as a read of it is; a pre-release answered `403 wow.aggregate.forbidden`, which only a creating command that names such an aggregate is still answered ([Owners, Spaces and Tags](../guide/ownership#what-the-kernel-checks)). A client that told the two apart by the status shows its "not found" answer instead.
