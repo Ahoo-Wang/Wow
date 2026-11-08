@@ -37,8 +37,9 @@ import kotlin.time.TimeSource
  * How a context stamps the histories ([AccessStamping], [AccessWalking]): at most [batch] streams in one stamp, so one
  * long history is written in statements of a bounded size, each by the version key; the last stamped attributes of at
  * most [capacity] aggregates, which spare the follower a read of the previous stream; and the walks, [walkBatch]
- * aggregates a page, at most [walkRate] a second, run every [interval] under a lease of [leaseTtl], each node a member
- * of its access schema of each type for [memberTtl] after its last run. The host configures them (`wow.access.*`).
+ * aggregates a page at most, at most [walkRate] a second and at most [walkShare] of the time, run every [interval]
+ * under a lease of [leaseTtl], each node a member of its access schema of each type for [memberTtl] after its last run.
+ * The host configures them (`wow.access.*`).
  *
  * Fields may be added: Wow builds it from the host's configuration, so the constructor is internal to Wow.
  */
@@ -48,6 +49,12 @@ class AccessStampOptions @InternalWowApi constructor(
     val capacity: Int = DEFAULT_CAPACITY,
     val walkBatch: Int = DEFAULT_WALK_BATCH,
     val walkRate: Int = DEFAULT_WALK_RATE,
+    /**
+     * The most of the time a walk takes, as a share of one connection of the log store's: after an aggregate whose
+     * stamping took `t`, the walk waits `t * (1 - walkShare) / walkShare`. While the store's writes are pressed it
+     * halves, down to an eighth of it, and comes back once they are not.
+     */
+    val walkShare: Double = DEFAULT_WALK_SHARE,
     val interval: Duration = DEFAULT_INTERVAL,
     val leaseTtl: Duration = DEFAULT_TTL,
     val memberTtl: Duration = DEFAULT_TTL,
@@ -57,6 +64,7 @@ class AccessStampOptions @InternalWowApi constructor(
         require(capacity >= 1) { "The stamping remembers at least one aggregate." }
         require(walkBatch >= 1) { "A walk stamps at least one aggregate a page." }
         require(walkRate >= 1) { "A walk stamps at least one aggregate a second." }
+        require(walkShare > 0.0 && walkShare <= 1.0) { "A walk takes a share of the time above 0 and at most 1." }
         require(interval.isPositive()) { "The walks run at a positive interval." }
         require(leaseTtl > interval) { "The walk lease outlives the interval between runs." }
         require(memberTtl > interval) { "A schema membership outlives the interval between runs." }
@@ -69,9 +77,10 @@ class AccessStampOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "AccessStampOptions(batch=$batch, capacity=$capacity, walkBatch=$walkBatch, walkRate=$walkRate, " +
-            "interval=$interval, leaseTtl=$leaseTtl, memberTtl=$memberTtl)"
+            "walkShare=$walkShare, interval=$interval, leaseTtl=$leaseTtl, memberTtl=$memberTtl)"
 
-    private fun valueFields(): List<Any> = listOf(batch, capacity, walkBatch, walkRate, interval, leaseTtl, memberTtl)
+    private fun valueFields(): List<Any> =
+        listOf(batch, capacity, walkBatch, walkRate, walkShare, interval, leaseTtl, memberTtl)
 
     companion object {
         /** The most streams one stamp writes by default. */
@@ -85,6 +94,12 @@ class AccessStampOptions @InternalWowApi constructor(
 
         /** The most aggregates a walk stamps a second by default. */
         const val DEFAULT_WALK_RATE: Int = 500
+
+        /**
+         * The most of the time a walk takes by default: the largest measured share whose walk left the commands' p99
+         * latency near a run without a walk, on MongoDB, whose commands an unbounded walk does slow down.
+         */
+        const val DEFAULT_WALK_SHARE: Double = 0.25
 
         val DEFAULT_INTERVAL: Duration = 5.seconds
         val DEFAULT_TTL: Duration = 30.seconds

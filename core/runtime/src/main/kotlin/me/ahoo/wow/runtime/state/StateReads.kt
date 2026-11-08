@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.state
 
 import kotlinx.coroutines.delay
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
@@ -106,12 +107,19 @@ interface StateReads {
  * How a node's state reads that replay the log run: [KernelStateReads] replays an
  * aggregate's latest state without a snapshot, a state at a version or a time, and a trace inside [replay], which the
  * host runs under the query bulkhead of the aggregate's log store, so that point reads cannot take every connection
- * the store's appends draw from.
+ * the store's appends draw from. Background replays (the access walk's) also ask whether that store's writes are
+ * pressed ([pressed]), and give way while they are.
  */
 @InternalWowApi
 interface ReplayGate {
     /** Runs [read], the replay of [ref]'s log, or throws to refuse it (the bulkhead's `wow.query.busy`). */
     suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T
+
+    /**
+     * Whether the writes of [type]'s log store pressed in their last period, as the store's adaptive query bound read
+     * them (callers waiting for a connection, or appends slower than their baseline); false when nothing reads them.
+     */
+    fun pressed(type: AggregateType): Boolean = false
 
     @InternalWowApi
     companion object {

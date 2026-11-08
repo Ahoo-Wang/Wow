@@ -331,15 +331,21 @@
   }, {
     "name" : "wow.access.walk-batch",
     "type" : "java.lang.Integer",
-    "description" : "The aggregates a page of an access walk stamps; the walk records how far it is after each page.",
+    "description" : "The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every five seconds at its pace.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
     "defaultValue" : 100
   }, {
     "name" : "wow.access.walk-rate",
     "type" : "java.lang.Integer",
-    "description" : "The most aggregates an access walk stamps a second, each one's whole history and its snapshot: the load a walk puts on the stores.",
+    "description" : "The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large its share.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
     "defaultValue" : 500
+  }, {
+    "name" : "wow.access.walk-share",
+    "type" : "java.lang.Double",
+    "description" : "The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
+    "defaultValue" : 0.25
   }, {
     "name" : "wow.aggregates",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Aggregate>",

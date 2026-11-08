@@ -126,6 +126,10 @@ class HostQueryIsolationTest {
             // A read of a type whose log store is not the node's runs under no bulkhead: at once.
             runBlocking { gate.replay(AggregateType("elsewhere", "thing").ref("t", "x")) { "read" } }.assert()
                 .isEqualTo("read")
+            // The writes of an idle node's log store do not press, nor those of a store it has none of.
+            gate.pressed(AggregateType("bank", "account")).assert().isFalse()
+            gate.pressed(AggregateType("elsewhere", "thing")).assert().isFalse()
+            ReplayGate.OPEN.pressed(AggregateType("bank", "account")).assert().isFalse()
         }
     }
 

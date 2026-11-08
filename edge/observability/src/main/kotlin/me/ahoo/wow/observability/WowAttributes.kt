@@ -282,6 +282,13 @@ object WowMetrics {
         tags = listOf(CONTEXT, AGGREGATE),
     )
 
+    val ACCESS_WALK_WALKED: MetricSpec = MetricSpec.gauge(
+        "wow.access.walk.walked",
+        "The aggregates of a type its access walk has stamped, as its log records it: every node reports the same, " +
+            "and it survives restarts. Against the type's aggregates, it says how far the walk is.",
+        tags = listOf(CONTEXT, AGGREGATE),
+    )
+
     val SUBSCRIPTION_LAG: MetricSpec = MetricSpec.timer(
         "wow.subscription.lag",
         "From a stream's commit to a subscription handling it.",
@@ -426,7 +433,7 @@ object WowMetrics {
         COMMAND_DURATION, COMMAND_REFUSALS, COMMAND_REJECTIONS, FORWARD_FAILURES, WAIT_TIMEOUTS, SIGNAL_DROPS,
         EXECUTOR_IN_FLIGHT, EXECUTOR_LANES, APPEND_QUEUE_DEPTH, TAIL_READS, STATE_CACHE_LOOKUPS, STATE_CACHE_EVICTIONS,
         STATE_CACHE_INVALIDATIONS, STORE_FALLBACKS, RESERVATION_LOSSES, ACCESS_STAMPED, ACCESS_STAMP_DURATION,
-        ACCESS_WALKED, ACCESS_WALK_PENDING, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
+        ACCESS_WALKED, ACCESS_WALK_PENDING, ACCESS_WALK_WALKED, SUBSCRIPTION_LAG, POSITION, BACKLOG, PROGRESS, PARKED_AGGREGATES,
         PARKED_NOTICES, PAUSED_PARTITIONS, PAUSED_NOTICES, THROTTLED_PARTITIONS, THROTTLED_NOTICES,
         BACKPRESSURE_REFUSALS, UNDECODABLE_MESSAGES, OFFSET_GAPS, FATAL_ERRORS, TIMER_DELAY, QUERY_DURATION, DATASET_QUERY_DURATION,
         QUERY_LIMIT_CURRENT, QUERY_PRESSURE, QUERY_LIMIT_DECREASES,

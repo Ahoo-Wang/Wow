@@ -21,7 +21,8 @@ public final class me/ahoo/wow/runtime/access/AccessStampOptions {
 	public static final field DEFAULT_CAPACITY I
 	public static final field DEFAULT_WALK_BATCH I
 	public static final field DEFAULT_WALK_RATE I
-	public synthetic fun <init> (IIIIJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final field DEFAULT_WALK_SHARE D
+	public synthetic fun <init> (IIIIDJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
 	public final fun getCapacity ()I
@@ -30,6 +31,7 @@ public final class me/ahoo/wow/runtime/access/AccessStampOptions {
 	public final fun getMemberTtl-UwyO8pc ()J
 	public final fun getWalkBatch ()I
 	public final fun getWalkRate ()I
+	public final fun getWalkShare ()D
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

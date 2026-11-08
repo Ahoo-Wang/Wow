@@ -353,8 +353,9 @@ class QueryAutoConfiguration {
 
         /**
          * How the state reads replay the log of an aggregate without a snapshot, and the node's subscriptions
-         * rebuild a state: under the query bulkhead of its log store, as that store's queries run. The node is built
-         * with it ([ServiceNode]'s `replayGate`), so it depends on no bean of the node's.
+         * rebuild a state: under the query bulkhead of its log store, as that store's queries run; and whether that
+         * store's writes pressed, as its adaptive bound read them, which the access walk gives way to. The node is
+         * built with it ([ServiceNode]'s `replayGate`), so it depends on no bean of the node's.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -366,6 +367,9 @@ class QueryAutoConfiguration {
                 object : ReplayGate {
                     override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T =
                         stores.replay(backends.layout?.logStoreOf(ref.type), read)
+
+                    override fun pressed(type: AggregateType): Boolean =
+                        stores.pressed(backends.layout?.logStoreOf(type))
 
                     override fun toString(): String = "ReplayGate($stores)"
                 }
