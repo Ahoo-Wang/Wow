@@ -48,8 +48,8 @@ import java.time.Duration
  *   it, so CoCache's settings (`cocache.defaults.cache.*`, `cocache.caches.[wow.<context>.<aggregate>].*`) apply to
  *   them. They are created at startup even under `spring.main.lazy-initialization` (`@Lazy(false)`), so the starter's
  *   check that every `cocache.caches.[name]` names a cache, made once the singletons exist, finds them, and a name
- *   CoCache refuses fails the start rather than a first read. (The starter's `CacheNameContributor` would only relax
- *   the check, and this module does not compile against the starter.)
+ *   CoCache refuses fails the start rather than a first read. (CoCache's `CacheNameContributor` would only relax the
+ *   check.)
  * - **The owner**: for each aggregate type `wow.cocache.publish` lists, a sink subscription that writes its states
  *   after each commit (`cocache-sink.<aggregate>`, [StateViewSink]), which the node runs beside the application's.
  */
