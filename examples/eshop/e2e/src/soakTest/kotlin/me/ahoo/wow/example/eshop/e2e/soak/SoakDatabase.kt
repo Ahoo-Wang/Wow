@@ -43,6 +43,16 @@ class SoakDatabase(private val connection: Connection, val context: String) {
         "SELECT subscription_group, partition, owner, expires_at FROM wow_lease",
     ) { "${it.getString(1)}|${it.getInt(2)}" to (it.getString(3) to it.getLong(4)) }.toMap()
 
+    /** The aggregate types of the context whose access walk (the registry's `access_walk`) is not completed. */
+    fun walksDue(): Set<String> = query(
+        "SELECT aggregate FROM wow_log_aggregate WHERE context = ? AND access_walk IS NOT NULL " +
+            "AND NOT coalesce((access_walk ->> 'completed')::boolean, false)",
+        "eshop-$context",
+    ) { it.getString(1) }.toSet()
+
+    /** The lease group of the access walk of [aggregate], one partition. */
+    fun walkLeaseGroup(aggregate: String): String = "eshop-$context-service/eshop-$context#access-walk/$aggregate"
+
     /** The parked entries, keyed by subscription and aggregate. */
     fun parked(): Map<String, Map<String, Any?>> = query(
         "SELECT subscription, context, aggregate_name, tenant_id, aggregate_id, from_version, reason, failed_at " +

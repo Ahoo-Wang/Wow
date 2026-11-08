@@ -82,7 +82,9 @@ class Invariants {
         "partitions.owned",
         "Every partition of every lease group (a context's commands and subscriptions, a topic's intake) has a live " +
             "owner again within a minute of losing one: a partition without stalls its commands and events until " +
-            "a node joins or leaves. A stall is reported once, with a thread dump of the context's nodes.",
+            "a node joins or leaves. The lease of a type's access walk needs a live owner within a minute while " +
+            "its walk is not completed, leased before or not, and none once it is. A stall is reported once, with " +
+            "a thread dump of the context's nodes.",
     )
     val parkedEmpty = Invariant(
         "parked.empty",
