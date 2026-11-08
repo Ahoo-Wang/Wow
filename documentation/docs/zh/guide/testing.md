@@ -100,7 +100,7 @@ class AccountSpec {
 | `expectState { … }` | 块中的检查在命令之后的状态上成立。 |
 | `expectState(expected)` | 命令之后的状态逐字段等于 `expected`；不一致时列出每一处差异。 |
 | `expectResult(key, value)`、`results` | 命令已提交，且决定函数为调用方放入了这个值（`putResult`）；`results` 读取全部结果，命令什么都没提交时读取它会失败，因为只有已提交的命令才带着结果回答。 |
-| `expectScope(scope)`、`expectTags(tags)` | 命令提交的事件流使聚合处于这个作用域（没有提交的命令会使它失败），或者命令之后聚合恰好带有这些标签。 |
+| `expectScope(scope)`、`expectAccess(attributes)` | 命令提交的事件流使聚合处于这个作用域（没有提交的命令会使它失败），或者命令之后聚合的访问属性恰好是这些，按名字：单值属性为它的值或 null，多值属性为它的值，顺序不论。 |
 | `expectScheduled(key, command, rule)`、`expectScheduleCancelled(key)` | 在 `key` 下定时了这条命令，或取消了这个定时。 |
 | `fork(name) { … }`、`fork(name, model) { … }` | 从这条命令的结果分叉（[测试树](#a-tree-of-tests)）。 |
 
@@ -279,7 +279,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 | 步骤 | 作用 |
 | --- | --- |
-| `givenAggregate(model, id, vararg history, tenantId, scope)` | 给出聚合，`whenEvent` 交出的是它之后的提交；它处于其历史留下的状态和版本。每次提交都带着提交之后聚合的标签，与内核保持的一致：事件中的 `TagsApplied.of(tags)` 像 `ApplyTags` 那样设置标签，状态派生的键（`@Tags`）再覆盖它们。分叉推进的是自己的副本。 |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | 给出聚合，`whenEvent` 交出的是它之后的提交；它处于其历史留下的状态和版本。分叉推进的是自己的副本。 |
 | `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | 在给出的聚合（`on`，默认是唯一的那个）上提交这些事件，并把这次提交交给读取它的处理函数。`by` 是提交这些事件的命令类，它像模型那样为提交给出命令类型；`handler = "onX"` 只调用那个处理函数。 |
 | `whenEvent(stateEvent, handler) { … }` | 交出一个手工构建的提交（[对端状态与发布的事件流](#peer-states-and-published-streams)）。 |
 | `whenRedelivered(on, handler) { … }` | 把最近一次提交再交一次，就像对每次提交至少投递一次的订阅在重试或重新分配之后所做的那样。幂等的处理函数会再做一遍同样的事，或什么都不做。 |
@@ -399,6 +399,10 @@ Saga 的 `@OnSchedule` 处理函数用 `scheduleSpec(handlers, start)` 测试，
 | `answerCalls { … }`、`givenQueries(queries)` | 与 Saga 规格中相同。 |
 
 一次越过多个时间槽时只运行最近的那个，其余的计入触发的 `skipped`，除非任务的规则要求补跑。失败的触发按它的任务的 `@Retry` 重试或停放，见[失败、重试与停放](#failures-retries-and-parking)。`scheduleSpecTests` 让每个带检查的 `advanceTime` 和每个 `whenTick` 各成为一个测试。[测试定时任务](./scheduling#test-it)给出了一个任务早晨的触发。
+
+## 访问策略 {#access-policies}
+
+访问策略用 `accessPolicySpec(model, policy)` 测试：给定事件之后、或某个状态和作用域下的聚合，`whenCaller(subject, claims, roles)` 像内核和查询那样，检查这个调用方能读取和修改什么。[测试策略](./ownership#test-a-policy)给出了一个例子。
 
 ## 编译器生成了什么 {#what-the-compiler-generated}
 

@@ -17,7 +17,7 @@ Ask for JSON (`Accept: application/json`); `list` can stream as server-sent even
 - `model`, `version`, `timeZone`.
 - `fields[]`: `path` and `aliases`; `types`, `kind`, `nullable`, `enum` (never listed for protected fields), `semantic` (time encoding, decimal scale, money); `sensitivity` (`level`, `comparable`); `project`; `filter.operators`; `sort.paged`, `sort.cursor`; `aggregate` (`groups`, `functions`, `distinctCount`, `percentile`, `any`, `firstLast`, `missingKey`, `expressionInput`, `inMetricFilter`); `scope` (the element it lives in: filter it only inside an `element-match` on that element); `deprecated` (use the field its message names).
 - `elements[]`: collections an `element-match` (`filter`) or an aggregation's `elements` (`aggregate`) reaches.
-- `dynamic[]`: map-key patterns such as `tags.{key}`.
+- `dynamic[]`: fields under the keys of a map, written with `{key}` in place of the key (`state.labels.{key}`).
 - `record`: `identity`, `paging` (`list`, `paged`, `cursor`), `defaultScope`, `rootOperators` (operators that name no field: `id`, `aggregate-id`, `tenant-id`, `owner-id`, `space-id`, `deletion`, …).
 - `limits`: list, page, page window, filter nodes and values, sort fields, aggregation limits. They win over anything remembered.
 - `analysis`: metric kinds, `approximate`, `expressions`, `having`, `sort`, `dense`, `dateUnits`, `dateParts`, `dateDiffUnits`, `windows`.
@@ -25,8 +25,8 @@ Ask for JSON (`Accept: application/json`); `list` can stream as server-sent even
 
 ## Fields by model
 
-- **snapshot:** system fields at the root (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`), the state under `state.` (`state.status`).
-- **events:** `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `operator`, `tags`, and `events[]` of `{name, revision, body}`; event names are `<context>.<aggregate>.<Name>`.
+- **snapshot:** system fields at the root (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `access`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`, `schedules`), the state under `state.` (`state.status`); `access.<name>` is one of the access attributes the aggregate declares, typed as its Manifest says.
+- **events:** `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `access` (the aggregate's current access attributes, `access.owner` and `access.space` among them; `null` for a stream not stamped yet), `operator`, and `events[]` of `{name, revision, body}`; event names are `<context>.<aggregate>.<Name>`.
 - **dataset:** columns at the root, no `state.` prefix, no event elements; `record.identity` may be absent (then no `cursor`).
 
 ## Request shapes

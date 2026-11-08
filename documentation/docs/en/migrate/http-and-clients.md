@@ -78,7 +78,7 @@ Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescr
 - **Time zones.** A relative-time filter without `zoneId` reads its days in UTC, where 9.x used the server's zone: pass `zoneId` where a local day was meant.
 - **Commands whose body names their aggregate.** Such a command has no route with `{id}`: a client that sent it to one gets 404, so send it to the route without `{id}`, the id in its body.
 - **Event names.** 9.x `bodyType` class names become `name` values; saved filters and screens keyed on them change.
-- **Another caller's aggregate.** A command on an aggregate of another owner or space than the caller's is answered `404 wow.aggregate.not-found`, as a read of it is and as a missing aggregate is, so the status no longer tells "not yours" from "not there". Only a creating command that names one is `403 wow.aggregate.forbidden` ([Owners, Spaces and Tags](../guide/ownership#what-the-kernel-checks)). A client that showed a "not yours" message on 403 shows its "not found" one instead.
+- **Another caller's aggregate.** A command on an aggregate of another owner or space than the caller's is answered `404 wow.aggregate.not-found`, as a read of it is and as a missing aggregate is, so the status no longer tells "not yours" from "not there". Only a creating command that names one is `403 wow.aggregate.forbidden` ([What the kernel checks](../guide/ownership#what-the-kernel-checks)). A client that showed a "not yours" message on 403 shows its "not found" one instead.
 - **Snapshot fields.** 9.x `eventId` and `snapshotTime` are gone; `firstEventTime`, `lastEventTime`, `operator` and `firstOperator` remain, and `tags` became `access`, the aggregate's access attributes.
 
 ## Steps

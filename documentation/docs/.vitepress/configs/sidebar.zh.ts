@@ -199,7 +199,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '编写聚合', link: 'aggregates'},
                 {text: '拒绝与错误码', link: 'rejections'},
                 {text: '演进事件', link: 'event-evolution'},
-                {text: '所有者、空间与标签', link: 'ownership'},
+                {text: '归属与访问', link: 'ownership'},
                 {text: '唯一键', link: 'unique-keys'},
             ],
         },

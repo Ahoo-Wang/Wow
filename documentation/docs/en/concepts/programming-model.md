@@ -52,7 +52,7 @@ An after hook runs after the command function, on the same state, and may add ev
 
 ### Lifecycle commands
 
-Every aggregate understands a few lifecycle commands without code: delete, restore, transfer the owner, transfer the space and apply tags. The kernel provides their decide and evolve, and they change the aggregate's metadata, which the snapshot carries. An aggregate handles all of them unless it lists fewer. Setting and cancelling a schedule are system commands of every aggregate in the same way.
+Every aggregate understands a few lifecycle commands without code: delete, restore, transfer the owner and transfer the space. The kernel provides their decide and evolve, and they change the aggregate's metadata, which the snapshot carries. An aggregate handles all of them unless it lists fewer. Setting and cancelling a schedule are system commands of every aggregate in the same way.
 
 ## Mutable or immutable state
 

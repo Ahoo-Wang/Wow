@@ -48,7 +48,7 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 | `wow.webflux.*` (`global-error`, `batch`, `query.default-list-size`, `state.*`) | `wow.http.*` for the routes, `wow.query.budgets.http.*` for their queries: `default-list-size`, `max-list-size`, `max-page-size`, `timeout` |
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`: the request headers a command keeps |
 | `wow.query.http.*` (`max-list-size`, `max-page-size`, `max-filter-nodes`, `allow-expensive-operators`, …) | `wow.query.budgets.http.*`, the same names |
-| `wow.query.abac.*`, `wow.query.sensitivity.*` | `wow.query.sensitivity.*`; `wow.query.abac.*` is removed and refused at startup (access attributes and access policies replace it) |
+| `wow.query.abac.*`, `wow.query.sensitivity.*` | `wow.query.sensitivity.*`; `wow.query.abac.*` is removed and refused at startup (access attributes and access policies replace it: [Ownership and Access](../guide/ownership#write-an-access-policy)) |
 | `wow.query.require-explicit-entry`, `require-authenticated-scope` | The same keys |
 | `wow.query.schema.*` (`revalidate-interval`, `legacy-declarations`) | Removed: the query model comes from the Manifest |
 | `wow.query.datasets`, `wow.query.clickhouse.*` | `wow.query.dataset.*` and `wow.clickhouse.*` ([Publish Datasets](../guide/datasets)) |

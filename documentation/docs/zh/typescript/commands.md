@@ -233,7 +233,7 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 聚合的客户端还发送它的 Manifest 列出的生命周期命令：`deleteAggregate`、`restoreAggregate`、`transferOwner` 和 `transferSpace`。
 
-其他人能否读取或修改一个聚合，取决于它的状态声明的访问属性（`@Access`）和服务的访问策略：授予访问是聚合自己的命令（如 `shareDocument`），不是生命周期命令。记录以 `access` 携带这些属性，类型是生成的 `<Aggregate>Access`（[查询快照](./queries#query-snapshots)）。
+其他人能否读取或修改一个聚合，取决于它的状态声明的访问属性（`@Access`）和服务的访问策略（[归属与访问](../guide/ownership#write-an-access-policy)）：授予访问是聚合自己的命令（如 `shareDocument`），不是生命周期命令。记录以 `access` 携带这些属性，类型是生成的 `<Aggregate>Access`（[查询快照](./queries#query-snapshots)）。
 
 10.0.0 预发布版的客户端有 `applyTags`，记录有 `tags`。把客户端迁到 10.0.0：
 

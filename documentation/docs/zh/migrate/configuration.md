@@ -48,7 +48,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | `wow.webflux.*`（`global-error`、`batch`、`query.default-list-size`、`state.*`） | 路由用 `wow.http.*`，它们的查询用 `wow.query.budgets.http.*`：`default-list-size`、`max-list-size`、`max-page-size`、`timeout` |
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`：命令保留的请求头 |
 | `wow.query.http.*`（`max-list-size`、`max-page-size`、`max-filter-nodes`、`allow-expensive-operators`……） | `wow.query.budgets.http.*`，名字相同 |
-| `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.sensitivity.*`；`wow.query.abac.*` 已移除，启动时拒绝（由访问属性与访问策略取代） |
+| `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.sensitivity.*`；`wow.query.abac.*` 已移除，启动时拒绝（由访问属性与访问策略取代：[归属与访问](../guide/ownership#write-an-access-policy)） |
 | `wow.query.require-explicit-entry`、`require-authenticated-scope` | 同名配置项 |
 | `wow.query.schema.*`（`revalidate-interval`、`legacy-declarations`） | 已移除：查询模型来自 Manifest |
 | `wow.query.datasets`、`wow.query.clickhouse.*` | `wow.query.dataset.*` 和 `wow.clickhouse.*`（[发布数据集](../guide/datasets)） |

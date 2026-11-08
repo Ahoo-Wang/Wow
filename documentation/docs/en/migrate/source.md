@@ -202,7 +202,7 @@ A command with `@CommandRoute(enabled = false)` had no generated route in 9.x, f
 
 ## Tags and attribute-based access
 
-V10 has no tags. What an aggregate's tags said about who may read it becomes its **access attributes**, members of its state marked [`@Access`](../reference/annotations#access), and the service's **access policy** compares them with the caller's claims ([Authorize commands](../operate/security#authorize-commands)).
+V10 has no tags. What an aggregate's tags said about who may read it becomes its **access attributes**, members of its state marked [`@Access`](../reference/annotations#access), and the service's **access policy** compares them with the caller's claims ([Ownership and Access](../guide/ownership#declare-access-attributes)).
 
 - **Tags the state derived.** A 9.x `StateAggregateTagsExtractor` becomes one `@Access` member per key: a property, or a function of the state without parameters, of the key's type (a `String`, a number, a `Boolean` or an enum, or a `Set` of them for a key of several values). V10 derives each on every commit, as 9.x derived the tags.
 - **Tags a command applied.** What 9.x's `ApplyResourceTags` set is data: a field of the state marked `@Access`, which a domain command and event of the aggregate's own set (`TagOrder`, `OrderTagged`), so the domain checks who may change it and the log records it. The event's payload names each field as its attribute, and its sourcing function replaces all of them, an absent one with none, as 9.x replaced the whole map. The 9.x route `PUT …/{id}/tags` is that command's route now.
@@ -221,11 +221,11 @@ fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
             OrderStateAccess.TEAMS containsAny caller.claims("teams"),
         )
     }
-    write { caller -> OrderStateAccess.OWNER eq caller.subject }
+    write { caller -> ownerAndSpace(caller) }
 }
 ```
 
-A claim is the caller's principal attribute of the same name, prefix included: an attribute 9.x matched as `abac.region` is the claim `abac.region`, unless the identity provider names it `region`, as this sample assumes. A policy replaces the owner and space check for its aggregate, for reads and commands alike, so restate it where 9.x relied on it, as `write` does here for an aggregate of owners. Three things 9.x allowed by default are denied in V10:
+A claim is the caller's principal attribute of the same name, prefix included: an attribute 9.x matched as `abac.region` is the claim `abac.region`, unless the identity provider names it `region`, as this sample assumes. A policy replaces the owner and space check for its aggregate, for reads and commands alike, so restate it where 9.x relied on it, with `ownerAndSpace(caller)` as `write` does here ([Write an access policy](../guide/ownership#write-an-access-policy)). Three things 9.x allowed by default are denied in V10:
 
 - A caller without `abac.*` attributes read every aggregate. A comparison with a claim the caller does not hold denies: give such callers a rule of their own (`allowIf(caller.hasRole("auditor"))`).
 - An aggregate without a key was public to that key's rule. One without a value of the attribute matches no comparison: say in the policy what is public (`OrderStateAccess.REGION.isNull()` in an `anyOf`, or `allowAll()`).

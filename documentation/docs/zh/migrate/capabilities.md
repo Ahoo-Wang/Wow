@@ -60,7 +60,7 @@ outline: deep
 | 所有者和空间策略（`@AggregateOwner`、`@Spaced`） | 替代 | 按聚合类型声明归属（所有者或租户）；作用域来自调用方。见[身份、租户与访问](../concepts/identity)。 |
 | 命令体中的聚合 ID（`@AggregateId`） | 保留 | 命令体指明聚合，命令的路由不带 `{id}`：Saga 或客户端发送它时不带 ID。计算出的 ID 由服务算出。 |
 | 命令字段上的租户、所有者和版本（`@TenantId`、`@OwnerId`、`@AggregateVersion`） | 放弃 | 租户和所有者是调用方的，期望版本是 `If-Match`。 |
-| 从状态推出标签（`StateAggregateTagsExtractor`） | 替代 | 访问属性：状态的 `@Access` 成员。 |
+| 从状态推出标签（`StateAggregateTagsExtractor`） | 替代 | 访问属性：状态的 `@Access` 成员（[声明访问属性](../guide/ownership#declare-access-attributes)）。 |
 | 打标签（`ApplyResourceTags`） | 替代 | 聚合自己的一条领域命令和一个领域事件，设置状态的访问属性；数据迁移把 9.x 的标签映射到它们（[标签与基于属性的访问](./source#tags-and-attribute-based-access)）。 |
 | 生命周期命令：删除、恢复、转移所有者或空间 | 保留 | — |
 | `@EntityObject`、`@ValueObject`、`@Order` | 放弃 | — |
@@ -121,7 +121,7 @@ outline: deep
 | 实现或继承查询类型（`IPagedList`） | 放弃 | V10 的查询类型是 final 类，用它们的工厂或 DSL 构建。 |
 | 查询字段注解（`@Sensitive`、`@QueryAlias`、`@QueryReference` 等） | 保留 | — |
 | 在查询和状态读取中脱敏敏感字段 | 保留 | — |
-| ABAC 查询策略、CoSec 的 `abac.` 属性 | 替代 | 由访问属性与访问策略取代；`wow.query.abac.*` 启动时拒绝。 |
+| ABAC 查询策略、CoSec 的 `abac.` 属性 | 替代 | 由访问属性与访问策略取代（[编写访问策略](../guide/ownership#write-an-access-policy)）；`wow.query.abac.*` 启动时拒绝。 |
 | 查询策略 SPI 与作用域 | 替代 | 作用域保留。拒绝调用方的规则是 `ReadAuthorizer` Bean，收窄行的规则是访问策略；`QueryPolicy` 是 Wow 自己的。 |
 | MongoDB 与 Elasticsearch 上的快照查询 | 保留 | 还有 PostgreSQL。 |
 | 事件流查询与跨聚合的聚合 | 保留 | 快照、事件和数据集共用一个查询引擎。 |

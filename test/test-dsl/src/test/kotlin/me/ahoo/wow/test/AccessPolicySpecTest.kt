@@ -51,6 +51,7 @@ class AccessPolicySpecTest {
         access(DocumentAccess.SHARED_WITH) { it.sharedWith }
     }
 
+    // region policy
     private val documentAccess = accessPolicy<Document> {
         read { caller ->
             anyOf(
@@ -62,7 +63,9 @@ class AccessPolicySpecTest {
         }
         write { caller -> DocumentAccess.DEPARTMENT isIn caller.claims("departments") }
     }
+    // endregion
 
+    // region spec
     @Test
     fun `a caller reads and changes what the policy grants on the aggregate its events leave`() =
         accessPolicySpec(model, documentAccess) {
@@ -81,6 +84,7 @@ class AccessPolicySpecTest {
             }
             whenCaller(subject = "erin", roles = listOf("auditor")) { expectRead() }
         }
+    // endregion
 
     @Test
     fun `the built-in owner and space are the aggregate's scope`() = accessPolicySpec(model, documentAccess) {

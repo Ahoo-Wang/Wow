@@ -48,12 +48,12 @@ V10 when the build or sources show: the Gradle plugins `id("me.ahoo.wow")`, `id(
 
 | The work is about | Load |
 |---|---|
-| Aggregates, commands, events, state, rejections and error codes, creation and lifecycle, revisions and upgrades, retired events, reservations, owner, space and tags, scheduled commands | `references/model.md` |
+| Aggregates, commands, events, state, rejections and error codes, creation and lifecycle, revisions and upgrades, retired events, reservations, owner, space and access attributes, scheduled commands | `references/model.md` |
 | Sagas, projections, reactors, handlers by event type, `@OnRejected`, retries, parking and the failure ledger, start positions, idempotency | `references/processes.md` |
 | Another context: its published events, sending it commands, synchronous calls | `references/cross-context.md` |
 | Tests: aggregate, saga, projection and reactor specs, forks, time, server tests | `references/testing.md` |
 | Build and modules, the Spring Boot host, backends, configuration keys, callers, request facts, the internal port | `references/hosting.md` |
-| State reads, queries, HTTP routes and headers, the Manifest and OpenAPI, clients over HTTP | `references/reads.md` |
+| State reads, queries, access policies (who reads and changes which aggregates), HTTP routes and headers, the Manifest and OpenAPI, clients over HTTP | `references/reads.md` |
 | A failure: a symptom to its first wrong stage | `references/diagnose.md` |
 | A review | `references/review-rubric.md` |
 

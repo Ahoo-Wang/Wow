@@ -233,7 +233,7 @@ await orders.shipOrder('order-1', {}, { requestId, expectedVersion: 4 });
 
 An aggregate's client also sends the lifecycle commands its Manifest lists: `deleteAggregate`, `restoreAggregate`, `transferOwner` and `transferSpace`.
 
-Who else may read or change an aggregate follows its access attributes, which its state declares (`@Access`), and the service's access policy: a grant is a command of the aggregate's own, such as `shareDocument`, not a lifecycle command. A record carries the attributes as `access`, typed by the generated `<Aggregate>Access` ([Query snapshots](./queries#query-snapshots)).
+Who else may read or change an aggregate follows its access attributes, which its state declares (`@Access`), and the service's access policy ([Ownership and Access](../guide/ownership#write-an-access-policy)): a grant is a command of the aggregate's own, such as `shareDocument`, not a lifecycle command. A record carries the attributes as `access`, typed by the generated `<Aggregate>Access` ([Query snapshots](./queries#query-snapshots)).
 
 A 10.0.0 pre-release's clients had `applyTags`, and its records `tags`. To move a client to 10.0.0:
 

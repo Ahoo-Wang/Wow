@@ -78,7 +78,7 @@ V10 改变了路由、请求头、错误和客户端包，并且不保留兼容�
 - **时区。** 不带 `zoneId` 的相对时间过滤按 UTC 读取日期，而 9.x 用的是服务器的时区：在本意是本地日期的地方传入 `zoneId`。
 - **命令体指明了聚合的命令。** 这类命令没有带 `{id}` 的路由：发往这种路由的客户端得到 404，应改为发往不带 `{id}` 的路由，ID 放在命令体中。
 - **事件名。** 9.x 的 `bodyType` 类名变成 `name` 值；以它们为键保存的过滤和界面要随之改变。
-- **别的调用方的聚合。** 对属于与调用方不同的所有者或空间的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它、与不存在的聚合的回答相同，所以状态码不再区分"不是你的"和"不存在"。只有指明这样的聚合的创建命令得到 `403 wow.aggregate.forbidden`（[所有者、空间与标签](../guide/ownership#what-the-kernel-checks)）。在 403 时显示"不是你的"的客户端，改为显示它的"未找到"提示。
+- **别的调用方的聚合。** 对属于与调用方不同的所有者或空间的聚合的命令得到 `404 wow.aggregate.not-found`，与读取它、与不存在的聚合的回答相同，所以状态码不再区分"不是你的"和"不存在"。只有指明这样的聚合的创建命令得到 `403 wow.aggregate.forbidden`（[内核检查什么](../guide/ownership#what-the-kernel-checks)）。在 403 时显示"不是你的"的客户端，改为显示它的"未找到"提示。
 - **快照字段。** 9.x 的 `eventId` 和 `snapshotTime` 已去掉；`firstEventTime`、`lastEventTime`、`operator` 和 `firstOperator` 仍然保留，`tags` 变成了 `access`，即聚合的访问属性。
 
 ## 步骤 {#steps}

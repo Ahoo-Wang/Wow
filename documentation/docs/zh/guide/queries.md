@@ -31,7 +31,7 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - `filter { }` 块中的条件以 `and` 组合；`and { }`、`or { }`、`nor { }` 和 `not { }` 可以嵌套。值按它写成的 JSON 比较，所以枚举按它的名字匹配。
-- `ProductStateProperties.STATE__PRICE` 就是 `state.price`；系统字段（`AGGREGATE_ID`、`OWNER_ID`、`VERSION`、`LAST_EVENT_TIME`、`TAGS` 等）来自 `SnapshotProperties`。
+- `ProductStateProperties.STATE__PRICE` 就是 `state.price`；系统字段（`AGGREGATE_ID`、`OWNER_ID`、`VERSION`、`LAST_EVENT_TIME`、`ACCESS` 等）来自 `SnapshotProperties`，`SnapshotProperties.access(name)` 就是访问属性 `access.<name>`。
 - `snapshots<ProductState>()` 把每一行解码为 `Snapshot<ProductState>`：它的 `ref`、`version`、`scope`、`access` 和类型化的 `state`。投影了部分字段的查询无法填充类型化的行：改用 `dynamic<Map<String, Any?>>()` 执行它。
 - `of(caller)` 按调用方所看到的模型执行查询；`trusted()` 以受信任的代码执行（[读取状态](./reading-state#in-kotlin)）。
 
@@ -83,7 +83,7 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 查询以它的调用方的身份准入：
 
 - 调用方的租户会加进每个查询，它有所有者和空间时，这两项也会加进去：所有者只对 `Ownership.OWNER` 的聚合加上，空间对每个聚合都加上。没有所有者的租户级调用方，能看到它租户里、它空间之内的每个聚合；属于租户的聚合（`Ownership.TENANT`），租户里的每个调用方在其空间之内都能看到，所有者级的调用方也一样（[谁能读取它](./ownership#who-reads-it)）。
-- 状态声明了访问属性（`@Access`）的聚合按它的访问策略读取，即服务自己的 `AccessPolicy` bean，取代所有者与空间（[授权读取](../operate/security#authorize-reads)）。
+- 有访问策略（服务自己的 `AccessPolicy` bean）的聚合，按它的 `read` 授予调用方的读取，取代所有者与空间：谓词是存储执行的过滤条件（[策略在哪里生效](./ownership#where-a-policy-applies)）。
 - 在这一切之前，服务的读取授权器（`ReadAuthorizer` bean）可以拒绝调用方：按它是谁拒绝，从不按它问的是什么拒绝。服务正是这样把属于租户的聚合限定给某些角色（[授权读取](../operate/security#authorize-reads)）。
 - 已删除的聚合不包含在内，除非查询指明了它们的删除状态：`deletion(DeletionState.ALL)` 或 `deleted`。
 - 读取侧拒绝的查询返回 `400 wow.query.invalid`，它的 violations 指明违反的每条规则；读取授权器拒绝的调用方，或者写了它无权写的 `Wow-Scope` 的调用方，返回 `403 wow.auth.forbidden`；什么都没匹配到的 `single` 返回 `404 wow.query.not-found`。

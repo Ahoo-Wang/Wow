@@ -10,6 +10,8 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | English | 中文 | 定义 |
 | --- | --- | --- |
 | `ACCEPTED` | 已接收 | 命令通过准入时达到的等待阶段；只有命令写进了 Kafka 命令主题，它才是持久的。见[等待结果](../concepts/waits)。 |
+| Access attribute | 访问属性 | 聚合上决定谁能读取、修改它的事实：它的所有者和空间，以及状态中每个标注 `@Access` 的成员。见[归属与访问](../guide/ownership#declare-access-attributes)。 |
+| Access policy | 访问策略 | 服务关于谁能读取、谁能修改一种聚合的规则，用调用方的声明比较聚合的访问属性；它取代默认的所有者与空间规则。见[归属与访问](../guide/ownership#write-an-access-policy)。 |
 | Admission | 准入 | 把请求变成命令的步骤：找到命令类型、确定身份、授权、解码并校验。见[写](../concepts/write-path#admission)。 |
 | After hook | after 钩子 | 在命令函数之后、在同一状态上运行的函数，可以往同一个决定结果里追加事件。见[决定与演化](../concepts/programming-model#after-hooks)。 |
 | Aggregate | 聚合 | 一组有自己身份和版本的领域状态，只由它自己的命令改变。见[决定与演化](../concepts/programming-model)。 |
@@ -57,7 +59,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Internal port | 内部端口 | 节点上承载集群通道、等待信号和来自其他服务的调用的端口，绝不暴露到集群之外。见[身份](../concepts/identity#the-internal-port)。 |
 | Lane | 车道 | 一个聚合的命令逐条执行的队列。见[写](../concepts/write-path#execution)。 |
 | Lease | 租约 | 节点对拥有一个分区的声明，保存在存储里并不断续期。 |
-| Lifecycle command | 生命周期命令 | 聚合不用写代码就能处理的命令，默认全部都处理（`@AggregateRoot(lifecycle)`）：删除、恢复、转移所有者或空间、打标签。见[决定与演化](../concepts/programming-model#lifecycle-commands)。 |
+| Lifecycle command | 生命周期命令 | 聚合不用写代码就能处理的命令，默认全部都处理（`@AggregateRoot(lifecycle)`）：删除、恢复、转移所有者或空间。见[决定与演化](../concepts/programming-model#lifecycle-commands)。 |
 | Manifest | Manifest | 编译器构建的、对服务唯一的描述，路由、OpenAPI、客户端、视图和契约都从它推出。见[一份契约](../concepts/contract)。 |
 | Operator | 操作人 | 提交以谁的名义记录：调用方的主体标识、它的租户，以及它是否在别处行事。见[身份](../concepts/identity#who-the-caller-is)。 |
 | Owner | 所有者 | 在租户之内，聚合所属的主体。 |
@@ -93,7 +95,6 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Subscription | 订阅 | 一个名字、一个过滤器和一个处理函数，从检查点开始读日志或发布的事件流。见[订阅](../concepts/subscriptions)。 |
 | Synchronous call | 同步调用 | Saga 发往另一个服务内部端口、返回目标结果的命令。见[上下文之间](../concepts/cross-context#synchronous-calls)。 |
 | Systemic failure | 系统性故障 | 不是某个聚合的错的故障，例如存储不可用；它暂停一个分区，而不是停放聚合。 |
-| Tags | 标签 | 聚合上的键值列表，基于属性的访问控制拿它来匹配。 |
 | Tenant | 租户 | 数据最上层的所有者；每个聚合身份的一部分。 |
 | Tenant-level caller | 租户级调用方 | 作用域里没有所有者、读写它租户所有聚合的调用方。 |
 | Transport data | 传输段 | 只为帮助投递而随条目或消息传递的数据，例如一个未结束的等待；从不是事实的一部分。见[日志就是总线](../concepts/event-log#one-log-per-bounded-context)。 |

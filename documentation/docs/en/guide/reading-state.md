@@ -30,7 +30,7 @@ The latest state is the snapshot, or, before the aggregate's first snapshot, its
 A state is read as its caller sees it:
 
 - The tenant is the caller's, or the one `Wow-Scope` names for a caller allowed to act across scopes.
-- A state outside the caller's scope, or one the snapshot queries' policies hide from the caller (its aggregate's access policy included), answers `404 wow.aggregate.not-found`, exactly as a missing state does. Only the audit learns why. The scope is the caller's owner and space for an aggregate of `Ownership.OWNER`, and its space alone for one that belongs to its tenant ([Who reads it](./ownership#who-reads-it)). A policy that refuses the caller outright, such as a role check, answers `403 wow.auth.forbidden` instead.
+- A state outside the caller's scope, or one its aggregate's access policy hides from the caller, answers `404 wow.aggregate.not-found`, exactly as a missing state does. Only the audit learns why. The scope is the caller's owner and space for an aggregate of `Ownership.OWNER`, and its space alone for one that belongs to its tenant ([Who reads it](./ownership#who-reads-it)); a policy decides in its place ([Where a policy applies](./ownership#where-a-policy-applies)). A read authorizer that refuses the caller outright, such as a role check, answers `403 wow.auth.forbidden` instead.
 - A state at an older version or an instant, and a trace, are read as the aggregate is now: the caller is checked on its latest state alone, so a caller who may read the aggregate reads its whole history, and one who may not reads none of it.
 - Every state, and every event of a trace, is masked as the snapshot queries mask it.
 
