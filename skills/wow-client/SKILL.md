@@ -29,7 +29,7 @@ The job: an application written in TypeScript has to send a Wow V10 service comm
 - **Projected types.** A query written with a literal `projection: { include: [...] }` answers records narrowed to those paths; one built by a factory, or with an exclusion only, answers whole records.
 - **Errors reject.** A rejected command, by its aggregate or at admission, rejects with `CommandRejectedError` (`code`, `result`, `problem`); every other failure with `WowProblemError` (`code`, `status`, `violations`, `retry`); switch on `FrameworkErrorCodes` and the domain's codes in the generated `boundedContext.ts`. Retry only as `error.retry` says, with the same request id when it says so; a `wow.wait.timeout` may have committed.
 - **No tenant or owner in paths or bodies.** A command whose body names its aggregate (the Manifest's `idProperty`) is sent without an id: its generated method takes no id, and a computed one is left out of the body type (`Omit<Body, '<idProperty>'>`). The service takes the tenant and owner from the caller; `RequestOptions.scope` (`Wow-Scope`; a command's `targetTenant` and `targetScope`) and `space` (`Wow-Space`) only for a caller allowed to act elsewhere.
-- **Snapshot fields are `state.<path>`** in filters and sorts; system fields (`aggregateId`, `version`, `tags`, …) are at the root.
+- **Snapshot fields are `state.<path>`** in filters and sorts; system fields (`aggregateId`, `version`, `access.<name>`, …) are at the root.
 
 ## References
 

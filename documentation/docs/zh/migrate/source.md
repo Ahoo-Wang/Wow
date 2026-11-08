@@ -202,7 +202,7 @@ private suspend fun take(name: String, scope: DecideScope) {
 
 ## 标签与基于属性的访问 {#tags-and-attribute-based-access}
 
-V10 没有标签。聚合的标签原先说明谁能读取它，现在这些变成它的**访问属性**，即状态中标注了 [`@Access`](../reference/annotations#access) 的成员；服务的**访问策略**把它们与调用方的声明比较（[授权命令](../operate/security#authorize-commands)）。
+V10 没有标签。聚合的标签原先说明谁能读取它，现在这些变成它的**访问属性**，即状态中标注了 [`@Access`](../reference/annotations#access) 的成员；服务的**访问策略**把它们与调用方的声明比较（[归属与访问](../guide/ownership#declare-access-attributes)）。
 
 - **状态推出的标签。** 9.x 的 `StateAggregateTagsExtractor` 变成每个键一个 `@Access` 成员：状态的一个属性，或者一个不带参数的函数，类型就是键的类型（`String`、数字、`Boolean` 或枚举；一个键有多个值时，是它们的 `Set`）。V10 在每次提交时推出每一个，就像 9.x 推出标签那样。
 - **命令打上的标签。** 9.x 的 `ApplyResourceTags` 设置的东西是数据：状态中标注了 `@Access` 的字段，由聚合自己的一条领域命令和一个领域事件设置（`TagOrder`、`OrderTagged`），这样由领域检查谁能修改它，日志也记下它。事件的载荷以访问属性的名字指明每个字段，它的溯源函数替换全部这些字段，载荷里没有的字段替换为无值，就像 9.x 替换整个标签映射那样。9.x 的路由 `PUT …/{id}/tags` 现在就是这条命令的路由。
@@ -221,11 +221,11 @@ fun orderAccess(): AccessPolicy<OrderState> = accessPolicy {
             OrderStateAccess.TEAMS containsAny caller.claims("teams"),
         )
     }
-    write { caller -> OrderStateAccess.OWNER eq caller.subject }
+    write { caller -> ownerAndSpace(caller) }
 }
 ```
 
-声明是调用方同名的主体属性，前缀也算在名字里：9.x 当作 `abac.region` 匹配的属性就是声明 `abac.region`，除非身份提供方把它命名为 `region`，就像这个示例所假定的那样。策略为它的聚合取代所有者和空间的检查，读取和命令都一样，所以在 9.x 依赖这项检查的地方要重新写出它，就像这里的 `write` 对有所有者的聚合所做的那样。9.x 默认允许的三种情况，在 V10 中被拒绝：
+声明是调用方同名的主体属性，前缀也算在名字里：9.x 当作 `abac.region` 匹配的属性就是声明 `abac.region`，除非身份提供方把它命名为 `region`，就像这个示例所假定的那样。策略为它的聚合取代所有者和空间的检查，读取和命令都一样，所以在 9.x 依赖这项检查的地方要用 `ownerAndSpace(caller)` 重新写出它，就像这里的 `write` 所做的那样（[编写访问策略](../guide/ownership#write-an-access-policy)）。9.x 默认允许的三种情况，在 V10 中被拒绝：
 
 - 没有 `abac.*` 属性的调用方能读取每个聚合。与调用方没有的声明作比较，结果是拒绝：给这样的调用方单独一条规则（`allowIf(caller.hasRole("auditor"))`）。
 - 没有某个键的聚合，对这个键的规则是公开的。没有该属性值的聚合不匹配任何比较：在策略里写明什么是公开的（在 `anyOf` 中写 `OrderStateAccess.REGION.isNull()`，或者 `allowAll()`）。

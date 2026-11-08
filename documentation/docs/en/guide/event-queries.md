@@ -60,7 +60,7 @@ Events are read at their current revision, upgraded as the aggregate reads them.
 
 An events query shows only the commits of aggregates the caller may see now. Each stream records its aggregate's current access attributes, `access`, its owner and space among them, and the node filters the streams on them as it filters the snapshots:
 
-- An aggregate with an access policy shows its streams to the callers its policy's `read` lets read it.
+- An aggregate with an access policy shows its streams to the callers its policy's `read` lets read it ([Where a policy applies](./ownership#where-a-policy-applies)).
 - Any other aggregate shows them within the caller's tenant and, to a caller acting as an owner or in a space, by the aggregate's owner and space of now (`access.owner`, `access.space`). After a transfer, the new owner sees the whole history and the former owner sees none. A filter of the query's own on `ownerId` or `spaceId` reads the values recorded at the commit.
 - A stream not yet stamped has `access` null: one a beta or an import appended, until the access walk of its type completes. It shows neither under an access policy nor to a caller acting as an owner or in a space ([Rebuild and Replay](../operate/replay#access-attributes)).
 

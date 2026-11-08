@@ -10,6 +10,8 @@ Each term has one meaning across these pages. The second column is the term the 
 | Term | 中文 | Definition |
 | --- | --- | --- |
 | `ACCEPTED` | 已接收 | The wait stage reached when a command has passed admission; durable only when the command went to a Kafka command topic. See [Waiting for outcomes](../concepts/waits). |
+| Access attribute | 访问属性 | A fact of an aggregate that decides who may read and change it: its owner and its space, and each member of its state marked `@Access`. See [Ownership and Access](../guide/ownership#declare-access-attributes). |
+| Access policy | 访问策略 | The service's rule of who reads and who changes the aggregates of one type, comparing their access attributes with the caller's claims; it replaces the default owner-and-space rule. See [Ownership and Access](../guide/ownership#write-an-access-policy). |
 | Admission | 准入 | The step that turns a request into a command: it finds the command type, establishes the identity, authorizes, decodes and validates. See [Writing](../concepts/write-path#admission). |
 | After hook | after 钩子 | A function that runs after a command function, on the same state, and may add events to the same decision. See [Deciding and evolving](../concepts/programming-model#after-hooks). |
 | Aggregate | 聚合 | A cluster of domain state with its own identity and version, changed only by its commands. See [Deciding and evolving](../concepts/programming-model). |
@@ -57,7 +59,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Internal port | 内部端口 | The port of a node that serves the cluster channel, wait signals and calls from other services, never exposed outside the cluster. See [Identity](../concepts/identity#the-internal-port). |
 | Lane | 车道 | The queue in which one aggregate's commands run one at a time. See [Writing](../concepts/write-path#execution). |
 | Lease | 租约 | A node's claim, kept in storage and renewed, to own a partition. |
-| Lifecycle command | 生命周期命令 | A command an aggregate handles without code, every one by default (`@AggregateRoot(lifecycle)`): delete, restore, transfer the owner or the space, apply tags. See [Deciding and evolving](../concepts/programming-model#lifecycle-commands). |
+| Lifecycle command | 生命周期命令 | A command an aggregate handles without code, every one by default (`@AggregateRoot(lifecycle)`): delete, restore, transfer the owner or the space. See [Deciding and evolving](../concepts/programming-model#lifecycle-commands). |
 | Manifest | Manifest | The single description of a service, built by the compiler, from which routes, OpenAPI, clients, views and contracts are derived. See [One contract](../concepts/contract). |
 | Operator | 操作人 | Who a commit is recorded under: the caller's subject, its tenant and whether it acted elsewhere. See [Identity](../concepts/identity#who-the-caller-is). |
 | Owner | 所有者 | The principal an aggregate belongs to within its tenant. |
@@ -93,7 +95,6 @@ Each term has one meaning across these pages. The second column is the term the 
 | Subscription | 订阅 | A name, a filter and one handler that read a log or a published stream from a checkpoint. See [Subscriptions](../concepts/subscriptions). |
 | Synchronous call | 同步调用 | A saga's command sent to another service's internal port that returns the target's result. See [Between contexts](../concepts/cross-context#synchronous-calls). |
 | Systemic failure | 系统性故障 | An outage that is not one aggregate's fault, such as an unavailable store, which pauses a partition instead of parking aggregates. |
-| Tags | 标签 | Key-value lists on an aggregate that attribute-based access control matches against. |
 | Tenant | 租户 | The top-level owner of data; part of every aggregate's identity. |
 | Tenant-level caller | 租户级调用方 | A caller whose scope has no owner and who reads and writes every aggregate of its tenant. |
 | Transport data | 传输段 | Data that travels with an entry or a message only to help delivery, such as an open wait; never part of the facts. See [The log is the bus](../concepts/event-log#one-log-per-bounded-context). |

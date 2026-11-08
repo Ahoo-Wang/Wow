@@ -59,7 +59,7 @@ A dataset whose rows are each of one aggregate names that aggregate in its scope
 "scope": { "tenant": "tenant_id", "access": { "aggregate": "shop.order", "id": "order_id" } }
 ```
 
-When the aggregate has an access policy, the policy's `read` decides the rows, in place of the owner and space columns:
+When the aggregate has an access policy ([Write an access policy](./ownership#write-an-access-policy)), the policy's `read` decides the rows, in place of the owner and space columns:
 
 - **By what the aggregate is now.** A row shows exactly when the caller may read its aggregate as it is now, whatever the row recorded when it was written. On ClickHouse these are the attributes of the aggregate's newest commit in the sink's `<context>_<aggregate>_state`, in the database the sink writes to, so a transfer or a changed attribute shows in the dataset once the sink has written that commit.
 - **All of an aggregate's rows or none.** The policy's whole predicate is decided on the aggregate, never on a row's own columns, and every operation of the dataset (a list, a page, a count, an aggregation) reads the same rows.

@@ -78,7 +78,7 @@ To show them before then, fill the warehouse again from the log: reset the sink'
 
 The TypeScript packages follow: `@ahoo-wang/wow-client` has no `ApplyTags`, `TagsApplied` or `Tags`, a record's `tags` is its `access`, and a client `wow-generator` writes types each aggregate's access attributes. Regenerate the clients; [Commands](../typescript/commands#lifecycle-commands-scope-and-space) lists the steps.
 
-A command on an aggregate outside the caller's scope is answered `404 wow.aggregate.not-found` from 10.0.0, as a read of it is; a pre-release answered `403 wow.aggregate.forbidden`, which only a creating command that names such an aggregate is still answered ([Owners, Spaces and Tags](../guide/ownership#what-the-kernel-checks)). A client that told the two apart by the status shows its "not found" answer instead.
+A command on an aggregate outside the caller's scope is answered `404 wow.aggregate.not-found` from 10.0.0, as a read of it is; a pre-release answered `403 wow.aggregate.forbidden`, which only a creating command that names such an aggregate is still answered ([What the kernel checks](../guide/ownership#what-the-kernel-checks)). A client that told the two apart by the status shows its "not found" answer instead.
 
 The OpenAPI document (`GET /wow/openapi`) types each aggregate's `access` by the attributes it declares, a single one's value or null and a multiple one's array, an integer as `int64`; an event stream's `access`, with the aggregate's `owner` and `space`, is null while the stream is not stamped. A pre-release's document had a `tags` member instead. Regenerate a client generated from it.
 

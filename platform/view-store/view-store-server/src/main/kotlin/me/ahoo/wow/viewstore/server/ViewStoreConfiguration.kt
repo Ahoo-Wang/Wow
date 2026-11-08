@@ -79,6 +79,7 @@ class ViewStoreConfiguration {
     @Bean
     fun viewStoreApps(): ReadAuthorizer = ViewStoreApps()
 
+    // region access
     @Bean
     fun viewAccess(): AccessPolicy<ViewState> = accessPolicy {
         read { caller -> allOf(ViewStateAccess.APP_ID eq caller.app, ownerAndSpace(caller)) }
@@ -101,6 +102,7 @@ class ViewStoreConfiguration {
         }
         write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
     }
+    // endregion
 
     /** Looks the queries up on use: they are built with the node, which this binding is part of. */
     @Bean

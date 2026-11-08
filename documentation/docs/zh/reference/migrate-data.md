@@ -258,7 +258,7 @@ V10 拒绝一些 9.x 曾接受的 ID：空的聚合 ID（或根本没有）、�
 
 ### 标签 {#tags}
 
-9.x 以两种方式给聚合打标签：它的标签命令（`default_apply_resource_tags`）设置标签，其事件（`default_resource_tags_applied`）替换整个标签映射；实现了 `StateAggregateTagsExtractor` 的状态在每次提交时推出标签，9.x 保留它返回的结果：合并已有标签的提取器（9.x 示例中的就是这样）会保留自上一个标签事件以来打上或推出过的每一个值。V10 没有标签：每个键变成状态的一个访问属性（`@Access`），即某个领域事件设置的字段，或者状态的一个函数（[标签与基于属性的访问](../migrate/source#tags-and-attribute-based-access)）。
+9.x 以两种方式给聚合打标签：它的标签命令（`default_apply_resource_tags`）设置标签，其事件（`default_resource_tags_applied`）替换整个标签映射；实现了 `StateAggregateTagsExtractor` 的状态在每次提交时推出标签，9.x 保留它返回的结果：合并已有标签的提取器（9.x 示例中的就是这样）会保留自上一个标签事件以来打上或推出过的每一个值。V10 没有标签：每个键变成状态的一个访问属性（`@Access`），即某个领域事件设置的字段，或者状态的一个函数（[标签与基于属性的访问](../migrate/source#tags-and-attribute-based-access)、[声明访问属性](../guide/ownership#declare-access-attributes)）。
 
 | 属性 | 含义 |
 | --- | --- |

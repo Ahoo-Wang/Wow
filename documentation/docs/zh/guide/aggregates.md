@@ -181,7 +181,7 @@ fun onCommand(command: Command<SubmitFeedback>): FeedbackSubmitted =
     FeedbackSubmitted(command.body.text, app = command.headers["app_id"])
 ```
 
-函数不必检查调用方能否接触这个聚合：内核根据作用域检查它（[内核检查什么](./ownership#what-the-kernel-checks)）。每个所有者只有一个的聚合，例如购物车，以所有者的 ID 为 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
+函数不必检查调用方能否接触这个聚合：内核根据作用域或聚合的访问策略检查它（[内核检查什么](./ownership#what-the-kernel-checks)）。每个所有者只有一个的聚合，例如购物车，以所有者的 ID 为 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。
 
 ## 使用领域服务 {#take-domain-services}
 
@@ -363,6 +363,7 @@ fun onSourcing(event: OrderSubmitted) {
 - 没有 setter 的 `val` 属性，从快照或查询返回的状态读回时会写入它的字段：状态边执行边填充的集合或映射（`val items = sortedSetOf<String>()`、`MutableList` 或 `MutableMap`）和构造时设定的值都是如此。计算属性（背后没有字段的 getter）只写出，不读回。所以状态填充的集合要放在这样的 `val` 中，而不是放在私有字段上、由自己的 getter 暴露（`val items: List<Item> get() = lines`）：后者读不回，内核会回放聚合的日志，而不是加载它的快照。
 - 状态及其事件不持有 Wow 查询协议的类型（`me.ahoo.wow.api.query`：过滤条件、排序、投影、字段）。它们是随 Wow 演进的传输类型，构建会拒绝持有它们的状态或事件，并给出路径：改持应用自己的类型（例如字段名列表），在执行查询时再据此构建查询。命令或查询可以自由持有它们。
 - 命令函数从不修改状态，只读取它。测试 DSL 比较每次决定前后的状态，若有改变就让测试失败。
+- 标注 `@Access` 的成员是聚合的访问属性之一，聚合的访问策略用调用方的声明比较它（[声明访问属性](./ownership#declare-access-attributes)）。
 
 ### 读取提交 {#read-the-commit}
 
@@ -388,7 +389,7 @@ fun onSourcing(event: OrderPaid, commit: EventStream) {
 
 ## 生命周期命令 {#lifecycle-commands}
 
-每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的五条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner`、`TransferSpace` 和 `ApplyTags`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 和函数标有 `@OnCommand(onDeleted = true)` 的命令之外的每条命令。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。
+每个聚合还处理 `me.ahoo.wow.api.lifecycle` 中的四条系统命令：`DeleteAggregate`、`RestoreAggregate`、`TransferOwner` 和 `TransferSpace`。它们改变的是聚合的元数据，而不是它的状态；已删除的聚合拒绝除 `RestoreAggregate` 和函数标有 `@OnCommand(onDeleted = true)` 的命令之外的每条命令。`@AggregateRoot(lifecycle = [...])` 可以收窄这份列表；空列表则一条都不启用。
 
 ## 测试 {#test-it}
 

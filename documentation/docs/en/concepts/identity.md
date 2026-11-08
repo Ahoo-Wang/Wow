@@ -21,7 +21,8 @@ An aggregate always belongs to a tenant. It may also belong to an **owner** and 
 
 - A new aggregate takes its scope from the command that created it.
 - Afterwards, only the lifecycle commands that transfer the owner or the space change it.
-- Every commit records the scope the aggregate has after it, and the snapshot carries it. A projection, a query policy or the snapshot subscription can read it without replaying history.
+- Every commit records the scope the aggregate has after it, and the snapshot carries it. A projection, an access policy or the snapshot subscription can read it without replaying history.
+- The owner and the space are the two **access attributes** every aggregate has. A state may declare more, such as a department or the users a document is shared with ([Declare access attributes](../guide/ownership#declare-access-attributes)).
 
 An aggregate type declares its **ownership**:
 
@@ -40,7 +41,7 @@ For each request, the host's caller resolver turns the authenticated principal i
 - its **scope**: the owner and space it acts in;
 - its **subject**, the principal's id; none for an anonymous caller;
 - whether it may act in **another tenant or scope**, which it then names in the `Wow-Scope` header;
-- further **attributes**, such as roles or attributes for access control;
+- further **attributes**, its claims, such as its roles or its departments, which access policies read;
 - whether it is a **service** of the system rather than a user.
 
 The caller lives only as long as the request. What a commit keeps of it is the **operator**: the subject, the operator's own tenant, and whether it acted in another tenant or scope. Roles, attributes and personal information never enter the log.
@@ -69,10 +70,11 @@ Access is decided at admission, by policies that commands and queries share:
 
 - **Route-level authorization**, such as CoSec in front of the public routes, decides whether the caller may call a route at all. Whether a caller must be signed in is decided here and by the caller resolver, which may refuse an unauthenticated request (CoSec answers 401): the scope rules below take whatever caller they are handed, an anonymous one included.
 - **Action-level authorization** decides whether the caller may perform this command on this aggregate. With CoSec, it can authorize every command as its caller.
-- **Scope.** The kernel refuses a command on an aggregate outside the caller's scope, and query admission adds the caller's tenant and space to every query, and its owner on an aggregate of `Ownership.OWNER` ([Read models](./read-models#who-sees-what)). An aggregate that belongs to its tenant is read by every caller of its tenant and space; keeping it to some roles takes a query policy of the service's own ([Authorize reads](../operate/security#authorize-reads)).
-- **Attribute-based access**, off by default, matches the caller's attributes against each aggregate's tags. An aggregate's tags are applied by a lifecycle command or derived from its state.
+- **Read authorization** decides whether the caller may read a model at all, by who it is, such as a role: a read authorizer of the service's own ([Authorize reads](../operate/security#authorize-reads)).
+- **Scope, the default rule.** The kernel refuses a command on an aggregate outside the caller's scope, and query admission adds the caller's tenant and space to every query, and its owner on an aggregate of `Ownership.OWNER` ([Read models](./read-models#who-sees-what)). An aggregate that belongs to its tenant is read by every caller of its tenant and space.
+- **Access policies.** An aggregate with an access policy of the service's own is read and changed by what the policy grants, from the caller's claims and the aggregate's access attributes, in place of the scope. Nothing is granted by omission: a state that declares access attributes needs a policy, or the service does not start ([Ownership and Access](../guide/ownership#write-an-access-policy)).
 
-The kernel itself does not authorize: by the time a command reaches it, admission has decided.
+The kernel checks the scope, or the access policy, on the aggregate it holds; everything else is decided at admission, before a command reaches it.
 
 ## The internal port
 

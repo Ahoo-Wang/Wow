@@ -41,6 +41,7 @@ class ViewState {
     var audience: ViewAudience = ViewAudience.PERSONAL
         private set
 
+    // region access
     /**
      * The application it was created under: its creation's request fact `app_id`. An access attribute: each caller
      * reads the views of its own application.
@@ -48,6 +49,7 @@ class ViewState {
     @Access
     var appId: String = ""
         private set
+    // endregion
 
     /** The engine's `ViewConfig`, whole; the server does not read its meaning. */
     var config: Map<String, Any?> = emptyMap()

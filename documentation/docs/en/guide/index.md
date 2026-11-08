@@ -14,7 +14,7 @@ These pages show how to do one thing each, with code from the repository's examp
 | [Write an Aggregate](./aggregates) | Write commands, command functions and state; take services; create aggregates; ask the kernel for results, keys and schedules |
 | [Rejections and Error Codes](./rejections) | Refuse a command with a declared code, and read it as a caller, a peer, a saga or a test |
 | [Evolve Events](./event-evolution) | Change an event with revisions and upgrade functions; rename and retire events; change the state's structure |
-| [Owners, Spaces and Tags](./ownership) | Decide who an aggregate belongs to, check the caller, transfer owners, tag aggregates |
+| [Ownership and Access](./ownership) | Decide who an aggregate belongs to, declare its access attributes, write and test the access policy that says who reads and changes it |
 | [Unique Keys](./unique-keys) | Keep a value unique across aggregates |
 
 ## Processes

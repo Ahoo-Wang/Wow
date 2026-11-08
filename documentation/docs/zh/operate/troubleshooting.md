@@ -38,7 +38,7 @@ outline: deep
 | `wow.aggregate.version-mismatch`（409，带 `If-Match` 时为 412） | 聚合不处于客户端期望的版本 | 重新读取，再决定是否重试 |
 | `wow.command.contended`（409） | 并发的写者一再抢先拿到版本 | 用同一个请求 ID 重试 |
 | `wow.command.request-id-reused`（409） | 这个请求 ID 已被另一条命令使用 | 给每条命令自己的请求 ID |
-| `wow.aggregate.forbidden`（403） | 创建命令指明了属于与调用方不同的所有者或空间的聚合：已存在的聚合，或 ID 是另一个所有者的聚合。对这样的聚合的其他命令得到 `wow.aggregate.not-found`（404），如同它不存在 | 检查调用方的作用域与命令指明的 ID（[所有者、空间与标签](../guide/ownership#what-the-kernel-checks)） |
+| `wow.aggregate.forbidden`（403） | 创建命令指明了属于与调用方不同的所有者或空间的聚合：已存在的聚合，或 ID 是另一个所有者的聚合。对这样的聚合的其他命令得到 `wow.aggregate.not-found`（404），如同它不存在。在访问策略下：调用方能读取这个聚合但不能修改它，或者命令会把聚合创建到、或把它的访问属性改到调用方够不着的地方 | 检查调用方的作用域与命令指明的 ID（[内核检查什么](../guide/ownership#what-the-kernel-checks)），或者策略的 `write` 与调用方的声明（[策略在哪里生效](../guide/ownership#where-a-policy-applies)） |
 | `wow.auth.forbidden`（403） | 授权器拒绝调用方执行这条命令 | 检查调用方的角色或策略 |
 | `wow.call.command-forbidden`（403） | 某个服务调用了它在 `wow.callers` 下的那一项没有列出的命令 | 在目标服务上为这个服务列出这条命令 |
 | `wow.storage.unavailable`（503） | 访问不到某个存储 | 检查数据库；用同一个请求 ID 重试 |

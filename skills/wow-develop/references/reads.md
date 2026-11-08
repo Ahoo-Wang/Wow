@@ -33,7 +33,49 @@ Annotations of `wow-query-api` (`me.ahoo.wow.api.query.annotation`) on state fie
 - `@Sensitive`: masked in every result; its level decides whether a query may still compare the raw value.
 - `@QueryDecimal(scale)`, `@QueryDuration(unit)`, `@QueryTemporal`, `@QueryReference(aggregateName, contextName)`, `@QueryMoney(currency | currencyField, scale)`: how consumers format, total and link a field; never inferred.
 - `@QueryAlias`: the field's earlier paths, so saved queries keep working after a rename.
-- `@Tags` on the state (`model.md`) feeds ABAC: `wow.query.abac.*` matches the caller's `abac.<key>` attributes against the aggregates' tags.
+- `@Access` on the state (`model.md`): an access attribute, which the aggregate's access policy compares with the caller's claims (below); every record carries it as `access.<name>` (`SnapshotProperties.access(name)`).
+
+## Who reads and changes which aggregates
+
+Three layers, each with one job: a `ReadAuthorizer` bean decides whether a caller may read a model at all (a role, an application: 403 `wow.auth.forbidden`, before anything is read); the aggregate's access policy decides which aggregates it reads and changes; the masks (`@Sensitive`) which fields it sees. Guide: https://wow.ahoo.me/guide/ownership.
+
+- **The default rule**, without a policy: the caller's owner and space (the owner only on an `Ownership.OWNER` aggregate; a part the caller has none of is not compared, so a tenant-level caller reads its tenant). An aggregate of its tenant is read by every caller of the tenant: keep it to some roles with a `ReadAuthorizer`, not a policy.
+- **An access policy** is a bean `AccessPolicy<S>` of the aggregate's state, built by `accessPolicy { … }` (`me.ahoo.wow.api.access`), and replaces the default rule for that aggregate, reads and commands alike:
+
+<!-- sample: platform/view-store/view-store-server/src/main/kotlin/me/ahoo/wow/viewstore/server/ViewStoreConfiguration.kt#access -->
+
+```kotlin
+@Bean
+fun viewAccess(): AccessPolicy<ViewState> = accessPolicy {
+    read { caller -> allOf(ViewStateAccess.APP_ID eq caller.app, ownerAndSpace(caller)) }
+    write { caller -> ownerAndSpace(caller) }
+}
+
+@Bean
+fun preferencesAccess(): AccessPolicy<ViewPreferencesState> = accessPolicy {
+    read { caller -> allOf(ViewPreferencesStateAccess.APP_ID eq caller.app, ownerAndSpace(caller)) }
+    write { caller -> ownerAndSpace(caller) }
+}
+
+@Bean
+fun wordingAccess(): AccessPolicy<DatasetWordingState> = accessPolicy {
+    read { caller ->
+        allOf(
+            DatasetWordingStateAccess.APP_ID eq caller.app,
+            ownerAndSpace(caller, Ownership.TENANT)
+        )
+    }
+    write { caller -> ownerAndSpace(caller, Ownership.TENANT) }
+}
+```
+
+- `read { }` and `write { }`, or `readWrite { }` for one predicate of both; a policy without `write` is refused (`write { denyAll() }` for a read-only aggregate). `ownerAndSpace(caller)` is the default rule, to restate inside a policy where it still holds; `ownerAndSpace(caller, Ownership.TENANT)` for an aggregate of its tenant. Several aggregates of one state: `accessPolicy(aggregate = …)`.
+- Predicates over `<State>Access` references: a single attribute `eq`, `isIn`, `startsWith` (a string, a materialized path), `isNull()`; a multiple one `contains`, `containsAny`, `isEmpty()`; `allOf`, `anyOf`, `not`; `allowIf(condition on the caller)`, `allowAll()`, `denyAll()`. The caller: `caller.subject`, `caller.app`, `caller.scope`, `caller.claim(name)` (first value or null), `caller.claims(name)` (values or none), `caller.hasRole(role)` (its `roles` claim). Claims are the principal's attributes as the `CallerResolver` resolved them (`hosting.md`).
+- **What is missing denies**: a comparison with a claim the caller lacks, or of a value the aggregate lacks, holds neither way, `not` included. Public data is said explicitly (`allowAll()`, or `A.isNull()` in an `anyOf`).
+- **Startup**: a node with an aggregate that declares access attributes and has no policy refuses to start, and so does one with a policy of no aggregate's state, of a state several aggregates share without naming one, or two policies of one aggregate. References are typed by the state; one the aggregate does not declare matches nothing (logged).
+- **Where it applies**: snapshot queries (a filter pushed down to the store), state reads at a version, a time and trace (decided on the latest state: 404 `wow.aggregate.not-found` when hidden), event queries (on each stream's `access`, which the built-in `wow.access` subscription restamps over the aggregate's history when its attributes change; an unstamped stream shows to no caller under a policy), datasets bound to the aggregate (each row by the aggregate's current attributes), and commands (`model.md`).
+- **Trusted**: commands a saga, timer, compensation or call derives (they carry a causation); a service acting as itself (`Caller.ofService(...)`), bounded on the internal port by `wow.callers.<service>`; trusted code reading with no caller (`trusted()`, subscription handlers). The in-process `CommandClient`'s default caller is anonymous and a policy refuses it: send as the service with `commandClient.of(Caller.ofService("<wow.service>"))`. `Wow-Scope` (cross scope) changes where a caller acts, never what a policy grants.
+- **Test** with `accessPolicySpec(model, policy) { given(events…) or givenState(state, scope); whenCaller(subject, claims, roles) { expectRead(); expectNoWrite() } }`, and `expectAccess(mapOf(...))` in an aggregate spec (`testing.md`).
 
 ## The routes
 

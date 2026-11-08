@@ -100,7 +100,7 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectState { … }` | The block's checks hold on the state after the command. |
 | `expectState(expected)` | The state after the command equals `expected`, field by field; a mismatch lists each difference. |
 | `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all, and fails for a command that committed nothing, since only a committed command answers with results. |
-| `expectScope(scope)`, `expectTags(tags)` | The committed stream leaves the aggregate in this scope (a command that commits nothing fails it), or the aggregate has exactly these tags after the command. |
+| `expectScope(scope)`, `expectAccess(attributes)` | The committed stream leaves the aggregate in this scope (a command that commits nothing fails it), or the aggregate's access attributes are exactly these after the command, by name: a single one's value or null, a multiple one's values in any order. |
 | `expectScheduled(key, command, rule)`, `expectScheduleCancelled(key)` | It scheduled this command under `key`, or cancelled the schedule. |
 | `fork(name) { … }`, `fork(name, model) { … }` | Branches from this command's outcome ([A tree of tests](#a-tree-of-tests)). |
 
@@ -279,7 +279,7 @@ fun `an order awaiting validation should reserve each product's stock in the inv
 
 | Step | Does |
 | --- | --- |
-| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. Each commit carries the aggregate's tags after it, as the kernel keeps them: `TagsApplied.of(tags)` among the events applies tags as `ApplyTags` does, and the keys the state derives (`@Tags`) override them. A fork advances copies of its own. |
+| `givenAggregate(model, id, vararg history, tenantId, scope)` | Gives the aggregate whose next commits `whenEvent` hands over, at the state and version its history leaves it in. A fork advances copies of its own. |
 | `whenEvent(vararg events, on, by, headers, operator, handler) { … }` | Commits the events on the given aggregate (`on`, by default the only one) and hands the commit to the handlers that read it. `by` is the command class that committed them, which names the commit's command type as the model does; `handler = "onX"` calls only that handler. |
 | `whenEvent(stateEvent, handler) { … }` | Hands a commit built by hand over ([Peer states and published streams](#peer-states-and-published-streams)). |
 | `whenRedelivered(on, handler) { … }` | Hands the latest commit over again, as a subscription that delivers each commit at least once does after a retry or a rebalance. An idempotent handler does the same again, or nothing. |
@@ -399,6 +399,10 @@ A saga's `@OnSchedule` handlers are tested with `scheduleSpec(handlers, start)`,
 | `answerCalls { … }`, `givenQueries(queries)` | As in a saga spec. |
 
 Moving past several slots at once runs only the latest, and the tick counts the others in `skipped`, unless the job's rule catches up. A failing tick is retried or parked under its job's `@Retry`, as [Failures, retries and parking](#failures-retries-and-parking) describes. `scheduleSpecTests` makes each `advanceTime` that checks, and each `whenTick`, a test of its own. [Test a scheduled job](./scheduling#test-it) shows a job's morning tick.
+
+## Access policies
+
+An access policy is tested with `accessPolicySpec(model, policy)`: given the aggregate after its events, or in a state and scope, `whenCaller(subject, claims, roles)` checks what that caller may read and change, as the kernel and the queries decide it. [Test a policy](./ownership#test-a-policy) shows one.
 
 ## What the compiler generated
 

@@ -31,7 +31,7 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 ```
 
 - A `filter { }` block's conditions combine with `and`; `and { }`, `or { }`, `nor { }` and `not { }` nest. A value is compared as the JSON it writes as, so an enum matches its name.
-- `ProductStateProperties.STATE__PRICE` is `state.price`; the system fields (`AGGREGATE_ID`, `OWNER_ID`, `VERSION`, `LAST_EVENT_TIME`, `TAGS`, …) come from `SnapshotProperties`.
+- `ProductStateProperties.STATE__PRICE` is `state.price`; the system fields (`AGGREGATE_ID`, `OWNER_ID`, `VERSION`, `LAST_EVENT_TIME`, `ACCESS`, …) come from `SnapshotProperties`, and `SnapshotProperties.access(name)` is the access attribute `access.<name>`.
 - `snapshots<ProductState>()` decodes each row as a `Snapshot<ProductState>`: its `ref`, `version`, `scope`, `access` and typed `state`. A query that projects fields cannot fill a typed row: run it through `dynamic<Map<String, Any?>>()` instead.
 - `of(caller)` runs the query as that caller sees the model; `trusted()` as trusted code ([Read State](./reading-state#in-kotlin)).
 
@@ -83,7 +83,7 @@ Each `row` event's `id` is its position. A stream ends with `{"reason":"complete
 A query is admitted as its caller:
 
 - The caller's tenant is added to every query, and so are its owner and space where it has them: the owner on an aggregate of `Ownership.OWNER`, the space on every aggregate. A tenant-level caller, without an owner, sees every aggregate of its tenant within its space; an aggregate that belongs to its tenant (`Ownership.TENANT`) is seen by every caller of the tenant within its space, owner-level ones included ([Who reads it](./ownership#who-reads-it)).
-- An aggregate whose state declares access attributes (`@Access`) is read by its access policy, an `AccessPolicy` bean of the service's own, in place of the owner and space ([Authorize reads](../operate/security#authorize-reads)).
+- An aggregate with an access policy, an `AccessPolicy` bean of the service's own, is read by what its `read` grants the caller, in place of the owner and space: the predicate is a filter the store applies ([Where a policy applies](./ownership#where-a-policy-applies)).
 - Before any of this, the service's read authorizers (`ReadAuthorizer` beans) may refuse the caller, by who it is, never by what it asks. That is how a service keeps an aggregate of its tenant to some roles ([Authorize reads](../operate/security#authorize-reads)).
 - Deleted aggregates are left out unless the query names their deletion state, `deletion(DeletionState.ALL)` or `deleted`.
 - A query the read side refuses answers `400 wow.query.invalid`, its violations naming each rule it broke; a caller a read authorizer refuses, or one that names a `Wow-Scope` it may not, `403 wow.auth.forbidden`; a `single` that matches nothing `404 wow.query.not-found`.

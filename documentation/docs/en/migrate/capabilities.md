@@ -60,7 +60,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Owner and space policies (`@AggregateOwner`, `@Spaced`) | Replaced | Ownership per aggregate type, owner or tenant; scope comes from the caller. See [Identity, tenancy and access](../concepts/identity). |
 | The aggregate's id in the command body (`@AggregateId`) | Kept | The body names the aggregate, and the command's route has no `{id}`: a saga or a client sends it without one. A computed id is the service's to compute. |
 | The tenant, owner and version on command fields (`@TenantId`, `@OwnerId`, `@AggregateVersion`) | Dropped | The tenant and owner are the caller's, the expected version is `If-Match`. |
-| Tags derived from state (`StateAggregateTagsExtractor`) | Replaced | Access attributes: `@Access` members of the state. |
+| Tags derived from state (`StateAggregateTagsExtractor`) | Replaced | Access attributes: `@Access` members of the state ([Declare access attributes](../guide/ownership#declare-access-attributes)). |
 | Applying tags (`ApplyResourceTags`) | Replaced | A domain command and event of the aggregate's own that set access attributes of the state; the data migration maps 9.x's tags to them ([Tags and attribute-based access](./source#tags-and-attribute-based-access)). |
 | Lifecycle commands: delete, restore, transfer owner or space | Kept | — |
 | `@EntityObject`, `@ValueObject`, `@Order` | Dropped | — |
@@ -121,7 +121,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Implementing or subclassing the query types (`IPagedList`) | Dropped | The V10 query types are final classes built with their factories or the DSL. |
 | Query field annotations (`@Sensitive`, `@QueryAlias`, `@QueryReference`, …) | Kept | — |
 | Masking sensitive fields, in queries and state reads | Kept | — |
-| ABAC query policies, CoSec `abac.` attributes | Replaced | By access attributes and access policies; `wow.query.abac.*` is refused at startup. |
+| ABAC query policies, CoSec `abac.` attributes | Replaced | By access attributes and access policies ([Write an access policy](../guide/ownership#write-an-access-policy)); `wow.query.abac.*` is refused at startup. |
 | Query policy SPI and scopes | Replaced | The scopes are kept. A rule that refuses a caller is a `ReadAuthorizer` bean, one that narrows the rows an access policy; `QueryPolicy` is Wow's own. |
 | Snapshot queries on MongoDB and Elasticsearch | Kept | PostgreSQL as well. |
 | Event stream queries and aggregation across aggregates | Kept | One query engine for snapshots, events and datasets. |

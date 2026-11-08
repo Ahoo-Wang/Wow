@@ -181,7 +181,7 @@ fun onCommand(command: Command<SubmitFeedback>): FeedbackSubmitted =
     FeedbackSubmitted(command.body.text, app = command.headers["app_id"])
 ```
 
-A function need not check that the caller may reach the aggregate: the kernel does it from the scope ([What the kernel checks](./ownership#what-the-kernel-checks)). An aggregate that exists once per owner, such as a basket, takes its owner's id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
+A function need not check that the caller may reach the aggregate: the kernel does it from the scope, or from the aggregate's access policy ([What the kernel checks](./ownership#what-the-kernel-checks)). An aggregate that exists once per owner, such as a basket, takes its owner's id ([One aggregate per owner](./ownership#one-aggregate-per-owner)).
 
 ## Take domain services
 
@@ -363,6 +363,7 @@ fun onSourcing(event: OrderSubmitted) {
 - A property in a `val` with no setter reads back into its field from a snapshot, or from a state a query returns: a collection or map the state fills as it goes (`val items = sortedSetOf<String>()`, a `MutableList` or a `MutableMap`) and a value set at construction alike. A computed property, a getter with no field behind it, is written and not read. So hold a collection the state fills in such a `val`, not behind a getter of its own over a private field (`val items: List<Item> get() = lines`): that one is not read back, and the kernel replays the aggregate's log instead of loading its snapshot.
 - A state and its events hold no type of Wow's query protocol (`me.ahoo.wow.api.query`: a filter, a sort, a projection, a field). Those are wire types that evolve with Wow, and the build refuses a state or an event that holds one, naming its path: hold a type of your own, such as a list of field names, and build the query from it when it runs. A command or a query holds them freely.
 - A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
+- A member marked `@Access` is one of the aggregate's access attributes, which its access policy compares with the caller's claims ([Declare access attributes](./ownership#declare-access-attributes)).
 
 ### Read the commit
 
@@ -388,7 +389,7 @@ A function annotated `@AfterCommand`, or named `afterCommand`, runs after the co
 
 ## Lifecycle commands
 
-Every aggregate also handles five system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner`, `TransferSpace` and `ApplyTags`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate` and those whose function is marked `@OnCommand(onDeleted = true)`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
+Every aggregate also handles four system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner` and `TransferSpace`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate` and those whose function is marked `@OnCommand(onDeleted = true)`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
 
 ## Test it
 

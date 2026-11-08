@@ -74,4 +74,4 @@ if (error instanceof CommandRejectedError) {
 
 ## Lifecycle commands
 
-An aggregate lists the lifecycle commands it accepts (`LifecycleCommands`: delete, restore, transfer owner, transfer space, apply tags); the generated client has a method for each (`deleteAggregate(id)` sends `DELETE /{context}/{aggregate}/{id}`).
+An aggregate lists the lifecycle commands it accepts (`LifecycleCommands`: delete, restore, transfer owner, transfer space); the generated client has a method for each (`deleteAggregate(id)` sends `DELETE /{context}/{aggregate}/{id}`). Who else may read or change an aggregate follows its access attributes and the service's access policy: a grant is a command of the aggregate's own (`shareDocument`), never a lifecycle command.

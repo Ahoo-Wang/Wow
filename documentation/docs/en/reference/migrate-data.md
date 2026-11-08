@@ -258,7 +258,7 @@ V10 refuses some ids 9.x took: an empty aggregate id (or none at all), a blank o
 
 ### Tags
 
-9.x gave an aggregate tags two ways: its tags command (`default_apply_resource_tags`) set them, its event (`default_resource_tags_applied`) replacing the whole map, and a state implementing `StateAggregateTagsExtractor` derived them on every commit, 9.x keeping what it returned: an extractor that merged the tags it had (as the 9.x example's did) kept every value ever applied or derived since the last tags event. V10 has no tags: each key becomes an access attribute of the state (`@Access`), a field a domain event sets or a function of the state ([Tags and attribute-based access](../migrate/source#tags-and-attribute-based-access)).
+9.x gave an aggregate tags two ways: its tags command (`default_apply_resource_tags`) set them, its event (`default_resource_tags_applied`) replacing the whole map, and a state implementing `StateAggregateTagsExtractor` derived them on every commit, 9.x keeping what it returned: an extractor that merged the tags it had (as the 9.x example's did) kept every value ever applied or derived since the last tags event. V10 has no tags: each key becomes an access attribute of the state (`@Access`), a field a domain event sets or a function of the state ([Tags and attribute-based access](../migrate/source#tags-and-attribute-based-access), [Declare access attributes](../guide/ownership#declare-access-attributes)).
 
 | Property | Meaning |
 | --- | --- |

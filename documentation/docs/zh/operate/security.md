@@ -51,7 +51,7 @@ CoSec 怎样认证请求、怎样检查客户端声明的应用和空间，见 C
 - **按路由。** 在 CoSec 决定请求的地方，它的管道在路由运行之前，按一个资源上的动作为请求授权。
 - **按动作。** 设置 `wow.cosec.authorizer.enabled: true` 后，CoSec 还会以调用方的身份为请求的每条命令和每次服务路由调用授权（[CoSec 在哪里决定](#where-cosec-decides)）。你自己的 `CommandAuthorizer` 也做同样的事。
 - **按作用域。** 无论授权器怎么说，内核都会拒绝作用于调用方作用域之外的聚合的命令，如同聚合不存在（`404 wow.aggregate.not-found`），查询也只返回调用方可以看的东西（[授权读取](#authorize-reads)）。
-- **按访问策略。** 有自己访问策略（其状态的 `AccessPolicy` Bean）的聚合，在策略的 `write` 允许调用方修改它时才接受命令；内核在决定之前按聚合当前的访问属性（包括所有者和空间）求值，此时不再检查作用域。被拒绝的调用方，若策略的 `read` 也对它隐藏该聚合，得到 `404 wow.aggregate.not-found`；若它能读，得到 `403 wow.aggregate.forbidden`；创建命令得到 `403`，因为创建是否成功本身就说明了聚合是否存在。创建命令，以及改变聚合所声明访问属性的决定，会在决定之后对它留下的聚合再检查一次：调用方改不了结果时被拒绝（`403`），不追加任何东西，所以没有调用方能把聚合创建到、或移动到自己够不着的地方。所有者或空间的转移只在决定之前检查，因为它本来就是有意把聚合交出去。Saga、定时器或调用派生的命令受信任，以服务自身身份发送的服务也一样：服务的代码以 `commandClient.of(Caller.ofService("<wow.service>"))` 以服务身份发送。进程内客户端的默认调用方是匿名的，不带任何声明，所以策略会拒绝它。
+- **按访问策略。** 有自己访问策略（其状态的 `AccessPolicy` Bean）的聚合，只在策略的 `write` 允许调用方修改它时才接受命令，取代作用域。被拒绝的调用方，若策略的 `read` 也对它隐藏该聚合，内核答 `404 wow.aggregate.not-found`，若它能读，答 `403 wow.aggregate.forbidden`；创建，以及改变聚合访问属性的命令，会在它留下的聚合上再检查一次。服务派生的命令和以服务自身身份发送的命令受信任；进程内客户端的默认调用方是匿名的，会被拒绝（[策略在哪里生效](../guide/ownership#where-a-policy-applies)、[哪些是受信的](../guide/ownership#what-is-trusted)）。
 
 运维人员操作停放聚合的路由 `/wow/ops/parked` 默认关闭（`wow.http.ops.enabled`）。打开后，它们的动作和读取按系统命令 `wow.ledger.*` 授权。没有命令授权器时，它们全部被拒绝（403 `wow.auth.forbidden`），默认从不放行，宿主在启动时发出警告。
 
@@ -92,7 +92,7 @@ Wow 内置聚合的系统命令在公开端口上遵循同一规则：定时任�
 - **按路由。** 在 CoSec 决定请求的地方，路由路径上 `http:<METHOD>` 动作的策略放行或拒绝它（[动作名称](#action-names)）。在 CoSec 网关之后，由网关的策略决定。
 - **按读取者。** 服务自己的 `ReadAuthorizer` Bean 决定调用方是否可以读取某个模型：给定调用方和它读取的东西（聚合类型或数据集、模型、操作和入口），它在读取任何东西之前允许或拒绝这次读取，所以被拒绝的调用方得不到任何信息，连某个状态是否存在都不知道。拒绝答 `403 wow.auth.forbidden`，或授权器指明的[错误码表](../reference/error-codes)里的另一个码，例如没有应用的请求。它按谁在读拒绝（角色、应用），从不按读的是什么拒绝。每个入口的每个调用方都会被询问，包括进程内的 `QueryApi.of(caller)`；不带调用方读取的受信任进程内代码不被询问。
 - **按作用域。** 查询准入把调用方的作用域加进每个查询，状态读取也检查它：租户总是加上；所有者只对 `Ownership.OWNER` 的聚合加上；调用方在某个空间里行事时，加上空间。调用方没有值的那一项不加，所以租户级调用方读取整个租户。查询里的过滤条件不能放宽它。在事件上，所有者和空间是聚合当前的所有者和空间，每条流都记着它们（[谁能看到什么](../guide/event-queries#who-sees-what)）。
-- **按访问策略。** 状态声明了访问属性（`@Access`）的聚合按它的访问策略读取，即服务自己的 `AccessPolicy` Bean：它的 `read` 用调用方的声明比较每个聚合的属性，下推到每个查询，并在状态读取时求值，取代作用域的所有者与空间（[命令](#authorize-commands)受它的 `write` 约束）。行属于这类聚合的数据集也按同一个 `read` 读取，每一行按其所属聚合当前的属性判定（[数据集](../guide/datasets#rows-of-an-aggregate-with-an-access-policy)）。
+- **按访问策略。** 有服务自己的访问策略的聚合，按策略的 `read` 授予调用方的读取，用每个聚合的访问属性比较，取代作用域的所有者与空间：下推到每个查询，在状态读取时求值，也作用于该聚合的数据集（[策略在哪里生效](../guide/ownership#where-a-policy-applies)）。
 
 **属于租户的聚合，租户里的每个调用方都能读取。** `Ownership.TENANT` 不记录所有者，所以作用域不加所有者：购物者和员工一样读取商品，所有者级调用方也读取它的租户和空间里所有这样的聚合。这对目录是对的，对只有某些角色才能读取的聚合就不对了。Wow 没有自己的读取角色，所以这样的服务要带一个读取授权器，拒绝没有该角色的调用方。平台的服务就是这样做的：运维服务的 `ReaderRole` 只放行查看者或操作员，分析目录的 `AnalyticsCatalogReaderRole` 只放行它的读者。在运维服务自己由 CoSec 决定且打开了它的授权器时，运维服务不注册角色检查，由 CoSec 在查询路由上的 `http:` 策略决定谁能读取；在网关模式下由角色决定。
 
@@ -249,7 +249,7 @@ wow:
   callers:
     eshop-basket-service:
       # The commands the basket may call, a list that catches a misconfiguration: its checkout
-      # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
+      # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers) is never
       # called unless listed here.
       commands:
         - eshop-ordering.order.SubmitOrder

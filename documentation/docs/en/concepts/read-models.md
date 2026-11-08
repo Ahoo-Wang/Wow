@@ -56,7 +56,7 @@ The same facts decide what a caller may read and what a command may change, and 
 - **Tenant.** A query always reads within the caller's tenant.
 - **Owner and space.** A caller whose scope has an owner reads only the aggregates it owns; a tenant-level caller reads all aggregates of its tenant. A space narrows both. An aggregate declared as belonging to the tenant, such as a product, is not filtered by owner.
 - **Deleted aggregates** are left out unless the query asks for them.
-- **Tags.** With attribute-based access control turned on, the caller's attributes are matched against each aggregate's tags. It is off by default.
+- **Access policies.** An aggregate with an access policy is read by what the policy grants the caller, from its claims and the aggregate's access attributes, in place of the owner and space ([Ownership and Access](../guide/ownership#where-a-policy-applies)).
 - **Sensitive fields** are masked in what the caller gets.
 
 What a caller may not see does not exist for it: reading it answers 404, never 403, and the reason goes only to the audit log.
