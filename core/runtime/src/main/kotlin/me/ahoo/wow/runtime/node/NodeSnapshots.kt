@@ -19,11 +19,17 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.snapshot.SnapshotAssembly
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 
 /** Which aggregates of a node keep snapshots, as its [manifest] says, and what that gives each context. */
-internal class NodeSnapshots(private val manifest: Manifest, private val observer: Observer = Observer.NONE) {
+internal class NodeSnapshots(
+    private val manifest: Manifest,
+    private val observer: Observer = Observer.NONE,
+    /** How the backfills' rebuilds replay the log: the node's gate. */
+    private val gate: ReplayGate,
+) {
     /**
      * Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them, and a built-in
      * rebuild aggregate does not.
@@ -60,6 +66,6 @@ internal class NodeSnapshots(private val manifest: Manifest, private val observe
     ): SnapshotAssembly {
         val targets = backends.snapshots
         val snapshotted = if (targets == null) emptyList() else models.filter { enabled(it) }
-        return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec, observer)
+        return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec, observer, gate)
     }
 }

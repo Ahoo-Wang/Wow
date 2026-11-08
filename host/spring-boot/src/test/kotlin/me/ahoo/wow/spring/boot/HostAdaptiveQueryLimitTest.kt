@@ -102,8 +102,23 @@ class HostAdaptiveQueryLimitTest {
         startHost().use { host ->
             val node = host.context.getBean(ServiceNode::class.java)
             node.writePressure("nowhere").assert().isNull()
-            HostQueryBulkheads.pressureOf(node, "nowhere", null).sample().appends.assert().isZero()
+            HostQueryBulkheads.pressureOf({ node }, "nowhere", null).sample().appends.assert().isZero()
             node.writePressure(ContextBackends.DEFAULT_STORE).assert().isNotNull()
         }
+    }
+
+    @Test
+    fun `the bounds should read the node's pressure only while it runs`() {
+        val held = startHost().use { host ->
+            val held = host.context.getBean(HostQueryNode::class.java)
+            held.started().assert().isSameAs(host.context.getBean(ServiceNode::class.java))
+            // Before the context has built its singletons, there is no node to read.
+            HostQueryNode(host.context.getBeanProvider(ServiceNode::class.java)).started().assert().isNull()
+            held
+        }
+        // Stopped with its context: none either, so the stores' appends give no pressure.
+        held.started().assert().isNull()
+        HostQueryBulkheads.pressureOf(held::started, ContextBackends.DEFAULT_STORE, null).sample().appends
+            .assert().isZero()
     }
 }

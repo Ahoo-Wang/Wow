@@ -503,6 +503,7 @@ class WowAutoConfiguration {
         queries: ObjectProvider<ContextQueries>,
         access: ObjectProvider<AccessPolicy<*>>,
         clock: Clock,
+        replayGates: ObjectProvider<ReplayGate>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val sourceTopics = topics.ifAvailable
@@ -567,6 +568,8 @@ class WowAutoConfiguration {
             caller = callers.ifAvailable,
             failureClassifiers = classifiers.orderedStream().toList(),
             queries = lazyQueries(queries),
+            // The gate over the query bulkheads, built before the node: its state rebuilds replay under it.
+            replayGate = replayGates.getIfAvailable { ReplayGate.OPEN },
         )
     }
 

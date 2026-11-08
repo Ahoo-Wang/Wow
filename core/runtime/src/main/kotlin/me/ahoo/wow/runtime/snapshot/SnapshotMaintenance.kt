@@ -29,6 +29,8 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.runtime.state.SharedStates
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -96,6 +98,8 @@ class SnapshotMaintenance(
     private val options: SnapshotOptions = SnapshotOptions(),
     private val address: () -> String = { node },
     private val observer: Observer = Observer.NONE,
+    /** How a backfill's rebuilds replay the log, as the subscriptions' do ([SharedStates.rebuild]). */
+    private val gate: ReplayGate = ReplayGate.OPEN,
 ) : SnapshotStatus {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
@@ -389,6 +393,7 @@ class SnapshotMaintenance(
         answers = { false },
         active = { (store to it) !in caughtUp },
         writeBatch = options.writeBatch,
+        gate = gate,
     )
 
     /** The snapshot of [ref] rebuilt from its whole log, at [model]'s state revision; null when the log holds none. */

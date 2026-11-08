@@ -41,6 +41,12 @@ import tools.jackson.core.JacksonException
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
  * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
+ * A rebuild (3. and 4.) runs one an aggregate at a time across the readers of the [views], under the node's
+ * [ReplayGate] ([SharedStates.rebuild]): a reader that misses an aggregate another reader is rebuilding waits for that
+ * rebuild, then reads again, so the view it left, at this version or the one before, is evolved rather than the log
+ * replayed again. A gate that refuses the replay fails the read as a busy store, which the subscription retries as
+ * backpressure.
+ *
  * A rebuilt state is put back into the views, so the next commit of the aggregate, for this reader or another
  * behind it, evolves it with one stream rather than replaying the log again: a subscription behind the snapshot
  * replays its aggregate once, not on every commit. Each read [pass]es the version, so the views this reader no longer
@@ -66,22 +72,34 @@ class SharedStateReader(
 
     /** The state after [stream]. */
     suspend fun read(stream: EventStreamRecord): SerializedState =
-        views.get(stream)?.also { pass(stream.ref, stream.version) }
-            ?: inHand(stream)
-            ?: rebuild(stream, loadSnapshot(stream.ref))
+        held(stream) ?: rebuild(stream, loadSnapshot(stream.ref))
 
     /** The state after [stream], with [snapshot], the aggregate's snapshot the caller already loaded, if any. */
     suspend fun read(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState =
-        views.get(stream)?.also { pass(stream.ref, stream.version) }
-            ?: inHand(stream)
-            ?: rebuild(stream, snapshot)
+        held(stream) ?: rebuild(stream, snapshot)
 
     /** This reader is done with [ref] up to [version] ([SharedStates.pass]). */
     fun pass(ref: AggregateRef, version: Int) {
         views.pass(reader, ref, version)
     }
 
+    /** The state after [stream] from the views alone, reading no store (1. and 2.); null without its base there. */
+    private fun held(stream: EventStreamRecord): SerializedState? =
+        views.get(stream)?.also { pass(stream.ref, stream.version) } ?: inHand(stream)
+
+    /**
+     * The state after [stream] rebuilt (3. and 4.), by this reader or, when another reader's rebuild of the aggregate
+     * runs, from the view that one left: each time a rebuild this reader waited for ends, it looks for that view
+     * first, and rebuilds itself only without one, the next in line.
+     */
     private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
+        while (true) {
+            views.rebuild(stream.ref) { rebuilt(stream, snapshot) }?.let { return it }
+            held(stream)?.let { return it }
+        }
+    }
+
+    private suspend fun rebuilt(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
         val ref = stream.ref
         val version = stream.version
         val model = modelOf(ref.type)
