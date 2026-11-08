@@ -35,7 +35,7 @@ dependencies {
 }
 ```
 
-`wow-cocache-api` 只有 `StateKey` 与 `StateViewCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。
+`wow-cocache-api` 只有 `StateKey` 与 `StateViewCache`，领域模块用它们时既不会引入 CoCache，也不会引入 Redis。应用运行 CoCache 时，即 CoCache 的 starter 有后端时（`cocache.backend: redis`，配合 Spring 的 `spring.data.redis.*`；单个 JVM 用 `memory`），`wow-cocache` 自动启用。它运行在 CoCache 8 上（`cocache-core`；挂起视图就在核心模块中，没有 `cocache-coroutines`）。
 
 ## 读取状态
 
@@ -57,7 +57,7 @@ class PaymentGatewaySaga(
 }
 ```
 
-缓存中没有、而属主此刻读不到（连不上、本节点没有到它的路由、超时），或缓存后端故障时，读取抛出 `StateViewUnavailableException`，并写出这些键。其他情况都不是它：解码不成视图的状态，或读取代码中的缺陷，都原样抛出。
+缓存中没有、而属主此刻读不到（连不上、本节点没有到它的路由、超时），或缓存后端故障时，读取抛出 `StateViewUnavailableException`，并写出这些键。其他情况都不是它：读取代码中的缺陷，或属主的状态解码不成读方的视图，都原样抛出。缓存中的状态解码不成读方的视图时，改为向属主读取，缓存保留属主写入的状态及其版本。
 
 是否在它上面回退由读方决定。为读方自己用途的读取（名称、描述）可以回退；决策所依据的读取不可以：它应当失败，处理函数会像任何失败一样重试，然后挂起。eShop 的支付读取它要扣款的订单，用来说明这笔扣款的内容，这是它自己的用途，所以支付从不为此等待订单服务。它只捕获不可用这一种情况（缓存在每次不可用期间只记录一次），并按订单 ID 扣款：
 
@@ -81,7 +81,16 @@ private suspend fun orderOf(tenantId: String, orderId: String): OrderStateView? 
 - `get(key)` 与 `get(tenantId, id)` 返回视图；聚合不存在或已删除时返回 `null`。
 - `getAll(keys)` 返回存在的聚合的视图：读一次缓存，未命中的按租户各向属主查询一次，ID 放在一个 `IN` 里。
 
-缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `StateViewCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存。
+缓存的一切都由视图推导：名字是 `wow.<context>.<aggregate>`，即视图的 `@StateView` 指明的聚合；键是聚合的租户与 ID；值是视图的 JSON。属主与每个读方推导出的完全相同，所以不需要任何配置让两侧对上。类路径上的契约指明的每个视图都有一个 `StateViewCache<V>` bean；Spring 之外用 `StateViewCaches.of<V>()` 得到同一个缓存，由 CoCache 的 `CoCacheFactory` 创建：
+
+<!-- sample: fragment -->
+
+```kotlin
+val caches = StateViewCaches(CoCacheFactory(runtime)) { queryApi }
+val orders: StateViewCache<OrderStateView> = caches.of()
+```
+
+Spring 应用中，这些缓存由 CoCache starter 的 `CoCacheFactory` bean 创建，因此 CoCache 的配置作用于它们；像上面这样只基于运行时的工厂不应用任何配置。
 
 缓存中没有的视图经节点的类型化查询向属主读取：节点自己承载该聚合时在进程内读取，否则以本服务身份经 HTTP 读取属主的内部端口（[调用其他服务](../calling-services)）。从未创建过的聚合会作为不存在缓存一段时间（CoCache 的负缓存）。
 
@@ -106,10 +115,10 @@ wow:
 
 ## 寿命与本地副本
 
-- **状态在 Redis 中的寿命**：属主的 `wow.cocache.ttl`，作用于它写入的状态与墓碑。未设置时用缓存自身的寿命：CoCache 的 `cocache.caches.[wow.<context>.<aggregate>].ttl`，否则为其默认的一小时。
+- **状态在 Redis 中的寿命**：属主的 `wow.cocache.ttl`，作用于它写入的状态与墓碑。未设置时用缓存自身的寿命：CoCache 的 `cocache.caches.[wow.<context>.<aggregate>].ttl`，否则为 `cocache.defaults.cache.ttl`，再否则为 CoCache 默认的一小时。
 - **读方回源的寿命**：读方回源写入的状态按读方的 `cocache.caches.[wow.<context>.<aggregate>].ttl` 计。请让两侧寿命相同。新鲜度来自属主的写入，而不是寿命。
-- **本地副本与负缓存**由各读方自己配置：`cocache.caches.[wow.<context>.<aggregate>].*`（`local-maximum-size`、`local-max-age`、`absent-ttl`），详见 CoCache 的文档。
-- **不提前刷新**：这些缓存是带版本的，CoCache 的 `refresh-window` 不支持。为其中某个缓存设置它会导致启动失败。
+- **本地副本与负缓存**由各读方自己配置：`cocache.caches.[wow.<context>.<aggregate>].*`（`local-maximum-size`、`local-max-age`、`absent-ttl`），详见 CoCache 的文档。CoCache 的 `cocache.defaults.cache.*` 只填补缓存自身配置与 Wow 的声明都没有设置的字段，`cocache.overrides.cache.*` 只能收紧。每个时长都要带单位（`30m`、`10s`）。
+- **默认不提前刷新**：这些缓存声明了 `refresh-window: off`。属主在每次提交后写入每个版本，提前刷新只会再读一次属主，在读方就是一次 HTTP 调用；CoCache 全局的 `cocache.defaults.cache.refresh-window` 不作用于这些缓存。`cocache.caches.[wow.<context>.<aggregate>].refresh-window` 为单个缓存开启提前刷新，它会在副本到期之前向属主读取。
 
 ```yaml
 cocache:
@@ -119,6 +128,19 @@ cocache:
       ttl: 30m
       local-max-age: 10s
 ```
+
+## 从缓存中删除状态 {#drop-a-state-from-the-cache}
+
+要让缓存在到期之前放弃某个状态，在任一运行该缓存的服务的节点上调用 CoCache 的 actuator 端点，键是聚合的租户与 ID。只有 `management.endpoints.web.exposure.include` 列出 `cocache` 时端点才会暴露；只开放给运维。
+
+```bash
+curl -X DELETE "http://<node>/actuator/cocache/wow.eshop-ordering.order/<tenantId>/<id>"
+```
+
+- **默认是 CoCache 的 `evict`，保留版本。** 所有副本都被删除，下一次读取向属主加载状态，但比被删除的版本更旧的状态不会写回：重复投递的提交或重放仍然不能让缓存回退。
+- **`?purge=true` 连版本一起删除**，之后任何版本都能再次写入，包括更旧的版本。它需要 `management.endpoint.cocache.allow-purge: true`，只用于必须彻底清除的内容，例如属主不再写入的键。优先使用 `evict`。
+
+无论哪种，属主下一次提交该聚合时都会再次写入状态。状态视图是派生数据：缓存从属主重建，删除它不会丢失任何东西。
 
 ## 受信读取
 
@@ -131,3 +153,4 @@ cocache:
 - 属主与读方共用一个 Redis。缓存的名字、键和值（视图的 JSON）是服务之间的契约。视图的兼容性就是契约的兼容性：属主新增字段不会破坏任何读方，其余由兼容性闸门检查（[Manifest 与兼容性](../manifest)）。
 - 每个共享的状态，属主每次提交多一次 Redis 写入。
 - 缓存由 CoCache 自己的指标与健康检查报告（[可观测性](../../operate/observability)）。
+- 从基于 CoCache 6 的预发布版迁到 CoCache 8 时，属主与所有读方要在同一个发布窗口内切换（[升级部署](../../operate/upgrades#wow-cocache-on-cocache-8)）。

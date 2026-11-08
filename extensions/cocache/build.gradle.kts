@@ -7,17 +7,18 @@ dependencies {
     api(project(":runtime"))
     // The views the peer contracts on the class path name.
     implementation(project(":manifest"))
+    // The caches, their factory and their suspending views (CoCache 8 has them all in its core).
     api("me.ahoo.cocache:cocache-core")
-    api("me.ahoo.cocache:cocache-coroutines")
     // A cache that cannot serve says so once per outage.
     implementation("io.github.oshai:kotlin-logging-jvm")
     // The configuration the host imports (AutoConfiguration.imports) is plain Spring: only the host imports Spring
-    // Boot (decision D118's module rules). CoCache's starter, when the application has it, gives the runtime and
-    // applies `cocache.caches.<name>.*` to the caches this module creates.
+    // Boot (decision D118's module rules). CoCache's starter, when the application has it, gives the runtime and the
+    // CoCacheFactory that applies `cocache.*` to the caches this module creates.
     compileOnly("org.springframework:spring-context")
-    compileOnly("me.ahoo.cocache:cocache-spring-boot-starter")
     testImplementation("org.springframework:spring-context")
     testImplementation("me.ahoo.cocache:cocache-spring-boot-starter")
+    // CoCache's backend with faults to inject (HookedBackend): a Redis whose reads fail.
+    testImplementation("me.ahoo.cocache:cocache-test")
     // ApplicationContextRunner, and the import selector that reads this module's auto-configuration metadata.
     testImplementation("org.springframework.boot:spring-boot-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-test")

@@ -15,6 +15,7 @@ package me.ahoo.wow.cocache
 
 import io.mockk.mockk
 import me.ahoo.cocache.core.CacheRuntime
+import me.ahoo.cocache.core.CoCacheFactory
 import me.ahoo.cocache.spring.boot.CoCacheAutoConfiguration
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -25,6 +26,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.core.ResolvableType
@@ -51,9 +53,52 @@ class WowCoCacheAutoConfigurationTest {
             cache.assert().isSameAs(context.getBean(StateViewCaches::class.java).of<OrderView>())
             context.containsBean(StateViewCacheRegistrar.beanNameOf("shop.order")).assert().isTrue()
             // Created at startup, so CoCache's starter knows the cache its settings name.
-            context.getBean(CacheRuntime::class.java).cacheNames.assert().contains("wow.shop.order")
+            val runtime = context.getBean(CacheRuntime::class.java)
+            runtime.cacheNames.assert().contains("wow.shop.order")
+            runtime.admin("wow.shop.order")!!.layered.assert().isTrue()
+            runtime.policy("wow.shop.order")!!.ttl.assert().isEqualTo(Duration.ofMinutes(5))
             context.getBeansOfType(PublishedSinks::class.java).assert().isEmpty()
         }
+    }
+
+    @Test
+    fun `the caches should be created at startup, so the cache's own settings name them, even with lazy beans`() {
+        runner.withInitializer { it.addBeanFactoryPostProcessor(LazyInitializationBeanFactoryPostProcessor()) }
+            .withPropertyValues("cocache.backend=memory", "cocache.caches.[wow.shop.order].ttl=5m")
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBean(CacheRuntime::class.java).policy("wow.shop.order")!!.ttl.assert()
+                    .isEqualTo(Duration.ofMinutes(5))
+            }
+    }
+
+    @Test
+    fun `the caches should refresh ahead only when the cache's own settings say so`() {
+        runner.withPropertyValues("cocache.backend=memory", "cocache.defaults.cache.refresh-window=1m").run { context ->
+            context.getBean(CacheRuntime::class.java).policy("wow.shop.order")!!.refreshWindow.assert().isNull()
+        }
+        runner.withPropertyValues("cocache.backend=memory", "cocache.caches.[wow.shop.order].refresh-window=1m")
+            .run { context ->
+                context.getBean(CacheRuntime::class.java).policy("wow.shop.order")!!.refreshWindow.assert()
+                    .isEqualTo(Duration.ofMinutes(1))
+            }
+    }
+
+    @Test
+    fun `a service with a runtime of its own, without CoCache's starter, should get the caches on that runtime`() {
+        val runtime = runtimeOn(me.ahoo.cocache.core.memory.InMemoryBackend())
+        ApplicationContextRunner()
+            .withClassLoader(ContractClassLoader(shopManifest(), javaClass.classLoader))
+            .withConfiguration(AutoConfigurations.of(WowCoCacheAutoConfiguration::class.java))
+            .withBean(QueryApi::class.java, { mockk<QueryApi>() })
+            .withBean(CacheRuntime::class.java, { runtime })
+            .run { context ->
+                context.startupFailure.assert().isNull()
+                context.getBeanProvider<StateViewCache<OrderView>>(cacheOfOrders).getObject().name
+                    .assert().isEqualTo("wow.shop.order")
+                runtime.cacheNames.assert().contains("wow.shop.order")
+            }
+        runtime.close()
     }
 
     @Test
@@ -92,7 +137,7 @@ class WowCoCacheAutoConfigurationTest {
     @Test
     fun `the sinks should refuse a type with no view, or a name that is no type`() {
         val runtime = runtimeOn(me.ahoo.cocache.core.memory.InMemoryBackend())
-        val caches = StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { mockk() }
+        val caches = StateViewCaches(CoCacheFactory(runtime)) { mockk() }
         val views = mapOf(ORDER to OrderView::class.java)
         fun sinksOf(publish: String, views: Map<AggregateType, Class<*>>) =
             runCatching { WowCoCacheAutoConfiguration.sinksOf(listOf(publish), null, shopManifest(), views, caches) }

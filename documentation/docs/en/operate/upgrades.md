@@ -74,3 +74,42 @@ A command on an aggregate outside the caller's scope is answered `404 wow.aggreg
 The OpenAPI document (`GET /wow/openapi`) types each aggregate's `access` by the attributes it declares, a single one's value or null and a multiple one's array, an integer as `int64`; an event stream's `access`, with the aggregate's `owner` and `space`, is null while the stream is not stamped. A pre-release's document had a `tags` member instead. Regenerate a client generated from it.
 
 The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start; the refusal names the key and points at the migration guide's configuration page, which maps each earlier key to its new one or says why it is gone.
+
+### wow-cocache on CoCache 8
+
+`wow-cocache` moved from CoCache 6 to CoCache 8, which neither reads nor writes what CoCache 6 stored. A service that shares states through it changes its code, its configuration and its deployment once.
+
+**Code.** A Spring application changes nothing: the caches are created by the `CoCacheFactory` bean of CoCache's starter. Code that builds the caches itself passes CoCache's `CoCacheFactory`:
+
+| Before | Now |
+| --- | --- |
+| `StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { queryApi }` | `StateViewCaches(CoCacheFactory(runtime)) { queryApi }` |
+| An own `StateViewCaches.CacheFactory`, to change the caches' policy | `CoCacheFactory(runtime, layers)`, with a `CacheLayers` of your own |
+| `StateViewCaches.specOf(...)`: a `CacheSpec` | A `VersionedCacheSpec` |
+| `me.ahoo.cocache:cocache-coroutines` | Gone: the suspending views are in `cocache-core` |
+
+**Configuration.** A key CoCache 8 does not define fails the start under `cocache.caches.[<name>]`, `cocache.defaults` and `cocache.overrides`, and the message says where the key goes: a CoCache 6 `ttl-forever` or `load-async-timeout`, a CoCache 6 `cocache.defaults.ttl` (now `cocache.defaults.cache.ttl`) or `cocache.defaults.key-prefix` (now `cocache.key-prefix`), or a cache name with dots written without its brackets (`cocache.caches.wow.eshop-ordering.order.ttl`). Anywhere else under `cocache`, such as `cocache.redis.*`, Spring Boot ignores it without a warning. Check every `cocache.*` key:
+
+| CoCache 6 | CoCache 8 |
+| --- | --- |
+| `cocache.defaults.<field>` | `cocache.defaults.cache.<field>`, which fills only what a declaration does not write; `cocache.overrides.cache.<field>` forces a stricter value |
+| A duration without its unit (`ttl: 600`, `cocache.redis.command-timeout: 2000`) | With its unit (`ttl: 10m`, `command-timeout: 2s`): a bare number fails the start |
+| `ttl-forever: true` | `ttl: forever` |
+| `load-async-timeout` | `load-timeout` |
+| `load-max-concurrent: 0` | `load-max-concurrent: unlimited` |
+| `cocache.defaults.key-prefix` | `cocache.key-prefix` |
+| `cocache.async-executor`, `cocache.blocking-executor` | `cocache.executor` |
+| `fill-in-transaction`, `invalidate-fills-on-rollback` | Under `cocache.defaults.cache.*` or `cocache.caches.[<name>].*` |
+| `refresh-window` on a state view's cache: refused at start | Off by Wow's declaration, so `cocache.defaults.cache.refresh-window` does not reach it; `cocache.caches.[wow.<context>.<aggregate>].refresh-window` turns it on for one |
+
+An entry under `cocache.caches` that names no cache, or a key its type does not have, fails the start too; `cocache.caches-validation: warn` logs these instead. [CoCache's upgrade guide](https://cocache.ahoo.me/guide/upgrade) lists the rest, the Redis ACL among them.
+
+**Deleting a state.** CoCache's endpoint deletes a state view's key with `evict`, which keeps its version; `?purge=true` drops the version and needs `management.endpoint.cocache.allow-purge` ([Drop a state from the cache](../guide/extensions/cocache#drop-a-state-from-the-cache)).
+
+**The cut-over.** The owner and every service that reads its states switch in one release window: a CoCache 6 node and a CoCache 8 node cannot share a cache, and nothing of the CoCache 6 cache is carried over. The state views are derived, so nothing is lost:
+
+1. Stop every node, of the owner and of each reader, that runs CoCache 6.
+2. Delete the state views' keys, on each master of a Redis cluster: `redis-cli --scan --pattern 'cocache:wow.*' | xargs redis-cli unlink` (with a key prefix of your own, that prefix). An owner's write onto a key that still holds a CoCache 6 value fails until the key expires or a reader's read replaces it, and its sink subscription retries and parks meanwhile.
+3. Start the owner and the readers on the new version. The caches start empty: the owner's commits write the states again, and a reader's miss reads the owner.
+
+A rollback is the same steps the other way.

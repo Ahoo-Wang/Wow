@@ -74,3 +74,42 @@ TypeScript 包随之改变：`@ahoo-wang/wow-client` 不再有 `ApplyTags`、`Ta
 OpenAPI 文档（`GET /wow/openapi`）按每个聚合声明的访问属性给出 `access` 的类型：单值为该值或 null，多值为数组，整数为 `int64`；事件流的 `access` 含聚合的 `owner` 与 `space`，在该流盖章之前为 null。预发布版的文档里是 `tags` 成员。由它生成的客户端需重新生成。
 
 配置面在 10.0.0 之前一次定稿，不保留别名：改名或移除的键会使节点拒绝启动；拒绝消息列出该键，并指向迁移指南的配置页，那里给出每个旧键的新键或它被移除的原因。
+
+### 基于 CoCache 8 的 wow-cocache {#wow-cocache-on-cocache-8}
+
+`wow-cocache` 从 CoCache 6 改为基于 CoCache 8，后者既不读取也不写入 CoCache 6 存储的内容。经它共享状态的服务要一次性修改代码、配置与部署。
+
+**代码。** Spring 应用无需改动：缓存由 CoCache starter 的 `CoCacheFactory` bean 创建。自己构建缓存的代码改为传入 CoCache 的 `CoCacheFactory`：
+
+| 之前 | 现在 |
+| --- | --- |
+| `StateViewCaches(StateViewCaches.CacheFactory.of(runtime)) { queryApi }` | `StateViewCaches(CoCacheFactory(runtime)) { queryApi }` |
+| 自己实现 `StateViewCaches.CacheFactory`，以修改缓存的策略 | `CoCacheFactory(runtime, layers)`，配合自己的 `CacheLayers` |
+| `StateViewCaches.specOf(...)`：一个 `CacheSpec` | 一个 `VersionedCacheSpec` |
+| `me.ahoo.cocache:cocache-coroutines` | 已移除：挂起视图在 `cocache-core` 中 |
+
+**配置。** `cocache.caches.[<name>]`、`cocache.defaults` 与 `cocache.overrides` 下 CoCache 8 没有定义的键会导致启动失败，错误信息会说明这个键应写在哪里：例如 CoCache 6 的 `ttl-forever` 或 `load-async-timeout`，CoCache 6 的 `cocache.defaults.ttl`（现为 `cocache.defaults.cache.ttl`）或 `cocache.defaults.key-prefix`（现为 `cocache.key-prefix`），或者含点的缓存名没有写方括号（`cocache.caches.wow.eshop-ordering.order.ttl`）。`cocache` 下其它位置的这类键，例如 `cocache.redis.*` 下的，Spring Boot 会忽略且不给出警告。请检查每个 `cocache.*` 键：
+
+| CoCache 6 | CoCache 8 |
+| --- | --- |
+| `cocache.defaults.<field>` | `cocache.defaults.cache.<field>`，只填补声明没有写出的字段；要强制更严格的值用 `cocache.overrides.cache.<field>` |
+| 不带单位的时长（`ttl: 600`、`cocache.redis.command-timeout: 2000`） | 带单位（`ttl: 10m`、`command-timeout: 2s`）：裸数字会导致启动失败 |
+| `ttl-forever: true` | `ttl: forever` |
+| `load-async-timeout` | `load-timeout` |
+| `load-max-concurrent: 0` | `load-max-concurrent: unlimited` |
+| `cocache.defaults.key-prefix` | `cocache.key-prefix` |
+| `cocache.async-executor`、`cocache.blocking-executor` | `cocache.executor` |
+| `fill-in-transaction`、`invalidate-fills-on-rollback` | 移到 `cocache.defaults.cache.*` 或 `cocache.caches.[<name>].*` 下 |
+| 状态视图缓存上的 `refresh-window`：启动时拒绝 | 由 Wow 的声明关闭，`cocache.defaults.cache.refresh-window` 不作用于它；`cocache.caches.[wow.<context>.<aggregate>].refresh-window` 为单个缓存开启 |
+
+`cocache.caches` 下没有对应缓存的条目，或缓存类型没有的键，同样会导致启动失败；`cocache.caches-validation: warn` 改为只记录警告。其余变化（包括 Redis ACL）见 [CoCache 的升级指南](https://cocache.ahoo.me/guide/upgrade)。
+
+**删除状态。** CoCache 的端点以 `evict` 删除状态视图的键，保留其版本；`?purge=true` 连版本一起删除，需要 `management.endpoint.cocache.allow-purge`（[从缓存中删除状态](../guide/extensions/cocache#drop-a-state-from-the-cache)）。
+
+**切换。** 属主与读取其状态的每个服务要在同一个发布窗口内切换：CoCache 6 的节点与 CoCache 8 的节点不能共用一个缓存，CoCache 6 缓存中的内容也不会带过来。状态视图是派生数据，因此不会丢失任何东西：
+
+1. 停止运行 CoCache 6 的每个节点，包括属主与每个读方。
+2. 在 Redis 集群的每个主节点上删除状态视图的键：`redis-cli --scan --pattern 'cocache:wow.*' | xargs redis-cli unlink`（用了自己的键前缀时换成那个前缀）。键中仍是 CoCache 6 的值时，属主对它的写入会失败，直到键到期或被读方的读取替换，在此期间它的 sink 订阅会重试并搁置。
+3. 以新版本启动属主与读方。缓存从空开始：属主的提交重新写入状态，读方未命中时向属主读取。
+
+回滚按相反方向执行同样的步骤。
