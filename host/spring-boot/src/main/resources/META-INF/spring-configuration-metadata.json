@@ -345,7 +345,7 @@
     "type" : "java.lang.Double",
     "description" : "The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Access",
-    "defaultValue" : 0.1
+    "defaultValue" : 0.25
   }, {
     "name" : "wow.aggregates",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Aggregate>",

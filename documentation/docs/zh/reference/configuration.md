@@ -36,7 +36,7 @@ How each context's built-in subscription `wow.access` stamps an aggregate's acce
 | `wow.access.stamp-batch` | `Integer` | `1000` | The most streams one stamp writes: a long history is stamped in statements of at most this many. |
 | `wow.access.walk-batch` | `Integer` | `100` | The most aggregates a page of an access walk stamps; the walk records how far it is after each page, about every five seconds at its pace. |
 | `wow.access.walk-rate` | `Integer` | `500` | The most aggregates an access walk stamps a second, each one's whole history and its snapshot, however large its share. |
-| `wow.access.walk-share` | `Double` | `0.1` | The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster. |
+| `wow.access.walk-share` | `Double` | `0.25` | The most of the time an access walk takes, as a share of one connection of the log store's, above 0 and at most 1: after each aggregate it waits so its stamping took at most this share. While the store's writes press it gives way, down to an eighth of it. Raise it in a maintenance window to walk faster. |
 
 ## `wow.aggregates.[<context>.<aggregate>]`
 

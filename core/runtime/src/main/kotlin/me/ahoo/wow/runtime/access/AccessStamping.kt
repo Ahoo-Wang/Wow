@@ -96,10 +96,10 @@ class AccessStampOptions @InternalWowApi constructor(
         const val DEFAULT_WALK_RATE: Int = 500
 
         /**
-         * The most of the time a walk takes by default: the largest share whose walk kept the commands' p99 latency
-         * within its noise band, on PostgreSQL and MongoDB alike, in the benchmark's walk under live commands.
+         * The most of the time a walk takes by default: the largest measured share whose walk left the commands' p99
+         * latency near a run without a walk, on MongoDB, whose commands an unbounded walk does slow down.
          */
-        const val DEFAULT_WALK_SHARE: Double = 0.1
+        const val DEFAULT_WALK_SHARE: Double = 0.25
 
         val DEFAULT_INTERVAL: Duration = 5.seconds
         val DEFAULT_TTL: Duration = 30.seconds
