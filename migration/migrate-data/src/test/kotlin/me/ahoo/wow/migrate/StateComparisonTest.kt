@@ -21,7 +21,12 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import tools.jackson.databind.node.ObjectNode
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.time.ZoneId
 
 class StateComparisonTest {
     private val order = NineXAggregate("example-service", "order")
@@ -207,6 +212,122 @@ class StateComparisonTest {
 
         printed.clear()
         comparison(snapshots, options = CompareOptions(restart = true)).compare(order).differing.assert().isEqualTo(1)
+        printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
+    }
+
+    /** [source] whose snapshot connection is lost after its first page, as a comparison is stopped half-way. */
+    private fun interruptedAfterFirstPage(source: NineXSnapshotSource) = object : NineXSnapshotSource by source {
+        override fun snapshots(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXSnapshot> {
+            if (after != null) throw IOException("the snapshot connection was lost after the first page")
+            return source.snapshots(aggregate, after, limit)
+        }
+    }
+
+    @Test
+    fun `a comparison stopped half-way on another map starts again from the first instance`(
+        @TempDir directory: Path,
+    ) = runTest {
+        imported()
+        // A field only the 9.x snapshot has, which the first map leaves out of the comparison.
+        val snapshot = NineXExample.snapshot("order-snapshot.json").let { snapshot ->
+            snapshot.copy(state = (snapshot.state as ObjectNode).deepCopy().put("legacyOnly", "to review"))
+        }
+        val source = InMemoryNineXSnapshotSource(listOf(snapshot), events)
+        val ignoring = NineXExample.map.copy(
+            aggregates = NineXExample.map.aggregates.map { aggregate ->
+                if (aggregate.source() != order) {
+                    aggregate
+                } else {
+                    aggregate.copy(state = aggregate.state.copy(ignore = aggregate.state.ignore + "legacyOnly"))
+                }
+            },
+        )
+        val mapFile = directory.resolve("migration-map.json")
+        val config = MigrationConfig(
+            map = mapFile.toString(),
+            source = SourceConfig("mongodb://unused", "nine_x"),
+            target = TargetConfig(type = "postgres", jdbcUrl = "jdbc:postgresql://unused/v10"),
+        )
+
+        // The fingerprint the CLI gives the comparison, of the map file as it is.
+        fun options(restart: Boolean = false) = CompareOptions(
+            pageSize = 1,
+            fingerprint = ComparisonFingerprint.of(config, CompareOptions.ALL, ZoneId.of("UTC"), tool = null),
+            restart = restart,
+        )
+
+        Files.writeString(mapFile, WowJson.mapper.writeValueAsString(ignoring))
+        runCatching {
+            StateComparison(
+                interruptedAfterFirstPage(source),
+                events,
+                MigrationPlan(ignoring, NineXExample.manifest),
+                models,
+                { log },
+                checkpoints,
+                options(),
+            ).compare(order)
+        }.exceptionOrNull().assert().isInstanceOf(IOException::class.java)
+        checkpoints.load().comparisonOf(order)!!.also {
+            it.completed.assert().isFalse()
+            it.compared.assert().isEqualTo(1)
+            it.differing.assert().isEqualTo(0)
+        }
+
+        // The field is no longer ignored: the instance compared under the old map is compared again.
+        Files.writeString(mapFile, NineXExample.MAP_TEXT)
+        suspend fun current(restart: Boolean = false) = StateComparison(
+            source,
+            events,
+            NineXExample.plan,
+            models,
+            { log },
+            checkpoints,
+            options(restart),
+            { printed += it },
+        ).compare(order)
+        val resumed = current()
+        printed.assert().contains(
+            "example-service.order is compared in full again from the first instance: the map, a Manifest, the " +
+                "classpath (the V10 models), the sample, the time zone or the tool changed since it stopped.",
+        )
+        resumed.compared.assert().isEqualTo(1)
+        resumed.kinds.assert().isEqualTo(mapOf("legacyOnly" to 1L))
+        resumed.passed.assert().isFalse()
+        current(restart = true).kinds.assert().isEqualTo(resumed.kinds)
+    }
+
+    @Test
+    fun `a comparison stopped half-way on the same inputs resumes with what it found before`() = runTest {
+        imported()
+        // Both differ: the first at a version the log does not hold, the second an instance it does not hold.
+        val differing = changed("order-snapshot.json") { node -> node.put("version", 99) }
+        val second = changed("order-snapshot.json") { node ->
+            node.put("aggregateId", "0VY3GwaK4OmV00Z")
+            (node.get("state") as ObjectNode).put("id", "0VY3GwaK4OmV00Z")
+        }
+        val source = InMemoryNineXSnapshotSource(listOf(differing, second), events)
+        val options = CompareOptions(pageSize = 1, fingerprint = "a")
+        runCatching {
+            StateComparison(
+                interruptedAfterFirstPage(source),
+                events,
+                NineXExample.plan,
+                models,
+                { log },
+                checkpoints,
+                options,
+            ).compare(order)
+        }.exceptionOrNull().assert().isInstanceOf(IOException::class.java)
+        checkpoints.load().comparisonOf(order)!!.differing.assert().isEqualTo(1)
+        StateComparison(source, events, NineXExample.plan, models, { log }, checkpoints, options, { printed += it })
+            .compare(order).also {
+                it.snapshots.assert().isEqualTo(2)
+                it.differing.assert().isEqualTo(2)
+                it.kinds.assert().isEqualTo(mapOf("\$version" to 2L))
+            }
+        // Only the page after where it stopped was compared: the first difference was kept, not found again.
+        printed.assert().noneMatch { it.contains("compared in full again") }
         printed.count { it.startsWith("DIFFERS") }.assert().isEqualTo(1)
     }
 
