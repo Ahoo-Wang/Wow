@@ -125,6 +125,32 @@ describe('the V10 WowDatasetWordings', () => {
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
   });
 
+  it('fails whole when a page after the first fails: no partial list stands for the whole', async () => {
+    installFake();
+    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+    for (let index = 0; index < 101; index++)
+      await writer.set(`sales.data${index}`, {}, '0', write());
+    const real = globalThis.fetch;
+    let reads = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (++reads === 2)
+          return new Response('{"errorCode":"Unavailable"}', {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        return real(input, init);
+      }),
+    );
+
+    await expect(writer.list()).rejects.toMatchObject({
+      name: 'ViewStoreError',
+      code: 'UNAVAILABLE',
+    });
+    expect(reads).toBe(2);
+  });
+
   it('answers the revision after the expected one when the result names none', async () => {
     const fake = installFake();
     const real = fake.fetch;
