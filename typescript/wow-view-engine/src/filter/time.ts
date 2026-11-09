@@ -85,30 +85,38 @@ function relativeWindow(
   }
   const today = reference.startOf('day');
   return future
-    ? bounds(today, beforeDay(stepDays(today, amount, unit, timeZone)))
+    ? bounds(today, beforeDay(stepCalendar(today, amount, unit, timeZone)))
     : bounds(
-        stepDays(stepDays(today, 1, 'day', timeZone), -amount, unit, timeZone),
+        stepCalendar(
+          stepCalendar(today, 1, 'day', timeZone),
+          -amount,
+          unit,
+          timeZone,
+        ),
         reference.endOf('day'),
       );
 }
 
 /**
- * The first moment of the day `amount` units of calendar from `day`, in the
- * zone. The step is taken on the date and the day re-anchored: dayjs steps a
- * zoned value with the offset it started with, so the last 7 days read on
- * the far side of a clock change began an hour off midnight.
+ * The same wall-clock time `amount` units of calendar from `at`, in the
+ * zone, at the offset the zone has there. The step is taken on the wall
+ * clock and the moment re-anchored: dayjs steps a zoned value with the
+ * offset it started with, so a step across a clock change landed an hour
+ * off — the last 7 days began an hour off midnight, and 「上月同期」 read in
+ * summer ended an hour before the same time of a winter month (#5516). A
+ * date the target month lacks is its last day (dayjs clamps 03-31 to 02-28).
  */
-function stepDays(
-  day: Dayjs,
+function stepCalendar(
+  at: Dayjs,
   amount: number,
   unit: 'day' | 'week' | 'month' | 'year',
   timeZone: string,
 ): Dayjs {
-  const date = dayjs
-    .utc(day.format('YYYY-MM-DD'))
+  const wall = dayjs
+    .utc(at.format('YYYY-MM-DDTHH:mm:ss.SSS'))
     .add(amount, unit)
-    .format('YYYY-MM-DD');
-  return dayjs.tz(date, timeZone);
+    .format('YYYY-MM-DDTHH:mm:ss.SSS');
+  return dayjs.tz(wall, timeZone);
 }
 
 /** The last millisecond before `day` begins. */
@@ -120,9 +128,11 @@ function beforeDay(day: Dayjs): Dayjs {
 function period(
   reference: Dayjs,
   value: PresetDateTimeValue,
+  timeZone: string,
 ): ClosedInstantRange {
   const { unit, shift, toDate } = PERIODS[value.preset];
-  const at = shift === 0 ? reference : shiftBy(reference, unit, shift);
+  const at =
+    shift === 0 ? reference : shiftBy(reference, unit, shift, timeZone);
   // `isoWeek` comes from a plugin and types as its own overload, so it is
   // narrowed here rather than widening every other unit to match it.
   const start = unit === 'isoWeek' ? at.startOf('isoWeek') : at.startOf(unit);
@@ -138,15 +148,22 @@ function period(
 }
 
 /**
- * Steps a whole period. `isoWeek` starts on Monday independent of the runtime
- * locale, and dayjs shifts it as a plain week; a quarter it counts in months.
- * Landing anywhere inside the neighbouring period is enough, because the
- * caller takes that period's bounds.
+ * Steps a whole period, to the same wall-clock time in it (`stepCalendar`):
+ * a whole period takes that period's bounds, and a period so far ends at
+ * the moment stepped to. `isoWeek` starts on Monday independent of the
+ * runtime locale and steps as a plain week; a quarter steps in months.
  */
-function shiftBy(reference: Dayjs, unit: PeriodUnit, shift: number): Dayjs {
-  if (unit === 'quarter') return reference.add(shift * 3, 'month');
-  if (unit === 'isoWeek') return reference.add(shift, 'week');
-  return reference.add(shift, unit);
+function shiftBy(
+  reference: Dayjs,
+  unit: PeriodUnit,
+  shift: number,
+  timeZone: string,
+): Dayjs {
+  if (unit === 'quarter')
+    return stepCalendar(reference, shift * 3, 'month', timeZone);
+  if (unit === 'isoWeek')
+    return stepCalendar(reference, shift, 'week', timeZone);
+  return stepCalendar(reference, shift, unit, timeZone);
 }
 
 /**
@@ -263,7 +280,7 @@ function windowAt(
   const reference = dayjs(now).tz(timeZone);
   return value.type === 'relative'
     ? relativeWindow(reference, value, timeZone)
-    : period(reference, value);
+    : period(reference, value, timeZone);
 }
 
 /**
