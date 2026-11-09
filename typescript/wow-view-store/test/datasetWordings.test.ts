@@ -66,6 +66,65 @@ describe('the V10 WowDatasetWordings', () => {
     expect(clear.headers.get('If-Match')).toBe('"3"');
   });
 
+  // #5546: the wording is the tenant's whole, however many datasets it
+  // covers. One read of at most 1,000 left the rest unread, and each of
+  // them read as never written: revision '0', and every save a CONFLICT.
+  it('lists every dataset’s wording, page after page', async () => {
+    const fake = installFake();
+    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+    for (let index = 0; index < 1001; index++)
+      await writer.set(
+        `sales.data${index}`,
+        { title: `Dataset ${index}` },
+        '0',
+        write(),
+      );
+    const queries = fake.requests.length;
+
+    const listed = await writer.list();
+
+    expect(listed.size).toBe(1001);
+    expect(listed.get('sales.data1000')).toEqual({
+      wording: { title: 'Dataset 1000' },
+      revision: '1',
+    });
+    const reads = fake.requests.slice(queries);
+    expect(reads.map(read => read.body)).toEqual(
+      reads.map(() => expect.objectContaining({ kind: 'cursor', size: 100 })),
+    );
+    expect(reads).toHaveLength(11);
+    expect(
+      await writer.set(
+        'sales.data1000',
+        { title: 'Changed' },
+        listed.get('sales.data1000')!.revision,
+        write(),
+      ),
+    ).toBe('2');
+  });
+
+  it('stops reading pages once the caller lets the list go', async () => {
+    installFake();
+    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+    for (let index = 0; index < 101; index++)
+      await writer.set(`sales.data${index}`, {}, '0', write());
+    const controller = new AbortController();
+    const real = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const answer = await real(input, init);
+        controller.abort();
+        return answer;
+      }),
+    );
+
+    await expect(
+      writer.list({ signal: controller.signal }),
+    ).rejects.toBeDefined();
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+  });
+
   it('answers the revision after the expected one when the result names none', async () => {
     const fake = installFake();
     const real = fake.fetch;

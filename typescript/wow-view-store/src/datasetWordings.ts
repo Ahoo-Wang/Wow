@@ -12,7 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
+import { asc, cursorQuery, filter } from '@ahoo-wang/wow-client/dsl';
 import type { CommandOptions, CommandResult } from '@ahoo-wang/wow-client';
 import type {
   DatasetOverrides,
@@ -38,8 +38,11 @@ export interface WowDatasetWordingsOptions {
   fetcher: Fetcher;
 }
 
-/** The most datasets one application's wording is read for at once. */
-const LIST_LIMIT = 1000;
+/**
+ * The datasets one page of {@link WowDatasetWordings.list} reads: the
+ * service's default cursor page limit over HTTP, as a view list's page.
+ */
+const LIST_PAGE = 100;
 
 /**
  * The wording a tenant's administrators keep over its datasets in the V10
@@ -67,24 +70,47 @@ export class WowDatasetWordings implements DatasetWordingStore {
    * Every dataset's wording of the caller's tenant and application, by
    * dataset. A cleared one is listed too, saying nothing: its revision is
    * what the next write expects.
+   *
+   * Read whole, a page at a time by the snapshot model's cursor, oldest
+   * first, until the service has no next page. A wording left unread would
+   * read as never written — revision `'0'` — and every save of it would be
+   * refused as a conflict nobody could clear (#5546); the port promises
+   * every dataset's, so no count of them cuts it short. The caller's signal
+   * stops the reading between pages and within one.
    */
   list({ signal }: ReadOptions = {}): Promise<
     ReadonlyMap<string, StoredDatasetWording>
   > {
     return guard(async () => {
-      const snapshots = await request(() =>
-        this.snapshots.list(
-          listQuery({ filter: filter.matchAll(), limit: LIST_LIMIT }),
-          signal === undefined ? {} : { signal },
-        ),
-      );
-      return new Map(
-        snapshots.map(({ version, state }) => [
-          state.dataset,
-          { wording: wordingOf(state), revision: revisionOf(version) },
-        ]),
-      );
+      const wordings = new Map<string, StoredDatasetWording>();
+      let cursor: string | null = null;
+      do {
+        const page = await this.page(cursor, signal);
+        for (const { version, state } of page.list)
+          wordings.set(state.dataset, {
+            wording: wordingOf(state),
+            revision: revisionOf(version),
+          });
+        cursor = page.nextCursor;
+        signal?.throwIfAborted();
+      } while (cursor !== null);
+      return wordings;
     });
+  }
+
+  /** One page of the wordings, the one after `cursor`; the first without one. */
+  private page(cursor: string | null, signal: AbortSignal | undefined) {
+    return request(() =>
+      this.snapshots.cursor(
+        cursorQuery({
+          filter: filter.matchAll(),
+          sort: [asc('firstEventTime')],
+          size: LIST_PAGE,
+          cursor,
+        }),
+        signal === undefined ? {} : { signal },
+      ),
+    );
   }
 
   /**
