@@ -35,6 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -257,75 +258,80 @@ class ParkedRetriesTest {
     fun `an operator's retry accepted while the owner computes a schedule is run by the next scan`(): Unit =
         runBlocking {
             // #5506: the owner's schedule, read before the request, must not hide it at NEVER.
-            val name = "Audit.resume"
-            val ref = cart("parked")
-            val log = InMemoryEventLog(partitions = 1)
-            val stored = InMemoryFailureLedger()
-            val scheduling = CompletableDeferred<Unit>()
-            val release = CompletableDeferred<Unit>()
-            val held = AtomicBoolean()
-            val stale = AtomicReference<ParkedAggregate?>()
-            val ledger = object : FailureLedger by stored {
-                override suspend fun amend(
-                    subscription: String,
-                    ref: AggregateRef,
-                    amendment: ParkedAmendment,
-                ): ParkedAggregate? {
-                    if (amendment is ParkedAmendment.Schedule && amendment.at == ParkedAggregate.NEVER &&
-                        held.compareAndSet(false, true)
-                    ) {
-                        // Only delays the owner's write; the condition is the store's.
-                        scheduling.complete(Unit)
-                        release.await()
-                        return stored.amend(subscription, ref, amendment).also { stale.set(it) }
-                    }
-                    return stored.amend(subscription, ref, amendment)
-                }
-            }
-            val broken = AtomicBoolean(true)
-            val tried = AtomicInteger()
-            val subscription = Subscription(name, SubscriptionFilter("shop")) {
-                tried.incrementAndGet()
-                check(!broken.get()) { "the downstream is temporarily broken" }
-            }
-            val options = testOptions(maxAttempts = 1).copyWith(
-                parked = ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0), scanInterval = 5.milliseconds),
-            )
-            val owner = SubscriptionRuntime(
-                "race",
-                log,
-                InMemoryCheckpointStore(),
-                ledger,
-                listOf(subscription),
-                options
-            )
-            // Another node: the same ledger, without the partition.
-            val other = SubscriptionRuntime(
-                "race",
-                log,
-                InMemoryCheckpointStore(),
-                stored,
-                listOf(subscription),
-                options
-            )
-            try {
-                Appender(log).append(ref.id)
-                owner.start(setOf(0))
-                withTimeout(10.seconds) { scheduling.await() }
-                broken.set(false)
-                ParkedOps.of(listOf(other)).retry(SubscriptionId("shop", name), ref)
-                    .assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
-                release.complete(Unit)
-                // The schedule lost to the request, which the next scan finds due and runs.
-                eventually { stored.parked(name, ref) == null }
-                stale.get().assert().isNull()
-                tried.get().assert().isEqualTo(2)
-            } finally {
-                release.complete(Unit)
-                owner.stop()
-                other.stop()
+            ownerScheduleRace { ops, id, ref ->
+                ops.retry(id, ref).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
             }
         }
+
+    @Test
+    fun `a retry spec applied while the owner computes a schedule is retried by the next scan`(): Unit =
+        runBlocking {
+            // #5506, as HostParkedOpsTest met it: a spent entry given another retry while the owner scheduled it NEVER.
+            ownerScheduleRace { ops, id, ref ->
+                ops.applyRetrySpec(id, ref, ParkedRetrySpec(1, Duration.ZERO, Duration.ZERO)).assert().isNotNull()
+            }
+        }
+
+    /**
+     * Parks an aggregate of a subscription not retried automatically, holds the owner's first schedule of it (NEVER)
+     * until [change], an operator's action through another node, is stored, then lets it land: it must not, and the
+     * next scan must run the aggregate again.
+     */
+    private suspend fun ownerScheduleRace(change: suspend (ParkedOps, SubscriptionId, AggregateRef) -> Unit) {
+        val name = "Audit.resume"
+        val ref = cart("parked")
+        val log = InMemoryEventLog(partitions = 1)
+        val stored = InMemoryFailureLedger()
+        val scheduling = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val held = AtomicBoolean()
+        val stale = AtomicReference<ParkedAggregate?>()
+        val ledger = object : FailureLedger by stored {
+            override suspend fun amend(
+                subscription: String,
+                ref: AggregateRef,
+                amendment: ParkedAmendment,
+            ): ParkedAggregate? {
+                if (amendment is ParkedAmendment.Schedule && amendment.at == ParkedAggregate.NEVER &&
+                    held.compareAndSet(false, true)
+                ) {
+                    // Only delays the owner's write; the condition is the store's.
+                    scheduling.complete(Unit)
+                    release.await()
+                    return stored.amend(subscription, ref, amendment).also { stale.set(it) }
+                }
+                return stored.amend(subscription, ref, amendment)
+            }
+        }
+        val broken = AtomicBoolean(true)
+        val tried = AtomicInteger()
+        val subscription = Subscription(name, SubscriptionFilter("shop")) {
+            tried.incrementAndGet()
+            check(!broken.get()) { "the downstream is temporarily broken" }
+        }
+        val options = testOptions(maxAttempts = 1).copyWith(
+            parked = ParkedRetryOptions(spec = ParkedRetrySpec(maxRetries = 0), scanInterval = 5.milliseconds),
+        )
+        val owner = SubscriptionRuntime("race", log, InMemoryCheckpointStore(), ledger, listOf(subscription), options)
+        // Another node: the same ledger, without the partition.
+        val other = SubscriptionRuntime("race", log, InMemoryCheckpointStore(), stored, listOf(subscription), options)
+        try {
+            Appender(log).append(ref.id)
+            owner.start(setOf(0))
+            withTimeout(10.seconds) { scheduling.await() }
+            broken.set(false)
+            change(ParkedOps.of(listOf(other)), SubscriptionId("shop", name), ref)
+            release.complete(Unit)
+            // The schedule lost to the change, after which the entry is due: the next scan runs it.
+            eventually { stored.parked(name, ref) == null }
+            stale.get().assert().isNull()
+            tried.get().assert().isEqualTo(2)
+        } finally {
+            release.complete(Unit)
+            owner.stop()
+            other.stop()
+        }
+    }
 
     private companion object {
         const val NAME = "retrying"
