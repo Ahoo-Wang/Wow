@@ -417,10 +417,10 @@
 | --- | --- | --- | --- | --- |
 | BA-1 | 运行时：订阅、停放与失败台账（6） | `core/runtime` 的 `subscription/`、`source/`、`ledger/`、`ContractDirectory`、`SubscriptionBindings`、`ParkedOps`；#5506 另含 `:spi` 的 `FailureLedger` 与两个后端的台账 | **#5466**、**#5481**、**#5542**、#5459、#5506、#5526 | 修复中（会话 rt-subs-p1，2026-11-09） |
 | BA-2 | 运行时之外的 P1（4） | `edge/client`、`compiler/manifest-tools` 的 `SchemaCompatibility`、`migration/migrate-data` 的 `StateComparison`、`platform/analytics/catalog` 的 `DatasetCompiler`；四个模块各一个 PR | **#5456**、**#5457**、**#5458**、**#5486** | 修复中（会话 p1-sweep-edges，2026-11-09）；#5456 的视图名方案定为 D403 |
-| BA-3 | 运行时与内核：写入、等待、预留、生命周期（7） | `SnapshotWrites`、`Kernel`、预留（内核、运行时与两个后端）、`WaitCoordinator`、`NodeLifecycle`、`CommandIndex`、`DerivedRequests` | **#5445**、**#5474**、**#5480**、#5475、#5509、#5518、#5560 | 待修（BA-1 之后，同一模块串行） |
-| BA-4 | 运行时：定时器与调度（7） | `TimerRunner`、`TimerOptions`、`ScheduleSlots`、`ContextTimers`、`ScheduleJobRuntime`，内核的 `CronExpression` | **#5446**、#5453、#5467、#5488、#5489、#5515、#5525 | 待修（BA-3 之后） |
-| BA-5 | TypeScript：客户端、生成器与 React（11） | `typescript/wow-client`、`wow-generator`、`wow-react`；顺带处理 X-86 | **#5448**、#5452、#5471、#5484、#5485、#5497、#5498、#5529、#5530、#5537、#5538 | 待修 |
-| BA-6 | TypeScript：视图引擎（17） | `typescript/wow-view-engine`；#5546 另含 `wow-view-store` 与 `platform/view-store` | **#5447**、#5472、#5473、#5478、#5490、#5502、#5508、#5513、#5516、#5517、#5545、#5546、#5556、#5557、#5562、#5563、#5566 | 待修 |
+| BA-3 | 运行时与内核：写入、等待、预留、生命周期（7） | `SnapshotWrites`、`Kernel`、预留（内核、运行时与两个后端）、`WaitCoordinator`、`NodeLifecycle`、`CommandIndex`、`DerivedRequests` | **#5445**、**#5474**、**#5480**、#5475、#5509、#5518、#5560 | 三个 P1 修复中（会话 kernel-writes-p1，2026-11-09；文件与 BA-1 不重叠）；四个 P2 待修 |
+| BA-4 | 运行时：定时器与调度（7） | `TimerRunner`、`TimerOptions`、`ScheduleSlots`、`ContextTimers`、`ScheduleJobRuntime`，内核的 `CronExpression` | **#5446**、#5453、#5467、#5488、#5489、#5515、#5525 | 待修（#5446 与 BA-1 的 #5506 同改 `ParkedOps.kt`，BA-1 之后） |
+| BA-5 | TypeScript：客户端、生成器与 React（11） | `typescript/wow-client`、`wow-generator`、`wow-react`；顺带处理 X-86 | **#5448**、#5452、#5471、#5484、#5485、#5497、#5498、#5529、#5530、#5537、#5538 | 修复中（会话 ts-client-gen，2026-11-09） |
+| BA-6 | TypeScript：视图引擎（17） | `typescript/wow-view-engine`；#5546 另含 `wow-view-store` 与 `platform/view-store` | **#5447**、#5472、#5473、#5478、#5490、#5502、#5508、#5513、#5516、#5517、#5545、#5546、#5556、#5557、#5562、#5563、#5566 | 修复中（会话 view-engine-bugs，2026-11-09） |
 | BA-7 | 契约工具与编译器（11） | `compiler/manifest-tools`（BA-2 的 #5458 之后）、`compiler/compiler`、`compiler/gradle-plugin`、`api/manifest` | #5450、#5462、#5463、#5487、#5495、#5496、#5514、#5527、#5528、#5539、#5564 | 待修 |
 | BA-8 | 查询：内存后端与各后端的编译器（20） | `query/query` 的内存后端与窗口、`api/query-api`、PostgreSQL、ClickHouse 与 Elasticsearch 的过滤和聚合编译器 | #5451、#5468、#5469、#5470、#5482、#5483、#5491、#5492、#5499、#5501、#5507、#5511、#5512、#5519、#5524、#5535、#5536、#5544、#5555、#5559 | 待修（按后端拆成几个 PR） |
 | BA-9 | 边缘：JVM 客户端与 HTTP（6） | `edge/client`（BA-2 的 #5457 之后）、`edge/http` | #5454、#5455、#5479、#5540、#5553、#5565 | 待修 |
