@@ -416,7 +416,7 @@
 | 批次 | 范围 | 文件 | issue（P1 加粗） | 状态 |
 | --- | --- | --- | --- | --- |
 | BA-1 | 运行时：订阅、停放与失败台账（6） | `core/runtime` 的 `subscription/`、`source/`、`ledger/`、`ContractDirectory`、`SubscriptionBindings`、`ParkedOps`；#5506 另含 `:spi` 的 `FailureLedger` 与两个后端的台账 | **#5466**、**#5481**、**#5542**、#5459、#5506、#5526 | 修复中（会话 rt-subs-p1，2026-11-09） |
-| BA-2 | 运行时之外的 P1（4） | `edge/client`、`compiler/manifest-tools` 的 `SchemaCompatibility`、`migration/migrate-data` 的 `StateComparison`、`platform/analytics/catalog` 的 `DatasetCompiler`；四个模块各一个 PR | **#5456**、**#5457**、**#5458**、**#5486** | 修复中（会话 p1-sweep-edges，2026-11-09） |
+| BA-2 | 运行时之外的 P1（4） | `edge/client`、`compiler/manifest-tools` 的 `SchemaCompatibility`、`migration/migrate-data` 的 `StateComparison`、`platform/analytics/catalog` 的 `DatasetCompiler`；四个模块各一个 PR | **#5456**、**#5457**、**#5458**、**#5486** | 修复中（会话 p1-sweep-edges，2026-11-09）；#5456 的视图名方案定为 D403 |
 | BA-3 | 运行时与内核：写入、等待、预留、生命周期（7） | `SnapshotWrites`、`Kernel`、预留（内核、运行时与两个后端）、`WaitCoordinator`、`NodeLifecycle`、`CommandIndex`、`DerivedRequests` | **#5445**、**#5474**、**#5480**、#5475、#5509、#5518、#5560 | 待修（BA-1 之后，同一模块串行） |
 | BA-4 | 运行时：定时器与调度（7） | `TimerRunner`、`TimerOptions`、`ScheduleSlots`、`ContextTimers`、`ScheduleJobRuntime`，内核的 `CronExpression` | **#5446**、#5453、#5467、#5488、#5489、#5515、#5525 | 待修（BA-3 之后） |
 | BA-5 | TypeScript：客户端、生成器与 React（11） | `typescript/wow-client`、`wow-generator`、`wow-react`；顺带处理 X-86 | **#5448**、#5452、#5471、#5484、#5485、#5497、#5498、#5529、#5530、#5537、#5538 | 待修 |
@@ -427,4 +427,4 @@
 | BA-10 | 迁移工具（6） | `migration/migrate-data`（BA-2 的 #5486 之后）；#5510 另含 `:spi` 的 `FailureLedger`（BA-1 之后） | #5449、#5476、#5477、#5510、#5543、#5554 | 待修 |
 | BA-11 | 宿主与存储的生命周期（5） | `host/spring-boot` 的装配、`HostStores`、`WowNode`，PostgreSQL 的租约连接 | #5461、#5493、#5494、#5500、#5523 | 待修 |
 | BA-12 | 平台服务（2） | `platform/analytics` 的 `CatalogWatcher`、`platform/ops` 的停放条目 | #5460、#5561 | 待修 |
-| BA-13 | 发布自动化（1） | `release-plan.mjs`、`image-deploy.yml` | #5464 | 待用户批准（改发布自动化须先问用户） |
+| BA-13 | 发布自动化（1） | `release-plan.mjs`、`image-deploy.yml` | #5464 | 待修（改发布自动化，用户 2026-11-09 已批准） |
