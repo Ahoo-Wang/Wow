@@ -162,7 +162,7 @@ class DatasetPublicationIntegrationTest {
             ).assertOk()
             node.datasetCommand(id, "publish-dataset", "{}", Who.EDITOR).assertOk()
             client.queryAll("SELECT name FROM system.tables WHERE database = '$VIEWS'").map { it.getString("name") }
-                .assert().containsExactly("ds_shop_order_customers_v1")
+                .assert().containsExactly("ds_shop_order_customers_77b01ed64e_v1")
 
             val query = """{"kind":"list","filter":{"op":"match-all"},"sort":[{"field":"order_id","direction":"asc"}]}"""
             // A reader of tenant t1 with no role of the catalog: the datasets are the data plane's.

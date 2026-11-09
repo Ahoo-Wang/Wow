@@ -13,12 +13,15 @@
 
 package me.ahoo.wow.analytics.catalog.domain.dataset
 
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
+import java.security.MessageDigest
+import java.util.HexFormat
 
 /** What compiling a dataset's definition gives: its [Compiled] artifact, or why it does not compile. */
 sealed interface DatasetCompilation {
@@ -33,7 +36,7 @@ sealed interface DatasetCompilation {
 
 /**
  * Compiles a checked definition ([BoundDataset]) into one ClickHouse view of one version (-2), a
- * pure function: the view `ds_<context>_<name>_v<version>` of [database] (`wow_datasets` by default), the DDL that
+ * pure function: the view [viewOf] the dataset and the version, of [database] (`wow_datasets` by default), the DDL that
  * creates it, and what its queries are served by ([DatasetArtifact]): the dataset's scope, its fields and their
  * protection, its lineage.
  *
@@ -48,10 +51,22 @@ object DatasetCompiler {
 
     private val MERGING = Regex("(Replacing|Collapsing|VersionedCollapsing|Aggregating|Summing|Coalescing)MergeTree")
     private val UNSAFE = Regex("[^a-z0-9_]")
+    private const val DIGEST_LENGTH = 10
 
-    /** The name of [version]'s view of the dataset [name] of [context]: `ds_<context>_<name>_v<version>`. */
-    fun viewOf(context: String, name: String, version: Int): String =
-        "ds_${context}_${name}_v$version".lowercase().replace(UNSAFE, "_")
+    /**
+     * The name of [version]'s view of the dataset [name] of [context]: `ds_<context>_<name>_<digest>_v<version>`, the
+     * context and the name lower-cased with every other character than a letter, a digit or `_` written `_`, so an
+     * operator recognizes the dataset, and the digest the first 10 hex digits of the SHA-256 of its exact id
+     * ([AnalyticsCatalogContext.datasetIdOf]), so ids that differ only by case, `-`, `_` or where the context ends get
+     * views of their own.
+     */
+    fun viewOf(context: String, name: String, version: Int): String {
+        val id = AnalyticsCatalogContext.datasetIdOf(context, name).toByteArray(Charsets.UTF_8)
+        val digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(id)).take(DIGEST_LENGTH)
+        return "ds_${readable(context)}_${readable(name)}_${digest}_v$version"
+    }
+
+    private fun readable(part: String): String = part.lowercase().replace(UNSAFE, "_")
 
     /**
      * [version] of the dataset [name] of [context] from [definition], checked against the catalog's [sources] as they

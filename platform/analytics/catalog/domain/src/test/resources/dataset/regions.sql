@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `bi`.`ds_ops_regions_v1` AS
+CREATE OR REPLACE VIEW `bi`.`ds_ops_regions_d9fec3db20_v1` AS
 SELECT
     `r`.`code` AS `code`,
     `r`.`name` AS `name`

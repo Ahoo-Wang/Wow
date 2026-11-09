@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `wow_datasets`.`ds_shop_orders_v3` AS
+CREATE OR REPLACE VIEW `wow_datasets`.`ds_shop_orders_7458f44cdb_v3` AS
 SELECT
     `o`.`tenant` AS `tenant_id`,
     `o`.`owner` AS `owner_id`,
