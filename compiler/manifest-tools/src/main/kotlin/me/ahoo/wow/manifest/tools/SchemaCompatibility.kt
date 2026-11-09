@@ -35,6 +35,8 @@ import me.ahoo.wow.manifest.Manifest
  * | an enum value added, or the enum lifted | additive |
  * | an alternative of `anyOf` / `oneOf` no current alternative accepts | breaking |
  * | an alternative added | additive |
+ * | a member of `allOf` changed, each of its changes compared in place | as the change is |
+ * | a member of `allOf` added / removed | breaking / additive |
  * | additional properties no longer accepted / now accepted | breaking / additive |
  * | an `x-wow-alias` path removed / added | breaking / additive |
  * | a query semantics keyword (`x-wow-sensitive`, `x-wow-mask`, `x-wow-temporal`, …) changed | breaking |
@@ -97,7 +99,14 @@ internal class SchemaCompatibility(
 
     private fun refSchema(ref: String): Map<String, Any?> = mapOf(REF to ref)
 
-    private inner class Comparison(private val direction: SchemaDirection) {
+    /**
+     * One comparison in [direction]. [comparing] holds the pairs of definitions being compared, so a recursive type ends
+     * the comparison instead of looping; a trial of one alternative starts with the pairs its enclosing comparison holds.
+     */
+    private inner class Comparison(
+        private val direction: SchemaDirection,
+        private val comparing: MutableSet<Pair<String, String>> = mutableSetOf(),
+    ) {
         val changes = mutableListOf<ManifestChange>()
 
         /**
@@ -114,9 +123,6 @@ internal class SchemaCompatibility(
         /** A change that accepts more values: additive for an input; breaking for an output, which old clients read. */
         private fun widened(path: String, description: String) =
             if (direction == SchemaDirection.OUTPUT) breaking(path, description) else additive(path, description)
-
-        /** The pairs of definitions being compared, so a recursive type ends the comparison instead of looping. */
-        private val comparing = mutableSetOf<Pair<String, String>>()
 
         private fun breaking(path: String, description: String) {
             changes += ManifestChange(ChangeKind.BREAKING, path, description)
@@ -143,6 +149,7 @@ internal class SchemaCompatibility(
                 compareChild("$path[]", old, new, ITEMS)
                 compareChild("$path{}", old, new, ADDITIONAL_PROPERTIES)
                 ALTERNATIVES.forEach { compareAlternatives(path, old, new, it) }
+                compareMembers(path, old, new, queryPath)
                 compareKeywords(path, old, new)
             }
             if (pair != null) comparing.remove(pair)
@@ -253,7 +260,8 @@ internal class SchemaCompatibility(
             val oldAlternatives = old[keyword] as List<*>? ?: listOf(true)
             val newAlternatives = new[keyword] as List<*>? ?: listOf(true)
             val compatible = { old: Any?, new: Any? ->
-                val trial = Comparison(direction)
+                // The pairs compared around it stay compared: a recursive alternative ends instead of looping.
+                val trial = Comparison(direction, comparing.toMutableSet())
                 trial.compare(path, old, new, null)
                 trial.changes.none { it.kind == ChangeKind.BREAKING }
             }
@@ -279,6 +287,23 @@ internal class SchemaCompatibility(
                 }
             }
             (newAlternatives.indices - matched).forEach { additive("$path.$keyword[$it]", "alternative added") }
+        }
+
+        /**
+         * `allOf`: a value is accepted by every member, so a change to one member is a change to the whole, compared in
+         * place, member by member in their order (a polymorphic class's own schema, then its discriminator, as the
+         * generator writes them). A member added is one more constraint; a member removed, one fewer. A schema without
+         * the keyword has no member. Members that only moved are read as changed: reported, never missed.
+         */
+        private fun compareMembers(path: String, old: Map<String, Any?>, new: Map<String, Any?>, queryPath: String?) {
+            if (ALL_OF !in old && ALL_OF !in new) return
+            val oldMembers = old[ALL_OF] as List<*>? ?: emptyList<Any?>()
+            val newMembers = new[ALL_OF] as List<*>? ?: emptyList<Any?>()
+            oldMembers.zip(newMembers).forEachIndexed { index, (oldMember, newMember) ->
+                compare("$path.$ALL_OF[$index]", oldMember, newMember, queryPath)
+            }
+            newMembers.indices.drop(oldMembers.size).forEach { narrowed("$path.$ALL_OF[$it]", "member added") }
+            oldMembers.indices.drop(newMembers.size).forEach { widened("$path.$ALL_OF[$it]", "member removed") }
         }
 
         /** The keywords no other rule reads: query semantics must not change; a validation keyword may only go. */
@@ -328,7 +353,7 @@ internal class SchemaCompatibility(
         ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
 
     /**
-     * The schema as a map: `$ref` replaced by its definition (with the reference's siblings), `true` by `{}`, and a
+     * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by `{}`, and a
      * nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a nullable
      * class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two forms
      * accept the same values.
@@ -339,7 +364,21 @@ internal class SchemaCompatibility(
         val map = schema as? Map<String, Any?> ?: return emptyMap()
         val key = refKey(map) ?: return nullable(map, defs)
         val definition = resolve(defs[key] ?: true, defs)
-        return if (definition === FALSE) FALSE else definition + (map - REF)
+        return if (definition === FALSE) FALSE else withSiblings(definition, map - REF)
+    }
+
+    /**
+     * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well:
+     * the properties of both and the ones both require (a recursive subtype is written as a reference to its class's
+     * schema beside its discriminator's property), any other keyword the siblings give in place of the definition's.
+     */
+    private fun withSiblings(definition: Map<String, Any?>, siblings: Map<String, Any?>): Map<String, Any?> {
+        val merged = definition + siblings
+        if (PROPERTIES !in definition || PROPERTIES !in siblings) return merged
+        return merged + mapOf(
+            PROPERTIES to properties(definition) + properties(siblings),
+            REQUIRED to (required(definition) + required(siblings)).toList(),
+        )
     }
 
     private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
@@ -384,6 +423,7 @@ internal class SchemaCompatibility(
         const val NUMBER = "number"
         const val FORMAT = "format"
         const val ANY_OF = "anyOf"
+        const val ALL_OF = "allOf"
         const val NULL = "null"
         val NULL_SCHEMA: Map<String, Any?> = mapOf(TYPE to NULL)
 
@@ -395,7 +435,7 @@ internal class SchemaCompatibility(
         val FALSE: Map<String, Any?> = mapOf("not" to emptyMap<String, Any?>())
 
         val HANDLED = setOf(
-            REF, TYPE, ENUM, PROPERTIES, REQUIRED, ITEMS, ADDITIONAL_PROPERTIES, QueryKeywords.ALIAS_KEYWORD,
+            REF, TYPE, ENUM, PROPERTIES, REQUIRED, ITEMS, ADDITIONAL_PROPERTIES, ALL_OF, QueryKeywords.ALIAS_KEYWORD,
         ) + ALTERNATIVES
 
         val IGNORED = setOf(
