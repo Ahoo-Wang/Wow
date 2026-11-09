@@ -207,7 +207,15 @@ export type OrderAccess = NoAccess;
 export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | CommittedEvent<'eshop-ordering.order.OrderCancelled', OrderCancelled> | CommittedEvent<'eshop-ordering.order.OrderPaid', OrderPaid> | CommittedEvent<'eshop-ordering.order.OrderShipped', OrderShipped> | CommittedEvent<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | CommittedEvent<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | CommittedEvent<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;
 ```
 
-`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事。
+`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事；手写的客户端接收同样的标记（`TextNumbers`）：`ServiceRoutes` 通过 `textNumbers: { 'context.route': { request, response } }`，数据集的行通过 `DatasetClient.dataset(context, dataset, numbers)`。标记有这些形式：
+
+| 形式 | 标记的是 | 示例 |
+| --- | --- | --- |
+| `true` | 这个值是精确数字 | `{ price: true }` |
+| 成员、`'*'` | 对象按名字的成员；`'*'` 是数组的每一项和映射的每个值 | `{ lines: { '*': { amount: true } } }` |
+| `() => marks` | 只在值到达那里时才读取的标记：递归类型的标记 | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
+| `textNumberOr(marks)` | 精确数字，或以 `marks` 标记的对象或数组，取决于值是哪一种 | `decimal \| { amount: decimal }` 用 `textNumberOr({ amount: true })` |
+| `textNumbersBy(member, cases)` | 按对象成员 `member` 的字符串值选择该对象的标记 | `textNumbersBy('kind', { decimal: { amount: true } })` |
 
 ## 让客户端保持同步 {#keep-the-clients-in-step}
 

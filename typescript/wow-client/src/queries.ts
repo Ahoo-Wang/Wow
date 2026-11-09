@@ -28,8 +28,8 @@ import type {
   PagedList,
 } from './dsl/queryable.js';
 import {
+  type Answer,
   entityTag,
-  json,
   type RequestOptions,
   send,
   type WowClientOptions,
@@ -117,7 +117,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: FilterListQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<R[]>(await this.post('list', query, options), this.listNumbers);
+    return (await this.post('list', query, this.listNumbers, options)).json();
   }
 
   /**
@@ -174,6 +174,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       return this.post(
         'list',
         limit === undefined ? query : { ...query, limit: limit - received },
+        this.numbers,
         options,
         'text/event-stream',
         lastEventId,
@@ -189,7 +190,6 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       {
         ...resume,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
-        ...(this.numbers === undefined ? {} : { numbers: this.numbers }),
       },
     );
   }
@@ -207,10 +207,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: PagedQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<PagedList<R>>(
-      await this.post('paged', query, options),
-      this.pageNumbers,
-    );
+    return (await this.post('paged', query, this.pageNumbers, options)).json();
   }
 
   /** One page of a forward-only cursor over the records that match. */
@@ -226,10 +223,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: CursorQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<unknown> {
-    return json<CursorPage<R>>(
-      await this.post('cursor', query, options),
-      this.pageNumbers,
-    );
+    return (await this.post('cursor', query, this.pageNumbers, options)).json();
   }
 
   /**
@@ -251,7 +245,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     options?: RequestOptions,
   ): Promise<unknown> {
     try {
-      return json<R>(await this.post('single', query, options), this.numbers);
+      return (await this.post('single', query, this.numbers, options)).json();
     } catch (error) {
       if (isNoMatch(error)) return undefined;
       throw error;
@@ -263,7 +257,8 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: CountQuery<FIELDS>,
     options?: RequestOptions,
   ): Promise<CountResult> {
-    return json<CountResult>(await this.post('count', query, options));
+    // A count is an integer far below 2^53: no exact numbers.
+    return (await this.post('count', query, undefined, options)).json();
   }
 
   /** The groups and metrics of an aggregation, one row per group. */
@@ -271,7 +266,8 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: AggregationQuery<FIELDS, string>,
     options?: RequestOptions,
   ): Promise<ROW[]> {
-    return json<ROW[]>(await this.post('aggregate', query, options));
+    // Its rows are the query's own shape, which no schema declares.
+    return (await this.post('aggregate', query, undefined, options)).json();
   }
 
   /**
@@ -282,39 +278,43 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     version?: string,
     options?: RequestOptions,
   ): Promise<DescriptorResult> {
-    const response = await send(this.client, {
+    const answer = await send(this.client, {
       method: 'GET',
       path: this.path,
       headers: {
         [WowHeaders.IF_NONE_MATCH]:
           version === undefined ? undefined : `"${version}"`,
       },
+      numbers: {},
       options,
       notModified: true,
     });
-    const tag = entityTag(response);
-    if (response.status === 304) {
+    const tag = entityTag(answer.response);
+    if (answer.response.status === 304) {
       return { notModified: true, version: tag ?? version ?? '' };
     }
     return {
       notModified: false,
       ...(tag === undefined ? {} : { version: tag }),
-      descriptor: await json<QueryModelDescriptor>(response),
+      descriptor: await answer.json<QueryModelDescriptor>(),
     };
   }
 
+  /** Posts a query of `kind`, its answer's exact numbers `numbers`. */
   private post(
     kind: string,
     query: object,
+    numbers: TextNumbers | undefined,
     options?: RequestOptions,
     accept?: string,
     lastEventId?: string,
-  ): Promise<Response> {
+  ): Promise<Answer> {
     return send(this.client, {
       method: 'POST',
       path: this.path,
       headers: { Accept: accept, [WowHeaders.LAST_EVENT_ID]: lastEventId },
       body: { ...query, kind },
+      numbers: { answer: numbers },
       options,
     });
   }
@@ -435,24 +435,33 @@ export class DatasetClient {
 
   /** The datasets the caller sees, by name. */
   async list(options?: RequestOptions): Promise<DatasetEntry[]> {
-    return json<DatasetEntry[]>(
-      await send(this.client, { method: 'GET', path: '/wow/dataset', options }),
-    );
+    const answer = await send(this.client, {
+      method: 'GET',
+      path: '/wow/dataset',
+      numbers: {},
+      options,
+    });
+    return answer.json();
   }
 
   /**
-   * The query client of the dataset `context.dataset`.
+   * The query client of the dataset `context.dataset`. A dataset is
+   * registered at run time, so no Manifest declares its rows' exact numbers:
+   * a caller that knows them passes them.
    *
    * @typeParam R - The row's type.
    * @typeParam FIELDS - The dataset's field paths.
+   * @param numbers - The exact numbers of each row ({@link TextNumbers})
    */
   dataset<R = Record<string, unknown>, FIELDS extends string = string>(
     context: string,
     dataset: string,
+    numbers?: TextNumbers,
   ): QueryModelClient<R, FIELDS> {
     return new QueryModelClient<R, FIELDS>(
       `/wow/dataset/${encodeURIComponent(context)}/${encodeURIComponent(dataset)}/query`,
       this.client,
+      numbers,
     );
   }
 }

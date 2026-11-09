@@ -207,7 +207,15 @@ export type OrderAccess = NoAccess;
 export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | CommittedEvent<'eshop-ordering.order.OrderCancelled', OrderCancelled> | CommittedEvent<'eshop-ordering.order.OrderPaid', OrderPaid> | CommittedEvent<'eshop-ordering.order.OrderShipped', OrderShipped> | CommittedEvent<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | CommittedEvent<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | CommittedEvent<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;
 ```
 
-`parseJson` and `stringifyJson` of `@ahoo-wang/wow-client` do the same for a request of your own.
+`parseJson` and `stringifyJson` of `@ahoo-wang/wow-client` do the same for a request of your own, and a hand-written client takes the same marks (`TextNumbers`): `ServiceRoutes` by `textNumbers: { 'context.route': { request, response } }`, `DatasetClient.dataset(context, dataset, numbers)` for a dataset's rows. The marks take these forms:
+
+| Form | Marks | Example |
+| --- | --- | --- |
+| `true` | this value is an exact number | `{ price: true }` |
+| members, `'*'` | an object's members by name; `'*'` every item of an array and every value of a map | `{ lines: { '*': { amount: true } } }` |
+| `() => marks` | marks read only where a value reaches them: a recursive type's | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
+| `textNumberOr(marks)` | an exact number, or an object or array marked `marks`, whichever the value is | `textNumberOr({ amount: true })` for `decimal \| { amount: decimal }` |
+| `textNumbersBy(member, cases)` | an object's marks chosen by the string value of its `member` | `textNumbersBy('kind', { decimal: { amount: true } })` |
 
 ## Keep the clients in step
 

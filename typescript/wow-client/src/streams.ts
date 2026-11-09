@@ -14,10 +14,10 @@
 import {
   type JsonServerSentEvent,
   type ServerSentEvent,
-  toJsonServerSentEventStream,
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
-import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
+import { parseJson } from './exactJson.js';
+import type { Answer } from './http.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
 import { isProblem, rememberRequestId, WowProblemError } from './problem.js';
@@ -44,22 +44,45 @@ export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
 >;
 
 /**
- * The data of each event of `response`'s server-sent event stream, the
+ * The events of `answer`'s server-sent event stream, each event's data read
+ * as JSON: with the answer's exact numbers for an event `marked` names.
+ */
+function eventsOf(
+  answer: Answer,
+  marked: (event: string | undefined) => boolean,
+): ReadableStreamDefaultReader<JsonServerSentEvent<unknown>> {
+  return toServerSentEventStream(answer.response)
+    .pipeThrough(
+      new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
+        transform(event, controller) {
+          controller.enqueue({
+            ...event,
+            data: parseJson(
+              event.data,
+              marked(event.event) ? answer.numbers : undefined,
+            ),
+          });
+        },
+      }),
+    )
+    .getReader();
+}
+
+/**
+ * The data of each event of `answer`'s server-sent event stream, the
  * results of the command sent with `requestId`. A read that fails, such as a
  * connection lost after the response began, fails with an error that carries
  * `requestId` (`requestIdOf`): the command may have been committed, and
  * a retry with the same id is answered as its duplicate.
  */
 export function commandResults<R>(
-  response: Response,
+  answer: Answer,
   requestId: string,
 ): CommandResultStream<R> {
-  const reader = toJsonServerSentEventStream<CommandResult<R>>(
-    toServerSentEventStream(response),
-  ).getReader();
+  const reader = eventsOf(answer, () => true);
   return new ReadableStream<CommandResult<R>>({
     async pull(controller) {
-      let next: ReadableStreamReadResult<JsonServerSentEvent<CommandResult<R>>>;
+      let next: ReadableStreamReadResult<JsonServerSentEvent<unknown>>;
       try {
         next = await reader.read();
       } catch (error) {
@@ -67,7 +90,7 @@ export function commandResults<R>(
         throw error;
       }
       if (next.done) controller.close();
-      else controller.enqueue(next.value.data);
+      else controller.enqueue(next.value.data as CommandResult<R>);
     },
     cancel(reason) {
       return reader.cancel(reason);
@@ -170,16 +193,12 @@ function problemOf(data: unknown): WowProblemError {
  * @param options - How the stream resumes, and what cancels it
  */
 export function resumableQueryRows<T>(
-  response: Response,
+  answer: Answer,
   reopen: (
     lastEventId: string | undefined,
     received: number,
-  ) => Promise<Response | undefined>,
-  options: StreamResumeOptions & {
-    readonly signal?: AbortSignal;
-    /** The numbers of each record read as their exact text (review R4-Q, Q-9). */
-    readonly numbers?: TextNumbers;
-  } = {},
+  ) => Promise<Answer | undefined>,
+  options: StreamResumeOptions & { readonly signal?: AbortSignal } = {},
 ): ReadableStream<Positioned<T>> {
   const {
     maxRetries = DEFAULT_RETRY.attempts - 1,
@@ -187,24 +206,10 @@ export function resumableQueryRows<T>(
     maxDelayMs = DEFAULT_RETRY.maxWaitMs,
     signal,
   } = options;
-  const numbers = options.numbers;
-  const events = (from: Response) =>
-    (marksNothing(numbers)
-      ? toJsonServerSentEventStream<unknown>(toServerSentEventStream(from))
-      : toServerSentEventStream(from).pipeThrough(
-          new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
-            transform(event, controller) {
-              const row =
-                event.event === ROW_EVENT || event.event === UNNAMED_EVENT;
-              controller.enqueue({
-                ...event,
-                data: parseJson(event.data, row ? numbers : undefined),
-              });
-            },
-          }),
-        )
-    ).getReader();
-  let reader = events(response);
+  // A record's exact numbers are its answer's (review R4-Q, Q-9).
+  const events = (from: Answer) =>
+    eventsOf(from, event => event === ROW_EVENT || event === UNNAMED_EVENT);
+  let reader = events(answer);
   let lastEventId = options.lastEventId;
   let received = 0;
   let failures = 0;

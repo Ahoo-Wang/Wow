@@ -9,13 +9,14 @@ description: 'Every name @ahoo-wang/wow-client/routes exports, generated from it
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-client test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-client/routes` exports — 3 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/routes.api.md). This index is English only.
+Every name `@ahoo-wang/wow-client/routes` exports — 4 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 0 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-client/test/api/routes.api.md). This index is English only.
 
 ::: v-pre
 
 | Symbol | Kind | Summary | Covered in |
 |---|---|---|---|
 | `ServiceRouteCall` | interface | What a call of a service route sends, besides its route. | — |
+| `ServiceRouteNumbers` | interface | The exact numbers (`TextNumbers`) of a service route: of the body it takes and of the JSON it answers. | — |
 | `ServiceRoutes` | class | Calls a service's routes by the names its Manifest gives them. | — |
 | `ServiceRoutesOptions` | interface | Options of a `ServiceRoutes`. | — |
 

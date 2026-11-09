@@ -173,6 +173,9 @@ interface Operator {
 }
 
 // @public
+const OR: unique symbol;
+
+// @public
 interface Problem {
     readonly code?: string;
     // (undocumented)
@@ -250,7 +253,7 @@ const Stage: {
 type Stage = (typeof Stage)[keyof typeof Stage];
 
 // @public
-type TextNumbers = true | TextNumbersByName | {
+type TextNumbers = true | (() => TextNumbers) | TextNumbersOr | TextNumbersByName | {
     readonly [member: string]: TextNumbers;
 };
 
@@ -259,9 +262,14 @@ interface TextNumbersByName {
     // (undocumented)
     readonly [BY]: {
         readonly discriminant: string;
-        readonly member: string;
         readonly cases: Readonly<Record<string, TextNumbers>>;
     };
+}
+
+// @public
+interface TextNumbersOr {
+    // (undocumented)
+    readonly [OR]: TextNumbers;
 }
 
 // @public

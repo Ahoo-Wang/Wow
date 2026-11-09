@@ -11,12 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  json,
-  type RequestOptions,
-  send,
-  type WowClientOptions,
-} from './http.js';
+import { type RequestOptions, send, type WowClientOptions } from './http.js';
 import type {
   AggregateManifest,
   CommandManifest,
@@ -101,9 +96,11 @@ export async function fetchManifest(
   client: WowClientOptions = {},
   options?: RequestOptions,
 ): Promise<Manifest> {
-  return checkManifest(
-    await json<Manifest>(
-      await send(client, { method: 'GET', path: '/wow/manifest', options }),
-    ),
-  );
+  const answer = await send(client, {
+    method: 'GET',
+    path: '/wow/manifest',
+    numbers: {},
+    options,
+  });
+  return checkManifest(await answer.json<Manifest>());
 }
