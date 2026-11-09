@@ -42,8 +42,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   A batch whose call failed fails every save of it when the store is unavailable
  *   ([StorageUnavailableException]: systemic); otherwise its snapshots are saved again one by one, so
  *   a snapshot the store refuses parks only its own aggregate.
- * - **Cancellation**: a leader cancelled (its lane stopped, or its handler timed out) puts the saves it took back in
- *   front and hands the lead on; a waiting save cancelled leaves the queue.
+ * - **Cancellation**: a leader cancelled (its lane stopped, or its handler timed out) leaves the queue if no batch
+ *   took its own save yet, puts the saves it took back in front and hands the lead on; a waiting save cancelled
+ *   leaves the queue.
  */
 internal class SnapshotWrites(private val store: SnapshotStore, private val maxBatch: Int) {
     init {
@@ -99,8 +100,12 @@ internal class SnapshotWrites(private val store: SnapshotStore, private val maxB
                 write(taken)
             }
         } catch (cancelled: CancellationException) {
-            // Cancelled in a write, before it ended any save of its batch.
-            synchronized(this) { taken.filter { it !== own }.asReversed().forEach(queue::addFirst) }
+            synchronized(this) {
+                // Cancelled at the yield, its own save still heads the queue: handed the lead, it would lead nobody.
+                queue.remove(own)
+                // Cancelled in a write, before it ended any save of its batch: the others go back in front.
+                taken.filter { it !== own }.asReversed().forEach(queue::addFirst)
+            }
             throw cancelled
         } finally {
             synchronized(this) { handOver() }
