@@ -20,7 +20,7 @@ kotlinx-coroutines = "1.11.0"
 clickhouse-java = "0.11.0"
 # testing
 junit = "6.1.3"
-fluent-assert = "1.2.1"
+fluent-assert = "1.3.0"
 mockk = "1.14.11"
 kotlin-compile-testing = "0.14.0"
 # plugins
