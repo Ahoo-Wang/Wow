@@ -594,10 +594,9 @@ describe('DatasetResources', () => {
 
       listed.current = [entry('order_wide', 'sha256:2')];
       await datasets.refresh();
-      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
-        'order_id',
-        'region',
-      ]);
+      expect(
+        names((engine.definitions.get(ID) as DataViewDefinition).fields),
+      ).toEqual(['order_id', 'region']);
       late.resolve({
         notModified: false,
         descriptor: descriptor('city', 'sha256:1'),
@@ -605,10 +604,9 @@ describe('DatasetResources', () => {
       });
       await older.catch(() => undefined);
 
-      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
-        'order_id',
-        'region',
-      ]);
+      expect(
+        names((engine.definitions.get(ID) as DataViewDefinition).fields),
+      ).toEqual(['order_id', 'region']);
       expect(datasets.resources[0]?.entry.version).toBe('sha256:2');
     });
 
@@ -637,10 +635,9 @@ describe('DatasetResources', () => {
 
       expect(await older).toEqual(later);
       expect(later.datasets[0]?.entry.version).toBe('sha256:2');
-      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
-        'order_id',
-        'region',
-      ]);
+      expect(
+        names((engine.definitions.get(ID) as DataViewDefinition).fields),
+      ).toEqual(['order_id', 'region']);
     });
 
     it('keeps the revision an editor saved over a wording read that was out', async () => {
