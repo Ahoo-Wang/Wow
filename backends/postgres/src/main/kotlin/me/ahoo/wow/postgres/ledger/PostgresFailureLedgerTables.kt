@@ -51,8 +51,8 @@ internal class PostgresFailureLedgerTables(val name: String) {
     )
 
     /**
-     * Inserts the entry, or replaces where the parked one is parked and why only when this entry's from version is
-     * earlier. The conflict update locks the row and re-checks its condition against the latest committed row, so
+     * Inserts the entry (at revision 0, the column's default), or replaces where the parked one is parked and why
+     * only when this entry's from version is earlier, at the next revision and unscheduled. The conflict update locks the row and re-checks its condition against the latest committed row, so
      * concurrent parks keep the earliest. Returns a row only when the ledger changed.
      */
     val park = """
@@ -60,13 +60,18 @@ internal class PostgresFailureLedgerTables(val name: String) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET partition = excluded.partition, from_version = excluded.from_version, reason = excluded.reason,
-            failed_at = excluded.failed_at, from_position = excluded.from_position
+            failed_at = excluded.failed_at, from_position = excluded.from_position, $UNSCHEDULED,
+            revision = parked.revision + 1
         WHERE excluded.from_version < parked.from_version
         RETURNING from_version
     """.trimIndent()
 
-    /** Replaces the parked entry's from version, reason, time and position, only when there is one. */
-    val repark = "UPDATE $table SET from_version = ?, reason = ?, failed_at = ?, from_position = ? WHERE $MATCH"
+    /**
+     * Replaces the parked entry's partition, from version, reason, time and position, only when there is one, at the
+     * next revision and unscheduled.
+     */
+    val repark = "UPDATE $table SET partition = ?, from_version = ?, reason = ?, failed_at = ?, from_position = ?, " +
+        "$UNSCHEDULED, $NEXT_REVISION WHERE $MATCH"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
@@ -95,26 +100,31 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     val resolve = "DELETE FROM $table WHERE $MATCH RETURNING *"
 
-    /** Claims a retry: the value is the start, then the key, then the retries read. */
-    val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ?, $UNSCHEDULED WHERE $MATCH AND retries = ? " +
-        "RETURNING *"
+    /** Claims a retry: the value is the start, then the key, then the revision read. */
+    val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ?, $UNSCHEDULED, $NEXT_REVISION " +
+        "WHERE $MATCH AND revision = ? RETURNING *"
 
-    val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED WHERE $MATCH RETURNING *"
+    val markRecoverable = "UPDATE $table SET recoverable = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
 
     val applyRetrySpec = """
         UPDATE $table SET retry_max_retries = ?, retry_initial_backoff_millis = ?, retry_claim_ttl_millis = ?,
-            $UNSCHEDULED
+            $UNSCHEDULED, $NEXT_REVISION
         WHERE $MATCH RETURNING *
     """.trimIndent()
 
-    val request = "UPDATE $table SET request = ?, $UNSCHEDULED WHERE $MATCH RETURNING *"
+    val request = "UPDATE $table SET request = ?, $UNSCHEDULED, $NEXT_REVISION WHERE $MATCH RETURNING *"
 
-    /** Schedules the next attempt: the time, then the key, then the retries and the schedule read. */
-    val schedule = "UPDATE $table SET next_attempt_at = ? WHERE $MATCH AND retries = ? AND " +
-        "next_attempt_at IS NOT DISTINCT FROM ? RETURNING *"
+    /** Schedules the next attempt: the time, then the key, then the revision read. */
+    val schedule = "UPDATE $table SET next_attempt_at = ?, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
 
-    /** Takes a request: the key, then the request read. */
-    val takeRequest = "UPDATE $table SET request = NULL WHERE $MATCH AND request = ? RETURNING *"
+    /** Takes a request: the key, then the revision read. */
+    val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
+
+    /**
+     * Adds the revision to a table created before it ([PostgresFormat.addColumns]): every entry is then at revision 0,
+     * as a new one is. An additive column with a default, so the format stays the same.
+     */
+    val revisionAddition = "ALTER TABLE $table ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0"
 
     companion object {
         /**
@@ -127,7 +137,8 @@ internal class PostgresFailureLedgerTables(val name: String) {
         /**
          * The retry state: the automatic retries made and the start of the last one; the retry spec an
          * operator applied (null for the subscription's), its durations in milliseconds; what an operator marked it
-         * and the request left for the owner of its partition, by their names; when that owner next looks at it.
+         * and the request left for the owner of its partition, by their names; when that owner next looks at it; the
+         * entry's revision ([me.ahoo.wow.spi.ledger.ParkedAggregate.revision]).
          */
         private val RETRY_COLUMNS = """
             retries integer NOT NULL DEFAULT 0,
@@ -137,12 +148,17 @@ internal class PostgresFailureLedgerTables(val name: String) {
             retry_claim_ttl_millis bigint,
             recoverable text NOT NULL DEFAULT 'UNKNOWN',
             request text,
-            next_attempt_at bigint
+            next_attempt_at bigint,
+            revision bigint NOT NULL DEFAULT 0
         """.trimIndent()
         private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_initial_backoff_millis, " +
             "retry_claim_ttl_millis, recoverable, request, next_attempt_at"
         private const val DUE = "partition = ANY (?) AND (next_attempt_at IS NULL OR next_attempt_at <= ?)"
         private const val UNSCHEDULED = "next_attempt_at = NULL"
+        private const val NEXT_REVISION = "revision = revision + 1"
+
+        /** The columns added since the table's format was introduced, each with a default. */
+        val ADDED: List<String> = listOf("revision")
         private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
         private const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
         private const val KEY = "service, subscription, $ORDER"

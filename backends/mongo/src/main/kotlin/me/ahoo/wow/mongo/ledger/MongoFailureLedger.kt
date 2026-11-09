@@ -57,9 +57,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest
  * without a transaction; a repark is one `updateOne` without upsert, both setting the source position of a
  * Kafka-sourced subscription's entry, null for the log's; a resolve is one `findOneAndDelete`. A park
- * writes the retry state only when it inserts the document (`$setOnInsert`); an amendment is one
- * `findOneAndUpdate` returning the amended document, its filter carrying the retries, the request or the schedule read
- * when it claims, takes or schedules. No collation is set: MongoDB then compares strings by their UTF-8 bytes, which is
+ * writes the retry state only when it inserts the document, at revision 0 (one pipeline update); an amendment is one
+ * `findOneAndUpdate` returning the amended document at the next revision, its filter carrying the revision read when
+ * it claims, takes or schedules. A document stored before the revision existed has none and is at revision 0, so the
+ * format stays the same. No collation is set: MongoDB then compares strings by their UTF-8 bytes, which is
  * code point order, so [list] pages in the order the contract asks for.
  *
  * Besides the key index, [DUE_INDEX] on (service, subscription, partition, next attempt) answers [due], and
@@ -109,33 +110,44 @@ class MongoFailureLedger(
         )
     }
 
+    /**
+     * One pipeline update, so that a document it inserts takes [entry]'s retry state at revision 0, and one it
+     * replaces keeps its retry state, takes the next revision and is no longer scheduled: a document is inserted when
+     * it has no [RECOVERABLE], which every stored entry has.
+     */
     override suspend fun park(entry: ParkedAggregate): Boolean = dispatcher.mongo {
         val earlier = Filters.and(keyFilter(entry.subscription, entry.ref), Filters.gt(FROM_VERSION, entry.fromVersion))
-        val update = Updates.combine(
-            Updates.set(PARTITION, entry.partition),
-            Updates.set(FROM_VERSION, entry.fromVersion),
-            Updates.set(REASON, entry.reason),
-            Updates.set(FAILED_AT, entry.failedAt),
-            Updates.set(FROM_POSITION, entry.fromPosition),
-            Updates.setOnInsert(RETRIES, entry.retries),
-            Updates.setOnInsert(RETRY_AT, entry.retryAt),
-            Updates.setOnInsert(RETRY_SPEC, specOf(entry.retrySpec)),
-            Updates.setOnInsert(RECOVERABLE, entry.recoverable.name),
-            Updates.setOnInsert(REQUEST, entry.request?.name),
-            Updates.setOnInsert(NEXT_ATTEMPT_AT, entry.nextAttemptAt),
-        )
+        val inserting = Document("\$eq", listOf(Document("\$type", "\$$RECOVERABLE"), "missing"))
+        fun either(onInsert: Any?, onReplace: Any?) = Document("\$cond", listOf(inserting, onInsert, onReplace))
+        fun kept(field: String, onInsert: Any?) = either(literal(onInsert), "\$$field")
+        val placed = Document()
+            .append(PARTITION, literal(entry.partition))
+            .append(FROM_VERSION, literal(entry.fromVersion))
+            .append(REASON, literal(entry.reason))
+            .append(FAILED_AT, literal(entry.failedAt))
+            .append(FROM_POSITION, literal(entry.fromPosition))
+            .append(RETRIES, kept(RETRIES, entry.retries))
+            .append(RETRY_AT, kept(RETRY_AT, entry.retryAt))
+            .append(RETRY_SPEC, kept(RETRY_SPEC, specOf(entry.retrySpec)))
+            .append(RECOVERABLE, kept(RECOVERABLE, entry.recoverable.name))
+            .append(REQUEST, kept(REQUEST, entry.request?.name))
+            .append(NEXT_ATTEMPT_AT, either(literal(entry.nextAttemptAt), null))
+            .append(REVISION, either(0L, Document("\$add", listOf(STORED_REVISION, 1L))))
         conditionalUpsert { upsert ->
-            val result = ledger.updateOne(earlier, update, UpdateOptions().upsert(upsert))
+            val result = ledger.updateOne(earlier, listOf(Document("\$set", placed)), UpdateOptions().upsert(upsert))
             result.matchedCount > 0 || result.upsertedId != null
         }
     }
 
     override suspend fun repark(entry: ParkedAggregate): Boolean = dispatcher.mongo {
         val update = Updates.combine(
+            Updates.set(PARTITION, entry.partition),
             Updates.set(FROM_VERSION, entry.fromVersion),
             Updates.set(REASON, entry.reason),
             Updates.set(FAILED_AT, entry.failedAt),
             Updates.set(FROM_POSITION, entry.fromPosition),
+            UNSCHEDULED,
+            NEXT_REVISION,
         )
         ledger.updateOne(keyFilter(entry.subscription, entry.ref), update).matchedCount > 0
     }
@@ -212,7 +224,7 @@ class MongoFailureLedger(
     ): ParkedAggregate? {
         val key = keyFilter(subscription, ref)
         val (filter, update) = when (amendment) {
-            is ParkedAmendment.ClaimRetry -> Filters.and(key, Filters.eq(RETRIES, amendment.retries)) to
+            is ParkedAmendment.ClaimRetry -> at(key, amendment.revision) to
                 Updates.combine(Updates.inc(RETRIES, 1), Updates.set(RETRY_AT, amendment.at), UNSCHEDULED)
 
             is ParkedAmendment.MarkRecoverable ->
@@ -222,20 +234,26 @@ class MongoFailureLedger(
                 key to Updates.combine(Updates.set(RETRY_SPEC, specOf(amendment.spec)), UNSCHEDULED)
 
             is ParkedAmendment.Request -> key to Updates.combine(Updates.set(REQUEST, amendment.request.name), UNSCHEDULED)
-            is ParkedAmendment.Schedule -> Filters.and(
-                key,
-                Filters.eq(RETRIES, amendment.retries),
-                Filters.eq(NEXT_ATTEMPT_AT, amendment.from),
-            ) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
-
-            is ParkedAmendment.TakeRequest ->
-                Filters.and(key, Filters.eq(REQUEST, amendment.request.name)) to Updates.set(REQUEST, null)
+            is ParkedAmendment.Schedule -> at(key, amendment.revision) to Updates.set(NEXT_ATTEMPT_AT, amendment.at)
+            is ParkedAmendment.TakeRequest -> at(key, amendment.revision) to Updates.set(REQUEST, null)
         }
         return dispatcher.mongo {
-            ledger.findOneAndUpdate(filter, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER))
-                ?.let { entryOf(it) }
+            ledger.findOneAndUpdate(
+                filter,
+                Updates.combine(update, NEXT_REVISION),
+                FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
+            )?.let { entryOf(it) }
         }
     }
+
+    /**
+     * [key] at [revision]: a document stored before the revision existed has none, and is at 0, as
+     * [STORED_REVISION] reads it.
+     */
+    private fun at(key: Bson, revision: Long): Bson = Filters.and(
+        key,
+        if (revision == 0L) Filters.`in`(REVISION, 0L, null) else Filters.eq(REVISION, revision),
+    )
 
     private fun keyFilter(subscription: String, ref: AggregateRef): Bson = Filters.and(
         Filters.eq(SERVICE, service),
@@ -283,6 +301,7 @@ class MongoFailureLedger(
         recoverable = Recoverable.valueOf(document.getString(RECOVERABLE)),
         request = document.getString(REQUEST)?.let { LedgerRequest.valueOf(it) },
         nextAttemptAt = document.getLong(NEXT_ATTEMPT_AT),
+        revision = document.getLong(REVISION) ?: 0L,
     )
 
     /** [spec] as a document: its retries and its durations in milliseconds; null for the subscription's. */
@@ -328,7 +347,22 @@ class MongoFailureLedger(
         const val PARTITION = "partition"
         const val NEXT_ATTEMPT_AT = "next_attempt_at"
 
+        /**
+         * The entry's revision ([ParkedAggregate.revision]), a long. A document stored before it existed has none and
+         * is at 0: an increment then sets it to 1.
+         */
+        const val REVISION = "revision"
+
         /** Clears the schedule: the owner looks at the entry again on its next scan. */
         val UNSCHEDULED: Bson = Updates.set(NEXT_ATTEMPT_AT, null)
+
+        /** Gives the entry the next revision. */
+        val NEXT_REVISION: Bson = Updates.inc(REVISION, 1L)
+
+        /** In a pipeline update, the revision stored: 0 for a document stored before the revision existed. */
+        val STORED_REVISION: Document = Document("\$ifNull", listOf("\$$REVISION", 0L))
+
+        /** [value] as a pipeline update takes it as it is, never as an expression or a field path. */
+        fun literal(value: Any?): Document = Document("\$literal", value)
     }
 }

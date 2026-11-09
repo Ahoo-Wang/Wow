@@ -22,6 +22,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.ledger.dueIn
+import me.ahoo.wow.spi.ledger.placedAs
 import java.util.TreeMap
 
 /** A [FailureLedger] in memory, for tests and samples. Every operation is serialized by one lock. */
@@ -36,7 +37,7 @@ class InMemoryFailureLedger : FailureLedger {
         if (existing != null && existing.fromVersion <= entry.fromVersion) {
             return false
         }
-        parked[entry.ref] = existing?.placedAs(entry) ?: entry
+        parked[entry.ref] = existing?.placedAs(entry) ?: entry.copyWith(revision = 0)
         true
     }
 
@@ -57,14 +58,6 @@ class InMemoryFailureLedger : FailureLedger {
         parked[ref] = amended
         amended
     }
-
-    /** This entry where [entry] parks the aggregate and why, with this entry's retry state. */
-    private fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith(
-        fromVersion = entry.fromVersion,
-        reason = entry.reason,
-        failedAt = entry.failedAt,
-        fromPosition = entry.fromPosition,
-    )
 
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.get(ref) }

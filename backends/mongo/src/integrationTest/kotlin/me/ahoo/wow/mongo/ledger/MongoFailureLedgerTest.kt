@@ -66,6 +66,29 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         billing.parked(subscription, ref)!!.reason.assert().isEqualTo("other")
     }
 
+    @Test
+    fun `an entry stored before the revision is at revision 0, and each later change moves it on`(): Unit =
+        runBlocking {
+            // D404: a beta ledger keeps its parked entries; a document without the field reads, and matches, as 0.
+            val ledger = ledger()
+            val subscription = "before-revision-" + System.nanoTime()
+            val ref = AggregateType("upgrade", "order").ref("t", "a")
+            ledger.park(ParkedAggregate(subscription, ref, 0, 3, "boom", 7)).assert().isTrue()
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection("wow_failure_ledger")
+                .updateOne(Document("subscription", subscription), Document("\$unset", Document("revision", "")))
+            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(0L)
+            ledger.amend(subscription, ref, ParkedAmendment.Schedule(1, ParkedAggregate.NEVER)).assert().isNull()
+            ledger.amend(subscription, ref, ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
+                .revision.assert().isEqualTo(1L)
+            ledger.park(ParkedAggregate(subscription, ref, 0, 2, "earlier", 8)).assert().isTrue()
+            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(2L)
+            // A park that replaces a document without the field takes it as 0.
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection("wow_failure_ledger")
+                .updateOne(Document("subscription", subscription), Document("\$unset", Document("revision", "")))
+            ledger.park(ParkedAggregate(subscription, ref, 0, 1, "earliest", 9)).assert().isTrue()
+            ledger.parked(subscription, ref)!!.revision.assert().isEqualTo(1L)
+        }
+
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */
     @Test
     fun `aggregates are listed by code point, not by UTF-16 unit`(): Unit = runBlocking {

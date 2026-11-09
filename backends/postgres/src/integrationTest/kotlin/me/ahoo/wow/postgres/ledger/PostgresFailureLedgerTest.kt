@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
 
@@ -66,6 +67,23 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
         orders.resolve("projection", ref)!!.reason.assert().isEqualTo("boom")
         billing.parked("projection", ref)!!.reason.assert().isEqualTo("other")
     }
+
+    @Test
+    fun `a format 3 table created before the revision gets it in place, its entries at revision 0`(): Unit =
+        runBlocking {
+            // D404: a beta ledger keeps its parked entries; the column is added, with every entry at 0.
+            val ledger = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision")
+            ledger.createSchema()
+            val ref = AggregateType("upgrade", "order").ref("t", "a")
+            ledger.park(ParkedAggregate("projection", ref, 0, 3, "boom", 7)).assert().isTrue()
+            PostgresFixture.dataSource.connection.use { connection ->
+                connection.createStatement().use { it.execute("ALTER TABLE ledger_before_revision DROP COLUMN revision") }
+            }
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_revision").createSchema()
+            ledger.parked("projection", ref)!!.revision.assert().isEqualTo(0L)
+            ledger.amend("projection", ref, ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
+                .revision.assert().isEqualTo(1L)
+        }
 
     @Test
     fun `a table name that is not a plain identifier is refused`() {
