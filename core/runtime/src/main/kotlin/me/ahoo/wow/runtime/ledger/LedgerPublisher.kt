@@ -234,7 +234,8 @@ class LedgerPublisher internal constructor(
             } while (after != null)
             (unsent.keys - acting.keys).forEach { key ->
                 val resolution = unsent.getValue(key)
-                if (trySend(key, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution.record), resolution.requestId)) {
+                val body = mapOf(Ledger.RESOLUTION to resolution.record)
+                if (trySend(key, Ledger.RECORD_RESOLVED, body, resolution.requestId)) {
                     unsent.remove(key)
                 }
             }
