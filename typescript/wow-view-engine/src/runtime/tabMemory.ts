@@ -60,8 +60,12 @@ export class TabMemory {
     this.writing.add(key);
     try {
       for (;;) {
-        const wanted = this.wanted.get(key);
         const current = await this.host.current(definitionId);
+        // The tab wanted now, read after the preferences are: a switch made
+        // while they were read is the one to remember. Taken before them,
+        // a first switch to the tab already remembered ended the burst and
+        // took the later switch with it (#5508).
+        const wanted = this.wanted.get(key);
         if (wanted === undefined || current.lastTabs?.[instanceId] === wanted)
           return;
         await this.host.write(definitionId, {
