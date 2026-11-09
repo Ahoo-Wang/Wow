@@ -20,10 +20,25 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { RecordViewRuntime, ViewSource } from '../src/index.js';
+import {
+  MemoryViewStore,
+  ViewEngine,
+  type RecordSummary,
+  type RecordViewRuntime,
+  type ViewSource,
+} from '../src/index.js';
+import { pageSummaries } from '../src/record/index.js';
+import { memorySource } from '../src/testing/source.js';
 import { useOpenView, useRecordTable } from '../src/react/index.js';
 import { restyledOnly } from '../src/runtime/restyle.js';
-import { recordConfig, testSource } from './fixtures.js';
+import {
+  nextTask,
+  ordersDefinition,
+  recordConfig,
+  resourcesOf,
+  testEnvironment,
+  testSource,
+} from './fixtures.js';
 import { engineWith } from './fixtures/hooks.js';
 import { AggregationFunction, SortDirection } from '@ahoo-wang/wow-client/dsl';
 
@@ -45,20 +60,20 @@ async function openTable(source: ViewSource) {
 describe('restyledOnly', () => {
   const ran = recordConfig({
     table: {
-      columns: [{ field: 'id' }, { field: 'amount' }, { field: 'note' }],
+      columns: [{ field: 'id' }, { field: 'amount' }, { field: 'warehouse' }],
     },
   });
 
   it('calls a width, an order, a pin or the layout drawn', () => {
     expect(
-      restyledOnly(ran, {
+      restyledOnly(ordersDefinition(), ran, {
         ...ran,
         layout: 'card',
         table: {
           columns: [
             { field: 'amount', width: 120, pinned: true },
             { field: 'id' },
-            { field: 'note' },
+            { field: 'warehouse' },
           ],
         },
       }),
@@ -67,33 +82,53 @@ describe('restyledOnly', () => {
 
   it('calls a summary changed a summary', () => {
     expect(
-      restyledOnly(ran, {
+      restyledOnly(ordersDefinition(), ran, {
         ...ran,
         summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
     ).toBe('summaries');
   });
 
-  it('calls a column shown or hidden, a sort or a page size a question', () => {
+  it('calls a column shown, a sort or a page size a question', () => {
+    const fewer = recordConfig({
+      table: {
+        columns: [
+          { field: 'id' },
+          { field: 'amount' },
+          { field: 'warehouse', hidden: true },
+        ],
+      },
+    });
     expect(
-      restyledOnly(ran, {
+      restyledOnly(ordersDefinition(), fewer, {
+        ...fewer,
+        table: ran.table,
+      }),
+    ).toBeNull();
+    expect(
+      restyledOnly(ordersDefinition(), ran, {
+        ...ran,
+        sort: [{ field: 'id', direction: SortDirection.ASC }],
+      }),
+    ).toBeNull();
+    expect(
+      restyledOnly(ordersDefinition(), ran, { ...ran, pageSize: 50 }),
+    ).toBeNull();
+  });
+
+  it('calls a column hidden drawn: the rows already hold more than it shows', () => {
+    expect(
+      restyledOnly(ordersDefinition(), ran, {
         ...ran,
         table: {
           columns: [
             { field: 'id' },
             { field: 'amount' },
-            { field: 'note', hidden: true },
+            { field: 'warehouse', hidden: true },
           ],
         },
       }),
-    ).toBeNull();
-    expect(
-      restyledOnly(ran, {
-        ...ran,
-        sort: [{ field: 'id', direction: SortDirection.ASC }],
-      }),
-    ).toBeNull();
-    expect(restyledOnly(ran, { ...ran, pageSize: 50 })).toBeNull();
+    ).toBe('drawn');
   });
 });
 
@@ -254,9 +289,150 @@ describe('a presentation edit on a record view', () => {
     const result = await openTable(source);
     const asked = vi.mocked(source.paged).mock.calls.length;
 
-    act(() => result.current.table.setColumns(['id']));
+    act(() => result.current.table.setColumns(['id', 'amount', 'warehouse']));
     await waitFor(() => expect(result.current.table.status).toBe('success'));
 
     expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked + 1);
+  });
+
+  it('draws a column switched off from the rows it has', async () => {
+    const source = testSource();
+    const result = await openTable(source);
+    const asked = vi.mocked(source.paged).mock.calls.length;
+
+    act(() => result.current.table.setColumns(['id']));
+    await waitFor(() => expect(result.current.table.status).toBe('success'));
+
+    expect(vi.mocked(source.paged).mock.calls).toHaveLength(asked);
+    expect(result.current.table.columns.map(column => column.field)).toEqual([
+      'id',
+    ]);
+  });
+});
+
+/**
+ * #5566: a summary reads its field off the page's rows (the page scope, and
+ * the fallback when the totals fail), so the page is kept only while its
+ * rows hold every field the new config asks for — by the query's own
+ * projection, not by which columns happen to show.
+ */
+describe('a summary over a field the page did not ask for', () => {
+  const amountHidden = () =>
+    recordConfig({
+      table: { columns: [{ field: 'id' }, { field: 'amount', hidden: true }] },
+      card: { title: 'id', fields: [] },
+    });
+  const summaries: RecordSummary[] = [
+    { field: 'amount', fn: AggregationFunction.SUM },
+  ];
+
+  function open(failTotals: boolean, config = amountHidden()) {
+    const source = memorySource([
+      { id: 'a', amount: 10 },
+      { id: 'b', amount: 20 },
+    ]);
+    const paged = vi.spyOn(source, 'paged');
+    if (failTotals)
+      vi.spyOn(source, 'aggregate').mockRejectedValue(
+        new Error('aggregation temporarily unavailable'),
+      );
+    const engine = new ViewEngine({
+      store: new MemoryViewStore(),
+      resources: resourcesOf([ordersDefinition()], () => source),
+      environment: testEnvironment().environment,
+    });
+    const runtime = engine.create('orders', {
+      title: 'Orders',
+      scope: 'personal',
+      config,
+    });
+    return { engine, runtime, paged };
+  }
+
+  const recordData = (runtime: RecordViewRuntime) => {
+    const data = runtime.getSnapshot().result?.data;
+    if (data?.kind !== 'record') throw new Error('Expected records');
+    return data;
+  };
+
+  it('asks for the page again with the field, and adds up this page', async () => {
+    const { engine, runtime, paged } = open(false, {
+      ...amountHidden(),
+      layout: 'card',
+      pageSize: 1,
+    });
+    await nextTask();
+    expect(paged.mock.calls[0][0].projection?.include).toEqual(['id']);
+
+    runtime.edit({ summaries });
+    runtime.apply();
+    await nextTask();
+
+    expect(paged).toHaveBeenCalledTimes(2);
+    expect(paged.mock.calls[1][0].projection?.include).toEqual([
+      'id',
+      'amount',
+    ]);
+    const data = recordData(runtime);
+    expect(data.summaries).toMatchObject({
+      scope: 'total',
+      cells: [{ field: 'amount', value: 30 }],
+    });
+    expect(pageSummaries(data.summaries!.cells, data.view.rows)).toMatchObject({
+      scope: 'page',
+      cells: [{ field: 'amount', value: 10 }],
+    });
+    engine.dispose();
+  });
+
+  it('falls back to the page’s own sum when the totals fail', async () => {
+    const { engine, runtime, paged } = open(true);
+    await nextTask();
+
+    runtime.edit({ summaries });
+    runtime.apply();
+    await nextTask();
+
+    expect(paged).toHaveBeenCalledTimes(2);
+    expect(recordData(runtime).summaries).toMatchObject({
+      scope: 'page',
+      cells: [{ field: 'amount', value: 30 }],
+    });
+    engine.dispose();
+  });
+
+  it('keeps the page for a summary over a field it already holds', async () => {
+    const { engine, runtime, paged } = open(false, {
+      ...amountHidden(),
+      table: { columns: [{ field: 'id' }, { field: 'amount' }] },
+    });
+    await nextTask();
+
+    runtime.edit({ summaries });
+    runtime.apply();
+    await nextTask();
+
+    expect(paged).toHaveBeenCalledTimes(1);
+    expect(recordData(runtime).summaries).toMatchObject({
+      scope: 'total',
+      cells: [{ field: 'amount', value: 30 }],
+    });
+    engine.dispose();
+  });
+
+  it('keeps the page when a summary goes and takes its field along', async () => {
+    const { engine, runtime, paged } = open(false, {
+      ...amountHidden(),
+      summaries,
+    });
+    await nextTask();
+
+    runtime.edit({ summaries: [] });
+    runtime.apply();
+    await nextTask();
+
+    expect(paged).toHaveBeenCalledTimes(1);
+    expect(recordData(runtime).summaries).toBeNull();
+    engine.dispose();
   });
 });
