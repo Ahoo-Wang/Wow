@@ -331,6 +331,31 @@ class SchemaCompatibilityTest {
     }
 
     @Test
+    fun `what a reference's definition requires should hold beside a required sibling`() {
+        // The reference adds a required name and no property: the definition still requires its own.
+        val node = mapOf("\$ref" to "#/\$defs/N", "required" to listOf("kind"))
+        val strict = obj("a" to STRING, "kind" to STRING, required = listOf("a"))
+        val relaxed = obj("a" to STRING, "kind" to STRING)
+        fun compared(direction: SchemaDirection) =
+            SchemaCompatibility(mapOf("t" to node, "N" to strict), mapOf("t" to node, "N" to relaxed))
+                .compare("s", "#/\$defs/t", "#/\$defs/t", direction = direction).map { it.toString() }
+        compared(SchemaDirection.OUTPUT).assert().containsExactly("BREAKING s.a: field made optional")
+        compared(SchemaDirection.INPUT).assert().containsExactly("ADDITIVE s.a: field made optional")
+    }
+
+    @Test
+    fun `a property both a reference's definition and its siblings declare should hold as both`() {
+        // The class declares its discriminator too; the reference narrows it to its constant.
+        val node = mapOf("\$ref" to "#/\$defs/N", "properties" to mapOf("kind" to mapOf("const" to "node")))
+        val declared = obj("kind" to STRING, required = listOf("kind"))
+        changes(node, node, oldDefs = mapOf("N" to declared), newDefs = mapOf("N" to declared)).assert().isEmpty()
+        // The definition's own schema of it is still compared, not hidden behind the sibling's constant.
+        val retyped = obj("kind" to NUMBER, required = listOf("kind"))
+        changes(node, node, oldDefs = mapOf("N" to declared), newDefs = mapOf("N" to retyped))
+            .assert().containsExactly("BREAKING s.kind.allOf[0]: type narrowed from [string] to [number]")
+    }
+
+    @Test
     fun `a definition that is gone should be read as any value`() {
         changes(obj("a" to STRING), obj("a" to mapOf("\$ref" to "#/\$defs/missing")))
             .assert().containsExactly("ADDITIVE s.a: type widened from [string] to any")

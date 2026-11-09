@@ -353,10 +353,10 @@ internal class SchemaCompatibility(
         ((schema as? Map<*, *>)?.get(REF) as? String)?.takeIf { Manifest.isSchemaRef(it) }?.let(Manifest::schemaKey)
 
     /**
-     * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by `{}`, and a
-     * nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a nullable
-     * class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two forms
-     * accept the same values.
+     * The schema as a map: `$ref` replaced by its definition with the reference's siblings ([withSiblings]), `true` by
+     * `{}`, and a nullable value written as a `null` alternative beside a typed one (`anyOf: [{"type": "null"}, S]`, as a
+     * nullable class is) read as S with `null` among its types, the type union a nullable scalar is written as: the two
+     * forms accept the same values.
      */
     private fun resolve(schema: Any?, defs: Map<String, Any?>): Map<String, Any?> {
         if (schema == false) return FALSE
@@ -368,17 +368,24 @@ internal class SchemaCompatibility(
     }
 
     /**
-     * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well:
-     * the properties of both and the ones both require (a recursive subtype is written as a reference to its class's
-     * schema beside its discriminator's property), any other keyword the siblings give in place of the definition's.
+     * A reference's [definition] with the keywords written beside the reference, its [siblings], which hold as well (a
+     * recursive subtype is written as a reference to its class's schema beside its discriminator's property): the
+     * properties of either, a property both declare as the `allOf` of the two, and the names either requires. Any other
+     * keyword the siblings give takes the definition's place.
      */
     private fun withSiblings(definition: Map<String, Any?>, siblings: Map<String, Any?>): Map<String, Any?> {
         val merged = definition + siblings
-        if (PROPERTIES !in definition || PROPERTIES !in siblings) return merged
-        return merged + mapOf(
-            PROPERTIES to properties(definition) + properties(siblings),
-            REQUIRED to (required(definition) + required(siblings)).toList(),
-        )
+        val own = properties(definition)
+        val beside = properties(siblings)
+        return merged + buildMap {
+            if (PROPERTIES in definition || PROPERTIES in siblings) {
+                val both = own.keys.intersect(beside.keys).associateWith { mapOf(ALL_OF to listOf(own[it], beside[it])) }
+                put(PROPERTIES, own + beside + both)
+            }
+            if (REQUIRED in definition || REQUIRED in siblings) {
+                put(REQUIRED, (required(definition) + required(siblings)).toList())
+            }
+        }
     }
 
     private fun nullable(schema: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
