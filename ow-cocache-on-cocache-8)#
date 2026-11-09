@@ -1,1 +1,0 @@
-How to migrate: [Upgrade a Deployment › wow-cocache on CoCache 8](https://github.com/Ahoo-Wang/Wow/blob/claude/cocache8-trial-9798e3/documentation/docs/en/operate/upgrades.md. It covers the code table, the CoCache configuration keys, and the cut-over. Between the M7 exit and GA the ABI dump is a review tool, so this PR carries `breaking-change` (the `!` in the title).
