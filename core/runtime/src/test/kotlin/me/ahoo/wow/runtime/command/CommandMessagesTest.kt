@@ -46,6 +46,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.runtime.subscription.parkedFromIn
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
@@ -362,7 +363,7 @@ class CommandMessagesTest {
         entries.partitionOf(ref).assert().isEqualTo(partition)
         entries.checkpointOf(SubscriptionStart.End, partition).assert().isEqualTo(3L)
         entries.checkpointOf(SubscriptionStart.Beginning, partition).assert().isEqualTo(0L)
-        val retried = entries.retryEntries(ref, 1, 1).toList()
+        val retried = entries.retryEntries(parked(1, partition)).toList()
         retried.map { (it.message as CommandWire).id }.assert().containsExactly("b", "c")
         retried.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
         retried.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
@@ -370,9 +371,9 @@ class CommandMessagesTest {
         entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0, 1)).assert().isEqualTo(2L)
         entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0)).assert().isEqualTo(0L)
         entries.positionOf(ref, 1).assert().isNull()
-        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, null) } }
+        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(null, partition)) } }
         topics.retain(COMMANDS, partition, 2)
-        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 1) } }
+        assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(1, partition)) } }
             .message.assert().contains("no longer retains offset 1")
         assertThrows<IllegalArgumentException> { entries.requirePartition(PARTITIONS) }
     }
@@ -380,7 +381,8 @@ class CommandMessagesTest {
     @Test
     fun `a retry should not resolve an aggregate whose parked message moved to another partition`(): Unit =
         runBlocking {
-            // Review R2.1-4: a topic that gained partitions maps the key elsewhere; the re-scan finds nothing there.
+            // Review R2.1-4, #5481: a topic that gained partitions maps the key elsewhere; the re-scan finds the parked
+            // message nowhere there, though the aggregate's later message may lie at its offset.
             val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
             val partition = Partitioner.partitionOf(ref, PARTITIONS)
             val before = (partition + 1) % PARTITIONS
@@ -389,23 +391,29 @@ class CommandMessagesTest {
             val wire = { id: String, of: me.ahoo.wow.api.aggregate.AggregateRef ->
                 ClusterCodec.wire("stock.item.Reserve", Command(id, id, of, Reserve(1)))
             }
-            // Parked at offset 0 of the partition its key mapped to before.
+            // Parked at offset 0 of the partition its key mapped to before; its later message at offset 0 of this one.
             topics.send(COMMANDS, CommandMessages.command(wire("parked", ref), before))
-            // Nothing at that offset in the partition it maps to now.
-            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 0).toList() } }
-                .message.assert().contains("partitions changed")
-            // Another aggregate's message at that offset there.
+            topics.send(COMMANDS, CommandMessages.command(wire("later", ref), partition))
+            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(0, before)).toList() } }
+                .message.assert().contains("partition $before", "partitions grew")
+            // Parked in this partition, at an offset it holds nothing at, or another aggregate's message at.
+            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(1, partition)).toList() } }
+                .message.assert().contains("the topic changed")
             topics.send(COMMANDS, CommandMessages.command(wire("other", other), partition))
-            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(ref, 1, 0).toList() } }
-                .message.assert().contains("partitions changed")
+            assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(1, partition)).toList() } }
+                .message.assert().contains("the topic changed")
             // Where the message is, the re-scan goes on.
             topics.send(COMMANDS, CommandMessages.command(wire("own", ref), partition))
-            entries.retryEntries(
-                ref,
-                1,
-                1
-            ).toList().map { (it.message as CommandWire).id }.assert().containsExactly("own")
+            entries.retryEntries(parked(2, partition)).toList().map { (it.message as CommandWire).id }
+                .assert().containsExactly("own")
+            // Parked in another partition than the one the key maps to now, an aggregate waits there from its first.
+            entries.parkedFromIn(parked(0, before), partition).assert().isEqualTo(0L)
+            entries.parkedFromIn(parked(2, partition), partition).assert().isEqualTo(3L)
         }
+
+    /** [ref] parked at [fromPosition] of [partition]. */
+    private fun parked(fromPosition: Long?, partition: Int) =
+        ParkedAggregate(CommandIntake.NAME, ref, partition, 1, "r", 0, fromPosition)
 
     @Test
     fun `a receipt should reach the handler once per command id with the command's class`(): Unit = runBlocking {

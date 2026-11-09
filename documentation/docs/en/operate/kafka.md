@@ -56,7 +56,7 @@ An aggregate is published by default; it can stay unpublished, publish without i
 ### Partitions
 
 - **A command topic has exactly as many partitions as its context's log** (`wow.log.partitions`). A command's partition in the topic is its aggregate's partition in the log, so the node that reads it is the node that owns the aggregate. With another count, commands would reach nodes that do not own their aggregates, so a node that reads a command topic checks it at startup, whatever `wow.kafka.ddl` says, and refuses to start while it is missing or has another count. A context whose commands the node does not take, only the ledger's, is checked for the topic alone: on another count the node warns and runs without the ledger's commands. Never add partitions to a command topic.
-- **A state or receipts topic** can have any number of partitions, and partitions can be added while services run. A reading node looks for new partitions every `wow.kafka.topics.partition-refresh` (30 seconds) and reads them from their beginning, without a restart.
+- **A state or receipts topic** can have any number of partitions, and partitions can be added while services run. A reading node looks for new partitions every `wow.kafka.topics.partition-refresh` (30 seconds) and reads them from their beginning, without a restart. Adding partitions moves some keys to the new ones. An aggregate a subscription parked before that keeps its later records waiting in its new partition, but a retry cannot read its parked record there: the retry marks the entry unrecoverable, and an operator skips it once they have dealt with that record.
 
 ### Creating topics
 

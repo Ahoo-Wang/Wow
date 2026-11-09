@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.runtime.subscription.parkedAt
+import me.ahoo.wow.runtime.subscription.requireUnmoved
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -65,6 +66,8 @@ internal class MessageEntries private constructor(
     private val kind: EnvelopeKind,
     private val partitioner: suspend (AggregateRef) -> Int,
     private val observer: Observer,
+    /** Whether [partitioner] is the broker's, which maps a key elsewhere once the topic gains partitions. */
+    override val partitionsGrow: Boolean,
     private val decode: (Envelope) -> Decoded,
 ) : EntrySource {
     /** What a message holds: the aggregate whose lane it runs in, the command it is about, and the [message]. */
@@ -100,11 +103,12 @@ internal class MessageEntries private constructor(
     /** The entry parked at the offset it records; one recording none was parked before every one. */
     override fun ordinalOf(parked: ParkedAggregate): Long = (parked.fromPosition ?: -1L) + 1
 
-    override suspend fun retryEntries(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
-        if (fromPosition == null) {
-            throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
-        }
+    override suspend fun retryEntries(parked: ParkedAggregate): Flow<SourcedEntry> {
+        val ref = parked.ref
+        val fromPosition = parked.fromPosition
+            ?: throw UnrecoverableException("Its ledger entry records no offset of $topic to re-scan from.")
         val partition = partitionOf(ref)
+        requireUnmoved(topic, parked, partition)
         val offsets = source.offsets(topic, partition)
         if (offsets.start > fromPosition) {
             throw UnrecoverableException(
@@ -177,6 +181,7 @@ internal class MessageEntries private constructor(
             EnvelopeKind.COMMAND,
             { Partitioner.partitionOf(it, partitions) },
             observer,
+            partitionsGrow = false,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
             // A creation that names no aggregate runs, and parks, by its request.
@@ -200,6 +205,7 @@ internal class MessageEntries private constructor(
             EnvelopeKind.COMMAND_RECEIPT,
             { source.partitionOf(topic, it.toString()) },
             observer,
+            partitionsGrow = true,
         ) { envelope ->
             when (val receipt = CommandMessages.receiptOf(envelope)) {
                 is CommandReceipt.Committed<*> -> Decoded(

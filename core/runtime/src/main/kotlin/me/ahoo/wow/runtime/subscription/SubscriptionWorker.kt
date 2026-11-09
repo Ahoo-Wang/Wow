@@ -679,7 +679,7 @@ internal class SubscriptionWorker(
                 parked = it
             }
             val entries = try {
-                source.retryEntries(ref, parked.fromVersion, parked.fromPosition).toList()
+                source.retryEntries(parked).toList()
             } catch (gone: UnrecoverableException) {
                 unrecoverable(parked, gone)
                 restoreParked(ref, item, parked)
@@ -769,7 +769,7 @@ internal class SubscriptionWorker(
 
     private fun restoreParked(ref: AggregateRef, item: Item.Retry, parked: ParkedAggregate) = synchronized(this) {
         if ((parkStates[ref] as? ParkState.Retrying)?.result === item.result) {
-            parkStates[ref] = ParkState.Parked(source.ordinalOf(parked))
+            parkStates[ref] = ParkState.Parked(source.parkedFromIn(parked, partition))
         }
     }
 
