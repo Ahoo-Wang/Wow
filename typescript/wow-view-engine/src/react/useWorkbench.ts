@@ -565,19 +565,24 @@ export function useWorkbench(
   );
   useReleaseDeleted({ openId, chosen, opened: byId, setChosen });
 
-  // Read off the guard rather than the guard itself: `request` is the one
-  // stable part of it, and the object is new on every render.
-  const request = leave.request;
+  // Read off the guard rather than the guard itself: `request` and `cancel`
+  // are its stable parts, and the object is new on every render.
+  const { request, cancel: withdraw } = leave;
   const choose = useCallback(
     // Opening another view releases this one's runtime and the draft goes
-    // with it, so the switch is asked about before it happens.
+    // with it, so the switch is asked about before it happens. The saved
+    // view already open as it is — nothing held over it, nothing handed
+    // over to it — is no switch: a question still up about leaving it, a
+    // route that went elsewhere and came back, is taken away.
     (id: string | null) =>
-      request(() => {
-        hold(null);
-        setHanded(null);
-        setChosen(id);
-      }),
-    [request, hold],
+      id === chosen && held === null && handed === null
+        ? withdraw()
+        : request(() => {
+            hold(null);
+            setHanded(null);
+            setChosen(id);
+          }),
+    [chosen, held, handed, request, withdraw, hold],
   );
   const openHanded = useCallback(
     (target: SavedViewTarget) => {

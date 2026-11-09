@@ -26,7 +26,11 @@ export interface InstanceSyncOptions {
   instanceId?: string | null;
   /** The pin the workbench holds now — `useWorkbench`'s own `chosen`. */
   chosen: string | null;
-  /** Opens another view, through the leave guard. */
+  /**
+   * Opens another view, through the leave guard: while the guard asks, the
+   * question becomes one about `id`, and naming the view already open takes
+   * it away.
+   */
   choose(id: string | null): void;
   /** True while the guard's question is still on screen. */
   asking: boolean;
@@ -91,17 +95,14 @@ export function useInstanceSync({
     seen.current = instanceId;
     const handedBefore = handed.current;
     handed.current = handOver;
-    // Nothing has settled while the question is still up: the answer decides
-    // whether the pushed view opens or the old one stays.
-    if (asking) return;
 
-    const host = instanceId === undefined ? held.current : instanceId;
-    if (host === chosen) {
-      held.current = chosen;
-      return;
-    }
-    // The host is the side that moved. Its own move is not reported back to
-    // it, so `held` takes the pushed value before the guard sees it.
+    // The host is the side that moved, question or no question: Back twice
+    // in the browser's history while the guard asks about the first. Its own
+    // move is not reported back to it, so `held` takes the pushed value
+    // before the guard sees it, and the guard's question is now about this
+    // one — `choose` replaces what the guard holds, or, for the view already
+    // on screen, takes the question away. Waiting until the question was
+    // answered marked the newer value seen and never opened it (#5490).
     if (instanceId !== undefined && instanceId !== previous) {
       held.current = instanceId;
       // Pushed with a new hand-over of that very view: the hand-over opens
@@ -110,7 +111,16 @@ export function useInstanceSync({
         handOver !== handedBefore &&
         handOver?.kind === 'view' &&
         handOver.instanceId === instanceId;
-      if (!opening) choose(instanceId);
+      if (!opening && (instanceId !== chosen || asking)) choose(instanceId);
+      return;
+    }
+    // Nothing else has settled while the question is still up: the answer
+    // decides whether the pushed view opens or the old one stays.
+    if (asking) return;
+
+    const host = instanceId === undefined ? held.current : instanceId;
+    if (host === chosen) {
+      held.current = chosen;
       return;
     }
     // The workbench is the side that moved, or the push was refused. Either
