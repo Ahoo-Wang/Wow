@@ -64,18 +64,19 @@ export class Generations<K> {
   }
 
   /**
-   * Whether the answer of `ticket`'s read may replace what is held: no
-   * write about its key confirmed since it was issued, and no answer issued
-   * after it applied already. Admitting it records it applied.
+   * Whether the answer of `ticket`'s read about `key` — its own key, or one
+   * of the many a listing answers for — may replace what is held: no write
+   * about that key confirmed since the read was issued, and no answer about
+   * it issued later applied already. Admitting it records it applied.
    */
-  admit(ticket: Ticket<K>): boolean {
-    const marks = this.marks.get(ticket.key);
+  admit(ticket: Ticket<K>, key: K = ticket.key): boolean {
+    const marks = this.marks.get(key);
     if (
       marks &&
       (ticket.stamp < marks.confirmed || ticket.stamp < marks.applied)
     )
       return false;
-    this.marksOf(ticket.key).applied = ticket.stamp;
+    this.marksOf(key).applied = ticket.stamp;
     return true;
   }
 
