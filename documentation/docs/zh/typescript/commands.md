@@ -31,7 +31,7 @@ export const orderStates = new OrderStateClient(ordering);
 
 每个路由都以它的上下文开头，例如 `/eshop-ordering/order/…`，所以放在一个按这个前缀路由的网关上的 Fetcher 能服务所有服务；`basePath` 在每个路由前加上网关自己的前缀。
 
-生成的客户端按它所在上下文的 `manifest.ts` 里的路由发送，即生成器根据服务的 Manifest 写出的 `<Context>Manifest`，所以运行时从不去拉取 Manifest。自己构建的 `CommandClient`，`new CommandClient(options, { manifest })`，同样接收这样的 Manifest；不给时它拉取一次 `GET /wow/manifest`，只在拉取失败后才再拉取。客户端的名字是 `CommandClient`，与 Kotlin 一致：Wow 所说的命令网关，指的是服务端的准入。
+生成的客户端按它所在上下文的 `manifest.ts` 里的路由发送，即生成器根据服务的 Manifest 写出的 `<Context>Manifest`，所以运行时从不去拉取 Manifest。自己构建的 `CommandClient`，`new CommandClient(options, { manifest })`，同样接收这样的 Manifest；不给时它为所有等待它的命令只拉取一次 `GET /wow/manifest`，只在拉取失败后才再拉取。每条命令的等待各自独立：它的 `signal` 结束它自己的等待，拉取仍为其他命令继续；拉取失败时，每条命令各自以自己的错误拒绝（同一个 problem，或一个指明这次拉取并保留其 cause 的 `Error`），携带该命令自己的请求 ID。客户端的名字是 `CommandClient`，与 Kotlin 一致：Wow 所说的命令网关，指的是服务端的准入。
 
 ## 发送命令 {#send-a-command}
 
