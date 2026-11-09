@@ -25,7 +25,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   isViewCommandError,
+  isViewWriteError,
   type DashboardPanel,
   type DashboardViewConfig,
   type FilterTree,
@@ -513,6 +515,80 @@ describe('a view the board owns', () => {
     expect(state.panels[0].runtime?.getSnapshot().saved?.id).toBe(instance.id);
     // The board still has to be saved for the panel to point there for good.
     expect(state.dirty).toBe(true);
+  });
+
+  // #5478: pointing the panel at the new view is the save's own effect, so
+  // the retry that recovers a create whose answer was lost completes it too.
+  describe('saved as a view of its own, its answer lost', () => {
+    async function lostOnce(board: ReturnType<typeof harness>) {
+      const runtime = await board.open(
+        dashboardConfig({ panels: [owned('own'), saved('a')] }),
+      );
+      const create = board.store.create.bind(board.store);
+      let lose = true;
+      vi.spyOn(board.store, 'create').mockImplementation(async (...args) => {
+        const instance = await create(...args);
+        if (lose) {
+          lose = false;
+          throw new ViewStoreError('UNAVAILABLE', 'Answer lost after commit');
+        }
+        return instance;
+      });
+      const failure = await board.engine
+        .saveOwnedView(runtime, 'own', {
+          title: 'Orders by warehouse',
+          scope: 'personal',
+        })
+        .catch((error: unknown) => error);
+      if (!isViewWriteError(failure) || failure.state.kind !== 'unknown')
+        throw new Error('expected an unknown outcome');
+      return { runtime, failure };
+    }
+
+    it('points the panel at the view a retry recovered, once', async () => {
+      const board = harness();
+      const { runtime, failure } = await lostOnce(board);
+      expect(runtime.getSnapshot().draft.panels[0]).toMatchObject({
+        owned: { definitionId: 'orders' },
+      });
+
+      const recovered = (await board.engine.retryWrite(
+        failure.handle,
+      )) as ViewInstance;
+
+      const panel = runtime.getSnapshot().draft.panels[0];
+      expect(panel).toMatchObject({ id: 'own', instanceId: recovered.id });
+      expect(panel).not.toHaveProperty('owned');
+      expect(
+        (await board.engine.list('orders')).items.filter(
+          item => item.title === 'Orders by warehouse',
+        ),
+      ).toHaveLength(1);
+      expect(board.engine.pendingWrites().size).toBe(0);
+    });
+
+    it('leaves a panel removed while the answer was out as it is', async () => {
+      const board = harness();
+      const { runtime, failure } = await lostOnce(board);
+      runtime.removePanel('own');
+
+      await board.engine.retryWrite(failure.handle);
+
+      expect(runtime.getSnapshot().draft.panels.map(entry => entry.id)).toEqual(
+        ['a'],
+      );
+    });
+
+    it('leaves a board closed while the answer was out alone', async () => {
+      const board = harness();
+      const { runtime, failure } = await lostOnce(board);
+      board.engine.close(runtime);
+
+      const recovered = await board.engine.retryWrite(failure.handle);
+
+      expect(recovered).toMatchObject({ title: 'Orders by warehouse' });
+      expect(board.engine.pendingWrites().size).toBe(0);
+    });
   });
 
   it('refuses to save a panel that owns no view, or one whose question is refused', async () => {

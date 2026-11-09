@@ -11,16 +11,20 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_RUNTIME_LIMITS,
+  isViewWriteError,
   MemoryViewStore,
   ViewEngine,
+  ViewStoreError,
   type DashboardViewConfig,
   type ViewInstance,
 } from '../src/index.js';
+import { DashboardViewRuntime } from '../src/runtime/dashboardRuntime.js';
 import {
   dashboardConfig,
+  deferred,
   mine,
   ordersDefinition,
   overviewDefinition,
@@ -98,5 +102,137 @@ describe('放进仪表盘: engine.addToDashboard (R2-98)', () => {
     await expect(
       engine.addToDashboard('board-1', pending.id),
     ).rejects.toMatchObject({ issue: { code: 'view.addToDashboard.unsaved' } });
+  });
+});
+
+/**
+ * #5447: the board is read and written while it stays open. An edit made in
+ * that time is the reader's, and the board's save must not take it away:
+ * the open board's baseline moves to the board saved, and the added panel is
+ * carried onto the draft it went on editing.
+ */
+describe('放进仪表盘 while the open board is edited', () => {
+  /** An engine whose read of the view added is held until released. */
+  function held() {
+    const { engine, store } = engineWith();
+    const reading = deferred<void>();
+    const release = deferred<void>();
+    const get = store.get.bind(store);
+    vi.spyOn(store, 'get').mockImplementation(async (id: string) => {
+      const found = await get(id);
+      if (id === mine.id) {
+        reading.resolve();
+        await release.promise;
+      }
+      return found;
+    });
+    return { engine, store, reading, release };
+  }
+
+  async function openBoard(engine: ViewEngine) {
+    const open = await engine.open('board-1');
+    if (!(open instanceof DashboardViewRuntime))
+      throw new Error('expected a board');
+    open.setBuilding(true);
+    return open;
+  }
+
+  /** The reader's edits while the add is out: a rename and a move. */
+  function edit(open: DashboardViewRuntime) {
+    open.renamePanel('orders', 'Renamed');
+    open.place('orders', { x: 6, y: 0, w: 6, h: 4 });
+    open.edit({ refresh: { interval: 300 } });
+  }
+
+  function expectCarried(open: DashboardViewRuntime, saved: ViewInstance) {
+    const snapshot = open.getSnapshot();
+    expect(snapshot.saved?.revision).toBe(saved.revision);
+    expect(snapshot.dirty).toBe(true);
+    expect(snapshot.draft.refresh.interval).toBe(300);
+    const [own, added] = snapshot.draft.panels;
+    expect(own).toMatchObject({
+      id: 'orders',
+      title: 'Renamed',
+      layout: { x: 6, y: 0, w: 6, h: 4 },
+    });
+    const savedPanel = panelsOf(saved)[panelsOf(saved).length - 1]!;
+    expect(added).toMatchObject({
+      id: savedPanel.id,
+      kind: 'view',
+      instanceId: mine.id,
+    });
+    expect(snapshot.draft.panels).toHaveLength(2);
+  }
+
+  it('keeps the edits made while it was out, and carries the panel onto them', async () => {
+    const { engine, store, reading, release } = held();
+    const open = await openBoard(engine);
+    const untouched = await engine.open('board-1');
+
+    const adding = engine.addToDashboard('board-1', mine.id);
+    await reading.promise;
+    edit(open);
+    release.resolve();
+    const saved = await adding;
+
+    expectCarried(open, saved);
+    // The other holder had nothing of its own: it takes the board as saved.
+    expect(untouched.getSnapshot()).toMatchObject({
+      dirty: false,
+      saved: { revision: saved.revision },
+    });
+    expect(
+      panelsOf({ ...board, config: untouched.getSnapshot().draft }),
+    ).toEqual(panelsOf(saved));
+
+    // One undo takes back only the carried panel; the draft then differs
+    // from the saved board again.
+    expect(open.undo()).toMatchObject({ command: 'addPanel' });
+    expect(open.getSnapshot().draft.panels.map(entry => entry.id)).toEqual([
+      'orders',
+    ]);
+    expect(open.getSnapshot().draft.panels[0]).toMatchObject({
+      title: 'Renamed',
+    });
+    open.redo();
+
+    // One save sends all of it, against the saved revision.
+    const save = vi.spyOn(store, 'save');
+    await engine.save(open);
+    const [, config, revision] = save.mock.calls[0]!;
+    expect(revision).toBe(saved.revision);
+    expect(panelsOf({ ...board, config })).toHaveLength(2);
+    expect(panelsOf({ ...board, config })[0]).toMatchObject({
+      title: 'Renamed',
+    });
+    expect((config as DashboardViewConfig).refresh.interval).toBe(300);
+  });
+
+  it('ends a retry after an answer lost in the same state', async () => {
+    const { engine, store } = engineWith();
+    const open = await openBoard(engine);
+    const save = store.save.bind(store);
+    let lose = true;
+    vi.spyOn(store, 'save').mockImplementation(async (...args) => {
+      const instance = await save(...args);
+      if (lose) {
+        lose = false;
+        throw new ViewStoreError('UNAVAILABLE', 'Answer lost after commit');
+      }
+      return instance;
+    });
+
+    const failure = await engine
+      .addToDashboard('board-1', mine.id)
+      .catch((error: unknown) => error);
+    if (!isViewWriteError(failure))
+      throw new Error('expected an unknown write');
+    edit(open);
+    const saved = (await engine.retryWrite(failure.handle)) as ViewInstance;
+
+    expectCarried(open, saved);
+    expect(engine.pendingWrites().size).toBe(0);
+    // Retried again by the same id, nothing is carried twice.
+    expect(open.getSnapshot().draft.panels).toHaveLength(2);
   });
 });

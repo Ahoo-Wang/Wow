@@ -94,16 +94,20 @@ export class PanelViews {
 
     const { scope } = input;
     requireStorable(config);
-    const instance = (await this.host.ledger.dispatch(
+    // The panel is pointed at the new view by the ledger once the create is
+    // confirmed (`applyWriteEffect`): on this attempt, or on the retry that
+    // recovers it. The board is the effect's, not the write's: the create
+    // does not wait behind a save of the board, nor shows its outcome there.
+    return (await this.host.ledger.dispatch(
       {
         action: 'create',
         input: { definitionId, title, scope, config },
         intent: 'save-as',
+        panel: { id: panelId, shows: view.shows },
       },
       undefined,
+      board,
     )) as ViewInstance;
-    board.referToSaved(panelId, instance);
-    return instance;
   }
 }
 
@@ -116,15 +120,20 @@ function sourceOf(
   board: DashboardViewRuntime,
   panelId: string,
   from: PanelViewSource,
-): { definitionId: string; config: ViewConfig } | null {
+): { definitionId: string; config: ViewConfig; shows: string | null } | null {
   const panel = board
     .getSnapshot()
     .draft.panels.find(entry => entry.id === panelId);
-  if (from === 'owned') return isOwnedPanel(panel) ? panel.owned : null;
+  if (from === 'owned')
+    return isOwnedPanel(panel) ? { ...panel.owned, shows: null } : null;
   const saved = board.panelRuntime(panelId)?.getSnapshot().saved;
   return isViewPanel(panel) &&
     panel.owned === undefined &&
     saved?.id === panel.instanceId
-    ? saved
+    ? {
+        definitionId: saved.definitionId,
+        config: saved.config,
+        shows: saved.id,
+      }
     : null;
 }
