@@ -237,6 +237,7 @@ class HttpCommandCallerTest {
         caller.reaches("mail").assert().isTrue()
         val outage = caught<WowProblemException> { runBlocking { caller.call(call()) } }
         outage.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+        outage.message.assert().contains("The lookup of mail lists no node on its internal port now.")
         // Systemic: the subscription waits for the peer to come back rather than parking the aggregate.
         FailureClassification.DEFAULT.classify(outage, null).assert().isEqualTo(FailureClass.SYSTEMIC)
         taken.assert().isEmpty()

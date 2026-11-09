@@ -20,7 +20,6 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
-import java.net.ConnectException
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
@@ -109,7 +108,7 @@ class PeerFailoverTest {
             val once = transport(resolver, RetryPolicy.NONE)
             val down = once.get() as Answer.Problem
             down.problem.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
-            down.problem.cause.assert().isInstanceOf(ConnectException::class.java)
+            down.problem.detail.assert().isEqualTo("The lookup of mail lists no node on its internal port now.")
             unreachable.assert().containsExactly("mail")
             live.taken.assert().isEmpty()
 
