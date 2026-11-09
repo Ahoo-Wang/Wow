@@ -13,12 +13,17 @@
 
 package me.ahoo.wow.runtime.subscription
 
-import kotlinx.coroutines.flow.first
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.spi.log.EventLog
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import kotlin.time.TimeSource
 
 /**
  * Where a subscription that has no checkpoint yet in a partition starts: the host's override of its
@@ -50,39 +55,54 @@ sealed interface SubscriptionStart {
     }
 
     /**
-     * From the first entry of the partition whose commit time is at or after [instant]; after the head when none is
-     * yet, as [End].
+     * From the first entry of the partition, in log order, committed at or after [instant]: every entry after it is
+     * handled, whatever its commit time; after the head when none is yet, as [End].
      *
-     * The log's SPI reads a partition only forward from a position ([EventLog.tail]), so the entry is found by a
-     * binary search over the sequences up to the head: each step reads the first entry after a sequence, about
-     * log2(head) reads in all instead of a scan of the partition. It relies on commit times not decreasing along a
-     * partition's sequence, which its single owner at a time keeps, up to the clock skew between two
-     * owners across a lease handover: around one, the start may be off by the entries committed within that skew.
+     * Commit times are not ordered along a partition: an entry's is its decision's time (`DecideScope.now`), and
+     * decisions of different aggregates commit in another order than they read the time (one decides longer, or waits
+     * longer to be appended), as imported history and a lease handover's clock skew do too. So the entry is found by
+     * reading the partition forward from its first entry ([firstAt]) up to the head read when the search begins, the
+     * way a subscription catching up reads it ([EventLog.tail]), once, on the subscription's first start in the
+     * partition: the entries before the start are read, not handled.
      */
     @InternalWowApi
     data class At(val instant: Instant) : SubscriptionStart {
         override suspend fun checkpointIn(log: EventLog, partition: Int): Long {
-            val head = log.head(partition) ?: return 0L
-            return search(0L, head) { log.tail(partition, it.takeIf { after -> after > 0 }).first().stream.commitTime }
+            val head = log.head(partition) ?: 0L
+            // The tail never completes: it is read up to the head, never waiting for an entry after it.
+            val commits = if (head == 0L) {
+                emptyFlow()
+            } else {
+                log.tail(partition, null).transformWhile { entry ->
+                    emit(TimedEntry(entry.position.sequence, entry.stream.commitTime))
+                    entry.position.sequence < head
+                }
+            }
+            return firstAt(commits, head, "partition $partition of the log")
         }
 
         /**
-         * The smallest checkpoint in [low]..[high] whose next entry is committed at or after the instant; [high] when
-         * none is. [commitTimeAfter] reads the commit time of the first entry after a checkpoint below [high].
+         * The checkpoint before the first of [commits] committed at or after the instant, or [end] when none is:
+         * [commits] are the entries of a partition [where] in order up to [end], read forward as they stream, so any
+         * number of them takes the memory of one. The only search for the start, so that a backend able to answer it
+         * itself can take its place.
          */
-        internal suspend fun search(low: Long, high: Long, commitTimeAfter: suspend (Long) -> Long): Long {
+        internal suspend fun firstAt(commits: Flow<TimedEntry>, end: Long, where: String): Long {
             val millis = instant.toEpochMilli()
-            var from = low
-            var to = high
-            while (from < to) {
-                val middle = from + (to - from) / 2
-                if (commitTimeAfter(middle) >= millis) {
-                    to = middle
-                } else {
-                    from = middle + 1
-                }
+            logger.info { "Finding the first entry committed at or after $instant in $where, reading up to $end." }
+            val began = TimeSource.Monotonic.markNow()
+            var read = 0L
+            val first = commits.firstOrNull { commit ->
+                read++
+                commit.commitTime?.let { it >= millis } == true
             }
-            return from
+            val checkpoint = first?.let { it.sequence - 1 } ?: end
+            logger.info {
+                val found = first?.let { "entry ${it.sequence} is the first" } ?: "none is"
+                "Read $read entries of $where in ${began.elapsedNow()}: $found committed at or after $instant; " +
+                    "starting after $checkpoint."
+            }
+            return checkpoint
         }
 
         override fun toString(): String = instant.toString()
@@ -121,3 +141,8 @@ sealed interface SubscriptionStart {
         }
     }
 }
+
+/** An entry of a partition, at [sequence] (from 1), committed at [commitTime]; null when it cannot be read. */
+internal class TimedEntry(val sequence: Long, val commitTime: Long?)
+
+private val logger = KotlinLogging.logger {}
