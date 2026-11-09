@@ -169,8 +169,9 @@ internal class HttpTransport(
      * ([EndpointResolver.resolveAll]) from the next one in turn, and fails over to the next target on a connection
      * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
      * most once, without spending a retry. When every target failed to connect, the resolver hears it
-     * ([EndpointResolver.unreachable]). What the last target answered is then retried while [kind] says so. A request no
-     * attempt could send is `wow.peer.unavailable`; one sent and not answered is what its [kind] says.
+     * ([EndpointResolver.unreachable]), as it does when a context it reaches ([EndpointResolver.reaches]) has no target
+     * at the moment, a request that is not sent either. What the last target answered is then retried while [kind] says
+     * so. A request no attempt could send is `wow.peer.unavailable`; one sent and not answered is what its [kind] says.
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -227,21 +228,30 @@ internal class HttpTransport(
         }
         refused?.let { return it }
         endpoints.unreachable(request.context, mode.port)
-        throw checkNotNull(unsent)
+        throw unsent ?: ConnectException("No node of ${request.context} is found on its ${portName()} port now.")
     }
 
-    /** The targets of [context], each a base URL without its trailing slash, from the next one in turn. */
+    /**
+     * The targets of [context], each a base URL without its trailing slash, from the next one in turn; none while the
+     * resolver finds no node of a context it reaches, such as a service whose instances are all down for a moment. A
+     * context it does not reach has no URL at all: the code's mistake, not an outage.
+     */
     private suspend fun targetsOf(context: String): List<String> {
         val targets = endpoints.resolveAll(context, mode.port).map { it.toString().trimEnd('/') }
-        checkUse(targets.isNotEmpty()) {
-            "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
-                "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
-                "or give the client an EndpointResolver that finds it."
+        if (targets.isEmpty()) {
+            checkUse(endpoints.reaches(context, mode.port)) {
+                "No URL calls context $context on its ${portName()} port: set " +
+                    "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
+                    "or give the client an EndpointResolver that finds it."
+            }
+            return targets
         }
         if (targets.size == 1) return targets
         val first = Math.floorMod(turns.computeIfAbsent(context) { AtomicInteger() }.getAndIncrement(), targets.size)
         return targets.drop(first) + targets.take(first)
     }
+
+    private fun portName(): String = mode.port.name.lowercase()
 
     /** The next target of each context, so the requests rotate through its targets. */
     private val turns = ConcurrentHashMap<String, AtomicInteger>()

@@ -36,7 +36,9 @@ fun interface EndpointResolver {
     /**
      * Every base URL of [context]'s [port], the nodes a request may go to in turn: the client rotates through them and
      * fails over to the next on a connection that was not made, or on a node that refused before handling.
-     * [resolve]'s alone by default.
+     * [resolve]'s alone by default. None, for a context it [reaches], is a peer with no node up at the moment: the
+     * request is not sent and fails as `wow.peer.unavailable`, an outage a saga's subscription retries; none for a
+     * context it does not reach is a client set up without its peer's URL, which fails the call as the code's mistake.
      */
     suspend fun resolveAll(context: String, port: Port): List<URI> = listOfNotNull(resolve(context, port))
 

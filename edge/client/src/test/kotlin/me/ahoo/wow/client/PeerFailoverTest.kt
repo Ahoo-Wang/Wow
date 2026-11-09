@@ -20,8 +20,10 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
+import java.net.ConnectException
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -32,7 +34,7 @@ import kotlin.time.Duration.Companion.seconds
 class PeerFailoverTest {
     private val unreachable = CopyOnWriteArrayList<String>()
 
-    private fun transport(vararg targets: URI) = HttpTransport(
+    private fun transport(vararg targets: URI) = transport(
         object : EndpointResolver {
             override suspend fun resolve(context: String, port: Port): URI? = targets.firstOrNull()
 
@@ -42,10 +44,15 @@ class PeerFailoverTest {
                 unreachable += context
             }
         },
+        RetryPolicy.NONE,
+    )
+
+    private fun transport(endpoints: EndpointResolver, retry: RetryPolicy) = HttpTransport(
+        endpoints,
         ClientMode.Service("basket-service"),
         HttpCommandCaller.client(),
         5.seconds,
-        RetryPolicy.NONE,
+        retry,
     )
 
     private fun HttpTransport.get() = runBlocking {
@@ -80,6 +87,38 @@ class PeerFailoverTest {
             unreachable.assert().containsExactly("mail")
         }
         assertThrows<IllegalStateException> { transport().get() }.message.assert().contains("wow.peers.mail.url")
+    }
+
+    @Test
+    fun `a peer the resolver reaches with no node up for the moment should be unavailable and looked up again`() {
+        FakePeer().reply(Reply(200)).use { live ->
+            // The registry lists no instance at first, then the one that came back.
+            val lookups = ArrayDeque(listOf(emptyList(), listOf(live.base)))
+            val resolver = object : EndpointResolver {
+                override suspend fun resolve(context: String, port: Port): URI? = null
+
+                override suspend fun resolveAll(context: String, port: Port): List<URI> =
+                    lookups.removeFirstOrNull() ?: listOf(live.base)
+
+                override suspend fun reaches(context: String, port: Port): Boolean = true
+
+                override fun unreachable(context: String, port: Port) {
+                    unreachable += context
+                }
+            }
+            val once = transport(resolver, RetryPolicy.NONE)
+            val down = once.get() as Answer.Problem
+            down.problem.code.assert().isEqualTo(FrameworkErrors.PEER_UNAVAILABLE)
+            down.problem.cause.assert().isInstanceOf(ConnectException::class.java)
+            unreachable.assert().containsExactly("mail")
+            live.taken.assert().isEmpty()
+
+            // Not sent, so retried: the next attempt asks the resolver again and finds the node.
+            lookups.addFirst(emptyList())
+            transport(resolver, RetryPolicy.of(2, backoff = 10.milliseconds)).get()
+                .assert().isInstanceOf(Answer.Ok::class.java)
+            live.taken.assert().hasSize(1)
+        }
     }
 
     @Test
