@@ -74,6 +74,9 @@ class ContractDirectory(
      */
     nullableStates: Set<String> = emptySet(),
 ) : SubscriptionDirectory {
+    /** The subscriptions given as taking a nullable state, whatever their Manifest says. */
+    private val givenNullableStates: Set<String> = nullableStates
+
     /** Every subscription of [local] whose handler takes a nullable state: given, or as the Manifest says. */
     val nullableStates: Set<String> = nullableStates + local.contexts.flatMap { context ->
         context.subscriptions.filter { it.source.nullableState }.map { it.name }
@@ -313,7 +316,9 @@ class ContractDirectory(
 
                 published == null -> "$where reads aggregate $source.$aggregate, which context $source does not publish"
 
-                !published.includeState && subscription.name !in nullableStates ->
+                // The subscription's own Manifest source: another context may have one of the same name.
+                !published.includeState && !subscription.source.nullableState &&
+                    subscription.name !in givenNullableStates ->
                     "$where reads $source.$aggregate, published without its state (${published.topic}), so its " +
                         "handler takes a nullable state: StateEvent<S?>"
 

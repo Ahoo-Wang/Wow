@@ -368,6 +368,27 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `a subscription's nullable state should be its own, not that of another context's subscription of its name`() {
+        // #5526: billing's subscription of the same name takes a nullable state; shop's still does not.
+        val strict = SubscriptionSource("inventory", listOf("bin"))
+        val nullable = strict.copyWith(nullableState = true)
+        val billing = ContextManifest(
+            "billing",
+            subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, nullable)),
+        )
+        val strictOnly = "subscription shop.Bins.onBin reads inventory.bin, published without its state " +
+            "(inventory-bins), so its handler takes a nullable state: StateEvent<S?>"
+        problems(shop(subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, strict))))
+            .assert().containsExactly(strictOnly)
+        problems(
+            shop(
+                subscriptions = listOf(subscription("Bins.onBin", SubscriptionKind.PROJECTION, strict)),
+                contexts = listOf(billing),
+            ),
+        ).assert().containsExactly(strictOnly)
+    }
+
+    @Test
     fun `a source in another context of the service itself should be checked against its Manifest`() {
         val billing = ContextManifest("billing")
         problems(
