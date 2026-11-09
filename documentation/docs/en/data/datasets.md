@@ -69,7 +69,7 @@ The catalog checks a definition against the catalog when it is drafted or revise
 
 ## Publish and version
 
-`PublishDataset` compiles the definition into the next version, a ClickHouse view named `ds_<context>_<name>_v<N>` in the datasets' database (`wow_datasets`), which is the only DDL the catalog runs. Every node that serves queries reads the publications, what changed every 5 seconds and everything every 5 minutes, and from then on answers `POST /wow/dataset/<context>/<name>/query` from that version, each value masked as its sources say. A node is ready only once it has read them.
+`PublishDataset` compiles the definition into the next version, a ClickHouse view named `ds_<context>_<name>_<digest>_v<N>` in the datasets' database (`wow_datasets`), which is the only DDL the catalog runs. The context and the name are lower-cased, with any character other than a letter, a digit or `_` written `_`; the digest, the first 10 hex digits of the SHA-256 of the exact id `<context>.<name>`, gives ids that differ only by case, `-`, `_` or where the context ends views of their own. Read a version's view from its publication record rather than building its name. Every node that serves queries reads the publications, what changed every 5 seconds and everything every 5 minutes, and from then on answers `POST /wow/dataset/<context>/<name>/query` from that version, each value masked as its sources say. A node is ready only once it has read them.
 
 | Command | Does |
 | --- | --- |

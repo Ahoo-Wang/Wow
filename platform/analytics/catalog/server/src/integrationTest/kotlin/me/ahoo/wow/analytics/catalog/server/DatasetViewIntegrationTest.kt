@@ -99,7 +99,7 @@ class DatasetViewIntegrationTest {
         execute((DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 2) as DatasetCompilation.Compiled).artifact.ddl)
         execute(artifact.ddl)
         client.queryAll("SELECT name FROM system.tables WHERE database = '${artifact.database}' ORDER BY name")
-            .map { it.getString("name") }.assert().containsExactly("ds_shop_orders_v1", "ds_shop_orders_v2")
+            .map { it.getString("name") }.assert().containsExactly("ds_shop_orders_7458f44cdb_v1", "ds_shop_orders_7458f44cdb_v2")
 
         val rows = client.queryAll("SELECT * FROM ${artifact.database}.${artifact.view} ORDER BY order_id")
         rows.map { it.getString("order_id") }.assert().containsExactly("o1", "o2")
