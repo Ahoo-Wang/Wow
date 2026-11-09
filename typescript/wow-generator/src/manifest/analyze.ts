@@ -14,7 +14,6 @@
 import {
   camelCase,
   pascalCase,
-  quoteStringLiteral,
   resolvePropertyName,
   toIdentifier,
   toTypeIdentifier,
@@ -30,7 +29,13 @@ import {
   type ManifestDocument,
   schemaKey,
 } from './document';
-import { aggregateTypeName, contextTypeName, generatedNames } from './names';
+import {
+  aggregateTypeName,
+  contextTypeName,
+  generatedNames,
+  routeMethodParameters,
+} from './names';
+import { compound, join, literal } from './typeText';
 
 /**
  * The formats of numbers a Wow Manifest marks for reading from their text,
@@ -248,11 +253,7 @@ export interface ContextModel {
 export interface RouteParameterModel {
   /** As the route names it: its path variable or its query parameter. */
   readonly name: string;
-  /**
-   * The method's parameter of a path variable: its name made an identifier,
-   * set apart from the method's own `body`, `query` and `options` and from
-   * the other variables.
-   */
+  /** Its method parameter: an identifier no other parameter of the method takes. */
   readonly identifier: string;
   readonly location: 'path' | 'query';
   readonly type: string;
@@ -308,51 +309,6 @@ function typesOf(schema: JsonSchema): string[] {
 }
 
 /**
- * Whether a type's text is a union or an intersection at its top level, so
- * it needs parentheses to be one member of another: a `|` or `&` inside an
- * object type, a type argument or a string literal does not count.
- */
-function compound(type: string): boolean {
-  let depth = 0;
-  for (let index = 0; index < type.length; index++) {
-    const char = type[index];
-    if (char === "'") {
-      // A literal's quotes and escapes, as quoteStringLiteral writes them.
-      for (index++; type[index] !== "'"; index++) {
-        if (type[index] === '\\') index++;
-      }
-    } else if ('({[<'.includes(char)) {
-      depth++;
-    } else if (')}]>'.includes(char)) {
-      depth--;
-    } else if (
-      depth === 0 &&
-      (char === '|' || char === '&') &&
-      type[index - 1] === ' ' &&
-      type[index + 1] === ' '
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** A union or an intersection, its members set apart when they are compound. */
-function join(members: string[], separator: ' | ' | ' & '): string {
-  const unique = [...new Set(members)];
-  if (unique.length === 1) return unique[0];
-  return unique
-    .map(member => (compound(member) ? `(${member})` : member))
-    .join(separator);
-}
-
-function literal(value: unknown): string {
-  return typeof value === 'string'
-    ? quoteStringLiteral(value)
-    : JSON.stringify(value);
-}
-
-/**
  * Turns the schemas of a Manifest into types: names for `$defs` keys and
  * type text for any schema.
  */
@@ -372,11 +328,7 @@ class SchemaTypes {
     return key.includes('(');
   }
 
-  /**
-   * Names each key after its simple class name, qualified as far as needed to
-   * be unique and to take none of the names `reserved`, as if those were the
-   * names of other types.
-   */
+  /** Names each key after its simple class name, qualified as far as needed to be unique and not `reserved`. */
   name(keys: readonly string[], reserved: ReadonlySet<string>): void {
     const pending = new Set(keys);
     for (let depth = 0; pending.size > 0; depth++) {
@@ -899,7 +851,7 @@ function contextModel(
     ),
     routes: (context.routes ?? []).map(route => {
       const where = `${context.name} route ${route.name}`;
-      const used = new Set(ROUTE_METHOD_PARAMETERS);
+      const used = routeMethodParameters();
       return {
         name: route.name,
         method: route.route.method,
@@ -923,9 +875,6 @@ function contextModel(
     }),
   };
 }
-
-/** The parameters a service route's method declares besides its path variables. */
-const ROUTE_METHOD_PARAMETERS = ['body', 'query', 'options'];
 
 /** The routes of `command`, as the Manifest lists them. */
 function routesOf(command: ManifestCommand): readonly Route[] {

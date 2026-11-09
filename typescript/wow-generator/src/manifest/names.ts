@@ -107,3 +107,11 @@ export function generatedNames(manifest: ManifestDocument): Set<string> {
   }
   return names;
 }
+
+/**
+ * The parameters a service route's method declares besides its path
+ * variables, which take other names: a fresh set for one method.
+ */
+export function routeMethodParameters(): Set<string> {
+  return new Set(['body', 'query', 'options']);
+}
