@@ -567,4 +567,166 @@ describe('DatasetResources', () => {
     expect(source).not.toHaveBeenCalled();
     expect(engine.definitions.has(ID)).toBe(false);
   });
+  /**
+   * #5472 / #5473: what a refresh registers is what the store and the
+   * directory hold now. A refresh overtaken by a newer one, or called off,
+   * leaves the engine as the newer one put it; and a wording read again at
+   * a newer revision is the revision the next save expects, its words the
+   * same or not.
+   */
+  describe('read against what is newer', () => {
+    it('leaves the dataset a newer refresh registered when an older, called-off one is described late', async () => {
+      const engine = engineOf();
+      const listed = { current: [entry('order_wide', 'sha256:1')] };
+      const late = deferred<DescriptorResult>();
+      const source = vi.fn((found: ReturnType<typeof entry>) =>
+        found.version === 'sha256:1'
+          ? testSource({ describe: vi.fn(() => late.promise) })
+          : sourceOf(descriptor('region', 'sha256:2')),
+      );
+      const datasets = new DatasetResources(engine, {
+        catalogs: { list: () => Promise.resolve(listed.current), source },
+      });
+      const controller = new AbortController();
+      const older = datasets.refresh({ signal: controller.signal });
+      await vi.waitFor(() => expect(source).toHaveBeenCalledTimes(1));
+      controller.abort();
+
+      listed.current = [entry('order_wide', 'sha256:2')];
+      await datasets.refresh();
+      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
+        'order_id',
+        'region',
+      ]);
+      late.resolve({
+        notModified: false,
+        descriptor: descriptor('city', 'sha256:1'),
+        version: 'sha256:1',
+      });
+      await older.catch(() => undefined);
+
+      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
+        'order_id',
+        'region',
+      ]);
+      expect(datasets.resources[0]?.entry.version).toBe('sha256:2');
+    });
+
+    it('answers an overtaken refresh with what the later one served, and registers nothing of its own', async () => {
+      const engine = engineOf();
+      const listed = { current: [entry('order_wide', 'sha256:1')] };
+      const late = deferred<DescriptorResult>();
+      const source = vi.fn((found: ReturnType<typeof entry>) =>
+        found.version === 'sha256:1'
+          ? testSource({ describe: vi.fn(() => late.promise) })
+          : sourceOf(descriptor('region', 'sha256:2')),
+      );
+      const datasets = new DatasetResources(engine, {
+        catalogs: { list: () => Promise.resolve(listed.current), source },
+      });
+      const older = datasets.refresh();
+      await vi.waitFor(() => expect(source).toHaveBeenCalledTimes(1));
+
+      listed.current = [entry('order_wide', 'sha256:2')];
+      const later = await datasets.refresh();
+      late.resolve({
+        notModified: false,
+        descriptor: descriptor('city', 'sha256:1'),
+        version: 'sha256:1',
+      });
+
+      expect(await older).toEqual(later);
+      expect(later.datasets[0]?.entry.version).toBe('sha256:2');
+      expect(names(engine.definitions.get(ID)!.fields)).toEqual([
+        'order_id',
+        'region',
+      ]);
+    });
+
+    it('keeps the revision an editor saved over a wording read that was out', async () => {
+      const engine = engineOf();
+      let held: StoredDatasetWording = {
+        wording: { title: 'Orders' },
+        revision: '1',
+      };
+      const reading = deferred<void>();
+      const answer = deferred<ReadonlyMap<string, StoredDatasetWording>>();
+      let reads = 0;
+      const store: DatasetWordingStore = {
+        list: vi.fn(() => {
+          if (++reads === 1) return Promise.resolve(new Map([[ID, held]]));
+          reading.resolve();
+          return answer.promise;
+        }),
+        set: vi.fn((_dataset, wording, revision) => {
+          if (revision !== held.revision)
+            return Promise.reject(new Error(`CONFLICT ${held.revision}`));
+          held = { wording, revision: String(Number(revision) + 1) };
+          return Promise.resolve(held.revision);
+        }),
+      };
+      const datasets = new DatasetResources(engine, {
+        catalogs: {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+          wordings: store,
+        },
+      });
+      await datasets.refresh();
+
+      const refreshing = datasets.refresh();
+      await reading.promise;
+      const stale = new Map([[ID, held]]);
+      await engine
+        .wordingOf(ID)!
+        .save({ title: 'Sales' }, { requestId: 's-1' });
+      answer.resolve(stale);
+      await refreshing;
+
+      expect(engine.wordingOf(ID)).toMatchObject({
+        wording: { title: 'Sales' },
+        revision: '2',
+      });
+      await engine
+        .wordingOf(ID)!
+        .save({ title: 'Sales again' }, { requestId: 's-2' });
+      expect(held.revision).toBe('3');
+    });
+
+    it('takes a wording read again at a newer revision as the one a save expects, the same words or not', async () => {
+      const engine = engineOf();
+      let held: StoredDatasetWording = {
+        wording: { title: 'Orders' },
+        revision: '1',
+      };
+      const store: DatasetWordingStore = {
+        list: vi.fn(() => Promise.resolve(new Map([[ID, held]]))),
+        set: vi.fn((_dataset, wording, revision) => {
+          if (revision !== held.revision)
+            return Promise.reject(new Error(`CONFLICT ${held.revision}`));
+          held = { wording, revision: String(Number(revision) + 1) };
+          return Promise.resolve(held.revision);
+        }),
+      };
+      const datasets = new DatasetResources(engine, {
+        catalogs: {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+          wordings: store,
+        },
+      });
+      await datasets.refresh();
+      expect(engine.wordingOf(ID)?.revision).toBe('1');
+
+      // Changed and changed back elsewhere: the same words, two revisions on.
+      held = { wording: { title: 'Orders' }, revision: '3' };
+      await datasets.refresh();
+
+      expect(engine.wordingOf(ID)?.revision).toBe('3');
+      await engine
+        .wordingOf(ID)!
+        .save({ title: 'Sales' }, { requestId: 'save-1' });
+      expect(engine.definitions.get(ID)?.title).toBe('Sales');
+    });
+  });
 });

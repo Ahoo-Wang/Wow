@@ -21,7 +21,8 @@
  * ever listed does not, and re-reading the store for every rename in a list
  * of forty would be forty round trips for state the list just handed over.
  * So a listing is remembered here, a confirmed write updates it, and a
- * delete drops it — the same shape `preferences.ts` has, for the same
+ * delete drops it — and a listing that was out while either landed does not
+ * put back what it said before them (`listing`) — the same shape `preferences.ts` has, for the same
  * reason: a cache is one thing and a command surface is another.
  *
  * It is a cache and not a source of truth. `ViewEngine.locate` asks an open
@@ -38,6 +39,7 @@ import {
 } from '../model/index.js';
 import type { ViewListPage, ViewStore } from '../store/ViewStore.js';
 import { toIssue } from './failure/issues.js';
+import { Generations } from './generations.js';
 
 /**
  * The stored half of a definition's list, which may fail on its own: a
@@ -87,20 +89,50 @@ export async function storedSummaries(
 
 export class SummaryCache {
   private readonly cache = new Map<string, ViewInstanceSummary>();
+  /** Which listing may still say what a view is (`Generations.admit`). */
+  private readonly generations = new Generations<string>();
 
-  /** Remembers a whole listing, declared system views included. */
-  noteAll(summaries: readonly ViewInstanceSummary[]): void {
-    for (const summary of summaries) this.cache.set(summary.id, summary);
+  /**
+   * A definition's list, read through and remembered: the views it declares
+   * and what `read` brings from the store — but a view a write of this
+   * engine confirmed or deleted while the read was out, or one a read issued
+   * after it already told, is listed as it is known now, or not at all once
+   * deleted. The listing began before that and says an older state; taken
+   * as it came, the next rename went out against a revision this engine had
+   * itself moved past and was refused as a conflict nobody caused (#5545).
+   */
+  async listing<T extends { stored: ViewInstanceSummary[] }>(
+    definitionId: string,
+    declared: readonly ViewInstanceSummary[],
+    read: () => Promise<T>,
+  ): Promise<Omit<T, 'stored'> & { items: ViewInstanceSummary[] }> {
+    const ticket = this.generations.issue(`list\u0000${definitionId}`);
+    try {
+      const { stored, ...told } = await read();
+      const items = [...declared, ...stored].flatMap(summary => {
+        if (this.generations.admit(ticket, summary.id)) {
+          this.cache.set(summary.id, summary);
+          return [summary];
+        }
+        const known = this.cache.get(summary.id);
+        return known ? [known] : [];
+      });
+      return { items, ...told };
+    } finally {
+      this.generations.release(ticket);
+    }
   }
 
   /** Remembers the instance a write has just confirmed, as its summary. */
   note(instance: ViewInstance): void {
     this.cache.set(instance.id, toSummary(instance));
+    this.generations.confirm(instance.id);
   }
 
   /** Forgets a view that is gone; nothing may be written against it again. */
   drop(id: string): void {
     this.cache.delete(id);
+    this.generations.confirm(id);
   }
 
   /** The last summary seen for `id`, or nothing when none ever was. */
