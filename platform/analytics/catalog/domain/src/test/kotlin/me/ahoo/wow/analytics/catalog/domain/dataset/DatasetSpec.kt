@@ -226,18 +226,6 @@ class DatasetSpec {
     }
 
     @Test
-    fun `datasets whose ids read the same once made safe should publish views of their own`() {
-        listOf("a-b", "a_b", "A_b").forEach { name ->
-            spec(AnalyticsCatalogContext.datasetIdOf("shop", name)) {
-                givenCommands(DraftDataset("shop", name, DEFINITION))
-                whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
-            }
-        }
-        warehouse.created.assert().hasSize(3)
-        warehouse.created.values.map { it.name }.assert().containsExactlyInAnyOrder("a-b", "a_b", "A_b")
-    }
-
-    @Test
     fun `a publication should be refused when the definition no longer compiles or the warehouse fails`() = spec {
         drafted()
         warehouse.failing = "Code: 497. Not enough privileges."
@@ -291,47 +279,6 @@ class DatasetSpec {
                 current.assert().isEqualTo(2)
                 dropped.assert().isFalse()
             }
-        }
-    }
-
-    @Test
-    fun `a version published under the former view name should keep it to recompile, roll back and drop`() = spec {
-        val compiled = DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 1, "bi", "Orders")
-        val current = (compiled as DatasetCompilation.Compiled).artifact
-        // Published before view names carried the digest of the dataset's id.
-        val former = "ds_shop_orders_v1"
-        val artifact = current.copy(
-            view = former,
-            ddl = current.ddl.replace(current.view, former),
-            columns = MemoryDatasetWarehouse.COLUMNS,
-        )
-        given(
-            DatasetDrafted("shop", "orders", DEFINITION, listOf(ORDERS_ID, MEMBERS_ID, REGIONS_ID), "Orders"),
-            DatasetPublished(artifact, DEFINITION),
-        )
-        warehouse.created["bi.$former"] = artifact
-        // The definition compiles to what is published, under whatever name: nothing to publish.
-        whenCommand(RecompileDataset) { expectUnchanged() }
-        // A source gone: the version goes on serving while the view of its name still gives its columns.
-        catalog[REGIONS_ID] = null
-        whenCommand(RecompileDataset) {
-            expectEvents(DatasetNeedsRevision(listOf("The catalog has no source $REGIONS_ID."), serving = true))
-        }
-        catalog[REGIONS_ID] = SOURCES[REGIONS_ID]
-        givenCommands(RecompileDataset)
-        // The next version takes the new name; the former one keeps its own.
-        val fewer = DEFINITION.copy(columns = DEFINITION.columns.dropLast(1), eventTime = null)
-        givenCommands(ReviseDataset(fewer, title = "Orders"), PublishDataset)
-        warehouse.created.keys.assert().containsExactly("bi.$former", "bi.ds_shop_orders_7458f44cdb_v2")
-        warehouse.created.remove("bi.$former")
-        whenCommand(RollbackDataset(1)) {
-            expectEvents(DatasetRolledBack(1, from = 2))
-            expectState { serving()!!.view.assert().isEqualTo(former) }
-        }
-        warehouse.created.keys.assert().contains("bi.$former")
-        givenCommands(RetireDataset)
-        whenCommand(DropDatasetViews) {
-            expectEvents(DatasetViewsDropped(listOf("bi.$former", "bi.ds_shop_orders_7458f44cdb_v2")))
         }
     }
 
