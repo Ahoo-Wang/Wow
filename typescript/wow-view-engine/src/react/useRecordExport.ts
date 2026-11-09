@@ -237,11 +237,15 @@ export function useRecordExport(
           ...(total === null ? {} : { total }),
         },
       });
+      // A run cancelled is over for the window: what it settles with later
+      // — the read its client rejects on the abort, a page that arrived
+      // anyway — is not said over the idle window or a run started since.
+      const current = () => live.current === controller;
       try {
         const result = await runtime.exportRows({
           signal: controller.signal,
           onProgress: (fetched, reported) => {
-            if (!alive.current || live.current !== controller) return;
+            if (!alive.current || !current()) return;
             setState(current => ({
               ...current,
               progress: {
@@ -252,6 +256,7 @@ export function useRecordExport(
             }));
           },
         });
+        if (!current()) return;
         await hand(
           result.rows,
           {
@@ -263,6 +268,7 @@ export function useRecordExport(
           fileName,
         );
       } catch (caught) {
+        if (!current()) return;
         // A cancel is the user's own answer, not a finding: the window
         // closes and nothing is said about it.
         settle(
