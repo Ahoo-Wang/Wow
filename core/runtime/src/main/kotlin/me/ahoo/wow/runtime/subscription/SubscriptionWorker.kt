@@ -259,8 +259,8 @@ internal class SubscriptionWorker(
 
     /** Called under the monitor: whether [entry]'s aggregate is parked at or before it. */
     private fun parkedAt(entry: SourcedEntry): Boolean {
-        val state = parkStates[entry.stream.ref]
-        return state is ParkState.Parked && source.ordinalOf(entry) >= state.fromOrdinal
+        val from = parkStates[entry.stream.ref]?.fromOrdinal ?: return false
+        return source.ordinalOf(entry) >= from
     }
 
     /** Whether a wait on [entry] waits for this subscription next. */
@@ -425,8 +425,8 @@ internal class SubscriptionWorker(
     private fun skippedInLane(entry: SourcedEntry): Boolean {
         val ref = entry.stream.ref
         val ordinal = source.ordinalOf(entry)
-        val state = parkStates[ref]
-        if (state is ParkState.Parked && ordinal >= state.fromOrdinal) {
+        val from = parkStates[ref]?.fromOrdinal
+        if (from != null && ordinal >= from) {
             return true
         }
         val handled = handledThrough?.get(ref)
@@ -623,7 +623,8 @@ internal class SubscriptionWorker(
         }
         synchronized(this) {
             val state = parkStates[stream.ref]
-            if (state !is ParkState.Retrying) {
+            // A retry or a skip running settles the aggregate's state when it ends.
+            if (state !is ParkState.Retrying && state !is ParkState.Skipping) {
                 // As a restart reads it back from the ledger: an undecodable message parks from the first version.
                 val ordinal = source.ordinalOf(entry)
                 val from = (state as? ParkState.Parked)?.fromOrdinal?.coerceAtMost(ordinal) ?: ordinal
@@ -641,7 +642,7 @@ internal class SubscriptionWorker(
      * delivers later is skipped as a copy, and every newer one is handled after the retry, in version order.
      *
      * @return true when the aggregate was handled up to its last stream and is no longer parked; false when it was
-     * not parked, or failed again and stays parked from where it was.
+     * not parked, a skip of it is running, or it failed again and stays parked from where it was.
      */
     suspend fun retry(ref: AggregateRef): Boolean {
         val entry = ledger.parked(subscription.name, ref)
@@ -649,6 +650,8 @@ internal class SubscriptionWorker(
             check(!abandoned) { "Subscription ${subscription.name} stopped in partition $partition." }
             when (val state = parkStates[ref]) {
                 is ParkState.Retrying -> state.result
+                // The skip discards what is parked: nothing of it is to be handled.
+                is ParkState.Skipping -> return false
                 else -> {
                     if (entry == null) {
                         parkStates.remove(ref)
@@ -773,19 +776,32 @@ internal class SubscriptionWorker(
     /**
      * Resolves [ref]'s ledger entry without handling what was skipped: from now on its new entries are handled.
      *
-     * @return true when the aggregate was parked; false when it was not, or a retry of it is running.
+     * The aggregate is marked skipping in the same step as it is checked, and stays so while the ledger is written:
+     * a retry asked for meanwhile starts nothing, so what the skip discards is never handled. When the write fails,
+     * the aggregate is parked as it was.
+     *
+     * @return true when the aggregate was parked; false when it was not, or a retry or another skip of it is running.
      */
     suspend fun skip(ref: AggregateRef): Boolean {
-        if (synchronized(this) { parkStates[ref] is ParkState.Retrying }) {
-            return false
-        }
-        val removed = ledger.resolve(subscription.name, ref)
-        synchronized(this) {
-            if (parkStates[ref] is ParkState.Parked) {
-                parkStates.remove(ref)
+        val skipping = synchronized(this) {
+            when (val state = parkStates[ref]) {
+                is ParkState.Retrying, is ParkState.Skipping -> return false
+                else -> ParkState.Skipping(state as ParkState.Parked?).also { parkStates[ref] = it }
             }
         }
-        return removed != null
+        var resolved = false
+        try {
+            val removed = ledger.resolve(subscription.name, ref)
+            resolved = true
+            return removed != null
+        } finally {
+            synchronized(this) {
+                if (parkStates[ref] === skipping) {
+                    val parked = skipping.parked
+                    if (resolved || parked == null) parkStates.remove(ref) else parkStates[ref] = parked
+                }
+            }
+        }
     }
 
     /** Saves the watermark if it moved since the last save. */
@@ -843,8 +859,19 @@ internal class SubscriptionWorker(
     }
 
     private sealed interface ParkState {
-        class Parked(val fromOrdinal: Long) : ParkState
-        class Retrying(val result: CompletableDeferred<Boolean>) : ParkState
+        /** The ordinal the aggregate's entries are skipped from, null when none is. */
+        val fromOrdinal: Long?
+
+        class Parked(override val fromOrdinal: Long) : ParkState
+
+        class Retrying(val result: CompletableDeferred<Boolean>) : ParkState {
+            override val fromOrdinal: Long? get() = null
+        }
+
+        /** A skip resolves the ledger entry: the entries [parked] skips stay skipped until it is resolved. */
+        class Skipping(val parked: Parked?) : ParkState {
+            override val fromOrdinal: Long? get() = parked?.fromOrdinal
+        }
     }
 }
 

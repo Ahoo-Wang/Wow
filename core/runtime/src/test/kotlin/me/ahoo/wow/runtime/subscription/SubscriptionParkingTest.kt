@@ -13,24 +13,30 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.kernel.HandlingRejectedException
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 class SubscriptionParkingTest {
     private val log = InMemoryEventLog(partitions = 2)
@@ -54,7 +60,7 @@ class SubscriptionParkingTest {
         handled.record(entry)
     }
 
-    private fun runtime() = SubscriptionRuntime(
+    private fun runtime(ledger: FailureLedger = this.ledger) = SubscriptionRuntime(
         "group",
         log,
         checkpoints,
@@ -198,6 +204,63 @@ class SubscriptionParkingTest {
         ledger.isParked("parking", cart("x")).assert().isFalse()
         appender.append("x")
         eventually { handled.versionsOf("x") == listOf(1, 5) }
+        runtime.stop()
+    }
+
+    @Test
+    fun `a retry while a skip resolves the aggregate starts nothing, so the skipped entries are never handled`(): Unit =
+        runBlocking {
+            // #5466: the skip holds the aggregate across its ledger write; a retry meanwhile finds it being skipped.
+            val resolving = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val gate = AtomicBoolean(true)
+            val gated = object : FailureLedger by ledger {
+                override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+                    if (gate.compareAndSet(true, false)) {
+                        resolving.complete(Unit)
+                        release.await()
+                    }
+                    return ledger.resolve(subscription, ref)
+                }
+            }
+            val runtime = runtime(gated)
+            parkX(runtime)
+            failing.set(false)
+            withTimeout(10.seconds) {
+                val skipped = async { runtime.skip("parking", cart("x")) }
+                resolving.await()
+                runtime.retry("parking", cart("x")).assert().isFalse()
+                runtime.skip("parking", cart("x")).assert().isFalse()
+                release.complete(Unit)
+                skipped.await().assert().isTrue()
+            }
+            handled.versionsOf("x").assert().isEqualTo(listOf(1))
+            ledger.isParked("parking", cart("x")).assert().isFalse()
+            appender.append("x")
+            eventually { handled.versionsOf("x") == listOf(1, 5) }
+            runtime.stop()
+        }
+
+    @Test
+    fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
+        val broken = AtomicBoolean(true)
+        val flaky = object : FailureLedger by ledger {
+            override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? {
+                check(!broken.get()) { "the ledger is unavailable" }
+                return ledger.resolve(subscription, ref)
+            }
+        }
+        val runtime = runtime(flaky)
+        parkX(runtime)
+        assertThrows<IllegalStateException> { runBlocking { runtime.skip("parking", cart("x")) } }
+        // Still parked: its new entry is skipped, and a retry handles it with the others.
+        appender.append("x")
+        eventually { checkpointsReachEnd() }
+        handled.versionsOf("x").assert().isEqualTo(listOf(1))
+        failing.set(false)
+        broken.set(false)
+        runtime.retry("parking", cart("x")).assert().isTrue()
+        handled.versionsOf("x").assert().isEqualTo(listOf(1, 2, 3, 4, 5))
         runtime.stop()
     }
 
