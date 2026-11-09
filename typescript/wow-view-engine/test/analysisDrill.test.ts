@@ -162,6 +162,44 @@ describe('bucketStart', () => {
     );
   });
 
+  // #5517: New York's clocks go back at 2026-11-01 02:00 EDT, so 01:00–01:59
+  // is read twice — 05:00Z (EDT) and 06:00Z (EST). An hour's bucket holds
+  // the moment it was asked about, whichever of the two it is.
+  it.each([
+    [
+      'the first repeated hour',
+      '2026-11-01T05:30:00.000Z',
+      '2026-11-01T05:00:00.000Z',
+    ],
+    [
+      'the second repeated hour',
+      '2026-11-01T06:30:00.000Z',
+      '2026-11-01T06:00:00.000Z',
+    ],
+    [
+      'an ordinary hour',
+      '2026-11-01T07:30:00.000Z',
+      '2026-11-01T07:00:00.000Z',
+    ],
+  ])('cuts %s at the top of that hour', (_, moment, start) => {
+    const ms = Date.parse(moment);
+    const found = bucketStart(AggregationDateUnit.HOUR, ms, NEW_YORK);
+    expect(new Date(found).toISOString()).toBe(start);
+    const { from, to } = bucketRange(AggregationDateUnit.HOUR, found, NEW_YORK);
+    expect(from).toBeLessThanOrEqual(ms);
+    expect(to).toBeGreaterThan(ms);
+  });
+
+  it('cuts an hour of a zone half an hour off UTC at its own top', () => {
+    // 2026-09-22 10:40 in Kolkata (UTC+05:30) is in the 10:00 bucket, 04:30Z.
+    const ms = Date.parse('2026-09-22T05:10:00.000Z');
+    expect(
+      new Date(
+        bucketStart(AggregationDateUnit.HOUR, ms, 'Asia/Kolkata'),
+      ).toISOString(),
+    ).toBe('2026-09-22T04:30:00.000Z');
+  });
+
   it('is where bucketRange starts from', () => {
     for (const unit of [
       AggregationDateUnit.DAY,
