@@ -17,6 +17,7 @@ import type {
   ViewPreferences,
 } from '../model/index.js';
 import { tabsOf } from '../dashboard/index.js';
+import { Generations, type Ticket } from './generations.js';
 import { isViewWriteError, type WriteHandle } from './write.js';
 
 /** What the memory borrows of the engine: the preferences and their writes. */
@@ -42,42 +43,56 @@ interface TabMemoryHost {
  * which tab a board opens on.
  */
 export class TabMemory {
-  /** The tab each board is to be remembered on, by definition and instance. */
-  private readonly wanted = new Map<string, string>();
-  /** The boards whose write is out. */
-  private readonly writing = new Set<string>();
+  /** Which switch of each board is the last one made (`Generations.latest`). */
+  private readonly switches = new Generations<string>();
+  /** Each board's last switch in hand, so the next waits for it: one write at a time. */
+  private readonly turns = new Map<string, Promise<void>>();
 
   constructor(private readonly host: TabMemoryHost) {}
 
-  async remember(
+  remember(
     definitionId: string,
     instanceId: string,
     tabId: string,
   ): Promise<void> {
     const key = `${definitionId}\u0000${instanceId}`;
-    this.wanted.set(key, tabId);
-    if (this.writing.has(key)) return;
-    this.writing.add(key);
+    const ticket = this.switches.issue(key);
+    const turn = (this.turns.get(key) ?? Promise.resolve())
+      .then(() => this.write(ticket, definitionId, instanceId, tabId))
+      .finally(() => {
+        if (this.turns.get(key) === turn) this.turns.delete(key);
+        this.switches.release(ticket);
+      });
+    this.turns.set(key, turn);
+    return turn;
+  }
+
+  /**
+   * Writes one switch, if it is still the last one made once its turn has
+   * come and the preferences are read: a switch made meanwhile is the one to
+   * remember. Judged before the read only, a first switch to the tab already
+   * remembered ended the burst and took the later switch with it (#5508).
+   */
+  private async write(
+    ticket: Ticket<string>,
+    definitionId: string,
+    instanceId: string,
+    tabId: string,
+  ): Promise<void> {
     try {
-      for (;;) {
-        const current = await this.host.current(definitionId);
-        // The tab wanted now, read after the preferences are: a switch made
-        // while they were read is the one to remember. Taken before them,
-        // a first switch to the tab already remembered ended the burst and
-        // took the later switch with it (#5508).
-        const wanted = this.wanted.get(key);
-        if (wanted === undefined || current.lastTabs?.[instanceId] === wanted)
-          return;
-        await this.host.write(definitionId, {
-          ...current,
-          lastTabs: { ...current.lastTabs, [instanceId]: wanted },
-        });
-      }
+      if (!this.switches.latest(ticket)) return;
+      const current = await this.host.current(definitionId);
+      if (
+        !this.switches.latest(ticket) ||
+        current.lastTabs?.[instanceId] === tabId
+      )
+        return;
+      await this.host.write(definitionId, {
+        ...current,
+        lastTabs: { ...current.lastTabs, [instanceId]: tabId },
+      });
     } catch (error) {
       if (isViewWriteError(error)) this.host.abandon(error.handle);
-    } finally {
-      this.writing.delete(key);
-      this.wanted.delete(key);
     }
   }
 

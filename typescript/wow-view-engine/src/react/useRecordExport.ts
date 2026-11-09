@@ -20,7 +20,11 @@ import {
 import { sourceIssue } from '../runtime/failure/issues.js';
 import { reportViewFailure } from '../runtime/failure/failures.js';
 import { toIssue } from '../runtime/failure/issues.js';
+import { Generations } from '../runtime/generations.js';
 import type { RecordTableController } from './useRecordTable.js';
+
+/** The one operation an export window runs at a time: the fetch of every row. */
+const RUN = 'all';
 
 /**
  * The two readings of "export": what is picked, and what the conditions
@@ -163,9 +167,11 @@ export function useRecordExport(
   // window's button would otherwise get — the picked scope fetches nothing,
   // so `live` below is empty for it and cannot be the gate.
   const busy = useRef(false);
-  // The fetch in flight, so `cancel` reaches this one and a progress report
-  // from a superseded run is ignored.
+  // The fetch in flight, so `cancel` and leaving reach it.
   const live = useRef<AbortController | null>(null);
+  // Which run is the one the window is about (`Generations.latest`): a run
+  // cancelled, left behind or followed by another settles with nothing said.
+  const [runs] = useState(() => new Generations<typeof RUN>());
   // Nothing lands after the component has gone, or after the view it was
   // exporting has been left behind.
   const alive = useRef(true);
@@ -179,10 +185,11 @@ export function useRecordExport(
     return () => {
       alive.current = false;
       busy.current = false;
+      runs.supersede(RUN);
       live.current?.abort();
       live.current = null;
     };
-  }, [runtime]);
+  }, [runtime, runs]);
 
   const paging = table.paging;
   // How many "all" is, where the source counted it: a lower bound is not.
@@ -228,6 +235,11 @@ export function useRecordExport(
     ): Promise<void> => {
       const controller = new AbortController();
       live.current = controller;
+      // A run cancelled is over for the window: what it settles with later
+      // — the read its client rejects on the abort, a page that arrived
+      // anyway — is not said over the idle window or a run started since.
+      const ticket = runs.issue(RUN);
+      const current = () => runs.latest(ticket);
       settle({
         ...IDLE,
         running: 'all',
@@ -237,10 +249,6 @@ export function useRecordExport(
           ...(total === null ? {} : { total }),
         },
       });
-      // A run cancelled is over for the window: what it settles with later
-      // — the read its client rejects on the abort, a page that arrived
-      // anyway — is not said over the idle window or a run started since.
-      const current = () => live.current === controller;
       try {
         const result = await runtime.exportRows({
           signal: controller.signal,
@@ -277,10 +285,11 @@ export function useRecordExport(
             : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
         );
       } finally {
-        if (live.current === controller) live.current = null;
+        if (current()) live.current = null;
+        runs.release(ticket);
       }
     },
-    [hand, settle],
+    [hand, runs, settle],
   );
 
   const run = useCallback(
@@ -305,10 +314,11 @@ export function useRecordExport(
   );
 
   const cancel = useCallback(() => {
+    runs.supersede(RUN);
     live.current?.abort();
     live.current = null;
     settle(IDLE);
-  }, [settle]);
+  }, [runs, settle]);
 
   // Closing the window forgets what the last run produced, so opening it
   // again asks rather than reporting an export the user has already read.
