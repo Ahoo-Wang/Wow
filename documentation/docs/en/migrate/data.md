@@ -172,7 +172,11 @@ Import them before the cut-over: one `tail --once` whose `lookbackMillis` reache
 
 **Compare in the service's time zone.** A state that turns a date into an instant with the system's zone, `LocalDate.atStartOfDay(ZoneId.systemDefault())` say, rebuilds to another instant in another zone: run `compare` in the zone 9.x ran in (`-Duser.timezone`, or `TZ`), as the V10 service must run.
 
-**A stopped comparison resumes on the same inputs only.** `compare` records its progress after each page, so a run that stops resumes where it stopped and keeps what it found before. When the map, a Manifest, the classpath, the time zone or the tool changed since it started, what it compared no longer stands: it starts again from the first instance and says why, `<aggregate> is compared in full again from the first instance: <reason>`.
+**A stopped comparison resumes on the same inputs only.** `compare` records its progress after each page, so a run that stops resumes where it stopped and keeps what it found before. Otherwise what it compared no longer stands, and it starts again from the first instance and says why, `<aggregate> is compared in full again from the first instance: <reason>`, when:
+
+- the sample changed since the saved comparison, stopped or completed;
+- an earlier version stopped it, which recorded no inputs;
+- the map, a Manifest, the classpath (the V10 models), the time zone or the tool changed since it stopped.
 
 **Compared again, only what changed.** Once a full comparison of an aggregate has completed, `compare` compares again only the instances whose result can have changed since the last comparison started:
 

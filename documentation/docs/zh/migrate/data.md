@@ -172,7 +172,11 @@ MISSING view-store.view t0/0VZwlu3X00016xF v4: 9.x stream 0VZwlu3X00016xG (comma
 
 **在服务的时区下比对。** 用系统时区把日期换成时刻的状态，例如 `LocalDate.atStartOfDay(ZoneId.systemDefault())`，换一个时区重建就会得到另一个时刻：在 9.x 运行的时区下运行 `compare`（`-Duser.timezone` 或 `TZ`），V10 服务也必须这样运行。
 
-**中途停止的比对只在相同的输入上继续。** `compare` 每比完一页就记录进度，所以中途停止的运行会从停下的地方继续，并保留之前发现的差异。如果映射文件、某个 Manifest、类路径、时区或工具在它开始之后变了，已经比对过的结果就不再成立：它会从第一个实例重新开始，并说明原因：`<aggregate> is compared in full again from the first instance: <reason>`。
+**中途停止的比对只在相同的输入上继续。** `compare` 每比完一页就记录进度，所以中途停止的运行会从停下的地方继续，并保留之前发现的差异。否则已经比对过的结果就不再成立，它会从第一个实例重新开始，并说明原因：`<aggregate> is compared in full again from the first instance: <reason>`。这些情况是：
+
+- 抽样比例与保存的比对不同，无论那次比对是中途停止还是已经完成；
+- 那次比对由更早的版本停止，它没有记录输入；
+- 映射文件、某个 Manifest、类路径（V10 模型）、时区或工具在它停止之后变了。
 
 **再次比对时，只比对变化的部分。** 某个聚合的完整比对完成之后，`compare` 只再次比对那些在上次比对开始之后结果可能变化的实例：
 
