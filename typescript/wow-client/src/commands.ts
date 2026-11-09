@@ -439,6 +439,7 @@ export class CommandClient {
           requestId,
           'text/event-stream',
         ),
+        requestId,
       ),
     );
   }

@@ -20,7 +20,7 @@ import {
 import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
 import type { CommandResult } from './wire.js';
 import { DEFAULT_RETRY } from './frameworkErrors.js';
-import { isProblem, WowProblemError } from './problem.js';
+import { isProblem, rememberRequestId, WowProblemError } from './problem.js';
 
 /** The event of each record of a streamed query list. */
 const ROW_EVENT = 'row';
@@ -43,20 +43,36 @@ export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
   CommandResult<R>
 >;
 
-/** The data of each event of `response`'s server-sent event stream. */
-export function commandResults<R>(response: Response): CommandResultStream<R> {
-  return toJsonServerSentEventStream<CommandResult<R>>(
+/**
+ * The data of each event of `response`'s server-sent event stream, the
+ * results of the command sent with `requestId`. A read that fails, such as a
+ * connection lost after the response began, fails with an error that carries
+ * `requestId` (`requestIdOf`): the command may have been committed, and
+ * a retry with the same id is answered as its duplicate.
+ */
+export function commandResults<R>(
+  response: Response,
+  requestId: string,
+): CommandResultStream<R> {
+  const reader = toJsonServerSentEventStream<CommandResult<R>>(
     toServerSentEventStream(response),
-  ).pipeThrough(
-    new TransformStream<
-      JsonServerSentEvent<CommandResult<R>>,
-      CommandResult<R>
-    >({
-      transform(event, controller) {
-        controller.enqueue(event.data);
-      },
-    }),
-  );
+  ).getReader();
+  return new ReadableStream<CommandResult<R>>({
+    async pull(controller) {
+      let next: ReadableStreamReadResult<JsonServerSentEvent<CommandResult<R>>>;
+      try {
+        next = await reader.read();
+      } catch (error) {
+        rememberRequestId(error, requestId);
+        throw error;
+      }
+      if (next.done) controller.close();
+      else controller.enqueue(next.value.data);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }
 
 /**

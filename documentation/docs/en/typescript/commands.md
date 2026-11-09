@@ -168,7 +168,7 @@ for (;;) {
 }
 ```
 
-A command refused at admission rejects the call before any result streams, with a `WowProblemError` whose `result.status` is `rejected`: a stream call does not turn it into a `CommandRejectedError` as `wait` does, so check `error.result?.status`. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`).
+A command refused at admission rejects the call before any result streams, with a `WowProblemError` whose `result.status` is `rejected`: a stream call does not turn it into a `CommandRejectedError` as `wait` does, so check `error.result?.status`. A rejection after admission is the stream's last result, with its `status` and `error`. When a saga sent nothing further, the chain ends before the plan does: that result has `chainEnded`, and `pending` names the hops that will not come. The eShop's checkout page follows its fifteen-hop chain to the payment this way (`examples/eshop/web/src/shop/checkout.ts`). A stream whose connection breaks after it began fails the read with the network's error, and `requestIdOf(error)` hands back the request id it was sent with: the command may have been committed, so send it again with that id.
 
 ## When a command fails
 
