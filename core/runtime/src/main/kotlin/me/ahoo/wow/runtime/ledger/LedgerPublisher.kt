@@ -102,7 +102,9 @@ class LedgerPublishing @InternalWowApi constructor(
  *   ledger command acts on one ([parked], [resolved]); and on every [scan], every [LedgerPublishing.interval], the
  *   reconciliation loop: every entry whose partition this node runs ([ParkedOps.owns]) is published again, and an entry
  *   this node published that has since left the ledger, not to another owner, is published as resolved. A record that
- *   is lost (the broker down, the node killed) is so published again; one entry's failure does not stop the others.
+ *   is lost (the broker down, the node killed) is so published again; one entry's failure does not stop the others. A
+ *   resolution whose send failed is kept as it was and sent again by each scan until it is delivered, unless the
+ *   aggregate is published parked again first.
  * - **Idempotence**: a record's request id is deterministic: a digest of the entry's ops id and its content, and of
  *   when this node first saw that content, so a record sent twice is one request to the ops aggregate, while an entry
  *   that comes back to an earlier content (an operator's request taken, say) is a new request. The ops aggregate
@@ -154,6 +156,14 @@ class LedgerPublisher internal constructor(
     private var loop: Job? = null
 
     private class Observed(val record: LedgerEntry, val at: Long)
+
+    /**
+     * The resolutions whose send failed, by key, each as it was built: every scan sends them again, the same record
+     * under the same request id, until one is delivered or the aggregate is published parked again.
+     */
+    private val unsent = HashMap<ParkedKey, Unsent>()
+
+    private class Unsent(val record: LedgerResolution, val requestId: String)
 
     /** Hears when an entry parks or spends its retries, and publishes it as it now stands. */
     val notifier: ParkedNotifier = ParkedNotifier { notice: ParkedNotice ->
@@ -222,6 +232,12 @@ class LedgerPublisher internal constructor(
                 }
                 after = page.next
             } while (after != null)
+            (unsent.keys - acting.keys).forEach { key ->
+                val resolution = unsent.getValue(key)
+                if (trySend(key, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution.record), resolution.requestId)) {
+                    unsent.remove(key)
+                }
+            }
             (published.keys - seen - acting.keys).forEach { key ->
                 val gone = published.getValue(key).record
                 // An entry whose partition moved to another node is that node's to publish now.
@@ -325,6 +341,8 @@ class LedgerPublisher internal constructor(
             nextRetryAt = view.nextRetryAt,
             recordedAt = now,
         )
+        // A parking published after a resolution not sent yet is a later one, which supersedes it.
+        unsent.remove(key)
         val content = record.copyWith(recordedAt = 0)
         val observed = published[key]?.takeIf { it.record == content } ?: Observed(content, now)
         published[key] = observed
@@ -344,11 +362,18 @@ class LedgerPublisher internal constructor(
         )
         // A parking is resolved once; its failure time tells it from the next one of the same aggregate.
         val requestId = digest(key, "resolved:${failedAt ?: record.resolvedAt}", 0)
-        trySend(key, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to record), requestId)
+        unsent.remove(key)
+        if (!trySend(key, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to record), requestId)) {
+            // The entry is gone from the ledger and from [published]: only this keeps the resolution to send again.
+            unsent[key] = Unsent(record, requestId)
+        }
     }
 
-    /** Sends [body], the record under its member, as the command [command] of [key]'s ops aggregate; a failure is logged, the next scan sends it again. */
-    private suspend fun trySend(key: ParkedKey, command: String, body: Any, requestId: String) {
+    /**
+     * Sends [body], the record under its member, as the command [command] of [key]'s ops aggregate; false when it
+     * failed, which is logged: the next scan sends it again.
+     */
+    private suspend fun trySend(key: ParkedKey, command: String, body: Any, requestId: String): Boolean {
         val target = AggregateType(options.context, Ledger.PARKED)
             .ref(Caller.DEFAULT_TENANT, parkedIdOf(key))
         val wire = CommandWire(
@@ -359,12 +384,14 @@ class LedgerPublisher internal constructor(
             body = ClusterCodec.mapper.valueToTree(body),
             operator = OPERATOR,
         )
-        try {
+        return try {
             send(wire)
+            true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
             logger.warn(failure) { "Failed to publish $command of ${key.ref} by ${key.subscription} to $target." }
+            false
         }
     }
 

@@ -217,6 +217,80 @@ class LedgerPublisherTest {
         runtime.stop()
     }
 
+    /** A publisher whose first send of a resolution fails, as a broker down for a moment; the others are [sent]. */
+    private fun failingOnce(): Pair<LedgerPublisher, AtomicLong> {
+        val attempts = AtomicLong()
+        return LedgerPublisher(SERVICE, LedgerPublishing(), ops, { wire ->
+            if (wire.type == "ops.parked.RecordResolved" && attempts.incrementAndGet() == 1L) {
+                error("The broker is down.")
+            }
+            sent += wire
+        }, clock) to attempts
+    }
+
+    private fun resolutions(): List<CommandWire> = sent.filter { it.type == "ops.parked.RecordResolved" }
+
+    @Test
+    fun `a resolution a scan failed to send is sent again by the next scans until it is delivered`(): Unit =
+        runBlocking {
+            // #5459: the entry left the ledger and the publisher's memory; only the unsent resolution remains.
+            val (publisher, attempts) = failingOnce()
+            parkAll("x1")
+            publisher.scan()
+            ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt)
+            publisher.scan()
+            resolutions().assert().isEmpty()
+            publisher.scan()
+            repeat(2) { publisher.scan() }
+            attempts.get().assert().isEqualTo(2L)
+            val record = ClusterCodec.mapper.treeToValue(resolutions().single().record, LedgerResolution::class.java)
+            record.outcome.assert().isEqualTo(LedgerResolution.RESOLVED)
+            record.aggregate.id.assert().isEqualTo("x1")
+            runtime.stop()
+        }
+
+    @Test
+    fun `an action's resolution that failed to send is sent again as it was, with its outcome and request id`(): Unit =
+        runBlocking {
+            val (publisher, attempts) = failingOnce()
+            parkAll("x1")
+            publisher.scan()
+            val failedAt = ledger.parked(NAME, cart("x1"))!!.failedAt
+            ops.skip(ID, cart("x1"), failedAt)
+            publisher.resolved(ID, cart("x1"), LedgerResolution.SKIPPED, failedAt)
+            resolutions().assert().isEmpty()
+            repeat(3) { publisher.scan() }
+            attempts.get().assert().isEqualTo(2L)
+            val record = ClusterCodec.mapper.treeToValue(resolutions().single().record, LedgerResolution::class.java)
+            record.outcome.assert().isEqualTo(LedgerResolution.SKIPPED)
+            record.failedAt.assert().isEqualTo(failedAt)
+            // The same request as the one that failed: the ops aggregate takes it once, whichever arrives.
+            resolutions().single().requestId.assert().isEqualTo(
+                LedgerPublisher(SERVICE, LedgerPublishing(), ops, { sent += it }, clock).let {
+                    it.resolved(ID, cart("x1"), LedgerResolution.SKIPPED, failedAt)
+                    sent.last().requestId
+                },
+            )
+            runtime.stop()
+        }
+
+    @Test
+    fun `an unsent resolution of a parking is dropped once the aggregate is parked again`(): Unit = runBlocking {
+        val (publisher, attempts) = failingOnce()
+        parkAll("x1")
+        publisher.scan()
+        ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt)
+        publisher.resolved(ID, cart("x1"), LedgerResolution.SKIPPED)
+        // x1's next version fails too: the new parking is published, and supersedes the resolution of the last one.
+        appender.append("x1")
+        eventually { ledger.isParked(NAME, cart("x1")) }
+        sent.clear()
+        repeat(2) { publisher.scan() }
+        attempts.get().assert().isEqualTo(1L)
+        sent.map { it.type }.toSet().assert().containsExactly("ops.parked.RecordParked")
+        runtime.stop()
+    }
+
     @Test
     fun `the reconciliation loop scans until it is stopped, a failed scan logged`(): Unit = runBlocking {
         parkAll("x1")
