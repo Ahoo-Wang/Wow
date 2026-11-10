@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query.snapshot
+package me.ahoo.wow.elasticsearch.query.aggregation
 
 import co.elastic.clients.elasticsearch._types.Script
 import co.elastic.clients.elasticsearch._types.mapping.RuntimeFieldType
@@ -29,8 +29,6 @@ import me.ahoo.wow.api.query.dsl.aggregation
 import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
-import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
-import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationMetric
 import me.ahoo.wow.elasticsearch.query.compile
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.query.schema.bind
