@@ -17,20 +17,19 @@ import type { FieldSort } from '../sort.js';
 import { requireValidExpressionTrees } from './expressionTrees.js';
 import { effectiveSort } from './sort.js';
 import {
-  AGGREGATION_LIMITS,
-  AggregationGroupScope,
-  AggregationGroupType,
-  AggregationMetricType,
   DerivedExpressionType,
-  HavingExpressionType,
-  type AggregationGroup,
-  type AggregationMetric,
-  type AggregationQuery,
   type DerivedAggregationMetric,
   type DerivedExpression,
   type DerivedWindow,
-  type HavingExpression,
-} from './types.js';
+} from './derived.js';
+import {
+  AggregationGroupScope,
+  AggregationGroupType,
+  type AggregationGroup,
+} from './groups.js';
+import { HavingExpressionType, type HavingExpression } from './having.js';
+import { AggregationMetricType, type AggregationMetric } from './metrics.js';
+import { AGGREGATION_LIMITS, type AggregationQuery } from './types.js';
 
 // Internal: the rules `aggregation.query()` checks across the parts of a
 // query. index.ts does not re-export this file.

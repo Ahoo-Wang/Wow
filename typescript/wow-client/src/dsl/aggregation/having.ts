@@ -12,11 +12,54 @@
  */
 
 import { constantName } from '../constantName.js';
-import {
-  ComparisonOperator,
-  HavingExpressionType,
-  type HavingExpression,
-} from './types.js';
+import { ComparisonOperator } from './types.js';
+
+/** The kind of a {@link HavingExpression} node, sent as its `type`. */
+export enum HavingExpressionType {
+  /** A metric compared with a number; `aggregation.having.eq` … `lte`. */
+  CONDITION = 'condition',
+  /** A metric within bounds, inclusive; `aggregation.having.between`. */
+  BETWEEN = 'between',
+  /** A metric equal to one of the numbers; `aggregation.having.isIn`. */
+  IN = 'in',
+  /**
+   * A metric without a value, or with one when `negated`;
+   * `aggregation.having.isNull`, `isNotNull`.
+   */
+  IS_NULL = 'is-null',
+  /** All operands hold; `aggregation.having.and`. */
+  AND = 'and',
+  /** At least one operand holds; `aggregation.having.or`. */
+  OR = 'or',
+}
+
+/**
+ * Filters grouped results by metric aliases, before sorting/limit; never an
+ * `ANY`, `FIRST` or `LAST` metric.
+ */
+export type HavingExpression =
+  | {
+      type: HavingExpressionType.CONDITION;
+      metric: string;
+      operator: ComparisonOperator;
+      value: number;
+    }
+  | {
+      type: HavingExpressionType.BETWEEN;
+      metric: string;
+      lower: number;
+      upper: number;
+    }
+  | {
+      type: HavingExpressionType.IN;
+      metric: string;
+      values: [number, ...number[]];
+    }
+  | { type: HavingExpressionType.IS_NULL; metric: string; negated?: boolean }
+  | {
+      type: HavingExpressionType.AND | HavingExpressionType.OR;
+      operands: [HavingExpression, ...HavingExpression[]];
+    };
 
 /**
  * The builders of a `having` expression, `aggregation.having.*`: conditions on

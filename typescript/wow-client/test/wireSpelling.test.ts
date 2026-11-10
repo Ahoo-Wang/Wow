@@ -84,6 +84,10 @@ describe('the wire spelling of the types', () => {
       'sort.ts',
       'queryErrorCodes.ts',
       'aggregation/types.ts',
+      'aggregation/groups.ts',
+      'aggregation/metrics.ts',
+      'aggregation/derived.ts',
+      'aggregation/having.ts',
       'filter/operator.ts',
     ].map(path => source(`../src/dsl/${path}`));
     const values = dsl.flatMap(file =>
