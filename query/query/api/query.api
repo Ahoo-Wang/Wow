@@ -199,6 +199,7 @@ public final class me/ahoo/wow/query/backend/CursorPosition {
 
 public abstract interface class me/ahoo/wow/query/backend/CursorPositionCodec {
 	public static final field Companion Lme/ahoo/wow/query/backend/CursorPositionCodec$Companion;
+	public static final field EXACT Lme/ahoo/wow/query/backend/CursorPositionCodec;
 	public static final field JSON Lme/ahoo/wow/query/backend/CursorPositionCodec;
 	public abstract fun decode ([BI)Lme/ahoo/wow/query/backend/CursorPosition;
 	public abstract fun encode (Lme/ahoo/wow/query/backend/CursorPosition;)[B

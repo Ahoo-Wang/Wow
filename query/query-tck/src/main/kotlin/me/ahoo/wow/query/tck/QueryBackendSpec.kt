@@ -705,6 +705,30 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `cursor over decimals walks each record once, a value no double holds included`() = blocking {
+        val fixture = given(
+            listOf(
+                snapshot("d1", """{"amount":1.00000000000000000001}"""),
+                snapshot("d2", """{"amount":1}"""),
+                snapshot("d3", """{"amount":2}"""),
+            ),
+        )
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
+        val sort = listOf(Sort(AMOUNT, Sort.Direction.ASC))
+        val seen = mutableListOf<String>()
+        var cursor: String? = null
+        do {
+            val query = CursorQuery(MatchAllFilter, sort = sort, size = 1, cursor = cursor)
+            val page = fixture.backend.cursor(QueryAdmission.Trusted.cursor(query, fixture.schema))
+            seen += page.list.map { it.id() }
+            cursor = page.nextCursor
+        } while (cursor != null && seen.size < MAX_LIST)
+        // A storage that orders by a double ties d1 with d2; none repeats or skips a record.
+        seen.assert().hasSize(3).containsExactlyInAnyOrder("d1", "d2", "d3").endsWith("d3")
+        Unit
+    }
+
+    @Test
     fun `cursor returns an empty terminal page`() = blocking {
         val fixture = given(orders())
         assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")

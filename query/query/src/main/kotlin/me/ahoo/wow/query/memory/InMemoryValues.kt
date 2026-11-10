@@ -103,26 +103,17 @@ internal fun JsonNode.orderKey(temporal: Temporal?): JsonNode {
     return nodes.numberNode(BigDecimal.valueOf(instant.epochSecond).add(BigDecimal.valueOf(instant.nano.toLong(), 9)))
 }
 
-/** A sort key as a cursor position value: a JSON scalar the core's codec encodes. */
+/** A sort key as a cursor position value ([me.ahoo.wow.query.backend.CursorPositionCodec.EXACT]): a number exactly. */
 internal fun JsonNode?.positionValue(): Any? = when {
     this == null || isNull -> null
-    isIntegralNumber && canConvertToLong() -> longValue()
-    isNumber -> doubleValue()
+    isNumber -> decimal()
     isString -> stringValue()
     isBoolean -> booleanValue()
     else -> toString()
 }
 
 /** A cursor position value back as a sort key. */
-internal fun Any?.positionNode(): JsonNode? = when (this) {
-    null -> null
-    is Long -> nodes.numberNode(this)
-    is Int -> nodes.numberNode(this.toLong())
-    is Double -> nodes.numberNode(this)
-    is String -> nodes.stringNode(this)
-    is Boolean -> nodes.booleanNode(this)
-    else -> operandNode()
-}
+internal fun Any?.positionNode(): JsonNode? = this?.operandNode()
 
 /** This value as a number, when it is one or a singleton array of one; `null` otherwise. */
 internal fun JsonNode.numberOrNull(): Double? = when {

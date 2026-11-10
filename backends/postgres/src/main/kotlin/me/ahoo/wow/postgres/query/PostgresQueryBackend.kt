@@ -74,7 +74,7 @@ class PostgresQueryBackend internal constructor(
     private val dispatcher: CoroutineDispatcher,
     private val layout: PostgresQueryLayout = PostgresQueryLayout.SNAPSHOT,
 ) : QueryBackend {
-    override val cursorPositions: CursorPositionCodec = PostgresCursorPositionCodec
+    override val cursorPositions: CursorPositionCodec = CursorPositionCodec.EXACT
 
     private val records = PostgresSnapshotSqlCompiler(table, layout)
     private val aggregations = PostgresAggregationCompiler(table, layout)
