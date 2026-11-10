@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.query.admission.QueryAdmission
@@ -40,15 +41,11 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.AMOUNT
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.CONTEXT_SUFFIX
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DAY
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DECLARATION
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.MAX_LIST
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.OTHER_TENANT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.TENANT
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.id
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.node.ObjectNode
 import java.util.UUID
@@ -62,7 +59,8 @@ import java.util.UUID
  * [SnapshotKeysetCases], [SnapshotAggregationCases] and [SnapshotDateBucketCases], then [QueryBackendSpec] with the
  * timeouts and the gateway. They form one chain, in that order, each extending the one before, because a class has
  * one superclass and JUnit runs the cases a test class inherits. The order means nothing: every family reads only
- * this class's fixtures and hooks, never a member of the family it extends, so any order would run the same cases.
+ * this class's fixtures, hooks and constants, and the suite's public constants on [QueryBackendSpec], never a member
+ * of the family it extends, so any order would run the same cases.
  */
 abstract class SnapshotQueryFixtures internal constructor() {
     /** Stores [snapshots], all of [type], where the backend under test reads them. */
@@ -189,8 +187,17 @@ abstract class SnapshotQueryFixtures internal constructor() {
         ),
     )
 
-    protected fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
+    internal fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
 
-    protected fun numeric(function: AggregationFunction, alias: String) =
+    internal fun numeric(function: AggregationFunction, alias: String) =
         AggregationMetric.Numeric(function, AggregationExpression.Field(AMOUNT), alias)
+
+    internal companion object {
+        const val CONTEXT_SUFFIX = 12
+        const val MAX_LIST = 100
+        val AMOUNT = QueryField("state.amount")
+        val KEYWORDS = QueryField("state.keywords")
+
+        fun ObjectNode.id(): String = path("aggregateId").stringValue()
+    }
 }

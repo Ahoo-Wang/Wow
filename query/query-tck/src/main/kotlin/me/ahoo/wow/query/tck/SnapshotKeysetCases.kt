@@ -33,12 +33,9 @@ import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.AMOUNT
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.MAX_LIST
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.OTHER_TENANT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.TENANT
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.id
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 

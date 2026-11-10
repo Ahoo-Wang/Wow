@@ -33,11 +33,9 @@ import me.ahoo.wow.query.backend.countBounded
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.AMOUNT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.DAY
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.OTHER_TENANT
 import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.T0
-import me.ahoo.wow.query.tck.QueryBackendSpec.Companion.id
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 

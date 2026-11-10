@@ -380,12 +380,10 @@ public abstract class me/ahoo/wow/query/tck/SnapshotKeysetCases : me/ahoo/wow/qu
 
 public abstract class me/ahoo/wow/query/tck/SnapshotQueryFixtures {
 	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
-	protected final fun blocking (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	protected fun getSemanticDivergences ()Ljava/util/Set;
 	protected final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	protected final fun given (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun indexPlan ([Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	protected final fun numeric (Lme/ahoo/wow/api/query/AggregationFunction;Ljava/lang/String;)Lme/ahoo/wow/api/query/AggregationMetric$Numeric;
 	protected final fun orders ()Ljava/util/List;
 	protected final fun snapshot (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
 	public static synthetic fun snapshot$default (Lme/ahoo/wow/query/tck/SnapshotQueryFixtures;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZIJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
