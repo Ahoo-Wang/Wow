@@ -47,7 +47,7 @@
 | `naming/`   | 标识符与大小写、固定的 en-US 排序、`ModelInfo`、文件布局（`modelFilePath`、`boundedContextFilePath`）与 `combinePaths`                                 | 否                           |
 | `wow/`      | `conventions.ts`（全部 Wow 约定）、`model.ts`（`WowModel`）、`resolveWowModel`（纯函数，不改文档）                                                     | 否                           |
 | `analysis/` | 文档 + Wow 模型 + 配置 → `GenerationModel` 与警告：模型与限界上下文、聚合的命令与查询客户端、API 客户端；组件 key → 模型名                             | 否                           |
-| `types/`    | `typeResolver.ts`：schema → 类型文本与它需要的导入，纯函数                                                                                             | 只借 `CodeBlockWriter.quote` |
+| `types/`    | `typeResolver.ts`：schema → 类型文本与它需要的导入，纯函数；作用域与导入 `typeContext.ts`，索引签名 `indexSignature.ts`，字面量 `literalTypes.ts`      | 只借 `CodeBlockWriter.quote` |
 | `emit/`     | 写入工具：`ModuleBuilder`（每个文件的语句结构，一次写入）、`ImportRegistry`、导入说明符、JSDoc 文本；不认识模型                                        | 是                           |
 | `emitters/` | 读 `GenerationModel`、经 `emit/` 写出：模型（`ModelEmitter`）、限界上下文、查询、命令、API 客户端、index 文件；`manifestClients.ts` 读 `ManifestModel` | 是                           |
 | `finalize/` | 格式化、整理导入、类型导入、编译校验、文件头                                                                                                           | 是                           |

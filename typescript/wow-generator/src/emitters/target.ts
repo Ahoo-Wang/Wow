@@ -13,7 +13,7 @@
 
 import type { SchemaDocs } from '../api/options';
 import type { ModuleSet } from '../emit/moduleBuilder';
-import type { TypeContext } from '../types/typeResolver';
+import type { TypeContext } from '../types/typeContext';
 
 /** Where the emitters write, and what every module of a run shares. */
 export interface EmitTarget {

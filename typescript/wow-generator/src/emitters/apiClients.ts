@@ -27,7 +27,7 @@ import { addImport, modelModuleSpecifier } from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { quoteStringLiteral } from '../naming/naming';
-import type { TypeScope } from '../types/typeResolver';
+import type { TypeScope } from '../types/typeContext';
 import { resolveType } from '../types/typeResolver';
 import type { MethodReturnType } from './decorators';
 import {
