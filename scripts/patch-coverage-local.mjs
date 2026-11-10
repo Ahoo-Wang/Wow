@@ -19,7 +19,9 @@
  *   node scripts/patch-coverage-local.mjs --base origin/main :kernel :runtime
  *
  * 1. Runs each module's `test` and, when it has one, `integrationTest`, with JaCoCo, through a Gradle init script
- *    of its own (no build file changes), and writes one XML report per module from both execution files.
+ *    of its own (no build file changes), and writes one XML report per module from the execution files of every
+ *    module given: a line of one module that only another's tests take is covered, as in CI, which merges every
+ *    module's execution data.
  * 2. Names each source file of a report by its repository path, its package the source root's path plus the package
  *    directory, as `test/code-coverage-report` does for the reports CI uploads.
  * 3. Drops the closing-brace lines (`.github/scripts/jacoco-braces.mjs`), as CI does.
@@ -33,8 +35,13 @@
  * their files: the gate would read `none` for a run whose reports did not reach it, and so does `patch-coverage.mjs`
  * here when the reports name their files otherwise. Changed main-source files in modules not given are named.
  *
+ * What still differs from CI: CI's reports hold the execution data of every module's tests, these only of the modules
+ * given, so a changed line that only a module not given takes reads as uncovered here. Give that module too.
+ *
  * `--rerun` deletes the modules' execution files and runs their tests again; otherwise Gradle's up-to-date tests
  * keep the execution files of their last run.
+ *
+ * Its tests: `node --test scripts/patch-coverage-local.test.mjs`.
  *
  * Testcontainers needs Docker for `integrationTest`; on OrbStack, set `DOCKER_HOST` as AGENTS.md says.
  */
@@ -47,39 +54,43 @@ import { pathToFileURL } from 'node:url';
 
 /** The Gradle init script: a `patchCoverageReport` task on each project, writing its XML and its source roots. */
 const INIT_SCRIPT = `
-allprojects {
-    plugins.withId("jacoco") {
-        afterEvaluate {
-            val out = providers.gradleProperty("patchCoverageOut").orNull ?: return@afterEvaluate
-            val modules = providers.gradleProperty("patchCoverageModules").orNull.orEmpty().split(',')
-            if (path !in modules) return@afterEvaluate
-            val main = extensions.findByType(SourceSetContainer::class.java)?.findByName("main") ?: return@afterEvaluate
-            val rerun = providers.gradleProperty("patchCoverageRerun").isPresent
-            val testTasks = listOf("test", "integrationTest").mapNotNull { tasks.findByName(it) as? Test }
-            if (rerun) {
-                testTasks.forEach { task ->
-                    task.outputs.upToDateWhen { false }
-                    task.doFirst {
-                        task.extensions.getByType(JacocoTaskExtension::class.java).destinationFile?.delete()
-                    }
+gradle.projectsEvaluated {
+    val out = providers.gradleProperty("patchCoverageOut").orNull
+    val modules = providers.gradleProperty("patchCoverageModules").orNull.orEmpty().split(',')
+    val rerun = providers.gradleProperty("patchCoverageRerun").isPresent
+    if (out != null) {
+        val named = rootProject.allprojects.filter { it.path in modules && it.plugins.hasPlugin("jacoco") }
+        val testTasks = named.flatMap { project ->
+            listOf("test", "integrationTest").mapNotNull { project.tasks.findByName(it) as? Test }
+        }
+        val executionFiles = testTasks.mapNotNull {
+            it.extensions.getByType(JacocoTaskExtension::class.java).destinationFile
+        }
+        if (rerun) {
+            testTasks.forEach { task ->
+                task.outputs.upToDateWhen { false }
+                task.doFirst {
+                    task.extensions.getByType(JacocoTaskExtension::class.java).destinationFile?.delete()
                 }
             }
-            val name = path.removePrefix(":").replace(':', '_')
-            tasks.register("patchCoverageReport", JacocoReport::class.java) {
+        }
+        named.forEach { project ->
+            val main = project.extensions.findByType(SourceSetContainer::class.java)?.findByName("main")
+                ?: return@forEach
+            val name = project.path.removePrefix(":").replace(':', '_')
+            project.tasks.register("patchCoverageReport", JacocoReport::class.java) {
                 dependsOn(testTasks)
-                executionData.setFrom(
-                    testTasks.mapNotNull { it.extensions.getByType(JacocoTaskExtension::class.java).destinationFile },
-                )
+                executionData.setFrom(executionFiles)
                 sourceDirectories.setFrom(main.allSource.srcDirs)
                 classDirectories.setFrom(main.output.classesDirs)
                 reports {
                     xml.required.set(true)
                     html.required.set(false)
                     csv.required.set(false)
-                    xml.outputLocation.set(file("$out/$name.xml"))
+                    xml.outputLocation.set(project.file("$out/$name.xml"))
                 }
                 val roots = main.allSource.srcDirs
-                doLast { file("$out/$name.roots").writeText(roots.joinToString("\\n") { it.absolutePath }) }
+                doLast { project.file("$out/$name.roots").writeText(roots.joinToString("\\n") { it.absolutePath }) }
             }
         }
     }
@@ -129,26 +140,36 @@ function parseArguments(argv) {
   return options;
 }
 
-async function main() {
-  const options = parseArguments(process.argv.slice(2));
-  if (options.help || !options.modules.length || !options.base) {
-    console.error('usage: node scripts/patch-coverage-local.mjs [--base <ref>] [--rerun] <module>…');
-    process.exit(2);
+/**
+ * The paths of `git status --porcelain -z`'s entries: `XY path`, NUL-separated and untrimmed, a rename or copy
+ * followed by its source path, which is skipped.
+ */
+export function changedPaths(porcelain) {
+  const entries = porcelain.split('\0');
+  const paths = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry.length < 4) continue;
+    paths.push(entry.slice(3));
+    if (entry[0] === 'R' || entry[0] === 'C') i++;
   }
+  return paths;
+}
+
+/** The exit code of a run over [options]: 0 when the patch passes or has no line to judge, 1 otherwise. */
+async function measure(options, work) {
   const repository = run('git', ['rev-parse', '--show-toplevel']);
   const gate = await import(pathToFileURL(join(repository, '.github/scripts/patch-coverage.mjs')).href);
   const braces = join(repository, '.github/scripts/jacoco-braces.mjs');
   const base = run('git', ['merge-base', options.base, 'HEAD'], { cwd: repository });
   const head = run('git', ['rev-parse', 'HEAD'], { cwd: repository });
 
-  const dirty = run('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: repository })
-    .split('\n')
-    .map(line => line.slice(3))
-    .filter(path => path && gate.isMainSource(path));
+  const dirty = changedPaths(
+    execFileSync('git', ['status', '--porcelain', '-z', '--untracked-files=no'], { cwd: repository, encoding: 'utf8' }),
+  ).filter(gate.isMainSource);
   if (dirty.length)
     console.warn(`Uncommitted main-source changes, not in the patch (commit them to count them): ${dirty.join(', ')}`);
 
-  const work = mkdtempSync(join(tmpdir(), 'patch-coverage-'));
   const out = join(work, 'out');
   const reports = join(work, 'reports', 'jvm');
   mkdirSync(out, { recursive: true });
@@ -170,7 +191,7 @@ async function main() {
   );
   if (gradle.status !== 0) {
     console.error(`Gradle failed (exit ${gradle.status}): the patch coverage is not computed.`);
-    process.exit(1);
+    return 1;
   }
 
   const allRoots = [];
@@ -184,9 +205,12 @@ async function main() {
     writeFileSync(target, named.text);
     run('node', [braces, target, repository], { cwd: repository });
   }
-  if (unmatched) console.warn(`${unmatched} source files of the reports were found in no source root; they keep their package path.`);
+  if (unmatched)
+    console.warn(`${unmatched} source files of the reports were found in no source root; they keep their package path.`);
 
-  const changed = gate.changedLines(run('git', ['diff', '-U0', '--no-renames', '--no-color', base, head], { cwd: repository }));
+  const changed = gate.changedLines(
+    run('git', ['diff', '-U0', '--no-renames', '--no-color', base, head], { cwd: repository }),
+  );
   const changedMain = [...changed.keys()].filter(gate.isMainSource);
   const rootPaths = allRoots.map(root => relative(repository, root).split('\\').join('/') + '/');
   const outside = changedMain.filter(path => !rootPaths.some(root => path.startsWith(root)));
@@ -202,9 +226,8 @@ async function main() {
     env: { ...process.env, BASE: base, HEAD_SHA: head, GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: '' },
     stdio: 'inherit',
   });
-  if (verdict.status !== 0) process.exit(verdict.status ?? 1);
+  if (verdict.status !== 0) return verdict.status ?? 1;
   const state = /^patch=(\w+)$/m.exec(readFileSync(output, 'utf8'))?.[1];
-  rmSync(work, { recursive: true, force: true });
 
   // A report that names no file under the modules' source roots was not named by repository path, and every
   // changed line would read as instrumented by no report: the gate's `none`, for a run that measured nothing.
@@ -214,10 +237,25 @@ async function main() {
     console.error(
       `The patch has main-source lines in ${measured.length} file(s) of the modules given, and the reports matched no file under their source roots: failing rather than reading this as "none".`,
     );
-    process.exit(1);
+    return 1;
   }
-  if (state === 'fail') process.exit(1);
   console.log(`patch coverage against ${options.base} (merge base ${base.slice(0, 10)}): ${state}`);
+  return state === 'fail' ? 1 : 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+async function main() {
+  const options = parseArguments(process.argv.slice(2));
+  if (options.help || !options.modules.length || !options.base) {
+    console.error('usage: node scripts/patch-coverage-local.mjs [--base <ref>] [--rerun] <module>…');
+    return 2;
+  }
+  // Removed on every way out, a failed Gradle run and a thrown error included.
+  const work = mkdtempSync(join(tmpdir(), 'patch-coverage-'));
+  try {
+    return await measure(options, work);
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exitCode = await main();
