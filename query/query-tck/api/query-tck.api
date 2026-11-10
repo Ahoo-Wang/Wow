@@ -84,21 +84,34 @@ public final class me/ahoo/wow/query/tck/DatasetColumn$Type : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/query/tck/DatasetColumn$Type;
 }
 
+public abstract class me/ahoo/wow/query/tck/DatasetDateBucketSpec : me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
+	public static final field BEFORE_1970_PARTIAL_CHANGE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/query/tck/DatasetDateBucketSpec$Companion;
+	public static final field MONROVIA_CHANGE_DAY Ljava/lang/String;
+	public fun <init> ()V
+	public final fun a dense hourly histogram keeps whole the hour a half-hour fall-back makes 90 minutes long ()V
+	public final fun a minute bucket right after Monrovia's 1972 change starts at its local minute ()V
+	public final fun a minute bucket starts at its local minute in a zone whose offset moved by seconds ()V
+	public final fun an hourly bucket on the day of an offset change before 1970 starts at its local hour ()V
+	public final fun an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own ()V
+}
+
+public final class me/ahoo/wow/query/tck/DatasetDateBucketSpec$Companion {
+	public final fun getZONED ()Lme/ahoo/wow/query/tck/DatasetTable;
+}
+
 public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public static final field CONTEXT Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion;
 	public static final field ID Ljava/lang/String;
-	public static final field LORD_HOWE_DENSE_HOUR Ljava/lang/String;
 	public fun <init> ()V
 	public final fun NOR holds for a record whose condition has no value ()V
 	public final fun a cursor over instants a microsecond apart walks each record once, in time order ()V
 	public final fun a date histogram buckets instants before 1970 at their own start ()V
 	public final fun a date sorts by time, instants a millisecond apart included ()V
-	public final fun a dense hourly histogram fills an hour a half-hour fall-back makes 90 minutes long ()V
 	public final fun a single record is the first in sort order, or none ()V
 	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
 	public final fun an expression past the double range has no value, so no comparison matches it ()V
-	public final fun an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own ()V
 	public final fun counts are bounded by their limit ()V
 	protected abstract fun createDatasetBindings ()Lme/ahoo/wow/query/backend/QueryBindings;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -131,7 +144,6 @@ public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
 	public final fun getORDERS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC_FIELDS ()Ljava/util/Map;
-	public final fun getZONED ()Lme/ahoo/wow/query/tck/DatasetTable;
 }
 
 protected final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target {

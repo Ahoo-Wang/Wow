@@ -27,6 +27,7 @@ import me.ahoo.wow.query.admission.AdmittedQuery
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryViolation
+import java.time.Duration
 
 /**
  * Translates an admitted aggregation into one statement:
@@ -125,11 +126,38 @@ internal class ClickHouseAggregationCompiler(
             AggregationDateUnit.MONTH -> "toStartOfMonth($second, $zone)"
             AggregationDateUnit.WEEK -> "toMonday($second, $zone)"
             AggregationDateUnit.DAY -> "toStartOfDay($second, $zone)"
-            AggregationDateUnit.HOUR -> "toStartOfHour($second, $zone)"
-            AggregationDateUnit.MINUTE -> "toStartOfMinute($second, $zone)"
+            AggregationDateUnit.HOUR -> if (group.timeZone.shiftsByWhole(Duration.ofHours(1))) {
+                "toStartOfHour($second, $zone)"
+            } else {
+                wallClockStart(second, zone, SECONDS_PER_HOUR)
+            }
+            AggregationDateUnit.MINUTE -> if (group.timeZone.shiftsByWhole(Duration.ofMinutes(1))) {
+                "toStartOfMinute($second, $zone)"
+            } else {
+                wallClockStart(second, zone, SECONDS_PER_MINUTE)
+            }
             AggregationDateUnit.SECOND -> second
         }
         return "toUnixTimestamp64Milli(toDateTime64($start, 3, $zone))"
+    }
+
+    /**
+     * The start of the wall-clock unit of [unitSeconds] holding [instant], by the bucket rule, for a zone whose offset
+     * can move by part of the unit ([shiftsByWhole]). The seconds [instant] is into its unit on the wall clock are its
+     * epoch seconds plus its own offset, modulo the unit, the offset the comparison below reads anyway. [instant] less
+     * them is the unit's start in [instant]'s own offset. When that start
+     * holds another offset, a change fell between them: the unit's start is that wall-clock time in the start's own
+     * offset, the instant the difference of the two offsets away. At Lord Howe's fall-back, 01:45 +10:30 is in the hour
+     * that began at 01:00 +11:00.
+     */
+    private fun wallClockStart(instant: String, zone: String, unitSeconds: Int): String {
+        fun offset(at: String) = "timeZoneOffset(toTimeZone($at, $zone))"
+        val elapsed = "positiveModulo(intDiv(toUnixTimestamp64Milli($instant), 1000) + ${offset(
+            instant
+        )}, $unitSeconds)"
+        val start = "subtractSeconds($instant, $elapsed)"
+        return "if(${offset(start)} = ${offset(instant)}, $start, " +
+            "addSeconds($start, ${offset(instant)} - ${offset(start)}))"
     }
 
     private fun datePart(group: AggregationGroup.DatePart): String {
@@ -230,6 +258,8 @@ internal class ClickHouseAggregationCompiler(
 
     private companion object {
         const val PERCENT = 100.0
+        const val SECONDS_PER_HOUR = 3600
+        const val SECONDS_PER_MINUTE = 60
 
         fun group(index: Int): String = "__g$index"
 
