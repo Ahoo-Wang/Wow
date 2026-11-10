@@ -156,11 +156,7 @@ public final class me/ahoo/wow/query/aggregation/AggregationShapeKt {
 
 public final class me/ahoo/wow/query/aggregation/DenseDateGrid {
 	public fun <init> (Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/time/ZoneId;)V
-	public final fun gapIndices (JJ)Ljava/util/stream/LongStream;
 	public final fun getAnchor ()Ljava/time/ZonedDateTime;
-	public final fun indexOf (J)J
-	public final fun keyOf (J)J
-	public final fun keysBetween (JJ)Ljava/util/List;
 }
 
 public final class me/ahoo/wow/query/backend/BackendPage {

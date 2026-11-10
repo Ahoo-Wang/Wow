@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
+import java.time.Instant
+import java.time.ZoneId
 import java.util.PriorityQueue
 
 /*
@@ -89,7 +91,7 @@ private fun emptyRow(alias: String, key: Any, emptyMetrics: Map<String, Any?>): 
  */
 internal class DateHistogramFill(private val group: AggregationGroup.DateHistogram, metrics: List<AggregationMetric>) :
     DenseFill {
-    private val grid = DenseDateGrid(group.unit, java.time.ZoneId.of(group.timeZone))
+    private val buckets = DateBuckets(group.unit, ZoneId.of(group.timeZone))
     private val emptyMetrics = EmptyAggregationValues.values(metrics)
 
     override fun fill(rows: Flow<ObjectNode>): Flow<ObjectNode> = flow {
@@ -98,15 +100,21 @@ internal class DateHistogramFill(private val group: AggregationGroup.DateHistogr
             val key = row.get(group.alias)?.takeIf(JsonNode::isIntegralNumber)?.longValue()
             val from = previous
             if (from != null && key != null) {
-                // The gap is walked as it is emitted: it can hold more buckets than the heap.
-                val gap = grid.gapIndices(from, key).iterator()
-                while (gap.hasNext()) {
-                    emit(emptyRow(group.alias, grid.keyOf(gap.nextLong()), emptyMetrics))
-                }
+                // The gap is walked as it is emitted, bucket by bucket: it can hold more buckets than the heap.
+                gap(from, key).forEach { emit(emptyRow(group.alias, it, emptyMetrics)) }
             }
             if (key != null) previous = key
             emit(row)
         }
+    }
+
+    /** The bucket keys strictly between the buckets [from] and [to], in stream direction. */
+    private fun gap(from: Long, to: Long): Sequence<Long> {
+        val step: (Instant) -> Instant = if (from < to) buckets::next else buckets::previous
+        val inside: (Long) -> Boolean = if (from < to) { key -> key < to } else { key -> key > to }
+        return generateSequence(step(Instant.ofEpochMilli(from))) { step(it) }
+            .map { it.toEpochMilli() }
+            .takeWhile(inside)
     }
 }
 

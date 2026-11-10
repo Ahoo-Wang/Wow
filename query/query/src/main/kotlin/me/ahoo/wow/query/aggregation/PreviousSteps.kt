@@ -47,20 +47,23 @@ import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.epochOf
 import me.ahoo.wow.query.schema.instantOf
 import java.time.DateTimeException
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import java.time.temporal.TemporalUnit
 
 /*
- * The earlier periods PREVIOUS windows read: each distinct step moves the bucket
- * keys and the filter's range of its date group back on the group's local wall clock, the timeline the dense grid
- * walks, so a shifted bucket key and a shifted range bound land on the same grid.
+ * The earlier periods PREVIOUS windows read: each distinct step moves the bucket keys and the filter's range of its
+ * date group back together. A step along the buckets walks the histogram's own sequence of buckets ([DateBuckets]),
+ * so across a daylight-saving transition it reaches the bucket before, never its own; a step of a period moves back on
+ * the local wall clock (the same hour of the day before).
  */
 
 /** One distinct step of the PREVIOUS windows of a query: the date group it steps along, and how far. */
@@ -70,18 +73,24 @@ internal data class PreviousStep(
     val period: AggregationDateUnit?,
 ) {
     private val zone: ZoneId = ZoneId.of(along.timeZone)
-    private val grid = DenseDateGrid(along.unit, zone)
+    private val buckets = DateBuckets(along.unit, zone)
     private val unit: TemporalUnit = (period ?: along.unit).temporalUnit()
 
     val field: QueryField<*>
         get() = checkNotNull(along.field)
 
-    /** The key of the bucket this step reaches from the bucket [key]. */
-    fun previousKey(key: Long): Long = if (period == null) {
-        grid.keyOf(grid.indexOf(key) - shift)
-    } else {
-        grid.keyOf(grid.indexOf(back(Instant.ofEpochMilli(key)).toEpochMilli()))
+    /**
+     * The key of the bucket this step reaches from the bucket [key]: [shift] buckets before it, or the bucket that
+     * holds the same local time [shift] [period]s before.
+     */
+    fun previousKey(key: Long): Long {
+        val start = Instant.ofEpochMilli(key)
+        val reached = if (period == null) walkBack(start) else buckets.start(back(start))
+        return reached.toEpochMilli()
     }
+
+    /** The start of the bucket [shift] buckets before the bucket that starts at [start]. */
+    private fun walkBack(start: Instant): Instant = (1..shift).fold(start) { at, _ -> buckets.previous(at) }
 
     /** [instant] moved back by this step; `null` when that leaves the instants a date-time holds. */
     private fun movedBack(instant: Instant): Instant? = try {
@@ -90,8 +99,20 @@ internal data class PreviousStep(
         null
     }
 
-    private fun back(instant: Instant): Instant =
-        instant.atZone(zone).toLocalDateTime().minus(shift.toLong(), unit).atZone(zone).toInstant()
+    /**
+     * [instant] moved back by this step. Along the buckets: to the same wall-clock distance from the start of the bucket
+     * [shift] buckets before its own, so a range bound moves as the bucket keys do; by a [period]: to the same local
+     * time [shift] periods before (a time a transition skips resolves forward, a repeated one to its earlier offset).
+     */
+    private fun back(instant: Instant): Instant {
+        if (period != null) {
+            return instant.atZone(zone).toLocalDateTime().minus(shift.toLong(), unit).atZone(zone).toInstant()
+        }
+        val own = buckets.start(instant)
+        val reached = walkBack(own).atZone(zone)
+        val distance = Duration.between(own.atZone(zone).toLocalDateTime(), instant.atZone(zone).toLocalDateTime())
+        return ZonedDateTime.ofLocal(reached.toLocalDateTime().plus(distance), zone, reached.offset).toInstant()
+    }
 
     /**
      * [filter] with every condition on [field] moved back by this step, or `null` when it cannot be: the field is

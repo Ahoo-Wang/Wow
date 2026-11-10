@@ -33,7 +33,7 @@ import java.util.Date
  * grouped documents, which always carry the accumulated fields, that gives `$densify`-synthetic
  * documents the empty value of their metric. A dense date histogram additionally inverts its
  * bucket index back into the display key with `$dateAdd(timezone)` — `$dateFromParts(timezone)`
- * for HOUR, keeping the grid on the local wall clock — mirroring [DenseDateGrid.keyOf].
+ * for HOUR, keeping the grid on the local wall clock — on the local wall clock.
  */
 @Suppress("LongMethod")
 internal fun project(

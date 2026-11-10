@@ -193,7 +193,7 @@ private fun wallHourTruncation(input: Any, zone: String): Document = Document(
  * plus the wall hour of [wallHour]. Elapsed `$dateDiff` (unit `hour`) arithmetic would
  * truncate sub-hour zone-offset shifts and drift the index onto local :30 keys — the
  * day difference is date-based and `$hour` reads the wall clock, so the composite is
- * unique per wall hour, mirroring [DenseDateGrid.indexOf].
+ * unique per wall hour, as the dense grid counted local hours.
  */
 internal fun wallHourIndex(anchor: Date, wallHour: Any, zone: String): Document = Document(
     "\$add",
@@ -220,7 +220,7 @@ internal fun wallHourIndex(anchor: Date, wallHour: Any, zone: String): Document 
  * splits into day/hour parts, `$dateAdd` (unit `day`) steps whole calendar days from the
  * anchor, and `$dateFromParts` rebuilds the local wall time. A wall hour skipped whole by
  * a DST gap resolves FORWARD onto the next real bucket and is dropped by the
- * [denseRoundTripMatch] stage — mirroring [DenseDateGrid]'s round-trip skip.
+ * [denseRoundTripMatch] stage — a bucket a transition skips is dropped.
  */
 internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, index: Any): Document {
     val zone = mongoTimeZone(group.timeZone)
