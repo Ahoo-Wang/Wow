@@ -26,8 +26,10 @@ import tools.jackson.databind.node.ObjectNode
  *
  * An include keeps the subtree at its path. Through an array it keeps that subtree in every element, at the element's
  * position: an object element by its own fields, an array element (an array of arrays) by its own elements, so the
- * nesting is kept; a scalar element holds nothing to keep. An exclude removes the subtree at its path in every element
- * on the way.
+ * nesting is kept. A scalar element holds nothing to keep: it becomes an empty object where a later element keeps
+ * something, so the kept elements stay at their positions, and is left out after the last one (`[1, {"a": 2}, 3]`
+ * projected to `a` is `[{}, {"a": 2}]`; an array of scalars alone is `[]`). An exclude removes the subtree at its
+ * path in every element on the way and leaves scalar elements as they are.
  */
 @InternalWowApi
 object RecordProjection {

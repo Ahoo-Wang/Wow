@@ -39,6 +39,13 @@ class RecordProjectionTest {
     }
 
     @Test
+    fun `a scalar element is an empty object before a kept element and left out after the last`() {
+        include(record("""{"xs":[1,{"a":2},3]}"""), "xs", "a").assert().isEqualTo("""{"xs":[{},{"a":2}]}""")
+        include(record("""{"xs":[1,2]}"""), "xs", "a").assert().isEqualTo("""{"xs":[]}""")
+        exclude(record("""{"xs":[1,{"a":2,"b":3}]}"""), "xs", "a").assert().isEqualTo("""{"xs":[1,{"b":3}]}""")
+    }
+
+    @Test
     fun `a projection keeps the nesting of an array of arrays`() {
         val record = record("""{"grid":[[{"city":"x","zip":"1"},{"city":"y"}],[],[{"zip":"2"}]],"name":"n"}""")
         include(record, "grid", "city").assert().isEqualTo("""{"grid":[[{"city":"x"},{"city":"y"}],[],[{}]]}""")

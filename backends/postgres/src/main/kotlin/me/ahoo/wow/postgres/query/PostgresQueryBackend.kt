@@ -127,17 +127,24 @@ class PostgresQueryBackend internal constructor(
         }
     }
 
+    /**
+     * A keyset window, in one statement or two parts ([PostgresSnapshotSqlCompiler.keysetNulls]): the second, the rows
+     * whose first key is `NULL`, only runs when the first does not fill the window, for the rows left.
+     */
     private fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): BackendPage {
         val statement = records.keyset(query, window)
         val projection = query.query.projection
         val keys = query.query.sort.size
         return transaction(query.timeout, { BackendPage(emptyList(), positions = emptyList()) }) { connection ->
             val positions = ArrayList<CursorPosition>()
-            val rows = read(connection, statement) { row ->
+            fun rows(statement: SqlStatement) = read(connection, statement) { row ->
                 positions += CursorPosition((0 until keys).map { position(row.getObject(PostgresSnapshotSqlCompiler.key(it))) })
                 project(query, layout.record(row, projection))
             }
-            BackendPage(rows, positions = positions)
+            val rows = rows(statement)
+            val left = window.limit - rows.size
+            val nulls = if (left > 0) records.keysetNulls(query, window, left)?.let(::rows).orEmpty() else emptyList()
+            BackendPage(rows + nulls, positions = positions)
         }
     }
 

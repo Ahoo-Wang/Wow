@@ -71,9 +71,42 @@ internal class PostgresSnapshotSqlCompiler(
     /**
      * The rows of a keyset window, each with its position: the sort values as the columns `k0`, `k1`, ... The rows
      * after a position are those that sort strictly after it, the expanded form of a row comparison that honors each
-     * field's direction and its nulls.
+     * field's direction and its nulls. A window whose first key descends and may hold `NULL`, after a position that
+     * holds a value, is read in two parts ([splitsNulls]): these are its rows that hold a value, and [keysetNulls]
+     * the rest.
      */
     fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): SqlStatement {
+        val after = window.after
+        return window(query, window.limit) { parameters, keys -> after?.let { after(parameters, query, keys, it) } }
+    }
+
+    /**
+     * The second part of a window [keyset] reads in two, at most [limit] rows: those whose first key is `NULL`, which
+     * sort after every value descending, all of them after the position. `null` for a window read in one part. The
+     * backend reads it only when the first part does not fill the window.
+     */
+    fun keysetNulls(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset, limit: Int): SqlStatement? {
+        val after = window.after?.takeIf { splitsNulls(query, it) } ?: return null
+        return window(query, limit) { _, keys -> "${keys.first().first} IS NULL" }
+    }
+
+    /**
+     * Whether a window after [after] is read in two parts: its first key descends, may hold `NULL` and holds a value at
+     * the position. Its rows that hold a value then compare as one row with the position, which a `NULL` never
+     * satisfies, so an index seeks to the position instead of filtering every row before it; the `NULL`s follow.
+     */
+    private fun splitsNulls(query: AdmittedQuery<Queryable<*>>, after: CursorPosition): Boolean {
+        // A cursor's sort ends with the record's key, so it has a first key.
+        val first = query.query.sort.first()
+        return first.direction == Sort.Direction.DESC && after.values.firstOrNull() != null &&
+            !layout.expressions.notNull(query.field(first.field).physicalField)
+    }
+
+    private fun window(
+        query: AdmittedQuery<Queryable<*>>,
+        limit: Int,
+        condition: (SqlParameters, List<Pair<String, PostgresQueryType>>) -> String?,
+    ): SqlStatement {
         val parameters = SqlParameters()
         val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
         val keys = query.query.sort.map { compiler.typed(query.field(it.field)) }
@@ -81,9 +114,9 @@ internal class PostgresSnapshotSqlCompiler(
         keys.forEachIndexed { index, (value, _) -> sql.append(", ").append(value).append(" AS ").append(key(index)) }
         sql.append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
-        window.after?.let { after -> sql.append(" AND ").append(after(parameters, query, keys, after)) }
+        condition(parameters, keys)?.let { sql.append(" AND ").append(it) }
         sql.append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = false))
-            .append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(window.limit.toLong())))
+            .append(" LIMIT ").append(parameters.bind(SqlParameter.Int8(limit.toLong())))
         return parameters.statement(sql.toString())
     }
 
@@ -121,7 +154,9 @@ internal class PostgresSnapshotSqlCompiler(
      * since a `NULL` sorts last there, after every value) compare as one row, `(k0, …, kn) > (v0, …, vn)` (`<`
      * descending), which an index on those columns seeks to. When they are every key, that comparison is the whole
      * condition; otherwise it bounds the expanded `OR` ([expanded]) with `>=` (`<=`), redundantly, since the `OR` alone
-     * is no index condition and a page would scan every row before its position.
+     * is no index condition and a page would scan every row before its position. Descending, the first key leads the
+     * row even when it may hold `NULL`: such a window reads its `NULL`s in a second part ([splitsNulls]), so this one
+     * is its rows that hold a value, which the row comparison keeps.
      */
     private fun after(
         parameters: SqlParameters,
@@ -134,7 +169,7 @@ internal class PostgresSnapshotSqlCompiler(
         val direction = sort.first().direction
         val leading = sort.indices.takeWhile { index ->
             sort[index].direction == direction && after.values.getOrNull(index) != null &&
-                (direction == Sort.Direction.ASC || notNull[index])
+                (direction == Sort.Direction.ASC || notNull[index] || index == 0)
         }
         if (leading.isEmpty()) return expanded(parameters, sort, keys, notNull, after)
         val whole = leading.size == sort.size

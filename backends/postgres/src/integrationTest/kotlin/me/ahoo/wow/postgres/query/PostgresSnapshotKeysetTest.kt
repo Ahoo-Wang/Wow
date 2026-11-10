@@ -31,8 +31,12 @@ import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.index.QueryIndexPlan
 import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Proxy
 import java.math.BigDecimal
+import java.sql.Connection
 import java.util.UUID
+import javax.sql.DataSource
 
 /**
  * PG-3: a keyset page deep in a cursor reads from its position, not from the first row of the tenant. The keyset
@@ -120,6 +124,87 @@ class PostgresSnapshotKeysetTest {
         }
     }
 
+    @Test
+    fun `a descending page on a field that may be null seeks to its position, then reads the nulls`(): Unit =
+        runBlocking {
+            val type = AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
+            val statements = mutableListOf<String>()
+            val recording = recording(statements)
+            val storage = PostgresSnapshotQueryStorage(recording, type.context).also {
+                PostgresFixture.snapshotStore(type.context).createTable(type.name)
+            }
+            val schema = QueryFixtures.schema(type, PostgresSnapshotStorageAdapter)
+            val declared = QueryIndexDeclaration("amount", listOf("state.amount"))
+            storage.manageIndexes(PostgresQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(declared))))
+            val table = storage.table(type.name)
+            // Every tenth snapshot has no amount: tenant t1's are i = 10, 40, ..., 89 980 (i % 30 == 10).
+            seed(table, nulls = true)
+            val backend = checkNotNull(storage.binding(type)).backend
+            val compiler = PostgresSnapshotSqlCompiler(table)
+            val active = AndFilter(listOf(TenantIdFilter("t1"), DeletionFilter(DeletionState.ACTIVE)))
+            val sort = listOf(Sort(QueryField("state.amount"), Sort.Direction.DESC))
+            fun admitted() = QueryAdmission.Trusted.cursor(CursorQuery(active, sort = sort, size = PAGE), schema)
+            fun window(amount: Long?, id: Int) =
+                PageWindow.Keyset(CursorPosition(listOf(amount?.let(::BigDecimal), "t1", "id-%06d".format(id))), PAGE)
+            suspend fun page(window: PageWindow.Keyset): List<String> {
+                statements.clear()
+                return backend.page(admitted(), window).rows.map { it.path("aggregateId").stringValue() }
+            }
+
+            // A position among the values: one statement, which seeks to it and fills the page.
+            val deep = window(DEEP.toLong(), DEEP)
+            page(deep).assert().hasSize(PAGE).first().isEqualTo("id-%06d".format(DEEP - 3))
+            statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(1)
+            val values = analyze(compiler.keyset(admitted(), deep))
+            values.assert().contains("Index Scan Backward using").contains("_amount").contains("Index Cond")
+                .contains("ROW(").doesNotContain("Sort")
+            removed(values).assert().isLessThanOrEqualTo(PAGE.toLong())
+
+            // A page that straddles them: the last two values (4 and 1), then the nulls, newest key first.
+            page(window(7, 7)).assert().containsExactlyElementsOf(
+                listOf("id-000004", "id-000001") + (0 until PAGE - 2).map { "id-%06d".format(89_980 - 30 * it) },
+            )
+            statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(2)
+            val nulls = analyze(checkNotNull(compiler.keysetNulls(admitted(), window(7, 7), PAGE - 2)))
+            nulls.assert().contains("Index Scan Backward using").contains("IS NULL").doesNotContain("Sort")
+            removed(nulls).assert().isLessThanOrEqualTo(PAGE.toLong())
+
+            // A position among the nulls: one statement, the nulls after it. The index seeks to the nulls; within them
+            // the tie-breakers (tenant_id, aggregate_id) are not consecutive columns of the index, so it filters the
+            // 501 nulls before the position rather than seeking to it.
+            val among = window(null, 89_980 - 30 * 500)
+            page(among).assert().first().isEqualTo("id-%06d".format(89_980 - 30 * 501))
+            statements.count { it.contains(" LIMIT ") }.assert().isEqualTo(1)
+            compiler.keysetNulls(admitted(), among, PAGE).assert().isNull()
+            val amongNulls = analyze(compiler.keyset(admitted(), among))
+            amongNulls.assert().contains("Index Scan Backward using").contains("IS NULL").doesNotContain("Sort")
+            removed(amongNulls).assert().isEqualTo(501L)
+        }
+
+    /** [PostgresFixture.dataSource], recording the SQL of every statement it prepares into [statements]. */
+    private fun recording(statements: MutableList<String>): DataSource {
+        val source = PostgresFixture.dataSource
+        fun connection(target: Connection): Connection = Proxy.newProxyInstance(
+            Connection::class.java.classLoader,
+            arrayOf(Connection::class.java),
+        ) { _, method, args ->
+            if (method.name == "prepareStatement") statements += args[0] as String
+            try {
+                method.invoke(target, *(args ?: emptyArray()))
+            } catch (failure: InvocationTargetException) {
+                throw failure.targetException
+            }
+        } as Connection
+        return Proxy.newProxyInstance(DataSource::class.java.classLoader, arrayOf(DataSource::class.java)) { _, method, args ->
+            try {
+                val result = method.invoke(source, *(args ?: emptyArray()))
+                if (result is Connection) connection(result) else result
+            } catch (failure: InvocationTargetException) {
+                throw failure.targetException
+            }
+        } as DataSource
+    }
+
     /** The rows every node of [plan] read and then filtered out. */
     private fun removed(plan: String): Long = Regex("Rows Removed by Filter: (\\d+)").findAll(plan)
         .sumOf { it.groupValues[1].toLong() }
@@ -131,8 +216,9 @@ class PostgresSnapshotKeysetTest {
             }
     }
 
-    /** [ROWS] snapshots of one tenant among three, their keys and amounts in one order. */
-    private fun seed(table: String) {
+    /** [ROWS] snapshots of one tenant among three, their keys and amounts in one order; with [nulls], every tenth without one. */
+    private fun seed(table: String, nulls: Boolean = false) {
+        val state = if (nulls) "CASE WHEN i % 10 = 0 THEN '{}'::jsonb ELSE jsonb_build_object('amount', i) END" else "jsonb_build_object('amount', i)"
         PostgresFixture.dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(
@@ -140,7 +226,7 @@ class PostgresSnapshotKeysetTest {
                     INSERT INTO $table (tenant_id, aggregate_id, version, schema_fingerprint, state, deleted,
                         first_event_time, last_event_time)
                     SELECT 't' || (i % 3), 'id-' || lpad(i::text, 6, '0'), 1, 'it',
-                        jsonb_build_object('amount', i), false, 0, i
+                        $state, false, 0, i
                     FROM generate_series(1, ${ROWS * 3}) AS i
                     """.trimIndent(),
                 )
