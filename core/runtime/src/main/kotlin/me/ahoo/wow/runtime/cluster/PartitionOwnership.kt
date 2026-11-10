@@ -387,7 +387,7 @@ class PartitionOwnership internal constructor(
 
     /**
      * Leaves the group gracefully: leaves the members, hands off every partition this node holds (see the class
-     * description for the order), and stops the subscriptions.
+     * description for the order), and stops the timers, the intake and the subscriptions whatever the hand-off came to.
      */
     suspend fun stop(): Unit = lifecycle.withLock {
         val run = running ?: return@withLock
@@ -398,10 +398,8 @@ class PartitionOwnership internal constructor(
                 target = emptySet()
                 handOff(gates.keys.toList())
             }
-            timers.forEach { it.stop() }
-            intake?.stop()
-            runtimes.forEach { it.stop() }
         } finally {
+            withContext(NonCancellable) { stopReads() }
             running = null
             run.root.cancelAndJoin()
         }
@@ -454,13 +452,7 @@ class PartitionOwnership internal constructor(
                     "$node did not hand off its partitions of $group within $bound after its fatal error; it renews " +
                         "none of their leases, which expire within ${options.leaseTtl} for the others to take."
                 }
-                withContext(NonCancellable) {
-                    withTimeoutOrNull(bound) {
-                        timers.forEach { quietly("stop the timers of $group") { it.stop() } }
-                        quietly("stop the command intake of $group") { intake?.stop() }
-                        runtimes.forEach { quietly("stop the subscriptions of $group") { it.stop() } }
-                    }
-                }
+                withContext(NonCancellable) { withTimeoutOrNull(bound) { stopReads() } }
             }
         }
     }
@@ -475,9 +467,14 @@ class PartitionOwnership internal constructor(
         run.root.cancelAndJoin()
         membership.abort(group.name)
         gates.clear()
-        timers.forEach { it.stop() }
-        intake?.stop()
-        runtimes.forEach { it.stop() }
+        stopReads()
+    }
+
+    /** Stops the timers, the intake and the subscriptions, each failure logged: a stop leaves none of them running. */
+    private suspend fun stopReads() {
+        timers.forEach { quietly("stop the timers of $group") { it.stop() } }
+        quietly("stop the command intake of $group") { intake?.stop() }
+        runtimes.forEach { quietly("stop the subscriptions of $group") { it.stop() } }
     }
 
     /** Asks for the routes to be read again soon, such as after a forward failed. */
@@ -695,7 +692,7 @@ class PartitionOwnership internal constructor(
                 }
                 stopSubscriptions(partition)
                 quietly("release partition $partition") { leases.release(group.name, partition, node) }
-                partitionChanged(partition)
+                quietly("drop the cached states of partition $partition") { partitionChanged(partition) }
                 gates.remove(partition, gate)
                 logger.info { "$node handed off partition $partition of $group." }
             }

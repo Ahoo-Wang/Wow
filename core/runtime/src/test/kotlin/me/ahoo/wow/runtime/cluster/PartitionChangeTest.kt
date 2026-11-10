@@ -13,16 +13,29 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.CachedState
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -33,6 +46,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -91,6 +105,98 @@ class PartitionChangeTest {
     }
 
     @Test
+    fun `a hand-off whose report fails is logged, and the stop still hands off every partition and stops the reads`():
+        Unit = runTest(timeout = 1.minutes) {
+        // #5822: the report failed the hand-off, and the stop then skipped its subscriptions: their tails ran on.
+        val leases = InMemoryLeaseStore(virtualClock())
+        val runtime = runtime()
+        var handingOff = false
+        val ownership = PartitionOwnership(
+            GROUP,
+            NODE,
+            { "$NODE.internal:7070" },
+            PARTITIONS,
+            leases,
+            subscriptions = runtime,
+            context = StandardTestDispatcher(testScheduler),
+            timeSource = testScheduler.timeSource,
+            partitionChanged = { check(!handingOff) { "The state cache is gone." } },
+        )
+        ownership.start()
+        delay(1.seconds)
+        ownership.owned.assert().isEqualTo((0 until PARTITIONS).toSet())
+        runtime.isRunning.assert().isTrue()
+        handingOff = true
+        ownership.stop()
+        ownership.isRunning.assert().isFalse()
+        runtime.isRunning.assert().isFalse()
+        leases.owners(GROUP.name).assert().isEmpty()
+    }
+
+    @Test
+    fun `a stop whose intake fails to stop still stops the subscriptions`(): Unit = runTest(timeout = 1.minutes) {
+        // #5822: a failing step of the stop skipped the ones after it, and the node stopped with its tails running.
+        val runtime = runtime()
+        val intake = mockk<SubscriptionRuntime>(relaxed = true) {
+            coEvery { stop() } throws IllegalStateException("The command topic is gone.")
+        }
+        val ownership = PartitionOwnership(
+            GROUP,
+            NODE,
+            { "$NODE.internal:7070" },
+            PARTITIONS,
+            InMemoryLeaseStore(virtualClock()),
+            subscriptions = runtime,
+            context = StandardTestDispatcher(testScheduler),
+            timeSource = testScheduler.timeSource,
+            intake = intake,
+        )
+        ownership.start()
+        delay(1.seconds)
+        runtime.isRunning.assert().isTrue()
+        ownership.stop()
+        runtime.isRunning.assert().isFalse()
+        coVerify { intake.stop() }
+    }
+
+    @Test
+    fun `a stop cancelled while it drains a partition still stops the subscriptions`(): Unit =
+        runTest(timeout = 1.minutes) {
+            // Two runtimes, the context's and another log group's: a cancelled stop skipped the second.
+            val runtime = runtime()
+            val other = runtime()
+            val ownership = PartitionOwnership(
+                GROUP,
+                NODE,
+                { "$NODE.internal:7070" },
+                PARTITIONS,
+                InMemoryLeaseStore(virtualClock()),
+                subscriptions = runtime,
+                context = StandardTestDispatcher(testScheduler),
+                timeSource = testScheduler.timeSource,
+                groups = listOf(other),
+            )
+            try {
+                ownership.start()
+                delay(1.seconds)
+                // A command in flight holds partition 0's hand-off in its drain, where the stop is cancelled.
+                val held = CompletableDeferred<Unit>()
+                val command = launch { ownership.runIfAccepting(0) { held.await() } }
+                delay(100.milliseconds)
+                val stopping = launch { ownership.stop() }
+                delay(100.milliseconds)
+                stopping.cancelAndJoin()
+                held.complete(Unit)
+                command.join()
+                runtime.isRunning.assert().isFalse()
+                other.isRunning.assert().isFalse()
+            } finally {
+                // Nothing once a stop has run; ends the ownership's loops on the test's scheduler when it did not.
+                ownership.abort()
+            }
+        }
+
+    @Test
     fun `the state cache drops the states of one partition`() {
         val type = AggregateType("ctx", "agg")
         val refs = (0 until 64).map { type.ref("t", "a-$it") }
@@ -102,6 +208,15 @@ class PartitionChangeTest {
         dropped.forEach { cache.take(it).assert().isNull() }
         kept.forEach { cache.take(it).assert().isNotNull() }
     }
+
+    private fun runtime() = SubscriptionRuntime(
+        "${GROUP.name}#default",
+        InMemoryEventLog(PARTITIONS),
+        InMemoryCheckpointStore(),
+        InMemoryFailureLedger(),
+        listOf(Subscription("projector", SubscriptionFilter("changing")) { }),
+        testOptions(),
+    )
 
     private fun TestScope.ownership(store: LeaseStore, changed: MutableList<Int>) = PartitionOwnership(
         GROUP,
