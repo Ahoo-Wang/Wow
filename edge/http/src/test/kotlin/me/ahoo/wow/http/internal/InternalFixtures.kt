@@ -23,6 +23,8 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.cluster.ForwardCommand
+import me.ahoo.wow.runtime.cluster.NodeAddress
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
@@ -31,7 +33,9 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.server.HttpServer
 import tools.jackson.databind.node.JsonNodeFactory
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,8 +48,8 @@ const val TEST_CONTEXT = "bank"
 const val BIND_ATTEMPTS = 5
 
 /**
- * An internal port as the host serves it (decision D109): bare Reactor Netty taking HTTP/1.1 and h2c, serving
- * [routes], upgrading a connection's first request of up to [upgradeBody] bytes and taking [streams] streams on a
+ * An internal port as the host serves it (decision D109): bare Reactor Netty on [host] (the IPv4 loopback by default)
+ * taking HTTP/1.1 and h2c, serving [routes], upgrading a connection's first request of up to [upgradeBody] bytes and taking [streams] streams on a
  * connection at a time. [versions] records the protocol each request arrived over, [connections] counts the
  * connections it accepted.
  */
@@ -54,12 +58,13 @@ class InternalServer(
     upgradeBody: Int = InternalHttp.MAX_UPGRADE_BODY,
     port: Int = 0,
     streams: Int = InternalHttp.MAX_CONCURRENT_STREAMS,
+    private val host: String = "127.0.0.1",
 ) : AutoCloseable {
     val versions = CopyOnWriteArrayList<String>()
     val connections = AtomicInteger()
     private val adapter = ReactorHttpHandlerAdapter(RouterFunctions.toHttpHandler(routes))
     private val server: DisposableServer = HttpServer.create()
-        .host("127.0.0.1")
+        .host(host)
         .port(port)
         .doOnChannelInit { _, _, _ -> connections.incrementAndGet() }
         .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
@@ -71,7 +76,8 @@ class InternalServer(
         }
         .bindNow()
 
-    val address: String get() = "127.0.0.1:${server.port()}"
+    /** Its address as a node advertises it ([NodeAddress]): an IPv6 host in brackets. */
+    val address: String get() = NodeAddress.of(host, server.port())
 
     override fun close() {
         server.disposeNow()
@@ -141,3 +147,9 @@ suspend fun eventually(timeout: Duration = 10.seconds, condition: suspend () -> 
 
 /** The deadline of a wait that has [left] to run: what a signal for it is given. */
 fun deadline(left: Duration = 10.seconds): Long = System.currentTimeMillis() + left.inWholeMilliseconds
+
+/** Skips the test, saying why, when this host has no IPv6 loopback (`::1`) a server can bind. */
+fun assumeIpv6Loopback() {
+    val bindable = runCatching { ServerSocket(0, 1, InetAddress.getByName("::1")).close() }.isSuccess
+    assumeTrue(bindable) { "Skipped: this host has no IPv6 loopback (::1) to bind." }
+}

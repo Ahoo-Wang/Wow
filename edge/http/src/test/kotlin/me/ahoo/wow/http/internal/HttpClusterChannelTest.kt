@@ -84,6 +84,16 @@ class HttpClusterChannelTest {
     }
 
     @Test
+    fun `a forward reaches an owner on the IPv6 loopback at its bracketed address`(): Unit = runBlocking {
+        assumeIpv6Loopback()
+        InternalServer(internalRoutes(bank, {}), host = "::1").use { owner ->
+            owner.address.assert().startsWith("[::1]:")
+            channel.forward(owner.address, forwardCommand()).result!!.commandId.assert().isEqualTo("c-1")
+            owner.versions.assert().containsOnly("HTTP/2.0")
+        }
+    }
+
+    @Test
     fun `connect opens the HTTP2 connection a forward then uses, once for any number of callers`(): Unit =
         runBlocking {
             coroutineScope { repeat(4) { launch { channel.connect(server.address) } } }

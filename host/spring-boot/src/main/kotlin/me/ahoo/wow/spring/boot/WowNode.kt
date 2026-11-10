@@ -17,6 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.runtime.cluster.NodeAddress
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
@@ -41,8 +42,11 @@ data class NodeIdentity(
     val host: String,
     val bindHost: String,
 ) {
-    /** The address of the internal port bound at [port]: [address] when configured, else [host] and [port]. */
-    fun addressAt(port: Int): String = address ?: "$host:$port"
+    /**
+     * The address of the internal port bound at [port]: [address] when configured, else [host] and [port]
+     * ([NodeAddress.of]: an IPv6 literal in brackets).
+     */
+    fun addressAt(port: Int): String = address ?: NodeAddress.of(host, port)
 
     @InternalWowApi
     companion object {
@@ -52,8 +56,9 @@ data class NodeIdentity(
          * The identity [properties] configure: `wow.service`, else `spring.application.name`; `wow.node.id`, else
          * the host name with a random suffix, so a restarted node is a new member; `wow.node.address`, else the
          * internal server's bind address (this host's when it binds every interface) and `wow.internal.port`, or,
-         * when that port is 0, the port the internal server is bound at, known once it is; the [bindHost],
-         * `wow.internal.host`, else the host of that member address.
+         * when that port is 0, the port the internal server is bound at, known once it is, written as
+         * [NodeAddress.of] writes an address (`[::1]:9191` for an IPv6 host); the [bindHost], `wow.internal.host`,
+         * else the host of that member address. A `wow.node.address` that is a bare IPv6 literal with a port fails.
          */
         fun of(properties: WowProperties, environment: Environment): NodeIdentity {
             val service = properties.service?.takeIf { it.isNotBlank() }
@@ -77,24 +82,28 @@ data class NodeIdentity(
             val host = properties.internal.host?.takeUnless { it.isBlank() || it == "0.0.0.0" || it == "::" }
                 ?: local.hostAddress
             val port = properties.internal.port
-            val configured = properties.node.address?.takeIf { it.isNotBlank() }
-            val address = configured ?: "$host:$port".takeIf { port != 0 }
-            val bindHost = properties.internal.host?.takeIf { it.isNotBlank() } ?: configured?.let(::hostOf) ?: host
+            val configured = properties.node.address?.takeIf { it.isNotBlank() }?.also(::checkAddress)
+            val address = configured ?: NodeAddress.of(host, port).takeIf { port != 0 }
+            val bindHost = properties.internal.host?.takeIf { it.isNotBlank() }
+                ?: configured?.let(NodeAddress::hostOf)
+                ?: host
             return NodeIdentity(service, node, address, host, bindHost)
         }
 
         /** The interface the internal server of a node of [properties] binds, as [of] gives it. */
         fun bindHostOf(properties: WowProperties): String = properties.internal.host?.takeIf { it.isNotBlank() }
-            ?: properties.node.address?.takeIf { it.isNotBlank() }?.let(::hostOf)
+            ?: properties.node.address?.takeIf { it.isNotBlank() }?.let(NodeAddress::hostOf)
             ?: InetAddress.getLocalHost().hostAddress
 
-        /** The host of [address], `host:port` or `[ipv6]:port`, without the brackets of an IPv6 literal. */
-        internal fun hostOf(address: String): String =
-            if (address.startsWith("[")) {
-                address.substringAfter('[').substringBefore(']')
-            } else {
-                address.substringBeforeLast(':')
-            }
+        /** Refuses a `wow.node.address` the internal port's clients cannot reach: a bare IPv6 literal. */
+        private fun checkAddress(address: String) {
+            configCheck(
+                NodeAddress.isValid(address),
+                "wow.node.address",
+                address,
+                "Write an IPv6 host in brackets, such as [::1]:9191, as RFC 3986 does.",
+            ) { "wow.node.address [$address] is no host and port the other nodes can reach." }
+        }
     }
 }
 

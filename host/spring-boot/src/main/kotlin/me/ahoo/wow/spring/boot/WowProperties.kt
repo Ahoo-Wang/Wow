@@ -251,8 +251,8 @@ class WowProperties {
         var id: String? = null
 
         /**
-         * The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address
-         * the port binds is `wow.internal.host`.
+         * The `host:port` of this node's internal port that the other nodes reach, an IPv6 host in brackets (`[::1]:9191`;
+         * a bare one fails the start), as the node writes it when not set; the port binds at `wow.internal.host`.
          */
         var address: String? = null
 

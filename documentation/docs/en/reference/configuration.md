@@ -353,7 +353,7 @@ This node's identity among the nodes of the service, and where they reach it.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.node.address` | `String` |  | The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address the port binds is `wow.internal.host`. |
+| `wow.node.address` | `String` |  | The `host:port` of this node's internal port that the other nodes reach, an IPv6 host in brackets (`[::1]:9191`; a bare one fails the start), as the node writes it when not set; the port binds at `wow.internal.host`. |
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
 | `wow.node.max-parked` | `Integer` | `10000` | How many parked entries of one subscription a sample counts at most: a count past it reads as the cap, so a flood of parked entries costs one bounded read per sample. The health's `parked-degraded-at` is at most it. |
 | `wow.node.sample-interval` | `Duration` | `PT10S` | How often the node samples what is read rather than heard: for its health, the logs' heads, the subscriptions' lag and parked entries, and a probe of the stores it has not called since; for its gauges (wow-observability), the parked entries, the subscriptions' positions and a rebuild's progress. |
