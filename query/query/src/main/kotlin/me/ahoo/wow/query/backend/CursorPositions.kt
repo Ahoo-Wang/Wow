@@ -20,6 +20,8 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.Base64
@@ -51,6 +53,43 @@ interface CursorPositionCodec {
         /** Positions of JSON scalars: `null`, booleans, strings, integral numbers as longs and finite doubles. */
         @JvmField
         val JSON: CursorPositionCodec = JsonCursorPositionCodec
+
+        /**
+         * Positions of JSON scalars with every number exact: `null`, booleans, strings, and numbers of any width,
+         * a decimal or a big integer as it is, each read back as a [BigDecimal]. For a backend whose order compares a
+         * number by its exact value, so a position is the value its row held, not the nearest double.
+         */
+        @JvmField
+        val EXACT: CursorPositionCodec = ExactCursorPositionCodec
+    }
+}
+
+private object ExactCursorPositionCodec : CursorPositionCodec {
+    override fun encode(position: CursorPosition): ByteArray {
+        val values = position.values.map { value ->
+            when (value) {
+                null, is String, is Boolean, is BigDecimal -> value
+                is Int, is Long -> BigDecimal.valueOf((value as Number).toLong())
+                is BigInteger -> BigDecimal(value)
+                else -> throw IllegalArgumentException("Cursor values must be JSON scalars.")
+            }
+        }
+        return WowJson.mapper.writeValueAsBytes(values)
+    }
+
+    override fun decode(payload: ByteArray, size: Int): CursorPosition {
+        val values = WowJson.mapper.readTree(payload)
+        require(values.isArray && values.size() == size)
+        return CursorPosition(values.asSequence().map { it.scalar() }.toList())
+    }
+
+    private fun JsonNode.scalar(): Any? = when {
+        isNull -> null
+        isBoolean -> booleanValue()
+        isString -> stringValue()
+        isIntegralNumber -> BigDecimal(bigIntegerValue())
+        isNumber -> decimalValue()
+        else -> throw IllegalArgumentException("Cursor values must be JSON scalars.")
     }
 }
 

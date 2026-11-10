@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.QueryField
@@ -28,6 +29,8 @@ import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryModel
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.Base64
 
 /** The cursor token shell the core owns and the JSON position codec (9.x covered them in `BackendQueriesTest`). */
@@ -67,6 +70,31 @@ class CursorPositionsTest {
         assertThrows<IllegalArgumentException> { codec.decode("""{"a":1}""".toByteArray(), 1) }
         assertThrows<IllegalArgumentException> { codec.decode("""[{"a":1}]""".toByteArray(), 1) }
         assertThrows<IllegalArgumentException> { codec.decode("[18446744073709551616]".toByteArray(), 1) }
+    }
+
+    @Test
+    fun `the exact codec round-trips every number as it is`() {
+        val codec = CursorPositionCodec.EXACT
+        val big = BigInteger.TWO.pow(70)
+        val position =
+            CursorPosition(
+                listOf(null, "a", true, BigDecimal("12.340"), 5, 6L, big, BigDecimal("1.00000000000000000001"))
+            )
+        codec.decode(codec.encode(position), 8).values.assert().containsExactly(
+            null,
+            "a",
+            true,
+            BigDecimal("12.340"),
+            BigDecimal.valueOf(5),
+            BigDecimal.valueOf(6),
+            BigDecimal(big),
+            BigDecimal("1.00000000000000000001"),
+        )
+        assertThrownBy<IllegalArgumentException> { codec.encode(CursorPosition(listOf(listOf(1)))) }
+        assertThrownBy<IllegalArgumentException> { codec.encode(CursorPosition(listOf(1.5))) }
+        assertThrownBy<IllegalArgumentException> { codec.decode("[1]".toByteArray(), 2) }
+        assertThrownBy<IllegalArgumentException> { codec.decode("[{}]".toByteArray(), 1) }
+        assertThrownBy<IllegalArgumentException> { codec.decode("{}".toByteArray(), 1) }
     }
 
     @Test

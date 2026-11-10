@@ -124,7 +124,7 @@ class InMemoryQueryBackend internal constructor(
     /** The current access record of each row's aggregate, for a dataset bound to one ([InMemoryDatasetStorage]). */
     private val access: RowAccess? = null,
 ) : QueryBackend {
-    override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
+    override val cursorPositions: CursorPositionCodec = CursorPositionCodec.EXACT
 
     private val received = CopyOnWriteArrayList<Duration?>()
 

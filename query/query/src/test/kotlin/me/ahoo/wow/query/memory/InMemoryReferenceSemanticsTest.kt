@@ -89,6 +89,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -671,15 +672,17 @@ class InMemoryReferenceSemanticsTest {
         keys.map { it.positionValue() }.assert().containsExactly(
             null,
             null,
-            7L,
-            BigInteger.TWO.pow(70).toDouble(),
-            1.5,
+            BigDecimal.valueOf(7),
+            BigDecimal(BigInteger.TWO.pow(70)),
+            BigDecimal("1.5"),
             "s",
             true,
             "[1]",
         )
-        listOf<Any?>(null, 7L, 7, 1.5, "s", true, listOf(1)).map { it.positionNode() }.map { it?.toString() }.assert()
-            .containsExactly(null, "7", "7", "1.5", "\"s\"", "true", "[1]")
+        listOf<Any?>(null, BigDecimal("7"), BigDecimal("1.00000000000000000001"), "s", true, listOf(1))
+            .map {
+                it.positionNode()?.toString()
+            }.assert().containsExactly(null, "7", "1.00000000000000000001", "\"s\"", "true", "[1]")
     }
 
     @Test

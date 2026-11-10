@@ -248,6 +248,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
 	public final fun count is exact below its limit and bounded above it ()V
 	public final fun cursor breaks ties by tenant before aggregate id ()V
+	public final fun cursor over decimals walks each record once, a value no double holds included ()V
 	public final fun cursor returns an empty terminal page ()V
 	public final fun cursor supports descending multi field sort ()V
 	public final fun cursor token issued for another sort is the invalid cursor ()V
