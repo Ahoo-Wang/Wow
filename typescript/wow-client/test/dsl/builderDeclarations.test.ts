@@ -23,6 +23,12 @@
  * signature that the declarations lose or change fails here. A change made on
  * purpose is recorded with `pnpm exec vitest run
  * test/dsl/builderDeclarations.test.ts -u`.
+ *
+ * Other declarations' docs link into the objects (`{@link filter.search}`),
+ * and an editor shows such a link as a link only where TypeScript resolves
+ * it. Every one is resolved here as an editor resolves it; those that do not
+ * resolve today are listed in `golden/unresolved-builder-links.json`, by file
+ * and line, so a link that stops resolving fails by name.
  */
 
 import { dirname, join, resolve } from 'node:path';
@@ -121,6 +127,51 @@ function membersOf(
   return Object.fromEntries(members);
 }
 
+/**
+ * Every link in the docs of the emitted declarations that points at a member
+ * of the builder object `name`, by its target or by the text it shows (a
+ * link to a member through its group shows the member's name): where it is
+ * written, and whether TypeScript resolves its target to a declaration, as
+ * an editor does when it shows the doc.
+ */
+function linksInto(
+  program: ts.Program,
+  name: string,
+): { where: string; link: string; resolved: boolean }[] {
+  const checker = program.getTypeChecker();
+  const links: { where: string; link: string; resolved: boolean }[] = [];
+  for (const file of program.getSourceFiles()) {
+    if (!file.fileName.startsWith(OUT)) continue;
+    const visit = (node: ts.Node): void => {
+      if (ts.isJSDocLink(node) && node.name) {
+        const target = node.name.getText(file);
+        const shown = node.text
+          .replace(/^\s*\|?\s*/, '')
+          .replace(/`/g, '')
+          .trim();
+        if (target.startsWith(`${name}.`) || shown.startsWith(`${name}.`)) {
+          const { line } = file.getLineAndCharacterOfPosition(
+            node.getStart(file),
+          );
+          links.push({
+            where: `${file.fileName.slice(OUT.length + 1)}:${line + 1}`,
+            link: shown ? `${target} | ${shown}` : target,
+            resolved:
+              (checker.getSymbolAtLocation(node.name)?.declarations?.length ??
+                0) > 0,
+          });
+        }
+      }
+      ts.forEachChild(node, visit);
+      for (const doc of (node as { jsDoc?: ts.JSDoc[] }).jsDoc ?? []) {
+        visit(doc);
+      }
+    };
+    visit(file);
+  }
+  return links;
+}
+
 describe.each([
   ['filter', filter],
   ['aggregation', aggregation],
@@ -142,5 +193,22 @@ describe.each([
     expect(Object.keys(builders).sort()).toEqual(
       Object.keys(membersOf(program, entry, name)).sort(),
     );
+  }, 60_000);
+});
+
+describe('the doc links into the builders', () => {
+  it('resolve as an editor resolves them, but for those recorded as not resolving', async () => {
+    const { program } = emittedProgram();
+    const links = ['filter', 'aggregation'].flatMap(name =>
+      linksInto(program, name),
+    );
+    expect(links.length).toBeGreaterThan(50);
+    const unresolved = links
+      .filter(link => !link.resolved)
+      .map(link => `${link.where} ${link.link}`)
+      .sort();
+    await expect(
+      JSON.stringify(unresolved, null, 2) + '\n',
+    ).toMatchFileSnapshot('../golden/unresolved-builder-links.json');
   }, 60_000);
 });
