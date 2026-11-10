@@ -35,8 +35,10 @@ import java.util.Collections
  *   first time after the slot before it, never after now, so a late firing does not move the period.
  * - A slot found past due when it is claimed, or the next slot found past due when one fired, is caught up as the
  *   rule's [Misfire] says: [Misfire.COALESCE] moves to the latest time due, the ones in between counted in
- *   [Timer.skipped] and never sent; [Misfire.CATCH_UP] sends each in turn. Beyond [MAX_COUNTED] missed slots the
- *   count is estimated from the period.
+ *   [Timer.skipped] and never sent; [Misfire.CATCH_UP] sends each in turn. A slot moved to is always a time its rule
+ *   names, and it is due at that time ([Timer.dueAt] and [Timer.slotDueAt] alike), so how late it is, and whether it
+ *   expired, is judged from its own time. Beyond [MAX_COUNTED] missed slots only their count is estimated, from the
+ *   period.
  */
 @InternalWowApi
 object ScheduleSlots {
@@ -116,7 +118,7 @@ object ScheduleSlots {
 
     /**
      * [timer], about to be claimed at [now]: a recurring slot past due by more than one time of its rule moves to the
-     * latest one due, the others skipped, when its rule coalesces; otherwise [timer] as it is.
+     * latest one due, due at its own time, the others skipped, when its rule coalesces; otherwise [timer] as it is.
      */
     @JvmStatic
     fun caughtUp(timer: Timer, now: Long): Timer {
@@ -128,7 +130,7 @@ object ScheduleSlots {
         if (steps == 0L) {
             return timer
         }
-        return timer.copyWith(slot = timer.slot + steps, slotDueAt = due, skipped = timer.skipped + steps)
+        return timer.copyWith(slot = timer.slot + steps, slotDueAt = due, dueAt = due, skipped = timer.skipped + steps)
     }
 
     /**
@@ -174,26 +176,34 @@ object ScheduleSlots {
     }
 
     /**
-     * Past [MAX_COUNTED] slots counted from [from] to [due]: the rest are estimated by the period they took, and the
-     * latest time due is searched from shortly before [now].
+     * Past [MAX_COUNTED] slots counted from [from] to [due]: the latest time of the rule due by [now] ([latestBy]),
+     * and the slots up to it counted by the period the counted ones took, an estimate.
      */
     private fun estimated(parsed: Parsed, from: Long, due: Long, steps: Long, now: Long): Pair<Long, Long> {
+        val latest = latestBy(parsed, due, now)
         val period = maxOf(1L, (due - from) / steps)
-        var latest = due
-        var counted = steps
-        var probe = maxOf(due, now - 2 * period)
-        if (probe > due) {
-            counted += (probe - due) / period
-            latest = probe
-        }
-        while (true) {
-            val next = parsed.next(probe) ?: return latest to counted
-            if (next > now) {
-                return latest to counted
-            }
-            latest = next
-            probe = next
-            counted++
-        }
+        return latest to steps + (latest - due) / period
     }
+
+    /**
+     * The latest time [parsed] names at or before [now], from [due], a time of it at or before [now]: always a time
+     * of the rule, whatever its gaps (a weekday rule across a weekend). The times only go forward from an instant, so
+     * it is the time after the latest instant whose next time is still due by [now], bisected between [due] and [now]:
+     * about forty times, whatever the outage.
+     */
+    private fun latestBy(parsed: Parsed, due: Long, now: Long): Long {
+        var low = due
+        var high = now
+        if (!dueBy(parsed, low, now)) {
+            return due
+        }
+        while (high - low > 1) {
+            val middle = low + (high - low) / 2
+            if (dueBy(parsed, middle, now)) low = middle else high = middle
+        }
+        return checkNotNull(parsed.next(low))
+    }
+
+    /** Whether the next time [parsed] names after [after] is due by [now]. */
+    private fun dueBy(parsed: Parsed, after: Long, now: Long): Boolean = parsed.next(after)?.let { it <= now } == true
 }

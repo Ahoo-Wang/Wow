@@ -123,8 +123,8 @@ class ScheduleSlotsTest {
         caught.slotDueAt.assert().isEqualTo(at("2026-05-01T00:00:00Z"))
         caught.skipped.assert().isEqualTo(3L)
         caught.context.skipped.assert().isEqualTo(3L)
-        // Its due time stays; the claim gives it the claim's deadline.
-        caught.dueAt.assert().isEqualTo(due.dueAt)
+        // Due at its own time, as a next slot is: how late it is is judged from it.
+        caught.dueAt.assert().isEqualTo(caught.slotDueAt)
     }
 
     @Test
@@ -181,6 +181,26 @@ class ScheduleSlotsTest {
         caught.slotDueAt.assert().isEqualTo(now - 500)
         caught.slot.assert().isEqualTo(1 + 2 * 86_400L)
         caught.skipped.assert().isEqualTo(2 * 86_400L)
+    }
+
+    @Test
+    fun `beyond the counted slots, the latest slot is still a time of the rule, across the rule's gaps`() {
+        // Every second on weekdays, from a Monday to a Saturday noon: the latest is Friday's last second.
+        val weekdays = ScheduleRule.Cron("* * * * * MON-FRI")
+        val acrossWeekend = ScheduleSlots.caughtUp(
+            timer(weekdays, at("2026-11-02T00:00:00Z")),
+            at("2026-11-07T12:00:00Z"),
+        )
+        acrossWeekend.slotDueAt.assert().isEqualTo(at("2026-11-06T23:59:59Z"))
+        acrossWeekend.dueAt.assert().isEqualTo(acrossWeekend.slotDueAt)
+        // Every second of business hours, over two weeks to a Saturday: Friday at 17:59:59.
+        val businessHours = ScheduleRule.Cron("* * 9-17 * * MON-FRI")
+        ScheduleSlots.caughtUp(timer(businessHours, at("2026-11-02T09:00:00Z")), at("2026-11-14T12:00:00Z"))
+            .slotDueAt.assert().isEqualTo(at("2026-11-13T17:59:59Z"))
+        // Every second of the 15th, from January to March 3rd: the last second of February 15th.
+        val fifteenth = ScheduleRule.Cron("* * * 15 * *")
+        ScheduleSlots.caughtUp(timer(fifteenth, at("2026-01-15T00:00:00Z")), at("2026-03-03T00:00:00Z"))
+            .slotDueAt.assert().isEqualTo(at("2026-02-15T23:59:59Z"))
     }
 
     @Test

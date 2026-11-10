@@ -105,7 +105,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 | `cron` | 六个字段，按 Spring 的 `CronExpression` 读取：`0 0 6 * * *` 是每天 06:00。也接受 `@daily` 这样的宏 |
 | `zone` | 读取 `cron` 所用的时区，默认 UTC |
 | `scope` | `SYSTEM`（默认）：一个实例，在默认租户中，宿主在启动时启用。`TENANT`：每个租户一个实例，由该租户中的系统命令 `wow.schedule.Enable` 创建；宿主从不启动它，每个租户都可以覆盖规则、时区和 misfire。`SHARDED`：每个日志分区一个实例，在默认租户中，宿主在启动时启用，由分区的属主为它自己分区的聚合运行，每个时间槽各触发一次，并设置 `tick.partition` |
-| `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。`CATCH_UP`：每个错过的时间槽都运行 |
+| `misfire` | `COALESCE`（默认）：在没有节点运行任务期间错过的时间槽，只运行最近的一个，`skipped` 统计其余的。它的 `due` 是该时间槽自己的时间，是表达式指定的时间，`wow.timers.expires-after` 也从这个时间判断它是否迟到；错过超过 100,000 个时间槽时，`skipped` 是估算值。`CATCH_UP`：每个错过的时间槽都运行 |
 
 宿主在 `wow.schedules.<name>` 下配置任务，而且只在这里配置，不需要重新构建：
 
