@@ -270,6 +270,8 @@ Over HTTP, a filter holds at most `wow.query.budgets.http.max-filter-nodes` node
 
 `sort` is an array of `{"field": …, "direction": "asc" | "desc"}`, at most 32, each field once. A field sorts only where the descriptor says it does (`sort.paged`, `sort.cursor`). A missing value and `null` sort first ascending and last descending; an array sorts by its least element ascending, a `null` element being the least, and by its greatest descending. A store that cannot order an array whose elements may be `null` that way (Elasticsearch) does not offer its sort.
 
+Records that tie on every sort field are ordered by the record's unique key (`tenantId`, `aggregateId` on the snapshot model; a dataset's identity) in the direction of the last sort field, ascending when there is no sort. So a list, a page and a cursor sorted `lastEventTime` descending give tied records in descending key order, and the order is the same from page to page.
+
 `projection` is `{"include": [paths], "exclude": [paths]}`; with neither, records come whole. An included path keeps its descendants.
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
@@ -321,7 +323,7 @@ A failure after the first record ends the stream with an `error` event holding t
 
 ### `cursor`
 
-A cursor page is the next `size` records (10 by default, at most `max-page-size`) after `cursor`, the `nextCursor` of the previous page; the first page has none. The server appends the record's unique key to `sort` (`tenantId`, `aggregateId` on the snapshot model), so the order is total and a page never repeats or skips a record. `nextCursor` is `null` on the last page. A cursor is opaque and belongs to its model and sort: send it with the same sort and filter (another sort is `invalid-cursor`). Endless scrolling uses a cursor; it never counts.
+A cursor page is the next `size` records (10 by default, at most `max-page-size`) after `cursor`, the `nextCursor` of the previous page; the first page has none. The server appends the record's unique key to `sort` (`tenantId`, `aggregateId` on the snapshot model), in the direction of the last sort field, so the order is total and a page never repeats or skips a record. `nextCursor` is `null` on the last page. A cursor is opaque and belongs to its model and sort: send it with the same sort and filter (another sort is `invalid-cursor`). Endless scrolling uses a cursor; it never counts.
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 

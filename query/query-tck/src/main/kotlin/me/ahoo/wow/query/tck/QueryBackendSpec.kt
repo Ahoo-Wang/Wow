@@ -100,6 +100,7 @@ import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.querySchema
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Assumptions
@@ -665,7 +666,8 @@ abstract class QueryBackendSpec {
             pages += page.list.map { it.id() }
             cursor = page.nextCursor
         } while (cursor != null && pages.size < MAX_LIST)
-        pages.assert().containsExactly(listOf("o1", "o2"), listOf("o3", "o4"), listOf("o5"))
+        // Tied records follow the sort's last direction: descending, so by the key descending.
+        pages.assert().containsExactly(listOf("o2", "o1"), listOf("o4", "o3"), listOf("o5"))
         Unit
     }
 
@@ -686,6 +688,51 @@ abstract class QueryBackendSpec {
         )
         second.list.map { it.id() }.assert().containsExactly("o2", "o1")
         second.nextCursor.assert().isNull()
+        Unit
+    }
+
+    @Test
+    fun `records tied on a sort follow its last direction, in a list, a page and a cursor`() = blocking {
+        // One tenant: t1, t2 and t3 tie on their status, PAID, above n1's NEW.
+        val paid = """{"name":"Tied","status":"PAID","amount":1,"quantity":1,"createdAt":$T0}"""
+        val fixture = given(
+            listOf(
+                snapshot("t2", paid),
+                snapshot("n1", """{"name":"New","status":"NEW","amount":1,"quantity":1,"createdAt":$T0}"""),
+                snapshot("t1", paid),
+                snapshot("t3", paid),
+            ),
+        )
+        val status = QueryField("state.status")
+        fun pages(sort: List<Sort>): List<String> = (1..2).flatMap { index ->
+            val query =
+                PagedQuery(MatchAllFilter, sort = sort, pagination = Pagination(index, 2), total = TotalMode.NONE)
+            blocking { fixture.backend.paged(QueryAdmission.Trusted.paged(query, fixture.schema)).list.map { it.id() } }
+        }
+        fun cursor(sort: List<Sort>): List<String> {
+            val seen = mutableListOf<String>()
+            var next: String? = null
+            do {
+                val query = CursorQuery(MatchAllFilter, sort = sort, size = 2, cursor = next)
+                val page = blocking { fixture.backend.cursor(QueryAdmission.Trusted.cursor(query, fixture.schema)) }
+                seen += page.list.map { it.id() }
+                next = page.nextCursor
+            } while (next != null && seen.size < MAX_LIST)
+            return seen
+        }
+        val descending = listOf(Sort(status, Sort.Direction.DESC))
+        val ascending = listOf(Sort(status, Sort.Direction.ASC))
+        // Descending, the key descends too: the newest-first order an index on (status, key) gives read backward.
+        fixture.ids(MatchAllFilter, descending).assert().containsExactly("t3", "t2", "t1", "n1")
+        pages(descending).assert().containsExactly("t3", "t2", "t1", "n1")
+        // Ascending, it ascends; with no sort at all, the key alone ascends.
+        fixture.ids(MatchAllFilter, ascending).assert().containsExactly("n1", "t1", "t2", "t3")
+        pages(ascending).assert().containsExactly("n1", "t1", "t2", "t3")
+        fixture.ids(MatchAllFilter).assert().containsExactly("n1", "t1", "t2", "t3")
+        if (fixture.schema.storage.paging.keyset != SupportMode.NONE) {
+            cursor(descending).assert().containsExactly("t3", "t2", "t1", "n1")
+            cursor(ascending).assert().containsExactly("n1", "t1", "t2", "t3")
+        }
         Unit
     }
 
@@ -791,7 +838,7 @@ abstract class QueryBackendSpec {
             limit,
         )
         val all = chunks(2).toList()
-        all.map { it.record.id() }.assert().containsExactly("o1", "o2", "o3", "o4", "o5")
+        all.map { it.record.id() }.assert().containsExactly("o2", "o1", "o4", "o3", "o5")
         all.map { it.position }.assert().doesNotHaveDuplicates()
         // A position is the cursor's own token: a cursor page ends on it.
         fixture.backend.cursor(
@@ -802,7 +849,7 @@ abstract class QueryBackendSpec {
             chunks(2, all[index].position).toList().map { it.record.id() }.assert()
                 .isEqualTo(all.drop(index + 1).map { it.record.id() })
         }
-        chunks(2, limit = 3).toList().map { it.record.id() }.assert().containsExactly("o1", "o2", "o3")
+        chunks(2, limit = 3).toList().map { it.record.id() }.assert().containsExactly("o2", "o1", "o4")
         chunks(5).toList().assert().hasSize(5)
         Unit
     }

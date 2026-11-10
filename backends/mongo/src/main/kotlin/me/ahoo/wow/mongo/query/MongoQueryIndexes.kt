@@ -73,9 +73,9 @@ data class MongoQueryIndexReport(
  * filter, sort and aggregation compilers read for it ([MongoSnapshotDocuments]), so the planner matches the two.
  * A declared index ends with the tie-breakers every snapshot sort ends with ([MongoSnapshotDocuments.tieBreakers],
  * `_id`), so a sort by its keys under the tenant's equality whose tie-breaker runs in the same direction is the index's
- * order, forward or backward, with no sort stage. Today every sort ends with the tie-breaker ascending, so an
- * ascending sort is read in index order and a descending one still sorts, until the tie-breaker follows the direction
- * of the sort's last field. An existing index of another shape is drift, as any other ([manage]).
+ * order, forward or backward, with no sort stage: every sort ends with the tie-breaker in the direction of its last
+ * field ([me.ahoo.wow.query.backend.tieBreakerDirection]): a sort by the keys in one direction is read in index order.
+ * An existing index of another shape is drift, as any other ([manage]).
  *
  * MongoDB names indexes per collection, so a declared index keeps its own name. The store creates the two scope
  * indexes with the collection; planning them here lets `validate` report them too.

@@ -555,8 +555,9 @@ class QueryGatewayTest {
                 Sort(QueryField("tenantId"), Sort.Direction.ASC),
                 Sort(QueryField("aggregateId"), Sort.Direction.ASC),
             )
-            // The aggregate id is unique only within a tenant, so the tenant still breaks its ties.
-            received[1].sort.assert().containsExactly(explicit, Sort(QueryField("tenantId"), Sort.Direction.ASC))
+            // The aggregate id is unique only within a tenant, so the tenant still breaks its ties, in the sort's
+            // last direction.
+            received[1].sort.assert().containsExactly(explicit, Sort(QueryField("tenantId"), Sort.Direction.DESC))
         }
     }
 

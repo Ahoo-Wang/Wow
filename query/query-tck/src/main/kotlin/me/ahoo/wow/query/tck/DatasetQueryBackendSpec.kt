@@ -325,6 +325,31 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `rows tied on a sort follow its last direction, in a list, a page and a cursor`() = blocking {
+        // Tenant t1: o1 and o2 tie on Hangzhou, o3 and o4 on Beijing; o5 is alone in Shanghai.
+        val t1 = EqualFilter(TENANT_COLUMN, "t1")
+        fun list(sort: List<Sort>) =
+            blocking { orders.list(ListQuery(t1, sort = sort, limit = MAX_LIST)).map { it.path(ID).stringValue() } }
+        fun pages(sort: List<Sort>) = (1..3).flatMap { index ->
+            val query = PagedQuery(t1, sort = sort, pagination = Pagination(index, 2), total = TotalMode.NONE)
+            blocking {
+                orders.backend.paged(QueryAdmission.Trusted.paged(query, orders.schema)).list
+                    .map { it.path(ID).stringValue() }
+            }
+        }
+        val descending = listOf(Sort(CITY, Sort.Direction.DESC))
+        val ascending = listOf(Sort(CITY, Sort.Direction.ASC))
+        // Descending, the identity descends too; ascending, it ascends.
+        list(descending).assert().containsExactly("o5", "o2", "o1", "o4", "o3")
+        pages(descending).assert().containsExactly("o5", "o2", "o1", "o4", "o3")
+        list(ascending).assert().containsExactly("o3", "o4", "o1", "o2", "o5")
+        pages(ascending).assert().containsExactly("o3", "o4", "o1", "o2", "o5")
+        assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
+        walk(descending.single()).assert().containsExactly("o5", "o6", "o2", "o1", "o4", "o3")
+        Unit
+    }
+
+    @Test
     fun `keyset pages walk every record once in sort order`() = blocking {
         assumeSupported(orders.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         walk(Sort(AMOUNT, Sort.Direction.DESC)).assert().containsExactly("o6", "o3", "o2", "o1", "o5", "o4")

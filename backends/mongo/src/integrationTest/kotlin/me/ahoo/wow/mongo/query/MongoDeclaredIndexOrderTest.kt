@@ -38,9 +38,9 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * MG-2: a declared index ends with `_id`, the tie-breaker every snapshot sort ends with, so a sort by its keys under the
- * tenant's equality is the index's order: no blocking sort, and a page reads its own documents. The evidence is the
- * profiler's record of the backend's own find.
+ * MG-2: a declared index ends with `_id`, the tie-breaker every snapshot sort ends with in the direction of its last
+ * field, so a sort by its keys under the tenant's equality is the index's order, forward or backward: no blocking sort,
+ * and a page reads its own documents. The evidence is the profiler's record of the backend's own find.
  */
 class MongoDeclaredIndexOrderTest {
     private val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
@@ -71,24 +71,37 @@ class MongoDeclaredIndexOrderTest {
         storage.manageIndexes(MongoQueryIndexes.plan(type.context, type.name, QueryIndexPlan.of(schema, listOf(status))))
         val namespace = "${MongoLogFixture.DATABASE}.${storage.collection(type.name)}"
 
-        val query = ListQuery(
-            AndFilter(listOf(TenantIdFilter("t0"), DeletionFilter(DeletionState.ACTIVE))),
-            sort = listOf(Sort(QueryField("state.status"), Sort.Direction.ASC)),
-            limit = PAGE,
-        )
-        database.runCommand(Document("profile", 2))
-        val rows = try {
-            binding.backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
-        } finally {
-            database.runCommand(Document("profile", 0))
+        // The backend's own find of a page sorted by the declared field in [direction], as the profiler saw it.
+        suspend fun profiled(direction: Sort.Direction): Pair<List<String>, Document> {
+            val query = ListQuery(
+                AndFilter(listOf(TenantIdFilter("t0"), DeletionFilter(DeletionState.ACTIVE))),
+                sort = listOf(Sort(QueryField("state.status"), direction)),
+                limit = PAGE,
+            )
+            database.getCollection("system.profile").drop()
+            database.runCommand(Document("profile", 2))
+            val rows = try {
+                binding.backend.list(QueryAdmission.Trusted.list(query, schema)).toList()
+            } finally {
+                database.runCommand(Document("profile", 0))
+            }
+            val find = database.getCollection("system.profile")
+                .find(Filters.and(Filters.eq("ns", namespace), Filters.eq("op", "query")))
+                .first()!!
+            return rows.map { it.path("aggregateId").stringValue() } to find
         }
-        rows.map { it.path("state").path("status").stringValue() }.distinct().assert().containsExactly("S0")
-        val find = database.getCollection("system.profile")
-            .find(Filters.and(Filters.eq("ns", namespace), Filters.eq("op", "query")))
-            .first()!!
-        find.getString("planSummary").assert().isEqualTo("IXSCAN { tenant_id: 1, state.status: 1, _id: 1 }")
-        find.getBoolean("hasSortStage", false).assert().isFalse()
-        find.get("docsExamined", Number::class.java).toLong().assert().isLessThanOrEqualTo(PAGE.toLong())
+        // Ascending, the index read forward; descending, the key descends too, so the index read backward.
+        val (ascending, forward) = profiled(Sort.Direction.ASC)
+        ascending.assert().containsExactlyElementsOf((0 until PAGE).map { "id-%04d".format(it * STATUSES) })
+        val (descending, backward) = profiled(Sort.Direction.DESC)
+        descending.assert().containsExactlyElementsOf(
+            (0 until PAGE).map { "id-%04d".format(DOCUMENTS - 1 - it * STATUSES) },
+        )
+        listOf(forward, backward).forEach { find ->
+            find.getString("planSummary").assert().isEqualTo("IXSCAN { tenant_id: 1, state.status: 1, _id: 1 }")
+            find.getBoolean("hasSortStage", false).assert().isFalse()
+            find.get("docsExamined", Number::class.java).toLong().assert().isLessThanOrEqualTo(PAGE.toLong())
+        }
     }
 
     private companion object {

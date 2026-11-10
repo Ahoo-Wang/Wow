@@ -270,6 +270,8 @@ outline: deep
 
 `sort` 是一个由 `{"field": …, "direction": "asc" | "desc"}` 组成的数组，至多 32 项，每个字段只出现一次。只有能力描述说明可以排序的字段（`sort.paged`、`sort.cursor`）才能排序。缺失值与 `null` 升序排在最前、降序排在最后；数组升序按其最小元素排序（`null` 元素最小），降序按其最大元素排序。无法这样排序元素可能为 `null` 的数组的存储（Elasticsearch）不提供该字段的排序。
 
+在所有排序字段上都相同的记录，按记录的唯一键（快照模型上是 `tenantId`、`aggregateId`；数据集是它的标识）排序，方向与最后一个排序字段相同；没有排序时为升序。所以按 `lastEventTime` 降序排序的列表、分页和游标，会把并列的记录按键降序给出，各页之间的顺序也一致。
+
 `projection` 是 `{"include": [paths], "exclude": [paths]}`；两者都没有时，返回完整的记录。被包含的路径会保留它的子孙。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/projection.json -->
@@ -321,7 +323,7 @@ outline: deep
 
 ### `cursor` {#cursor}
 
-游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `invalid-cursor`）。无限滚动使用游标；它从不计数。
+游标分页返回 `cursor`（上一页的 `nextCursor`）之后的 `size` 条记录（默认 10，至多 `max-page-size`）；第一页没有游标。服务端会把记录的唯一键追加到 `sort` 中（在快照模型上是 `tenantId`、`aggregateId`），方向与最后一个排序字段相同，所以顺序是全序的，分页永远不会重复或跳过记录。最后一页的 `nextCursor` 为 `null`。游标是不透明的，属于它的模型和排序：用同样的排序和过滤发送它（换一种排序是 `invalid-cursor`）。无限滚动使用游标；它从不计数。
 
 <!-- sample: examples/eshop/catalog/catalog-server/src/test/resources/docs/query-language/cursor.json -->
 

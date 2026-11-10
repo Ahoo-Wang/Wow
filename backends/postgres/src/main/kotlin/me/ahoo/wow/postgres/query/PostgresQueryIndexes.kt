@@ -71,9 +71,9 @@ data class PostgresQueryIndexReport(
  *
  * A B-tree index ends with the columns the compiler ends a snapshot sort with ([PostgresQueryLayout.SNAPSHOT]'s
  * tie-breakers but the tenant): `aggregate_id`. A sort by its keys whose tie-breaker runs in the same direction is the
- * index's order, forward or backward, with no sort. Today the compiler ends every sort with the tie-breaker ascending,
- * so an ascending sort is read in index order and a descending one still sorts, until the tie-breaker follows the
- * direction of the sort's last field. An existing index whose definition is not the planned one is drift
+ * index's order, forward or backward, with no sort: the compiler ends a sort with the tie-breaker in the direction of
+ * its last field ([me.ahoo.wow.query.backend.tieBreakerDirection]), so a sort by the keys in one direction is read in
+ * index order. An existing index whose definition is not the planned one is drift
  * ([PostgresQueryIndex.fingerprint]).
  *
  * An index of one key that holds many values (a multiple access attribute) is a GIN index of its `jsonb` node,

@@ -220,15 +220,21 @@ internal fun QueryModelSchema.systemField(field: SystemField): QueryField<*> {
 }
 
 /**
- * The fields a cursor of this schema's model appends as its tie-breakers ([QueryModelProfile.cursorUniqueKey]): those
- * of the profile's key the schema carries, the identity always, rejecting custom models that define no identity. Every
- * snapshot schema the Catalog compiles carries the tenant (a system field); a schema built without it, as tests and
- * tools may build one, orders by the identity alone.
+ * The fields that identify a record of this schema's model and end a sort as its tie-breakers
+ * ([QueryModelProfile.cursorUniqueKey]): those of the profile's key the schema carries, the identity always; none for
+ * a model that defines no identity. Every snapshot schema the Catalog compiles carries the tenant (a system field); a
+ * schema built without it, as tests and tools may build one, orders by the identity alone.
  */
+internal fun QueryModelSchema.uniqueKey(): List<QueryField<*>> {
+    val profile = profile ?: return emptyList()
+    val identity = profile.identityField ?: return emptyList()
+    return profile.cursorUniqueKey.filter { it == identity || field(it) != null }
+}
+
+/** The [uniqueKey] a cursor of this schema's model appends, rejecting custom models that define no identity. */
 internal fun QueryModelSchema.cursorUniqueKey(): List<QueryField<*>> {
-    val identity = requireIdentityField()
-    val key = profile?.cursorUniqueKey ?: return listOf(identity)
-    return key.filter { it == identity || field(it) != null }
+    requireIdentityField()
+    return uniqueKey()
 }
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */

@@ -38,6 +38,7 @@ import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
 import me.ahoo.wow.query.backend.QueryBackendBinding
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryViolation
@@ -180,7 +181,7 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
             return if (sort.any { (column, _) -> column.name == identity.name }) {
                 emptyList()
             } else {
-                listOf(identity to Sort.Direction.ASC)
+                listOf(identity to query.sort.tieBreakerDirection())
             }
         }
 

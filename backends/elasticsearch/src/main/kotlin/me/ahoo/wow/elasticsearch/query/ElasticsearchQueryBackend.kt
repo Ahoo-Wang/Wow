@@ -30,6 +30,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.isEmpty
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
@@ -42,6 +43,7 @@ import me.ahoo.wow.query.backend.CursorPositionCodec
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.PageWindow
 import me.ahoo.wow.query.backend.QueryBackend
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.spi.json.WowJson
@@ -53,7 +55,7 @@ import java.time.Duration
  * or an event stream.
  */
 internal interface ElasticsearchQueryDocuments {
-    /** The document fields that end a list's or an offset page's sort, ascending, so its order is total. */
+    /** The document fields that end a list's or an offset page's sort, in its last field's direction, so its order is total. */
     val tieBreakers: List<String>
 
     /** The store's own fields, which no record shows: a search never fetches them. */
@@ -197,14 +199,16 @@ internal class ElasticsearchQueryBackend(
     }
 
     /**
-     * The sort of a list or an offset page: the query's, then the documents' tie-breakers the query does not name, so
-     * a page boundary never splits tied records nondeterministically.
+     * The sort of a list or an offset page: the query's, then the documents' tie-breakers the query does not name, in
+     * the direction the core ends a sort with its key, so a page boundary never splits tied records
+     * nondeterministically.
      */
     private fun totalSort(query: AdmittedQuery<Queryable<*>>): List<SortOptions> {
         val sort = ElasticsearchSortCompiler.compile(query.query.sort, query)
         val named = query.query.sort.map { query.physicalPath(it.field) }.toSet()
+        val order = if (query.query.sort.tieBreakerDirection() == Sort.Direction.ASC) SortOrder.Asc else SortOrder.Desc
         return sort + documents.tieBreakers.filterNot(named::contains).map { field ->
-            SortOptions.of { it.field { sortField -> sortField.field(field).order(SortOrder.Asc) } }
+            SortOptions.of { it.field { sortField -> sortField.field(field).order(order) } }
         }
     }
 

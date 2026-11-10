@@ -21,6 +21,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
 import me.ahoo.wow.query.backend.cursor
+import me.ahoo.wow.query.backend.tieBreakerDirection
 import me.ahoo.wow.query.backend.withUniqueSort
 import me.ahoo.wow.query.error.QueryRequestException
 import org.junit.jupiter.api.Test
@@ -39,8 +40,19 @@ class CursorQueriesTest {
         listOf(Sort(QueryField("version"), Sort.Direction.DESC))
             .withUniqueSort(QueryField("aggregateId")).assert().containsExactly(
                 Sort(QueryField("version"), Sort.Direction.DESC),
-                Sort(QueryField("aggregateId"), Sort.Direction.ASC),
+                Sort(QueryField("aggregateId"), Sort.Direction.DESC),
             )
+    }
+
+    @Test
+    fun `the key ends a sort in the direction of its last field, ascending for none`() {
+        emptyList<Sort>().tieBreakerDirection().assert().isEqualTo(Sort.Direction.ASC)
+        listOf(Sort(QueryField("a"), Sort.Direction.DESC), Sort(QueryField("b"), Sort.Direction.ASC))
+            .tieBreakerDirection().assert().isEqualTo(Sort.Direction.ASC)
+        listOf(Sort(QueryField("a"), Sort.Direction.ASC), Sort(QueryField("b"), Sort.Direction.DESC))
+            .tieBreakerDirection().assert().isEqualTo(Sort.Direction.DESC)
+        emptyList<Sort>().withUniqueSort(QueryField("id")).assert()
+            .containsExactly(Sort(QueryField("id"), Sort.Direction.ASC))
     }
 
     @Test

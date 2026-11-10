@@ -85,7 +85,9 @@ class DatasetRecompilationSpec {
                 )
             ) {
                 expectCommands(RecompileDataset, RecompileDataset, RecompileDataset)
-                commands.map { it.ref.id }.assert().containsExactly("shop.orders", "shop.broken", "shop.revised")
+                // One command per dataset; the saga lists them unsorted, so their order is not what it does.
+                commands.map { it.ref.id }.assert()
+                    .containsExactlyInAnyOrder("shop.orders", "shop.broken", "shop.revised")
             }
             whenEvent(
                 stateEvent(

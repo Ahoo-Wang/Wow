@@ -114,6 +114,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public final fun offset pages over a sort with ties page every record once, ties in identity order ()V
 	public final fun previous reads the earlier period over the shifted range ()V
 	public final fun records sort, project and limit ()V
+	public final fun rows tied on a sort follow its last direction, in a list, a page and a cursor ()V
 	public final fun running windows follow their order within each partition, alike in the storage and in the core ()V
 	public fun setup ()V
 	protected final fun target (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -279,6 +280,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun projection keeps an element's position when it lacks the projected leaf ()V
 	public final fun projection of a leaf under an array of arrays keeps the nesting ()V
 	public final fun projection preserves scalar and object subtree semantics ()V
+	public final fun records tied on a sort follow its last direction, in a list, a page and a cursor ()V
 	public final fun relative-now filters resolve against the server clock in the field's encoding ()V
 	public final fun single exposes the snapshot record shape ()V
 	public final fun single returns the first record in sort order, or none ()V

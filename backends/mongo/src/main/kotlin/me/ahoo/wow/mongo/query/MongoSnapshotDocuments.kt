@@ -153,7 +153,7 @@ internal interface MongoQueryDocuments {
     /** The BSON types of the system fields, by stored name, which no validator need declare. */
     val systemTypes: Map<String, Set<String>>
 
-    /** The stored fields, ascending, that end a list's or an offset page's sort so its order is total. */
+    /** The stored fields that end a list's or an offset page's sort so its order is total, in its last field's direction. */
     val tieBreakers: List<String>
 
     /** The stored fields, ascending, that order the documents tied on a `FIRST` / `LAST` metric's ordering field. */
