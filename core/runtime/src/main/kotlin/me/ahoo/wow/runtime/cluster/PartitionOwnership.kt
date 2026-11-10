@@ -35,7 +35,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -220,7 +219,7 @@ class PartitionOwnership internal constructor(
     private val lifecycle = Mutex()
     private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconcileLock = Mutex()
-    private val gates = ConcurrentHashMap<Int, Gate>()
+    private val gates = ConcurrentHashMap<Int, PartitionGate>()
 
     /** How long a lease may go unrenewed before this node takes it as lost: the margin before the next round. */
     private val unrenewedLimit: Duration = options.leaseTtl - options.renewInterval
@@ -652,7 +651,7 @@ class PartitionOwnership internal constructor(
         val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
-        val gate = Gate(asked)
+        val gate = PartitionGate(asked, unrenewedLimit)
         gates[partition] = gate
         try {
             // Another node may have committed to the partition's aggregates since this one last cached them.
@@ -741,7 +740,7 @@ class PartitionOwnership internal constructor(
     }
 
     /** How [partition]'s lease fared in a round asked at [asked]: [renewed] the partitions renewed, null on a failure. */
-    private fun renewalOf(partition: Int, gate: Gate, asked: TimeMark, renewed: Set<Int>?): Renewal {
+    private fun renewalOf(partition: Int, gate: PartitionGate, asked: TimeMark, renewed: Set<Int>?): Renewal {
         if (renewed == null) {
             return if (loseIfOverdue(partition, gate)) Renewal.LOST else Renewal.FAILED
         }
@@ -792,7 +791,7 @@ class PartitionOwnership internal constructor(
     private fun loseOverdue(): Int = gates.count { (partition, gate) -> loseIfOverdue(partition, gate) }
 
     /** Takes [gate]'s lease as lost when it is overdue (see [loseOverdue]); whether it did now. */
-    private fun loseIfOverdue(partition: Int, gate: Gate): Boolean {
+    private fun loseIfOverdue(partition: Int, gate: PartitionGate): Boolean {
         if (gate.lost || !gate.accepting || !gate.overdue) {
             return false
         }
@@ -842,37 +841,6 @@ class PartitionOwnership internal constructor(
             throw cancelled
         } catch (failure: Exception) {
             logger.warn(failure) { "$node failed to $action in $group; retrying on the next round." }
-        }
-    }
-
-    /**
-     * A partition this node holds: whether it takes commands, and the commands in flight. [renewedAt] marks when the
-     * lease was last acquired or renewed, taken before the call: once longer ago than `leaseTtl − renewInterval`, the
-     * lease is [overdue] and the gate no longer [open], since the lease may expire before the next round renews it.
-     * A gate is made as its lease is taken, [starting]: while the partition's runtimes start, its lease is renewed, but
-     * it takes no command, is not overdue yet, and counts as [pending].
-     */
-    private inner class Gate(@Volatile var renewedAt: TimeMark) {
-        @Volatile
-        var starting = true
-            private set
-
-        @Volatile
-        var accepting = false
-
-        @Volatile
-        var lost = false
-        val inFlight = ZeroAwaitingCounter()
-
-        val overdue: Boolean get() = renewedAt.elapsedNow() >= unrenewedLimit
-
-        /** Whether the partition takes commands here: accepting, and its lease renewed recently enough. */
-        val open: Boolean get() = accepting && !overdue
-
-        /** The partition has started: it takes commands, unless its lease was lost meanwhile. */
-        fun started() {
-            accepting = !lost
-            starting = false
         }
     }
 
