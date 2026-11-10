@@ -198,15 +198,25 @@ class AccessTest {
     fun `the references of an internal state, or of an internal enum's values, are internal`() {
         val compiled = compiled(
             document(
-                "@Access internal val tier: Tier get() = Tier.GOLD",
-                extra = "internal enum class Tier { GOLD }",
+                """
+                @Access internal val tier: Tier get() = Tier.GOLD
+                @Access internal val code: Code get() = Code(department)
+                @Access internal val rank: Rank get() = Rank(Tier.GOLD)
+                """.trimIndent(),
+                extra = """
+                internal enum class Tier { GOLD }
+                @JvmInline internal value class Code(val value: String)
+                @JvmInline value class Rank internal constructor(internal val tier: Tier)
+                """.trimIndent(),
             ),
         )
+        val single = "me.ahoo.wow.api.access.AccessAttribute.Single<sample.DocumentState"
         compiled.source("DocumentStateAccess.kt").assert()
             .contains("internal object DocumentStateAccess")
-            .contains(
-                "internal val TIER: me.ahoo.wow.api.access.AccessAttribute.Single<sample.DocumentState, sample.Tier>"
-            )
+            .contains("internal val TIER: $single, sample.Tier>")
+            // An internal value class, and a value class of an internal enum: each internal.
+            .contains("internal val CODE: $single, kotlin.String>")
+            .contains("internal val RANK: $single, sample.Tier>")
     }
 
     @Test

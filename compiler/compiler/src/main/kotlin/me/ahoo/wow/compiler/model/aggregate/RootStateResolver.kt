@@ -15,9 +15,7 @@ package me.ahoo.wow.compiler.model.aggregate
 
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSValueParameter
-import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.compiler.model.symbol.ModelNames.AFTER_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_COMMAND_ANNOTATION
 import me.ahoo.wow.compiler.model.symbol.ModelNames.ON_SOURCING
@@ -57,13 +55,6 @@ internal object RootStateResolver {
     fun KSClassDeclaration.hasSourcingFunctions(): Boolean = getAllFunctions().any {
         it.simpleName.asString() == ON_SOURCING || it.annotatedIn(ON_SOURCING_ANNOTATION) != null
     }
-
-    /**
-     * Whether this class, or one it is nested in, is `internal`: the generated factory exposes the state in its
-     * signature, so it is `internal` too, and the module's model provider still calls it.
-     */
-    fun KSClassDeclaration.isInternal(): Boolean =
-        generateSequence<KSDeclaration>(this) { it.parentDeclaration }.any { Modifier.INTERNAL in it.modifiers }
 
     /**
      * The handler annotations on the wrong class of an aggregate whose root is built from its state:

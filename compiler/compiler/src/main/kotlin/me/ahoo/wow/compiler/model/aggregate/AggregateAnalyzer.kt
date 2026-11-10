@@ -54,6 +54,7 @@ import me.ahoo.wow.compiler.model.symbol.binaryName
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.commandClassesOf
 import me.ahoo.wow.compiler.model.symbol.declaredName
+import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.javaTypeOf
 import me.ahoo.wow.compiler.model.symbol.reactorReturn
 import me.ahoo.wow.compiler.model.symbol.render
@@ -130,7 +131,8 @@ internal class AggregateAnalyzer(
             access = AccessResolver.of(state, problems),
             accessObject = AccessSource.qualifiedName(state),
             warnings = warnings,
-            internal = with(RootStateResolver) { root.isInternal() || state.isInternal() },
+            // The generated factory exposes the state in its signature: `internal` too, the module's provider calls it.
+            internal = root.isModuleInternal() || state.isModuleInternal(),
         )
     }
 

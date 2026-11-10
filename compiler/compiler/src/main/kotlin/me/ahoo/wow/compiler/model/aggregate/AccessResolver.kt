@@ -25,8 +25,8 @@ import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Access
 import me.ahoo.wow.api.annotation.Blocking
-import me.ahoo.wow.compiler.model.aggregate.RootStateResolver.isInternal
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
+import me.ahoo.wow.compiler.model.symbol.isModuleInternal
 import me.ahoo.wow.compiler.model.symbol.isOf
 import me.ahoo.wow.manifest.AccessAttributeName
 import me.ahoo.wow.manifest.QueryFieldNames
@@ -222,7 +222,7 @@ internal object AccessResolver {
             return null
         }
         if (declaration.classKind == ClassKind.ENUM_CLASS) {
-            return Scalar(declaration.qualifiedName!!.asString(), "STRING", declaration.isInternal())
+            return Scalar(declaration.qualifiedName!!.asString(), "STRING", declaration.isModuleInternal())
         }
         return if (wrapped) null else wrappedBy(declaration)
     }
@@ -241,7 +241,7 @@ internal object AccessResolver {
             ?.takeUnless { it.isPrivate() } ?: return null
         val wrapped = property.type.resolve().expanded().takeUnless { it.isMarkedNullable } ?: return null
         return scalarOf(wrapped, wrapped = true)?.let {
-            it.copy(internal = it.internal || declaration.isInternal(), unwrap = property.simpleName.asString())
+            it.copy(internal = it.internal || declaration.isModuleInternal(), unwrap = property.simpleName.asString())
         }
     }
 
