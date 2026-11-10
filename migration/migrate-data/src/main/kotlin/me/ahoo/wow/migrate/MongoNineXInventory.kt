@@ -18,8 +18,14 @@ import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.migrate.MongoNineXEventSource.Companion.AGGREGATE_ID
-import me.ahoo.wow.migrate.MongoNineXEventSource.Companion.TENANT_ID
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_ID
+import me.ahoo.wow.migrate.NineXMongoFields.AGGREGATE_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.BODY
+import me.ahoo.wow.migrate.NineXMongoFields.CONTEXT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.EVENT_NAME
+import me.ahoo.wow.migrate.NineXMongoFields.EVENT_REVISION
+import me.ahoo.wow.migrate.NineXMongoFields.HEADER
+import me.ahoo.wow.migrate.NineXMongoFields.TENANT_ID
 import org.bson.Document
 
 /**
@@ -32,13 +38,13 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
         val collection = database.getCollection(collectionName)
         val events = collection.aggregate(
             listOf(
-                Aggregates.unwind("\$body"),
+                Aggregates.unwind("\$$BODY"),
                 Document(
                     "\$group",
                     Document(
                         "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("name", "\$body.name").append("revision", "\$body.revision"),
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
+                            .append("name", "\$$BODY.$EVENT_NAME").append("revision", "\$$BODY.$EVENT_REVISION"),
                     ).append("count", Document("\$sum", 1)),
                 ),
             ),
@@ -49,7 +55,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                     "\$group",
                     Document(
                         "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
                             .append("command", COMMAND_OF_STREAM),
                     ).append("count", Document("\$sum", 1)),
                 ),
@@ -99,9 +105,9 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                     "\$group",
                     Document(
                         "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("id", Document("\$ifNull", listOf("\$aggregateId", "")))
-                            .append("tenant", "\$tenantId"),
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
+                            .append("id", Document("\$ifNull", listOf("\$$AGGREGATE_ID", "")))
+                            .append("tenant", "\$$TENANT_ID"),
                     ).append("count", Document("\$sum", 1)),
                 ),
             ),
@@ -124,9 +130,9 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
             listOf(
                 Document(
                     "\$map",
-                    Document("input", "\$body").append(
+                    Document("input", "\$$BODY").append(
                         "in",
-                        Document("name", "\$\$this.name").append("revision", "\$\$this.revision"),
+                        Document("name", "\$\$this.$EVENT_NAME").append("revision", "\$\$this.$EVENT_REVISION"),
                     ),
                 ),
             ),
@@ -137,7 +143,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                     "\$group",
                     Document(
                         "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
                             .append("types", types),
                     ).append("count", Document("\$sum", 1)),
                 ),
@@ -160,8 +166,8 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
                     "\$group",
                     Document(
                         "_id",
-                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
-                            .append("id", Document("\$ifNull", listOf("\$aggregateId", ""))),
+                        Document("context", "\$$CONTEXT_NAME").append("aggregate", "\$$AGGREGATE_NAME")
+                            .append("id", Document("\$ifNull", listOf("\$$AGGREGATE_ID", ""))),
                     ).append("count", Document("\$sum", 1)),
                 ),
             ),
@@ -187,7 +193,7 @@ internal class MongoNineXInventory(private val database: MongoDatabase) {
             "\$let",
             Document(
                 "vars",
-                Document("pairs", Document("\$objectToArray", Document("\$ifNull", listOf("\$header", Document())))),
+                Document("pairs", Document("\$objectToArray", Document("\$ifNull", listOf("\$$HEADER", Document())))),
             ).append(
                 "in",
                 Document(
