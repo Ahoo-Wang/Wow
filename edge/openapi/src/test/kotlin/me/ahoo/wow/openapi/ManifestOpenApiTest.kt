@@ -502,6 +502,16 @@ class ManifestOpenApiTest {
     }
 
     @Test
+    fun `a nullable type argument should name a component apart from its non-null sibling`() {
+        val strict = "a.Box(java.lang.String)"
+        val nullable = "a.Box(java.lang.String?)"
+        SchemaComponents(mapOf(strict to emptyMap<String, Any?>(), nullable to emptyMap<String, Any?>()), emptySet())
+            .names.assert().isEqualTo(
+                mapOf(strict to "a.Box_java.lang.String_", nullable to "a.Box_java.lang.String__")
+            )
+    }
+
+    @Test
     fun `a response registered twice with another content should fail`() {
         val responses = ErrorResponses(MANIFEST, emptyMap())
         responses.register("x", mapOf("description" to "one"))
