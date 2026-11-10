@@ -207,7 +207,7 @@ class HostClientsTest {
         every { client.queries.of(capture(callers)) } returns mockk(relaxed = true)
         val named = ContractDirectory(Manifest(service = ServiceInfo("basket-service")), contracts.peers)
         val peers = NodePeers().wowPeerClients(
-            WowProperties().apply { peers[BANK] = WowProperties.PeerTarget() },
+            WowProperties().apply { peers[BANK] = PeerTargetProperties() },
             EndpointResolver.of(emptyMap(), emptyMap()),
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             named,
@@ -340,8 +340,8 @@ class HostClientsTest {
         }.message.assert().contains("whose contract is on the class path")
         val peers = NodePeers().wowPeerClients(
             WowProperties().apply {
-                peers["mail"] = WowProperties.PeerTarget().apply {
-                    contract = WowProperties.PeerTarget.Contract.MANIFEST
+                peers["mail"] = PeerTargetProperties().apply {
+                    contract = PeerTargetProperties.Contract.MANIFEST
                 }
             },
             endpoints,
@@ -356,11 +356,11 @@ class HostClientsTest {
     @Test
     fun `the endpoints should be each peer's internal and public URLs`(): Unit = runBlocking {
         val properties = WowProperties().apply {
-            peers["mail"] = WowProperties.PeerTarget().apply {
+            peers["mail"] = PeerTargetProperties().apply {
                 url = URI.create("http://mail:9090")
                 publicUrl = URI.create("http://mail:8080")
             }
-            peers["box"] = WowProperties.PeerTarget().apply {
+            peers["box"] = PeerTargetProperties().apply {
                 url = URI.create("http://box:9090")
                 mode = PeerMode.USER
             }
@@ -375,7 +375,7 @@ class HostClientsTest {
         resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
         val peers = NodePeers().wowPeerClients(
             WowProperties().apply {
-                peers[BANK] = WowProperties.PeerTarget().apply { timeout = java.time.Duration.ofSeconds(5) }
+                peers[BANK] = PeerTargetProperties().apply { timeout = java.time.Duration.ofSeconds(5) }
             },
             endpoints,
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),

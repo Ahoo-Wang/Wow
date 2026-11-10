@@ -126,8 +126,8 @@ class HostTest {
     @Test
     fun `a job's schedule properties should override its rule and its retries, part by part`() {
         val base = ParkedRetrySpec()
-        WowProperties.Schedule().options(base).assert().isEqualTo(JobOptions())
-        val schedule = WowProperties.Schedule().apply {
+        ScheduleProperties().options(base).assert().isEqualTo(JobOptions())
+        val schedule = ScheduleProperties().apply {
             cron = "0 0 4 * * *"
             zone = "Asia/Shanghai"
             misfire = Misfire.CATCH_UP
