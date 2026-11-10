@@ -667,6 +667,37 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `compare reports differing states without blaming the compensation when every execution is parked`(): Unit =
+        runBlocking {
+            nineXCompensation = InMemoryNineXCompensationSource(NineXCompensationExample.executions())
+            val broken = NineXCompensationExample.mapText().replace(
+                "\"to\": \"example.cart\",",
+                "\"to\": \"example.cart\", \"state\": { \"ignore\": [\"size\"], \"fields\": { \"items\": \"lines\" } },",
+            )
+            Files.writeString(directory.resolve("migration-map.json"), broken)
+            Files.writeString(directory.resolve("manifest.json"), NineXCompensationExample.MANIFEST_TEXT)
+            val config = directory.resolve("migrate-data.json")
+            Files.writeString(
+                config,
+                """
+                {
+                  "map": "migration-map.json",
+                  "manifests": ["manifest.json"],
+                  "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
+                  "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow" },
+                  "partitions": { "example": 4 },
+                  "compensation": { "database": "compensation_db", "service": "example-service" }
+                }
+                """.trimIndent(),
+            )
+            run("import", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+            run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.DIFFERS)
+            printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
+                .contains("Comparison done: 1 instances of [example-service.cart] differ.")
+                .doesNotContain("unresolved 9.x executions are not parked in V10")
+        }
+
+    @Test
     fun `without a compensation database there is no failure ledger to write`() {
         ConfiguredConnections(MigrationConfig.read(config())).use { configured ->
             configured.compensation.assert().isNull()
