@@ -15,10 +15,14 @@ package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspAATask
 import com.google.devtools.ksp.gradle.KspExtension
+import me.ahoo.wow.gradle.WowArtifacts.GROUP
+import me.ahoo.wow.gradle.WowArtifacts.declares
+import me.ahoo.wow.gradle.WowArtifacts.documentationAttributes
+import me.ahoo.wow.gradle.WowArtifacts.ownersOf
+import me.ahoo.wow.gradle.WowArtifacts.toolsConfiguration
+import me.ahoo.wow.gradle.WowArtifacts.wowDependencies
 import me.ahoo.wow.gradle.WowPlugin.Companion.API_VIEW
 import me.ahoo.wow.gradle.WowPlugin.Companion.ASSEMBLE_CONTRACT_TASK
-import me.ahoo.wow.gradle.WowPlugin.Companion.BASELINE_FILE
-import me.ahoo.wow.gradle.WowPlugin.Companion.CHECK_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACTS_CONFIGURATION
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_CONFIGURATION
 import me.ahoo.wow.gradle.WowPlugin.Companion.CONTRACT_DOCS_TYPE
@@ -28,14 +32,8 @@ import me.ahoo.wow.gradle.WowPlugin.Companion.CORE_JAR_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_SOURCES_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_CONTRACT_TASK
 import me.ahoo.wow.gradle.WowPlugin.Companion.GENERATE_FRAGMENT_TASK
-import me.ahoo.wow.gradle.WowPlugin.Companion.HELM_VALUES_TASK
-import me.ahoo.wow.gradle.WowPlugin.Companion.INTEGRATION_TEST
-import me.ahoo.wow.gradle.WowPlugin.Companion.MERGE_TASK
-import me.ahoo.wow.gradle.WowPlugin.Companion.OPENAPI_TASK
-import me.ahoo.wow.gradle.WowPlugin.Companion.TOOLS_CONFIGURATION
-import me.ahoo.wow.gradle.WowPlugin.Companion.UPDATE_BASELINE_TASK
+import me.ahoo.wow.gradle.WowPlugin.Companion.KOTLIN_JVM
 import me.ahoo.wow.gradle.WowPlugin.Companion.coreView
-import me.ahoo.wow.gradle.WowPlugin.Companion.defaultServiceName
 import me.ahoo.wow.gradle.WowPlugin.Companion.fragmentName
 import me.ahoo.wow.gradle.WowPlugin.Companion.missingKotlinJvm
 import me.ahoo.wow.gradle.WowPlugin.Companion.requireKotlin
@@ -44,24 +42,16 @@ import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationVariant
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.FileCollectionDependency
 import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition
-import org.gradle.api.attributes.Bundling
-import org.gradle.api.attributes.Category
-import org.gradle.api.attributes.DocsType
 import org.gradle.api.attributes.LibraryElements
-import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
-import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -69,15 +59,13 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
-import org.gradle.testing.base.TestingExtension
 
 /**
  * The roles of the plugins, each configuring the one project it is applied to: the domain role
  * ([domain]: `me.ahoo.wow`, and `me.ahoo.wow.service` on its own sources), the api role ([api]: `me.ahoo.wow.api`)
- * and the service role ([service]: `me.ahoo.wow.service`). The api module pairs with its domain modules by declaring
+ * and the service role ([ServiceRole.service]: `me.ahoo.wow.service`). The api module pairs with its domain modules by declaring
  * them ([WowPlugin.CONTRACT_CONFIGURATION]); no role reads or configures another project, so the build may use
  * Gradle's isolated projects.
  */
@@ -227,67 +215,6 @@ internal object WowRoles {
             configuration.withDependencies { dependencies ->
                 if (dependencies.any { it !== compiler && declares(it, COMPILER) }) dependencies.remove(compiler)
             }
-        }
-    }
-
-    /**
-     * Adds `platform("me.ahoo.wow:wow-bom:<plugin version>")` to [configuration] of [project], so its Wow dependencies
-     * take no version, and the role's Wow module [artifact] unless the module declares it in a configuration it
-     * compiles against ([DECLARING]): by its coordinates, or as its jar among files.
-     */
-    private fun wowDependencies(project: Project, configuration: String, artifact: String) {
-        project.configurations.named(configuration) {
-            it.withDependencies { dependencies ->
-                val declared = DECLARING.mapNotNull(project.configurations::findByName)
-                    .filter { other -> other.name != configuration }.flatMap { other -> other.dependencies } +
-                    dependencies
-                if (declared.none { dependency -> declares(dependency, artifact) }) {
-                    dependencies.add(project.dependencies.create("$GROUP:$artifact"))
-                }
-                dependencies.add(project.dependencies.platform("$GROUP:$BOM:$version"))
-            }
-        }
-    }
-
-    /** Whether [dependency] declares the Wow module [artifact]: by its coordinates, or as its jar. */
-    private fun declares(dependency: Dependency, artifact: String): Boolean = when (dependency) {
-        is FileCollectionDependency -> dependency.files.any { it.name.startsWith("$artifact-") }
-        else -> dependency.name == artifact
-    }
-
-    /**
-     * The test suite [INTEGRATION_TEST] of a service module, for the tests that run on containers: JUnit Jupiter,
-     * against the module's classes and everything `testImplementation` and `testRuntimeOnly` give, nothing more; the
-     * build declares what else its tests need (Testcontainers) in the suite. It is not part of `check`:
-     * `./gradlew integrationTest` runs it.
-     *
-     * It is registered once the Kotlin JVM plugin is applied, unless a suite or a source set of that name exists by
-     * then: one a convention plugin applied first or the root build set up stays the build's, unchanged. The module's
-     * own build script runs after its plugins, so it configures this suite
-     * (`testing.suites.named<JvmTestSuite>("integrationTest")`) rather than registering one.
-     */
-    private fun configureIntegrationTest(project: Project) {
-        val suites = project.extensions.getByType(TestingExtension::class.java).suites
-        val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
-        // A build that sets its integration tests up itself, as a suite or as a source set of its own, keeps them.
-        if (suites.findByName(INTEGRATION_TEST) != null || sourceSets.findByName(INTEGRATION_TEST) != null) {
-            return
-        }
-        suites.register(INTEGRATION_TEST, JvmTestSuite::class.java) { suite ->
-            suite.useJUnitJupiter()
-            suite.dependencies { dependencies -> dependencies.implementation.add(dependencies.project()) }
-            suite.targets.configureEach { target ->
-                target.testTask.configure { task ->
-                    task.description = "Runs the container-backed integration tests."
-                    task.shouldRunAfter(project.tasks.named(JavaPlugin.TEST_TASK_NAME))
-                }
-            }
-        }
-        project.configurations.named("${INTEGRATION_TEST}Implementation") {
-            it.extendsFrom(project.configurations.getByName(JavaPlugin.TEST_IMPLEMENTATION_CONFIGURATION_NAME))
-        }
-        project.configurations.named("${INTEGRATION_TEST}RuntimeOnly") {
-            it.extendsFrom(project.configurations.getByName(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME))
         }
     }
 
@@ -442,155 +369,6 @@ internal object WowRoles {
         }
 
     /**
-     * The service role of [project]: the service's Manifest merged from the fragments of its runtime class path, its
-     * OpenAPI document, the values of the `wow-service` Helm chart it knows, the gate against its committed baseline,
-     * and the integration test suite.
-     */
-    fun service(project: Project, extension: WowServiceExtension) {
-        extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
-        project.pluginManager.withPlugin(KOTLIN_JVM) { configureService(project, extension) }
-    }
-
-    private fun configureService(project: Project, extension: WowServiceExtension) {
-        configureIntegrationTest(project)
-        val tools = toolsConfiguration(project)
-        val main = project.extensions.getByType(
-            SourceSetContainer::class.java
-        ).getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-        val runtimeClasspath = project.configurations.named(main.runtimeClasspathConfigurationName)
-        val generate = project.tasks.named(GENERATE_FRAGMENT_TASK)
-        val fragmentDirectory = project.layout.buildDirectory.dir(FRAGMENT_DIRECTORY)
-        val merge = project.tasks.register(MERGE_TASK, MergeManifest::class.java) { task ->
-            task.group = GROUP_NAME
-            task.description = "Merges the Manifest fragments on the runtime class path into the service's manifest.json."
-            // The module's own completed fragment, none when it has no model or processor, and its dependencies'.
-            task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
-            val owner = "project '${project.path}'"
-            task.owners.putAll(fragmentDirectory.map { mapOf(it.asFile.path to owner) })
-            task.owners.putAll(runtimeClasspath.flatMap(::ownersOf))
-            task.tools.from(tools)
-            // The module's own contexts name their service as the contracts on the class path do.
-            task.serviceName.set(extension.service)
-            task.defaultServiceName.set(defaultServiceName(project.path, project.rootProject.name))
-            task.serviceVersion.set(project.provider { project.version.toString() })
-            task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
-        }
-        project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
-            task.group = GROUP_NAME
-            task.description = "Writes the OpenAPI document of the service's routes from its manifest.json."
-            task.manifestFile.set(merge.flatMap { it.outputFile })
-            task.tools.from(tools)
-            task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
-        }
-        project.tasks.register(HELM_VALUES_TASK, GenerateHelmValues::class.java) { task ->
-            task.group = GROUP_NAME
-            task.description = "Writes the values of the wow-service Helm chart the build knows: the service's name, " +
-                "its peers and its Manifest's route."
-            task.manifestFile.set(merge.flatMap { it.outputFile })
-            task.classpath.from(runtimeClasspath)
-            task.tools.from(tools)
-            task.outputFile.set(project.layout.buildDirectory.file("wow/helm/values.yaml"))
-        }
-        compatibility(project, extension, merge, tools)
-    }
-
-    /**
-     * The Manifest compatibility gate: [CHECK_TASK] compares the merged Manifest with the committed
-     * [WowServiceExtension.manifestBaseline] and is part of `check`; [UPDATE_BASELINE_TASK] rewrites the baseline.
-     */
-    private fun compatibility(
-        project: Project,
-        extension: WowServiceExtension,
-        merge: TaskProvider<MergeManifest>,
-        tools: Configuration,
-    ) {
-        val update = project.tasks.register(UPDATE_BASELINE_TASK, UpdateManifestBaseline::class.java) { task ->
-            task.group = GROUP_NAME
-            task.description = "Records the merged Manifest as the baseline $CHECK_TASK compares with."
-            task.manifest.set(merge.flatMap { it.outputFile })
-            task.tools.from(tools)
-            task.baseline.set(extension.manifestBaseline)
-            task.allowBreaking.set(
-                project.providers.gradleProperty(
-                    WowPlugin.ALLOW_BREAKING_PROPERTY
-                ).map(String::toBoolean).orElse(false),
-            )
-            task.owner.set("project '${project.path}'")
-            task.report.set(project.layout.buildDirectory.file("wow/manifest-baseline.txt"))
-        }
-        val check = project.tasks.register(CHECK_TASK, CheckManifestCompatibility::class.java) { task ->
-            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
-            task.description = "Fails when the merged Manifest breaks its baseline, or the baseline does not record it."
-            task.baseline.set(extension.manifestBaseline)
-            task.manifest.set(merge.flatMap { it.outputFile })
-            task.tools.from(tools)
-            // Recording the baseline and checking against it in one build checks the new baseline.
-            task.mustRunAfter(update)
-            task.report.set(project.layout.buildDirectory.file("wow/manifest-compatibility.txt"))
-            task.owner.set("project '${project.path}'")
-        }
-        project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { it.dependsOn(check) }
-    }
-
-    /**
-     * The owner of each file [configuration] resolves to, by its path, as a failure names it: `project ':x'` for a
-     * project of the build, the coordinates for a module. Only messages read it.
-     */
-    private fun ownersOf(configuration: Configuration): Provider<Map<String, String>> =
-        configuration.incoming.artifacts.resolvedArtifacts.map { artifacts ->
-            artifacts.associate { artifact ->
-                artifact.file.path to when (val id = artifact.id.componentIdentifier) {
-                    is ProjectComponentIdentifier -> "project '${id.projectPath}'"
-                    is ModuleComponentIdentifier -> "${id.group}:${id.module}:${id.version}"
-                    else -> id.displayName
-                }
-            }
-        }
-
-    /** The attributes of a documentation variant of [docsType]: the merged Manifest's, or the peer contract's. */
-    private fun documentationAttributes(project: Project, configuration: Configuration, docsType: String) {
-        val objects = project.objects
-        configuration.attributes { attributes ->
-            attributes.attribute(
-                Category.CATEGORY_ATTRIBUTE,
-                objects.named(Category::class.java, Category.DOCUMENTATION)
-            )
-            attributes.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, docsType))
-            attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-            attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
-        }
-    }
-
-    /**
-     * [TOOLS_CONFIGURATION]: the introspection tools the workers load (victools, Jackson, the kernel), resolved in
-     * the build's project so they stay off the build script's class path. By default it holds
-     * `me.ahoo.wow:wow-manifest-tools` of the plugin's version; declaring a dependency in it replaces that default.
-     */
-    private fun toolsConfiguration(project: Project): Configuration {
-        project.configurations.findByName(TOOLS_CONFIGURATION)?.let { return it }
-        val objects = project.objects
-        return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
-            configuration.description = "The tools the Wow tasks run in their isolated workers."
-            configuration.isCanBeConsumed = false
-            configuration.attributes { attributes ->
-                attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
-                attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
-                attributes.attribute(
-                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
-                    objects.named(LibraryElements::class.java, LibraryElements.JAR),
-                )
-                attributes.attribute(
-                    Bundling.BUNDLING_ATTRIBUTE,
-                    objects.named(Bundling::class.java, Bundling.EXTERNAL)
-                )
-            }
-            configuration.defaultDependencies { dependencies ->
-                dependencies.add(project.dependencies.create("$GROUP:wow-manifest-tools:$version"))
-            }
-        }
-    }
-
-    /**
      * Runs [action] once [project] is evaluated: the Kotlin plugin is applied by then, its source set extensions and
      * class directories in place, which they are not yet while it applies the `java` plugin.
      */
@@ -625,32 +403,20 @@ internal object WowRoles {
         override fun asArguments(): Iterable<String> = listOfNotNull(context.orNull?.let { "$CONTEXT_OPTION=$it" })
     }
 
-    private const val GROUP_NAME = "wow"
-    private const val GROUP = "me.ahoo.wow"
-    private const val BOM = "wow-bom"
     private const val COMPILER = "wow-compiler"
     private const val KERNEL = "wow-kernel"
     private const val API = "wow-api"
     private const val CLASSES_VARIANT = "classes"
-
-    /** The configurations a module declares what it compiles against in. */
-    private val DECLARING = listOf(
-        JavaPlugin.API_CONFIGURATION_NAME,
-        JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME,
-        JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
-        JavaPlugin.COMPILE_ONLY_API_CONFIGURATION_NAME,
-    )
     private const val CORE_VARIANT = "wowCore"
     private const val CORE_CLASSIFIER = "wow-core"
     private const val CORE_UNPUBLISHED = "wowCoreUnpublished"
-    private const val FRAGMENT_DIRECTORY = "wow/manifest-fragment"
+    internal const val FRAGMENT_DIRECTORY = "wow/manifest-fragment"
 
     /** Where the compiler writes a module's Manifest fragments, and where a jar carries them. */
     internal const val FRAGMENT_RESOURCES = "META-INF/wow/manifest"
 
     /** The peer contract an api module's jar carries. */
     const val CONTRACT_RESOURCE = "META-INF/wow/contract.json"
-    private const val KOTLIN_JVM = "org.jetbrains.kotlin.jvm"
     private const val KOTLIN_WRAPPER = "org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapperKt"
     private const val KSP = "com.google.devtools.ksp"
     private const val KSP_CONFIGURATION = "ksp"
