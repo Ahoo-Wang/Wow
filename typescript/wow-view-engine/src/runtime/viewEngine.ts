@@ -12,8 +12,6 @@
  */
 
 import {
-  type FilterTree,
-  parseSystemInstanceId,
   toSummary,
   type Issue,
   type RuntimeLimits,
@@ -50,7 +48,6 @@ import type { OptionSource } from './source.js';
 import type {
   AnyViewRuntime,
   CreateInput,
-  ManagedViewRuntime,
   OpenOptions,
   RuntimeFor,
   SaveAsInput,
@@ -77,13 +74,14 @@ import { PreferenceCache, resolveDefault } from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
 import { storedSummaries, SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
-import { RuntimeFactory, type RuntimeIdentity } from './runtimeFactory.js';
+import { RuntimeFactory } from './runtimeFactory.js';
 import { SourceCapabilities } from './capabilities.js';
 import { Resources } from './resources.js';
 import type { RecordAction } from './actions.js';
 import { reportingStore } from './failure/failures.js';
 import { requireSavable, requireTitle, storable } from './commandChecks.js';
 import { publishCopy, readReferences } from './publish.js';
+import { ViewOpening } from './viewOpening.js';
 
 /**
  * The registry and the command entry point: definitions in, runtimes and
@@ -136,6 +134,8 @@ export class ViewEngine {
   private readonly preferenceCache: PreferenceCache;
   private readonly runtimes = new OpenRuntimes();
   private readonly factory: RuntimeFactory;
+  /** Opening a view, saved or made from nothing; see `viewOpening.ts`. */
+  private readonly opening: ViewOpening;
   /** Every write that left, and every outcome not yet settled. */
   private readonly ledger: WriteLedger;
   /** Saving a dashboard panel's view as a view of its own; see `panelViews.ts`. */
@@ -206,9 +206,17 @@ export class ViewEngine {
       runner: this.runner,
       resolveSource: key => this.resources.resolveSource(key),
       labels: this.labels,
-      readInstance: id => this.readInstance(id),
+      readInstance: id => this.opening.readInstance(id),
       capabilities: this.capabilities,
       report: found => this.resources.report(found),
+    });
+    this.opening = new ViewOpening({
+      store: this.store,
+      registry: this.registry,
+      capabilities: this.capabilities,
+      tabs: this.tabs,
+      runtimes: this.runtimes,
+      factory: this.factory,
     });
   }
 
@@ -383,52 +391,7 @@ export class ViewEngine {
     instanceId: string,
     options: OpenOptions = {},
   ): Promise<AnyViewRuntime> {
-    const { signal } = options;
-    const instance = this.registry.ofDefinition(
-      await this.readInstance(instanceId, signal),
-      options.definitionId,
-    );
-    // What its sources admit is read before the first query, so that query
-    // already goes out narrowed.
-    await this.capabilities.prepareFor(instance);
-    signal?.throwIfAborted();
-    // A dashboard opens on its tab rather than on its first and then there:
-    // only the tab on screen runs, so where it starts is what is asked.
-    const tab = await this.tabs.opensOn(instance, options.tab);
-    const runtime = this.attach(instance, options.scopeFilter ?? null);
-    // A dashboard is judged against the instances it references, so it waits
-    // for them before its first apply rather than opening into empty frames —
-    // on the tab and under the filters it opens with, noted before that.
-    if (runtime instanceof DashboardViewRuntime)
-      try {
-        runtime.opensOn(tab, options.filters, options.held);
-        await runtime.ready();
-      } catch (error) {
-        // `attach` already registered it, and a dashboard may have children
-        // querying by now. Nobody is handed a runtime that failed to open,
-        // so nobody could close one: it is dropped here instead of leaking.
-        this.runtimes.forget(runtime);
-        throw error;
-      }
-    // Asked for no more while it opened: nobody holds it, so nobody would
-    // close it.
-    if (signal?.aborted) {
-      this.runtimes.forget(runtime);
-      signal.throwIfAborted();
-    }
-    runtime.apply();
-    return runtime as AnyViewRuntime;
-  }
-
-  /** One instance, from the definition's code or from the store. */
-  private async readInstance(
-    instanceId: string,
-    signal?: AbortSignal,
-  ): Promise<ViewInstance> {
-    const declared = parseSystemInstanceId(instanceId);
-    return declared
-      ? this.registry.systemInstance(declared.definitionId, declared.viewId)
-      : this.store.get(instanceId, signal === undefined ? {} : { signal });
+    return this.opening.open(instanceId, options);
   }
 
   /**
@@ -445,26 +408,7 @@ export class ViewEngine {
     definitionId: string,
     input: CreateInput<C>,
   ): RuntimeFor<C> {
-    const definition = this.registry.require(definitionId);
-    requireTitle(input.title);
-    // Made at once, so it runs on the descriptor held; one not read yet is
-    // read now, for the next view over the source.
-    this.capabilities.warm(definition);
-
-    const runtime = this.build(
-      definition,
-      input.config,
-      {
-        title: input.title,
-        scope: input.scope,
-        saved: null,
-      },
-      input.scopeFilter ?? null,
-    );
-    runtime.apply();
-    // The conditional type cannot be proven from a union member; what makes it
-    // true is `build` rejecting a config the definition does not declare.
-    return runtime as unknown as RuntimeFor<C>;
+    return this.opening.create(definitionId, input);
   }
 
   /** First save creates, later saves overwrite. Both need a clean draft. */
@@ -763,34 +707,6 @@ export class ViewEngine {
     // Nothing more will be written through it, so nothing more is announced:
     // a host that forgot to unsubscribe leaves no listener behind here.
     this.changes.clear();
-  }
-
-  private attach(
-    instance: ViewInstance,
-    scopeFilter: FilterTree | null = null,
-  ): ManagedViewRuntime {
-    const definition = this.registry.require(instance.definitionId);
-    return this.build(
-      definition,
-      instance.config,
-      {
-        title: instance.title,
-        scope: instance.scope,
-        saved: instance,
-      },
-      scopeFilter,
-    );
-  }
-
-  private build(
-    definition: ViewDefinition,
-    config: ViewConfig,
-    identity: RuntimeIdentity,
-    scopeFilter: FilterTree | null = null,
-  ): ManagedViewRuntime {
-    return this.runtimes.add(
-      this.factory.build(definition, config, identity, scopeFilter),
-    );
   }
 
   private async writePreferences(
