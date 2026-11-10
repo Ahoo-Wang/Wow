@@ -76,6 +76,8 @@ outline: deep
 
 `wow_catalog` 新增 `access` 列：该聚合的访问策略是否决定它的行（[wow_catalog](./clickhouse#wow-catalog)）。`wow.clickhouse.ddl: auto` 的 Sink 在第一次检查时补上它；`validate` 的 Sink 在这一列存在之前拒绝写入：`ALTER TABLE <database>.wow_catalog ADD COLUMN IF NOT EXISTS access LowCardinality(String) AFTER columns_hash`。较早版本的 Sink 写下的行没有说明是否有策略，所以分析目录按有策略处理：基于这些表的目录数据集转为需要修订，查询答 `409 wow.query.dataset-unavailable`，直到拥有该聚合的服务运行这个版本，它的 Sink 在启动后第一次检查时重新写出这些行。不需要重放。聚合有策略的表仍然被拒绝：它的数据集改由拥有该聚合的服务提供（[数据集](../data/datasets#define-a-dataset)）。
 
+失败账本的条目新增修订号（revision），它决定一个条目上并发的写入哪些生效（[失败处理](../guide/failures)）：`wow.ddl: auto` 时，PostgreSQL 在下一次检查时为 `wow_failure_ledger` 表补上 `revision` 列，已停放的条目都为 0（`validate` 时请先执行 `ALTER TABLE wow_failure_ledger ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0`）；MongoDB 把没有修订号的条目读作 0。已停放的条目保持不变。beta 与这个版本的节点并行运行期间，beta 的写入不推进修订号，所以运维人员对停放条目的操作仍可能被 beta 节点的排期掩盖，直到发布完成；那时若条目仍在停放，请再执行一次。
+
 从 10.0.0 起，分析目录把数据集某个版本的视图命名为 `ds_<context>_<name>_<digest>_v<N>`，digest 取自数据集的精确 id（[发布与版本](../data/datasets#publish-and-version)）。之前发布的版本保留发布时的视图：回滚、退役和重新编译读取每个版本记录的名字，不会改名。预发布版会给 id 只在大小写、`-`、`_` 或 context 结束位置上不同的两个数据集（`shop.a-b` 与 `shop.a_b`，`a_b.c` 与 `a.b_c`）同一个视图，后发布的那个替换了先发布的。如果你发布过这样的一对，请为每个各发布一个新版本：每个都会得到自己的视图。
 
 TypeScript 包随之改变：`@ahoo-wang/wow-client` 不再有 `ApplyTags`、`TagsApplied` 与 `Tags`，记录的 `tags` 改为 `access`，`wow-generator` 生成的客户端为每个聚合的访问属性给出类型。请重新生成客户端；步骤见[命令](../typescript/commands#lifecycle-commands-scope-and-space)。

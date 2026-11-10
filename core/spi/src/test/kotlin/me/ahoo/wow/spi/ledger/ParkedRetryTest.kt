@@ -51,6 +51,9 @@ class ParkedRetryTest {
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(claimTtl = Duration.INFINITE) }
         assertThrownBy<IllegalArgumentException> { entry.copyWith(retries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.ClaimRetry(-1, 0) }
+        assertThrownBy<IllegalArgumentException> { ParkedAmendment.Schedule(-1, 0) }
+        assertThrownBy<IllegalArgumentException> { ParkedAmendment.TakeRequest(-1) }
+        assertThrownBy<IllegalArgumentException> { entry.copyWith(revision = -1) }
     }
 
     @Test
@@ -81,16 +84,30 @@ class ParkedRetryTest {
     }
 
     @Test
-    fun `amendments apply as the ledger applies them`() {
-        entry.amended(ParkedAmendment.ClaimRetry(0, 5)).assert().isEqualTo(entry.copyWith(retries = 1, retryAt = 5))
+    fun `amendments apply as the ledger applies them, each at the next revision`() {
+        entry.amended(ParkedAmendment.ClaimRetry(0, 5)).assert()
+            .isEqualTo(entry.copyWith(retries = 1, retryAt = 5, revision = 1))
         entry.amended(ParkedAmendment.ClaimRetry(1, 5)).assert().isNull()
         entry.amended(ParkedAmendment.ApplyRetrySpec(spec))!!.retrySpec.assert().isEqualTo(spec)
         entry.amended(ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))!!
             .recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
-        val requested = entry.amended(ParkedAmendment.Request(LedgerRequest.RETRY))!!
-        requested.request.assert().isEqualTo(LedgerRequest.RETRY)
-        requested.amended(ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
-        requested.amended(ParkedAmendment.TakeRequest(LedgerRequest.RETRY)).assert().isEqualTo(entry)
+        val scheduled = entry.amended(ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
+        scheduled.assert().isEqualTo(entry.copyWith(nextAttemptAt = ParkedAggregate.NEVER, revision = 1))
+        val requested = scheduled.amended(ParkedAmendment.Request(LedgerRequest.RETRY))!!
+        requested.assert().isEqualTo(entry.copyWith(request = LedgerRequest.RETRY, revision = 2))
+        // A schedule computed before the request covers nothing: the request stays due.
+        requested.amended(ParkedAmendment.Schedule(1, ParkedAggregate.NEVER)).assert().isNull()
+        requested.amended(ParkedAmendment.TakeRequest(1)).assert().isNull()
+        requested.amended(ParkedAmendment.TakeRequest(2)).assert().isEqualTo(entry.copyWith(revision = 3))
+    }
+
+    @Test
+    fun `an entry placed as another keeps its retry state, at the next revision and unscheduled`() {
+        val state = entry.copyWith(retries = 2, nextAttemptAt = ParkedAggregate.NEVER, revision = 4)
+        val moved = ParkedAggregate(entry.subscription, entry.ref, 3, 6, "moved", FAILED_AT + 1, 60, retries = 9)
+        state.placedAs(moved).assert().isEqualTo(
+            moved.copyWith(retries = 2, nextAttemptAt = null, revision = 5),
+        )
     }
 
     private companion object {

@@ -80,15 +80,15 @@ abstract class FailureLedgerSpec {
             ledger.parked(subscription, ref("a"))!!.fromPosition.assert().isEqualTo(40L)
             val earlier = entry(ref("a"), 2).copyWith(fromPosition = Long.MAX_VALUE)
             ledger.park(earlier).assert().isTrue()
-            ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier.at(1))
             val unrecoverable = earlier.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: gone", fromPosition = 0)
             ledger.repark(unrecoverable).assert().isTrue()
-            ledger.parked(subscription, ref("a")).assert().isEqualTo(unrecoverable)
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(unrecoverable.at(2))
             ledger.parked(subscription, ref("a"))!!.unrecoverable.assert().isTrue()
             val withoutPosition = earlier.copyWith(fromPosition = null)
             ledger.repark(withoutPosition).assert().isTrue()
-            ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition)
-            ledger.resolve(subscription, ref("a")).assert().isEqualTo(withoutPosition)
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
+            ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(withoutPosition.at(3))
         }
 
     @Test
@@ -101,7 +101,7 @@ abstract class FailureLedgerSpec {
         ledger.parked(subscription, ref("a")).assert().isEqualTo(first)
         val earlier = entry(ref("a"), 2)
         ledger.park(earlier).assert().isTrue()
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier.at(1))
     }
 
     @Test
@@ -112,24 +112,49 @@ abstract class FailureLedgerSpec {
             }.awaitAll()
         }
         changed.assert().contains(true)
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(entry(ref("a"), 1))
+        // Its revision counts the parks that replaced it, however they interleaved.
+        ledger.parked(subscription, ref("a"))!!.at(0).assert().isEqualTo(entry(ref("a"), 1))
     }
 
     @Test
-    fun `reparking replaces a parked entry, later or earlier, with its reason`(): Unit = runBlocking {
+    fun `reparking replaces a parked entry, later or earlier, with its partition and reason`(): Unit = runBlocking {
         ledger.park(entry(ref("a"), 3))
         ledger.park(entry(ref("a"), 3, subscription = another))
         val later = entry(ref("a"), 6, reason = "failed again: ü \" é")
         ledger.repark(later).assert().isTrue()
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(later)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(later.at(1))
         ledger.parked(another, ref("a")).assert().isEqualTo(entry(ref("a"), 3, subscription = another))
         val sameVersion = entry(ref("a"), 6, reason = "a newer reason")
         ledger.repark(sameVersion).assert().isTrue()
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(sameVersion)
-        val earlier = entry(ref("a"), 2)
-        ledger.repark(earlier).assert().isTrue()
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
-        ledger.list(subscription).assert().containsExactly(earlier)
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(sameVersion.at(2))
+        // Re-homed to another partition: the owner of that one looks at it from now on.
+        val earlier = entry(ref("a"), 2, partition = 3)
+        ledger.repark(earlier, from = 0).assert().isTrue()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier.at(3))
+        ledger.list(subscription).assert().containsExactly(earlier.at(3))
+        ledger.due(subscription, listOf(3), ParkedAggregate.NEVER).map { it.ref }.assert().containsExactly(ref("a"))
+        ledger.due(subscription, listOf(0), ParkedAggregate.NEVER).assert().isEmpty()
+    }
+
+    @Test
+    fun `a repark or a worker's resolve from the partition an entry left writes nothing`(): Unit = runBlocking {
+        // #5481: the old owner's retry ends after the new owner re-homed the entry.
+        ledger.park(entry(ref("a"), 3, partition = 0))
+        val rehomed = entry(ref("a"), 3, reason = "${ParkedAggregate.UNRECOVERABLE}: moved", partition = 1)
+            .copyWith(fromPosition = null)
+        ledger.repark(rehomed, from = 0).assert().isTrue()
+        // Read in partition 0 before the move: neither its repark nor its resolve applies.
+        ledger.repark(entry(ref("a"), 5, reason = "failed again", partition = 0)).assert().isFalse()
+        ledger.repark(entry(ref("a"), 5, partition = 2), from = 0).assert().isFalse()
+        ledger.resolve(subscription, ref("a"), 0).assert().isNull()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(rehomed.copyWith(revision = 1))
+        // In the partition it is parked in now, both apply; an operator's resolve applies wherever it is.
+        ledger.repark(rehomed.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: still moved")).assert().isTrue()
+        ledger.resolve(subscription, ref("a"), 1)!!.partition.assert().isEqualTo(1)
+        ledger.park(entry(ref("b"), 1, partition = 4))
+        ledger.resolve(subscription, ref("b"), 5).assert().isNull()
+        ledger.resolveAnywhere(subscription, ref("b"))!!.partition.assert().isEqualTo(4)
+        ledger.resolve(subscription, ref("c"), 0).assert().isNull()
     }
 
     @Test
@@ -137,7 +162,7 @@ abstract class FailureLedgerSpec {
         ledger.repark(entry(ref("a"), 4)).assert().isFalse()
         ledger.isParked(subscription, ref("a")).assert().isFalse()
         ledger.park(entry(ref("a"), 2))
-        ledger.resolve(subscription, ref("a"))
+        ledger.resolveAnywhere(subscription, ref("a"))
         ledger.repark(entry(ref("a"), 4)).assert().isFalse()
         ledger.parked(subscription, ref("a")).assert().isNull()
     }
@@ -192,8 +217,8 @@ abstract class FailureLedgerSpec {
             ledger.park(entry(ref("c"), 1, partition = 0))
             ledger.park(entry(ref("d"), 1, partition = 0))
             ledger.park(entry(ref("e"), 1, partition = 0, subscription = another))
-            ledger.amend(subscription, ref("c"), ParkedAmendment.Schedule(0, null, FAILED_AT + 100))!!
-            ledger.amend(subscription, ref("d"), ParkedAmendment.Schedule(0, null, ParkedAggregate.NEVER))!!
+            ledger.amend(subscription, ref("c"), ParkedAmendment.Schedule(0, FAILED_AT + 100))!!
+            ledger.amend(subscription, ref("d"), ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
             fun refs(page: List<ParkedAggregate>) = page.map { it.ref }
 
             refs(ledger.due(subscription, listOf(0), FAILED_AT + 99)).assert().containsExactly(ref("a"))
@@ -213,34 +238,76 @@ abstract class FailureLedgerSpec {
         }
 
     @Test
-    fun `a schedule holds only on the retries and schedule read, and a claim or an operator's change clears it`(): Unit =
+    fun `every stored change of an entry gives it the next revision`(): Unit = runBlocking {
+        ledger.park(entry(ref("a"), 5).copyWith(revision = 9)).assert().isTrue()
+        ledger.parked(subscription, ref("a"))!!.revision.assert().isEqualTo(0L)
+        // A park that changes nothing keeps it.
+        ledger.park(entry(ref("a"), 6)).assert().isFalse()
+        ledger.parked(subscription, ref("a"))!!.revision.assert().isEqualTo(0L)
+        var revision = 0L
+        unconditionalWrites(ref("a")).forEach { (name, write) ->
+            write()
+            ledger.parked(subscription, ref("a"))!!.revision.assert().describedAs(name).isEqualTo(++revision)
+        }
+        conditionalAmendments(0).indices.forEach { index ->
+            val amendment = conditionalAmendments(revision)[index]
+            ledger.amend(subscription, ref("a"), amendment)!!.revision.assert().describedAs("$amendment")
+                .isEqualTo(++revision)
+            ledger.parked(subscription, ref("a"))!!.revision.assert().isEqualTo(revision)
+        }
+    }
+
+    @Test
+    fun `a claim, schedule or take read before another write never applies after it, the entry due again`(): Unit =
+        runBlocking {
+            // Each of these writes changes what the owner read, a retry state or where and why it is parked.
+            unconditionalWrites(ref("w")).forEach { (name, write) ->
+                ledger.resolveAnywhere(subscription, ref("w"))
+                ledger.park(entry(ref("w"), 5))
+                val read = ledger.amend(subscription, ref("w"), ParkedAmendment.Schedule(0, ParkedAggregate.NEVER))!!
+                write()
+                val after = ledger.parked(subscription, ref("w"))!!
+                conditionalAmendments(read.revision).forEach { stale ->
+                    ledger.amend(subscription, ref("w"), stale).assert().describedAs("$stale after $name").isNull()
+                }
+                ledger.parked(subscription, ref("w")).assert().describedAs(name).isEqualTo(after)
+                // Unscheduled by the write, so the owner's next scan reads it again.
+                after.nextAttemptAt.assert().describedAs(name).isNull()
+                ledger.due(subscription, listOf(after.partition), FAILED_AT).map { it.ref }.assert()
+                    .describedAs(name).containsExactly(ref("w"))
+            }
+        }
+
+    @Test
+    fun `a schedule, claim or take applies at the revision read, and a claim or operator's change unschedules`(): Unit =
         runBlocking {
             ledger.park(entry(ref("a"), 1))
             val at = FAILED_AT + 100
-            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, null, at))!!.nextAttemptAt
-                .assert().isEqualTo(at)
-            // Read before it was scheduled, or before another retry: written over nothing.
-            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, null, at + 1)).assert().isNull()
-            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, at, at + 1)).assert().isNull()
-            ledger.parked(subscription, ref("a"))!!.nextAttemptAt.assert().isEqualTo(at)
-            ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, at))!!.nextAttemptAt.assert().isNull()
+            val scheduled = ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, at))!!
+            scheduled.nextAttemptAt.assert().isEqualTo(at)
+            // Read before it was scheduled: written over nothing.
+            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(0, at + 1)).assert().isNull()
+            ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, at)).assert().isNull()
+            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(0)).assert().isNull()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(scheduled)
+            val claimed = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(scheduled.revision, at))!!
+            claimed.nextAttemptAt.assert().isNull()
+            claimed.retries.assert().isEqualTo(1)
+            claimed.retryAt.assert().isEqualTo(at)
             listOf(
                 ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
                 ParkedAmendment.ApplyRetrySpec(SPEC),
                 ParkedAmendment.Request(LedgerRequest.RETRY),
-            ).forEachIndexed { index, change ->
-                val scheduled = at + 10 + index
-                ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, scheduled))!!.nextAttemptAt
-                    .assert().isEqualTo(scheduled)
+            ).forEach { change ->
+                val read = ledger.parked(subscription, ref("a"))!!
+                ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(read.revision, at + 10))!!.nextAttemptAt
+                    .assert().isEqualTo(at + 10)
                 ledger.amend(subscription, ref("a"), change)!!.nextAttemptAt.assert().isNull()
             }
             // Taking the request keeps the entry unscheduled, for the owner to look at again.
-            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RETRY))!!.nextAttemptAt
+            val requested = ledger.parked(subscription, ref("a"))!!
+            ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(requested.revision))!!.nextAttemptAt
                 .assert().isNull()
-            val reparked = entry(ref("a"), 4)
-            ledger.amend(subscription, ref("a"), ParkedAmendment.Schedule(1, null, at + 50))
-            ledger.repark(reparked).assert().isTrue()
-            ledger.parked(subscription, ref("a"))!!.nextAttemptAt.assert().isEqualTo(at + 50)
         }
 
     @Test
@@ -248,9 +315,9 @@ abstract class FailureLedgerSpec {
         val parked = entry(ref("a"), 4)
         ledger.park(parked)
         ledger.park(entry(ref("a"), 4, subscription = another))
-        ledger.resolve(subscription, ref("a")).assert().isEqualTo(parked)
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(parked)
         ledger.isParked(subscription, ref("a")).assert().isFalse()
-        ledger.resolve(subscription, ref("a")).assert().isNull()
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isNull()
         ledger.isParked(another, ref("a")).assert().isTrue()
         val later = entry(ref("a"), 9)
         ledger.park(later).assert().isTrue()
@@ -270,7 +337,7 @@ abstract class FailureLedgerSpec {
         ledger.park(parked).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
         ledger.list(subscription).assert().containsExactly(parked)
-        ledger.resolve(subscription, ref("a")).assert().isEqualTo(parked)
+        ledger.resolveAnywhere(subscription, ref("a")).assert().isEqualTo(parked)
     }
 
     @Test
@@ -284,6 +351,7 @@ abstract class FailureLedgerSpec {
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
             request = LedgerRequest.SKIP,
+            revision = 4,
         )
         ledger.parked(subscription, ref("a")).assert().isEqualTo(state)
 
@@ -291,17 +359,23 @@ abstract class FailureLedgerSpec {
         ledger.park(entry(ref("a"), 2).copyWith(retries = 7, recoverable = Recoverable.UNRECOVERABLE)).assert().isTrue()
         val earlier = entry(ref("a"), 2)
         ledger.parked(subscription, ref("a")).assert().isEqualTo(
-            state.copyWith(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt),
+            state.copyWith(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt, revision = 5),
         )
         val reparked = entry(ref("a"), 4, reason = "failed again").copyWith(fromPosition = 44, retries = 9)
         ledger.repark(reparked).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(
-            state.copyWith(fromVersion = 4, reason = "failed again", failedAt = reparked.failedAt, fromPosition = 44),
+            state.copyWith(
+                fromVersion = 4,
+                reason = "failed again",
+                failedAt = reparked.failedAt,
+                fromPosition = 44,
+                revision = 6,
+            ),
         )
     }
 
     @Test
-    fun `a retry is claimed only from the retries read, once among concurrent claims`(): Unit = runBlocking {
+    fun `a retry is claimed only at the revision read, once among concurrent claims`(): Unit = runBlocking {
         ledger.park(entry(ref("a"), 1))
         ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(1, FAILED_AT)).assert().isNull()
         val first = ledger.amend(subscription, ref("a"), ParkedAmendment.ClaimRetry(0, FAILED_AT + 10))!!
@@ -337,41 +411,85 @@ abstract class FailureLedgerSpec {
                 .recoverable.assert().isEqualTo(recoverable)
             ledger.parked(subscription, ref("a"))!!.recoverable.assert().isEqualTo(recoverable)
         }
+        val revision = 3L + Recoverable.entries.size
         ledger.parked(subscription, ref("a")).assert()
-            .isEqualTo(entry(ref("a"), 1).copyWith(recoverable = Recoverable.UNRECOVERABLE))
+            .isEqualTo(entry(ref("a"), 1).copyWith(recoverable = Recoverable.UNRECOVERABLE, revision = revision))
     }
 
     @Test
     fun `a request is left for the owner and taken once`(): Unit = runBlocking {
         ledger.park(entry(ref("a"), 1))
-        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.RETRY)).assert().isNull()
         ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.RETRY))!!
             .request.assert().isEqualTo(LedgerRequest.RETRY)
-        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
+        // Replaced before it was taken: a take of the request read before it applies to nothing.
         ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))!!
             .request.assert().isEqualTo(LedgerRequest.SKIP)
-        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP))!!
-            .request.assert().isNull()
-        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(LedgerRequest.SKIP)).assert().isNull()
-        ledger.parked(subscription, ref("a")).assert().isEqualTo(entry(ref("a"), 1))
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(1)).assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(2))!!.request.assert().isNull()
+        ledger.amend(subscription, ref("a"), ParkedAmendment.TakeRequest(2)).assert().isNull()
+        ledger.parked(subscription, ref("a")).assert().isEqualTo(entry(ref("a"), 1).at(3))
     }
 
     @Test
     fun `amending an aggregate that is not parked writes nothing`(): Unit = runBlocking {
         ledger.park(entry(ref("a"), 1, subscription = another))
-        listOf(
-            ParkedAmendment.ClaimRetry(0, FAILED_AT),
-            ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
-            ParkedAmendment.ApplyRetrySpec(SPEC),
-            ParkedAmendment.Request(LedgerRequest.RETRY),
-            ParkedAmendment.Schedule(0, null, FAILED_AT),
-            ParkedAmendment.TakeRequest(LedgerRequest.RETRY),
-        ).forEach { amendment ->
+        (operatorAmendments() + conditionalAmendments(0)).forEach { amendment ->
             ledger.amend(subscription, ref("a"), amendment).assert().isNull()
             ledger.amend(subscription, ref("b"), amendment).assert().isNull()
         }
         ledger.isParked(subscription, ref("a")).assert().isFalse()
         ledger.parked(another, ref("a")).assert().isEqualTo(entry(ref("a"), 1, subscription = another))
+    }
+
+    /** [this] entry as stored at [revision]. */
+    private fun ParkedAggregate.at(revision: Long) = copyWith(revision = revision)
+
+    /** One of each amendment an operator makes, applied whatever the entry's revision. */
+    private fun operatorAmendments(): List<ParkedAmendment> = listOf(
+        ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE),
+        ParkedAmendment.ApplyRetrySpec(SPEC),
+        ParkedAmendment.Request(LedgerRequest.RETRY),
+    )
+
+    /** One of each amendment that acts on what its caller read, read at [revision]. */
+    private fun conditionalAmendments(revision: Long): List<ParkedAmendment> = listOf(
+        ParkedAmendment.ClaimRetry(revision, FAILED_AT + 1),
+        ParkedAmendment.Schedule(revision, FAILED_AT + 2),
+        ParkedAmendment.TakeRequest(revision),
+    )
+
+    /**
+     * Every write of [ref]'s entry that is not conditional on a revision read, by name: each operator amendment, a
+     * repark, and a park that replaces the entry. A new amendment fails [classified] until it is named here or among
+     * the [conditionalAmendments].
+     */
+    private fun unconditionalWrites(ref: AggregateRef): List<Pair<String, suspend () -> Unit>> =
+        operatorAmendments().map { amendment ->
+            "$amendment" to suspend {
+                checkNotNull(ledger.amend(subscription, ref, amendment)) { "$amendment wrote nothing" }
+                Unit
+            }
+        } + listOf(
+            "repark" to suspend { check(ledger.repark(entry(ref, 6, reason = "failed again"))) { "repark wrote nothing" } },
+            "park from an earlier version" to suspend {
+                val current = checkNotNull(ledger.parked(subscription, ref))
+                check(ledger.park(entry(ref, current.fromVersion - 1))) { "park wrote nothing" }
+            },
+        )
+
+    @Test
+    fun `every amendment is classified, as conditional on a revision read or as an unconditional write`() {
+        // A new amendment must say which it is, so the contract above covers it.
+        (operatorAmendments() + conditionalAmendments(0)).map { it::class }.toSet().assert()
+            .isEqualTo(ParkedAmendment::class.sealedSubclasses.toSet())
+        conditionalAmendments(0).forEach { classified(it).assert().isTrue() }
+        operatorAmendments().forEach { classified(it).assert().isFalse() }
+    }
+
+    /** Whether [amendment] applies only at the revision its caller read: over the sealed type, so none is forgotten. */
+    private fun classified(amendment: ParkedAmendment): Boolean = when (amendment) {
+        is ParkedAmendment.ClaimRetry, is ParkedAmendment.Schedule, is ParkedAmendment.TakeRequest -> true
+        is ParkedAmendment.MarkRecoverable, is ParkedAmendment.ApplyRetrySpec, is ParkedAmendment.Request -> false
     }
 
     protected companion object {
