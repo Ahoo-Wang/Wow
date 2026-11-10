@@ -690,6 +690,69 @@ describe('DatasetResources', () => {
       expect(held.revision).toBe('3');
     });
 
+    /** A wording store whose listings the case answers one by one. */
+    function listedByHand() {
+      const listings: ReturnType<
+        typeof deferred<ReadonlyMap<string, StoredDatasetWording>>
+      >[] = [];
+      let revision = 0;
+      const store: DatasetWordingStore = {
+        list: vi.fn(() => {
+          const listing = deferred<ReadonlyMap<string, StoredDatasetWording>>();
+          listings.push(listing);
+          return listing.promise;
+        }),
+        set: vi.fn(() => Promise.resolve(String((revision += 1)))),
+      };
+      const engine = engineOf();
+      const datasets = new DatasetResources(engine, {
+        catalogs: {
+          list: () => Promise.resolve([entry('order_wide', 'sha256:1')]),
+          source: () => sourceOf(descriptor('city', 'sha256:1')),
+          wordings: store,
+        },
+      });
+      return { engine, datasets, listings };
+    }
+
+    it('forgets a wording the store lists no more', async () => {
+      const { engine, datasets, listings } = listedByHand();
+      const first = datasets.refresh();
+      listings[0]!.resolve(
+        new Map([[ID, { wording: { title: 'Orders' }, revision: '2' }]]),
+      );
+      await first;
+      expect(engine.wordingOf(ID)?.revision).toBe('2');
+
+      const second = datasets.refresh();
+      listings[1]!.resolve(new Map());
+      await second;
+
+      expect(engine.wordingOf(ID)).toMatchObject({
+        wording: {},
+        revision: '0',
+      });
+      expect(engine.definitions.get(ID)?.title).toBe('order_wide');
+    });
+
+    it('keeps a wording saved while a listing without it was out', async () => {
+      const { engine, datasets, listings } = listedByHand();
+      const first = datasets.refresh();
+      listings[0]!.resolve(new Map());
+      await first;
+
+      const second = datasets.refresh();
+      await vi.waitFor(() => expect(listings).toHaveLength(2));
+      await engine.wordingOf(ID)!.save({ title: 'Sales' }, { requestId: 's' });
+      listings[1]!.resolve(new Map());
+      await second;
+
+      expect(engine.wordingOf(ID)).toMatchObject({
+        wording: { title: 'Sales' },
+        revision: '1',
+      });
+    });
+
     it('takes a wording read again at a newer revision as the one a save expects, the same words or not', async () => {
       const engine = engineOf();
       let held: StoredDatasetWording = {

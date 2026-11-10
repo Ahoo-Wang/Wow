@@ -206,10 +206,13 @@ export class DatasetResources {
   /** Which refresh is in force, and which wording read a save overtook (`Generations`). */
   private readonly generations = new Generations<string>();
   /**
-   * The refresh in force, which an overtaken one answers with: set by every
-   * refresh as it starts, so always before one can be overtaken.
+   * The refresh in force, which an overtaken one answers with; every
+   * refresh sets it as it starts. Before the first, nothing is served.
    */
-  private inForceRun!: Promise<DatasetRefresh>;
+  private inForceRun: Promise<DatasetRefresh> = Promise.resolve({
+    datasets: [],
+    duplicates: [],
+  });
   /** The wording each catalog's store held when it was last read (`DatasetCatalog.wordings`). */
   private stored: ReadonlyMap<
     number,
@@ -354,10 +357,21 @@ export class DatasetResources {
         if (!store) return;
         try {
           const listed = await store.list(options);
-          const kept = new Map(this.stored.get(index));
-          for (const [id, stored] of listed)
-            if (this.generations.admit(ticket, wordingKey(index, id)))
-              kept.set(id, stored);
+          const before =
+            this.stored.get(index) ?? new Map<string, StoredDatasetWording>();
+          // What was listed stands, absence included: a wording no longer
+          // listed is gone. Only a save of this engine confirmed after the
+          // read was issued is newer than the listing, and keeps its value.
+          const kept = new Map<string, StoredDatasetWording>();
+          for (const id of new Set([...listed.keys(), ...before.keys()])) {
+            const wording = this.generations.admit(
+              ticket,
+              wordingKey(index, id),
+            )
+              ? listed.get(id)
+              : before.get(id);
+            if (wording) kept.set(id, wording);
+          }
           read.set(index, kept);
         } catch (error) {
           this.options.onWordingError?.(error);
