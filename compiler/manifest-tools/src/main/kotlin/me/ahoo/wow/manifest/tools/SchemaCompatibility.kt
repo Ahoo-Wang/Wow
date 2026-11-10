@@ -36,6 +36,7 @@ import me.ahoo.wow.manifest.Manifest
  * | an alternative of `anyOf` / `oneOf` no current alternative accepts | breaking |
  * | an alternative added | additive |
  * | an alternative of `oneOf` added or widened that may accept a value another accepts | breaking |
+ * | an alternative of `oneOf` added whose required discriminator no other alternative's values hold | additive |
  * | a member of `allOf` changed, each of its changes compared in place | as the change is |
  * | a member of `allOf` added / removed | breaking / additive |
  * | additional properties no longer accepted / now accepted | breaking / additive |
@@ -53,7 +54,9 @@ import me.ahoo.wow.manifest.Manifest
  * `Int`) refuses a number old clients sent, and `int32` to `int64` produces one an `Int` reader cannot hold; two
  * formats neither of which holds the other break both ways. A value of `oneOf` must match exactly one alternative, so
  * an alternative added or widened that shares a JSON type with another (an `integer` is a `number`) may make a value
- * old clients sent match two, refused: breaking for what is read. `anyOf` takes a value any alternative accepts.
+ * old clients sent match two, refused: breaking for what is read, unless a property both require holds values that
+ * cannot coincide, a discriminator (`kind: {"const": "wallet"}` beside `"card"`), so a discriminated `oneOf` may grow.
+ * `anyOf` takes a value any alternative accepts.
  *
  * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored. So are
  * `x-wow-class`, the class a value is written from (a class renamed with its shape kept is no change), and
@@ -309,7 +312,8 @@ internal class SchemaCompatibility(
         /**
          * A value of `oneOf` matches exactly one of its [alternatives]: each one [grown] (added, or accepting more) that
          * may accept a value another one accepts breaks a value old clients sent, which now matches both. Two
-         * alternatives are told apart by their JSON types alone; any other difference is not proven.
+         * alternatives are told apart by their JSON types, or by a property both require whose values cannot coincide
+         * (a subtype's discriminator, `kind: {"const": "card"}` against `"bank"`); any other difference is not proven.
          */
         private fun compareExclusive(path: String, alternatives: List<*>, grown: List<Int>) {
             grown.forEach { index ->
@@ -324,12 +328,30 @@ internal class SchemaCompatibility(
             }
         }
 
-        /** Whether two alternatives may accept one value: they share a JSON type (an `integer` is a `number`). */
+        /**
+         * Whether two alternatives may accept one value: no property both require has values that cannot coincide
+         * ([discriminators]), and they share a JSON type (an `integer` is a `number`).
+         */
         private fun overlap(left: Any?, right: Any?): Boolean {
-            val leftTypes = types(resolve(left, currentDefs)) ?: return true
-            val rightTypes = types(resolve(right, currentDefs)) ?: return true
+            val leftSchema = resolve(left, currentDefs)
+            val rightSchema = resolve(right, currentDefs)
+            val rightValues = discriminators(rightSchema)
+            val apart = discriminators(leftSchema).any { (name, values) ->
+                rightValues[name]?.let { values.intersect(it).isEmpty() } == true
+            }
+            if (apart) return false
+            val leftTypes = types(leftSchema) ?: return true
+            val rightTypes = types(rightSchema) ?: return true
             return leftTypes.any { covers(rightTypes, it) } || rightTypes.any { covers(leftTypes, it) }
         }
+
+        /** The values each property [schema] requires is held to, by its `const` or its `enum`: a discriminator. */
+        private fun discriminators(schema: Map<String, Any?>): Map<String, Set<Any?>> =
+            required(schema).mapNotNull { name ->
+                val property = resolve(properties(schema)[name], currentDefs)
+                val values = if (CONST in property) setOf(property[CONST]) else (property[ENUM] as List<*>?)?.toSet()
+                values?.let { name to it }
+            }.toMap()
 
         /**
          * `allOf`: a value is accepted by every member, so a change to one member is a change to the whole, compared in
@@ -484,6 +506,7 @@ internal class SchemaCompatibility(
         const val REF = "\$ref"
         const val TYPE = "type"
         const val ENUM = "enum"
+        const val CONST = "const"
         const val PROPERTIES = "properties"
         const val REQUIRED = "required"
         const val ITEMS = "items"

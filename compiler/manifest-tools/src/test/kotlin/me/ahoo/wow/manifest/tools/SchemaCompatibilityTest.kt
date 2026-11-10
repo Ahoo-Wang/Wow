@@ -516,6 +516,47 @@ class SchemaCompatibilityTest {
     }
 
     @Test
+    fun `a subtype of a discriminated oneOf should be told apart by the constant both require`() {
+        fun subtype(kind: Any?, required: Boolean = true, key: String = "const") = obj(
+            "kind" to (if (kind == null) STRING else mapOf(key to kind)),
+            "number" to STRING,
+            required = if (required) listOf("kind") else emptyList(),
+        )
+        val payments = listOf(subtype("card"), subtype("bank"))
+        fun added(subtype: Map<String, Any?>) = changes(
+            mapOf("oneOf" to payments),
+            mapOf("oneOf" to payments + subtype)
+        )
+        val overlaps = "BREAKING s.oneOf[2]: alternative overlaps alternative"
+        // A new constant: no value matches two, the canonical compatible extension.
+        added(subtype("wallet")).assert().containsExactly("ADDITIVE s.oneOf[2]: alternative added")
+        // A constant another alternative has, no constant, or one not required by both: a value may match two.
+        added(subtype("card")).assert().contains("$overlaps 0: a value both accept is refused")
+        added(subtype(null)).assert().contains("$overlaps 0: a value both accept is refused")
+            .contains("$overlaps 1: a value both accept is refused")
+        added(subtype("wallet", required = false)).assert().contains("$overlaps 0: a value both accept is refused")
+        val loose = listOf(subtype("card", required = false))
+        changes(mapOf("oneOf" to loose), mapOf("oneOf" to loose + subtype("wallet"))).assert()
+            .contains("BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused")
+        // An enum is a set of constants: apart when no value is in both.
+        val tiers = listOf(subtype(listOf("gold", "silver"), key = "enum"))
+        changes(mapOf("oneOf" to tiers), mapOf("oneOf" to tiers + subtype(listOf("bronze"), key = "enum")))
+            .assert().containsExactly("ADDITIVE s.oneOf[1]: alternative added")
+        changes(mapOf("oneOf" to tiers), mapOf("oneOf" to tiers + subtype(listOf("silver", "bronze"), key = "enum")))
+            .assert().contains(
+                "BREAKING s.oneOf[1]: alternative overlaps alternative 0: a value both accept is refused"
+            )
+        // Subtypes referred to by `$ref`: their definitions are read.
+        val refs = listOf(mapOf("\$ref" to "#/\$defs/card"), mapOf("\$ref" to "#/\$defs/wallet"))
+        changes(
+            mapOf("oneOf" to refs.take(1)),
+            mapOf("oneOf" to refs),
+            oldDefs = mapOf("card" to subtype("card")),
+            newDefs = mapOf("card" to subtype("card"), "wallet" to subtype("wallet")),
+        ).assert().containsExactly("ADDITIVE s.oneOf[1]: alternative added")
+    }
+
+    @Test
     fun `a change should name its kind`() {
         ManifestChange(ADDITIVE, "p", "d").toString().assert().isEqualTo("ADDITIVE p: d")
         ManifestChange(BREAKING, "p", "d").kind.assert().isEqualTo(BREAKING)
