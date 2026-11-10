@@ -162,6 +162,10 @@ public final class me/ahoo/wow/api/query/AggregationExpression$Field$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;)Lme/ahoo/wow/api/query/AggregationExpression$Field;
 }
 
+public final class me/ahoo/wow/api/query/AggregationExpressionKt {
+	public static final fun getFields (Lme/ahoo/wow/api/query/AggregationExpression;)Ljava/util/List;
+}
+
 public final class me/ahoo/wow/api/query/AggregationExpressionOperator : java/lang/Enum {
 	public static final field ADD Lme/ahoo/wow/api/query/AggregationExpressionOperator;
 	public static final field DIVIDE Lme/ahoo/wow/api/query/AggregationExpressionOperator;
@@ -288,6 +292,10 @@ public final class me/ahoo/wow/api/query/AggregationGroup$Terms$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationExpression;)Lme/ahoo/wow/api/query/AggregationGroup$Terms;
 	public final fun of (Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationExpression;Lme/ahoo/wow/api/query/AggregationGroupScope;)Lme/ahoo/wow/api/query/AggregationGroup$Terms;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/query/AggregationGroup$Terms$Companion;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/query/AggregationExpression;Lme/ahoo/wow/api/query/AggregationGroupScope;ILjava/lang/Object;)Lme/ahoo/wow/api/query/AggregationGroup$Terms;
+}
+
+public final class me/ahoo/wow/api/query/AggregationGroupKt {
+	public static final fun getInputExpression (Lme/ahoo/wow/api/query/AggregationGroup;)Lme/ahoo/wow/api/query/AggregationExpression;
 }
 
 public final class me/ahoo/wow/api/query/AggregationGroupScope : java/lang/Enum {
@@ -496,12 +504,6 @@ public final class me/ahoo/wow/api/query/AggregationQuery$Companion {
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;I)Lme/ahoo/wow/api/query/AggregationQuery;
 	public final fun of (Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILme/ahoo/wow/api/query/HavingExpression;)Lme/ahoo/wow/api/query/AggregationQuery;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/query/AggregationQuery$Companion;Lme/ahoo/wow/api/query/FilterExpression;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILme/ahoo/wow/api/query/HavingExpression;ILjava/lang/Object;)Lme/ahoo/wow/api/query/AggregationQuery;
-}
-
-public final class me/ahoo/wow/api/query/AggregationQueryKt {
-	public static final fun getFields (Lme/ahoo/wow/api/query/AggregationExpression;)Ljava/util/List;
-	public static final fun getInputExpression (Lme/ahoo/wow/api/query/AggregationGroup;)Lme/ahoo/wow/api/query/AggregationExpression;
-	public static final fun getWindowFunction (Lme/ahoo/wow/api/query/DerivedExpression$Window;)Lme/ahoo/wow/api/query/WindowFunction;
 }
 
 public final class me/ahoo/wow/api/query/AndFilter : me/ahoo/wow/api/query/FilterExpression {
@@ -917,6 +919,10 @@ public final class me/ahoo/wow/api/query/DerivedExpression$Total$Companion {
 
 public abstract interface class me/ahoo/wow/api/query/DerivedExpression$Window : me/ahoo/wow/api/query/DerivedExpression {
 	public abstract fun getMetric ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/DerivedExpressionKt {
+	public static final fun getWindowFunction (Lme/ahoo/wow/api/query/DerivedExpression$Window;)Lme/ahoo/wow/api/query/WindowFunction;
 }
 
 public final class me/ahoo/wow/api/query/EarlierDaysFilter : me/ahoo/wow/api/query/RelativeTimeFilter {
