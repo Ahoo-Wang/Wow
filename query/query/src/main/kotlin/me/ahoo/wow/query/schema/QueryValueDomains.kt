@@ -48,6 +48,11 @@ fun QueryValueSchema.operationValues(): List<QueryValueSchema> = when (kind) {
     else -> listOf(this)
 }
 
+/** Whether this value may be an array holding a `null` element: an array whose items the schema lets be `null`. */
+fun QueryValueSchema.mayHoldNullElement(): Boolean = alternativesOrSelf().any { value ->
+    value.kind == QueryValueKind.ARRAY && checkNotNull(value.items).alternativesOrSelf().any { it.nullable }
+}
+
 /** Flattens nested unions into their non-union alternatives; any other value is its own single alternative. */
 fun QueryValueSchema.alternativesOrSelf(): List<QueryValueSchema> =
     if (kind == QueryValueKind.UNION) alternatives.flatMap { it.alternativesOrSelf() } else listOf(this)

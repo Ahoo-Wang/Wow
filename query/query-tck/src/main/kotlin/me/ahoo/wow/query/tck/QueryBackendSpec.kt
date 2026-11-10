@@ -958,6 +958,31 @@ abstract class QueryBackendSpec {
     }
 
     @Test
+    fun `an array holding a null sorts first ascending, or the sort is refused where storage cannot`() = blocking {
+        val fixture = given(
+            listOf(snapshot("n1", """{"probeTags":[null,"z"]}"""), snapshot("n2", """{"probeTags":["a"]}""")),
+        )
+        val tags = QueryField("state.probeTags")
+        fun sorted(direction: Sort.Direction) = blocking {
+            fixture.ids(AggregateIdsFilter(listOf("n1", "n2")), listOf(Sort(tags, direction)))
+        }
+        val field = checkNotNull(fixture.schema.field(tags))
+        if (field.binding(QueryCapability.SORT) == null || !fixture.schema.storage.sorts(field.value)) {
+            // A storage that cannot sort arrays, or cannot see a null element, refuses: it never orders otherwise.
+            val refused = runCatching { sorted(Sort.Direction.ASC) }.exceptionOrNull()
+            val violation = checkNotNull((refused as QuerySchemaValidationException).violation)
+            (violation is QueryViolation.UnsupportedCapability || violation is QueryViolation.StorageUnsupported)
+                .assert().describedAs("$violation").isTrue()
+            violation.field.assert().isEqualTo(tags)
+            return@blocking
+        }
+        // n1's least element is its null, below n2's "a"; its greatest, "z", is above it.
+        sorted(Sort.Direction.ASC).assert().containsExactly("n1", "n2")
+        sorted(Sort.Direction.DESC).assert().containsExactly("n1", "n2")
+        Unit
+    }
+
+    @Test
     fun `aggregation sorts groups by a metric and takes the top N`() = blocking {
         val fixture = given(orders())
         val rows = fixture.aggregate(
@@ -1375,7 +1400,12 @@ abstract class QueryBackendSpec {
                 types(QueryValueType.INTEGER)
                 temporalEpoch()
             }
-            field("state.keywords") { items { types(QueryValueType.STRING) } }
+            field("state.keywords") {
+                items {
+                    types(QueryValueType.STRING)
+                    nullable(false)
+                }
+            }
             field("state.lines") {
                 items {
                     kind(QueryValueKind.OBJECT)

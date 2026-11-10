@@ -110,6 +110,8 @@ internal class ElasticsearchQuerySchemaAdapter(
                 // No value is indexed for null or [], and keyword doc values are sorted and deduplicated.
                 absentValues = AbsentValues.AS_MISSING,
                 arrayEquality = SupportMode.NONE,
+                // A null element is not indexed either, so an array holding one cannot sort with it the least.
+                nullElementSort = SupportMode.NONE,
             )
 
         /**

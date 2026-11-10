@@ -75,11 +75,14 @@ internal fun JsonNode.matches(operand: JsonNode): Boolean =
 
 /**
  * The sort key of a field's stored values, read as [temporal] says, as MongoDB orders them: a missing field and `null`
- * are the lowest value; an array sorts by its least element ascending and its greatest descending. The key is the
- * stored value itself; [orderKey] is what it is compared by.
+ * are the lowest value; an array sorts by its least element ascending, a `null` element included, and its greatest
+ * descending. The key is the stored value itself; [orderKey] is what it is compared by.
  */
 internal fun List<JsonNode>.sortKey(ascending: Boolean, temporal: Temporal?): JsonNode? {
-    val scalars = flattened().filterNot { it.isNull }
+    val elements = flattened()
+    // A null element is the least: an array holding one sorts as null ascending.
+    if (ascending && elements.any { it.isNull }) return null
+    val scalars = elements.filterNot { it.isNull }
     if (scalars.isEmpty()) return null
     return scalars.reduce { best, next ->
         val order = orderOf(next, best, temporal)

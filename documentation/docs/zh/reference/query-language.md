@@ -268,7 +268,7 @@ outline: deep
 
 ## 排序与投影 {#sort-and-projection}
 
-`sort` 是一个由 `{"field": …, "direction": "asc" | "desc"}` 组成的数组，至多 32 项，每个字段只出现一次。只有能力描述说明可以排序的字段（`sort.paged`、`sort.cursor`）才能排序。
+`sort` 是一个由 `{"field": …, "direction": "asc" | "desc"}` 组成的数组，至多 32 项，每个字段只出现一次。只有能力描述说明可以排序的字段（`sort.paged`、`sort.cursor`）才能排序。缺失值与 `null` 升序排在最前、降序排在最后；数组升序按其最小元素排序（`null` 元素最小），降序按其最大元素排序。无法这样排序元素可能为 `null` 的数组的存储（Elasticsearch）不提供该字段的排序。
 
 `projection` 是 `{"include": [paths], "exclude": [paths]}`；两者都没有时，返回完整的记录。被包含的路径会保留它的子孙。
 

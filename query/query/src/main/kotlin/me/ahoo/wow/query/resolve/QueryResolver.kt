@@ -90,6 +90,7 @@ import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
 import me.ahoo.wow.query.schema.firstLastOrderBy
+import me.ahoo.wow.query.schema.requireSorts
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.schema.temporal
@@ -544,6 +545,7 @@ internal class QueryResolver(
             } else {
                 compared(reference, trusted = false)
             }
+            schema.storage.requireSorts(reference.definition.value, reference.logical)
             Sort(register(reference, ROOT), it.direction)
         }
         val references = resolved.map { checkNotNull(fields[it.field]) }

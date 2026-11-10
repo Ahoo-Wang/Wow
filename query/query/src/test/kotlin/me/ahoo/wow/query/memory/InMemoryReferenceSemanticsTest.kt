@@ -652,7 +652,8 @@ class InMemoryReferenceSemanticsTest {
         array(1, 2).matches(nodes.numberNode(2)).assert().isTrue()
         array(1, 2).matches(array(1)).assert().isFalse()
         val withNull = listOf(array(3, 1, 2), nodes.nullNode())
-        withNull.sortKey(ascending = true, temporal = null)!!.intValue().assert().isEqualTo(1)
+        withNull.sortKey(ascending = true, temporal = null).assert().isNull()
+        withNull.sortKey(ascending = false, temporal = null)!!.intValue().assert().isEqualTo(3)
         listOf(array(3, 1, 2)).sortKey(ascending = false, temporal = null)!!.intValue().assert().isEqualTo(3)
         listOf<JsonNode>(nodes.nullNode()).sortKey(ascending = true, temporal = null).assert().isNull()
     }
