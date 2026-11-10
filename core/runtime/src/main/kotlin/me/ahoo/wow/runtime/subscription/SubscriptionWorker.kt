@@ -342,10 +342,11 @@ internal class SubscriptionWorker(
                 when (item) {
                     is Item.Live -> if (subscription.coalesces) runBatch(item, lane) else runLive(item)
                     is Item.Retry -> runRetry(ref, item)
+                    is Item.Skip -> runSkip(ref, item)
                 }
             } catch (error: VirtualMachineError) {
-                // An operator's retry fails with it, whatever it is, rather than wait on a lane that stops.
-                (item as? Item.Retry)?.result?.completeExceptionally(error)
+                // An operator's retry or skip fails with it, whatever it is, rather than wait on a lane that stops.
+                (item as? Item.Action)?.result?.completeExceptionally(error)
                 // The lane stops here, still active, so the aggregate's later entries queue behind it unhandled.
                 fatals.record(Component.SUBSCRIPTION, "$group/${subscription.name}", error, partition)
                 throw error
@@ -741,21 +742,37 @@ internal class SubscriptionWorker(
     /**
      * Resolves [ref]'s ledger entry without handling what was skipped: from now on its new entries are handled.
      *
-     * The aggregate is marked skipping in the same step as it is checked, and stays so while the ledger is written:
-     * a retry asked for meanwhile starts nothing, so what the skip discards is never handled. When the write fails,
-     * the aggregate is parked as it was.
+     * The aggregate is marked skipping in the same step as it is checked: a retry asked for meanwhile starts nothing,
+     * so what the skip discards is never handled. The ledger is written in the aggregate's lane, ahead of the entries
+     * queued there and after the one it runs now, so a failure of that entry parks before the skip resolves, and the
+     * skip resolves that parking: the ledger and the worker agree whichever came first. When the write fails, the
+     * aggregate is parked as it was.
      *
      * @return true when the aggregate was parked; false when it was not, or a retry or another skip of it is running.
      */
     suspend fun skip(ref: AggregateRef): Boolean {
-        if (!synchronized(this) { parking.skipping(ref) }) {
-            return false
+        val result = synchronized(this) {
+            check(!abandoned) { "Subscription ${subscription.name} stopped in partition $partition." }
+            if (!parking.skipping(ref)) {
+                return false
+            }
+            Item.Skip(CompletableDeferred()).also { enqueue(ref, it, first = true) }.result
         }
+        return result.await()
+    }
+
+    @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of skip; the aggregate stays parked.
+    private suspend fun runSkip(ref: AggregateRef, item: Item.Skip) {
         var resolved = false
         try {
             val removed = ledger.resolve(subscription.name, ref)
             resolved = true
-            return removed != null
+            item.result.complete(removed != null)
+        } catch (cancelled: CancellationException) {
+            item.result.cancel(cancelled)
+            throw cancelled
+        } catch (failure: Exception) {
+            item.result.completeExceptionally(failure)
         } finally {
             synchronized(this) { parking.skipped(ref, resolved) }
         }
@@ -791,10 +808,10 @@ internal class SubscriptionWorker(
         outstanding.awaitZero()
     }
 
-    /** Fails the retries still queued: their lanes were cancelled by a stop. */
+    /** Fails the retries and skips still queued: their lanes were cancelled by a stop. */
     fun abandon() = synchronized(this) {
         abandoned = true
-        active.values.flatMap { it.items }.filterIsInstance<Item.Retry>().forEach {
+        active.values.flatMap { it.items }.filterIsInstance<Item.Action>().forEach {
             it.result.cancel(CancellationException("The subscription runtime stopped."))
         }
         active.clear()
@@ -812,7 +829,14 @@ internal class SubscriptionWorker(
 
     private sealed interface Item {
         class Live(val entry: SourcedEntry, val slot: Slot) : Item
-        class Retry(val parked: ParkedAggregate, val result: CompletableDeferred<Boolean>) : Item
+
+        /** An operator's action on the aggregate, answered with [result]. */
+        sealed interface Action : Item {
+            val result: CompletableDeferred<Boolean>
+        }
+
+        class Retry(val parked: ParkedAggregate, override val result: CompletableDeferred<Boolean>) : Action
+        class Skip(override val result: CompletableDeferred<Boolean>) : Action
     }
 }
 

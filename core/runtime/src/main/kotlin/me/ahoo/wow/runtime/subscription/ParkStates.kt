@@ -64,7 +64,8 @@ internal class ParkStates(parked: Map<AggregateRef, Long>) {
 
     /**
      * Parks [ref] from [ordinal], or from the earlier ordinal it is parked from. A retry or a skip running settles the
-     * aggregate's state when it ends, so it is left to it.
+     * aggregate's state when it ends, so it is left to it: a skip resolves in the aggregate's lane after the failure
+     * that parks it here, so it resolves that parking too.
      */
     fun park(ref: AggregateRef, ordinal: Long) {
         when (val state = states[ref]) {
@@ -146,7 +147,7 @@ internal class ParkStates(parked: Map<AggregateRef, Long>) {
     }
 
     private companion object {
-        /** A retry's answer while a skip runs: nothing is handled. */
+        /** A retry's answer while a skip runs: nothing is handled. Completed when made, and by nobody after. */
         val SKIPPING: Deferred<Boolean> = CompletableDeferred(false)
     }
 }

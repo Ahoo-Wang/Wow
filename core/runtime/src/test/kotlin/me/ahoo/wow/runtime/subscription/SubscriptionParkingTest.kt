@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -80,9 +81,9 @@ class SubscriptionParkingTest {
         eventually { checkpointsReachEnd() }
     }
 
-    private suspend fun checkpointsReachEnd(): Boolean = all.all { partition ->
+    private suspend fun checkpointsReachEnd(subscription: String = "parking"): Boolean = all.all { partition ->
         val end = appender.ends[partition] ?: 0L
-        end == 0L || checkpoints.load("group", "parking", partition) == end
+        end == 0L || checkpoints.load("group", subscription, partition) == end
     }
 
     @Test
@@ -238,6 +239,51 @@ class SubscriptionParkingTest {
             ledger.isParked("parking", cart("x")).assert().isFalse()
             appender.append("x")
             eventually { handled.versionsOf("x") == listOf(1, 5) }
+            runtime.stop()
+        }
+
+    @Test
+    fun `a skip and the first failure of an aggregate held nowhere leave the ledger and the worker agreeing`(): Unit =
+        runBlocking {
+            // Review of #5577: the failure has written its parking, not yet held the aggregate, when a skip comes.
+            val written = CompletableDeferred<Unit>()
+            val hold = CompletableDeferred<Unit>()
+            val gated = object : FailureLedger by ledger {
+                override suspend fun park(entry: ParkedAggregate): Boolean = ledger.park(entry).also {
+                    written.complete(Unit)
+                    hold.await()
+                }
+            }
+            val first = Subscription("first", SubscriptionFilter("shop")) { entry ->
+                check(entry.version != 2) { "x-2 is broken" }
+                handled.record(entry)
+            }
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                checkpoints,
+                gated,
+                listOf(first),
+                testOptions(maxAttempts = 1),
+                clock,
+            )
+            appender.append("x")
+            runtime.start(all)
+            eventually { handled.versionsOf("x") == listOf(1) }
+            appender.append("x")
+            withTimeout(10.seconds) {
+                written.await()
+                // Run as far as it goes at once: it either resolves now, or waits for the failure in its lane.
+                val skipped = async(start = CoroutineStart.UNDISPATCHED) { runtime.skip("first", cart("x")) }
+                hold.complete(Unit)
+                // The skip resolved the parking the failure wrote, after it.
+                skipped.await().assert().isTrue()
+            }
+            appender.append("x")
+            eventually { checkpointsReachEnd("first") }
+            // Agreeing: neither parked in the ledger nor held by the worker.
+            ledger.isParked("first", cart("x")).assert().isFalse()
+            handled.versionsOf("x").assert().isEqualTo(listOf(1, 3))
             runtime.stop()
         }
 
