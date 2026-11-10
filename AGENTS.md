@@ -256,7 +256,7 @@ How work is planned, reviewed and merged when several agent sessions work on the
 - The integration tests of the modules that start a host, a kernel or a query backend on what changed (#5690 passed every unit test and stopped another module's host from starting).
 - The docs checks and, for any change that moves a declaration to another file, the docs generators: a generated page that lists declarations in file order changes with a move-only pull request (#5724). Prettier over changed Markdown and TypeScript.
 - The patch coverage computed as `ci-gate` computes it (`.github/scripts/patch-coverage.mjs`: 89% of changed main-source lines, a partial line counts as uncovered), from a full run of the unit suite. Codecov's project figure is not that number, and a coverage file that a later single-test run overwrote is not either.
-- A reachable changed line that no test takes gets a behaviour test in the same pull request; an unreachable one is named in the description. A new test is shown to fail when the behaviour it holds is broken (break the code locally, see it fail alone, revert).
+- A reachable changed line that no test takes gets a behaviour test in the same pull request, a moved line included; an unreachable one is named in the description with why (a branch the compiler generated, a state no input produces). Name the partial lines before the push, not after the gate. A new test is shown to fail when the behaviour it holds is broken (break the code locally, see it fail alone, revert).
 
 ### What a review holds a change to
 
@@ -283,14 +283,14 @@ How work is planned, reviewed and merged when several agent sessions work on the
 
 - Load tests and benchmarks run on GitHub Actions only (`bench.yml`), never on a developer machine. The workflow keeps one pending run per ref: dispatch one at a time per branch.
 - A pull request on a hot path (decide, append, the per-entry loop of a subscription) carries a run of the tier that passes through the code it changes; name the scenario that does.
-- For the component suites (L1), allocated bytes per operation is the figure to read: identical code stays within 1% on E1 and E1-large and about 1.5% on E3. Store round trips per operation of identical code differ by up to 5% between two arms of one run and more between runs, so a round-trip ratio alone decides nothing. A component run at 1k is a fixed 20,000 operations, so an arm's operation count explains nothing.
-- A single run settles nothing that surprises. A flagged difference is repeated once and set against a pair with the same commit as both arms; it is a finding only when it repeats beyond that pair's spread.
+- For the component suites (L1), allocated bytes per operation is the steadier figure and the one to read first. Between two arms of identical code it has still differed by up to about 3% on E1, 2% on E3 and 1% on E1-large, so one row past a bound decides nothing: a cost the change added shows in every row, in the same direction. Store round trips per operation of identical code differ by up to 5% between two arms of one run and more between runs. A component run at 1k is a fixed 20,000 operations, so an arm's operation count explains nothing.
+- A flagged round-trip difference is read by command before anything else. When it lies only in commands the change does not issue (inserts and updates for a pull request that moved reads), it is the run, not the change. When neither that reading nor the compiled classes settle it, the run is repeated once and set against a pair with the same commit as both arms; it is a finding only when it repeats beyond that pair's spread.
 - For a pure move, compare the compiled classes before and after (`javap -c -p` at the merge base and at the head): the same allocating instructions in each moved function and its callers, the same fields in each continuation and lambda class. It takes minutes, is not a load test, and answers directly what a benchmark only samples.
 - Do not explain a difference with a pattern drawn from a handful of arms. "Round trips follow throughput" held in three runs and was contradicted by the fourth.
 
 ### Failures in CI
 
-- A test that fails once is a defect until its cause is known. Find the interleaving by reading the code against the test; do not re-run until it passes, and do not raise a timeout. A slow runner is a candidate to rule out, not an explanation to assume: the ten-second timeout of #5743 was an entry the runtime had lost, which no timeout would have passed.
+- A test that fails once is a defect until its cause is known, in whatever run it failed and however unrelated the pull request: it is filed that day, not noted as "unrelated, then green". Find the interleaving by reading the code against the test; do not re-run until it passes, and do not raise a timeout. A slow runner is a candidate to rule out, not an explanation to assume: the ten-second timeout of #5743 was an entry the runtime had lost, which no timeout would have passed.
 - The regression test holds the interleaving with a gate, not a sleep, and fails on `main` at once.
 - When a gate stops a pull request that was approved, the review missed it too: add what would have caught it to the list above, not only to the pull request.
 
