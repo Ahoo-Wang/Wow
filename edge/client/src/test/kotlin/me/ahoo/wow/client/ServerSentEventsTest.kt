@@ -43,6 +43,19 @@ class ServerSentEventsTest {
     }
 
     @Test
+    fun `one byte order mark at the start of the stream should be dropped, any other kept`() {
+        // The mark's three bytes split across chunks still decode as one character before the first field.
+        val decoder = LineDecoder()
+        val marked = "\uFEFFevent: row\ndata: \uFEFFx\n\n".toByteArray()
+        val lines = decoder.feed(marked.copyOfRange(0, 2)) + decoder.feed(marked.copyOfRange(2, marked.size))
+        val read = runBlocking { lines.asFlow().serverSentEvents().toList() }.single()
+        read.event.assert().isEqualTo("row")
+        read.data.assert().isEqualTo("\uFEFFx")
+        // Only the first: a second mark is the field name's.
+        events("\uFEFF\uFEFFevent: row", "data: y", "").single().event.assert().isEqualTo("message")
+    }
+
+    @Test
     fun `lines should split at LF, CRLF and CR across chunks, as UTF-8`() {
         val decoder = LineDecoder()
         decoder.feed("a\r".toByteArray()).assert().containsExactly("a")
