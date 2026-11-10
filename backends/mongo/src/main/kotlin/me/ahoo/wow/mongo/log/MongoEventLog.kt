@@ -549,12 +549,12 @@ class MongoEventLog(
     }
 
     /**
-     * One read of the tail after [last]: the counter of [partition], then each aggregate collection's first
-     * [tailBatch] entries and placeholders after it, in one aggregation over the counters. It gives the entries of the
-     * final run from `last + 1` (placeholders stepped over), the sequence that run reaches, and the first missing one
-     * when anything lies past it. Reads again at once after a full batch, or when the counter's open blocks name a
-     * collection this log does not know, or entries lie past a missing sequence (a collection created since: the
-     * registry is read again).
+     * One read of the tail after [last]: the counter of [partition], then each aggregate collection's entries and
+     * placeholders up to `last + tailBatch` (a sequence is one collection's: at most [tailBatch] in all), in one
+     * aggregation over the counters. It gives the entries of the final run from `last + 1` (placeholders stepped over),
+     * the sequence that run reaches, and the first missing one when anything lies past it. Reads again at once when the
+     * run reached `last + tailBatch`, or when the counter's open blocks name a collection this log does not know, or
+     * entries lie past a missing sequence (a collection created since: the registry is read again).
      */
     private fun readTail(partition: Int, last: Long): TailBatch {
         val known = collections.known()
@@ -569,7 +569,7 @@ class MongoEventLog(
                         Filters.and(
                             Filters.eq(PARTITION, partition),
                             Filters.gt(ID, positionId(partition, last)),
-                            Filters.lt(ID, positionId(partition + 1, 0)),
+                            Filters.lte(ID, positionId(partition, last + tailBatch)),
                         ),
                     ),
                     Aggregates.sort(Sorts.ascending(ID)),
@@ -595,7 +595,7 @@ class MongoEventLog(
         val names = known.map { it.name }.toSet()
         val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
         val again = when {
-            run.size == tailBatch -> true
+            next > last + tailBatch -> true
             unknown || missing != null -> collections.register().map { it.name }.toSet() != names
             else -> false
         }
