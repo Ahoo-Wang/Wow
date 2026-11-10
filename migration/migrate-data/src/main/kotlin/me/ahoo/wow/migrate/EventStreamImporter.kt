@@ -27,62 +27,6 @@ import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import java.util.concurrent.atomic.AtomicLong
-
-/**
- * Where an import's workers spent their time, each phase summed over the instances imported at once
- * ([ImportOptions.concurrency]), so that one can exceed the import's own time: reading the 9.x store ([readMillis]:
- * the pages of instances and their streams), converting the streams ([convertMillis]), appending them to the V10 log
- * ([appendMillis], with the checks of what the log already holds and the retries), and saving the checkpoints
- * ([checkpointMillis]).
- */
-internal data class ImportPhases(
-    val readMillis: Long = 0,
-    val convertMillis: Long = 0,
-    val appendMillis: Long = 0,
-    val checkpointMillis: Long = 0,
-) {
-    fun render(): String =
-        "worker time: read 9.x ${seconds(readMillis)}, convert ${seconds(convertMillis)}, " +
-            "append ${seconds(appendMillis)}, checkpoints ${seconds(checkpointMillis)}"
-}
-
-/**
- * The throughput of an import or a tail pass of [aggregate] so far (monitoring during the migration):
- * the [instances] walked, the streams [imported] and [skipped] (already in the log, from an earlier run), the
- * [events] imported, the request ids [rewritten] because another instance of the type holds them, and the instances
- * [excluded] by the map ([Exclusion.stream]), whose streams the full import passes over. Once [done], it also gives its
- * time and where the time went ([phases]).
- */
-internal data class ImportProgress(
-    val aggregate: NineXAggregate,
-    val instances: Long,
-    val imported: Long,
-    val skipped: Long,
-    val events: Long,
-    val rewritten: Long,
-    val elapsedMillis: Long,
-    val done: Boolean,
-    val excluded: Long = 0,
-    val phases: ImportPhases = ImportPhases(),
-) {
-    /** The streams handled per second. */
-    val streamsPerSecond: Double
-        get() = (imported + skipped) * MILLIS_PER_SECOND / elapsedMillis.coerceAtLeast(1)
-
-    fun render(): String =
-        "$aggregate${if (done) " done" else ""}: $instances instances, $imported streams imported, $skipped skipped, " +
-            "$events events, $rewritten request ids rewritten, ${if (excluded > 0) "$excluded excluded, " else ""}" +
-            "${"%.1f".format(streamsPerSecond)} streams/s" +
-            if (done) " in ${seconds(elapsedMillis)}; ${phases.render()}" else ""
-
-    private companion object {
-        const val MILLIS_PER_SECOND = 1000.0
-    }
-}
-
-/** [millis] in seconds, to the tenth. */
-private fun seconds(millis: Long): String = "%.1f s".format(millis / 1000.0)
 
 /**
  * Imports the streams of 9.x aggregates into the V10 log (steps 2 and 3), with the [plan] whose check
@@ -122,7 +66,7 @@ internal class EventStreamImporter(
     /** Imports every instance of [aggregate] not yet imported, and marks its full import complete. */
     suspend fun importAll(aggregate: NineXAggregate): ImportProgress {
         val aggregatePlan = plan.of(aggregate)
-        val stats = Stats(aggregate, clock())
+        val stats = ImportStats(aggregate, clock(), clock)
         val loaded = checkpoints.load().of(aggregate)
         if (loaded?.completed == true && !options.restart) {
             return stats.report(done = true).also(progress)
@@ -150,7 +94,7 @@ internal class EventStreamImporter(
     }
 
     /** The ranges [aggregate]'s walk is split into, from ids sampled from the 9.x store, each where it starts. */
-    private suspend fun rangesOf(aggregate: NineXAggregate, stats: Stats): List<RangeCheckpoint> {
+    private suspend fun rangesOf(aggregate: NineXAggregate, stats: ImportStats): List<RangeCheckpoint> {
         val boundaries = stats.timed(stats.read) {
             blocking { source.idBoundaries(aggregate, options.readParallelism) }
         }
@@ -168,7 +112,7 @@ internal class EventStreamImporter(
         index: Int,
         range: RangeCheckpoint,
         permits: Semaphore,
-        stats: Stats,
+        stats: ImportStats,
     ) {
         var at = range
         coroutineScope {
@@ -196,7 +140,7 @@ internal class EventStreamImporter(
         aggregate: NineXAggregate,
         range: IdRange,
         after: NineXAggregateId?,
-        stats: Stats,
+        stats: ImportStats,
     ): ReceiveChannel<List<NineXInstance>> {
         val pages = Channel<List<NineXInstance>>(capacity = 1)
         launch {
@@ -240,7 +184,7 @@ internal class EventStreamImporter(
         page: List<NineXInstance>,
         imported: List<NineXInstance>,
         permits: Semaphore,
-        stats: Stats,
+        stats: ImportStats,
     ): PageImport {
         val jobs = if (options.dryRun) {
             imported.map { instance -> async { permits.withPermit { importInstance(plan, instance, stats) } } }
@@ -259,7 +203,7 @@ internal class EventStreamImporter(
         index: Int,
         import: PageImport,
         range: RangeCheckpoint,
-        stats: Stats,
+        stats: ImportStats,
     ): RangeCheckpoint {
         import.jobs.awaitAll()
         stats.instances.addAndGet(import.imported.toLong())
@@ -288,7 +232,7 @@ internal class EventStreamImporter(
         if (checkpoint == null || !checkpoint.completed) {
             throw MigrationException("The full import of $aggregate has not completed: run the import before the tail.")
         }
-        val stats = Stats(aggregate, clock())
+        val stats = ImportStats(aggregate, clock(), clock)
         val reached = HashMap<NineXAggregateId, Int>()
         val from = (checkpoint.tailedTo ?: checkpoint.startedAt) - options.lookbackMillis
         var latest = checkpoint.tailedTo ?: checkpoint.startedAt
@@ -322,7 +266,7 @@ internal class EventStreamImporter(
         plan: AggregatePlan,
         page: List<NineXStream>,
         reached: MutableMap<NineXAggregateId, Int>,
-        stats: Stats,
+        stats: ImportStats,
     ) {
         val behind = page.filter { (reached[it.aggregateId] ?: 0) < it.version }.groupBy { it.aggregateId }
         val permits = Semaphore(options.concurrency)
@@ -344,7 +288,7 @@ internal class EventStreamImporter(
         plan: AggregatePlan,
         id: NineXAggregateId,
         streams: List<NineXStream>,
-        stats: Stats
+        stats: ImportStats
     ): Int {
         val last = streams.maxBy { it.version }
         val held = logOf(plan.target.context).read(plan.target.ref(id.tenantId, id.id), last.version, last.version)
@@ -407,7 +351,7 @@ internal class EventStreamImporter(
      * stream at a time, so that stream's outcome is settled as it always was (already there, a request id another
      * instance holds, a version taken, an unknown outcome tried again); then the rest of an instance read in part.
      */
-    private suspend fun importGroup(plan: AggregatePlan, instances: List<NineXInstance>, stats: Stats) {
+    private suspend fun importGroup(plan: AggregatePlan, instances: List<NineXInstance>, stats: ImportStats) {
         val records = instances.map { instance ->
             instance.streams.mapIndexed { index, stream ->
                 if (stream.version != index + 1) {
@@ -443,7 +387,7 @@ internal class EventStreamImporter(
      * Imports [instance] as its page read it: the streams read, then the rest from 9.x when the page read it in part,
      * or when the log made the import go on from another version.
      */
-    private suspend fun importInstance(plan: AggregatePlan, instance: NineXInstance, stats: Stats) {
+    private suspend fun importInstance(plan: AggregatePlan, instance: NineXInstance, stats: ImportStats) {
         val next = importBatch(plan, instance.id, 1, instance.streams, stats)
         if (!instance.complete || next != instance.streams.size + 1) {
             importInstance(plan, instance.id, next, stats)
@@ -451,7 +395,12 @@ internal class EventStreamImporter(
     }
 
     /** Imports [id]'s streams from [fromVersion] on, and returns the last version the log then holds of it. */
-    private suspend fun importInstance(plan: AggregatePlan, id: NineXAggregateId, fromVersion: Int, stats: Stats): Int {
+    private suspend fun importInstance(
+        plan: AggregatePlan,
+        id: NineXAggregateId,
+        fromVersion: Int,
+        stats: ImportStats
+    ): Int {
         var next = fromVersion
         while (true) {
             val batch = stats.timed(stats.read) {
@@ -473,7 +422,7 @@ internal class EventStreamImporter(
         id: NineXAggregateId,
         fromVersion: Int,
         batch: List<NineXStream>,
-        stats: Stats,
+        stats: ImportStats,
     ): Int {
         var next = fromVersion
         for (stream in batch) {
@@ -504,7 +453,7 @@ internal class EventStreamImporter(
         plan: AggregatePlan,
         record: EventStreamRecord,
         stream: NineXStream,
-        stats: Stats,
+        stats: ImportStats,
     ): Int? {
         val log = logOf(record.ref.type.context)
         var attempt = record
@@ -562,7 +511,7 @@ internal class EventStreamImporter(
         log: EventLog,
         record: EventStreamRecord,
         current: Int,
-        stats: Stats,
+        stats: ImportStats,
     ): Int {
         val inLog = log.read(record.ref, current, current).firstOrNull()
         val inNineX = blocking { source.streams(plan.source, stream.aggregateId, current, 1) }
@@ -599,58 +548,7 @@ internal class EventStreamImporter(
             checkpoints.update { saved -> saved.with(aggregate, change(saved.of(aggregate)!!)) }
         }
     }
-
-    private inner class Stats(val aggregate: NineXAggregate, val startedAt: Long) {
-        val instances = AtomicLong()
-        val imported = AtomicLong()
-        val skipped = AtomicLong()
-        val events = AtomicLong()
-        val rewritten = AtomicLong()
-        val excluded = AtomicLong()
-        val read = AtomicLong()
-        val convert = AtomicLong()
-        val append = AtomicLong()
-        val checkpoint = AtomicLong()
-
-        /**
-         * Runs [block], adding its time to [phase]. Inline, so the block suspends or blocks in its caller's context,
-         * as each phase's does, and no lambda is allocated per stream.
-         */
-        inline fun <T> timed(phase: AtomicLong, block: () -> T): T {
-            val started = System.nanoTime()
-            try {
-                return block()
-            } finally {
-                phase.addAndGet(System.nanoTime() - started)
-            }
-        }
-
-        fun imported(record: EventStreamRecord) {
-            imported.incrementAndGet()
-            events.addAndGet(record.events.size.toLong())
-        }
-
-        fun report(done: Boolean): ImportProgress = ImportProgress(
-            aggregate = aggregate,
-            instances = instances.get(),
-            imported = imported.get(),
-            skipped = skipped.get(),
-            events = events.get(),
-            rewritten = rewritten.get(),
-            elapsedMillis = clock() - startedAt,
-            done = done,
-            excluded = excluded.get(),
-            phases = ImportPhases(
-                readMillis = read.get() / NANOS_PER_MILLI,
-                convertMillis = convert.get() / NANOS_PER_MILLI,
-                appendMillis = append.get() / NANOS_PER_MILLI,
-                checkpointMillis = checkpoint.get() / NANOS_PER_MILLI,
-            ),
-        )
-    }
 }
-
-private const val NANOS_PER_MILLI = 1_000_000L
 
 /** The streams of one group commit at most: as many as one PostgreSQL statement of the log takes. */
 private const val MAX_GROUP_STREAMS = 1000
