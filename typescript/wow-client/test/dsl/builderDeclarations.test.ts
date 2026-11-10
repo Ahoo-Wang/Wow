@@ -94,6 +94,33 @@ function emittedProgram(): { program: ts.Program; entry: string } {
   };
 }
 
+/**
+ * A doc comment's text, its links written out: `{@link target | text}`, and
+ * `(unresolved)` after a target a consumer's compiler does not find, which an
+ * editor shows as plain text rather than as a link.
+ */
+function text(parts: readonly ts.SymbolDisplayPart[] | undefined): string {
+  let out = '';
+  let link: { name?: string; text?: string } | undefined;
+  for (const part of parts ?? []) {
+    if (part.kind === 'link' && part.text.startsWith('{@')) {
+      link = {};
+    } else if (link && part.kind === 'linkName') {
+      link.name = part.text;
+    } else if (link && part.kind === 'linkText') {
+      link.text = part.text.trim();
+    } else if (link && part.kind === 'link') {
+      out += link.name
+        ? `{@link ${link.name}${link.text ? ` | ${link.text}` : ''}}`
+        : `{@link ${link.text} (unresolved)}`;
+      link = undefined;
+    } else {
+      out += part.text;
+    }
+  }
+  return out;
+}
+
 /** Each member of an exported object: its doc comment, its tags and its type, by name. */
 function membersOf(
   program: ts.Program,
@@ -112,12 +139,10 @@ function membersOf(
     .map(member => [
       member.name,
       {
-        doc: ts.displayPartsToString(member.getDocumentationComment(checker)),
+        doc: text(member.getDocumentationComment(checker)),
         tags: member
           .getJsDocTags(checker)
-          .map(tag =>
-            `@${tag.name} ${ts.displayPartsToString(tag.text)}`.trimEnd(),
-          ),
+          .map(tag => `@${tag.name} ${text(tag.text)}`.trimEnd()),
         type: checker.typeToString(
           checker.getTypeOfSymbolAtLocation(member, declaration),
           undefined,
