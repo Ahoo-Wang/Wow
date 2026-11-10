@@ -39,6 +39,9 @@ internal fun KSFunctionDeclaration.annotatedIn(annotation: String): KSFunctionDe
         function.annotations.any { it.isOf(annotation) }
     }
 
+/** Whether this function, or one it overrides, carries [annotation] ([annotatedIn]). */
+internal fun KSFunctionDeclaration.isHandler(annotation: String): Boolean = annotatedIn(annotation) != null
+
 /**
  * The name this subscription handler goes by in its subscription, `processor.name`: its `@Name` (or the one of the
  * function it overrides), else its own name. A blank `@Name`, or one without a value, is one of [problems], the

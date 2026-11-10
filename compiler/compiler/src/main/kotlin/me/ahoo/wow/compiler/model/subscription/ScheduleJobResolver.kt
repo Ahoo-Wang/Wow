@@ -30,6 +30,7 @@ import me.ahoo.wow.compiler.model.symbol.annotatedIn
 import me.ahoo.wow.compiler.model.symbol.argumentsOf
 import me.ahoo.wow.compiler.model.symbol.blocking
 import me.ahoo.wow.compiler.model.symbol.handlerName
+import me.ahoo.wow.compiler.model.symbol.isHandler
 import me.ahoo.wow.manifest.JobManifest
 import java.time.DateTimeException
 import java.time.ZoneId
@@ -126,7 +127,7 @@ internal object ScheduleJobResolver {
             context = function.parameters.size > 1,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
-            blocking = function.annotatedIn(BLOCKING) != null,
+            blocking = function.isHandler(BLOCKING),
             retry = retry,
             job = job,
             sends = sends,

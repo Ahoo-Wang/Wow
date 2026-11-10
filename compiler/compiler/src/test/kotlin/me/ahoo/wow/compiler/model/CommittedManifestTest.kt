@@ -354,6 +354,16 @@ class CommittedManifestTest {
 
                 @OnCommitted
                 fun wrongReturn(committed: CommandReceipt.Committed<Int>): String = ""
+
+                @OnCommitted
+                private fun hidden(committed: CommandReceipt.Committed<OrderPlaced>) = Unit
+
+                @OnCommitted
+                fun nothing() = Unit
+
+                @OnRejected
+                @OnCommitted
+                fun neither() = Unit
             }
 
             @Projection
@@ -402,6 +412,12 @@ class CommittedManifestTest {
             .contains("handler BrokenSaga.tooMany takes 3 parameters: an @OnCommitted handler takes")
             .contains("handler BrokenSaga.wrongReturn returns kotlin.String")
             .contains("processor Board is a @Projection with @OnCommitted handlers")
+            .contains("handler BrokenSaga.hidden is private: the generated subscription calls it")
+            .contains("handler BrokenSaga.nothing must take a CommandReceipt.Committed first, not nothing")
+            .contains(
+                "handler BrokenSaga.neither is @OnRejected and @OnCommitted, so it takes a CommandReceipt<C> first, " +
+                    "not nothing",
+            )
             .doesNotContain("two handlers named twoReceipts")
     }
 }
