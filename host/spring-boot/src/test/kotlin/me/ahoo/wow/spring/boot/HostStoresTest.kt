@@ -74,7 +74,7 @@ class HostStoresTest {
     ): Map<String, Store> = StoreInstances.open(
         properties,
         providers,
-        BeanStoreResources(beans),
+        BeanStoreResources(beans, NodeStores.BACKENDS),
         service,
         memoryOptIn,
         settings = { prefix -> settings[prefix.removePrefix("wow.stores.")].orEmpty() },
@@ -459,7 +459,7 @@ class HostStoresTest {
         val stores = StoreInstances.open(
             properties { stores["a"] = StoreProperties().apply { type = "memory" } },
             providers,
-            BeanStoreResources(DefaultListableBeanFactory()),
+            BeanStoreResources(DefaultListableBeanFactory(), NodeStores.BACKENDS),
             clock = clock,
         )
         stores.getValue("a").config.clock.assert().isSameAs(clock)

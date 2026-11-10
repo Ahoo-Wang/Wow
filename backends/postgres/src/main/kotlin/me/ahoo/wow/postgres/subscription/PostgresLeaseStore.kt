@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
@@ -35,6 +36,7 @@ import java.sql.SQLException
 import java.time.Clock
 import javax.sql.DataSource
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (service, node), with the
@@ -53,8 +55,9 @@ import kotlin.time.Duration
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. JDBC calls
  * run on [dispatcher], virtual threads by default.
  *
- * Closing it gives the connection back to the pool, once the operation that holds it, if any, is done; an operation
- * after that fails. Its store closes it when it is closed ([me.ahoo.wow.spi.store.Store.close]).
+ * Closing it gives the connection back to the pool, once the operation that holds it, if any, is done, waiting for it
+ * at most [closeTimeout]; an operation after that fails. Its store closes it when it is closed
+ * ([me.ahoo.wow.spi.store.Store.close]).
  */
 @InternalWowApi
 class PostgresLeaseStore(
@@ -63,6 +66,8 @@ class PostgresLeaseStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
+    /** How long [close] waits for the operation holding the connection: [CLOSE_TIMEOUT]; a test's own. */
+    private val closeTimeout: Duration = CLOSE_TIMEOUT,
 ) : LeaseStore, AutoCloseable {
     /** Claims the tables' format ([PostgresFormat]) and creates them when missing. */
     fun createSchema() {
@@ -154,21 +159,45 @@ class PostgresLeaseStore(
         }
     }
 
-    /** The connection the operations run on, one at a time ([pinning]); null until the first and after a failure. */
+    /**
+     * The connection the operations run on, one at a time ([pinning]); null until the first and after a failure. Written
+     * under [pinning], and read by a [close] that stopped waiting for it.
+     */
+    @Volatile
     private var pinned: Connection? = null
     private val pinning = Mutex()
 
-    /** Whether it was closed ([close]); read and written under [pinning]. */
+    /** Whether it was closed ([close]): written under [pinning], or by a [close] that stopped waiting for it. */
+    @Volatile
     private var closed = false
 
-    /** Gives the pinned connection back, once the operation holding it is done: an operation after that fails. */
+    /**
+     * Gives the pinned connection back, once the operation holding it is done: an operation after that fails. It waits
+     * for that operation at most [closeTimeout]. An operation still running then has its connection aborted
+     * ([Connection.abort]) and given back, so its statement fails; one still borrowing a connection gives it back
+     * when it ends.
+     */
     override fun close(): Unit = runBlocking {
-        pinning.withLock {
+        if (withTimeoutOrNull(closeTimeout) { pinning.lock() } == null) {
+            closed = true
+            pinned?.let { connection ->
+                pinned = null
+                try {
+                    connection.abort(Runnable::run)
+                } finally {
+                    connection.close()
+                }
+            }
+            return@runBlocking
+        }
+        try {
             closed = true
             pinned?.let { connection ->
                 pinned = null
                 connection.close()
             }
+        } finally {
+            pinning.unlock()
         }
     }
 
@@ -189,6 +218,13 @@ class PostgresLeaseStore(
                     runCatching { connection.close() }
                 }
                 throw failure
+            } finally {
+                // A close that stopped waiting for this operation leaves the connection to it to give back. Closing a
+                // connection that is closed already, as an aborted one may be, does nothing (JDBC's Connection.close).
+                if (closed) {
+                    pinned = null
+                    runCatching { connection.close() }
+                }
             }
         }
     }
@@ -224,6 +260,16 @@ class PostgresLeaseStore(
     }
 
     internal companion object {
+        /**
+         * How long a close waits for the operation holding the connection. A lease operation is one indexed statement,
+         * done in milliseconds, and the node stops its subscriptions, which run them, before its stores close; so an
+         * operation still running at close is one whose connection hangs. Its statement is bounded only by the store's
+         * `operation-timeout` (five minutes by default), and the close runs in Spring's destroy phase, which
+         * `spring.lifecycle.timeout-per-shutdown-phase` does not bound: five seconds keeps a hung connection from
+         * holding the context's close for longer.
+         */
+        val CLOSE_TIMEOUT: Duration = 5.seconds
+
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
 

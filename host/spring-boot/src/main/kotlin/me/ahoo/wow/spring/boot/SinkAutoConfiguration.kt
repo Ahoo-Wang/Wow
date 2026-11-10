@@ -24,8 +24,8 @@ import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.sink.StreamSinks
 import me.ahoo.wow.spi.store.StoreResources
-import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -47,17 +47,17 @@ import org.springframework.core.env.Environment
 @AutoConfiguration(after = [TransportAutoConfiguration::class])
 @EnableConfigurationProperties(WowProperties::class)
 class SinkAutoConfiguration {
-    @Bean(destroyMethod = "close")
+    @Bean(PROVIDED_SINKS, destroyMethod = "close")
     internal fun wowProvidedSinks(
         providers: PortProviders,
         environment: Environment,
-        beanFactory: ListableBeanFactory,
+        beanFactory: ConfigurableListableBeanFactory,
         manifest: Manifest,
         properties: ObjectProvider<WowProperties>,
         backends: ObjectProvider<HostBackends>,
     ): ProvidedSinks {
         val wow = properties.ifAvailable
-        val resources = BeanStoreResources(beanFactory)
+        val resources = BeanStoreResources(beanFactory, PROVIDED_SINKS)
         val configs = providers.sinkConfigs(environment, resources) { type ->
             mapOf(DDL to (wow?.ddl ?: Ddl.AUTO).name.lowercase()) + aggregateOptions(type, wow?.aggregates.orEmpty())
         } + storeSinkConfigs(providers, wow, backends.ifAvailable, resources)
@@ -79,6 +79,9 @@ class SinkAutoConfiguration {
 
     internal companion object {
         private val logger = KotlinLogging.logger {}
+
+        /** The name of the [ProvidedSinks] bean, which closes the Sinks the providers opened. */
+        private const val PROVIDED_SINKS = "wowProvidedSinks"
 
         /**
          * The Sinks that write into a store of the node: for each store of [backends] that an aggregate type's
