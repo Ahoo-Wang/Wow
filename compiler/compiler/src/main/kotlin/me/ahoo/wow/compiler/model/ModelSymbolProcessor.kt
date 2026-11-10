@@ -21,7 +21,6 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
@@ -49,12 +48,10 @@ import me.ahoo.wow.compiler.model.subscription.ModuleEvent
 import me.ahoo.wow.compiler.model.subscription.SubscriptionBinding
 import me.ahoo.wow.compiler.model.subscription.SubscriptionResolver
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
-import me.ahoo.wow.compiler.model.symbol.BoundedContextArguments
 import me.ahoo.wow.compiler.model.symbol.ModelNames.REACTOR_TYPES
 import me.ahoo.wow.compiler.model.symbol.isValid
 import me.ahoo.wow.compiler.model.symbol.neverValidated
 import me.ahoo.wow.compiler.model.symbol.render
-import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -150,8 +147,11 @@ internal class ModelSymbolProcessor(
     /** The module's `@ServiceRoute` functions without problems. */
     private val routes = mutableListOf<ServiceRouteBinding>()
 
+    /** The module's `@BoundedContext`s, and the context it is compiled for ([BoundedContexts]). */
+    private val contexts = BoundedContexts(mode == Mode.GENERATE, logger, manifest.context)
+
     /** Reads each aggregate root into its binding, claiming the upgrade functions it names. */
-    private val analyzer = AggregateAnalyzer(upgrades, claimedUpgrades, ::mountedOf, ::context)
+    private val analyzer = AggregateAnalyzer(upgrades, claimedUpgrades, ::mountedOf, contexts::context)
 
     /** The module's `@MountedCommand`s, and those of them an aggregate of the module has claimed. */
     private val mountedCommands = mutableListOf<Pair<MountedBinding, KSClassDeclaration>>()
@@ -178,38 +178,18 @@ internal class ModelSymbolProcessor(
     private val packages = sortedSetOf<String>()
 
     /**
-     * The `@BoundedContext`s of the module: name to description. In generate mode, a name that breaks the rule of a
-     * context name ([ContextName]), the annotation's or the KSP option's, fails the compilation.
-     */
-    private val boundedContexts = sortedMapOf<String, String>()
-
-    /**
-     * The declarations whose `@BoundedContext` has an argument KSP has not evaluated yet, by name: what the module
-     * generates is named after its context, so nothing is generated in such a round, and one still unread when KSP
-     * ends fails the compilation ([finish]).
-     */
-    private val unreadContexts = sortedSetOf<String>()
-
-    /**
-     * The files of the `@BoundedContext`s read, by declaration: every output named after the context lists them among
-     * its sources, so KSP processes them again whenever it regenerates such an output.
-     */
-    private val contextFiles = linkedMapOf<String, KSFile>()
-
-    /**
      * The symbols the last round deferred: one still deferred when KSP ends never validated, and fails the compilation
      * ([finish]) rather than leaving the model without it.
      */
     private var waiting: List<KSAnnotated> = emptyList()
 
-    /** Whether the KSP option naming the context was checked against the rule of a context name, once per build. */
-    private var optionChecked = false
-
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (mode == Mode.OFF) {
             return emptyList()
         }
-        val unread = collectBoundedContexts(resolver)
+        val unread = contexts.collect(resolver)
+        // The contexts' files in the order read: sources keeps its order, so a new one lands where collecting put it.
+        sources += contexts.files
         if (unread.isNotEmpty()) {
             // Named after the module's context, nothing is generated while its name is unread: this round's symbols wait.
             return unread + ROUND_ANNOTATIONS.flatMap { resolver.getSymbolsWithAnnotation(it) }.distinct()
@@ -230,7 +210,7 @@ internal class ModelSymbolProcessor(
             root to analyzer.analyze(root)
         }
         // Former names two types claim are found across the module, the aggregates of earlier rounds included.
-        val duplicates = AliasCheck.duplicates(bindings + analyzed.map { it.second }, context())
+        val duplicates = AliasCheck.duplicates(bindings + analyzed.map { it.second }, contexts.context())
         analyzed.forEach { (root, analyzedBinding) ->
             val publishers = analyzedBinding.commands.filter { it.reactor }.map { it.function } +
                 analyzedBinding.afters.filter { it.reactor }.map { it.function }
@@ -361,9 +341,6 @@ internal class ModelSymbolProcessor(
         }
     }
 
-    /** The bounded context of the module's types, when an option or a single `@BoundedContext` names it. */
-    private fun context(): String? = manifest.context ?: boundedContexts.keys.singleOrNull()
-
     /**
      * An `@Upgrade` of a class that is not an event of an aggregate of the module upgrades nothing; its own problems,
      * an argument of its annotation without a value among them, are reported with it.
@@ -450,63 +427,16 @@ internal class ModelSymbolProcessor(
         codeGenerator.createNewFile(
             Dependencies(
                 aggregating = false,
-                sources = (listOfNotNull(processor.containingFile) + contextFiles.values).distinct().toTypedArray(),
+                sources = (listOfNotNull(processor.containingFile) + contexts.files).distinct().toTypedArray(),
             ),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
-        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context())) }
+        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, contexts.context())) }
     }
-
-    /**
-     * Collects the module's `@BoundedContext`s: the declarations returned are those with an argument KSP has not
-     * evaluated yet, deferred to the next round, if KSP runs one ([unreadContexts]).
-     */
-    private fun collectBoundedContexts(resolver: Resolver): List<KSClassDeclaration> {
-        // Every file of the module, not the round's alone: an incremental round hands the processor only the files KSP
-        // found dirty, and the context names what each round generates, whichever file declares it.
-        val declarations = resolver.getAllFiles().flatMap { it.declarations }.flatMap { it.classes() }
-            .filter { declaration -> declaration.annotations.any(BoundedContextArguments::isBoundedContext) }
-            .filterNot { declaration -> declaration.contextKey() in contextFiles }
-        val unread = declarations.filter { declaration ->
-            val name = declaration.contextKey()
-            val read = declaration.annotations.filter(BoundedContextArguments::isBoundedContext)
-                .map(BoundedContextArguments::of).toList()
-            if (null in read) {
-                unreadContexts += name
-                return@filter true
-            }
-            unreadContexts -= name
-            declaration.containingFile?.let {
-                sources += it
-                contextFiles[name] = it
-            }
-            read.filterNotNull().forEach { context ->
-                boundedContexts[context.name] = context.description
-                if (mode == Mode.GENERATE) {
-                    ContextName.problem(context.name)?.let { logger.error("@BoundedContext: $it", declaration) }
-                }
-            }
-            false
-        }.toList()
-        if (mode == Mode.GENERATE && !optionChecked) {
-            optionChecked = true
-            manifest.context?.let(ContextName::problem)?.let {
-                logger.error("KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION}: $it")
-            }
-        }
-        return unread
-    }
-
-    private fun KSClassDeclaration.contextKey(): String = qualifiedName?.asString() ?: simpleName.asString()
-
-    /** This declaration, when it is a class, and the classes nested in it. */
-    private fun KSDeclaration.classes(): Sequence<KSClassDeclaration> =
-        (this as? KSClassDeclaration)?.let { sequenceOf(it) + it.declarations.flatMap { nested -> nested.classes() } }
-            .orEmpty()
 
     override fun finish() {
-        if (unreadContexts.isNotEmpty() || waiting.isNotEmpty()) {
-            unreadContexts.forEach {
+        if (contexts.unread.isNotEmpty() || waiting.isNotEmpty()) {
+            contexts.unread.forEach {
                 logger.error(
                     "@BoundedContext of $it: KSP evaluated no value for its name or description, so nothing of the " +
                         "module was generated; an argument must be a constant KSP can read, a literal or a const val",
@@ -536,10 +466,10 @@ internal class ModelSymbolProcessor(
      * with problems never gets here: their errors make KSP call [onError] instead of [finish].
      */
     private fun writeManifestFragment() {
-        val context = context()
+        val context = contexts.context()
         if (context == null) {
             logger.warn(
-                "No Manifest fragment and no model provider: the module declares ${boundedContexts.size} " +
+                "No Manifest fragment and no model provider: the module declares ${contexts.declared.size} " +
                     "@BoundedContext; set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name " +
                     "its bounded context",
             )
@@ -554,7 +484,7 @@ internal class ModelSymbolProcessor(
             return
         }
         val module = manifest.module ?: context
-        val description = boundedContexts[context]?.ifBlank { null }
+        val description = contexts.declared[context]?.ifBlank { null }
         val fragment = ManifestFragmentBuilder.build(
             context,
             description,
@@ -600,12 +530,12 @@ internal class ModelSymbolProcessor(
         codeGenerator.createNewFile(
             Dependencies(
                 aggregating = false,
-                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contextFiles.values).distinct()
+                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contexts.files).distinct()
                     .toTypedArray(),
             ),
             binding.packageName,
             "${binding.rootSimpleName}Model",
-        ).bufferedWriter().use { it.write(ModelSource.render(binding, context())) }
+        ).bufferedWriter().use { it.write(ModelSource.render(binding, contexts.context())) }
         val state = RootStateResolver.stateOf(root)
         AccessSource.generate(codeGenerator, state, binding.access, binding.internal, accessOf)
         if (queryApi == true) {
