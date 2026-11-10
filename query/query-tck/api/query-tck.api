@@ -91,7 +91,9 @@ public abstract class me/ahoo/wow/query/tck/DatasetDateBucketCases {
 	public final fun a dense hourly histogram keeps whole the hour a half-hour fall-back makes 90 minutes long ()V
 	public final fun a minute bucket right after Monrovia's 1972 change starts at its local minute ()V
 	public final fun a minute bucket starts at its local minute in a zone whose offset moved by seconds ()V
+	public final fun a minute whose local start a change skipped begins at the transition, not after its records ()V
 	protected abstract fun aggregateZoned (Lme/ahoo/wow/api/query/AggregationQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun an hour whose local start a change skipped begins at the transition ()V
 	public final fun an hourly bucket on the day of an offset change before 1970 starts at its local hour ()V
 	public final fun an hourly bucket starts where its local hour does, a repeated hour twice and a half-hour zone at its own ()V
 	protected abstract fun getSemanticDivergences ()Ljava/util/Set;
