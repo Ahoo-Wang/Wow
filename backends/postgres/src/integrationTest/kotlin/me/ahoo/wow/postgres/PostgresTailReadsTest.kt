@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.postgres
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -24,12 +26,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.PartitionLineage
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 /** The reads of a partition: a run longer than one read takes, and the head of a partition. */
-class PostgresTailReadsTest {
+class PostgresTailReadsTest : PostgresLogFixtures() {
     @Test
     fun `a tail reads a run longer than its batch a batch at a time, without waiting to poll`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
@@ -70,6 +73,49 @@ class PostgresTailReadsTest {
             assertThrownBy<IllegalStateException> { runBlocking { log.lineage(1) } }.hasMessage(missing)
         }
 
+    @Test
+    fun `a partition's stored lineage reads back`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val log = PostgresFixture.log(2, context)
+            val counters = PostgresEventLogTables(context).partitions
+            // What an online split of 10.x writes: partition 1 split from partition 0 (decision D240).
+            execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
+            log.lineage(0).assert().isEqualTo(PartitionLineage.ROOT)
+            log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
+            execute("DELETE FROM $counters WHERE partition = 1")
+            runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+        }
+
+    @Test
+    fun `a tail finds the aggregate tables another log created after it started`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val reader = PostgresFixture.log(1, context, listOf("order"))
+        val writer = PostgresFixture.log(1, context)
+        val order = AggregateType(context, "order")
+        val cart = AggregateType(context, "cart")
+        writer.append(stream("a", 1, aggregate = order))
+        reader.tail(0).first().stream.ref.assert().isEqualTo(order.ref("tenant", "a"))
+        writer.append(stream("b", 1, aggregate = cart))
+        writer.append(stream("a", 2, aggregate = order))
+        val entries = withTimeout(TAIL_TIMEOUT_MS) { reader.tail(0).take(3).toList() }
+        entries.map { it.stream.ref.type }.assert().containsExactly(order, cart, order)
+        reader.findByRequestId(cart, "tenant", entries[1].stream.requestId)?.ref.assert().isEqualTo(cart.ref("tenant", "b"))
+    }
+
+    @Test
+    fun `a tail stops at a missing sequence rather than skip it`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = AggregateType(context, "order"))) }
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("DELETE FROM \"${table(context, "order")}\" WHERE sequence = 2") }
+        }
+        val read = withTimeoutOrNull(TAIL_STALL_MS) { log.tail(0).take(2).toList() }
+        read.assert().isNull()
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }.position.sequence.assert().isEqualTo(1L)
+    }
+
     private fun stream(ref: AggregateRef) = EventStreamRecord(
         ref,
         1,
@@ -84,5 +130,6 @@ class PostgresTailReadsTest {
     private companion object {
         const val BATCH = 2
         const val ENTRIES = 5
+        const val TAIL_STALL_MS = 500L
     }
 }
