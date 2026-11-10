@@ -162,6 +162,9 @@ internal class SubscriptionWorker(
     private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
 
+    /** What a retry writes to the ledger when it ends without handling all of an aggregate. */
+    private val writes = RetryWrites(subscription.name, partition, source, ledger, pause, options.readRetry, clock)
+
     /** The aggregates parked here, and the retry or skip running on each. Guarded by the monitor. */
     private val parking = ParkStates(parked)
 
@@ -572,7 +575,7 @@ internal class SubscriptionWorker(
             stream.ref,
             partition,
             stream.version,
-            reason(failure),
+            reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
             // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
@@ -651,7 +654,7 @@ internal class SubscriptionWorker(
             val entries = try {
                 source.retryEntries(ref, parked.fromVersion, parked.fromPosition).toList()
             } catch (gone: UnrecoverableException) {
-                unrecoverable(parked, gone)
+                writes.unrecoverable(parked, gone)
                 restoreParked(ref, item, parked)
                 item.result.complete(false)
                 return
@@ -671,7 +674,7 @@ internal class SubscriptionWorker(
                 if (failure != null) {
                     // Still failing: the entries before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
-                    parked = repark(entry, failure)
+                    parked = writes.repark(entry, failure)
                     if (last != null) {
                         // Copies of the entries handled here that the tail delivers later are skipped.
                         synchronized(this) { parking.retried(ref, last) }
@@ -696,43 +699,6 @@ internal class SubscriptionWorker(
             restoreParked(ref, item, parked)
             item.result.completeExceptionally(failure)
         }
-    }
-
-    /**
-     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked; returns
-     * the entry.
-     */
-    private suspend fun repark(sourced: SourcedEntry, failure: Throwable): ParkedAggregate {
-        val stream = sourced.stream
-        logger.warn(failure) {
-            "Subscription ${subscription.name} keeps ${stream.ref} parked, now from version ${stream.version}."
-        }
-        return ParkedAggregate(
-            subscription.name,
-            stream.ref,
-            partition,
-            stream.version,
-            reason(failure),
-            clock.millis(),
-            source.sourcePosition(sourced),
-        ).also { repark(it) }
-    }
-
-    /**
-     * Records in the ledger that [parked]'s aggregate can no longer be retried, only skipped: the source does not
-     * hold what it is parked from any more ([gone]).
-     */
-    private suspend fun unrecoverable(parked: ParkedAggregate, gone: UnrecoverableException) {
-        logger.error {
-            "Subscription ${subscription.name} cannot retry ${parked.ref}: ${gone.message} It can only be skipped."
-        }
-        val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
-        repark(parked.copyWith(reason = reason, failedAt = clock.millis()))
-    }
-
-    private suspend fun repark(entry: ParkedAggregate) {
-        pause.awaitRunning()
-        retryForever(options.readRetry, { "repark ${entry.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 
     private fun restoreParked(ref: AggregateRef, item: Item.Retry, parked: ParkedAggregate) = synchronized(this) {
@@ -816,8 +782,6 @@ internal class SubscriptionWorker(
         }
         active.clear()
     }
-
-    private fun reason(failure: Throwable): String = "${failure.javaClass.name}: ${failure.message}"
 
     private class Slot(val sequence: Long) {
         var done = false
