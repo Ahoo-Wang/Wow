@@ -83,7 +83,8 @@ export class SourceCapabilities {
     string,
     { version: string; limits: RuntimeLimits }
   >();
-  private readonly stopWatching: () => void;
+  /** Stops listening for the page coming back; `null` while nothing listens. */
+  private stopListening: (() => void) | null = null;
   /** Who runs on each source, told when its descriptor changes. */
   private readonly watchers = new Map<string, Set<() => void>>();
 
@@ -106,12 +107,6 @@ export class SourceCapabilities {
         for (const listener of [...(this.watchers.get(source) ?? [])])
           listener();
       },
-    });
-    // Coming back to the page is one of the moments to check again; the
-    // cache skips a descriptor younger than its maximum age.
-    const visibility = host.environment.visibility;
-    this.stopWatching = visibility.subscribe(() => {
-      if (visibility.isVisible()) this.cache.revalidateStale();
     });
   }
 
@@ -183,8 +178,34 @@ export class SourceCapabilities {
       this.watchers.set(source, listeners);
     }
     listeners.add(listener);
+    this.listen();
     return () => {
       listeners.delete(listener);
+      if (listeners.size === 0) this.watchers.delete(source);
+      if (this.watchers.size === 0) this.stopListening?.();
+    };
+  }
+
+  /**
+   * Coming back to the page is one of the moments to check again (the cache
+   * skips a descriptor younger than its maximum age), and it matters while
+   * a view is open to be narrowed: the next one to open checks a stale
+   * descriptor itself. So the page is listened to from the first watcher to
+   * the last, not from construction to `dispose`: an engine React set up,
+   * cleaned up and set up again (StrictMode) listens again with the first
+   * view opened after it, where one subscription made once was gone for
+   * good (#5562), and an engine React built twice and kept once leaves no
+   * listener behind from the other.
+   */
+  private listen(): void {
+    if (this.stopListening) return;
+    const visibility = this.host.environment.visibility;
+    const stop = visibility.subscribe(() => {
+      if (visibility.isVisible()) this.cache.revalidateStale();
+    });
+    this.stopListening = () => {
+      stop();
+      this.stopListening = null;
     };
   }
 
@@ -246,8 +267,9 @@ export class SourceCapabilities {
     };
   }
 
+  /** Lets the page go, whatever views a host left open without closing. */
   dispose(): void {
-    this.stopWatching();
+    this.stopListening?.();
   }
 
   /**
