@@ -120,7 +120,7 @@ internal class ClickHouseDatasetAccess(private val dataset: QueryDataset, databa
             MatchNoneFilter -> "0"
             is AndFilter -> filter.operands.joinToString(" AND ", "(", ")") { compile(it) }
             is OrFilter -> filter.operands.joinToString(" OR ", "(", ")") { compile(it) }
-            is NorFilter -> filter.operands.joinToString(" OR ", "NOT (", ")") { compile(it) }
+            is NorFilter -> ClickHouseFilterCompiler.nor(filter.operands.map(::compile))
             is EqualFilter -> holds(filter.field, listOf(filter.value))
             is InFilter -> holds(filter.field, filter.values)
             is ContainsAllFilter -> filter.values.joinToString(" AND ", "(", ")") { holds(filter.field, listOf(it)) }

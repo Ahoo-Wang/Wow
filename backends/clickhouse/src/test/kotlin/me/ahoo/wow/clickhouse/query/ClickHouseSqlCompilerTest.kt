@@ -130,7 +130,7 @@ class ClickHouseSqlCompilerTest {
         where(OrFilter(listOf(EqualFilter(CITY, "a"), EqualFilter(CITY, "b"))))
             .assert().isEqualTo("(`city` = {p0:String} OR `city` = {p1:String})")
         where(NorFilter(listOf(EqualFilter(CITY, "a"), EqualFilter(CITY, "b"))))
-            .assert().isEqualTo("NOT (`city` = {p0:String} OR `city` = {p1:String})")
+            .assert().isEqualTo("NOT ifNull((`city` = {p0:String} OR `city` = {p1:String}), 0)")
         where(AndFilter(listOf(TenantIdFilter("t"), EqualFilter(CITY, "a"))))
             .assert().isEqualTo("(`tenant_id` = {p0:String} AND `city` = {p1:String})")
     }
@@ -181,8 +181,8 @@ class ClickHouseSqlCompilerTest {
         )
         COMPARISONS.forEach { (comparison, operator) ->
             where(ExpressionFilter(amountPlusOne, comparison, 2.0)).assert().isEqualTo(
-                "(isNotNull((toFloat64(`amount`) + toFloat64(1.0))) AND " +
-                    "(toFloat64(`amount`) + toFloat64(1.0)) $operator toFloat64(2.0))",
+                "(isNotNull(ifNotFinite((toFloat64(`amount`) + toFloat64(1.0)), NULL)) AND " +
+                    "ifNotFinite((toFloat64(`amount`) + toFloat64(1.0)), NULL) $operator toFloat64(2.0))",
             )
         }
         val elapsed = AggregationExpression.DateDiff(CREATED_AT, PAID_AT, DateDiffUnit.HOUR)
@@ -218,13 +218,17 @@ class ClickHouseSqlCompilerTest {
             AggregationDateUnit.DAY to "toStartOfDay",
             AggregationDateUnit.HOUR to "toStartOfHour",
             AggregationDateUnit.MINUTE to "toStartOfMinute",
-            AggregationDateUnit.SECOND to "toDateTime",
         ).forEach { (unit, function) ->
             grouped(AggregationGroup.DateHistogram(CREATED_AT, "g", unit, "Asia/Shanghai")).assert().contains(
-                "toInt64(toUnixTimestamp(toDateTime($function(toTimeZone(toDateTime64(`created_at`, 3, 'UTC'), " +
-                    "'Asia/Shanghai')), 'Asia/Shanghai'))) * 1000 AS __g0",
+                "toUnixTimestamp64Milli(toDateTime64($function(toStartOfSecond(toDateTime64(`created_at`, 3, 'UTC')), " +
+                    "'Asia/Shanghai'), 3, 'Asia/Shanghai')) AS __g0",
             )
         }
+        grouped(AggregationGroup.DateHistogram(CREATED_AT, "g", AggregationDateUnit.SECOND, "Asia/Shanghai")).assert()
+            .contains(
+                "toUnixTimestamp64Milli(toDateTime64(toStartOfSecond(toDateTime64(`created_at`, 3, 'UTC')), 3, " +
+                    "'Asia/Shanghai')) AS __g0",
+            )
         mapOf(
             AggregationDatePart.DAY_OF_WEEK to "toDayOfWeek",
             AggregationDatePart.DAY_OF_MONTH to "toDayOfMonth",
@@ -232,7 +236,7 @@ class ClickHouseSqlCompilerTest {
             AggregationDatePart.MONTH_OF_YEAR to "toMonth",
         ).forEach { (part, function) ->
             grouped(AggregationGroup.DatePart(DAY, "g", part)).assert()
-                .contains("$function(toTimeZone(toDateTime64(`day`, 3, 'UTC'), 'UTC')) AS __g0")
+                .contains("$function(toTimeZone(toDateTime64(`day`, 0, 'UTC'), 'UTC')) AS __g0")
         }
         grouped(AggregationGroup.DateHistogram(EPOCH_MS, "g", AggregationDateUnit.DAY)).assert()
             .contains("fromUnixTimestamp64Milli(toInt64(`epoch_ms`), 'UTC')")
@@ -333,7 +337,7 @@ class ClickHouseSqlCompilerTest {
             "varPopOrNull(`amount`) AS __m7",
             "uniqExact(`city`) AS __m8",
             "uniqExactIf(`city`, isNotNull(`paid_at`)) AS __m9",
-            "uniqExact((toFloat64(`quantity`) + toFloat64(0.0))) AS __m10",
+            "uniqExact(ifNotFinite((toFloat64(`quantity`) + toFloat64(0.0)), NULL)) AS __m10",
             "quantileTDigestOrNull(toFloat64(0.95))(toFloat64(`amount`)) AS __m11",
             "quantileTDigestIfOrNull(toFloat64(0.5))(toFloat64(`amount`), isNotNull(`paid_at`)) AS __m12",
             "anyOrNull(`city`) AS __m13",
@@ -341,9 +345,10 @@ class ClickHouseSqlCompilerTest {
             "argMinIfOrNull(`city`, `created_at`, isNotNull(`city`) AND isNotNull(`created_at`)) AS __m15",
             "argMaxIfOrNull(`city`, `created_at`, isNotNull(`city`) AND isNotNull(`created_at`) AND " +
                 "isNotNull(`paid_at`)) AS __m16",
-            "if(toFloat64(__m1) = 0, NULL, (toFloat64(__m2) + ((toFloat64(__m5) * toFloat64(2.0)) - " +
-                "toFloat64(__m0))) / toFloat64(__m1)) AS `derived`",
-            "(if(toFloat64(__m1) = 0, NULL, ",
+            "ifNotFinite(if(toFloat64(__m1) = 0, NULL, ifNotFinite((toFloat64(__m2) + ifNotFinite((" +
+                "ifNotFinite((toFloat64(__m5) * toFloat64(2.0)), NULL) - toFloat64(__m0)), NULL)), NULL) / " +
+                "toFloat64(__m1)), NULL) AS `derived`",
+            "ifNotFinite((ifNotFinite(if(toFloat64(__m1) = 0, NULL, ",
         ).forEach { sql.assert().contains(it) }
     }
 

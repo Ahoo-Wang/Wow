@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.EqualFilter
+import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
@@ -41,6 +42,7 @@ import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.Projection
@@ -403,6 +405,60 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `NOR holds for a record whose condition has no value`() = blocking {
+        val discount = QueryField("discount")
+        val noTenth =
+            AndFilter(
+                listOf(EqualFilter(TENANT_COLUMN, "t1"), NorFilter(listOf(EqualFilter(discount, BigDecimal("0.10")))))
+            )
+        orders.list(ListQuery(noTenth, sort = listOf(Sort(QueryField(ID), Sort.Direction.ASC)))).map {
+            it.path(ID).stringValue()
+        }
+            .assert().containsExactly("o1", "o3", "o4", "o5")
+        Unit
+    }
+
+    @Test
+    fun `an expression past the double range has no value, so no comparison matches it`() = blocking {
+        fun times(factor: Double) = AggregationExpression.Binary(
+            AggregationExpressionOperator.MULTIPLY,
+            AggregationExpression.Field(AMOUNT),
+            AggregationExpression.Constant(factor),
+        )
+        fun positive(factor: Double) = AndFilter(
+            listOf(EqualFilter(TENANT_COLUMN, "t1"), ExpressionFilter(times(factor), ComparisonOperator.GT, 0.0)),
+        )
+        orders.count(positive(1e300)).assert().isEqualTo(5L)
+        orders.count(positive(Double.MAX_VALUE)).assert().isEqualTo(0L)
+        Unit
+    }
+
+    @Test
+    fun `a date histogram buckets instants before 1970 at their own start`() = blocking {
+        val history = target(HISTORY)
+        fun buckets(unit: AggregationDateUnit, zone: String) = blocking {
+            history.aggregate(
+                AggregationQuery(
+                    groupBy = listOf(AggregationGroup.DateHistogram(CREATED_AT, "bucket", unit, zone)),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                    sort = listOf(Sort(QueryField("bucket"), Sort.Direction.ASC)),
+                ),
+            ).map { it.path("bucket").longValue() to it.path("count").longValue() }
+        }
+        buckets(AggregationDateUnit.HOUR, "UTC").assert().containsExactly(
+            Instant.parse("1969-12-31T12:00:00Z").toEpochMilli() to 2L,
+            0L to 1L,
+        )
+        buckets(AggregationDateUnit.DAY, "America/New_York").assert()
+            .containsExactly(Instant.parse("1969-12-31T05:00:00Z").toEpochMilli() to 3L)
+        buckets(AggregationDateUnit.YEAR, "UTC").assert().containsExactly(
+            Instant.parse("1969-01-01T00:00:00Z").toEpochMilli() to 2L,
+            0L to 1L,
+        )
+        Unit
+    }
+
+    @Test
     fun `having filters groups before the metric sort and limit`() = blocking {
         val rows = orders.aggregate(
             AggregationQuery(
@@ -708,6 +764,21 @@ abstract class DatasetQueryBackendSpec {
                 order("o5", "t1", "Shanghai", "7.75", 4, "0.05", "2025-02-15T12:00:00Z"),
                 order("o6", "t2", "Hangzhou", "99.99", 9, null, "2025-01-01T05:00:00Z"),
             ),
+        )
+
+        /** Instants on either side of the epoch. */
+        val HISTORY = DatasetTable(
+            name = "history",
+            columns = listOf(
+                DatasetColumn(ID, DatasetColumn.Type.STRING),
+                DatasetColumn(TENANT_COLUMN.path, DatasetColumn.Type.STRING),
+                DatasetColumn("created_at", DatasetColumn.Type.DATE),
+            ),
+            rows = listOf(
+                "h1" to "1969-12-31T12:34:56Z",
+                "h2" to "1969-12-31T12:10:00Z",
+                "h3" to "1970-01-01T00:30:00Z",
+            ).map { (id, at) -> mapOf(ID to id, TENANT_COLUMN.path to "t1", "created_at" to Instant.parse(at)) },
         )
 
         @Suppress("LongParameterList")

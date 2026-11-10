@@ -72,6 +72,14 @@ class ClickHouseDatasetStorageParsingTest {
     }
 
     @Test
+    fun `a temporal column's scale should be the fraction digits it stores`() {
+        column("DateTime64(6, 'UTC')").scale.assert().isEqualTo(6)
+        column("Nullable(DateTime64(3))").scale.assert().isEqualTo(3)
+        column("DateTime('UTC')").scale.assert().isEqualTo(0)
+        column("Date32").scale.assert().isEqualTo(0)
+    }
+
+    @Test
     fun `only engines that merge rows should support FINAL`() {
         fun table(engine: String) = ClickHouseTable("db", "t", engine, emptyList())
         table("ReplicatedReplacingMergeTree").supportsFinal.assert().isTrue()
