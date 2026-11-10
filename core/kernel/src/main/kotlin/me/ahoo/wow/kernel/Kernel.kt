@@ -285,7 +285,7 @@ class Kernel(
         val requests = checks.of(model, decider, command, commandType, lease)
         val reach = requests.reach
         requests.beforeWaiting()?.let { return it }
-        awaitDue(command)
+        awaitScheduled(command)
         val waitBeyondCommitted = wait.beyondCommitted()
         val encode = scopes.encoder(model)
         var attempts = 0
@@ -296,7 +296,7 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            val attempt = scopes.open(command, loaded, waitBeyondCommitted, encode)
+            val attempt = attemptOn(command, loaded, waitBeyondCommitted, encode)
             val prepared = try {
                 preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -339,21 +339,61 @@ class Kernel(
     }
 
     /**
-     * Waits until the slot [command] was sent for is due on this kernel's clock, when it was sent for a schedule:
-     * a schedule never fires before its time here, whatever the firing node's clock said. One due
+     * Waits for the slot [command] was sent for, when a schedule sent it ([awaitDue]); one no schedule sent goes on at
+     * once. Inlined, so a command that is not scheduled makes no call for it.
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    private suspend inline fun awaitScheduled(command: Command<*>) {
+        command.schedule?.let { awaitDue(command, it.due, clock()) }
+    }
+
+    /**
+     * An attempt of [command] on [loaded], at this kernel's time read once, as for any command ([AttemptScopes.openDue]);
+     * a scheduled command that reading finds before its slot's due time is opened late ([openLate]). Inlined, so a
+     * command that is not scheduled makes no call for it.
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    private suspend inline fun attemptOn(
+        command: Command<*>,
+        loaded: CachedState,
+        wait: WaitContext?,
+        noinline encode: (AggregateRef, Any) -> Pair<String, String>,
+    ): AttemptScope = scopes.openDue(command, loaded, wait, encode) ?: openLate(command, loaded, wait, encode)
+
+    /**
+     * An attempt of [command] on [loaded], sent for a slot that the clock read for the attempt found not yet due (it
+     * stepped back while the state loaded): opened once it is due again ([awaitDue]), at the reading that found it due.
+     */
+    private suspend fun openLate(
+        command: Command<*>,
+        loaded: CachedState,
+        wait: WaitContext?,
+        encode: (AggregateRef, Any) -> Pair<String, String>,
+    ): AttemptScope {
+        val due = checkNotNull(command.schedule) { "Only a scheduled command is opened late." }.due
+        return scopes.open(command, loaded, wait, encode, awaitDue(command, due, clock()))
+    }
+
+    /**
+     * This kernel's time once [due], the time the slot [command] was sent for is due, has come on its clock, read
+     * [now] at first: a schedule never fires before its time here, whatever the firing node's clock said. One due
      * later than [maxEarlyWait] from now is not waited for, holding the aggregate's queue: it throws
      * [ScheduleNotDueException], and its firing runner sends it again later.
+     *
+     * A wait runs on the coroutine's clock, which need not advance as this kernel's does (a wall clock slewed or
+     * stepped back), so the clock is read again after each wait, and the time returned is the reading that found the
+     * slot due: an attempt opened at it never decides, nor commits, before the slot's due time.
      */
-    private suspend fun awaitDue(command: Command<*>) {
-        val due = (command.schedule ?: return).due
-        val now = clock()
-        val early = due - now
-        if (early > options.maxEarlyWait.inWholeMilliseconds) {
-            throw ScheduleNotDueException(command.ref, command.requestId, due, now)
+    private suspend fun awaitDue(command: Command<*>, due: Long, now: Long): Long {
+        var time = now
+        while (time < due) {
+            if (due - time > options.maxEarlyWait.inWholeMilliseconds) {
+                throw ScheduleNotDueException(command.ref, command.requestId, due, time)
+            }
+            delay(due - time)
+            time = clock()
         }
-        if (early > 0) {
-            delay(early)
-        }
+        return time
     }
 
     /**

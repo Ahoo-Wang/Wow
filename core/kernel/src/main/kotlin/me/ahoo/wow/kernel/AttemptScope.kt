@@ -255,14 +255,31 @@ internal class AttemptScopes(
     fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, String> =
         { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
 
-    /** An attempt of [command] on [loaded], at this kernel's time, with [wait] and [encode]. */
+    /** An attempt of [command] on [loaded], at [now] (this kernel's time unless given), with [wait] and [encode]. */
     fun open(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, String>,
+        now: Long = clock(),
     ): AttemptScope =
-        AttemptScope(command, ids, clock(), loaded, reservations, options.reservationTtl, wait, observer, encode)
+        AttemptScope(command, ids, now, loaded, reservations, options.reservationTtl, wait, observer, encode)
+
+    /**
+     * An attempt as [open] opens it, at this kernel's time read once; none when [command] was sent for a slot that
+     * time finds not yet due (the clock stepped back since the kernel waited for it), to be waited for again: an
+     * attempt never decides, nor commits, before its slot's due time.
+     */
+    fun openDue(
+        command: Command<*>,
+        loaded: CachedState,
+        wait: WaitContext?,
+        encode: (AggregateRef, Any) -> Pair<String, String>,
+    ): AttemptScope? {
+        val now = clock()
+        val schedule = command.schedule
+        return if (schedule != null && now < schedule.due) null else open(command, loaded, wait, encode, now)
+    }
 
     /**
      * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the

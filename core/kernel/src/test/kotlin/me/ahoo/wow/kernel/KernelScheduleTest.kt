@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.kernel
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
@@ -67,6 +67,9 @@ class KernelScheduleTest {
     }
 
     private val decided = ArrayList<ScheduleContext?>()
+
+    /** The time each decision of a [CancelOrder] read: its attempt's, which a commit would carry. */
+    private val decidedAt = ArrayList<Long>()
     private val shipment = AggregateType("test", "shipment")
     private val model = aggregate<Order>("test", "order") {
         initial { Order(it.id) }
@@ -103,6 +106,7 @@ class KernelScheduleTest {
         }
         decide<CancelOrder> { state, _ ->
             decided += command.schedule
+            decidedAt += now
             if (state.paid) Decision.reject("order.paid", "paid") else Decision.NoOp
         }
         evolve<Placed> { }
@@ -119,8 +123,19 @@ class KernelScheduleTest {
     private val ref = model.type.ref("t", "o-1")
     private var sequence = 0
 
-    private suspend fun send(body: Any, requestId: String = "r-${++sequence}", headers: Map<String, String> = emptyMap()) =
-        kernel.execute(model, Command("c-$requestId", requestId, ref, body, headers = headers))
+    private suspend fun send(
+        body: Any,
+        requestId: String = "r-${++sequence}",
+        headers: Map<String, String> = emptyMap(),
+        kernel: Kernel = this.kernel,
+    ) = kernel.execute(model, Command("c-$requestId", requestId, ref, body, headers = headers))
+
+    /**
+     * A kernel on [log] whose clock reads [now] plus the test's virtual time, as a wall clock that follows the waits,
+     * plus [skew]: a wall clock slewed or stepped back against them.
+     */
+    private fun TestScope.following(log: EventLog = this@KernelScheduleTest.log, skew: () -> Long = { 0L }) =
+        Kernel(log, clock = { now.get() + testScheduler.currentTime + skew() }, commandTypes = names)
 
     private suspend fun streams(): List<EventStreamRecord> = log.read(ref).toList()
 
@@ -294,20 +309,55 @@ class KernelScheduleTest {
     }
 
     @Test
-    fun `a scheduled command waits for its due time on this node's clock`(): Unit = runBlocking {
-        send(Place())
+    fun `a scheduled command waits for its due time on this node's clock`(): Unit = runTest {
+        val kernel = following()
+        send(Place(), kernel = kernel)
         val due = NOW + 300
         val headers = ScheduleContext("$ref#remind@2", "remind", 1, due).headers()
-        val started = System.nanoTime()
-        withContext(Dispatchers.Default) { send(CancelOrder("due"), headers = headers) }
-        val waited = (System.nanoTime() - started) / 1_000_000
-        waited.assert().isGreaterThanOrEqualTo(250)
+        send(CancelOrder("due"), headers = headers, kernel = kernel)
+        currentTime.assert().isEqualTo(300L)
         decided.single()?.slot.assert().isEqualTo(1L)
+        decidedAt.single().assert().isEqualTo(due)
         // Once due, it is decided at once.
-        now.set(due)
-        val again = System.nanoTime()
-        send(CancelOrder("now"), headers = headers.plus(ScheduleContext.SLOT to "2"))
-        ((System.nanoTime() - again) / 1_000_000).assert().isLessThan(250)
+        send(CancelOrder("now"), headers = headers.plus(ScheduleContext.SLOT to "2"), kernel = kernel)
+        currentTime.assert().isEqualTo(300L)
+        decidedAt.last().assert().isEqualTo(due)
+    }
+
+    @Test
+    fun `a scheduled command is not decided until this node's clock says it is due, however long the wait ran`(): Unit =
+        runTest {
+            // The wall clock gains 1 ms less than the wait (a slew): due is read again, and waited for once more.
+            val kernel = following(skew = { if (testScheduler.currentTime > 0) -1L else 0L })
+            send(Place(), kernel = kernel)
+            val due = NOW + 700
+            val headers = ScheduleContext("$ref#remind@1", "remind", 1, due).headers()
+            send(CancelOrder("due"), headers = headers, kernel = kernel)
+            currentTime.assert().isEqualTo(701L)
+            decidedAt.single().assert().isEqualTo(due)
+        }
+
+    @Test
+    fun `a clock stepped back after the wait is waited for again, and the decision reads the time that found it due`():
+        Unit = runTest {
+        val due = NOW + 300
+        var skew = 0L
+        // The clock steps back 50 ms while the state loads, once the wait is over, then gains 1 ms less than the next
+        // wait: the attempt waits for its due time again, reading the clock after each wait.
+        val stepping = object : EventLog by log {
+            override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
+                if (testScheduler.currentTime >= 300) {
+                    skew = -50
+                }
+                return log.read(ref, fromVersion, toVersion)
+            }
+        }
+        val kernel = following(stepping) { skew - if (testScheduler.currentTime > 300) 1 else 0 }
+        send(Place(), kernel = kernel)
+        val headers = ScheduleContext("$ref#remind@1", "remind", 1, due).headers()
+        send(CancelOrder("due"), headers = headers, kernel = kernel)
+        currentTime.assert().isEqualTo(351L)
+        decidedAt.single().assert().isEqualTo(due)
     }
 
     @Test
@@ -330,9 +380,10 @@ class KernelScheduleTest {
             streams().size.assert().isEqualTo(1)
             // Sent again within the maximum early wait: it waits for its due time and is decided once.
             now.set(due - 5.seconds.inWholeMilliseconds)
-            send(CancelOrder("again"), "timer#1", headers).assert().isEqualTo(CommandOutcome.Unchanged(1))
+            send(CancelOrder("again"), "timer#1", headers, following()).assert().isEqualTo(CommandOutcome.Unchanged(1))
             currentTime.assert().isEqualTo(5.seconds.inWholeMilliseconds)
             decided.single()?.slot.assert().isEqualTo(1L)
+            decidedAt.single().assert().isEqualTo(due)
         }
 
     @Test
