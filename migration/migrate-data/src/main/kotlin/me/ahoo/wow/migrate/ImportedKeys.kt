@@ -20,6 +20,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ReservationScope
 import tools.jackson.core.JacksonException
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -99,24 +101,34 @@ internal class InMemoryImportedKeys : ImportedKeys {
 }
 
 /**
- * JSON lines at [path], one key a line. [add] appends and syncs before the keys are confirmed; [retain] writes the
- * kept keys to a sibling file and replaces this one atomically, so a run stopped mid-write leaves the last one whole.
- * A last line cut short by a stop while appending is ignored: its keys were not confirmed yet.
+ * JSON lines at [path], one key a line, each ended by a line break: a line without one is the last, cut short by a run
+ * that stopped while appending it, and its keys were never confirmed. [add] first cuts that line off, then appends and
+ * syncs before the keys are confirmed; a read passes over it; any other line that is not a key fails the read. [retain]
+ * writes the kept keys to a sibling file and replaces this one atomically, so a run stopped mid-write leaves the last
+ * one whole.
  */
 internal class FileImportedKeys(private val path: Path) : ImportedKeys {
     override suspend fun add(keys: List<ImportedKey>) {
         if (keys.isEmpty()) {
             return
         }
-        val lines = keys.map { WowJson.mapper.writeValueAsString(it) }
+        val lines = ByteBuffer.wrap(
+            keys.joinToString("") { WowJson.mapper.writeValueAsString(it) + LINE_BREAK }.toByteArray(Charsets.UTF_8)
+        )
         withContext(Dispatchers.IO) {
-            Files.write(
+            FileChannel.open(
                 path,
-                lines,
                 StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND,
+                StandardOpenOption.READ,
+                StandardOpenOption.WRITE,
                 StandardOpenOption.DSYNC,
-            )
+            ).use { channel ->
+                var at = wholeLength(channel)
+                channel.truncate(at)
+                while (lines.hasRemaining()) {
+                    at += channel.write(lines, at)
+                }
+            }
         }
     }
 
@@ -133,7 +145,7 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
             read { key ->
                 if (key.name != name || keep(key)) {
                     writer.write(WowJson.mapper.writeValueAsString(key))
-                    writer.newLine()
+                    writer.write(LINE_BREAK)
                 }
             }
         }
@@ -146,23 +158,54 @@ internal class FileImportedKeys(private val path: Path) : ImportedKeys {
         if (!Files.exists(path)) {
             return
         }
+        val cut = withContext(Dispatchers.IO) {
+            FileChannel.open(path, StandardOpenOption.READ).use { wholeLength(it) < it.size() }
+        }
         withContext(Dispatchers.IO) { Files.newBufferedReader(path) }.use { reader ->
             var line = withContext(Dispatchers.IO) { reader.readLine() }
             var number = 0
             while (line != null) {
                 number++
                 val next = withContext(Dispatchers.IO) { reader.readLine() }
+                if (next == null && cut) {
+                    return
+                }
                 val key = try {
                     WowJson.mapper.readValue(line, ImportedKey::class.java)
                 } catch (failure: JacksonException) {
-                    if (next != null) {
-                        throw MigrationException("Line $number of $path is not an imported key: ${failure.message}")
-                    }
-                    null
+                    throw MigrationException("Line $number of $path is not an imported key: ${failure.message}")
                 }
-                key?.let { action(it) }
+                action(key)
                 line = next
             }
+        }
+    }
+
+    private companion object {
+        const val LINE_BREAK = "\n"
+        const val TAIL_CHUNK = 4096
+        const val LINE_BREAK_BYTE = '\n'.code.toByte()
+
+        /** The length of [channel]'s whole lines: up to and with its last line break, 0 when it has none. */
+        fun wholeLength(channel: FileChannel): Long {
+            val chunk = ByteBuffer.allocate(TAIL_CHUNK)
+            var end = channel.size()
+            while (end > 0) {
+                val start = maxOf(0L, end - TAIL_CHUNK)
+                chunk.clear().limit((end - start).toInt())
+                while (chunk.hasRemaining()) {
+                    if (channel.read(chunk, start + chunk.position()) < 0) {
+                        break
+                    }
+                }
+                for (index in chunk.position() - 1 downTo 0) {
+                    if (chunk.get(index) == LINE_BREAK_BYTE) {
+                        return start + index + 1
+                    }
+                }
+                end = start
+            }
+            return 0
         }
     }
 }

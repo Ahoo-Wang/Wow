@@ -24,6 +24,10 @@ import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import kotlin.time.Duration.Companion.hours
 
 class ReservationImporterTest {
@@ -209,6 +213,40 @@ class ReservationImporterTest {
         comparison().compare("order_no")
         reports.assert().contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 $owner")
     }
+
+    @Test
+    fun `a run stopped while recording keys resumes to what a run never stopped records`(
+        @TempDir directory: Path
+    ): Unit =
+        runTest {
+            suspend fun recorded(stopAfterFirstPage: Boolean): List<ImportedKey> {
+                val path = directory.resolve("stopped-$stopAfterFirstPage.jsonl")
+                val keys = FileImportedKeys(path)
+                val store = InMemoryReservationStore()
+                val checkpoints = InMemoryCheckpointRepository(
+                    ImportCheckpoints().with(order, AggregateCheckpoint(startedAt = 0, completed = true)),
+                )
+                fun importer(restart: Boolean = false, stop: Boolean = false) = ReservationImporter(
+                    events, this@ReservationImporterTest.keys, plan, { store }, checkpoints,
+                    ImportOptions(pageSize = 1, restart = restart),
+                    { if (stop) throw MigrationException("stopped") }, {}, { now }, keys,
+                )
+                if (stopAfterFirstPage) {
+                    assertThrows<MigrationException> { importer(stop = true).importAll("order_no") }
+                    // The stop came while the next key was being appended: its line is cut short.
+                    Files.writeString(path, "{\"name\":\"order_no\",\"cont", StandardOpenOption.APPEND)
+                }
+                importer().importAll("order_no").done.assert().isTrue()
+                importer(restart = true).importAll("order_no").done.assert().isTrue()
+                listOf(scope("(0)") to "NO-1", scope("tenant-b") to "NO-2").forEach { (scope, key) ->
+                    store.find(scope, key).assert().isNotNull()
+                }
+                return mutableListOf<ImportedKey>().also { all -> keys.forEach("order_no") { all += it } }
+            }
+            val uninterrupted = recorded(stopAfterFirstPage = false)
+            uninterrupted.map { it.key }.assert().containsExactly("NO-1", "NO-2")
+            recorded(stopAfterFirstPage = true).assert().isEqualTo(uninterrupted)
+        }
 
     @Test
     fun `a key 9x released after the import is released by the restart, and compare reports it`(): Unit = runTest {
