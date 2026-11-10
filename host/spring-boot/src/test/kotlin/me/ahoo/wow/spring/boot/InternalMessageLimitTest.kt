@@ -59,11 +59,11 @@ class InternalMessageLimitTest {
 
     @Test
     fun `the public port's codec limit should set the internal port's`() {
-        WowAutoConfiguration.publicCodecLimit(MockEnvironment()).assert().isEqualTo(InternalHttp.MAX_UPGRADE_BODY)
-        WowAutoConfiguration.publicCodecLimit(
+        NodeInternalPort.publicCodecLimit(MockEnvironment()).assert().isEqualTo(InternalHttp.MAX_UPGRADE_BODY)
+        NodeInternalPort.publicCodecLimit(
             MockEnvironment().withProperty("spring.http.codecs.max-in-memory-size", "1MB"),
         ).assert().isEqualTo(1024 * 1024)
-        WowAutoConfiguration.publicCodecLimit(
+        NodeInternalPort.publicCodecLimit(
             MockEnvironment().withProperty("spring.codec.max-in-memory-size", "512KB"),
         ).assert().isEqualTo(512 * 1024)
         InternalHttp.messageLimit(1024 * 1024).assert().isEqualTo(1024 * 1024 + InternalHttp.MESSAGE_OVERHEAD)

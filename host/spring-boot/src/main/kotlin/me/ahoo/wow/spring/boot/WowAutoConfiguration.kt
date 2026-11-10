@@ -16,10 +16,7 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.access.AccessPolicy
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.read.NodeQueryApi
-import me.ahoo.wow.api.wire.DevelopmentHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.PeerClients
@@ -27,7 +24,6 @@ import me.ahoo.wow.client.RetryPolicy
 import me.ahoo.wow.client.RoutedCommandClient
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
@@ -35,16 +31,10 @@ import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
-import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.InternalPort
-import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
-import me.ahoo.wow.http.peerReadRoutes
-import me.ahoo.wow.http.problem.GlobalErrors
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.route.ServiceRoutes
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ContextQueries
@@ -53,14 +43,10 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.WritePolicies
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
-import me.ahoo.wow.manifest.SystemCommands
-import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.ServiceRouteAuthorizer
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -107,7 +93,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
@@ -116,9 +101,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
-import org.springframework.util.unit.DataSize
-import org.springframework.web.reactive.function.server.RouterFunction
-import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
@@ -151,7 +133,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   `wow.aggregates.*.id-generator` names, or one an [AggregateIdGeneratorSource] bean finds by that name, else the
  *   `wowAggregateIdGenerator` bean (the global generator's ids unless replaced); the fixed tenants of
  *   `wow.aggregates.*.tenant`, and `wow.wait.default-timeout`, the node's default wait timeout for every entry.
- * - **Ports**: the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
+ * - **Ports** ([NodePublicPort], [NodeInternalPort]): the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
  *   [CallerResolver] (without one, the development callers in a development profile, the anonymous caller on a
  *   loopback-only internal port, and no start elsewhere); the cluster channel and the wait signals
  *   ([internalRoutes]) on an [InternalPort] of their own at `wow.internal.port`, never on the public server, the
@@ -185,7 +167,7 @@ import jakarta.validation.Validator as JakartaValidator
     ],
 )
 @EnableConfigurationProperties(WowProperties::class)
-@Import(NodeClock::class, NodePeers::class)
+@Import(NodeClock::class, NodePeers::class, NodeInternalPort::class, NodePublicPort::class)
 class WowAutoConfiguration {
     /**
      * Checks the environment's `wow.*` keys against the configuration metadata and the options the node's providers
@@ -335,35 +317,6 @@ class WowAutoConfiguration {
     @Bean(WOW_AGGREGATE_ID_GENERATOR)
     @ConditionalOnMissingBean(name = [WOW_AGGREGATE_ID_GENERATOR])
     fun wowAggregateIdGenerator(global: GlobalIdGenerator): AggregateIdGenerator = AggregateIdGenerator.of(global)
-
-    @Bean(defaultCandidate = false)
-    @ConditionalOnMissingBean(name = [INTERNAL_HTTP_CLIENT])
-    @InternalWowApi
-    fun wowInternalHttpClient(properties: WowProperties): HttpClient =
-        InternalHttp.client(properties.internal.connectTimeout.toKotlinDuration())
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowClusterChannel(
-        @Qualifier(INTERNAL_HTTP_CLIENT) client: HttpClient,
-        identity: NodeIdentity,
-    ): ClusterChannel = HttpClusterChannel(client, service = identity.service)
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowSignalSender(
-        @Qualifier(INTERNAL_HTTP_CLIENT) client: HttpClient,
-        properties: WowProperties,
-        identity: NodeIdentity,
-        observers: ObjectProvider<Observer>,
-    ): SignalSender = HttpSignalSender(
-        client,
-        queueCapacity = properties.internal.signalQueueCapacity,
-        service = identity.service,
-        observer = Observer.of(observers.orderedStream().toList()),
-    )
 
     /**
      * The client of the other contexts' command gateways the sagas call: the service mode of
@@ -586,70 +539,6 @@ class WowAutoConfiguration {
     fun wowRoutesScope(): RoutesScope = RoutesScope()
 
     @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowInternalServer(
-        properties: WowProperties,
-        node: ServiceNode,
-        identity: NodeIdentity,
-        manifest: Manifest,
-        options: WowHttpOptions,
-        environment: Environment,
-        reads: StateReads,
-        queries: ObjectProvider<HttpQueries>,
-        masks: PayloadMasks,
-        routes: RoutesScope,
-    ): InternalPort {
-        // The service each request names, its identity in the default tenant.
-        val services = DeclaredServices.resolver(properties.tenant.default)
-        val permits = callPermits(properties)
-        val settings = InternalPortSettings(
-            port = properties.internal.port,
-            bindHost = identity.bindHost,
-            maxMessageSize = InternalHttp.messageLimit(publicCodecLimit(environment)),
-        )
-        return InternalPort.of(
-            settings,
-            internalRoutes(
-                node.forwardHandler,
-                node.waits,
-                scope = routes.scope,
-                service = identity.service,
-                standby = NodeStandby(node),
-            )
-                // The services' peer reads, before the call routes: their catch-all routes of an
-                // unknown command would take a query's POST.
-                .and(
-                    peerReadRoutes(
-                        manifest,
-                        node.gateway,
-                        services,
-                        queries.getIfAvailable { HttpQueries.NONE },
-                        reads,
-                        options,
-                        permits,
-                        masks,
-                        routes.scope,
-                    ),
-                )
-                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope)),
-        )
-    }
-
-    /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
-    @Bean
-    @InternalWowApi
-    fun wowInternalServerLifecycle(
-        server: InternalPort,
-        node: ServiceNode,
-        identity: NodeIdentity,
-    ): InternalServerLifecycle = InternalServerLifecycle(server) { port ->
-        if (!node.hasAddress) {
-            node.bind(identity.addressAt(port))
-        }
-    }
-
-    @Bean
     @InternalWowApi
     fun wowServiceNodeLifecycle(
         node: ServiceNode,
@@ -719,175 +608,10 @@ class WowAutoConfiguration {
         identity: ObjectProvider<NodeIdentity>,
     ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
-    /**
-     * The callers of a node without a `CallerResolver` bean, for development alone: a deployment maps the identity its
-     * gateway asserts through one (CoSec's, with wow-cosec and `cosec.enabled`, or the application's), and an
-     * intentionally anonymous service declares one that returns [CallerResolver.ANONYMOUS].
-     *
-     * - In a profile of `wow.dev-profiles`, the callers the request's identity headers name
-     *   ([DevelopmentCallerResolver]): an explicit choice to run for development, so a client may name any caller.
-     * - In development by a loopback internal port alone, the anonymous caller of `wow.tenant.default`: the internal
-     *   port says nothing of who reaches the public one, so no header names a caller.
-     * - Otherwise the node refuses to start.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
-        configCheck(
-            development.active,
-            "wow.dev-profiles",
-            null,
-            "Turn CoSec on (wow-cosec with cosec.enabled, such as a cosec profile) or declare a CallerResolver bean " +
-                "that maps the identity your gateway asserts; for a local run, activate a profile of " +
-                "wow.dev-profiles (dev). An intentionally anonymous service declares one returning " +
-                "CallerResolver.ANONYMOUS.",
-        ) {
-            "No CallerResolver bean, and the node is not in development (neither a profile of wow.dev-profiles nor " +
-                "a loopback internal port): the public port would have no caller to serve."
-        }
-        val tenant = properties.tenant.default
-        if (development.byProfile) {
-            logger.warn {
-                "No CallerResolver bean, in the development profile ${development.profiles.joinToString()}: the public port takes " +
-                    "its callers from the ${DevelopmentHeaders.USER}, ${DevelopmentHeaders.OWNER}, " +
-                    "${DevelopmentHeaders.ROLES}, ${DevelopmentHeaders.TENANT} and " +
-                    "${DevelopmentHeaders.APP} headers any client sets, and serves a request without " +
-                    "${DevelopmentHeaders.USER} as the anonymous caller of tenant $tenant."
-            }
-            return DevelopmentCallerResolver(tenant)
-        }
-        logger.warn {
-            "No CallerResolver bean, in development by its ${development.reason} alone: every request to the public " +
-                "port is served as the anonymous caller (tenant $tenant, no scope). A profile of wow.dev-profiles " +
-                "takes the callers from the ${DevelopmentHeaders.USER} headers instead."
-        }
-        if (tenant == Caller.DEFAULT_TENANT) {
-            return CallerResolver.ANONYMOUS
-        }
-        val anonymous = Caller(tenantId = tenant)
-        return CallerResolver { anonymous }
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
-        val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
-        logger.info {
-            "The public port reads the client's address with server.forward-headers-strategy=$strategy: " +
-                "the gateway in front of it must overwrite X-Forwarded-For."
-        }
-        return WowHttpOptions(
-            requestFacts = properties.http.requestFacts.toSet(),
-            errorStatuses = properties.http.errors.mapValues { it.value.status },
-            manifestEndpoint = properties.http.manifest.enabled,
-            openApiEndpoint = properties.http.openapi.enabled,
-            clientFacts = properties.http.clientFacts.enabled,
-        )
-    }
-
-    /**
-     * The error handling of the application's own routes: their failures answered as the
-     * framework routes' problem+json, unless `wow.http.global-errors.enabled` is off.
-     */
-    @Bean
-    @ConditionalOnProperty(
-        prefix = "${WowProperties.PREFIX}.http",
-        name = ["global-errors.enabled"],
-        havingValue = "true",
-        matchIfMissing = true,
-    )
-    @InternalWowApi
-    fun wowGlobalErrors(manifest: Manifest, options: WowHttpOptions): GlobalErrors = GlobalErrors(manifest, options)
-
     /** Lets the public server's graceful shutdown end before the server stops ([GracefulShutdownSettled]). */
     @Bean
     @InternalWowApi
     fun wowGracefulShutdownSettled(): GracefulShutdownSettled = GracefulShutdownSettled()
-
-    /**
-     * The response masks of the state reads and the `events` model: the Manifest's sensitive fields, with
-     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    @InternalWowApi
-    fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
-        PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
-
-    /**
-     * The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration]
-     * gives them; the service routes the modules' model providers bind, each handler's instance its
-     * bean, every call asked of the application's [ServiceRouteAuthorizer]s, and the handlers' commands sent through
-     * the node's [CommandClient].
-     */
-    @Bean
-    @InternalWowApi
-    @Suppress("LongParameterList") // One parameter per part of the routes, each a bean.
-    fun wowRouterFunction(
-        manifest: Manifest,
-        node: ServiceNode,
-        reads: StateReads,
-        callers: CallerResolver,
-        options: WowHttpOptions,
-        queries: ObjectProvider<HttpQueries>,
-        masks: PayloadMasks,
-        routes: RoutesScope,
-        models: WowModels,
-        dependencies: Dependencies,
-        routeAuthorizers: ObjectProvider<ServiceRouteAuthorizer>,
-        commands: ObjectProvider<CommandClient>,
-        queryApi: ObjectProvider<NodeQueryApi>,
-    ): RouterFunction<ServerResponse> {
-        if (!node.gateway.authorizes && manifest.hasBuiltInSystemCommands()) {
-            logger.info {
-                "No CommandAuthorizer bean: the public port refuses Wow's system commands of its built-in aggregates " +
-                    "(wow.schedule.*, wow.snapshot.Rebuild) with 403 until the application gives one; the jobs, the " +
-                    "sagas and the internal port's calls send them as before."
-            }
-        }
-        return wowRoutes(
-            manifest,
-            node.gateway,
-            reads,
-            callers,
-            options,
-            queries.getIfAvailable { HttpQueries.NONE },
-            masks,
-            routes.scope,
-            ServiceRoutes(
-                handlers = models.providers.flatMap { it.routes(dependencies) },
-                authorizers = routeAuthorizers.orderedStream().toList(),
-                commands = commands.getIfAvailable(),
-                queries = queryApi.getIfAvailable(),
-            ),
-        )
-    }
-
-    /**
-     * The operator's routes over the parked entries, when `wow.http.ops.enabled`: authenticated by the
-     * application's [CallerResolver], each caller kept in its tenant, their actions authorized by its
-     * [CommandAuthorizer], and refused when it has none.
-     */
-    @Bean
-    @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.http.ops", name = ["enabled"], havingValue = "true")
-    fun wowParkedRouterFunction(
-        manifest: Manifest,
-        node: ServiceNode,
-        callers: CallerResolver,
-        options: WowHttpOptions,
-        authorizers: ObjectProvider<CommandAuthorizer>,
-    ): RouterFunction<ServerResponse> {
-        val authorizer = authorizers.orderedStream().toList().takeIf { it.isNotEmpty() }?.let(CommandAuthorizer::allOf)
-        if (authorizer == null) {
-            logger.warn {
-                "wow.http.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
-                    "refused (403) until the application gives one."
-            }
-        }
-        return parkedRoutes(node.parked, manifest, authorizer, callers, options)
-    }
 
     /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries. */
     @Bean
@@ -930,12 +654,6 @@ class WowAutoConfiguration {
         @JvmStatic
         internal fun wowRetiredQueryPolicies(): BeanFactoryPostProcessor = RetiredQueryPolicies()
 
-        /** Whether the Manifest routes a system command of a built-in aggregate: a job's or a snapshot rebuild. */
-        internal fun Manifest.hasBuiltInSystemCommands(): Boolean = contexts.any { context ->
-            context.commands.isNotEmpty() ||
-                context.aggregates.any { aggregate -> aggregate.commands.any { it.name == SystemCommands.REBUILD } }
-        }
-
         /** The service of the peer [context], as its contract on the class path names it. */
         internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
             .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
@@ -952,33 +670,12 @@ class WowAutoConfiguration {
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
         private val logger = KotlinLogging.logger {}
 
-        /**
-         * The in-memory limit of the public port's codecs, in bytes (negative: none): Spring Boot's
-         * `spring.http.codecs.max-in-memory-size`, or the older `spring.codec.max-in-memory-size`, else WebFlux's
-         * default. The internal port takes a forward of a body that large.
-         */
         /** The types of the topic transports the node can open: on the classpath, and the application's beans. */
         internal fun transportTypes(
             beanFactory: ConfigurableListableBeanFactory,
             transports: ObjectProvider<TransportProvider>,
         ): Set<String> =
             PortProviders.load(beanFactory.beanClassLoader, transports.orderedStream().toList()).transports.keys
-
-        internal fun publicCodecLimit(environment: Environment): Int {
-            val binder = Binder.get(environment)
-            val size = CODEC_LIMITS.firstNotNullOfOrNull { binder.bind(it, DataSize::class.java).orElse(null) }
-                ?: return InternalHttp.MAX_UPGRADE_BODY
-            return size.toBytes().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        }
-
-        private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
-
-        /** The commands each service may call on the internal port (`wow.callers.*.commands`). */
-        internal fun callPermits(properties: WowProperties): CallPermits =
-            CallPermits(
-                properties.callers.mapValues { it.value.commands.toList() },
-                properties.callers.mapValues { it.value.reads.toList() },
-            )
 
         private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."
 
