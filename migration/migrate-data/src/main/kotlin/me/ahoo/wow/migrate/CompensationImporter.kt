@@ -21,8 +21,10 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import me.ahoo.wow.spi.ledger.amended
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.Partitioner
 import kotlin.time.Duration.Companion.seconds
@@ -134,6 +136,36 @@ internal class CompensationPlan(
     }
 
     /**
+     * The restate that brings [parked], the entry parking [target]'s aggregate for its subscription, up to [target],
+     * the entry the 9.x [execution] parks now ([parkedOf]): why it is parked and its retry state, as 9.x went on
+     * retrying the execution after the import parked it. Null when [parked] is not the import's entry of [execution]
+     * (another execution's, or one V10 parked or re-parked itself, whose reason has no such mark), or already says
+     * what [target] says. Applied at the revision read, so it covers no write made since.
+     */
+    fun restateOf(
+        parked: ParkedAggregate,
+        target: ParkedAggregate,
+        execution: NineXExecutionFailed
+    ): ParkedAmendment.Restate? {
+        if (originOf(parked.reason) != execution.id) {
+            return null
+        }
+        val restate = ParkedAmendment.Restate(
+            revision = parked.revision,
+            reason = target.reason,
+            failedAt = target.failedAt,
+            retries = target.retries,
+            retryAt = target.retryAt,
+            retrySpec = target.retrySpec,
+            recoverable = target.recoverable,
+        )
+        val restated = checkNotNull(parked.amended(restate))
+        return restate.takeUnless {
+            restated.copyWith(nextAttemptAt = parked.nextAttemptAt, revision = parked.revision) == parked
+        }
+    }
+
+    /**
      * Whether [entry], which the import parked for the 9.x [execution] (its [originOf]), still stands for it: the
      * execution is still unresolved in 9.x, of a context this run migrates, and still parks that aggregate for that
      * subscription from that version. Null [execution]: 9.x no longer has it.
@@ -192,7 +224,8 @@ internal sealed interface ParkedTarget {
 
 /**
  * The import of the 9.x executions since it started: those [imported] as parked entries, those [already] parked in
- * V10, and the [unresolved] ones not imported; [others] are of the 9.x contexts another run migrates.
+ * V10, and the [unresolved] ones not imported; [others] are of the 9.x contexts another run migrates. Of those already
+ * parked, [restated] were the import's own entries brought up to the execution's state in 9.x.
  */
 internal data class CompensationProgress(
     val imported: Long,
@@ -201,11 +234,13 @@ internal data class CompensationProgress(
     val others: Long,
     val done: Boolean,
     val resolved: Long = 0,
+    val restated: Long = 0,
 ) {
     fun render(): String =
         "9.x compensation${if (done) " done" else ""}: ${imported + already + unresolved} unresolved executions, " +
             "$imported imported, $already already parked, $unresolved not imported; $others of other services left" +
-            if (resolved > 0) "; $resolved imported entries resolved, 9.x no longer leaving them unresolved" else ""
+            (if (resolved > 0) "; $resolved imported entries resolved, 9.x no longer leaving them unresolved" else "") +
+            if (restated > 0) "; $restated imported entries restated to their executions' retry state in 9.x" else ""
 }
 
 /**
@@ -221,7 +256,10 @@ internal data class CompensationProgress(
  *   aggregate's streams are not imported, or whose version the log does not hold is reported `UNRESOLVED` and not
  *   imported.
  * - **Idempotent.** An aggregate the subscription already parks from that version or an earlier one is left as it
- *   is: V10 parks the aggregate from its earliest failure, and its resume handles the later ones.
+ *   is: V10 parks the aggregate from its earliest failure, and its resume handles the later ones. One exception: the
+ *   entry the import parked for this very execution is restated to what 9.x holds of it now
+ *   ([CompensationPlan.restateOf]), its reason, failure time and retry state, as 9.x retries it until the cut-over;
+ *   a run again over the same 9.x state writes nothing.
  * - **Convergent**. 9.x keeps retrying while the migration runs, so an execution an early import
  *   parked may succeed, or be skipped, before the cut-over. Each entry the import parks names its execution in its
  *   reason ([CompensationPlan.reasonOf]); a walk that starts from the first execution (the first one, or the final
@@ -266,12 +304,7 @@ internal class CompensationImporter(
                 checkpoint.copy(completed = true)
             } else {
                 page.fold(checkpoint.copy(after = page.last().id)) { counted, execution ->
-                    when (import(execution)) {
-                        Outcome.IMPORTED -> counted.copy(imported = counted.imported + 1)
-                        Outcome.ALREADY -> counted.copy(already = counted.already + 1)
-                        Outcome.UNRESOLVED -> counted.copy(unresolved = counted.unresolved + 1)
-                        Outcome.OTHER -> counted.copy(others = counted.others + 1)
-                    }
+                    counted.counting(import(execution))
                 }
             }
             checkpoints.update { it.with(checkpoint) }
@@ -320,7 +353,9 @@ internal class CompensationImporter(
         val ledger = ledger()
         val parked = ledger.parked(entry.subscription, entry.ref)
         if (parked != null && parked.fromVersion <= entry.fromVersion) {
-            return Outcome.ALREADY
+            val restate = compensation.restateOf(parked, entry, execution) ?: return Outcome.ALREADY
+            // Null when the entry changed since it was read: V10 or an operator wrote it, and it is theirs now.
+            return if (ledger.amend(entry.subscription, entry.ref, restate) != null) Outcome.RESTATED else Outcome.ALREADY
         }
         return if (ledger.park(entry)) Outcome.IMPORTED else Outcome.ALREADY
     }
@@ -330,16 +365,25 @@ internal class CompensationImporter(
         return Outcome.UNRESOLVED
     }
 
-    private fun CompensationCheckpoint.progress() =
-        CompensationProgress(imported, already, unresolved, others, completed, resolved)
+    private fun CompensationCheckpoint.counting(outcome: Outcome): CompensationCheckpoint = when (outcome) {
+        Outcome.IMPORTED -> copy(imported = imported + 1)
+        Outcome.ALREADY -> copy(already = already + 1)
+        Outcome.RESTATED -> copy(already = already + 1, restated = restated + 1)
+        Outcome.UNRESOLVED -> copy(unresolved = unresolved + 1)
+        Outcome.OTHER -> copy(others = others + 1)
+    }
 
-    private enum class Outcome { IMPORTED, ALREADY, UNRESOLVED, OTHER }
+    private fun CompensationCheckpoint.progress() =
+        CompensationProgress(imported, already, unresolved, others, completed, resolved, restated)
+
+    private enum class Outcome { IMPORTED, ALREADY, RESTATED, UNRESOLVED, OTHER }
 }
 
 /**
  * The compensation comparison of `compare`, both ways: every unresolved 9.x execution this run imports has a V10
- * parked entry of its subscription and aggregate from its version or an earlier one, and every entry the import
- * parked still stands for an unresolved execution. Counts the executions [compared], those that
+ * parked entry of its subscription and aggregate from its version or an earlier one, the one the import parked for
+ * it saying what 9.x holds of it now ([CompensationPlan.restateOf]), and every entry the import parked still stands
+ * for an unresolved execution. Counts the executions [compared], those that
  * [differ] and those [unresolved] (not imported, as the import reported them: no mapping or subscription that parks
  * them, or a version the log does not hold), and the imported entries that are [stale].
  */
@@ -396,12 +440,15 @@ internal class CompensationComparison(
             return result.copy(unresolved = result.unresolved + 1)
         }
         val parked = ledger().parked(entry.subscription, entry.ref)
-        val v10 = when {
-            parked == null -> "(none)"
-            parked.fromVersion > entry.fromVersion -> "parked from v${parked.fromVersion}"
+        val differs = when {
+            parked == null -> "9.x ${entry.subscription} v${entry.fromVersion}, V10 (none)"
+            parked.fromVersion > entry.fromVersion ->
+                "9.x ${entry.subscription} v${entry.fromVersion}, V10 parked from v${parked.fromVersion}"
+            plan.compensation.restateOf(parked, entry, execution) != null ->
+                "9.x ${retryStateOf(entry)}, V10 ${retryStateOf(parked)}"
             else -> return result.copy(compared = result.compared + 1)
         }
-        report("DIFFERS 9.x execution $execution: 9.x ${entry.subscription} v${entry.fromVersion}, V10 $v10")
+        report("DIFFERS 9.x execution $execution: $differs")
         return result.copy(compared = result.compared + 1, differ = result.differ + 1)
     }
 }
@@ -432,6 +479,11 @@ private suspend fun CompensationPlan.importedEntries(
         } while (page.size == pageSize)
     }
 }
+
+/** Why [entry] is parked and its retry state, for a report. */
+private fun retryStateOf(entry: ParkedAggregate): String =
+    "${entry.retries} retries (the last at ${entry.retryAt}) under ${entry.retrySpec}, ${entry.recoverable}, " +
+        "failed at ${entry.failedAt}: ${entry.reason}"
 
 /** How the 9.x [execution] an imported entry was parked for no longer stands for it, for a report. */
 private fun statusOf(execution: NineXExecutionFailed?): String = when {

@@ -311,6 +311,53 @@ abstract class FailureLedgerSpec {
         }
 
     @Test
+    fun `a restate replaces why the entry is parked and its retry state at the revision read, keeping a request`(): Unit =
+        runBlocking {
+            val parked = entry(ref("a"), 4).copyWith(fromPosition = 7)
+            ledger.park(parked)
+            val requested = ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))!!
+            val scheduled = ledger.amend(
+                subscription,
+                ref("a"),
+                ParkedAmendment.Schedule(requested.revision, FAILED_AT)
+            )!!
+            // Read before the schedule: written over nothing.
+            ledger.amend(subscription, ref("a"), restate(requested.revision)).assert().isNull()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(scheduled)
+            val restated = ledger.amend(subscription, ref("a"), restate(scheduled.revision))!!
+            restated.assert().isEqualTo(
+                parked.copyWith(
+                    reason = "restated",
+                    failedAt = FAILED_AT + 30,
+                    retries = 3,
+                    retryAt = FAILED_AT + 20,
+                    retrySpec = SPEC,
+                    recoverable = Recoverable.UNRECOVERABLE,
+                    request = LedgerRequest.SKIP,
+                    nextAttemptAt = null,
+                    revision = scheduled.revision + 1,
+                ),
+            )
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(restated)
+            // A retry state without a spec or a retry restates to those too.
+            val cleared = ParkedAmendment.Restate(
+                restated.revision,
+                "again",
+                FAILED_AT,
+                0,
+                null,
+                null,
+                Recoverable.UNKNOWN
+            )
+            ledger.amend(subscription, ref("a"), cleared)!!.also {
+                it.retrySpec.assert().isNull()
+                it.retryAt.assert().isNull()
+                it.retries.assert().isEqualTo(0)
+                it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
+            }
+        }
+
+    @Test
     fun `resolving removes the entry, after which the aggregate may be parked anew`(): Unit = runBlocking {
         val parked = entry(ref("a"), 4)
         ledger.park(parked)
@@ -456,6 +503,18 @@ abstract class FailureLedgerSpec {
         ParkedAmendment.ClaimRetry(revision, FAILED_AT + 1),
         ParkedAmendment.Schedule(revision, FAILED_AT + 2),
         ParkedAmendment.TakeRequest(revision),
+        restate(revision),
+    )
+
+    /** A restate read at [revision]: another reason and time, and a retry state that differs in every field. */
+    private fun restate(revision: Long) = ParkedAmendment.Restate(
+        revision = revision,
+        reason = "restated",
+        failedAt = FAILED_AT + 30,
+        retries = 3,
+        retryAt = FAILED_AT + 20,
+        retrySpec = SPEC,
+        recoverable = Recoverable.UNRECOVERABLE,
     )
 
     /**
@@ -488,7 +547,10 @@ abstract class FailureLedgerSpec {
 
     /** Whether [amendment] applies only at the revision its caller read: over the sealed type, so none is forgotten. */
     private fun classified(amendment: ParkedAmendment): Boolean = when (amendment) {
-        is ParkedAmendment.ClaimRetry, is ParkedAmendment.Schedule, is ParkedAmendment.TakeRequest -> true
+        is ParkedAmendment.ClaimRetry, is ParkedAmendment.Schedule, is ParkedAmendment.TakeRequest,
+        is ParkedAmendment.Restate,
+        -> true
+
         is ParkedAmendment.MarkRecoverable, is ParkedAmendment.ApplyRetrySpec, is ParkedAmendment.Request -> false
     }
 

@@ -324,6 +324,8 @@ Each unresolved execution becomes one parked entry:
 
 An execution whose processor is not mapped, whose aggregate the map does not import, whose subscription reads another context's published stream, or whose version the V10 log does not hold, is `UNRESOLVED`. Two executions of one subscription and aggregate become one entry, from the earlier version.
 
+9.x goes on retrying an execution until the cut-over. A walk from the first execution (`import --final`, `import --restart`) restates the entry the import parked for an execution to what 9.x holds of it now: the reason, the failure time and the retry state above, while V10 has not written the entry since it read it. An entry V10 parked or re-parked itself is never touched, nor one another, earlier execution parked. `compare` reports an imported entry behind its execution as `DIFFERS`.
+
 ### Draft the map
 
 Most of a map renames 9.x's `snake_case` names to V10's class names. `draft-map` writes those entries from what the 9.x store holds and the V10 Manifests, and writes the map the configuration names, or `--out`. It never replaces an existing file without `--force`; `--dry-run` prints the draft instead.

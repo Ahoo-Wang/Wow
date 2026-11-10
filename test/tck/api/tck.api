@@ -82,6 +82,7 @@ public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
 	public final fun a parked aggregate reads back for its subscription only ()V
 	public final fun a repark or a worker's resolve from the partition an entry left writes nothing ()V
 	public final fun a request is left for the owner and taken once ()V
+	public final fun a restate replaces why the entry is parked and its retry state at the revision read, keeping a request ()V
 	public final fun a retry is claimed only at the revision read, once among concurrent claims ()V
 	public final fun a schedule, claim or take applies at the revision read, and a claim or operator's change unschedules ()V
 	public final fun a source position reads back with its entry, and moves with the earlier version or a repark ()V
