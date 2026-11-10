@@ -22,14 +22,16 @@ import { ts } from 'ts-morph';
  *   neither declared nor imported;
  * - 2300, 2451, 2393: a name declared twice in one scope;
  * - 2308: an index re-exporting the same name from two modules;
- * - 2456: a type alias that references itself.
+ * - 2456: a type alias that references itself;
+ * - 2315, 2395, 2440, 2749: a declared name that shadows one the module
+ *   uses for something else (a global generic, an import, a value).
  *
  * Diagnostics that depend on the modules the output directory resolves -
  * a missing package (2307), a missing export (2305) - are the project's to
  * report, and are left out.
  */
 const INTEGRITY_DIAGNOSTICS = new Set([
-  2300, 2304, 2308, 2393, 2451, 2456, 2503, 2552,
+  2300, 2304, 2308, 2315, 2393, 2395, 2440, 2451, 2456, 2503, 2552, 2749,
 ]);
 
 /**
