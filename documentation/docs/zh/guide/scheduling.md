@@ -95,7 +95,7 @@ fun onSchedule(tick: ScheduleTick): List<CommandRequest<ReceiveStock>> {
 
 - **触发。** `tenantId` 是实例的租户，`job` 是任务的名字。`slot` 是到期的时间槽，从实例上次启用或改期时起从 1 开始计数，`due` 是到期的时间，单位是纪元毫秒。`skipped` 统计在它之前、因没有节点运行这个任务而错过的时间槽。`partition` 是实例的日志分区，只有 `SHARDED` 任务才有。
 - **命令。** 任务的命令发往它的实例的租户，就像 Saga 的命令发往它的提交的租户：`CommandRequest.of(body, id)` 指的是这个租户中、决定这个命令体的类型的聚合 `id`，如样例所示；`targetTenant` 把命令发往另一个租户。它们的 ID 来自这次触发的执行，所以再处理一次这次触发会发出相同的请求。
-- **实例。** 每个任务由上下文内置的聚合 `<context>.schedule` 保存：`SYSTEM` 或 `TENANT` 实例的 ID 就是任务的名字，`SHARDED` 任务每个分区一个实例。规则每次到期时它提交一次触发，任务的订阅 `<processor>.<function>`（或函数的 `@Name`）把触发交给处理函数，像任何订阅一样重试和停放。
+- **实例。** 每个任务由上下文内置的聚合 `<context>.schedule` 保存：`SYSTEM` 或 `TENANT` 实例的 ID 就是任务的名字，`SHARDED` 任务每个分区一个实例。规则每次到期时它提交一次触发，任务的订阅 `<processor>.<function>`（或函数的 `@Name`）把触发交给处理函数，像任何订阅一样重试和停放。新版本移除了处理函数的任务（包括上下文的最后一个任务），会在它的实例下一次触发时被禁用，其定时随之取消。
 
 `@OnSchedule` 设置任务：
 
