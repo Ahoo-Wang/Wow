@@ -233,6 +233,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'The Contract',
             items: [
                 {text: 'Serve and Call the HTTP API', link: 'http'},
+                {text: 'Service Routes', link: 'service-routes'},
                 {text: 'The Manifest and Compatibility', link: 'manifest'},
                 {text: 'OpenAPI and springdoc', link: 'openapi'},
                 {text: 'What the Compiler Generates', link: 'generated-code'},

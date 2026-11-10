@@ -138,6 +138,17 @@ export interface ProductDiscontinued {
 }
 
 
+/** - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductListing` */
+export interface ProductListing {
+  brandId?: string | null;
+  categoryId?: string | null;
+  description: string;
+  id: string;
+  name: string;
+  price: string;
+}
+
+
 /**
  * A product's price changed
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged`
@@ -182,6 +193,19 @@ export interface ProductUpdated {
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct`
  */
 export type PublishProduct = Record<string, unknown>;
+
+/** - key: `me.ahoo.wow.example.eshop.catalog.api.product.Quote` */
+export interface Quote {
+  lines: { amount: string; productId: string; quantity: number; unitPrice: string; }[];
+  total: string;
+}
+
+
+/** - key: `me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest` */
+export interface QuoteRequest {
+  lines: { productId: string; quantity: number; }[];
+}
+
 
 /**
  * Rename a brand

@@ -47,6 +47,7 @@ These pages show how to do one thing each, with code from the repository's examp
 | Page | Shows how to |
 | --- | --- |
 | [Serve and Call the HTTP API](./http) | Authenticate callers, send commands, wait, retry, stream, read errors |
+| [Service Routes](./service-routes) | Serve a route of your own code: its parameters, body, answers and refusals |
 | [The Manifest and Compatibility](./manifest) | Build and merge the contract, give peers their part, keep changes compatible |
 | [OpenAPI and springdoc](./openapi) | Get the OpenAPI document, merge it into springdoc's |
 | [What the Compiler Generates](./generated-code) | Know the model factories, handlers, query fields, binding index and contract code |

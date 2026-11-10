@@ -426,6 +426,14 @@
       "status" : 409,
       "description" : "Another category has this name."
     }, {
+      "code" : "eshop-catalog.limit-out-of-range",
+      "status" : 400,
+      "description" : "A page of listings holds 1 to 50 products."
+    }, {
+      "code" : "eshop-catalog.not-on-sale",
+      "status" : 409,
+      "description" : "A quote's product is not published on the storefront."
+    }, {
       "code" : "eshop-catalog.product.incomplete",
       "status" : 409,
       "description" : "A published product has a brand and a category."
@@ -433,6 +441,74 @@
       "code" : "eshop-catalog.product.not-published",
       "status" : 409,
       "description" : "Only a published product can be delisted."
+    }, {
+      "code" : "eshop-catalog.quantity-not-positive",
+      "status" : 400,
+      "description" : "A quote's line asks for one or more of its product."
+    } ],
+    "routes" : [ {
+      "name" : "categoryListings",
+      "route" : {
+        "method" : "GET",
+        "path" : "/eshop-catalog/categories/{categoryId}/listings"
+      },
+      "parameters" : [ {
+        "name" : "categoryId",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      }, {
+        "name" : "limit",
+        "in" : "query",
+        "schema" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "required" : false
+      } ],
+      "response" : {
+        "type" : "array",
+        "items" : {
+          "$ref" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductListing"
+        }
+      },
+      "errors" : [ "eshop-catalog.limit-out-of-range" ],
+      "description" : "The published products of categoryId, cheapest first: limit of them, 20 when it is not given."
+    }, {
+      "name" : "listing",
+      "route" : {
+        "method" : "GET",
+        "path" : "/eshop-catalog/listings/{id}"
+      },
+      "parameters" : [ {
+        "name" : "id",
+        "in" : "path",
+        "schema" : {
+          "type" : "string"
+        },
+        "required" : true
+      } ],
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductListing"
+      },
+      "responseOptional" : true,
+      "description" : "The product id as the storefront shows it; none (`204 No Content`) while it is not published."
+    }, {
+      "name" : "quote",
+      "route" : {
+        "method" : "POST",
+        "path" : "/eshop-catalog/quotes"
+      },
+      "request" : {
+        "$ref" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest"
+      },
+      "response" : {
+        "$ref" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.Quote"
+      },
+      "errors" : [ "eshop-catalog.not-on-sale", "eshop-catalog.quantity-not-positive" ],
+      "description" : "The price of request's lines, each at its product's price; refused when one is not on the storefront."
     } ]
   } ],
   "errors" : [ {
@@ -817,6 +893,32 @@
       "description" : "A product was discontinued for good",
       "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.ProductDiscontinued"
     },
+    "me.ahoo.wow.example.eshop.catalog.api.product.ProductListing" : {
+      "type" : "object",
+      "properties" : {
+        "brandId" : {
+          "type" : [ "string", "null" ]
+        },
+        "categoryId" : {
+          "type" : [ "string", "null" ]
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "price" : {
+          "type" : "number",
+          "format" : "decimal"
+        }
+      },
+      "required" : [ "description", "id", "name", "price" ],
+      "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.ProductListing"
+    },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
       "type" : "object",
       "properties" : {
@@ -862,6 +964,66 @@
       "type" : "object",
       "description" : "Publish a product",
       "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct"
+    },
+    "me.ahoo.wow.example.eshop.catalog.api.product.Quote" : {
+      "type" : "object",
+      "properties" : {
+        "lines" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "amount" : {
+                "type" : "number",
+                "format" : "decimal"
+              },
+              "productId" : {
+                "type" : "string"
+              },
+              "quantity" : {
+                "type" : "integer",
+                "format" : "int32"
+              },
+              "unitPrice" : {
+                "type" : "number",
+                "format" : "decimal"
+              }
+            },
+            "required" : [ "amount", "productId", "quantity", "unitPrice" ],
+            "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.QuotedLine"
+          }
+        },
+        "total" : {
+          "type" : "number",
+          "format" : "decimal"
+        }
+      },
+      "required" : [ "lines", "total" ],
+      "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.Quote"
+    },
+    "me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest" : {
+      "type" : "object",
+      "properties" : {
+        "lines" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "productId" : {
+                "type" : "string"
+              },
+              "quantity" : {
+                "type" : "integer",
+                "format" : "int32"
+              }
+            },
+            "required" : [ "productId", "quantity" ],
+            "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.QuoteLine"
+          }
+        }
+      },
+      "required" : [ "lines" ],
+      "x-wow-class" : "me.ahoo.wow.example.eshop.catalog.api.product.QuoteRequest"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct" : {
       "type" : "object",

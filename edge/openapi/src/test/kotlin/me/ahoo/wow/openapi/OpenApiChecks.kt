@@ -104,8 +104,10 @@ object OpenApiChecks {
         path: String,
         operation: Map<*, *>,
     ): List<String> = buildList {
-        val declared = (operation["parameters"] as List<*>? ?: emptyList<Any>()).map { reference ->
-            resolve(document, (reference as Map<*, *>)["\$ref"].toString()) as Map<*, *>
+        // A parameter is a reference to a shared one, or a service route's own, inline.
+        val declared = (operation["parameters"] as List<*>? ?: emptyList<Any>()).map { parameter ->
+            val reference = (parameter as Map<*, *>)["\$ref"]
+            reference?.let { resolve(document, it.toString()) as Map<*, *> } ?: parameter
         }
         TEMPLATE.findAll(path).map { it.groupValues[1] }.forEach { variable ->
             if (declared.none { it["in"] == "path" && it["name"] == variable }) {

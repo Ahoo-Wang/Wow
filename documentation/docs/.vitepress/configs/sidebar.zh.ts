@@ -237,6 +237,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '契约',
             items: [
                 {text: '提供和调用 HTTP API', link: 'http'},
+                {text: '服务路由', link: 'service-routes'},
                 {text: 'Manifest 与兼容', link: 'manifest'},
                 {text: 'OpenAPI 与 springdoc', link: 'openapi'},
                 {text: '编译器生成什么', link: 'generated-code'},

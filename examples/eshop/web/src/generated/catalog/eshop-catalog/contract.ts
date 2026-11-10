@@ -11,13 +11,21 @@ import { ProductAggregate } from './product/aggregate.js';
  */
 export const EshopCatalogContract = {
   NAME: 'eshop-catalog',
+  Errors: {
+    /** 400: A page of listings holds 1 to 50 products. */
+    LIMIT_OUT_OF_RANGE: 'eshop-catalog.limit-out-of-range',
+    /** 409: A quote's product is not published on the storefront. */
+    NOT_ON_SALE: 'eshop-catalog.not-on-sale',
+    /** 400: A quote's line asks for one or more of its product. */
+    QUANTITY_NOT_POSITIVE: 'eshop-catalog.quantity-not-positive',
+  },
   Brand: BrandAggregate,
   Category: CategoryAggregate,
   Product: ProductAggregate,
 } as const;
 
 /** An error code of `eshop-catalog`, of the context or of one of its aggregates. */
-export type EshopCatalogErrorCode = 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.not-published';
+export type EshopCatalogErrorCode = 'eshop-catalog.brand.name-taken' | 'eshop-catalog.category.name-taken' | 'eshop-catalog.limit-out-of-range' | 'eshop-catalog.not-on-sale' | 'eshop-catalog.product.incomplete' | 'eshop-catalog.product.not-published' | 'eshop-catalog.quantity-not-positive';
 
 /** The hops of a wait chain (`Wow-Wait`) in `eshop-catalog`. */
 export const eshopCatalogWait = {

@@ -16,4 +16,6 @@ dependencies {
     // @QueryIndex on the product's state: the storefront's filters and sorts stay index scans.
     implementation("me.ahoo.wow:wow-query-api")
     testImplementation("me.ahoo.wow:wow-test")
+    // The storefront's routes read the products through a real query side over snapshots held in memory.
+    testImplementation("me.ahoo.wow:wow-test-query")
 }

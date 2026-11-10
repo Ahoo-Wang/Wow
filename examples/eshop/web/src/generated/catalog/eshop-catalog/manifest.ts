@@ -2,7 +2,7 @@
 
 import { MANIFEST_FORMAT, type RoutingManifest } from '@ahoo-wang/wow-client';
 
-/** The routes of `eshop-catalog`'s commands, as its Manifest lists them: what its command clients send by, with no Manifest fetched and no schema. */
+/** The routes of `eshop-catalog`'s commands and service routes, as its Manifest lists them: what its clients send by, with no Manifest fetched and no schema. */
 export const EshopCatalogManifest: RoutingManifest = {
   format: MANIFEST_FORMAT,
   contexts: [
@@ -43,6 +43,11 @@ export const EshopCatalogManifest: RoutingManifest = {
             { name: 'wow.lifecycle.TransferSpace', routes: [{ method: 'POST', path: '/eshop-catalog/product/{id}/wow.lifecycle.transfer-space' }] },
           ],
         },
+      ],
+      routes: [
+        { name: 'categoryListings', route: { method: 'GET', path: '/eshop-catalog/categories/{categoryId}/listings' } },
+        { name: 'listing', route: { method: 'GET', path: '/eshop-catalog/listings/{id}' } },
+        { name: 'quote', route: { method: 'POST', path: '/eshop-catalog/quotes' } },
       ],
     },
   ],

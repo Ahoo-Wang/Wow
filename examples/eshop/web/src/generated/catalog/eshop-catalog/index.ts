@@ -6,4 +6,5 @@ export * from './client.js';
 export * from './contract.js';
 export * from './manifest.js';
 export * from './product/index.js';
+export * from './routes.js';
 export * from './types.js';

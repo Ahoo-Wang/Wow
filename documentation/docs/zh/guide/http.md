@@ -18,7 +18,7 @@ outline: deep
 | `GET /<context>/<aggregate>/{id}/state`、`…/state/trace` | 聚合的状态和历史（[读取状态](./reading-state)）；对 ID 即所有者 ID 的聚合，还有 `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`、`…/events/query` | 查询模型（[查询快照](./queries)、[查询事件流](./event-queries)） |
 | `POST /wow/dataset/<context>/<dataset>/query` | 服务的一个数据集 |
-| `<METHOD> /<context>/<path>` | 服务路由（`@ServiceRoute`）：函数的返回值以 JSON 返回；返回 `Unit` 的函数答以 `204 No Content`，返回可空值的函数在返回 `null` 时也如此，Manifest 将其标为 `responseOptional`，OpenAPI 文档在 `200` 旁列出 `204` |
+| `<METHOD> /<context>/<path>` | 服务路由（`@ServiceRoute`，[服务路由](./service-routes)）：函数的返回值以 JSON 返回；返回 `Unit` 的函数答以 `204 No Content`，返回可空值的函数在返回 `null` 时也如此，Manifest 将其标为 `responseOptional`，OpenAPI 文档在 `200` 旁列出 `204` |
 | `GET /wow/manifest`、`GET /wow/openapi` | Manifest，以及这些路由的 OpenAPI 3.1 文档 |
 
 ID 即所有者 ID 的聚合，例如 eShop 的购物车，每个所有者一个：它不带 ID 的路由指调用方自己的聚合，没有路由会生成它的 ID（[每个所有者一个聚合](./ownership#one-aggregate-per-owner)）。这些路由在公开端口上。内部端口为集群和其他服务提供服务，从不为客户端提供。内部命令（`@InternalCommand`，[只在内部受理的命令](./aggregates#keep-a-command-internal)）的路由只在内部端口上：公开端口把它们当作未知路径应答，公开端口的 OpenAPI 文档与生成的客户端都不含这条命令。

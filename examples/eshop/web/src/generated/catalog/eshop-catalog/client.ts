@@ -8,8 +8,9 @@ import { CategoryEventQueryClient, CategorySnapshotQueryClient, CategoryStateCli
 import { EshopCatalogManifest } from './manifest.js';
 import { ProductCommandClient } from './product/commandClient.js';
 import { ProductEventQueryClient, ProductSnapshotQueryClient, ProductStateClient } from './product/queryClient.js';
+import { EshopCatalogRoutes } from './routes.js';
 
-/** The clients of `eshop-catalog`: its command client, and per aggregate its command, query and state clients. */
+/** The clients of `eshop-catalog`: its command client, per aggregate its command, query and state clients, and its service routes. */
 export class EshopCatalogClient {
   /** Sends any command of the service, by its Manifest's routes: `send`, `wait` and `stream`. */
   readonly commands: CommandClient;
@@ -38,6 +39,9 @@ export class EshopCatalogClient {
     readonly state: ProductStateClient;
   };
 
+  /** The service routes of `eshop-catalog`. */
+  readonly routes: EshopCatalogRoutes;
+
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
     this.commands = new CommandClient(options, { manifest: EshopCatalogManifest });
@@ -59,5 +63,6 @@ export class EshopCatalogClient {
       events: new ProductEventQueryClient(options),
       state: new ProductStateClient(options),
     };
+    this.routes = new EshopCatalogRoutes(options);
   }
 }
