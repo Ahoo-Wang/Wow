@@ -21,6 +21,7 @@ import me.ahoo.wow.api.decide.checkUse
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.runtime.cluster.NodeAddress
 import me.ahoo.wow.spi.config.ProviderOption
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
@@ -221,7 +222,7 @@ internal class DnsPeerTargets(
                 emptyList()
             }
             val targets = found.sortedWith(compareBy<SrvRecord> { it.priority }.thenByDescending { it.weight })
-                .map { URI.create("http://${it.target.trimEnd('.')}:${it.port}") }
+                .map { URI.create("http://${NodeAddress.of(it.target.trimEnd('.'), it.port)}") }
             if (targets.isNotEmpty()) {
                 peer.targets = targets
             } else if (!peer.warned) {

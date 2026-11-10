@@ -75,6 +75,17 @@ class HttpSignalSenderTest {
     private fun signal(n: Int) = WaitSignal(waitId = "w-$n", result = committed("c-$n"))
 
     @Test
+    fun `a signal reaches an origin on the IPv6 loopback at its bracketed address`(): Unit = runBlocking {
+        assumeIpv6Loopback()
+        InternalServer(internalRoutes(refusing, { received += it }), host = "::1").use { origin ->
+            origin.address.assert().startsWith("[::1]:")
+            sender().send(origin(origin.address), signal(1), deadline())
+            eventually { received.isNotEmpty() }
+            received.assert().containsExactly(signal(1))
+        }
+    }
+
+    @Test
     fun `signals reach the origin's signal entry over HTTP2`(): Unit = runBlocking {
         val sender = sender()
         val signals = (1..20).map(::signal)
