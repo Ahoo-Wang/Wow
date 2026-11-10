@@ -14,8 +14,10 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AggregateIdSource
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 
@@ -28,6 +30,41 @@ class AggregateCompatibilityTest {
 
     private fun changes(baseline: Manifest, current: Manifest): List<String> =
         ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+    /** The baseline with `AddItem` routed by [routes] and its aggregate's id assigned by [idSource]. */
+    private fun addItem(idSource: AggregateIdSource, vararg routes: RouteManifest): Manifest = baseline.cart { cart ->
+        cart.copyWith(
+            idSource = idSource,
+            commands = cart.commands.map { if (it.system) it else it.copyWith(routes = routes.toList()) },
+        )
+    }
+
+    private val byId = RouteManifest("POST", "/shop/cart/{id}/add-item")
+    private val byNoId = RouteManifest("POST", "/shop/cart/add-item")
+
+    @Test
+    fun `a route by id removed beside an id source change should be reported, whichever way the change goes`() {
+        val removed = "BREAKING contexts[shop].aggregates[cart].commands[AddItem].routes: " +
+            "route POST /shop/cart/{id}/add-item removed"
+        changes(addItem(AggregateIdSource.OWNER, byId, byNoId), addItem(AggregateIdSource.ASSIGNED, byNoId))
+            .assert().containsExactlyInAnyOrder(
+                "BREAKING contexts[shop].aggregates[cart].idSource: id source changed from OWNER to ASSIGNED",
+                removed,
+            )
+        changes(addItem(AggregateIdSource.ASSIGNED, byId, byNoId), addItem(AggregateIdSource.OWNER, byNoId))
+            .assert().containsExactlyInAnyOrder(
+                "BREAKING contexts[shop].aggregates[cart].idSource: id source changed from ASSIGNED to OWNER",
+                removed,
+            )
+    }
+
+    @Test
+    fun `a route by no id the owned side alone has should go with the id source change`() {
+        changes(addItem(AggregateIdSource.OWNER, byId, byNoId), addItem(AggregateIdSource.ASSIGNED, byId))
+            .assert().containsExactly(
+                "BREAKING contexts[shop].aggregates[cart].idSource: id source changed from OWNER to ASSIGNED",
+            )
+    }
 
     @Test
     fun `a readers' break should take the place only of the same change at its path, not of another`() {

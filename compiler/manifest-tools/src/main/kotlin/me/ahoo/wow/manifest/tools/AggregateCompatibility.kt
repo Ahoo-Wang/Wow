@@ -207,11 +207,12 @@ private fun Changes.compareCommand(path: String, baseline: CommandManifest, curr
             if (newProduces == null) "produced events no longer declared" else "produced events declared"
         )
     }
-    fun RouteManifest.isOwn(others: List<RouteManifest>) = CommandRoutes.ID !in path && this !in others
+    // The route is a parameter, not a receiver: an extension's `path` would read this function's.
+    fun isOwn(route: RouteManifest, others: List<RouteManifest>) = CommandRoutes.ID !in route.path && route !in others
     compareRoutes(
         "$path.routes",
-        if (owned == Side.BASELINE) baseline.routes.filterNot { it.isOwn(current.routes) } else baseline.routes,
-        if (owned == Side.CURRENT) current.routes.filterNot { it.isOwn(baseline.routes) } else current.routes,
+        if (owned == Side.BASELINE) baseline.routes.filterNot { isOwn(it, current.routes) } else baseline.routes,
+        if (owned == Side.CURRENT) current.routes.filterNot { isOwn(it, baseline.routes) } else current.routes,
     )
 }
 
