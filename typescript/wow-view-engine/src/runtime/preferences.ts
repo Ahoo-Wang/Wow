@@ -22,8 +22,14 @@
  */
 
 import type { ViewInstanceSummary, ViewPreferences } from '../model/index.js';
-import type { ReadOptions, ViewStore } from '../store/ViewStore.js';
+import type {
+  ReadOptions,
+  ViewPermissions,
+  ViewStore,
+} from '../store/ViewStore.js';
 import { Generations } from './generations.js';
+import type { PermissionGuard } from './permissions.js';
+import type { WritePayload } from './write.js';
 
 export class PreferenceCache {
   private readonly store: ViewStore;
@@ -102,4 +108,72 @@ export function resolveDefault(
   if (preferences.defaultInstanceId && ids.has(preferences.defaultInstanceId))
     return preferences.defaultInstanceId;
   return orderSummaries(summaries, preferences)[0]?.id ?? null;
+}
+
+/** What `PreferenceCommands` writes with: the engine's own parts. */
+export interface PreferenceCommandsParts {
+  readonly cache: PreferenceCache;
+  readonly guard: PermissionGuard;
+  /** The definition's permissions, as `ViewEngine.permissions` answers. */
+  permissions(definitionId: string): ViewPermissions;
+  /** Hands a write to the engine's ledger, which settles its outcome. */
+  dispatch(payload: WritePayload): Promise<unknown>;
+}
+
+/**
+ * The commands that change a reader's preferences for a definition: the
+ * order of the list, the default view, whether analyses run on their own.
+ * Each writes the whole state over the last one read or confirmed
+ * (`PreferenceCache.current`), through the ledger. `ViewEngine.reorder`,
+ * `setDefault` and `setAutoRun` hand on to them.
+ */
+export class PreferenceCommands {
+  constructor(private readonly parts: PreferenceCommandsParts) {}
+
+  /** See `ViewEngine.reorder`. */
+  async reorder(
+    definitionId: string,
+    order: string[],
+  ): Promise<ViewPreferences> {
+    this.parts.guard.require(
+      this.parts.permissions(definitionId).reorder,
+      'view.preferences.reorder-forbidden',
+    );
+    const current = await this.parts.cache.current(definitionId);
+    return this.write(definitionId, { ...current, order });
+  }
+
+  /** See `ViewEngine.setDefault`. */
+  async setDefault(
+    definitionId: string,
+    instanceId: string | null,
+  ): Promise<ViewPreferences> {
+    this.parts.guard.require(
+      this.parts.permissions(definitionId).setDefault,
+      'view.preferences.default-forbidden',
+    );
+    const current = await this.parts.cache.current(definitionId);
+    return this.write(definitionId, {
+      ...current,
+      defaultInstanceId: instanceId,
+    });
+  }
+
+  /** See `ViewEngine.setAutoRun`. */
+  async setAutoRun(
+    definitionId: string,
+    autoRun: boolean,
+  ): Promise<ViewPreferences> {
+    const current = await this.parts.cache.current(definitionId);
+    return this.write(definitionId, { ...current, autoRun });
+  }
+
+  /** One preferences write, dispatched through the ledger. */
+  async write(
+    definitionId: string,
+    next: ViewPreferences,
+  ): Promise<ViewPreferences> {
+    const payload: WritePayload = { action: 'preferences', definitionId, next };
+    return (await this.parts.dispatch(payload)) as ViewPreferences;
+  }
 }

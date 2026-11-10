@@ -70,7 +70,11 @@ import {
 import { ViewChanges, type ViewChangeListener } from './viewChanges.js';
 import { type DefinitionRegistry, systemInstances } from './definitions.js';
 import { PermissionGuard } from './permissions.js';
-import { PreferenceCache, resolveDefault } from './preferences.js';
+import {
+  PreferenceCache,
+  PreferenceCommands,
+  resolveDefault,
+} from './preferences.js';
 import { OpenRuntimes } from './openRuntimes.js';
 import { storedSummaries, SummaryCache } from './summaries.js';
 import { TabMemory } from './tabMemory.js';
@@ -132,6 +136,8 @@ export class ViewEngine {
   private readonly registry: DefinitionRegistry;
   private readonly guard: PermissionGuard;
   private readonly preferenceCache: PreferenceCache;
+  /** The commands that change a reader's preferences; see `preferences.ts`. */
+  private readonly preferenceCommands: PreferenceCommands;
   private readonly runtimes = new OpenRuntimes();
   private readonly factory: RuntimeFactory;
   /** Opening a view, saved or made from nothing; see `viewOpening.ts`. */
@@ -153,7 +159,8 @@ export class ViewEngine {
   /** Where each reader last read each board; see `tabMemory.ts`. */
   private readonly tabs = new TabMemory({
     current: definitionId => this.preferenceCache.current(definitionId),
-    write: (definitionId, next) => this.writePreferences(definitionId, next),
+    write: (definitionId, next) =>
+      this.preferenceCommands.write(definitionId, next),
     abandon: handle => this.ledger.abandonWrite(handle),
   });
 
@@ -181,6 +188,12 @@ export class ViewEngine {
     this.guard = new PermissionGuard(this.store);
     this.preferenceCache = new PreferenceCache(this.store);
     this.ledger = new WriteLedger(this.ledgerHost());
+    this.preferenceCommands = new PreferenceCommands({
+      cache: this.preferenceCache,
+      guard: this.guard,
+      permissions: definitionId => this.permissions(definitionId),
+      dispatch: payload => this.ledger.dispatch(payload, undefined),
+    });
     this.writes = new InstanceWrites({
       store: this.store,
       guard: this.guard,
@@ -581,27 +594,14 @@ export class ViewEngine {
     definitionId: string,
     order: string[],
   ): Promise<ViewPreferences> {
-    this.guard.require(
-      this.permissions(definitionId).reorder,
-      'view.preferences.reorder-forbidden',
-    );
-    const current = await this.preferenceCache.current(definitionId);
-    return this.writePreferences(definitionId, { ...current, order });
+    return this.preferenceCommands.reorder(definitionId, order);
   }
 
   async setDefault(
     definitionId: string,
     instanceId: string | null,
   ): Promise<ViewPreferences> {
-    this.guard.require(
-      this.permissions(definitionId).setDefault,
-      'view.preferences.default-forbidden',
-    );
-    const current = await this.preferenceCache.current(definitionId);
-    return this.writePreferences(definitionId, {
-      ...current,
-      defaultInstanceId: instanceId,
-    });
+    return this.preferenceCommands.setDefault(definitionId, instanceId);
   }
 
   /**
@@ -614,8 +614,7 @@ export class ViewEngine {
     definitionId: string,
     autoRun: boolean,
   ): Promise<ViewPreferences> {
-    const current = await this.preferenceCache.current(definitionId);
-    return this.writePreferences(definitionId, { ...current, autoRun });
+    return this.preferenceCommands.setAutoRun(definitionId, autoRun);
   }
 
   /**
@@ -707,14 +706,6 @@ export class ViewEngine {
     // Nothing more will be written through it, so nothing more is announced:
     // a host that forgot to unsubscribe leaves no listener behind here.
     this.changes.clear();
-  }
-
-  private async writePreferences(
-    definitionId: string,
-    next: ViewPreferences,
-  ): Promise<ViewPreferences> {
-    const payload: WritePayload = { action: 'preferences', definitionId, next };
-    return (await this.ledger.dispatch(payload, undefined)) as ViewPreferences;
   }
 
   /**
