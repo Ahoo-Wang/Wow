@@ -47,12 +47,14 @@ export {
   type AnalysisResultController,
   type AnalysisResultInput,
   type AnalysisResultOptions,
+  useAnalysisResult,
+} from './useAnalysisResult.js';
+export {
   type FollowUp,
   type FollowUpAction,
   type FollowUpGroup,
   type SplitOption,
-  useAnalysisResult,
-} from './useAnalysisResult.js';
+} from './followUp.js';
 export {
   type RefreshController,
   useAutoRefresh,
