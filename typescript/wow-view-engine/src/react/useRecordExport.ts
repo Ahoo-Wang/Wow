@@ -228,7 +228,7 @@ export function useRecordExport(
   );
 
   const fetchAll = useCallback(
-    async (
+    (
       runtime: RecordViewRuntime,
       total: number | null,
       fileName: string,
@@ -238,55 +238,55 @@ export function useRecordExport(
       // A run cancelled is over for the window: what it settles with later
       // — the read its client rejects on the abort, a page that arrived
       // anyway — is not said over the idle window or a run started since.
-      const ticket = runs.issue(RUN);
-      const current = () => runs.latest(ticket);
-      settle({
-        ...IDLE,
-        running: 'all',
-        progress: {
-          scope: 'all',
-          fetched: 0,
-          ...(total === null ? {} : { total }),
-        },
-      });
-      try {
-        const result = await runtime.exportRows({
-          signal: controller.signal,
-          onProgress: (fetched, reported) => {
-            if (!alive.current || !current()) return;
-            setState(current => ({
-              ...current,
-              progress: {
-                scope: 'all',
-                fetched,
-                ...(reported === undefined ? {} : { total: reported }),
-              },
-            }));
-          },
-        });
-        await hand(
-          result.rows,
-          {
+      return runs.run(RUN, async ticket => {
+        const current = () => runs.latest(ticket);
+        settle({
+          ...IDLE,
+          running: 'all',
+          progress: {
             scope: 'all',
-            rows: result.rows.length,
-            capped: result.capped,
+            fetched: 0,
             ...(total === null ? {} : { total }),
           },
-          fileName,
-        );
-      } catch (caught) {
-        if (!current()) return;
-        // A cancel is the user's own answer, not a finding: the window
-        // closes and nothing is said about it.
-        settle(
-          isExportCancelledError(caught)
-            ? IDLE
-            : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
-        );
-      } finally {
-        if (current()) live.current = null;
-        runs.release(ticket);
-      }
+        });
+        try {
+          const result = await runtime.exportRows({
+            signal: controller.signal,
+            onProgress: (fetched, reported) => {
+              if (!alive.current || !current()) return;
+              setState(current => ({
+                ...current,
+                progress: {
+                  scope: 'all',
+                  fetched,
+                  ...(reported === undefined ? {} : { total: reported }),
+                },
+              }));
+            },
+          });
+          await hand(
+            result.rows,
+            {
+              scope: 'all',
+              rows: result.rows.length,
+              capped: result.capped,
+              ...(total === null ? {} : { total }),
+            },
+            fileName,
+          );
+        } catch (caught) {
+          if (!current()) return;
+          // A cancel is the user's own answer, not a finding: the window
+          // closes and nothing is said about it.
+          settle(
+            isExportCancelledError(caught)
+              ? IDLE
+              : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
+          );
+        } finally {
+          if (current()) live.current = null;
+        }
+      });
     },
     [hand, runs, settle],
   );

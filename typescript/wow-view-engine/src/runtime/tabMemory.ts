@@ -56,13 +56,14 @@ export class TabMemory {
     tabId: string,
   ): Promise<void> {
     const key = `${definitionId}\u0000${instanceId}`;
-    const ticket = this.switches.issue(key);
-    const turn = (this.turns.get(key) ?? Promise.resolve())
-      .then(() => this.write(ticket, definitionId, instanceId, tabId))
-      .finally(() => {
-        if (this.turns.get(key) === turn) this.turns.delete(key);
-        this.switches.release(ticket);
-      });
+    const before = this.turns.get(key) ?? Promise.resolve();
+    // The ticket is issued now, at the switch, so a later switch made while
+    // this one waits its turn is the later one.
+    const turn = this.switches.run(key, async ticket => {
+      await before;
+      await this.write(ticket, definitionId, instanceId, tabId);
+      if (this.turns.get(key) === turn) this.turns.delete(key);
+    });
     this.turns.set(key, turn);
     return turn;
   }
