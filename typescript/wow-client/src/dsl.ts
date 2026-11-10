@@ -32,4 +32,6 @@ export * from './dsl/queryable.js';
 export * from './dsl/deletionState.js';
 export * from './dsl/documents.js';
 export * from './dsl/descriptor.js';
+export * from './dsl/fieldDescriptor.js';
+export * from './dsl/semanticTypes.js';
 export * from './dsl/queryErrorCodes.js';

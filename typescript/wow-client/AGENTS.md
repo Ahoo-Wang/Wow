@@ -70,7 +70,8 @@ src/
   manifest.ts     — The Manifest's types and fetchManifest (GET /wow/manifest)
   dsl/            — The query DSL; imports no client module and no fetcher package
     field.ts, deletionState.ts, sort.ts, projection.ts, pagination.ts, cursorQuery.ts,
-    queryable.ts, documents.ts, descriptor.ts, queryErrorCodes.ts
+    queryable.ts, documents.ts, queryErrorCodes.ts
+    descriptor.ts, fieldDescriptor.ts, semanticTypes.ts — The query capability descriptor: the model's, a field's, a field's semantics
     filter/       — `filter.*`, FilterExpression and its operators; (internal) validate.ts, datePattern.ts, scope.ts
     aggregation/  — `aggregation.*`, `aggregation.having.*`, `aggregation.derived(…)`; (internal) admit.ts, sort.ts
 scripts/
