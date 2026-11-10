@@ -13,7 +13,7 @@ comments cite by decision number.
 ```bash
 pnpm --filter @ahoo-wang/wow-client build      # vite build, then scripts/verify-package.mjs
 pnpm --filter @ahoo-wang/wow-client test       # vitest with coverage, test:type, then test:api (needs a build)
-pnpm --filter @ahoo-wang/wow-client exec vitest run test/client.test.ts
+pnpm --filter @ahoo-wang/wow-client exec vitest run test/commandClient.test.ts
 pnpm --filter @ahoo-wang/wow-client exec vitest run test/publicSurface.test.ts -u   # accept a surface change
 pnpm --filter @ahoo-wang/wow-client test:api -u   # accept a change to the API reports (after a build)
 pnpm --filter @ahoo-wang/wow-client lint
@@ -84,7 +84,9 @@ test/
   layerBoundaries.test.ts — Each layer rule of eslint.config.js fires on a violation, and src/ has none
   wireNames.test.ts, fixtures/wire-names.json — Each Wow enumeration declared here, held to what the JVM writes
   golden/dsl-wire.json, dslWire.test.ts — Every DSL builder's JSON
-  client.test.ts, edges.test.ts, resumableStreams.test.ts — The clients against a stubbed fetch (fixtures/fetchStub.ts)
+  commandClient.test.ts, commandResults.test.ts, commandStream.test.ts, queries.test.ts, state.test.ts, manifest.test.ts,
+  edges.test.ts, resumableStreams.test.ts — The clients against a stubbed fetch (fixtures/fetchStub.ts, fixtures/clients.ts)
+  wait.test.ts, problem.test.ts — Wow-Wait and Wow-Scope as the headers spell them; problems as a client reads them
   dsl/                — The DSL, its conformance register and its codes
 ```
 
