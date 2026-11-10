@@ -30,6 +30,7 @@ fun interface WaitDeadlines {
     /** Runs [task] [delayMillis] from now, on none of the caller's threads; cancelling the future unschedules it. */
     fun schedule(delayMillis: Long, task: Runnable): Future<*>
 
+    @InternalWowApi
     companion object {
         /**
          * Ends the waits of every coordinator of the process at their deadlines: daemon threads that only end them and
