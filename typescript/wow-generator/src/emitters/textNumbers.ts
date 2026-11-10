@@ -137,7 +137,7 @@ export function emitTextNumbers(
   const target = { module, outputDir, client };
   for (const declared of context.textNumbers) {
     module.add(
-      `\n/** The exact numbers of \`${declared.key}\`, a recursive type: its own marks, and others', read them lazily. */\nexport const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
+      `\n/** The exact numbers of \`${declared.key}\`${declared.beside ? ' with what an `allOf` says beside it' : ''}, a recursive type: its own marks, and others', read them lazily. */\nexport const ${declared.name}: TextNumbers = ${literal(declared.marks, target)};`,
     );
   }
 }

@@ -79,10 +79,15 @@ const MANIFEST = {
     },
   ],
   $defs: {
-    'shop.Tree': object({
-      amount: long,
-      children: { type: 'array', items: ref('shop.Tree') },
-    }),
+    'shop.Tree': object(
+      {
+        amount: long,
+        children: { type: 'array', items: ref('shop.Tree') },
+        // The tree again, with an exact number beside it.
+        graft: { allOf: [ref('shop.Tree'), object({ fee: decimal })] },
+      },
+      ['amount', 'children'],
+    ),
     'shop.Graft': object({ branch: ref('shop.Tree') }),
     'shop.Prices': object({
       either: {
@@ -121,23 +126,28 @@ describe('exact numbers through a generated client', () => {
        declare const shop: ShopClient;
        const tree: Tree = await shop.tree.state.get('t1').then(snapshot => snapshot.state);
        const deep: string = tree.children[0]!.children[0]!.amount;
+       const fee: string | undefined = tree.graft?.fee;
        const prices: Prices = await shop.price.state.get('p1').then(snapshot => snapshot.state);
        const count: number = prices.tagged.kind === 'count' ? prices.tagged.amount + 1 : 0;
        const exact: string = prices.tagged.kind === 'decimal' ? prices.tagged.amount : '';
        const money: Money = await shop.routes.money({ amount: '1', lines: [] });
        const amount: string = money.amount;
-       void [deep, count, exact, amount];`,
+       void [deep, fee, count, exact, amount];`,
     );
     directories.push(generation.dir);
     expect(generation.read('shop/textNumbers.ts')).toContain(
-      "export const treeNumbers: TextNumbers = { amount: true, children: { '*': () => treeNumbers } };",
+      "export const treeNumbers: TextNumbers = { amount: true, children: { '*': () => treeNumbers }, graft: () => treeNumbers2 };",
+    );
+    // The tree with its fee recurs as the tree does: a constant of its own.
+    expect(generation.read('shop/textNumbers.ts')).toContain(
+      "/** The exact numbers of `shop.Tree` with what an `allOf` says beside it, a recursive type: its own marks, and others', read them lazily. */\nexport const treeNumbers2: TextNumbers = { amount: true, children: { '*': () => treeNumbers }, graft: () => treeNumbers2, fee: true };",
     );
     const output = generation.output;
     expect(typeCheck(output, BUNDLER_OPTIONS)).toEqual([]);
     const printed = runGenerated(
       output,
       `const answers = {
-  '/shop/tree/t1/state': '{"version":1,"state":{"amount":${LONG},"children":[{"amount":${LONG},"children":[{"amount":${LONG},"children":[]}]}]}}',
+  '/shop/tree/t1/state': '{"version":1,"state":{"amount":${LONG},"children":[{"amount":${LONG},"children":[{"amount":${LONG},"children":[]}]}],"graft":{"amount":${LONG},"children":[],"fee":${DECIMAL},"graft":{"amount":${LONG},"children":[],"fee":${DECIMAL}}}}}',
   '/shop/price/p1/state': '{"version":1,"state":{"either":${DECIMAL},"tagged":{"kind":"count","amount":3},"shape":{"kind":"stack","count":${LONG},"top":{"kind":"circle","radius":${DECIMAL}}}}}',
   '/shop/price/p2/state': '{"version":1,"state":{"either":{"amount":${DECIMAL}},"tagged":{"amount":${DECIMAL},"kind":"decimal"},"shape":{"kind":"square","side":0.1}}}',
   '/shop/money': '{"amount":${LONG},"lines":[{"price":${DECIMAL}}]}',
@@ -162,6 +172,12 @@ console.log(JSON.stringify({ tree, first, second, money, sent: requests.filter(r
     expect(tree).toEqual({
       amount: LONG,
       children: [{ amount: LONG, children: [{ amount: LONG, children: [] }] }],
+      graft: {
+        amount: LONG,
+        children: [],
+        fee: DECIMAL,
+        graft: { amount: LONG, children: [], fee: DECIMAL },
+      },
     });
     expect(first).toEqual({
       either: DECIMAL,

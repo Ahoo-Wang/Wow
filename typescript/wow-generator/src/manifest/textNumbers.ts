@@ -51,6 +51,8 @@ export interface TextNumbersConstant {
 export interface TextNumbersDeclaration extends TextNumbersConstant {
   /** The type's `$defs` key. */
   readonly key: string;
+  /** It is the type with what an `allOf` says beside it, not the type alone. */
+  readonly beside?: true;
   readonly marks: TextNumbersModel;
 }
 
@@ -74,6 +76,8 @@ interface Shape {
     readonly cases: Record<string, Shape>;
   };
   readonly ref?: string;
+  /** What else is said of a {@link ref}'s value, beside its type (`allOf`). */
+  readonly beside?: Shape;
 }
 
 /** Two alternatives that read what is at `path` differently, as `detail` says. */
@@ -96,6 +100,15 @@ export class TextNumbers {
   private readonly shapes = new Map<string, Shape | undefined>();
   private readonly reading = new Set<string>();
   private readonly lazy = new Map<string, TextNumbersConstant>();
+  /**
+   * A recursive type with what an `allOf` says beside it, by an id of both:
+   * its type's key, and its own shape. It recurs as its type does, so it is
+   * declared as a constant of its own.
+   */
+  private readonly variants = new Map<
+    string,
+    { readonly key: string; readonly shape: Shape | undefined }
+  >();
 
   /**
    * @param defs - The Manifest's `$defs`
@@ -124,12 +137,14 @@ export class TextNumbers {
     const declared = new Map<string, TextNumbersDeclaration>();
     // A declaration's marks may refer to more recursive types.
     while (declared.size < this.lazy.size) {
-      for (const [key, constant] of [...this.lazy]) {
-        if (declared.has(key)) continue;
-        declared.set(key, {
-          key,
+      for (const [id, constant] of [...this.lazy]) {
+        if (declared.has(id)) continue;
+        const variant = this.variants.get(id);
+        declared.set(id, {
+          key: variant?.key ?? id,
+          ...(variant === undefined ? {} : { beside: true as const }),
           ...constant,
-          marks: this.toMarks(this.shapes.get(key))!,
+          marks: this.toMarks(variant?.shape ?? this.shapes.get(id))!,
         });
       }
     }
@@ -218,11 +233,23 @@ export class TextNumbers {
       let rest: Shape | undefined;
       alternatives.forEach((alternative, index) => {
         const value = this.constant(alternative, name);
-        if (value === undefined) {
-          rest = this.merge(rest, shapes[index], '');
-        } else if (shapes[index] !== undefined) {
-          cases[value] = shapes[index];
+        const shape = shapes[index];
+        if (value !== undefined) {
+          if (shape !== undefined) cases[value] = shape;
+          return;
         }
+        // Only its own number can go beside the cases (textNumberOr): marks
+        // inside it, of items or values, have no form to be chosen by.
+        if (
+          shape !== undefined &&
+          this.exact({ ...shape, number: undefined }, new Set())
+        ) {
+          throw new GeneratorError(
+            'specification',
+            `The alternatives of ${where} are told apart by their \`${name}\`, but alternative ${index + 1} has none and holds exact numbers no reader could choose by it. Give it a \`${name}\` too, or take it out of the union.`,
+          );
+        }
+        rest = this.merge(rest, shape, '');
       });
       return all([
         rest?.number ? { number: rest.number } : undefined,
@@ -284,7 +311,14 @@ export class TextNumbers {
   ): Shape | undefined {
     if (left === undefined) return right;
     if (right === undefined) return left;
-    if (left.ref !== undefined && left.ref === right.ref) return left;
+    if (
+      left.ref !== undefined &&
+      left.ref === right.ref &&
+      left.beside === undefined &&
+      right.beside === undefined
+    ) {
+      return left;
+    }
     if (left.ref !== undefined || right.ref !== undefined) {
       return this.merge(this.expand(left), this.expand(right), path);
     }
@@ -326,7 +360,9 @@ export class TextNumbers {
   /** A reference's shape where it is known; else a disagreement unless the other side reads no number. */
   private expand(shape: Shape): Shape | undefined {
     if (shape.ref === undefined) return shape;
-    if (this.shapes.has(shape.ref)) return this.shapes.get(shape.ref);
+    if (this.shapes.has(shape.ref)) {
+      return all([this.shapes.get(shape.ref), shape.beside]);
+    }
     throw new Disagreement(
       '',
       `one is \`${shape.ref}\`, a recursive type not yet read, another is not`,
@@ -336,11 +372,26 @@ export class TextNumbers {
   private toMarks(shape: Shape | undefined): TextNumbersModel | undefined {
     if (shape === undefined) return undefined;
     if (shape.ref !== undefined) {
-      if (!this.exact(shape, new Set())) return undefined;
-      let constant = this.lazy.get(shape.ref);
+      const ref = shape.ref;
+      // What is said beside a recursive type holds too: the two are another
+      // recursive type, a constant of its own.
+      const beside = this.exact(shape.beside, new Set());
+      if (!beside && !this.exact({ ref }, new Set())) return undefined;
+      const id = beside ? `${ref} ${JSON.stringify(shape.beside)}` : ref;
+      let constant = this.lazy.get(id);
       if (constant === undefined) {
-        constant = this.constantOf(shape.ref);
-        this.lazy.set(shape.ref, constant);
+        constant = this.constantOf(ref);
+        if (beside) {
+          const taken = [...this.variants.values()].filter(
+            variant => variant.key === ref,
+          ).length;
+          constant = { ...constant, name: `${constant.name}${taken + 2}` };
+          this.variants.set(id, {
+            key: ref,
+            shape: all([this.shapes.get(ref), shape.beside]),
+          });
+        }
+        this.lazy.set(id, constant);
       }
       return { lazy: constant };
     }
@@ -360,6 +411,7 @@ export class TextNumbers {
   private exact(shape: Shape | undefined, seen: Set<string>): boolean {
     if (shape === undefined) return false;
     if (shape.ref !== undefined) {
+      if (this.exact(shape.beside, seen)) return true;
       if (seen.has(shape.ref)) return false;
       seen.add(shape.ref);
       return this.exact(this.shapes.get(shape.ref), seen);
@@ -381,9 +433,11 @@ function all(parts: readonly (Shape | undefined)[]): Shape | undefined {
   return parts.reduce<Shape | undefined>((left, right) => {
     if (left === undefined) return right;
     if (right === undefined) return left;
-    // A reference stands for its whole type: what else is said of it adds nothing a reader could use.
+    // A reference keeps what else is said of its value beside it.
     if (left.ref !== undefined || right.ref !== undefined) {
-      return left.ref !== undefined ? left : right;
+      const [ref, other] =
+        left.ref !== undefined ? [left, right] : [right, left];
+      return { ref: ref.ref, beside: all([ref.beside, other])! };
     }
     const number =
       left.number?.exact || right.number === undefined

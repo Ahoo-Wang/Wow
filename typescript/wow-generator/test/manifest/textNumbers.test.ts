@@ -146,6 +146,80 @@ describe('the exact numbers of a schema', () => {
     ).toThrow('disagree at n.*: one is `decimal`');
   });
 
+  it('refuses an array beside discriminated objects when its items hold exact numbers, naming it', () => {
+    const union = (items: unknown) => ({
+      anyOf: [
+        { type: 'array', items },
+        object({ kind: { const: 'a' }, amount: decimal }),
+        object({ kind: { const: 'b' }, amount: double }),
+      ],
+    });
+    expect(() =>
+      numbers({ Mixed: union(decimal) }).marks(ref('Mixed'), 'Mixed'),
+    ).toThrow(
+      new GeneratorError(
+        'specification',
+        'The alternatives of Mixed are told apart by their `kind`, but alternative 1 has none and holds exact numbers no reader could choose by it. Give it a `kind` too, or take it out of the union.',
+      ),
+    );
+    // Items of plain numbers lose nothing: the union is marked by its cases.
+    expect(
+      numbers({ Plain: union(double) }).marks(ref('Plain'), 'Plain'),
+    ).toEqual({ by: 'kind', cases: { a: { members: { amount: true } } } });
+  });
+
+  it('keeps what an allOf says beside a recursive type it is still reading', () => {
+    const derived = numbers({
+      Node: object({
+        amount: long,
+        next: { allOf: [ref('Node'), object({ fee: decimal })] },
+        plain: { allOf: [ref('Node'), object({ note: { type: 'string' } })] },
+      }),
+    });
+    const lazy = (name: string) => ({
+      lazy: { name, file: 'shop/textNumbers.ts' },
+    });
+    expect(derived.marks(ref('Node'), 'Node')).toEqual({
+      members: {
+        amount: true,
+        next: lazy('nodeNumbers2'),
+        plain: lazy('nodeNumbers'),
+      },
+    });
+    // Node with its fee recurs as Node does: a constant of its own.
+    expect(
+      derived
+        .declarations()
+        .map(({ key, beside, name, marks }) => [key, beside, name, marks]),
+    ).toEqual([
+      [
+        'Node',
+        undefined,
+        'nodeNumbers',
+        {
+          members: {
+            amount: true,
+            next: lazy('nodeNumbers2'),
+            plain: lazy('nodeNumbers'),
+          },
+        },
+      ],
+      [
+        'Node',
+        true,
+        'nodeNumbers2',
+        {
+          members: {
+            amount: true,
+            next: lazy('nodeNumbers2'),
+            plain: lazy('nodeNumbers'),
+            fee: true,
+          },
+        },
+      ],
+    ]);
+  });
+
   it('refuses a union of a discriminated object and another object it cannot tell apart', () => {
     const tagged = {
       oneOf: [
