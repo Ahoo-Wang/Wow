@@ -139,11 +139,11 @@ class WowApiPluginTest {
         File(output, "sample/ShopCartContract.kt").readText().assert().contains(
             "package sample",
             "object ShopCartContract",
-            "const val NAME: String = \"shop-cart\"",
+            "const val NAME: kotlin.String = \"shop-cart\"",
             "object Cart",
-            "public const val NAME: String = \"cart\"",
+            "public const val NAME: kotlin.String = \"cart\"",
             "AggregateType(CONTEXT, NAME)",
-            "fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
+            "fun ref(tenantId: kotlin.String, id: kotlin.String): me.ahoo.wow.api.aggregate.AggregateRef = TYPE.ref(tenantId, id)",
         )
     }
 

@@ -409,7 +409,7 @@ class PluginRolesFunctionalTest {
         File(root, "$sources/Account.kt").appendText("\n// changed\n")
         runner(root, ":bank-domain:kspKotlin").build()
         File(root, "bank-domain/build/generated/ksp/main/kotlin/bank/AccountModel.kt").readText().assert()
-            .contains("fun accountModel(context: String = \"bank\"")
+            .contains("fun accountModel(context: kotlin.String = \"bank\"")
         // KSP's own record: the model is an output of the context's file too, so it is regenerated with it.
         val outputs = File(root, "bank-domain/build/kspCaches/main/logs/kspSourceToOutputs.log").readLines()
         val ofBank = outputs.dropWhile { !it.endsWith("src/main/kotlin/bank/Bank.kt:") }.drop(1)

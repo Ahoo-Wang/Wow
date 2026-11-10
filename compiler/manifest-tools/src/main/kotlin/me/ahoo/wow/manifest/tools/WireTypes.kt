@@ -88,11 +88,11 @@ internal object WireTypes {
     fun holds(wider: String?, narrower: String?): Boolean =
         wider == null || narrower != null && narrower in WITHIN.getValue(wider)
 
-    /** The Kotlin type each format reads back as. */
+    /** The Kotlin type each format reads back as, by its qualified name, as generated code names it. */
     val TYPES: Map<String, String> = mapOf(
-        INT32 to "Int",
-        INT64 to "Long",
-        FLOAT to "Float",
+        INT32 to "kotlin.Int",
+        INT64 to "kotlin.Long",
+        FLOAT to "kotlin.Float",
         BIGINT to "java.math.BigInteger",
         DECIMAL to "java.math.BigDecimal",
         DATE_TIME to "java.time.Instant",
@@ -103,17 +103,17 @@ internal object WireTypes {
         URI to "java.net.URI",
     )
 
-    /** The Kotlin types of the JVM's boxed classes, as `x-wow-class` names them. */
+    /** The Kotlin types of the JVM's boxed classes, as `x-wow-class` names them, by their qualified names. */
     val KOTLIN_TYPES: Map<String, String> = mapOf(
-        "java.lang.String" to "String",
-        "java.lang.Boolean" to "Boolean",
-        "java.lang.Integer" to "Int",
-        "java.lang.Short" to "Short",
-        "java.lang.Byte" to "Byte",
-        "java.lang.Long" to "Long",
-        "java.lang.Float" to "Float",
-        "java.lang.Double" to "Double",
-        "java.lang.Character" to "Char",
+        "java.lang.String" to "kotlin.String",
+        "java.lang.Boolean" to "kotlin.Boolean",
+        "java.lang.Integer" to "kotlin.Int",
+        "java.lang.Short" to "kotlin.Short",
+        "java.lang.Byte" to "kotlin.Byte",
+        "java.lang.Long" to "kotlin.Long",
+        "java.lang.Float" to "kotlin.Float",
+        "java.lang.Double" to "kotlin.Double",
+        "java.lang.Character" to "kotlin.Char",
     )
 
     /** The classes a plain JSON type reads back as: a string, a boolean, a number. */

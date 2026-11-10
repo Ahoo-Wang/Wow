@@ -34,3 +34,21 @@ class EntryState {
     var grouping: Entry? = null
     var values: kotlin.collections.List<kotlin.String> = emptyList()
 }
+
+/** The states of aggregates named as Wow's types (`ownership`, `aggregate-type`, `query-field`). */
+class OwnershipState {
+    var owner: kotlin.String = ""
+}
+
+class AggregateTypeState {
+    var name: kotlin.String = ""
+}
+
+class QueryFieldState {
+    var path: kotlin.String = ""
+}
+
+/** A state named `State`: its view is `StateView`, the name of the annotation a view carries. */
+class State {
+    var label: kotlin.String = ""
+}

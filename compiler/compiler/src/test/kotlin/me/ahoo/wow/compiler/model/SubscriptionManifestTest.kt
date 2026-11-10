@@ -260,7 +260,7 @@ class SubscriptionManifestTest {
             .contains(
                 "ProcessorBinding.project<sample.StockView?>(\"StockOnly\", \"onEvent\", sample.StockView::class.java"
             )
-            .contains("aggregates = listOf(\"inventory.stock\"), nullableState = true)")
+            .contains("aggregates = kotlin.collections.listOf(\"inventory.stock\"), nullableState = true)")
         result.messages.assert()
             .doesNotContain("of another context")
             .doesNotContain("@OnRejected handler OrderSaga.onReserveRejected is in the Manifest")
