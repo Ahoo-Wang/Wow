@@ -18,6 +18,7 @@ import com.clickhouse.client.api.ServerException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.clickhouse.query.ClickHouseStreamException
 import me.ahoo.wow.spi.StorageBusyException
@@ -26,6 +27,9 @@ import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import kotlin.coroutines.resumeWithException
 
 /**
  * Tells ClickHouse being unreachable or overloaded from a defect: the first is a [StorageUnavailableException], so a
@@ -88,6 +92,26 @@ internal object ClickHouseFailures {
     private fun causes(failure: Throwable): Sequence<Throwable> =
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES)
 }
+
+/**
+ * Waits for the client's response, which the caller closes; one that arrives after the wait was cancelled is closed
+ * here, since nothing else holds it, which releases its HTTP connection to the client's pool (#5796).
+ *
+ * The client's future is not cancelled: cancelled, it would drop the response its request still returns. A client
+ * with synchronous operations (client-v2's default) answers with a future already completed, so the response is the
+ * caller's at once.
+ */
+internal suspend fun <R : AutoCloseable> CompletableFuture<R>.awaitResponse(): R =
+    suspendCancellableCoroutine { continuation ->
+        whenComplete { response, failure ->
+            if (failure == null) {
+                // Nobody waits for a late response: closing it is cleanup, never a failure of its own.
+                continuation.resume(response) { _, late, _ -> runCatching { late.close() } }
+            } else {
+                continuation.resumeWithException((failure as? CompletionException)?.cause ?: failure)
+            }
+        }
+    }
 
 /** Runs [block] on this dispatcher, ClickHouse being unavailable thrown as a [StorageUnavailableException]. */
 @Suppress("TooGenericExceptionCaught") // Any failure of the client is translated, then rethrown.

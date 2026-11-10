@@ -27,9 +27,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import me.ahoo.wow.clickhouse.ClickHouseFailures
+import me.ahoo.wow.clickhouse.awaitResponse
 import me.ahoo.wow.clickhouse.sink.ClickHouseColumn
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.spi.StorageTimeoutException
@@ -73,7 +73,7 @@ internal class ClickHouseExecutor(
                     statement.sql,
                     statement.parameters,
                     querySettings(queryId, timeout)
-                ).await()
+                ).awaitResponse()
                 response.use { open ->
                     open.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank).forEach { line ->
                         emit(row(line))

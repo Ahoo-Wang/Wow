@@ -17,7 +17,7 @@ import com.clickhouse.client.api.Client
 import com.clickhouse.client.api.insert.InsertSettings
 import com.clickhouse.data.ClickHouseFormat
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.future.await
+import me.ahoo.wow.clickhouse.awaitResponse
 import me.ahoo.wow.clickhouse.clickhouse
 import java.io.ByteArrayInputStream
 
@@ -53,7 +53,7 @@ internal interface ClickHouseStatements {
  */
 internal class ClientStatements(private val client: Client) : ClickHouseStatements {
     override suspend fun execute(sql: String) {
-        Dispatchers.IO.clickhouse { client.execute(sql).await().close() }
+        Dispatchers.IO.clickhouse { client.execute(sql).awaitResponse().close() }
     }
 
     override suspend fun insert(table: String, body: ByteArray, token: String) {
@@ -61,7 +61,8 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
             .setDeduplicationToken(token)
             .serverSetting(DEDUPLICATE_VIEWS, "1")
         Dispatchers.IO.clickhouse {
-            client.insert(table, ByteArrayInputStream(body), ClickHouseFormat.JSONEachRow, settings).await().close()
+            val rows = ByteArrayInputStream(body)
+            client.insert(table, rows, ClickHouseFormat.JSONEachRow, settings).awaitResponse().close()
         }
     }
 
