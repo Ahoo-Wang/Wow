@@ -272,7 +272,10 @@ class ProcessorDslTest {
 
     /** A refusal of the inventory, as a client answers it: of a command no call of a handling made. */
     private fun refusal() = CommandRejectedException(
-        rejectedResult(Command("command-1", "request-1", stock.ref("tenant", "mug"), ReserveStock("order-1", 1)), "closed"),
+        rejectedResult(
+            Command("command-1", "request-1", stock.ref("tenant", "mug"), ReserveStock("order-1", 1)),
+            "closed"
+        ),
     )
 
     @Test
