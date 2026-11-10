@@ -30,7 +30,6 @@ import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
-import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -39,9 +38,7 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TailPacer
-import me.ahoo.wow.spi.log.VersionPages
 import me.ahoo.wow.spi.log.requireChains
-import java.sql.Connection
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -96,7 +93,7 @@ class PostgresEventLog(
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
-    private val tailBatch: Int = DEFAULT_TAIL_BATCH,
+    tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the log's tables are managed: created when missing by default. */
     private val ddl: Ddl = Ddl.AUTO,
@@ -118,6 +115,13 @@ class PostgresEventLog(
 
     /** The appends: one stream, and a group commit. */
     private val appender = PostgresLogAppender(dataSource, tables, logRows, lookups, catalog)
+
+    /** The reads of one aggregate's streams. */
+    private val aggregateReads = PostgresAggregateReads(dataSource, dispatcher, context, catalog, logRows, lookups)
+
+    /** The reads of a partition: its entries in sequence order, its head and its lineage. */
+    private val tailReads =
+        PostgresTailReads(dataSource, dispatcher, context, partitions, tailBatch, catalog, tables, logRows)
 
     /**
      * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
@@ -159,24 +163,8 @@ class PostgresEventLog(
     /** A group may hold streams of several partitions. */
     override val appendsAcrossPartitions: Boolean get() = true
 
-    /** A page of [VersionPages.SIZE] streams a statement, each emitted before the next is read. */
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
-        VersionPages.byVersion(fromVersion, toVersion, EventStreamRecord::version) { from ->
-            dispatcher.jdbc {
-                dataSource.autoCommitted { connection ->
-                    catalog.withTable(connection, ref.type) { table ->
-                        connection.prepareStatement(table.read).use { query ->
-                            query.setString(1, ref.id)
-                            query.setString(2, ref.tenantId)
-                            query.setInt(3, from)
-                            query.setInt(4, toVersion)
-                            query.setInt(5, VersionPages.SIZE)
-                            query.executeQuery().use { rows -> rows.map { logRows.streamOf(table.aggregate, it) } }
-                        }
-                    }
-                }
-            }
-        }
+        aggregateReads.read(ref, fromVersion, toVersion)
 
     /** One statement by the version key, autocommitted: a stamp of a range writes it whole or not at all. */
     @InternalWowApi
@@ -310,112 +298,21 @@ class PostgresEventLog(
         }
     }
 
-    /** One statement: the tail and the earlier request keys, both by the version key. */
-    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
-        require(fromVersion >= 1) { "A stream has a version from 1." }
-        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                catalog.withTable(connection, ref.type) { table ->
-                    connection.prepareStatement(table.tail).use { query ->
-                        query.setString(1, ref.id)
-                        query.setString(2, ref.tenantId)
-                        query.setInt(3, fromVersion)
-                        query.setString(4, ref.id)
-                        query.setString(5, ref.tenantId)
-                        query.setInt(6, fromVersion)
-                        query.setInt(7, earlier)
-                        query.executeQuery().use { rows ->
-                            val streams = ArrayList<EventStreamRecord>()
-                            val keys = ArrayList<CommittedRequest>()
-                            while (rows.next()) {
-                                if (rows.getInt("part") == 0) {
-                                    streams += logRows.streamOf(table.aggregate, rows)
-                                } else {
-                                    keys += CommittedRequest(
-                                        rows.getInt("version"),
-                                        rows.getString("request_id"),
-                                        rows.getString("command_type"),
-                                    )
-                                }
-                            }
-                            AggregateTail(streams, keys.asReversed())
-                        }
-                    }
-                }
-            }
-        }
-    }
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
+        aggregateReads.readTail(ref, fromVersion, earlier)
 
-    /**
-     * The read of [store]'s snapshots with this log's tails in one statement, [store] keeping this context's snapshots
-     * in this log's database: the snapshot, the tail from its version and the request keys before it, as one snapshot
-     * of the database sees them; a failure of the statement is thrown, for the kernel to read apart, warn and count it.
-     */
-    internal fun snapshotTailsWith(store: PostgresSnapshotStore): SnapshotTailReader {
-        val shared = { type: String ->
-            checkNotNull(store.sharedTable(dataSource, context, type)) {
-                "The snapshots of $context are not in the database of its log."
-            }
-        }
-        return SnapshotTailReader { ref, earlier ->
-            require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-            dispatcher.jdbc {
-                dataSource.autoCommitted { connection ->
-                    val snapshot = shared(ref.type.name)
-                    catalog.withTable(connection, ref.type) { table ->
-                        connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
-                            logRows.streamOf(table.aggregate, it)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    /** The read of [store]'s snapshots with this log's tails: [PostgresAggregateReads.snapshotTailsWith]. */
+    internal fun snapshotTailsWith(store: PostgresSnapshotStore): SnapshotTailReader =
+        aggregateReads.snapshotTailsWith(store)
 
-    /** A page of [VersionPages.SIZE] entries a statement, as [read]. */
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
-        VersionPages.byVersion(fromVersion, toVersion, { it.stream.version }) { from ->
-            dispatcher.jdbc {
-                dataSource.autoCommitted { connection ->
-                    catalog.withTable(connection, ref.type) { table ->
-                        connection.prepareStatement(table.entries).use { query ->
-                            query.setString(1, ref.id)
-                            query.setString(2, ref.tenantId)
-                            query.setInt(3, from)
-                            query.setInt(4, toVersion)
-                            query.setInt(5, VersionPages.SIZE)
-                            query.executeQuery().use { rows ->
-                                rows.map { logRows.entryOf(it.getInt("partition"), table.aggregate, it) }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        aggregateReads.readEntries(ref, fromVersion, toVersion)
 
-    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
-        dataSource.autoCommitted { connection ->
-            catalog.withTable(connection, ref.type) { table ->
-                connection.prepareStatement(table.position).use { query ->
-                    query.setString(1, ref.id)
-                    query.setString(2, ref.tenantId)
-                    query.setInt(3, version)
-                    query.executeQuery().use { rows ->
-                        if (rows.next()) LogPosition(rows.getInt("partition"), rows.getLong("sequence")) else null
-                    }
-                }
-            }
-        }
-    }
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
+        aggregateReads.positionOf(ref, version)
 
-    /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                catalog.withTable(connection, type) { lookups.findByRequestIdIn(connection, it, tenantId, requestId) }
-            }
-        }
+        aggregateReads.findByRequestId(type, tenantId, requestId)
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
@@ -424,7 +321,7 @@ class PostgresEventLog(
         var woken = false
         while (true) {
             val mark = pacer.mark(partition)
-            val batch = dispatcher.jdbc { dataSource.autoCommitted { readTail(it, partition, last) } }
+            val batch = dispatcher.jdbc { dataSource.autoCommitted { tailReads.readTail(it, partition, last) } }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
@@ -437,91 +334,13 @@ class PostgresEventLog(
         }
     }
 
-    /**
-     * One read of the tail after [last]: the contiguous run of entries from `last + 1`, and whether to read again at
-     * once. A run shorter than the partition's counter calls for means an aggregate table this log does not know yet:
-     * it reads the registry and, when that finds new tables, reads again at once.
-     */
-    private fun readTail(connection: Connection, partition: Int, last: Long): TailBatch {
-        val known = catalog.registered ?: catalog.register(connection)
-        val (head, entries) = connection.prepareStatement(tables.tail(known)).use { query ->
-            var index = 1
-            query.setInt(index++, partition)
-            known.forEach { _ ->
-                query.setInt(index++, partition)
-                query.setLong(index++, last)
-                query.setInt(index++, tailBatch)
-            }
-            if (known.isNotEmpty()) {
-                query.setInt(index, tailBatch)
-            }
-            query.executeQuery().use { rows ->
-                var head = 0L
-                val entries = ArrayList<LogEntry>()
-                while (rows.next()) {
-                    head = rows.getLong("head")
-                    val branch = rows.getInt("branch")
-                    if (!rows.wasNull()) {
-                        entries += logRows.entryOf(partition, known[branch].aggregate, rows)
-                    }
-                }
-                head to entries
-            }
-        }
-        val run = contiguousRun(entries, last)
-        val expected = minOf(head - last, tailBatch.toLong()).coerceAtLeast(0)
-        val again = when {
-            run.size < expected -> catalog.register(connection).map { it.base } != known.map { it.base }
-            else -> run.size == tailBatch
-        }
-        return TailBatch(run, again, behind = run.size < expected)
-    }
+    override suspend fun lineage(partition: Int): PartitionLineage = tailReads.lineage(partition)
 
-    /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
-    private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
-
-    /** The lineage of [partition] from its counter row: its `parent`, null for one the log began with, and `epoch`. */
-    override suspend fun lineage(partition: Int): PartitionLineage {
-        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                connection.prepareStatement(tables.partitionRow).use { query ->
-                    query.setInt(1, partition)
-                    query.executeQuery().use { rows ->
-                        check(rows.next()) { "The log of $context has no counter of partition $partition." }
-                        val parent = rows.getInt(PARENT).takeUnless { rows.wasNull() }
-                        PartitionLineage.of(parent, rows.getInt(EPOCH))
-                    }
-                }
-            }
-        }
-    }
-
-    override suspend fun head(partition: Int): Long? {
-        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return dispatcher.jdbc {
-            dataSource.autoCommitted { connection ->
-                connection.prepareStatement(tables.head).use { query ->
-                    query.setInt(1, partition)
-                    query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1).takeIf { it > 0 } else null }
-                }
-            }
-        }
-    }
+    override suspend fun head(partition: Int): Long? = tailReads.head(partition)
 
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
-
-        /** The lineage columns of a partition's counter row. */
-        const val PARENT = "parent"
-        const val EPOCH = "epoch"
-
-        /** The entries of [entries], in sequence order, that continue `last` without a gap. */
-        fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {
-            var next = last + 1
-            return entries.takeWhile { it.position.sequence == next++ }
-        }
     }
 }
