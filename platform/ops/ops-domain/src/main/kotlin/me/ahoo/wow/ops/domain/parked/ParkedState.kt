@@ -152,7 +152,9 @@ class ParkedState {
         requested = null
     }
 
+    /** Resolved; [failedAt] becomes the parking resolved when it is a later one, the bound of the late records. */
     fun onSourcing(event: ParkedResolved) {
+        event.failedAt?.let { failedAt = maxOf(failedAt, it) }
         status = ParkedStatus.RESOLVED
         outcome = event.outcome
         resolvedAt = event.resolvedAt
