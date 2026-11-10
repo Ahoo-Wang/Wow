@@ -79,15 +79,22 @@ object Ledger {
      * The id of the ops aggregate recording the entry of [ref] that [subscription], of [context], parked in [service]:
      * `<service>:<context>:<subscription>:<aggregate context>.<aggregate>:<tenant>:<id>`, so one service's entry of one
      * aggregate is one ops aggregate, whichever node publishes it, and two contexts' subscriptions of one name keep
-     * entries of their own.
+     * entries of their own. Each field has its `%` and `:` percent-escaped (`%25`, `%3A`), so two entries never share
+     * an id however their names join: tenant `a:b` with id `c`, and tenant `a` with id `b:c`, stay apart.
      */
     @JvmStatic
     fun parkedId(service: String, context: String, subscription: String, ref: AggregateRef): String {
         require(service.isNotBlank()) { "A ledger entry names its service." }
         require(context.isNotBlank()) { "A ledger entry names its subscription's context." }
         require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
-        return "$service:$context:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
+        return listOf(service, context, subscription, ref.type.toString(), ref.tenantId, ref.id)
+            .joinToString(":", transform = ::escaped)
     }
+
+    private val RESERVED = Regex("[%:]")
+
+    private fun escaped(field: String): String =
+        if (!RESERVED.containsMatchIn(field)) field else RESERVED.replace(field) { "%%%02X".format(it.value[0].code) }
 
     /**
      * Where a system command of the ledger on the entry [parkedId] names ([Ledger.parkedId]) is sent: the command

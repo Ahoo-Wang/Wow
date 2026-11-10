@@ -46,6 +46,19 @@ class LedgerTest {
             )
         Ledger.targetOf("eshop-payment", "svc:c:s:eshop-payment.payment:(0):alice-1").toString().assert()
             .isEqualTo("eshop-payment.wow.ledger/(0)/svc:c:s:eshop-payment.payment:(0):alice-1")
+        // One id per entry, however a ':' or '%' in a name joins the fields.
+        val type = ref.type
+        val shifted = listOf(
+            Ledger.parkedId("svc", "c", "s", type.ref("a:b", "c")),
+            Ledger.parkedId("svc", "c", "s", type.ref("a", "b:c")),
+            Ledger.parkedId("svc", "c:s", "x", type.ref("a", "c")),
+            Ledger.parkedId("svc:c", "s", "x", type.ref("a", "c")),
+            Ledger.parkedId("svc", "c", "s", type.ref("a", "%3A")),
+            Ledger.parkedId("svc", "c", "s", type.ref("a", ":")),
+        )
+        shifted.toSet().assert().hasSize(shifted.size)
+        Ledger.parkedId("svc", "c", "s", type.ref("a:b", "50%")).assert()
+            .isEqualTo("svc:c:s:eshop-payment.payment:a%3Ab:50%25")
         assertThrownBy<IllegalArgumentException> { Ledger.parkedId(" ", "c", "s", ref) }
         assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", " ", "s", ref) }
         assertThrownBy<IllegalArgumentException> { Ledger.parkedId("svc", "c", " ", ref) }
