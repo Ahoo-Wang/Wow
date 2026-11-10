@@ -48,9 +48,7 @@ import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.CONTEXT
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MAX_LIST
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ORDERS
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.TENANT_COLUMN
 import org.junit.jupiter.api.BeforeEach
 import tools.jackson.databind.node.ObjectNode
 
@@ -62,12 +60,18 @@ import tools.jackson.databind.node.ObjectNode
  * The contract's cases come in families, one class each: [DatasetRecordCases], [DatasetAggregationCases] and
  * [DatasetDateBucketCases], then [DatasetQueryBackendSpec] with the gateway. They form one chain, in that order, each
  * extending the one before, because a class has one superclass and JUnit runs the cases a test class inherits. The
- * order means nothing: every family reads only this class's fixtures and hooks, never a member of the family it
- * extends, so any order would run the same cases.
+ * order means nothing: every family reads only this class's fixtures, hooks and constants, and the suite's public
+ * constants on [DatasetQueryBackendSpec], never a member of the family it extends, so any order would run the same
+ * cases.
  */
 abstract class DatasetQueryFixtures internal constructor() {
-    protected lateinit var bindings: QueryBindings<QueryDataset>
+    internal lateinit var bindings: QueryBindings<QueryDataset>
+        private set
+
+    // `orders` and `walk` are protected, not internal, only because they name the protected [Target]; what the
+    // families share among themselves is internal.
     protected lateinit var orders: Target
+        private set
 
     protected abstract fun createDatasetBindings(): QueryBindings<QueryDataset>
 
@@ -106,7 +110,7 @@ abstract class DatasetQueryFixtures internal constructor() {
         orders = blocking { target(ORDERS) }
     }
 
-    protected fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
+    internal fun <T> blocking(block: suspend () -> T): T = runBlocking { block() }
 
     /** The dataset of [table], its backend, and the schema a Catalog over both compiles. */
     protected suspend fun target(table: DatasetTable): Target {
@@ -165,8 +169,17 @@ abstract class DatasetQueryFixtures internal constructor() {
         }
     }
 
-    protected fun numeric(function: AggregationFunction, field: QueryField<*>, alias: String) =
+    internal fun numeric(function: AggregationFunction, field: QueryField<*>, alias: String) =
         AggregationMetric.Numeric(function, AggregationExpression.Field(field), alias)
+
+    internal companion object {
+        const val MAX_LIST = 100
+        const val EPSILON = 1e-9
+        val TENANT_COLUMN = QueryField("tenant_id")
+        val CITY = QueryField("city")
+        val AMOUNT = QueryField("amount")
+        val CREATED_AT = QueryField("created_at")
+    }
 }
 
 private fun AggregationSupport.withResidualWindows() = AggregationSupport(

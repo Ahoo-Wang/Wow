@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
-import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -73,12 +72,6 @@ abstract class DatasetQueryBackendSpec : DatasetDateBucketCases() {
     companion object {
         const val CONTEXT: String = "tck"
         const val ID: String = "id"
-        internal const val MAX_LIST = 100
-        internal const val EPSILON = 1e-9
-        internal val TENANT_COLUMN = QueryField("tenant_id")
-        internal val CITY = QueryField("city")
-        internal val AMOUNT = QueryField("amount")
-        internal val CREATED_AT = QueryField("created_at")
 
         /** The column each semantic shape's probes are stored in. */
         val SEMANTIC_FIELDS: Map<SemanticShape, String> = mapOf(

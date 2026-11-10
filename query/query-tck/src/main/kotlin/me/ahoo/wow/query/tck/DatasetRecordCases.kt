@@ -43,16 +43,11 @@ import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
 import me.ahoo.wow.query.backend.single
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.AMOUNT
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.CITY
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.CREATED_AT
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.DATES
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MAX_LIST
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.MICROS
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.SEMANTIC_FIELDS
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.TENANT_COLUMN
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test

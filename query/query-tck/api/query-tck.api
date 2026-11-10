@@ -132,17 +132,10 @@ public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
 }
 
 public abstract class me/ahoo/wow/query/tck/DatasetQueryFixtures {
-	protected field bindings Lme/ahoo/wow/query/backend/QueryBindings;
-	protected field orders Lme/ahoo/wow/query/tck/DatasetQueryFixtures$Target;
-	protected final fun blocking (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	protected abstract fun createDatasetBindings ()Lme/ahoo/wow/query/backend/QueryBindings;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	protected final fun getBindings ()Lme/ahoo/wow/query/backend/QueryBindings;
 	protected final fun getOrders ()Lme/ahoo/wow/query/tck/DatasetQueryFixtures$Target;
 	protected fun getSemanticDivergences ()Ljava/util/Set;
-	protected final fun numeric (Lme/ahoo/wow/api/query/AggregationFunction;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;)Lme/ahoo/wow/api/query/AggregationMetric$Numeric;
-	protected final fun setBindings (Lme/ahoo/wow/query/backend/QueryBindings;)V
-	protected final fun setOrders (Lme/ahoo/wow/query/tck/DatasetQueryFixtures$Target;)V
 	public fun setup ()V
 	protected final fun target (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	protected final fun walk (Lme/ahoo/wow/api/query/Sort;Lme/ahoo/wow/query/tck/DatasetQueryFixtures$Target;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;

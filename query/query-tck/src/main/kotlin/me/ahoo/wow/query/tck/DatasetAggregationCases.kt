@@ -35,13 +35,8 @@ import me.ahoo.wow.query.backend.aggregate
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.error.QueryRequestException
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.AMOUNT
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.CITY
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.CREATED_AT
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.EPSILON
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.HISTORY
 import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.ID
-import me.ahoo.wow.query.tck.DatasetQueryBackendSpec.Companion.TENANT_COLUMN
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
