@@ -26,7 +26,8 @@ import java.sql.ResultSet
  * - [expressions]: the column and SQL expression of each field;
  * - [select]: the `SELECT` list a row of a [Projection] needs;
  * - [tieBreakers]: the physical fields, with their columns, that end a list's and an offset page's order so it is
- *   total (each not already sorted by), and that order the rows of an `ANY`, `FIRST` or `LAST` metric;
+ *   total (each not already sorted by), in the order of the model's unique key, as a cursor's: the tenant first;
+ * - [edgeTieBreakers]: the columns that order the rows of an `ANY`, `FIRST` or `LAST` metric tied on its field;
  * - [tenant]: the physical field of the tenant among them, a constant of the order under a pinned tenant;
  * - [record]: the record of one row read by [select].
  */
@@ -34,18 +35,23 @@ internal class PostgresQueryLayout(
     val expressions: PostgresQueryExpressions,
     val select: (Projection) -> String,
     val tieBreakers: List<Pair<String, String>>,
+    val edgeTieBreakers: List<String> = tieBreakers.map { (_, column) -> column },
     val tenant: String,
     val record: (ResultSet, Projection) -> ObjectNode,
 ) {
     companion object {
-        /** The snapshot table: by aggregate id, then tenant; the state only read when the projection keeps it. */
+        /**
+         * The snapshot table: by tenant, then aggregate id, its key, whose index gives that order (an edge metric's
+         * ties by aggregate id, then tenant, as MongoDB's); the state only read when the projection keeps it.
+         */
         val SNAPSHOT: PostgresQueryLayout = PostgresQueryLayout(
             expressions = PostgresSnapshotQueryExpressions,
             select = PostgresSnapshotSqlCompiler::select,
             tieBreakers = listOf(
+                SnapshotFields.TENANT_ID to "tenant_id",
                 SnapshotFields.AGGREGATE_ID to "aggregate_id",
-                SnapshotFields.TENANT_ID to "tenant_id"
             ),
+            edgeTieBreakers = listOf("aggregate_id", "tenant_id"),
             tenant = SnapshotFields.TENANT_ID,
             record = { row, projection -> PostgresQueryBackend.record(row, projection.keepsState()) },
         )

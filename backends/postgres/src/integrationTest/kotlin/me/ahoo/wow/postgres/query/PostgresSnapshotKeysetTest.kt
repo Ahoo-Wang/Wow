@@ -20,6 +20,8 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -90,6 +92,26 @@ class PostgresSnapshotKeysetTest {
             listOf(BigDecimal(DEEP), "t1", "id-%06d".format(DEEP)),
         )
         descending.assert().contains("Index Scan Backward using").contains("_amount").doesNotContain("Sort")
+    }
+
+    @Test
+    fun `a list's ties end in the key's order, tenant then aggregate, which the primary key gives`(): Unit = runBlocking {
+        val type = AggregateType("it_" + UUID.randomUUID().toString().replace("-", "").take(12), "order")
+        val storage = PostgresSnapshotQueryStorage(PostgresFixture.dataSource, type.context).also {
+            PostgresFixture.snapshotStore(type.context).createTable(type.name)
+        }
+        val schema = QueryFixtures.schema(type, PostgresSnapshotStorageAdapter)
+        val table = storage.table(type.name)
+        seed(table)
+        val compiler = PostgresSnapshotSqlCompiler(table)
+        fun list(filter: FilterExpression) =
+            analyze(compiler.list(QueryAdmission.Trusted.list(ListQuery(filter, limit = PAGE), schema)))
+        // Across tenants (trusted), unsorted: every record ties, ordered by the key itself.
+        list(DeletionFilter(DeletionState.ACTIVE)).assert().contains("Index Scan using").contains("_pkey")
+            .doesNotContain("Sort")
+        // Under a pinned tenant, its own range of the key.
+        list(AndFilter(listOf(TenantIdFilter("t1"), DeletionFilter(DeletionState.ACTIVE)))).assert()
+            .contains("Index Scan using").contains("_pkey").contains("tenant_id = 't1'").doesNotContain("Sort")
     }
 
     @Test

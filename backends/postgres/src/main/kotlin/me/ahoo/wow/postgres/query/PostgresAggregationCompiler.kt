@@ -202,9 +202,9 @@ internal class PostgresAggregationCompiler(
     /** Whether the `jsonb` [node] holds a value: neither missing nor a JSON `null`. */
     private fun present(node: String): String = "coalesce(jsonb_typeof($node), 'null') <> 'null'"
 
-    /** The layout's tie-breakers on the table's rows, each in [direction] (`""` for ascending). */
+    /** The layout's edge tie-breakers on the table's rows, each in [direction] (`""` for ascending). */
     private fun ties(direction: String): String =
-        layout.tieBreakers.joinToString(", ") { (_, column) -> "t.$column$direction" }
+        layout.edgeTieBreakers.joinToString(", ") { column -> "t.$column$direction" }
 
     private fun filter(compiler: PostgresFilterCompiler, filter: FilterExpression): String =
         if (filter === MatchAllFilter) "" else " FILTER (WHERE ${compiler.filter(filter)})"

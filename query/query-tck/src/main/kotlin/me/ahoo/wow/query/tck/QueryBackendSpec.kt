@@ -764,33 +764,29 @@ abstract class QueryBackendSpec : SnapshotDateBucketCases() {
     }
 
     @Test
-    fun `cursor breaks ties by tenant before aggregate id`() = blocking {
-        // The same aggregate id in two tenants: a cross-tenant cursor (trusted, unscoped) must return both.
+    fun `a list, a page and a cursor break ties by tenant before aggregate id`() = blocking {
+        // The same aggregate id in two tenants, read across them (trusted, unscoped); `aaa` sorts first by id alone.
         val shared = """{"name":"Shared","status":"PAID","amount":1,"quantity":1,"createdAt":$T0}"""
         val fixture = given(
-            listOf(
-                snapshot("dup", shared),
-                snapshot("dup", shared, tenantId = OTHER_TENANT),
-                snapshot("solo", shared),
-            ),
+            listOf("dup", "solo", "aaa").map { snapshot(it, shared) } + snapshot("dup", shared, tenantId = OTHER_TENANT),
         )
-        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.ASC))
+        val byKey = listOf(OTHER_TENANT to "dup", TENANT to "aaa", TENANT to "dup", TENANT to "solo")
+        fun ObjectNode.key() = path("tenantId").stringValue() to id()
+        fixture.list(ListQuery(MatchAllFilter, sort = sort)).map { it.key() }.assert().isEqualTo(byKey)
+        val paged = PagedQuery(MatchAllFilter, sort = sort, total = TotalMode.NONE)
+        fixture.backend.paged(QueryAdmission.Trusted.paged(paged, fixture.schema)).list.map { it.key() }.assert()
+            .isEqualTo(byKey)
+        assumeSupported(fixture.schema.storage.paging.keyset, "storage.paging.keyset", "keyset pages")
         val seen = mutableListOf<Pair<String, String>>()
         var cursor: String? = null
         do {
             val query = CursorQuery(MatchAllFilter, sort = sort, size = 1, cursor = cursor)
-            val admitted = QueryAdmission.Trusted.cursor(query, fixture.schema)
-            admitted.query.sort.map { it.field.path }.assert().containsExactly(
-                "state.status",
-                "tenantId",
-                "aggregateId"
-            )
-            val page = fixture.backend.cursor(admitted)
-            seen += page.list.map { it.path("tenantId").stringValue() to it.id() }
+            val page = fixture.backend.cursor(QueryAdmission.Trusted.cursor(query, fixture.schema))
+            seen += page.list.map { it.key() }
             cursor = page.nextCursor
         } while (cursor != null && seen.size < MAX_LIST)
-        seen.assert().containsExactly(OTHER_TENANT to "dup", TENANT to "dup", TENANT to "solo")
+        seen.assert().isEqualTo(byKey)
         Unit
     }
 

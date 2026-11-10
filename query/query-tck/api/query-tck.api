@@ -244,6 +244,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query
 	public fun <init> ()V
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
 	public final fun a histogram and an expression group put the records without a value in the null group ()V
+	public final fun a list, a page and a cursor break ties by tenant before aggregate id ()V
 	public final fun a numeric expression over integer fields divides without truncating ()V
 	public final fun a query within its timeout runs as without one ()V
 	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
@@ -269,7 +270,6 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec : me/ahoo/wow/query
 	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;
 	public final fun count is exact below its limit and bounded above it ()V
 	protected final fun createdAtBuckets (Ljava/util/List;Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun cursor breaks ties by tenant before aggregate id ()V
 	public final fun cursor over decimals walks each record once, a value no double holds included ()V
 	public final fun cursor returns an empty terminal page ()V
 	public final fun cursor supports descending multi field sort ()V
