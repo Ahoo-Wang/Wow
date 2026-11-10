@@ -19,15 +19,12 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
-import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
-import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.compiler.model.aggregate.AggregateAnalyzer
 import me.ahoo.wow.compiler.model.aggregate.AggregateBinding
@@ -54,6 +51,7 @@ import me.ahoo.wow.compiler.model.subscription.SubscriptionResolver
 import me.ahoo.wow.compiler.model.symbol.AnnotationSet
 import me.ahoo.wow.compiler.model.symbol.BoundedContextArguments
 import me.ahoo.wow.compiler.model.symbol.ModelNames.REACTOR_TYPES
+import me.ahoo.wow.compiler.model.symbol.isValid
 import me.ahoo.wow.compiler.model.symbol.neverValidated
 import me.ahoo.wow.compiler.model.symbol.render
 import me.ahoo.wow.manifest.ContextName
@@ -225,8 +223,8 @@ internal class ModelSymbolProcessor(
         val deferredErrorCodes = processErrorCodes(resolver)
         val deferredMounted = collectMountedCommands(resolver)
         val roots = resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT).filterIsInstance<KSClassDeclaration>().toList()
-        val deferred = roots.filterNot { it.validate() }
-        val analyzed = roots.filter { it.validate() }.map { root ->
+        val deferred = roots.filterNot { it.isValid() }
+        val analyzed = roots.filter { it.isValid() }.map { root ->
             root.containingFile?.let { sources += it }
             packages += root.packageName.asString()
             root to analyzer.analyze(root)
@@ -266,7 +264,7 @@ internal class ModelSymbolProcessor(
     private fun processRoutes(resolver: Resolver): List<KSAnnotated> {
         val functions = resolver.getSymbolsWithAnnotation(ServiceRouteResolver.SERVICE_ROUTE)
             .filterIsInstance<KSFunctionDeclaration>().toList()
-        functions.filter { it.validate() }.forEach { function ->
+        functions.filter { it.isValid() }.forEach { function ->
             function.containingFile?.let { sources += it }
             function.parentDeclaration?.packageName?.asString()?.let { packages += it }
             val binding = ServiceRouteResolver.read(function)
@@ -279,18 +277,18 @@ internal class ModelSymbolProcessor(
                 problems.forEach { logger.error(it, function) }
             }
         }
-        return functions.filterNot { it.validate() }
+        return functions.filterNot { it.isValid() }
     }
 
     /** Collects the module's `@MountedCommand` classes; the ones not yet valid are deferred. */
     private fun collectMountedCommands(resolver: Resolver): List<KSAnnotated> {
         val declarations = resolver.getSymbolsWithAnnotation(MountedCommandResolver.MOUNTED_COMMAND)
             .filterIsInstance<KSClassDeclaration>().toList()
-        declarations.filter { it.validate() }.forEach { declaration ->
+        declarations.filter { it.isValid() }.forEach { declaration ->
             declaration.containingFile?.let { sources += it }
             mountedCommands += MountedCommandResolver.read(declaration) to declaration
         }
-        return declarations.filterNot { it.validate() }
+        return declarations.filterNot { it.isValid() }
     }
 
     /** The mounted commands of the aggregate [aggregateName] with [commands], and their problems in [problems]. */
@@ -332,7 +330,7 @@ internal class ModelSymbolProcessor(
         val properties = resolver.getSymbolsWithAnnotation(ErrorCodeResolver.ERROR_CODE)
             .filterIsInstance<KSPropertyDeclaration>().toList()
         val stringType = resolver.builtIns.stringType
-        properties.filter { it.validate() }.forEach { property ->
+        properties.filter { it.isValid() }.forEach { property ->
             sources += listOfNotNull(property.containingFile)
             val binding = ErrorCodeResolver.resolve(property, stringType)
             // A full code is known now; a local one once its aggregate is ([errors]).
@@ -347,7 +345,7 @@ internal class ModelSymbolProcessor(
                 problems.forEach { logger.error(it, property) }
             }
         }
-        return properties.filterNot { it.validate() }
+        return properties.filterNot { it.isValid() }
     }
 
     /**
@@ -401,7 +399,7 @@ internal class ModelSymbolProcessor(
                 .flatMap { resolver.getSymbolsWithAnnotation(it) }
                 .filterIsInstance<KSClassDeclaration>() + handlerClasses
             ).distinct().toList()
-        val deferred = processors.filterNot { it.validate() }
+        val deferred = processors.filterNot { it.isValid() }
         // The events of the module's aggregates, which a handler of each event of a type takes.
         val events = bindings.flatMap { aggregate ->
             aggregate.sourcing.mapNotNull { sourcing ->
@@ -410,7 +408,7 @@ internal class ModelSymbolProcessor(
                 }
             }
         }
-        processors.filter { it.validate() }.forEach { processor ->
+        processors.filter { it.isValid() }.forEach { processor ->
             processor.containingFile?.let { sources += it }
             packages += processor.packageName.asString()
             val resolved = SubscriptionResolver.resolve(processor, REACTOR_TYPES, events)
@@ -636,31 +634,5 @@ internal class ModelSymbolProcessor(
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()
-    }
-}
-
-class ModelSymbolProcessorProvider : SymbolProcessorProvider {
-    override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-        val mode = when (environment.options[OPTION]) {
-            "generate" -> ModelSymbolProcessor.Mode.GENERATE
-            "report" -> ModelSymbolProcessor.Mode.REPORT
-            else -> ModelSymbolProcessor.Mode.OFF
-        }
-        val manifest = ModelSymbolProcessor.ManifestOptions(
-            module = environment.options[MODULE_OPTION]?.ifBlank { null },
-            context = environment.options[CONTEXT_OPTION]?.ifBlank { null },
-        )
-        return ModelSymbolProcessor(mode, environment.codeGenerator, environment.logger, manifest)
-    }
-
-    internal companion object {
-        /** The KSP option: `generate`, `report`, or absent for nothing. */
-        const val OPTION = "wow.model"
-
-        /** The KSP option naming the module's Manifest fragment, `META-INF/wow/manifest/<module>.json`. */
-        internal const val MODULE_OPTION = "wow.manifest.module"
-
-        /** The KSP option naming the bounded context of the module's aggregates and subscriptions. */
-        internal const val CONTEXT_OPTION = "wow.context"
     }
 }
