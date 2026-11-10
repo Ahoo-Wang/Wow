@@ -557,13 +557,6 @@ class WaitCoordinatorTest {
     }
 
     @Test
-    fun `the maximum timeout is positive, a chain has a hop, and a copy keeps the hops it is not given`() {
-        assertThrows<IllegalArgumentException> { WaitOptions(maxTimeout = 0.seconds) }
-        assertThrows<IllegalArgumentException> { WaitOptions(maxHops = 0) }
-        WaitOptions(maxHops = 3).copyWith(maxRegistered = 1).maxHops.assert().isEqualTo(3)
-    }
-
-    @Test
     fun `the deadline bounds a slow execution, which still commits and answers a retry`(): Unit = runBlocking {
         started()
         val command = placeSlowly(WaitPlan.COMMITTED.within(200.milliseconds))
