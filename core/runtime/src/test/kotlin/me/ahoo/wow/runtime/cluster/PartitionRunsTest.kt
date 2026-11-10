@@ -13,13 +13,16 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.TestTimeSource
@@ -66,6 +69,17 @@ class PartitionRunsTest {
             coVerify { runtime.stopPartition(0) }
             changed.assert().containsExactly(0)
             gates.assert().isEmpty()
+        }
+
+    @Test
+    fun `a start cancelled from within is stopped, released and forgotten, then the cancellation goes on up`(): Unit =
+        runBlocking {
+            // #5879: the cancellation was rethrown before the failed start's way out, and its gate stayed, never open.
+            coEvery { runtime.startPartition(0, any()) } throws CancellationException("The runtime's scope is gone.")
+            assertThrows<CancellationException> { runs.acquire(0, null) }
+            gates.assert().isEmpty()
+            leases.owners(GROUP.name).assert().isEmpty()
+            coVerify { runtime.stopPartition(0) }
         }
 
     private companion object {

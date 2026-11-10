@@ -69,12 +69,11 @@ internal class PartitionRuns(
             intake?.startPartition(partition, reads)
             timers.forEach { it.startPartition(partition) }
         } catch (cancelled: CancellationException) {
+            // A start cancelled from within takes the same way out, then goes on up: no gate is left behind.
+            failedStart(partition, gate, cancelled)
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
-            stopSubscriptions(partition)
-            quietly("release partition $partition", LEASE_EXPIRES) { leases.release(group.name, partition, node) }
-            gates.remove(partition, gate)
+            failedStart(partition, gate, failure)
             return@withContext
         }
         gate.started()
@@ -84,6 +83,14 @@ internal class PartitionRuns(
         } else {
             logger.info { "$node acquired partition $partition of $group." }
         }
+    }
+
+    /** A start of [partition] that [failure] ended: logged, its subscriptions stopped, lease released, gate removed. */
+    private suspend fun failedStart(partition: Int, gate: PartitionGate, failure: Exception) {
+        logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
+        stopSubscriptions(partition)
+        quietly("release partition $partition", LEASE_EXPIRES) { leases.release(group.name, partition, node) }
+        gates.remove(partition, gate)
     }
 
     /** Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. */
