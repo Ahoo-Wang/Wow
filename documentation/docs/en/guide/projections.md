@@ -104,7 +104,7 @@ A subscription that has no checkpoint yet in a partition starts by its kind:
 | Reactor | At the end of the log | Deploying it does not notify anyone about the past |
 | Reactor, on another context's stream | Where its service joins the stream: at the beginning when no other subscription of the service has read it yet, else at the end (`JOIN` in the Manifest) | A service that joins later still gets what was published before, and a reactor added later does not act on the history again |
 
-`@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<context>.<processor.function>].start`, `beginning`, `end` or an ISO-8601 instant. Either way it applies only until the subscription has a checkpoint; after that it goes on from there.
+`@OnEvent(start = ...)` overrides it, and so does the host's `wow.subscriptions.[<context>.<processor.function>].start`, `beginning`, `end` or an ISO-8601 instant. An instant starts at the first entry of each partition, in log order, committed at or after it, and every entry after that one is handled, whatever its commit time: commit times are the decisions' times, not ordered along the log. When none is committed at or after it yet, the subscription starts at the end. To find that entry, its first start in a partition reads the partition from the beginning (it handles none of the entries before it), so on a long log that first start takes a while; the node logs a line when the read begins and one when it ends. Either way the start applies only until the subscription has a checkpoint; after that it goes on from there.
 
 ## Rebuild a read model
 
