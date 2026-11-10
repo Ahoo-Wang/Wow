@@ -95,8 +95,11 @@ internal class PostgresTimerTables(private val context: String) {
     }
 
     companion object {
-        /** The version of this layout. */
-        const val FORMAT = 5
+        /**
+         * The version of this layout: 6 since the key and the due index's tie-breaker compare by code point
+         * (`COLLATE "C"`) whatever the database's default; 5 is refused.
+         */
+        const val FORMAT = 6
         const val PREFIX = "wow_timer"
 
         /** The registry of timer tables, shared by every context. */
@@ -121,10 +124,10 @@ internal class AggregateTimerTable(val aggregate: String, val base: String) {
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $table (
-            owner_tenant_id text NOT NULL,
-            owner_id text NOT NULL,
-            key text NOT NULL,
-            timer_id text NOT NULL,
+            owner_tenant_id text COLLATE "C" NOT NULL,
+            owner_id text COLLATE "C" NOT NULL,
+            key text COLLATE "C" NOT NULL,
+            timer_id text COLLATE "C" NOT NULL,
             version bigint NOT NULL,
             partition integer NOT NULL,
             rule jsonb NOT NULL,

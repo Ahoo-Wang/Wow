@@ -33,7 +33,7 @@ class PostgresSchemaTest {
         val order = log.aggregate("order")
         val snapshots = PostgresSnapshotTables("sales", "order")
         val timers = PostgresTimerTables("sales")
-        val statements = log.ddl() + log.partitionAdditions + order.ddl() + order.additions + snapshots.ddl() +
+        val statements = log.ddl() + order.ddl() + snapshots.ddl() +
             snapshots.additions + timers.ddl() + timers.aggregate("order").ddl() +
             PostgresReservationTables("sales", "order").ddl + PostgresFailureLedgerTables("wow_failure").ddl +
             PostgresCheckpointStore.DDL + PostgresLeaseStore.DDL
