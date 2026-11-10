@@ -157,6 +157,44 @@ class ThirdPartyStoreTest {
     }
 
     @Test
+    fun `a store should get its type's map option key by key under its own, and no per-store setting of its type`() {
+        val mapped = object : AcmeStoreProvider("mapped") {
+            override val options: List<ProviderOption<*>> = listOf(
+                REGION,
+                ProviderOption.map("properties", "the client's properties."),
+                ProviderOption.string("secret", "a store's own secret.").perStore(),
+                ProviderOption.map("labels", "a store's own labels.").perStore(),
+            )
+        }
+        val providers = StoreProviders.load(javaClass.classLoader, beans = listOf(mapped))
+        val store = StoreInstances.open(
+            WowProperties().apply { stores["main"] = WowProperties.Store().apply { type = "mapped" } },
+            providers,
+            StoreResources.NONE,
+            settings = { prefix ->
+                when (prefix) {
+                    "wow.mapped" -> mapOf(
+                        "region" to "global-region",
+                        "properties.shared" to "global-shared",
+                        "properties.overridden" to "global-value",
+                        "secret" to "everyone's",
+                        "labels.team" to "everyone's",
+                    )
+                    "wow.stores.main" -> mapOf("type" to "mapped", "properties.overridden" to "own-value")
+                    else -> emptyMap()
+                }
+            },
+        ).getValue("main")
+        store.config.options.assert().isEqualTo(
+            mapOf(
+                "region" to "global-region",
+                "properties.shared" to "global-shared",
+                "properties.overridden" to "own-value",
+            ),
+        )
+    }
+
+    @Test
     fun `a provider declaring an option of a key the host reads itself fails at registration`() {
         val reserving = object : AcmeStoreProvider("reserving") {
             override val options: List<ProviderOption<*>> =
