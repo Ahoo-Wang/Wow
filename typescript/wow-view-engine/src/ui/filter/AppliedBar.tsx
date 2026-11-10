@@ -20,7 +20,8 @@ import { summaryText } from '../kit/summary.js';
 import { IconButton } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { TEXT_UI } from '../kit/layout.js';
-import { FOCUS_CARD, WrappingBadge } from '../kit/variants.js';
+import { WrappingBadge } from '../kit/variants.js';
+import { FOCUS_CARD } from '../kit/frames.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { fell } from './conditionFocus.js';
 

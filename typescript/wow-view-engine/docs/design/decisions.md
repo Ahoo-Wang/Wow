@@ -120,7 +120,7 @@
   6. **九处 `title=`：chrome 上六处换 `Tooltip`**，表格单元格与热力格保留 `title`（每格一个实例不值）。
   7. **状态行与写入结局的手写 callout 合成 `Alert` 的紧凑变体**，动作走 `AlertAction`；D1「一行高」的约束保留，改的是壳不是决定；ExportDialog 超限、FilterPanel 超预算、RenderBoundary compact 同改。
   8. **vendored 组件的颜色／边框覆盖走第三条路**：`src/ui/` 放薄包装持有 cva 扩展（`ToneBadge`、条件 pill 的无边框 Input／SelectTrigger 包装、侧栏当前项包装），vendored 不动、调用处不带颜色。
-     其余不需裁定的替换（`ToggleGroup spacing={0}` 代替手写 `SEGMENTED`、三个破坏性确认改 `AlertDialog`、`DropdownMenuGroup`、表单 `Field*` 规则、`Combobox multiple` 代替手写字段勾选列表（**这一条后来被用户推翻，见下**）、Base UI `NumberField` 与 `Combobox` chips 代替手写数字／多值输入、Base UI `Toolbar`、`Collapsible` 代替手写折叠带、`Progress`、`Empty`、`InputGroup` 就地改名）按三波推进；有记录且理由成立的保留项（`popups.tsx` 的弹层副本、`ViewExpansion` 的就地铺满、`RecordTable` 的滚动口、`styles.css` 的对比度校正 token）不动。原本还有一条「结果区的槽位选择器」，**2026-09-22 结清**：选择器本身留着（那是这圈边给槽位分留白的办法，没有更好的），结清的是它们**写在哪儿**——外壳自己填的两个槽跟着边走，其余三条点名记录视图槽位的配方移到 `variants.tsx`、由每种视图自己交给 `ResultBlock.slots`（复核 Ⅲ，落点见 [ui/README.md#版式三块一套间距一种选项控件](ui/README.md#版式三块一套间距一种选项控件) 的「结果区是一条贴边的带」与 [ui/record.md#结果块](ui/record.md#结果块有结果才有工具栏是第一行)）。
+     其余不需裁定的替换（`ToggleGroup spacing={0}` 代替手写 `SEGMENTED`、三个破坏性确认改 `AlertDialog`、`DropdownMenuGroup`、表单 `Field*` 规则、`Combobox multiple` 代替手写字段勾选列表（**这一条后来被用户推翻，见下**）、Base UI `NumberField` 与 `Combobox` chips 代替手写数字／多值输入、Base UI `Toolbar`、`Collapsible` 代替手写折叠带、`Progress`、`Empty`、`InputGroup` 就地改名）按三波推进；有记录且理由成立的保留项（`popups.tsx` 的弹层副本、`ViewExpansion` 的就地铺满、`RecordTable` 的滚动口、`styles.css` 的对比度校正 token）不动。原本还有一条「结果区的槽位选择器」，**2026-09-22 结清**：选择器本身留着（那是这圈边给槽位分留白的办法，没有更好的），结清的是它们**写在哪儿**——外壳自己填的两个槽跟着边走，其余三条点名记录视图槽位的配方移到 `frames.tsx`（当时在 `variants.tsx`）、由每种视图自己交给 `ResultBlock.slots`（复核 Ⅲ，落点见 [ui/README.md#版式三块一套间距一种选项控件](ui/README.md#版式三块一套间距一种选项控件) 的「结果区是一条贴边的带」与 [ui/record.md#结果块](ui/record.md#结果块有结果才有工具栏是第一行)）。
 - **依据**：用户 2026-09-21 的原话「我们应该站在 shadcn、Base UI 肩膀上」「复用不是必须，而是尽量。当 shadcn 组件不符合我们的场景时，则不能复用。不能为了复用而复用」，以及对审计页八条的逐一批注。裁定标准只有一条：换了解决什么。
 - **例外（2026-09-21，用户实测后裁定）**：「`Combobox multiple` 代替手写字段勾选列表」不适用于筛选面板的字段选择器（`ui/filter/FieldChecklist.tsx`）——同一条标准反过来算：单列、未勾选项无任何标记，字段越多越难用（21 个字段的定义上一次只看得见 7 个），换来的列表键盘模型抵不过换掉的复选框网格，所以那里改回**看得见的复选框 + 宽处两列**，只留下 combobox 挣来的搜索、分组与空态。这正是本条「复用是尽量不是必须」的用法，落点见 [ui/README.md#filterpanel-的布局](ui/README.md#filterpanel-的布局)；`Combobox multiple` 在多值录入（`inputs/chips.tsx`）与远程候选上不受影响。
 
@@ -488,7 +488,7 @@
   - 四组都是可选组，全给或全不给，内置值就是改前的样子，`neutral` 的像素不变。
 - **不变的**：线宽、组件形状（药丸、浮动标签）、字号阶梯仍不进主题（1.2）。
 - **留给下一步**：描边按钮（registry 的 `Button` 不在元素上写 variant）、选中的着色（归 [D46](#d46-主题架构重构五条结构一张登记表2026-09-25) 的角色层）。徽标的边已定：保留（2026-09-25，按推荐，见 D46）。
-- **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/kit/variants.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/record/RecordCards.tsx`、`src/ui/workbench/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
+- **落点**：`src/styles.css`（token 与规则）、`src/themes/{neutral,porcelain}.css`、`src/ui/kit/frames.tsx`（`CARD_LIFT`、`ControlFrame`）、`src/ui/record/RecordCards.tsx`、`src/ui/workbench/WorkbenchShell.tsx`／`src/ui/embed/EmbedFrame.tsx`（根上的 `data-kind`）、`scripts/verify-package.mjs`、`test/fixtures/{presetPairs,themeTokens}.ts`、包 README 的 token 表。
 
 ## D44 分析表多于一千组时只画看得见的行（2026-09-25）
 
@@ -776,7 +776,7 @@
   - **不做卡中卡**：记录视图放在看板面板、或宿主自己的卡片里嵌入时（`resultFramed` 为假、嵌入视图），结果仍是贴边的，不再套一层卡片。
 - **没选**：发丝线加条纹（B）、磨砂侧栏与 32px（C）——对比稿上用户选了 E。
 - **判据**：Storybook 的记录工作台在 porcelain 亮与暗下与画布 E 一致；neutral、azure、contrast 的截图基线一张不变，porcelain 的基线有意更新并在 PR 里列出；对比度矩阵通过；看板面板与嵌入的记录视图没有卡中卡。
-- **落点**：`src/themes/porcelain.css`（新角色经登记表，[ui/theme.md#角色引擎自己的面](ui/theme.md#角色引擎自己的面) 的规则）、`src/styles.css`、`src/ui/workbench/WorkbenchShell.tsx`／`variants.tsx` 的 `resultFrameChrome`、[ui/theme.md#内置预设](ui/theme.md#内置预设)。
+- **落点**：`src/themes/porcelain.css`（新角色经登记表，[ui/theme.md#角色引擎自己的面](ui/theme.md#角色引擎自己的面) 的规则）、`src/styles.css`、`src/ui/workbench/WorkbenchShell.tsx`／`frames.tsx` 的 `resultFrameChrome`、[ui/theme.md#内置预设](ui/theme.md#内置预设)。
 
 ## D70 铺满屏幕时保留标题与口径说明（2026-09-28）
 
@@ -863,7 +863,7 @@
   - **描边按钮在元素上说出 variant**：上游 registry 的 `Button` 仍不写 `data-variant`（2026-09-29 `shadcn add button --diff` 确认）。自己包一层只能标到我们的调用处；registry 自己的组件（对话框与警示框的取消、分页、日历、输入组、组合框、提示）渲染的仍是 vendored 的 `Button`，按 variant 选就把描边按钮分成两群，比今天一个类名钩子（`border-border`，`shadcn add --diff` 时要看）覆盖全部更糟，而改 vendored 文件不允许。「以文字或图标自明的按钮填色」本身已由 D59 第 7 条在工具栏落地（产品只在那里定了填色）；描边按钮仍按 `fve:border-border` 认，与 [ui/theme.md](ui/theme.md#角色引擎自己的面)「施加不改 vendored 组件」一致。
   - **看板筛选芯片里打字的框去掉 `input` 边**：先要论证填色本身能当边界（WCAG 1.4.11：认出一个输入框所需的边界对相邻底 ≥3:1）。量了芯片的填色（设了 `control` 的用它，否则 `muted` 的 40%）对它可能站的三块底（`canvas`、`background`、`card`），每套 × 明暗最高 1.50:1（porcelain 暗色，`canvas` 上），neutral 1.03～1.09、azure 1.02～1.07、contrast 1.05——没有一套过 3:1，论证不成立，所以不给配方加角色，打字的框保留 `input` 边；D63 也已把 porcelain 的边都还原。
 - **证据**：`resolveTokens` 快照只有 porcelain 暗色的 `highlight`／`highlight-foreground` 与 contrast 的 `highlight`（暗）与两个链接值变了，其余只多了新 token；两个 jsdom 对比度套件与品牌扫描（每套 × 明暗 × 两种回到色域）全过；`test/themeLinks.test.ts` 加 porcelain 暗色的深一档、contrast 的高亮与色条随品牌；浏览器故事 `ThemeMechanism.test.stories.tsx` 加 `FocusMarks*`（contrast 下三个配方 2px、偏移 2px／-4px、没有光晕、色条是主色；azure 下 2px、偏移 -1px／-2px、光晕是它的 `focus-halo`、没有色条；neutral 下 1px／-1px、没有色条；卡片与滚动体的光晕都等于面上的 `focus-halo`），porcelain 菜单故事改量 `primary-fill`；截图基线只变了三张：contrast 主题一览的记录块亮暗两张（选中行起始边多了主色的色条，行线随之有 1 级通道的抗锯齿差）与 `role-tooltip`（改截面内的「管理视图」）；neutral、azure、porcelain 与其余角色、首页、分析台的基线逐字节不变。
-- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`theme-check/{tokenDocs,stateDocs,brandDocs}.ts`、`src/styles.css`、`src/themes/{porcelain,contrast}.css`、`src/ui/kit/variants.tsx`；主题指南中英（生成的表与「角色的链接」）；Storybook `ThemeRoles.test.stories.tsx`、`ThemeMechanism.test.stories.tsx`。[ui/theme.md](ui/theme.md#角色引擎自己的面) 的角色表、焦点、打字的框与链接几条随之改写。
+- **落点**：`src/ui/theme/{tokens,pairs}.ts`、`theme-check/{tokenDocs,stateDocs,brandDocs}.ts`、`src/styles.css`、`src/themes/{porcelain,contrast}.css`、`src/ui/kit/{variants,frames}.tsx`；主题指南中英（生成的表与「角色的链接」）；Storybook `ThemeRoles.test.stories.tsx`、`ThemeMechanism.test.stories.tsx`。[ui/theme.md](ui/theme.md#角色引擎自己的面) 的角色表、焦点、打字的框与链接几条随之改写。
 - **修订（2026-09-30，第二轮审查 R2-11～13，用户定）**：判据里「neutral 像素不变」对**菜单高亮项**这一处不再成立，现行的决定是：菜单、选择框、组合框里键盘所在的那一项，在每套预设下都在边内画 2px 的 `ring`（`:focus-visible`，指针悬停不画；组合框的选项不获焦，高亮即画），对弹层底 ≥3:1。原因：高亮的填色是菜单里唯一的位置标记，而 neutral 亮 `oklch(0.97)` 对弹层白、暗 0.269 对 0.205，azure 同样只有 1.03～1.07:1（WCAG 1.4.11／2.4.11）。各套预设的填色都不变（neutral、azure 仍是浅灰；porcelain 暗色仍是 #0058D0 配白字——白字的填色在它的弹层底上到不了 3:1，所以标记是 `ring` 而不是填色）；neutral 的像素只多了这道 `ring`。对比度矩阵加「highlighted item’s focus mark on its popup」（`ring` 对 `popover`），字对高亮底照旧量。同批两处：高亮与已选的规则改按角色（`menuitem`／`menuitemcheckbox`／`menuitemradio`／`option`）选，不再按 `data-slot` 名单——面板、下钻、导出菜单的项换了自己的 slot 名，退回 registry 的 `accent`（contrast 下约 1.2:1）；强制颜色下高亮项画 `Highlight` 的框、其余项不画，弹层画 `CanvasText` 的边（[ui/theme.md](ui/theme.md#打印与强制颜色)）。基线：`role-menu-highlight` 重截（多了这道 `ring`），其余逐字节不变。故事：`ThemeRoles.test.stories.tsx` 的 `MenuFocusMark*`（四套 × 明暗）与 `MenuInForcedColors`，`Dashboard.test.stories.tsx` 的 `PanelMenuHighlight`。
 
 ## D77 查询 schema 路由的响应体改形是批准的 v9 例外；两条 refresh 路由恢复为弃用别名（2026-09-30）

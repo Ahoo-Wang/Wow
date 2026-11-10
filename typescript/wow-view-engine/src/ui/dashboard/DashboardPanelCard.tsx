@@ -77,7 +77,7 @@ import {
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
 import type { MessageKey } from '../kit/messages.js';
-import { FOCUS_PANEL, PanelCard } from '../kit/variants.js';
+import { FOCUS_PANEL, PanelCard } from '../kit/frames.js';
 import { CardContent, CardHeader, CardTitle } from '../components/card.js';
 import { Truncated } from '../kit/Truncated.js';
 

@@ -36,7 +36,7 @@ import {
 import { BadgeTooltip } from '../kit/IconButton.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { ModeBar } from '../kit/variants.js';
+import { ModeBar } from '../kit/frames.js';
 
 /**
  * The filter being wired, and what a panel's strip does to it: wire

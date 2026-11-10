@@ -26,7 +26,7 @@ import { LANDING_HEADING, TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { useChartMaps } from '../charts/maps.js';
 import { CHART_ICON } from './chartIcons.js';
-import { ChartTile } from '../kit/variants.js';
+import { ChartTile } from '../kit/frames.js';
 
 interface ChartPickerProps {
   /** How each type fits the result on hand (`fitCharts`). */

@@ -38,7 +38,7 @@ import {
   useViewMessages,
   type MessageFormatters,
 } from '../kit/MessagesProvider.js';
-import { ControlFrame } from '../kit/variants.js';
+import { ControlFrame } from '../kit/frames.js';
 import {
   filterModeOf,
   holdsGrouping,

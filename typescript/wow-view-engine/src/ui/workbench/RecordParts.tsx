@@ -52,7 +52,7 @@ import { useViewMessages } from '../kit/MessagesProvider.js';
 import { LAYOUT_LABEL, recordIssueNamer } from '../record/issueNames.js';
 import type { ViewMessages } from '../kit/messages.js';
 import { featuresOf, type WorkbenchFeatures } from '../kit/features.js';
-import { resultSlots } from '../kit/variants.js';
+import { resultSlots } from '../kit/frames.js';
 import {
   RenderSlot,
   type RenderFailureHandler,

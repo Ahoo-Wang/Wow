@@ -13,7 +13,7 @@
 
 import { Card, CardContent, CardHeader } from '../components/card.js';
 import { Skeleton } from '../components/skeleton.js';
-import { CARD_LIFT } from '../kit/variants.js';
+import { CARD_LIFT } from '../kit/frames.js';
 
 /** How many cards a running query is drawn as. */
 const CARDS = 3;

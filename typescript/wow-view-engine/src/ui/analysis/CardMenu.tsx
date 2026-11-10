@@ -22,7 +22,7 @@ import {
 import { IconButton } from '../kit/IconButton.js';
 import { keptKey, useSay, useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent } from '../kit/popups.js';
-import { PillInput } from '../kit/variants.js';
+import { PillInput } from '../kit/pills.js';
 
 /**
  * A tray card's name, and the way to change it. At rest it is

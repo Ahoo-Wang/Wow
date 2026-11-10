@@ -33,7 +33,7 @@ import { formatNumber } from '../../kit/numbers.js';
 import { IconTooltip } from '../../kit/IconButton.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { ComboboxContent } from '../../kit/popups.js';
-import { PillChips, PillComboboxInput } from '../../kit/variants.js';
+import { PillChips, PillComboboxInput } from '../../kit/pills.js';
 import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 import { isPlainEnter } from '../enter.js';
 import { scalarText, type ValueProps } from './shared.js';

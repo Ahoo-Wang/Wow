@@ -43,15 +43,14 @@ import type {
 import type {
   ControlChromeProps,
   controlChromeVariants,
-} from '../src/ui/kit/variants.js';
+} from '../src/ui/kit/pills.js';
 import {
   AddButton,
-  PillInput,
-  PillSelectTrigger,
   SidebarItem,
   TableDataRow,
   ToneBadge,
 } from '../src/ui/kit/variants.js';
+import { PillInput, PillSelectTrigger } from '../src/ui/kit/pills.js';
 import { Select } from '../src/ui/components/select.js';
 import { ViewSurface } from '../src/ui/index.js';
 

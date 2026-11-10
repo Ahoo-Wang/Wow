@@ -15,7 +15,7 @@ import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { SPACE } from '../kit/layout.js';
 import { RenderBoundary } from '../kit/RenderBoundary.js';
-import { resultFrameChrome } from '../kit/variants.js';
+import { resultFrameChrome } from '../kit/frames.js';
 import type { WorkbenchShellProps } from './WorkbenchShell.js';
 
 interface ResultBlockContents {

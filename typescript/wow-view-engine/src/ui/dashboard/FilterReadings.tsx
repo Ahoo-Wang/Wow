@@ -27,7 +27,7 @@ import { cn } from '../lib/utils.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { summaryText } from '../kit/summary.js';
 import type { DisplayContext } from '../kit/display.js';
-import { ControlFrame } from '../kit/variants.js';
+import { ControlFrame } from '../kit/frames.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 
 /*

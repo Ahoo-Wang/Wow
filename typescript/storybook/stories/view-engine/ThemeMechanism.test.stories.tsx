@@ -35,7 +35,7 @@
 import type { StoryObj } from '@storybook/react-vite';
 import { expect, screen, userEvent, waitFor, within } from 'storybook/test';
 import { converter, parse } from 'culori';
-import { FOCUS_CARD, FOCUS_PANEL, FOCUS_ROW } from '@/ui/kit/variants';
+import { FOCUS_CARD, FOCUS_PANEL, FOCUS_ROW } from '@/ui/kit/frames';
 import displayMeta, {
   WithData as DisplayWithData,
 } from './RecordWorkbench.stories.js';

@@ -22,7 +22,8 @@ import {
   type DisplayField,
 } from '../kit/display.js';
 import type { MessageFormatters } from '../kit/MessagesProvider.js';
-import { LongText, ToneBadge } from '../kit/variants.js';
+import { ToneBadge } from '../kit/variants.js';
+import { LongText } from '../kit/frames.js';
 
 /** One value read the way the detail reads a declared field. */
 type ReadField = (value: unknown, field: DisplayField) => React.ReactNode;

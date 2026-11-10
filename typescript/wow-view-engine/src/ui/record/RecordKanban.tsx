@@ -43,7 +43,7 @@ import { cn } from 'cn';
 import { TEXT_UI } from '../kit/layout.js';
 import type { SummaryRow } from '../../record/index.js';
 import type { FieldOption, FieldTone } from '../../model/index.js';
-import { CARD_LIFT } from '../kit/variants.js';
+import { CARD_LIFT } from '../kit/frames.js';
 import { Card, CardContent, CardHeader } from '../components/card.js';
 
 export interface RecordKanbanProps {
