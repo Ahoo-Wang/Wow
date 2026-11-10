@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.Consumer
@@ -70,6 +71,9 @@ internal class SharedTopicConsumer(
     private val readers = HashMap<Int, Reader>()
     private var session: Session? = null
 
+    /** Whether it was closed ([close]): a join after that is refused. Guarded by `lock`. */
+    private var closed = false
+
     /** One joined partition: the channel its reader takes from, and the records polled that did not fit yet. */
     inner class Reader(val partition: Int, from: Long) {
         val channel = Channel<SourceMessage>(buffer)
@@ -105,6 +109,7 @@ internal class SharedTopicConsumer(
 
     /** Joins [partition] from offset [from]; null when it is joined already, so its reader needs a consumer of its own. */
     fun join(partition: Int, from: Long): Reader? = synchronized(lock) {
+        check(!closed) { "The source of $topic is closed." }
         if (partition in readers) {
             return null
         }
@@ -335,13 +340,22 @@ internal class SharedTopicConsumer(
         consumer.resume(free)
     }
 
-    /** Stops the consumer; the readers still joined fail. */
+    /**
+     * Stops the consumer and returns once it is closed: the readers still joined fail, and the session's consumer is
+     * woken out of whatever it waits in (a poll, a placement's offsets), so its session ends and closes it at once. A
+     * join after that is refused.
+     */
     override fun close() {
-        synchronized(lock) {
+        val stopping = synchronized(lock) {
+            closed = true
             readers.values.forEach { it.channel.close(IllegalStateException("The source of $topic is closed.")) }
             readers.clear()
-            session = null
+            session?.also { ending ->
+                session = null
+                ending.consumer?.wakeup()
+            }
         }
+        stopping?.let { runBlocking { it.job.join() } }
         scope.cancel()
     }
 

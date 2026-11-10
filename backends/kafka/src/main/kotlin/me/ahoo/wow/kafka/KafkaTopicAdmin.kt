@@ -25,12 +25,14 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.common.config.ConfigResource
 import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
+import org.slf4j.LoggerFactory
 import java.util.Optional
 import java.util.concurrent.ExecutionException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import kotlin.time.toJavaDuration
 
 /**
  * The [TopicAdmin] over a Kafka [admin] client, made by [create] from [KafkaOptions]:
@@ -45,15 +47,25 @@ import kotlin.time.TimeSource
  *
  * The admin's blocking futures are awaited on virtual threads; Kafka being unreachable, or refusing the node's
  * credentials, fails a call as a [me.ahoo.wow.spi.transport.TransportUnavailableException] ([KafkaFailures]). [close]
- * closes the admin client.
+ * closes the admin client, waiting at most [closeTimeout] ([KafkaOptions.CLOSE_TIMEOUT]) for its calls in flight; past
+ * it, the client fails them, and a warning says so.
  */
-class KafkaTopicAdmin(
+class KafkaTopicAdmin @InternalWowApi constructor(
     private val admin: Admin,
-    private val replicationFactor: Short? = null,
-    private val configs: Map<String, String> = emptyMap(),
-    private val visibleWithin: Duration = DEFAULT_VISIBLE_WITHIN,
-    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val replicationFactor: Short?,
+    private val configs: Map<String, String>,
+    private val visibleWithin: Duration,
+    private val dispatcher: CoroutineDispatcher,
+    private val closeTimeout: Duration,
 ) : TopicAdmin, AutoCloseable {
+    constructor(
+        admin: Admin,
+        replicationFactor: Short? = null,
+        configs: Map<String, String> = emptyMap(),
+        visibleWithin: Duration = DEFAULT_VISIBLE_WITHIN,
+        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    ) : this(admin, replicationFactor, configs, visibleWithin, dispatcher, KafkaOptions.CLOSE_TIMEOUT)
+
     init {
         require(replicationFactor == null || replicationFactor > 0) { "A topic has at least one replica." }
     }
@@ -134,7 +146,14 @@ class KafkaTopicAdmin(
     }
 
     override fun close() {
-        admin.close()
+        val closing = TimeSource.Monotonic.markNow()
+        admin.close(closeTimeout.toJavaDuration())
+        if (closing.elapsedNow() >= closeTimeout) {
+            log.warn(
+                "The Kafka admin's close took its whole bound of {}: it failed the calls still in flight.",
+                closeTimeout,
+            )
+        }
     }
 
     companion object {
@@ -142,6 +161,7 @@ class KafkaTopicAdmin(
         const val MIN_INSYNC_REPLICAS: String = "min.insync.replicas"
 
         val DEFAULT_VISIBLE_WITHIN: Duration = 30.seconds
+        private val log = LoggerFactory.getLogger(KafkaTopicAdmin::class.java)
         private val VISIBLE_POLL = 100.milliseconds
 
         /**
