@@ -1469,6 +1469,7 @@ public final class me/ahoo/wow/query/schema/QueryValueBindings$Companion {
 
 public final class me/ahoo/wow/query/schema/QueryValueDomainsKt {
 	public static final fun alternativesOrSelf (Lme/ahoo/wow/query/schema/QueryValueSchema;)Ljava/util/List;
+	public static final fun mayHoldNullElement (Lme/ahoo/wow/query/schema/QueryValueSchema;)Z
 	public static final fun operationValues (Lme/ahoo/wow/query/schema/QueryValueSchema;)Ljava/util/List;
 }
 
@@ -2167,6 +2168,7 @@ public final class me/ahoo/wow/query/schema/StorageSupport {
 	public final fun getAggregation ()Lme/ahoo/wow/query/schema/AggregationSupport;
 	public final fun getArrayEquality ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getDatasetAccess ()Lme/ahoo/wow/query/schema/SupportMode;
+	public final fun getNullElementSort ()Lme/ahoo/wow/query/schema/SupportMode;
 	public final fun getPaging ()Lme/ahoo/wow/query/schema/PagingSupport;
 	public final fun getParallelArraySort ()Lme/ahoo/wow/query/schema/SupportMode;
 	public fun hashCode ()I

@@ -268,7 +268,7 @@ Over HTTP, a filter holds at most `wow.query.budgets.http.max-filter-nodes` node
 
 ## Sort and projection
 
-`sort` is an array of `{"field": …, "direction": "asc" | "desc"}`, at most 32, each field once. A field sorts only where the descriptor says it does (`sort.paged`, `sort.cursor`).
+`sort` is an array of `{"field": …, "direction": "asc" | "desc"}`, at most 32, each field once. A field sorts only where the descriptor says it does (`sort.paged`, `sort.cursor`). A missing value and `null` sort first ascending and last descending; an array sorts by its least element ascending, a `null` element being the least, and by its greatest descending. A store that cannot order an array whose elements may be `null` that way (Elasticsearch) does not offer its sort.
 
 `projection` is `{"include": [paths], "exclude": [paths]}`; with neither, records come whole. An included path keeps its descendants.
 

@@ -192,11 +192,18 @@ class StorageSupport @InternalWowApi constructor(
      * it: an access policy then reads none of such a dataset's rows but for a predicate that grants every aggregate.
      */
     val datasetAccess: SupportMode = SupportMode.NONE,
+    /**
+     * Sorting by an array whose elements may be `null`, which the query protocol orders by its least element
+     * ascending, a `null` element the least. NATIVE or NONE: a storage that does not see a `null` element (it indexes
+     * none) declares NONE, and admission refuses such a sort ([sorts]) rather than have it ordered otherwise.
+     */
+    val nullElementSort: SupportMode = SupportMode.NATIVE,
 ) {
     init {
         require(parallelArraySort != SupportMode.RESIDUAL) { "Parallel array sort has no residual implementation." }
         require(arrayEquality != SupportMode.RESIDUAL) { "Array equality has no residual implementation." }
         require(datasetAccess != SupportMode.RESIDUAL) { "A dataset's access has no residual implementation." }
+        require(nullElementSort != SupportMode.RESIDUAL) { "A null element's sort has no residual implementation." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -206,10 +213,15 @@ class StorageSupport @InternalWowApi constructor(
 
     override fun toString(): String =
         "StorageSupport(paging=$paging, aggregation=$aggregation, parallelArraySort=$parallelArraySort, " +
-            "absentValues=$absentValues, arrayEquality=$arrayEquality, datasetAccess=$datasetAccess)"
+            "absentValues=$absentValues, arrayEquality=$arrayEquality, datasetAccess=$datasetAccess, " +
+            "nullElementSort=$nullElementSort)"
 
     private fun valueFields(): List<Any?> =
-        listOf(paging, aggregation, parallelArraySort, absentValues, arrayEquality, datasetAccess)
+        listOf(paging, aggregation, parallelArraySort, absentValues, arrayEquality, datasetAccess, nullElementSort)
+
+    /** Whether this storage sorts a field holding [value] as the protocol orders it: see [nullElementSort]. */
+    @InternalWowApi
+    fun sorts(value: QueryValueSchema): Boolean = nullElementSort != SupportMode.NONE || !value.mayHoldNullElement()
 
     companion object {
         /**

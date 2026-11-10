@@ -150,11 +150,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
                 ?.let { SensitivityDescriptor(it, field.comparable) },
             project = projectable,
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
-            sort = FieldSortDescriptor(
-                paged = effective.sortable,
-                cursor = effective.cursorSortable && keyset,
-                indexed = field.sortIndexed().takeIf { effective.sortable },
-            ),
+            sort = sortOf(field, keyset),
             aggregate = aggregate(effective),
             scope = field.elementAncestors?.lastOrNull()?.path,
             deprecated = schema.definition.deprecations[field.logicalField],
@@ -208,11 +204,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             nullable = value.nullable,
             semantic = value.sharedSemantic(),
             filter = FieldFilterDescriptor(effective.operators(allowExpensive)),
-            sort = FieldSortDescriptor(
-                paged = effective.sortable,
-                cursor = effective.cursorSortable && keyset,
-                indexed = field.sortIndexed().takeIf { effective.sortable },
-            ),
+            sort = sortOf(field, keyset),
             aggregate = aggregate(effective),
             excludedKeys = schema.definition.keyExclusions(path).values.flatten().distinct().sorted()
                 .takeIf { it.isNotEmpty() },
@@ -353,6 +345,17 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             windows = WindowFunction.entries.filter { allowExpensive && support.window(it) != SupportMode.NONE },
             // Expanding elements is itself expensive (the budget refuses it otherwise).
             rootGroups = allowExpensive && support.rootGroups != SupportMode.NONE,
+        )
+    }
+
+    /** How [field] sorts: by its capabilities, unless the storage refuses to sort its value ([StorageSupport.sorts]). */
+    private fun sortOf(field: QueryFieldSchema, keyset: Boolean): FieldSortDescriptor {
+        val effective = field.effective
+        val sorts = schema.storage.sorts(field.value)
+        return FieldSortDescriptor(
+            paged = effective.sortable && sorts,
+            cursor = effective.cursorSortable && keyset && sorts,
+            indexed = field.sortIndexed().takeIf { effective.sortable && sorts },
         )
     }
 

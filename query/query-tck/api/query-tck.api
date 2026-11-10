@@ -242,6 +242,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun aggregation sorts groups by a metric and takes the top N ()V
 	public final fun aggregation summarizes every record with count, sum, avg, min and max ()V
 	public final fun aggregation without a sort refuses more groups than its limit, and returns every group within it ()V
+	public final fun an array holding a null sorts first ascending, or the sort is refused where storage cannot ()V
 	public final fun an expired timeout fails every primitive with the timeout error ()V
 	public final fun an hourly bucket in a region starts where its local hour does, a repeated hour twice ()V
 	protected abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/backend/QueryBackendBinding;

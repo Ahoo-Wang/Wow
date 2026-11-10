@@ -544,6 +544,13 @@ internal class QueryResolver(
             } else {
                 compared(reference, trusted = false)
             }
+            requireValid(schema.storage.sorts(reference.definition.value)) {
+                QueryViolation.StorageUnsupported(
+                    "sorting by an array whose elements may be null, which it does not index: it cannot order a " +
+                        "null element least",
+                    reference.logical,
+                )
+            }
             Sort(register(reference, ROOT), it.direction)
         }
         val references = resolved.map { checkNotNull(fields[it.field]) }
