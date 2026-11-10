@@ -41,7 +41,10 @@ import me.ahoo.wow.api.query.childFilters
 import me.ahoo.wow.api.query.fields
 import me.ahoo.wow.query.backend.single
 import me.ahoo.wow.query.resolve.integralLong
+import me.ahoo.wow.query.schema.EPOCH_MILLIS
 import me.ahoo.wow.query.schema.Temporal
+import me.ahoo.wow.query.schema.epochOf
+import me.ahoo.wow.query.schema.instantOf
 import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDate
@@ -52,7 +55,6 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import java.time.temporal.TemporalUnit
-import java.util.concurrent.TimeUnit
 
 /*
  * The earlier periods PREVIOUS windows read: each distinct step moves the bucket
@@ -128,8 +130,8 @@ internal data class PreviousStep(
         val epoch = value.integralLong()
         return when {
             epoch != null -> {
-                val timeUnit = (temporal as? Temporal.Epoch)?.timeUnit ?: TimeUnit.MILLISECONDS
-                back(epoch.toInstant(timeUnit)).toEpoch(timeUnit)
+                val unit = temporal as? Temporal.Epoch ?: EPOCH_MILLIS
+                unit.instantOf(epoch)?.let { unit.epochOf(back(it)) }
             }
             value is String -> shiftText(value)
             else -> null
@@ -186,11 +188,3 @@ private fun AggregationDateUnit.temporalUnit(): TemporalUnit = when (this) {
     AggregationDateUnit.MINUTE -> ChronoUnit.MINUTES
     AggregationDateUnit.SECOND -> ChronoUnit.SECONDS
 }
-
-private fun Long.toInstant(unit: TimeUnit): Instant {
-    val seconds = unit.toSeconds(this)
-    return Instant.ofEpochSecond(seconds, unit.toNanos(this - unit.convert(seconds, TimeUnit.SECONDS)))
-}
-
-private fun Instant.toEpoch(unit: TimeUnit): Long =
-    Math.addExact(unit.convert(epochSecond, TimeUnit.SECONDS), unit.convert(nano.toLong(), TimeUnit.NANOSECONDS))

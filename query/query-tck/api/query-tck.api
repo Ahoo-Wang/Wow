@@ -89,6 +89,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public static final field Companion Lme/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion;
 	public static final field ID Ljava/lang/String;
 	public fun <init> ()V
+	public final fun a date sorts by time, instants a millisecond apart included ()V
 	public final fun a single record is the first in sort order, or none ()V
 	public final fun a stream reads keyset chunks with positions and resumes strictly after one ()V
 	public final fun counts are bounded by their limit ()V
@@ -116,6 +117,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 }
 
 public final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Companion {
+	public final fun getDATES ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getORDERS ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC ()Lme/ahoo/wow/query/tck/DatasetTable;
 	public final fun getSEMANTIC_FIELDS ()Ljava/util/Map;
@@ -226,6 +228,7 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public final fun aggregation groups a string array by each of its values, or refuses it where storage cannot ()V
 	public final fun aggregation groups an epoch field by day ()V
 	public final fun aggregation groups by terms in group order ()V
+	public final fun aggregation groups numbers by value, whatever their JSON form ()V
 	public final fun aggregation groups the elements by a field of their root record ()V
 	public final fun aggregation metric filters count a subset of each group ()V
 	public final fun aggregation returns one empty summary row ()V

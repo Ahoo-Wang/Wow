@@ -832,6 +832,27 @@ abstract class QueryBackendSpec {
     )
 
     @Test
+    fun `aggregation groups numbers by value, whatever their JSON form`() = blocking {
+        val fixture = given(
+            listOf(
+                snapshot("q1", """{"quantity":1}"""),
+                snapshot("q2", """{"quantity":1.0}"""),
+                snapshot("q3", """{"quantity":2}"""),
+            ),
+        )
+        val rows = fixture.aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(QueryField("state.quantity"), "quantity")),
+                metrics = listOf(AggregationMetric.Count("count")),
+                sort = listOf(Sort(QueryField("quantity"), Sort.Direction.ASC)),
+            ),
+        )
+        rows.map { it.path("quantity").doubleValue() to it.path("count").longValue() }
+            .assert().containsExactly(1.0 to 2L, 2.0 to 1L)
+        Unit
+    }
+
+    @Test
     fun `aggregation groups a string array by each of its values, or refuses it where storage cannot`() = blocking {
         val fixture = given(keywordOrders())
         val byKeyword = AggregationQuery(

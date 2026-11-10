@@ -194,13 +194,19 @@ class InMemoryQueryBackend internal constructor(
         InMemoryAggregation(query, access).run(records(), window).forEach { emit(it) }
     }
 
-    private fun sortKey(query: AdmittedQuery<*>, sort: Sort, record: ObjectNode): JsonNode? =
-        record.valuesAt(query.field(sort.field).physicalField).sortKey(sort.direction == Sort.Direction.ASC)
+    private fun sortKey(query: AdmittedQuery<*>, sort: Sort, record: ObjectNode): JsonNode? {
+        val field = query.field(sort.field)
+        return record.valuesAt(field.physicalField).sortKey(sort.direction == Sort.Direction.ASC, field.temporal)
+    }
+
+    /** The order of two sort keys of [sort]'s field, read as the field stores them. */
+    private fun orderOf(query: AdmittedQuery<*>, sort: Sort, left: JsonNode?, right: JsonNode?): Int =
+        orderOf(left, right, query.field(sort.field).temporal)
 
     private fun comparator(query: AdmittedQuery<*>, sort: List<Sort>): Comparator<ObjectNode> =
         Comparator { left, right ->
             sort.firstNotNullOfOrNull { order ->
-                val comparison = orderOf(sortKey(query, order, left), sortKey(query, order, right))
+                val comparison = orderOf(query, order, sortKey(query, order, left), sortKey(query, order, right))
                 (if (order.direction == Sort.Direction.ASC) comparison else -comparison).takeIf { it != 0 }
             } ?: 0
         }
@@ -213,7 +219,7 @@ class InMemoryQueryBackend internal constructor(
         after: List<JsonNode?>
     ): Boolean {
         sort.forEachIndexed { index, order ->
-            val comparison = orderOf(sortKey(query, order, record), after[index])
+            val comparison = orderOf(query, order, sortKey(query, order, record), after[index])
             val directed = if (order.direction == Sort.Direction.ASC) comparison else -comparison
             if (directed != 0) return directed > 0
         }
