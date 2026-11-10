@@ -15,6 +15,9 @@ import { actionsMessages } from './actions.js';
 import { analysisMessages } from './analysis.js';
 import { buildingMessages } from './building.js';
 import { capabilitiesMessages } from './capabilities.js';
+import { chartMessages } from './chart.js';
+import { chartIssueMessages } from './chartIssues.js';
+import { chartReadingMessages } from './chartReading.js';
 import { bulkMessages } from './bulk.js';
 import { clicksMessages } from './clicks.js';
 import { configMessages } from './config.js';
@@ -61,6 +64,9 @@ export const en = {
   ...viewMessages,
   ...manageMessages,
   ...analysisMessages,
+  ...chartMessages,
+  ...chartReadingMessages,
+  ...chartIssueMessages,
   ...dashboardMessages,
   ...buildingMessages,
   ...filtersMessages,
