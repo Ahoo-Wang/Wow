@@ -17,12 +17,17 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
+import kotlin.time.Duration
+import kotlin.time.TimeSource
+import kotlin.time.toJavaDuration
 
 /**
  * The [TopicProducer] over a Kafka [producer]: made by [create] from [KafkaOptions], an
@@ -35,12 +40,20 @@ import org.apache.kafka.clients.producer.ProducerRecord
  * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
  * keeps that order through its own retries.
  *
- * [close] flushes what is in flight and closes the producer.
+ * [close] flushes what is in flight and closes the producer, waiting at most [closeTimeout]
+ * ([KafkaOptions.CLOSE_TIMEOUT]); past it, the producer fails the records it has not delivered, and a warning says so.
+ * Their senders had not had them acknowledged, so they send them again.
  */
-class KafkaTopicProducer(
+class KafkaTopicProducer @InternalWowApi constructor(
     private val producer: Producer<String, ByteArray>,
-    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val dispatcher: CoroutineDispatcher,
+    private val closeTimeout: Duration,
 ) : TopicProducer, AutoCloseable {
+    constructor(
+        producer: Producer<String, ByteArray>,
+        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    ) : this(producer, dispatcher, KafkaOptions.CLOSE_TIMEOUT)
+
     override suspend fun send(topic: String, messages: List<TopicMessage>) {
         if (messages.isEmpty()) {
             return
@@ -69,10 +82,20 @@ class KafkaTopicProducer(
     }
 
     override fun close() {
-        producer.close()
+        val closing = TimeSource.Monotonic.markNow()
+        producer.close(closeTimeout.toJavaDuration())
+        if (closing.elapsedNow() >= closeTimeout) {
+            log.warn(
+                "The Kafka producer's close took its whole bound of {}: it failed the records it had not delivered, " +
+                    "which their senders send again.",
+                closeTimeout,
+            )
+        }
     }
 
     companion object {
+        private val log = LoggerFactory.getLogger(KafkaTopicProducer::class.java)
+
         /** A producer of [options]' configuration ([KafkaOptions.producerConfig]). */
         fun create(options: KafkaOptions): KafkaTopicProducer =
             KafkaTopicProducer(KafkaProducer<String, ByteArray>(options.producerConfig()))

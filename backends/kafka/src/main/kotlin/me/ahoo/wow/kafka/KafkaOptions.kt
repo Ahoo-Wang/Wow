@@ -104,5 +104,17 @@ class KafkaOptions @InternalWowApi constructor(
     companion object {
         val DEFAULT_POLL_TIMEOUT: Duration = 200.milliseconds
         val DEFAULT_METADATA_MAX_AGE: Duration = 30.seconds
+
+        /**
+         * How long the transport's producer and its admin each wait, when closed, for what they still have in flight;
+         * past it, the client fails what is left. The transport closes once the node has stopped, so every sender is
+         * done: a send it no longer waits for was never acknowledged to it, and a caller moves its checkpoint only once
+         * its send returns ([me.ahoo.wow.spi.transport.TopicProducer]), so it sends that message again. Unbounded,
+         * the closes wait for a broker that does not answer as long as `delivery.timeout.ms` (two minutes by default)
+         * and `default.api.timeout.ms` (one), inside Spring's destroy phase, which
+         * `spring.lifecycle.timeout-per-shutdown-phase` does not bound: five seconds lets a reachable broker take
+         * every acknowledgement in flight, and a node shut down during an outage stop at once.
+         */
+        internal val CLOSE_TIMEOUT: Duration = 5.seconds
     }
 }

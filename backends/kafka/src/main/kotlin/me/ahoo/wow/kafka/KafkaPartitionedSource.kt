@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -34,7 +35,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.utils.Utils
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -62,7 +62,9 @@ import kotlin.time.toJavaDuration
  * read of its own, each with a number unique in the process, so an operator tells them apart in the client's logs and
  * metrics, and the client registers each once.
  *
- * [close] closes the consumer of [partitions] and [offsets] and the shared consumers; the other reads close their own.
+ * [close] closes the shared consumers and the consumer of [partitions] and [offsets], each before it returns: a
+ * metadata call in flight is woken out of its wait, so the consumer closes under its lock once the call ends. The other
+ * reads close their own. Every call after [close] is refused, and opens nothing.
  */
 class KafkaPartitionedSource @InternalWowApi constructor(
     private val consumers: (String) -> Consumer<String, ByteArray>,
@@ -84,9 +86,19 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     /** The offset gaps this source's reads met, each logged as an error: a counter to alert on. */
     val offsetGaps: Long get() = gaps.count
 
+    /** Guards [metadata]: a Kafka consumer is not safe for concurrent use. */
     private val lock = Mutex()
+
+    @Volatile
     private var metadata: Consumer<String, ByteArray>? = null
-    private val shared = ConcurrentHashMap<String, SharedTopicConsumer>()
+
+    /** Guards [shared] and the setting of [closed], so that no shared consumer is made once the source is closed. */
+    private val sharing = Any()
+    private val shared = HashMap<String, SharedTopicConsumer>()
+
+    /** Whether it was closed ([close]): every call after that is refused. */
+    @Volatile
+    private var closed = false
 
     override suspend fun partitions(topic: String): List<Int> = metadata { consumer ->
         // Empty for a topic the broker does not know.
@@ -115,8 +127,11 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
-        val topicConsumer = shared.computeIfAbsent(topic) {
-            SharedTopicConsumer(it, { consumers(named("tail.$it")) }, pollTimeout, dispatcher, gaps = gaps)
+        val topicConsumer = synchronized(sharing) {
+            check(!closed) { CLOSED }
+            shared.getOrPut(topic) {
+                SharedTopicConsumer(topic, { consumers(named("tail.$topic")) }, pollTimeout, dispatcher, gaps = gaps)
+            }
         }
         val reader = topicConsumer.join(partition, from)
         if (reader == null) {
@@ -138,6 +153,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
 
     private fun poll(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
+        check(!closed) { CLOSED }
         val target = TopicPartition(topic, partition)
         val consumer = withContext(dispatcher) { consumers(named("read.$topic-$partition")) }
         try {
@@ -187,20 +203,32 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     }
 
     private suspend fun <T> metadata(call: (Consumer<String, ByteArray>) -> T): T = lock.withLock {
+        check(!closed) { CLOSED }
         withContext(dispatcher) {
             call(metadata ?: consumers(named("metadata")).also { metadata = it })
         }
     }
 
     override fun close() {
-        shared.values.forEach { it.close() }
-        shared.clear()
-        metadata?.close()
-        metadata = null
+        val tails = synchronized(sharing) {
+            closed = true
+            shared.values.toList().also { shared.clear() }
+        }
+        tails.forEach { it.close() }
+        // Woken, a metadata call in flight ends at once; the consumer then closes under the lock its calls hold.
+        metadata?.wakeup()
+        runBlocking {
+            lock.withLock {
+                metadata?.close()
+                metadata = null
+            }
+        }
     }
 
     companion object {
         private val made = AtomicLong()
+
+        private const val CLOSED = "The Kafka source is closed."
 
         /** [role] with a number unique in the process: the client registers its metrics once per client id. */
         private fun named(role: String) = "$role-${made.incrementAndGet()}"
