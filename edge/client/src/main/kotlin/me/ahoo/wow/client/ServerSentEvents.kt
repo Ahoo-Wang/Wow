@@ -33,9 +33,10 @@ internal class ServerSentEvent(val event: String, val data: String, val id: Stri
 
 /**
  * The events of a `text/event-stream` read from [lines], as a browser's `EventSource` dispatches them: one byte order
- * mark at the start of the stream is dropped, as its UTF-8 decoding drops it; an event ends at a blank line; a line `field: value` (one space after the colon dropped) sets `event`, `data` (appended) or
- * `id` (one holding NUL is ignored), any other field and a line that starts with a colon (a comment) are ignored; an
- * event without data is not dispatched, and neither is one the stream ends in the middle of.
+ * mark at the start of the stream is dropped, as its UTF-8 decoding drops it; an event ends at a blank line; a line
+ * `field: value` (one space after the colon dropped) sets `event`, `data` (appended) or `id` (one holding NUL is
+ * ignored), any other field and a line that starts with a colon (a comment) are ignored; an event without data is not
+ * dispatched, and neither is one the stream ends in the middle of.
  */
 internal fun Flow<String>.serverSentEvents(): Flow<ServerSentEvent> = flow {
     var event: String? = null

@@ -184,11 +184,11 @@ class HttpQueryApi internal constructor(
             fun headers(): Map<String, String> = position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()
 
             /**
-             * Emits the rows of one request's [events] to [collector]: null once the stream is complete, else why it
-             * stopped. It stops reading at the row that reaches the limit, whatever the peer sends after it, and at an
-             * end or error event, so a connection lost after either is no loss. A connection lost before is the
-             * stream's to resume, as is one that ended without an end event; what [collector] throws is its own, and
-             * propagates as it is.
+             * Emits the rows of one request's [events] to [collector], never past the limit: null once the stream is
+             * complete, else why it stopped. It stops reading at the row that reaches the limit, whatever the peer
+             * sends after it, and at an end or error event, so a connection lost after either is no loss. A connection
+             * lost before is the stream's to resume, as is one that ended without an end event; what [collector] throws
+             * is its own, and propagates as it is.
              */
             suspend fun read(events: Flow<String>, collector: FlowCollector<Positioned<R>>): Stop? {
                 var complete = false
@@ -197,8 +197,10 @@ class HttpQueryApi internal constructor(
                     .transformWhile { event ->
                         when (event.event) {
                             ROW -> {
+                                // Never past the limit, whatever the peer sends.
+                                if (full()) return@transformWhile false
                                 emit(event)
-                                limit == null || emitted < limit
+                                !full()
                             }
                             END -> {
                                 val end = tree(event.data)
@@ -224,9 +226,12 @@ class HttpQueryApi internal constructor(
                         emitted++
                         failures = 0
                     }
-                if (complete || limit != null && emitted >= limit) return null
+                if (complete || full()) return null
                 return stop ?: lost("The stream of $path was cut off.", IOException("No end event."))
             }
+
+            /** Whether the rows emitted reached the query's limit. */
+            private fun full(): Boolean = limit != null && emitted >= limit
 
             /** A stream that lost its connection, [failure], as the transport answers one: `wow.peer.unavailable`. */
             private fun lost(detail: String, failure: IOException): Stop {
