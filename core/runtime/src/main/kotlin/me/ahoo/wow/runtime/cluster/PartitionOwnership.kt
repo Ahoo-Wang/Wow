@@ -654,12 +654,12 @@ class PartitionOwnership internal constructor(
     private suspend fun acquire(partition: Int, reads: Job?) = withContext(NonCancellable) {
         val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
-        // Another node may have committed to the partition's aggregates since this one last cached them.
-        partitionChanged(partition)
         // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
         val gate = Gate(asked)
         gates[partition] = gate
         try {
+            // Another node may have committed to the partition's aggregates since this one last cached them.
+            partitionChanged(partition)
             runtimes.forEach { it.startPartition(partition, reads) }
             intake?.startPartition(partition, reads)
             timers.forEach { it.startPartition(partition) }
