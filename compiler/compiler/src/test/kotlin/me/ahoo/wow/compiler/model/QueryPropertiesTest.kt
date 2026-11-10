@@ -308,6 +308,35 @@ class QueryPropertiesTest {
             .doesNotContain("STATE__STATUS")
     }
 
+    @Test
+    fun `a public root built from an internal state should get an internal model and query fields`() {
+        val domain = SourceFile.kotlin(
+            "Meter.kt",
+            """
+            package sample.visibility
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+
+            @CreateAggregate data class Start(val value: String)
+            data class Started(val value: String)
+            internal enum class Measure { WATT }
+
+            @AggregateRoot class Meter internal constructor(private val state: MeterState) {
+                fun onCommand(command: Start): Started = Started(command.value)
+            }
+            internal class MeterState {
+                var measure: Measure = Measure.WATT
+                fun onSourcing(event: Started) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", domain)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        compilation.generated("MeterModel.kt").assert().contains("internal fun meterModel(")
+        compilation.generated("MeterStateProperties.kt").assert().contains("internal object MeterStateProperties")
+    }
+
     private fun com.tschuchort.compiletesting.KotlinCompilation.generated(name: String): String =
         workingDir.walkTopDown().single { it.name == name }.readText()
 
