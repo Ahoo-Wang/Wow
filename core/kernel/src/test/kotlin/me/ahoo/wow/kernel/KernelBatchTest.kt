@@ -22,6 +22,8 @@ import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -173,6 +175,65 @@ class KernelBatchTest {
     }
 
     @Test
+    fun `a command sent for a schedule ends the batch, and runs next alone`() = runTest {
+        create()
+        val due = ScheduleContext("$ref#remind@1", "remind", 1, 0L).headers()
+        val scheduled = QueuedCommand(Command("scheduled", "$ref#remind@1#1", ref, AddItem("b", 1), headers = due))
+        val ended = batch(queued(AddItem("a", 1)), scheduled)
+        ended[0].version().assert().isEqualTo(2)
+        ended[1].assert().isEqualTo(BatchOutcome.Again)
+        log.groups.single().map { it.version }.assert().containsExactly(2)
+        // First in the lane, it runs alone, as execute decides a scheduled command.
+        val alone = batch(scheduled, queued(AddItem("c", 1)))
+        alone[0].version().assert().isEqualTo(3)
+        alone[1].assert().isEqualTo(BatchOutcome.Again)
+        log.read(ref).toList().last().headers.assert().containsAllEntriesOf(due)
+    }
+
+    @Test
+    fun `a first command refused on an aggregate not yet created is answered alone, and nothing is appended`() =
+        runTest {
+            val outcomes = batch(queued(AddItem("a", 1)), queued(AddItem("b", 1)))
+            (outcomes[0].outcome() as CommandOutcome.Rejected).rejection.code
+                .assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
+            outcomes[1].assert().isEqualTo(BatchOutcome.Again)
+            log.groups.assert().isEmpty()
+            log.read(ref).toList().assert().isEmpty()
+        }
+
+    @Test
+    fun `a request another aggregate of the type committed is answered as that duplicate, and nothing is appended`() =
+        runTest {
+            create()
+            val other = cartModel.type.ref("tenant", "cart-2")
+            kernel.execute(cartModel, Command("other-create", "other-create", other, CreateCart("bob")))
+            val committed = kernel.execute(cartModel, Command("other-add", "shared", other, AddItem("x", 1)))
+                as CommandOutcome.Committed
+            log.groups.clear()
+            // Not among cart-1's recent requests, so it joins the batch; the append meets the request key.
+            val outcomes = batch(queued(AddItem("a", 1), "shared"), queued(AddItem("b", 1)))
+            val duplicate = outcomes[0].outcome() as CommandOutcome.AlreadyCommitted
+            duplicate.stream.ref.assert().isEqualTo(other)
+            duplicate.stream.version.assert().isEqualTo(committed.stream.version)
+            outcomes[1].assert().isEqualTo(BatchOutcome.Again)
+            log.read(ref).toList().map { it.version }.assert().containsExactly(1)
+            states.states[ref].assert().isNull()
+        }
+
+    @Test
+    fun `a stream the backend refuses fails its command with the refusal, and the commands after it run again`() =
+        runTest {
+            create()
+            val refusal = IllegalStateException("The store refuses the stream.")
+            log.refusal = refusal
+            val outcomes = batch(queued(AddItem("a", 1)), queued(AddItem("b", 1)))
+            (outcomes[0] as BatchOutcome.Failed).failure.assert().isSameAs(refusal)
+            outcomes[1].assert().isEqualTo(BatchOutcome.Again)
+            log.read(ref).toList().map { it.version }.assert().containsExactly(1)
+            states.states[ref].assert().isNull()
+        }
+
+    @Test
     fun `a batch holds at least one command, all of one aggregate`() = runTest {
         assertThrows<IllegalArgumentException> { kernel.executeBatch(cartModel, emptyList()) }
         val other = QueuedCommand(Command("other", "other", cartModel.type.ref("tenant", "cart-2"), AddItem("a", 1)))
@@ -208,13 +269,18 @@ class KernelBatchTest {
     data class TallyBoom(val reason: String)
     data class TallyAdded(val amount: Int)
 
-    /** Records the streams of each appendAll; fails it with [failure] when set. */
+    /**
+     * Records the streams of each appendAll; fails it with [failure] when set, and refuses each of its streams with
+     * [refusal] when set, as a backend that rejects a write it will never take answers.
+     */
     private class RecordingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         val groups = mutableListOf<List<EventStreamRecord>>()
         var failure: Exception? = null
+        var refusal: Exception? = null
 
         override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
             failure?.let { throw it }
+            refusal?.let { cause -> return streams.map { AppendOutcome.Rejected(cause) } }
             groups += streams.map { it.first }
             return delegate.appendAll(streams)
         }
