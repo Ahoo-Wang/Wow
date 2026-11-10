@@ -127,6 +127,9 @@ src/
     literalTypes.ts           — A JSON value as a literal type
   emit/                       — The writing kit: ModuleBuilder, ImportRegistry, import specifiers, JSDoc text
   emitters/                   — GenerationModel → module statements: models, API clients, index files; manifestClients.ts writes a ManifestModel's clients on @ahoo-wang/wow-client
+    manifestClients.ts        — emitManifestGeneration: every file a ManifestModel generates, in order
+    manifest/                 — One module per generated file: typeDeclarations (types.ts), contract, routing (manifest.ts), serviceRoutes (routes.ts), contextClient (client.ts), aggregate, commandClient, queryClient, textNumbers
+      generatedModule.ts      — The shape every generated module shares: the client's entries, doc comments, statements, type unions, type imports
   finalize/
     finalize.ts               — finalizeSourceFiles: format, organize and type imports, verify, add the header
     typeOnlyImports.ts        — Rewrites imports of types to `import type`
