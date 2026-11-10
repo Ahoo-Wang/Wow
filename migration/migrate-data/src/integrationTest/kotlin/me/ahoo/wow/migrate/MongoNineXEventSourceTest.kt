@@ -16,6 +16,8 @@ package me.ahoo.wow.migrate
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.json.WowJson
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoNineXEventSourceTest {
@@ -68,6 +70,36 @@ class MongoNineXEventSourceTest {
     }
 
     @Test
+    fun `the inventory counts a stream whose command header is blank as recording no command`() {
+        val text = NineXExample.resource("order-stream-v1.json")
+        fun blank(command: String, id: String) = text.replace("\"upstream_name\":\"create_order\"", "\"upstream_name\":\"$command\"")
+            .replace("0VY3GwaK4OmV00E", "$id-order").replace("0VY3Gwb94OmV00H", "$id-stream")
+        NineXMongoStore.insert(database, blank("", "empty"))
+        NineXMongoStore.insert(database, blank(" ", "blank"))
+        source.inventory().first { it.aggregate == order }.run {
+            commands.keys.assert().containsExactlyInAnyOrder("create_order", "change_address", "pay_order", "ship_order")
+            commands.assert().containsEntry("create_order", 1L)
+            streamsWithoutCommand.assert().isEqualTo(2)
+        }
+    }
+
+    @Test
+    fun `the inventory counts a stream that holds no body as one of no event types`() {
+        // 9.x always writes a body; a store can still hold a document without one.
+        @Suppress("UNCHECKED_CAST")
+        val fields = WowJson.mapper.readValue(NineXExample.resource("order-stream-v1.json"), LinkedHashMap::class.java)
+            as Map<String, Any?>
+        val stream = Document(fields - "id" - "body")
+        stream["_id"] = "bodiless"
+        stream["aggregateId"] = "bodiless-order"
+        database.getCollection("order${MongoNineXEventSource.SUFFIX}").insertOne(stream)
+        source.inventory().first { it.aggregate == order }.run {
+            streams.assert().isEqualTo(5)
+            streamEventTypes.assert().containsEntry(emptySet(), 1L)
+        }
+    }
+
+    @Test
     fun `the inventory should read the command of an older 9x's dotted header, or of command name alone`() {
         val text = NineXExample.resource("order-stream-v1.json")
         fun renamed(header: String, id: String) = text.replace("\"upstream_name\":", "\"$header\":")
@@ -114,6 +146,18 @@ class MongoNineXEventSourceTest {
         source.aggregateIds(order, null, 10).assert().contains(NineXAggregateId("", "(0)"), NineXAggregateId("", "t2"))
         source.streams(order, NineXAggregateId("", "t2"), 1, 10).single().id.assert().isEqualTo("empty-t2")
         source.committedSince(order, 0, null, 100).count { it.aggregateId.id.isEmpty() }.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `the inventory should list a refused id that records no tenant under the empty tenant`() {
+        val text = NineXExample.resource("order-stream-v1.json")
+        NineXMongoStore.insert(
+            database,
+            text.replace("\"0VY3Gwb94OmV00H\"", "\"untenanted\"").replace("\"aggregateId\":\"0VY3GwaK4OmV00E\",", "")
+                .replace("\"tenantId\":\"(0)\",", ""),
+        )
+        source.inventory().first { it.aggregate == order }.refusedIds.assert()
+            .isEqualTo(mapOf(NineXAggregateId("", "") to 1L))
     }
 
     @Test
