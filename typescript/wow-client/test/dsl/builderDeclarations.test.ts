@@ -31,6 +31,14 @@
  * and link, with how many times the file holds it, so a link that stops
  * resolving adds an entry or raises a count and fails by name, while an edit
  * elsewhere in the file changes nothing.
+ *
+ * A link resolves where the group that holds its member is declared in the
+ * same file, so it links through that group and shows the member's name:
+ * {@link groupBuilders.terms | `aggregation.terms`}. Those listed cannot: they
+ * sit in `aggregation/types.ts` and `filter/types.ts`, which declare no group,
+ * or, for `aggregation.derived` in `metrics.ts`, beside a group other than
+ * the one that holds it. Importing the group would not help: the emitted
+ * declarations drop an import that only a doc comment uses.
  */
 
 import { dirname, join, resolve } from 'node:path';

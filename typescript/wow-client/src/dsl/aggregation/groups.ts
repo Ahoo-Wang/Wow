@@ -20,15 +20,15 @@ import { aggregationAlias } from './aliases.js';
 
 /** The kind of an {@link AggregationGroup}, sent as its `type`. */
 export enum AggregationGroupType {
-  /** One group per distinct value; {@link aggregation.terms}. */
+  /** One group per distinct value; {@link groupBuilders.terms | `aggregation.terms`}. */
   TERMS = 'terms',
-  /** Number buckets of equal width; {@link aggregation.histogram}. */
+  /** Number buckets of equal width; {@link groupBuilders.histogram | `aggregation.histogram`}. */
   HISTOGRAM = 'histogram',
-  /** Calendar buckets of a time field; {@link aggregation.dateHistogram}. */
+  /** Calendar buckets of a time field; {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}. */
   DATE_HISTOGRAM = 'date-histogram',
   /**
    * One calendar part of a time field, such as the weekday or the hour;
-   * {@link aggregation.datePart}. Wow 9.2 and later.
+   * {@link groupBuilders.datePart | `aggregation.datePart`}. Wow 9.2 and later.
    */
   DATE_PART = 'date-part',
 }
@@ -113,7 +113,7 @@ export type AggregationGroupInput<FIELDS extends string = string> =
 
 /**
  * One group per distinct value of a field, or of an expression;
- * {@link aggregation.terms}. `missingKey` needs a field.
+ * {@link groupBuilders.terms | `aggregation.terms`}. `missingKey` needs a field.
  */
 export type TermsAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.TERMS;
@@ -132,7 +132,7 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
 
 /**
  * Buckets of equal width over a number field, or over an expression;
- * {@link aggregation.histogram}.
+ * {@link groupBuilders.histogram | `aggregation.histogram`}.
  */
 export type HistogramAggregationGroup<FIELDS extends string = string> = {
   type: AggregationGroupType.HISTOGRAM;
@@ -151,7 +151,7 @@ export type HistogramAggregationGroup<FIELDS extends string = string> = {
 
 /**
  * Calendar buckets over a time field in epoch milliseconds;
- * {@link aggregation.dateHistogram}.
+ * {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}.
  */
 export interface DateHistogramAggregationGroup<
   FIELDS extends string = string,
@@ -170,7 +170,7 @@ export interface DateHistogramAggregationGroup<
 
 /**
  * One calendar part of a time field in epoch milliseconds, such as the
- * weekday or the hour; {@link aggregation.datePart}. Its keys in the result
+ * weekday or the hour; {@link groupBuilders.datePart | `aggregation.datePart`}. Its keys in the result
  * rows are integers from the part's domain, such as 1 (Monday) to 7 (Sunday)
  * for `DAY_OF_WEEK`. Wow 9.2 and later.
  */
@@ -210,19 +210,19 @@ export interface AggregationGroupScopeOptions {
   scope?: AggregationGroupScope;
 }
 
-/** The options of {@link aggregation.terms}. */
+/** The options of {@link groupBuilders.terms | `aggregation.terms`}. */
 export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
   /** The key rows without a value are grouped under; must not be blank. */
   missingKey?: string;
 }
 
-/** The options of {@link aggregation.histogram}. */
+/** The options of {@link groupBuilders.histogram | `aggregation.histogram`}. */
 export interface HistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The width of each bucket: finite and greater than 0. */
   interval: number;
 }
 
-/** The options of {@link aggregation.dateHistogram}. */
+/** The options of {@link groupBuilders.dateHistogram | `aggregation.dateHistogram`}. */
 export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar unit of each bucket. */
   unit: AggregationDateUnit;
@@ -235,7 +235,7 @@ export interface DateHistogramAggregationOptions extends AggregationGroupScopeOp
   dense?: boolean;
 }
 
-/** The options of {@link aggregation.datePart}. */
+/** The options of {@link groupBuilders.datePart | `aggregation.datePart`}. */
 export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
   /** The calendar part each row is grouped by. */
   part: AggregationDatePart;
