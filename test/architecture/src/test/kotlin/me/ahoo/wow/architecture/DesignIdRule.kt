@@ -23,7 +23,7 @@ object DesignIdRule {
      * `roadmap 7.2c`, `work package 6.7`, `decision D254`).
      */
     private val DESIGN_ID = Regex(
-        ArchitectureRules.DECISION_OR_REVIEW_ID.pattern + """|\bR\d\.[A-Z]+-\d+\b""" +
+        SourceLiteralRules.DECISION_OR_REVIEW_ID.pattern + """|\bR\d\.[A-Z]+-\d+\b""" +
             """|\b(?:[Dd]ecisions?|[Ff]indings?|[Rr]eviews?|[Ss]pikes?|[Rr]oadmap|[Ww]ork packages?|[Dd]esign)\s+""" +
             """(?:[A-Z]{0,3}\d|§)|\b\d{2}\s*§\s*\d""",
     )

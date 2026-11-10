@@ -124,6 +124,39 @@ class SurfaceRulesTest {
             .containsExactly("${spi.dir}/src/main/kotlin/me/ahoo/wow/spi/Ports.kt:4: sealed interface Outcome")
     }
 
+    @Test
+    fun `the ABI of the api, spi and manifest modules should hold no data class but the listed exceptions`() {
+        SurfaceRules.dataClassMembers(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `data class rule should catch a copy or componentN and a stale exception`(@TempDir root: File) {
+        val exceptions = SurfaceRules.DATA_CLASS_EXCEPTIONS.keys.toList()
+        SurfaceRules.PLAIN_CLASS_MODULES.forEach { module ->
+            File(root, "${module.dir}/api").mkdirs()
+            File(root, "${module.dir}/api/${module.name}.api").writeText("")
+        }
+        File(root, "${ArchitectureRules.API.dir}/api/${ArchitectureRules.API.name}.api").writeText(
+            (exceptions.drop(1) + "me/ahoo/wow/api/Record").joinToString("\n") { owner ->
+                """
+                public final class $owner {
+                	public final fun component1 ()Ljava/lang/String;
+                	public final fun copy (Ljava/lang/String;)L$owner;
+                	public static synthetic fun copy${'$'}default (L$owner;Ljava/lang/String;ILjava/lang/Object;)L$owner;
+                	public fun equals (Ljava/lang/Object;)Z
+                }
+                """.trimIndent()
+            },
+        )
+        SurfaceRules.dataClassMembers(root).assert().containsExactlyInAnyOrder(
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun component1 ()Ljava/lang/String;",
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/Record;",
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public static synthetic fun copy${'$'}default " +
+                "(Lme/ahoo/wow/api/Record;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/Record;",
+            "stale exception: ${exceptions.first()}",
+        )
+    }
+
     private companion object {
         const val REPOSITORY_ROOT = "wow-test.repository.root"
     }

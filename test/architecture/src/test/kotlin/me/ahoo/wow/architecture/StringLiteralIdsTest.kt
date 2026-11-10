@@ -26,7 +26,7 @@ class StringLiteralIdsTest {
 
     @Test
     fun `production string literals should name no decision or review ID`() {
-        ArchitectureRules.idsInStringLiterals(repositoryRoot).assert().isEmpty()
+        SourceLiteralRules.idsInStringLiterals(repositoryRoot).assert().isEmpty()
     }
 
     @Test
@@ -48,7 +48,7 @@ class StringLiteralIdsTest {
             ${"\"\"\""}
             """.trimIndent(),
         )
-        ArchitectureRules.idsInStringLiterals(root).map { it.substringAfter("Ids.kt:").substringBefore(':') }
+        SourceLiteralRules.idsInStringLiterals(root).map { it.substringAfter("Ids.kt:").substringBefore(':') }
             .assert().containsExactly("7", "8", "9")
     }
 
