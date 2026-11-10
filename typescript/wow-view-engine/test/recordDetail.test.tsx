@@ -12,9 +12,11 @@
  */
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -23,6 +25,7 @@ import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSections } from '../src/record/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
+import { useOpenView, useRecordDetail } from '../src/react/index.js';
 import { MemoryViewStore, ViewEngine, type RecordData } from '../src/index.js';
 import {
   ROWS,
@@ -295,5 +298,112 @@ describe('a record read whole', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+});
+
+/**
+ * #5513: a record is a key in one view. The same detail control kept across
+ * a switch to another view (DataWorkbench keeps its record parts mounted)
+ * may hold the same key there — another dataset's row — and what it read
+ * in the first view is not that record.
+ */
+describe('a detail kept across a switch of view', () => {
+  const definitionA = ordersDefinition({
+    fields: [
+      ...ordersDefinition().fields,
+      { name: 'note', label: 'Note', kind: 'string' },
+    ],
+  });
+  const definitionB = ordersDefinition({
+    id: 'returns',
+    source: 'returns',
+    title: 'Returns',
+    fields: definitionA.fields,
+  });
+  const pageA = { id: 'o-1', amount: 10, status: 'ORDER', warehouse: 'A' };
+  const wholeA = { ...pageA, note: 'Order detail from A' };
+  const pageB = { id: 'o-1', amount: 20, status: 'RETURN', warehouse: 'B' };
+  const isDetail = (query: FilterPagedQuery) => query.pagination?.size === 1;
+
+  function harness(failDetailOfA: () => boolean = () => false) {
+    const a = testSource({
+      paged: async query => {
+        if (isDetail(query) && failDetailOfA())
+          throw new Error('The orders detail request failed');
+        return {
+          total: 1,
+          exact: true,
+          list: [isDetail(query) ? wholeA : pageA],
+        };
+      },
+    });
+    const b = testSource({
+      paged: async query => {
+        if (isDetail(query))
+          throw new Error('The returns detail request failed');
+        return { total: 1, exact: true, list: [pageB] };
+      },
+    });
+    const engine = new ViewEngine({
+      resources: resourcesOf([definitionA, definitionB], key =>
+        key === 'orders' ? a : b,
+      ),
+      store: new MemoryViewStore({
+        instances: [
+          mine,
+          { ...mine, id: 'returns-1', definitionId: 'returns' },
+        ],
+      }),
+    });
+    return renderHook(
+      ({ instanceId }: { instanceId: string }) => {
+        const opened = useOpenView(engine, instanceId);
+        const runtime =
+          opened.runtime?.kind === 'record' ? opened.runtime : null;
+        return { runtime, detail: useRecordDetail(runtime, { open: 'o-1' }) };
+      },
+      { initialProps: { instanceId: 'orders-1' } },
+    );
+  }
+
+  it('shows the new view’s row, not the old view’s record of the same key', async () => {
+    const view = harness();
+    await waitFor(() =>
+      expect(view.result.current.detail.record).toEqual(wholeA),
+    );
+    expect(view.result.current.detail.complete).toBe(true);
+
+    view.rerender({ instanceId: 'returns-1' });
+    await waitFor(() =>
+      expect(view.result.current.detail.status).toBe('error'),
+    );
+    await waitFor(() =>
+      expect(view.result.current.runtime?.getSnapshot().query.status).toBe(
+        'success',
+      ),
+    );
+
+    expect(view.result.current.runtime?.definition.id).toBe('returns');
+    expect(view.result.current.detail.record).toEqual(pageB);
+    expect(view.result.current.detail.complete).toBe(false);
+    view.unmount();
+  });
+
+  it('keeps its own record when a read of it again fails in the same view', async () => {
+    let fail = false;
+    const view = harness(() => fail);
+    await waitFor(() =>
+      expect(view.result.current.detail.record).toEqual(wholeA),
+    );
+
+    fail = true;
+    act(() => view.result.current.detail.reload());
+    await waitFor(() =>
+      expect(view.result.current.detail.status).toBe('error'),
+    );
+
+    expect(view.result.current.detail.record).toEqual(wholeA);
+    expect(view.result.current.detail.complete).toBe(true);
+    view.unmount();
   });
 });

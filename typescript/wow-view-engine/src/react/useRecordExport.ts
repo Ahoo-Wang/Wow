@@ -20,7 +20,11 @@ import {
 import { sourceIssue } from '../runtime/failure/issues.js';
 import { reportViewFailure } from '../runtime/failure/failures.js';
 import { toIssue } from '../runtime/failure/issues.js';
+import { Generations, type Ticket } from '../runtime/generations.js';
 import type { RecordTableController } from './useRecordTable.js';
+
+/** The one operation an export window runs at a time: the fetch of every row. */
+const RUN = 'all';
 
 /**
  * The two readings of "export": what is picked, and what the conditions
@@ -163,26 +167,26 @@ export function useRecordExport(
   // window's button would otherwise get — the picked scope fetches nothing,
   // so `live` below is empty for it and cannot be the gate.
   const busy = useRef(false);
-  // The fetch in flight, so `cancel` reaches this one and a progress report
-  // from a superseded run is ignored.
+  // The fetch in flight, so `cancel` and leaving reach it.
   const live = useRef<AbortController | null>(null);
-  // Nothing lands after the component has gone, or after the view it was
-  // exporting has been left behind.
-  const alive = useRef(true);
+  // Which run is the one the window is about (`Generations.latest`): a run
+  // cancelled, left behind — the component gone, or the view it was
+  // exporting — or followed by another settles with nothing said, its fetch
+  // and its delivery alike.
+  const [runs] = useState(() => new Generations<typeof RUN>());
   const delivery = useRef(deliver);
   useEffect(() => {
     delivery.current = deliver;
   }, [deliver]);
 
   useEffect(() => {
-    alive.current = true;
     return () => {
-      alive.current = false;
       busy.current = false;
+      runs.supersede(RUN);
       live.current?.abort();
       live.current = null;
     };
-  }, [runtime]);
+  }, [runtime, runs]);
 
   const paging = table.paging;
   // How many "all" is, where the source counted it: a lower bound is not.
@@ -197,37 +201,56 @@ export function useRecordExport(
 
   const settle = useCallback((next: ExportState): void => {
     busy.current = next.running !== null;
-    if (alive.current) setState(next);
+    setState(next);
   }, []);
+
+  /**
+   * What `ticket`'s run ends with, said only while it is the run the window
+   * is about: one cancelled while its file was being made, then followed by
+   * another, must not end the one in flight — nor let a third in beside it.
+   */
+  const settleFor = useCallback(
+    (ticket: Ticket<typeof RUN>, next: ExportState): void => {
+      if (runs.latest(ticket)) settle(next);
+    },
+    [runs, settle],
+  );
 
   /** Serialises and saves, and turns whatever that throws into one Issue. */
   const hand = useCallback(
     async (
+      ticket: Ticket<typeof RUN>,
       rows: readonly RecordData[],
       outcome: RecordExportOutcome,
       fileName: string,
     ): Promise<void> => {
       try {
         await delivery.current(rows, outcome.scope, fileName);
-        settle({ ...IDLE, outcome });
+        settleFor(ticket, { ...IDLE, outcome });
       } catch (caught) {
         // The rows were in hand; the file could not be made or handed over.
-        // A fetch that failed was told by the runtime (D40).
+        // A fetch that failed was told by the runtime (D40). The host hears
+        // of it whether or not the window still asks.
         reportViewFailure(runtime, 'export', 'deliver', caught);
-        settle({ ...IDLE, error: toIssue(caught, 'export.failed') });
+        settleFor(ticket, { ...IDLE, error: toIssue(caught, 'export.failed') });
       }
     },
-    [settle, runtime],
+    [settleFor, runtime],
   );
 
   const fetchAll = useCallback(
     async (
+      ticket: Ticket<typeof RUN>,
       runtime: RecordViewRuntime,
       total: number | null,
       fileName: string,
     ): Promise<void> => {
       const controller = new AbortController();
       live.current = controller;
+      // A run cancelled is over for the window: what it settles with later
+      // — the read its client rejects on the abort, a page that arrived
+      // anyway — is not said over the idle window or a run started since.
+      const current = () => runs.latest(ticket);
       settle({
         ...IDLE,
         running: 'all',
@@ -241,7 +264,7 @@ export function useRecordExport(
         const result = await runtime.exportRows({
           signal: controller.signal,
           onProgress: (fetched, reported) => {
-            if (!alive.current || live.current !== controller) return;
+            if (!current()) return;
             setState(current => ({
               ...current,
               progress: {
@@ -253,6 +276,7 @@ export function useRecordExport(
           },
         });
         await hand(
+          ticket,
           result.rows,
           {
             scope: 'all',
@@ -265,44 +289,49 @@ export function useRecordExport(
       } catch (caught) {
         // A cancel is the user's own answer, not a finding: the window
         // closes and nothing is said about it.
-        settle(
+        settleFor(
+          ticket,
           isExportCancelledError(caught)
             ? IDLE
             : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
         );
       } finally {
-        if (live.current === controller) live.current = null;
+        if (current()) live.current = null;
       }
     },
-    [hand, settle],
+    [hand, runs, settle, settleFor],
   );
 
   const run = useCallback(
     (scope: RecordExportScope, fileName: string) => {
       if (!runtime || busy.current) return;
       busy.current = true;
-      if (scope === 'selected') {
+      // Every run takes its ticket, the picked rows' too: whatever it ends
+      // with is said only while it is the run the window is about.
+      void runs.run(RUN, ticket => {
+        if (scope === 'all')
+          return fetchAll(ticket, runtime, counted, fileName);
         const picked = table.selectedRows;
         // Nothing is fetched for this one — the rows are the result on
         // screen — so `running` is set only for as long as delivery takes.
         settle({ ...IDLE, running: scope });
-        void hand(
+        return hand(
+          ticket,
           picked.map(row => row.data),
           { scope, rows: picked.length, capped: false },
           fileName,
         );
-        return;
-      }
-      void fetchAll(runtime, counted, fileName);
+      });
     },
-    [counted, fetchAll, hand, runtime, settle, table.selectedRows],
+    [counted, fetchAll, hand, runs, runtime, settle, table.selectedRows],
   );
 
   const cancel = useCallback(() => {
+    runs.supersede(RUN);
     live.current?.abort();
     live.current = null;
     settle(IDLE);
-  }, [settle]);
+  }, [runs, settle]);
 
   // Closing the window forgets what the last run produced, so opening it
   // again asks rather than reporting an export the user has already read.

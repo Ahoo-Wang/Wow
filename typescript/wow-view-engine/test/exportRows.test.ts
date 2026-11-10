@@ -306,6 +306,57 @@ describe('exporting every row the applied config matches', () => {
     expect(asked).toEqual([1, 2]);
   });
 
+  // #5502: a real client rejects a read whose signal was aborted — fetch
+  // rejects with the signal's reason. That is the cancel itself, not a
+  // failure of the source, on a paged source and on a cursor one.
+  it.each(['paged', 'cursor'] as const)(
+    'says a %s read the signal called off was cancelled',
+    async paging => {
+      const controller = new AbortController();
+      const rejectOnAbort = (
+        _query: unknown,
+        options?: { signal?: AbortSignal },
+      ) =>
+        new Promise<never>((_resolve, reject) => {
+          const signal = options!.signal!;
+          signal.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+          controller.abort();
+        });
+      const runtime = openRecord({
+        source: testSource({
+          paged: vi.fn(rejectOnAbort),
+          cursor: vi.fn(rejectOnAbort),
+        }),
+        definition: ordersDefinition({
+          record: { rowKey: 'id', paging, layouts: ['table'] },
+        }),
+      });
+
+      const caught = await runtime
+        .exportRows({ signal: controller.signal })
+        .catch((error: unknown) => error);
+
+      expect(isExportCancelledError(caught)).toBe(true);
+    },
+  );
+
+  it('still says a read that failed on its own failed', async () => {
+    const runtime = openRecord({
+      source: testSource({
+        paged: vi.fn(() => Promise.reject(new Error('503'))),
+      }),
+    });
+
+    const caught = await runtime
+      .exportRows({ signal: new AbortController().signal })
+      .catch((error: unknown) => error);
+
+    expect(isExportCancelledError(caught)).toBe(false);
+    expect(caught).toEqual(new Error('503'));
+  });
+
   it('asks for nothing at all when it is cancelled before it starts', async () => {
     const source = pagedSource(orders(4));
     const runtime = openRecord({ source });

@@ -31,6 +31,7 @@ import {
   type RecordExportScope,
 } from '../src/react/index.js';
 import {
+  deferred,
   ordersDefinition,
   recordConfig,
   ROWS,
@@ -76,6 +77,47 @@ function gatedSource(): { source: ViewSource; held: (() => void)[] } {
   return { source, held };
 }
 
+/**
+ * Like `gatedSource`, but each export read held rejects with its signal's
+ * reason when the signal aborts, as `fetch` does; `aborted` settles once
+ * that rejection is out.
+ */
+function abortRejectingSource(): {
+  source: ViewSource;
+  held: (() => void)[];
+  aborted: Promise<void>[];
+} {
+  const held: (() => void)[] = [];
+  const aborted: Promise<void>[] = [];
+  let opened = false;
+  const answer = { total: 2, exact: true, list: [...ROWS] };
+  const source = testSource({
+    paged: vi.fn(
+      (_query: FilterPagedQuery, options?: { signal?: AbortSignal }) => {
+        if (!opened) {
+          opened = true;
+          return Promise.resolve(answer);
+        }
+        const signal = options!.signal!;
+        let rejected!: () => void;
+        aborted.push(new Promise<void>(resolve => (rejected = resolve)));
+        return new Promise<PagedList<RecordData>>((resolve, reject) => {
+          held.push(() => resolve(answer));
+          signal.addEventListener(
+            'abort',
+            () => {
+              reject(signal.reason);
+              rejected();
+            },
+            { once: true },
+          );
+        });
+      },
+    ),
+  });
+  return { source, held, aborted };
+}
+
 /** What the delivery was handed, in the order it was handed over. */
 interface Delivered {
   rows: readonly RecordData[];
@@ -98,7 +140,10 @@ async function openExport(
   options: {
     source?: ViewSource;
     limits?: Partial<RuntimeLimits>;
-    deliver?(rows: readonly RecordData[], scope: RecordExportScope): void;
+    deliver?(
+      rows: readonly RecordData[],
+      scope: RecordExportScope,
+    ): void | Promise<void>;
   } = {},
 ) {
   const delivered: Delivered[] = [];
@@ -135,8 +180,8 @@ async function openExport(
       exporter: useRecordExport(runtime, {
         table,
         deliver: (rows, scope, fileName) => {
-          options.deliver?.(rows, scope);
           delivered.push({ rows, scope, fileName });
+          return options.deliver?.(rows, scope);
         },
       }),
     };
@@ -372,6 +417,100 @@ describe('useRecordExport limits and failures', () => {
     expect(result.current.exporter.error).toBeNull();
     expect(delivered).toHaveLength(0);
   });
+
+  // #5502: a real client rejects the read the cancel aborted, after the
+  // window already went back to idle — and maybe after a new run started.
+  it('says nothing about a cancelled run whose read rejects on the abort', async () => {
+    const { source, aborted } = abortRejectingSource();
+    const { result, delivered } = await openExport({ source });
+
+    act(() => result.current.exporter.run('all', FILE));
+    await waitFor(() => expect(result.current.exporter.running).toBe('all'));
+    act(() => result.current.exporter.cancel());
+    await act(() => aborted[0]);
+
+    expect(result.current.exporter.running).toBeNull();
+    expect(result.current.exporter.error).toBeNull();
+    expect(delivered).toHaveLength(0);
+  });
+
+  it('keeps a run started after a cancel when the cancelled one settles', async () => {
+    const { source, aborted, held } = abortRejectingSource();
+    const { result } = await openExport({ source });
+
+    act(() => result.current.exporter.run('all', FILE));
+    await waitFor(() => expect(result.current.exporter.running).toBe('all'));
+    act(() => result.current.exporter.cancel());
+    act(() => result.current.exporter.run('all', FILE));
+    await act(() => aborted[0]);
+
+    expect(result.current.exporter.running).toBe('all');
+    expect(result.current.exporter.error).toBeNull();
+    await act(async () => {
+      held[1]();
+    });
+    await waitFor(() => expect(result.current.exporter.outcome).not.toBeNull());
+  });
+
+  /**
+   * The file is made and handed over after the rows are in, and that takes
+   * its time on a large file. A run cancelled then is over for the window
+   * all the same: its delivery landing says nothing, and does not end a run
+   * started since — the picked rows' as much as all of them.
+   */
+  describe.each(['all', 'selected'] as const)(
+    'cancelled while its %s rows are being delivered',
+    scope => {
+      /** A delivery per run, each held until the case lets it land. */
+      async function heldDeliveries() {
+        const held: ReturnType<typeof deferred<void>>[] = [];
+        const opened = await openExport({
+          deliver: () => {
+            const landing = deferred<void>();
+            held.push(landing);
+            return landing.promise;
+          },
+        });
+        if (scope === 'selected')
+          act(() => opened.result.current.table.toggle('o-1'));
+        return { ...opened, held };
+      }
+
+      it('says nothing when the delivery lands', async () => {
+        const { result, delivered, held } = await heldDeliveries();
+        act(() => result.current.exporter.run(scope, FILE));
+        await waitFor(() => expect(delivered).toHaveLength(1));
+        act(() => result.current.exporter.cancel());
+
+        await act(async () => held[0]!.resolve());
+
+        expect(result.current.exporter).toMatchObject({
+          running: null,
+          outcome: null,
+          error: null,
+        });
+      });
+
+      it('lets a run started after it go on, and still refuses a third', async () => {
+        const { result, delivered, held } = await heldDeliveries();
+        act(() => result.current.exporter.run(scope, FILE));
+        await waitFor(() => expect(delivered).toHaveLength(1));
+        act(() => result.current.exporter.cancel());
+        act(() => result.current.exporter.run(scope, FILE));
+        await waitFor(() => expect(delivered).toHaveLength(2));
+
+        await act(async () => held[0]!.resolve());
+
+        expect(result.current.exporter.running).toBe(scope);
+        expect(result.current.exporter.outcome).toBeNull();
+        act(() => result.current.exporter.run(scope, FILE));
+        await act(async () => held[1]!.resolve());
+        expect(delivered).toHaveLength(2);
+        expect(result.current.exporter.running).toBeNull();
+        expect(result.current.exporter.outcome).toMatchObject({ scope });
+      });
+    },
+  );
 
   it('reports a failed fetch as one Issue', async () => {
     const { result } = await openExport({
