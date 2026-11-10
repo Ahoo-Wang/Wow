@@ -255,6 +255,16 @@ class SchemaCompatibilityTest {
                 STRING + ("description" to "b"),
             ),
             row(
+                "query text marker removed, ignored",
+                STRING + ("x-wow-text" to emptyMap<String, Any?>()),
+                STRING,
+            ),
+            row(
+                "query text marker added, ignored",
+                STRING,
+                STRING + ("x-wow-text" to emptyMap<String, Any?>()),
+            ),
+            row(
                 "class and set ignored",
                 mapOf("type" to "array", "x-wow-class" to "a.B"),
                 mapOf("type" to "array", "x-wow-class" to "a.C", "uniqueItems" to true),

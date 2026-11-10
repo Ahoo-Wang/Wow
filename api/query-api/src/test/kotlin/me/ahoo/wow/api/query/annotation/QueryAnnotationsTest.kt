@@ -36,6 +36,12 @@ class QueryAnnotationsTest {
     }
 
     @Test
+    fun `the text marker is retained on fields`() {
+        field("description").isAnnotationPresent(QueryText::class.java).assert().isTrue()
+        field("buyer").isAnnotationPresent(QueryText::class.java).assert().isFalse()
+    }
+
+    @Test
     fun `query index is retained on fields`() {
         field("buyer").getAnnotation(QueryIndex::class.java).let {
             it.name.assert().isEqualTo("idx_order_buyer")
@@ -95,5 +101,7 @@ class QueryAnnotationsTest {
         @field:QueryIndex(with = ["state.createdAt", "state.amount"])
         @field:QueryIndex(with = ["ownerId"])
         val status: String,
+        @field:QueryText
+        val description: String,
     )
 }

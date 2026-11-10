@@ -2381,6 +2381,9 @@ public abstract interface annotation class me/ahoo/wow/api/query/annotation/Quer
 	public abstract fun unit ()Ljava/util/concurrent/TimeUnit;
 }
 
+public abstract interface annotation class me/ahoo/wow/api/query/annotation/QueryText : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class me/ahoo/wow/api/query/annotation/Sensitive : java/lang/annotation/Annotation {
 	public abstract fun level ()Lme/ahoo/wow/api/query/annotation/SensitivityLevel;
 	public abstract fun mask ()Lme/ahoo/wow/api/query/annotation/Mask;
