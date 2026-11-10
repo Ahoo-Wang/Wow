@@ -28,5 +28,6 @@ export {
 export * from './kanban.js';
 export * from './paging.js';
 export * from './project.js';
+export * from './summaries.js';
 export * from './summaryAlias.js';
 export * from './validate.js';
