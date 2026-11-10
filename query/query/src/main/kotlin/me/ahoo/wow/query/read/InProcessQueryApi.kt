@@ -298,10 +298,15 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         private fun tenantOf(): String? = tenantId ?: engine.tenants.queryTenantOf(type, caller)
 
-        /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
+        /**
+         * The read of [ref] as the public port's: in the caller's tenant, and in the owner and space its type holds the
+         * caller to ([AccessPolicies.scopeOf]), else not found.
+         */
         private fun checkScope(ref: AggregateRef, state: Snapshot<JsonNode>) {
             val tenant = tenantOf()
-            val scope = caller.caller?.let { engine.ownerships.ownershipOf(type).scopeOf(it.scope) } ?: Scope.NONE
+            val scope = caller.caller?.let {
+                engine.access.scopeOf(type, engine.ownerships.ownershipOf(type), it.scope)
+            } ?: Scope.NONE
             if (tenant != null && tenant != ref.tenantId || !scope.covers(state.scope)) {
                 throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)
             }

@@ -109,17 +109,18 @@ class ScopeQueryPolicy(
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         targets.recheck(context.aggregateType, caller)
-        val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
-        // An access policy of the aggregate's own decides its owner and space instead.
-        val scoped = !access.governs(context.aggregateType) &&
-            (context.schema.profile as? DatasetQueryModelProfile)?.dataset?.let(access::governs) != true
+        val type = context.aggregateType
+        // An access policy of the aggregate's own decides its owner and space instead; so it does for a dataset of
+        // the rows of an aggregate it governs.
+        val dataset = (context.schema.profile as? DatasetQueryModelProfile)?.dataset
+        val scope = if (dataset != null && access.governs(dataset)) {
+            Scope.NONE
+        } else {
+            access.scopeOf(type, ownerships.ownershipOf(type), caller.principal)
+        }
         val restrictions = buildList {
-            (tenants.queryTenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter())
-                ?.let(::add)
-            if (scoped) {
-                val acting = caller.principal
-                addAll(defaultRule(context, Scope(acting.ownerId?.takeIf { owned }, acting.spaceId)).parts())
-            }
+            (tenants.queryTenantOf(type, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter())?.let(::add)
+            addAll(defaultRule(context, scope).parts())
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter }?.let(::add)
         }
         return when (restrictions.size) {
