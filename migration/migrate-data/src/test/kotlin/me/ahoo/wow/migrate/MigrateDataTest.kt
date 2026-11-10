@@ -271,7 +271,8 @@ class MigrateDataTest {
         run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
         // The tail never ran: the final pass refuses before it writes, and --snapshots writes nothing after it.
         run("import", "--config", config, "--final", "--snapshots").assert().isEqualTo(MigrateData.FAILED)
-        printed.assert().contains("FAILED the tail of example-service.order never ran").doesNotContain("Snapshots done.")
+        printed.assert().contains("FAILED the tail of example-service.order never ran")
+            .doesNotContain("Snapshots done.")
         val id = NineXExample.stream("order-stream-v1.json").aggregateId
         store.load(NineXExample.orderModel.type.ref(id.tenantId, id.id)).assert().isNull()
     }

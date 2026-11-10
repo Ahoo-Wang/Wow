@@ -347,7 +347,14 @@ internal class MigrateData(
         val config = checkpoints.config
         val passes = ImportPasses(out, running)
         if (DRY_RUN in options) {
-            return passes.importAll(plan, config, connections, options, InMemoryCheckpointRepository(), InMemoryImportedKeys())
+            return passes.importAll(
+                plan,
+                config,
+                connections,
+                options,
+                InMemoryCheckpointRepository(),
+                InMemoryImportedKeys()
+            )
         }
         val roles = setOfNotNull(CheckpointRole.IMPORT, CheckpointRole.SNAPSHOT.takeIf { SNAPSHOTS in options })
         return checkpoints.holding(roles) { repository, keys ->
