@@ -411,7 +411,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
                 logger.warn { "Node $node of $service stops with ${waits.size} waits still registered." }
             }
         }
-        steps.run(ServiceNode.Step.GATEWAY_CLOSED) { gateway.close() }
+        steps.run(ServiceNode.Step.GATEWAY_CLOSED) { gateway.close(options.cluster.drainTimeout) }
         steps.run(ServiceNode.Step.EXECUTIONS_ENDED) {
             val limit = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
             withTimeoutOrNull(limit) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
