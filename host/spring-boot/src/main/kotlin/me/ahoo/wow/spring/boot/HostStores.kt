@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.config.ProviderOption
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -201,9 +202,10 @@ internal object StoreInstances {
 
     /**
      * The options of a store of [provider]'s type: the settings of its type ([typeSettings], `wow.<type>.*`) its
-     * provider declares for every store of the type, under the store's [own] settings; a setting of the store its
-     * provider does not declare (an option's key, or a key under a map option's prefix) fails, naming the setting under
-     * [key] and the declared options.
+     * provider declares for every store of the type, under the store's [own] settings, a map option's keys one by one;
+     * a setting of the store its provider does not declare fails, naming the setting under [key] and the declared
+     * options. A setting is declared as [PortProviders.declared] says: an option's key, or a key under a map option's
+     * prefix.
      */
     private fun optionsOf(
         provider: StoreProvider,
@@ -211,18 +213,16 @@ internal object StoreInstances {
         own: Map<String, String>,
         key: String,
     ): Map<String, String> {
-        val declared = provider.options.associateBy { it.key }
-        own.keys.forEach { option ->
-            val setting = "$key.$option"
-            configCheck(
-                option in declared || provider.options.any { it.isMap && option.startsWith("${it.key}.") },
-                setting,
+        val declared = PortProviders.declared(own, provider.options, ProviderOption.Scope.entries)
+        (own.keys - declared.keys).firstOrNull()?.let { option ->
+            throw WowConfigurationException(
+                "$key.$option",
                 own[option],
-                "Set only the options of the ${provider.type} stores: ${declared.keys.sorted()}.",
-            ) { "$setting is not an option of the ${provider.type} stores." }
+                "$key.$option is not an option of the ${provider.type} stores.",
+                "Set only the options of the ${provider.type} stores: ${provider.options.map { it.key }.sorted()}.",
+            )
         }
-        val defaults = typeSettings.filterKeys { declared[it]?.scope == ProviderOption.Scope.TYPE }
-        return defaults + own
+        return PortProviders.declared(typeSettings, provider.options) + own
     }
 }
 
