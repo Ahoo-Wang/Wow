@@ -98,13 +98,13 @@ class Manifest @InternalWowApi constructor(
         /** Whether [ref] is a reference into `$defs` ([schemaRef]): a command named by its class, say. */
         fun isSchemaRef(ref: String): Boolean = ref.startsWith(DEFS_PREFIX)
 
-        /** The `$defs` references an inline [schema] holds, its own and its items', in order. */
+        /** The `$defs` references an inline [schema] holds, its own, its items' and its alternatives', in order. */
         fun refsOf(schema: Map<String, Any?>): List<String> = buildList {
             (schema[REF] as? String)?.let(::add)
-            (schema[ITEMS] as? Map<*, *>)?.let { items ->
-                @Suppress("UNCHECKED_CAST")
-                addAll(refsOf(items as Map<String, Any?>))
-            }
+            @Suppress("UNCHECKED_CAST")
+            listOfNotNull(schema[ITEMS] as? Map<String, Any?>).plus(
+                (schema[ANY_OF] as? List<*>).orEmpty().filterIsInstance<Map<String, Any?>>(),
+            ).forEach { addAll(refsOf(it)) }
         }
 
         /** The inline schema of a reference to the schema [key] of `$defs`. */
@@ -112,13 +112,26 @@ class Manifest @InternalWowApi constructor(
 
         /** The inline schema of an array of [items], of distinct values when [unique]. */
         fun arraySchema(items: Map<String, Any?>, unique: Boolean = false): Map<String, Any?> = buildMap {
-            put("type", "array")
+            put(TYPE, "array")
             put(ITEMS, items)
             if (unique) put("uniqueItems", true)
         }
 
+        /**
+         * The inline schema of a value of [schema] or `null`, as the completed schemas write a nullable value: `null`
+         * among its types, or, for a schema of no type such as a reference, a `null` alternative beside it.
+         */
+        fun nullableSchema(schema: Map<String, Any?>): Map<String, Any?> = when (val type = schema[TYPE]) {
+            is String -> schema + (TYPE to listOf(type, NULL))
+            null -> mapOf(ANY_OF to listOf(mapOf(TYPE to NULL), schema))
+            else -> schema
+        }
+
         private const val REF = "\$ref"
         private const val ITEMS = "items"
+        private const val ANY_OF = "anyOf"
+        private const val TYPE = "type"
+        private const val NULL = "null"
 
         /** The key of `$defs` [ref] points to. */
         fun schemaKey(ref: String): String {
@@ -447,66 +460,6 @@ class CommandManifest @InternalWowApi constructor(
         idProperty,
         internal,
     )
-}
-
-/**
- * A service route of a context (`@ServiceRoute`): a route whose handler is the service's own code. Its
- * [name] is its identity within the context, for compatibility and for its generated client; [route] is where the
- * edge serves it, below the context; [parameters] are its path variables and query parameters; [request] and
- * [response] are the inline JSON Schemas of its body and its answer, null when it takes none or answers
- * `204 No Content`: a reference into `$defs` (`{"$ref": "#/$defs/<key>"}`), or an array of one
- * (`{"type": "array", "items": {"$ref": ...}}`, `"uniqueItems": true` for a set). [errors] are the codes it refuses with, entries of the context's error table.
- *
- * Fields may be added: pass the constructor's arguments by name.
- */
-class ServiceRouteManifest @InternalWowApi constructor(
-    val name: String,
-    val route: RouteManifest,
-    val parameters: List<RouteParameterManifest> = emptyList(),
-    val request: Map<String, Any?>? = null,
-    val response: Map<String, Any?>? = null,
-    val errors: List<String> = emptyList(),
-    val description: String? = null,
-    val deprecated: Boolean = false,
-) {
-    override fun equals(other: Any?): Boolean =
-        this === other || other is ServiceRouteManifest && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String =
-        "ServiceRouteManifest(name=$name, route=$route, parameters=$parameters, request=$request, " +
-            "response=$response, errors=$errors, description=$description, deprecated=$deprecated)"
-
-    private fun valueFields(): List<Any?> =
-        listOf(name, route, parameters, request, response, errors, description, deprecated)
-}
-
-/**
- * A parameter of a [ServiceRouteManifest]: a variable of its path or a query parameter ([location]), its [schema] an
- * inline JSON Schema of a scalar (`{"type":"string"}`, an `enum`), and whether a call must give it ([required]; a
- * path variable always is).
- *
- * Fields may be added: pass the constructor's arguments by name.
- */
-class RouteParameterManifest @InternalWowApi constructor(
-    val name: String,
-    val location: Location,
-    val schema: Map<String, Any?>,
-    val required: Boolean = location == Location.PATH,
-) {
-    /** Where a parameter is read from. */
-    enum class Location { PATH, QUERY }
-
-    override fun equals(other: Any?): Boolean =
-        this === other || other is RouteParameterManifest && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String =
-        "RouteParameterManifest(name=$name, location=$location, schema=$schema, required=$required)"
-
-    private fun valueFields(): List<Any?> = listOf(name, location, schema, required)
 }
 
 /**
