@@ -22,11 +22,13 @@ pnpm --filter @ahoo-wang/wow-client lint
 ## Wow conformance
 
 **Rules.** Every rule Wow enforces on a query by throwing is accounted for in
-`test/dsl/wowConformance.test.ts`. Each entry names the rule verbatim, cites
+the register of `test/dsl/conformance/`, by subject (`filterRules.ts`,
+`aggregationRules.ts`, `pagingRules.ts`, `serverRules.ts`), which
+`test/dsl/wowConformance.test.ts` checks. Each entry names the rule verbatim, cites
 its Kotlin source, and says which of three things this package does with it:
 mirrors it (with an input that breaks it), satisfies it by the shape of the
 builders, or leaves it to the server (with the reason). Add an entry in the
-same change as any new rule.
+same change as any new rule, in the module of its subject.
 
 **Codes and descriptor.** `test/dsl/queryErrorCodes.test.ts` holds
 `QueryErrorCodes` to the Kotlin `QueryErrorCodes` of `api/query-api` name by
