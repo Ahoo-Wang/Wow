@@ -31,7 +31,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '../components/toggle-group.js';
 import { NumberInput } from '../filter/FilterValueEditor.js';
 import { cn } from 'cn';
-import { PillInput } from '../kit/variants.js';
+import { PillInput } from '../kit/pills.js';
 import { CompactSelect } from './CompactSelect.js';
 import type { ValueLabel } from '../charts/family.js';
 import { useSaidText, useViewMessages } from '../kit/MessagesProvider.js';

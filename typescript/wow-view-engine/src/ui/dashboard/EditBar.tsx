@@ -24,7 +24,7 @@ import { TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SaveAsDialog } from '../workbench/SaveAsDialog.js';
 import { SharedSaveConfirm } from '../workbench/SaveActions.js';
-import { ModeBar } from '../kit/variants.js';
+import { ModeBar } from '../kit/frames.js';
 import { RevertDialog } from '../workbench/ViewHeader.js';
 import { AddMenu, type AddCommands } from './AddMenu.js';
 import { REDO_KEYS, UNDO_KEYS, type BoardHistory } from './history.js';

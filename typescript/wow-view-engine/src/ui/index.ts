@@ -391,7 +391,7 @@ export {
   type WriteOutcomeProps,
 } from './workbench/WriteOutcome.js';
 export type { ChartImageSlot } from './charts/image.js';
-export type { ControlChromeProps } from './kit/variants.js';
+export type { ControlChromeProps } from './kit/pills.js';
 export type {
   DetachedDialog,
   DetachedPopover,

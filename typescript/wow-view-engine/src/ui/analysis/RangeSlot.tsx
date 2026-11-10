@@ -24,7 +24,8 @@ import { FilterPanel } from '../filter/FilterPanel.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent } from '../kit/popups.js';
 import { summaryText } from '../kit/summary.js';
-import { EditorSlot, WrappingBadge } from '../kit/variants.js';
+import { WrappingBadge } from '../kit/variants.js';
+import { EditorSlot } from '../kit/frames.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { TermTip } from './TermTip.js';
 

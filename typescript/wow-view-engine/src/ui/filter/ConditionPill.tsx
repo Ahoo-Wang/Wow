@@ -50,7 +50,7 @@ import {
 } from '../kit/MessagesProvider.js';
 import { FilterValueEditor } from './FilterValueEditor.js';
 import { PendingDot, PENDING_AT_CORNER } from '../kit/PendingDot.js';
-import { PillSelectTrigger } from '../kit/variants.js';
+import { PillSelectTrigger } from '../kit/pills.js';
 import { UnsupportedValue } from './inputs/unsupported.js';
 import type { GroupBlock } from './GroupBlock.js';
 import { useConditionFocus } from './conditionFocus.js';

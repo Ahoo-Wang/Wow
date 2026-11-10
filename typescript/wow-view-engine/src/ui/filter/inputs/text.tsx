@@ -12,7 +12,7 @@
  */
 
 import { useViewMessages } from '../../kit/MessagesProvider.js';
-import { PillInput } from '../../kit/variants.js';
+import { PillInput } from '../../kit/pills.js';
 import { ValueChips } from './chips.js';
 import { scalarText, type ValueProps } from './shared.js';
 

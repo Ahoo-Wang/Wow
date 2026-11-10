@@ -71,7 +71,7 @@ import { FilterValueEditor } from '../filter/FilterValueEditor.js';
 import { IconTooltip } from '../kit/IconButton.js';
 import { useSaidText, useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent, PopoverContent } from '../kit/popups.js';
-import { ControlFrame } from '../kit/variants.js';
+import { ControlFrame } from '../kit/frames.js';
 import { searchPlaceholder } from './FilterBar.js';
 import { boardOf } from './landing.js';
 import { focusableIn } from '../kit/focus.js';

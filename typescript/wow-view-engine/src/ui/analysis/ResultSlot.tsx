@@ -25,7 +25,7 @@ import { formatNumber } from '../kit/numbers.js';
 import { NumberInput } from '../filter/FilterValueEditor.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { SortSettings } from '../sort/SortSettings.js';
-import { EditorSlot } from '../kit/variants.js';
+import { EditorSlot } from '../kit/frames.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { groupReference, metricReference } from './editing.js';
 import { AddHaving, HavingRows, useHaving } from './HavingRows.js';

@@ -39,7 +39,7 @@ import { NumberInput } from '../filter/FilterValueEditor.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { TooltipContent } from '../kit/popups.js';
 import { summaryFunctionKey } from '../kit/display.js';
-import { EditorCard } from '../kit/variants.js';
+import { EditorCard } from '../kit/frames.js';
 import {
   isDuration,
   isFormula,

@@ -22,7 +22,7 @@ import { SelectContent } from '../../kit/popups.js';
 import { DELETION_STATES, isDeletionState } from '../../../filter/index.js';
 import { deletionLabel } from '../../kit/summary.js';
 import { useSay, useViewMessages } from '../../kit/MessagesProvider.js';
-import { PillSelectTrigger } from '../../kit/variants.js';
+import { PillSelectTrigger } from '../../kit/pills.js';
 import { ChoiceValue, scalarText, type ValueProps } from './shared.js';
 
 /**

@@ -42,7 +42,7 @@ import {
 } from '../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../kit/ViewSurface.js';
 import { cn } from 'cn';
-import { CARD_LIFT, FOCUS_CARD } from '../kit/variants.js';
+import { CARD_LIFT, FOCUS_CARD } from '../kit/frames.js';
 
 export interface RecordCardProps {
   /** The controller whose card layout, picking and range hint it draws. */

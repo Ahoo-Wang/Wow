@@ -22,7 +22,8 @@ import { NumberInput } from '../filter/FilterValueEditor.js';
 import { IconButton } from '../kit/IconButton.js';
 import { TEXT_UI } from '../kit/layout.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
-import { AddButton, EditorCard } from '../kit/variants.js';
+import { AddButton } from '../kit/variants.js';
+import { EditorCard } from '../kit/frames.js';
 import { CompactSelect } from './CompactSelect.js';
 import { groupReference, metricReference } from './editing.js';
 

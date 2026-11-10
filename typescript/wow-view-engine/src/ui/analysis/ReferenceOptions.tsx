@@ -29,7 +29,7 @@ import { NumberInput } from '../filter/FilterValueEditor.js';
 import { IconButton } from '../kit/IconButton.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { gapReason } from '../charts/markWords.js';
-import { EditorCard } from '../kit/variants.js';
+import { EditorCard } from '../kit/frames.js';
 import { CompactSelect } from './CompactSelect.js';
 import { useListFocus } from './listFocus.js';
 import {

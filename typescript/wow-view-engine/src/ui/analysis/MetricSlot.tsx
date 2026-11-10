@@ -35,7 +35,8 @@ import { sortableList, withoutOptimisticSorting } from '../kit/dragPlugins.js';
 import { GroupedMenu } from '../kit/FieldMenu.js';
 import { useViewMessages } from '../kit/MessagesProvider.js';
 import { DropdownMenuContent } from '../kit/popups.js';
-import { AddButton, EditorSlot } from '../kit/variants.js';
+import { AddButton } from '../kit/variants.js';
+import { EditorSlot } from '../kit/frames.js';
 import { chartDragAccessibility, listDrop } from './drag.js';
 import {
   defaultMetric,

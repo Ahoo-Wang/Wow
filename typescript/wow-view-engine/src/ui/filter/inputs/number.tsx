@@ -15,7 +15,7 @@ import { NumberField as NumberFieldPrimitive } from '@base-ui/react';
 import { isFiniteNumber } from '../../../filter/index.js';
 import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
-import { PillInput, type ControlChromeProps } from '../../kit/variants.js';
+import { PillInput, type ControlChromeProps } from '../../kit/pills.js';
 import { ValueChips } from './chips.js';
 import { RangeRow, type ValueProps } from './shared.js';
 

@@ -22,7 +22,7 @@ import {
   settleStop,
   takeStop,
 } from '../kit/roving.js';
-import { FOCUS_ROW } from '../kit/variants.js';
+import { FOCUS_ROW } from '../kit/frames.js';
 import { TEXT_UI } from '../kit/layout.js';
 import {
   CLIPPED_CELL,

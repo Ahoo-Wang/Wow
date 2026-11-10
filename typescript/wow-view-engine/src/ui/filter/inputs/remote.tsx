@@ -35,7 +35,7 @@ import {
 import { useViewMessages } from '../../kit/MessagesProvider.js';
 import { useSurfaceDisplay } from '../../kit/ViewSurface.js';
 import { ComboboxContent } from '../../kit/popups.js';
-import { PillChips } from '../../kit/variants.js';
+import { PillChips } from '../../kit/pills.js';
 import { useCandidates } from './candidates.js';
 import type { ValueProps } from './shared.js';
 import { TextValue } from './text.js';
