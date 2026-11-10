@@ -136,6 +136,28 @@ abstract class DatasetDateBucketCases internal constructor() {
     }
 
     @Test
+    fun `an hour whose local start a change skipped begins at the transition`() = blocking {
+        Assumptions.assumeFalse(SnapshotDateBucketCases.GAP_START in semanticDivergences) {
+            "Known divergence from the bucket rule: ${SnapshotDateBucketCases.GAP_START}."
+        }
+        // Africa/Monrovia skipped local 00:00 to 00:44:30 on 1972-01-07: the 00:00 hour begins at the transition.
+        zonedBuckets(AggregationDateUnit.HOUR, "Africa/Monrovia", "g1", "g2").assert()
+            .containsExactly("1972-01-06T23:44:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
+        Unit
+    }
+
+    @Test
+    fun `a minute whose local start a change skipped begins at the transition, not after its records`() = blocking {
+        Assumptions.assumeFalse(SnapshotDateBucketCases.GAP_MID_UNIT in semanticDivergences) {
+            "Known divergence from the bucket rule: ${SnapshotDateBucketCases.GAP_MID_UNIT}."
+        }
+        // 00:44:45 UTC is in the local minute 00:44, of which only 00:44:30 on happened.
+        zonedBuckets(AggregationDateUnit.MINUTE, "Africa/Monrovia", "g3", "g4").assert()
+            .containsExactly("1972-01-07T00:43:30Z" to 1L, "1972-01-07T00:44:30Z" to 1L)
+        Unit
+    }
+
+    @Test
     fun `an hourly bucket on the day of an offset change before 1970 starts at its local hour`() = blocking {
         Assumptions.assumeFalse(BEFORE_1970_PARTIAL_CHANGE in semanticDivergences) {
             "Known divergence from the bucket rule: $BEFORE_1970_PARTIAL_CHANGE."
@@ -187,6 +209,10 @@ abstract class DatasetDateBucketCases internal constructor() {
                 "m2" to "1972-01-07T00:44:20Z",
                 "m3" to "1972-01-07T00:45:10Z",
                 "m4" to "1972-01-08T00:00:10Z",
+                "g1" to "1972-01-07T00:14:30Z",
+                "g2" to "1972-01-07T00:50:00Z",
+                "g3" to "1972-01-07T00:43:50Z",
+                "g4" to "1972-01-07T00:44:45Z",
                 "p1" to "1900-12-31T15:30:00Z",
                 "p2" to "1900-12-31T15:58:00Z",
                 "p3" to "1900-12-31T16:30:00Z",

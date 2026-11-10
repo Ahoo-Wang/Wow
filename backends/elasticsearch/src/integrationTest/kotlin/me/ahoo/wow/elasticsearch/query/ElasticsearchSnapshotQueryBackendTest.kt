@@ -24,6 +24,8 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_MID_UNIT
+import me.ahoo.wow.query.tck.SnapshotDateBucketCases.Companion.GAP_START
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
@@ -60,6 +62,9 @@ class ElasticsearchSnapshotQueryBackendTest : QueryBackendSpec() {
         "array.is-not-null",
         "array.exists",
         "array.not-exists",
+        // Elasticsearch rounds the unit after a local start Africa/Monrovia's 1972 change skipped into the one before it.
+        GAP_START,
+        GAP_MID_UNIT,
     )
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.binding(type)
