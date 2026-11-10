@@ -103,6 +103,7 @@ class ManifestSchemaTest {
                             ),
                             request = Manifest.arraySchema(Manifest.refSchema("x"), unique = true),
                             response = Manifest.refSchema("x"),
+                            responseOptional = true,
                             errors = listOf("shop.summary.closed"),
                             description = "The day's summary.",
                             deprecated = true,

@@ -41,6 +41,14 @@ internal fun Changes.compareServiceRoute(path: String, baseline: ServiceRouteMan
         .forEach { breaking("$path.parameters[${parameter(it)}]", "required parameter added") }
     compareBody("$path.request", baseline.request, current.request, SchemaDirection.INPUT)
     compareBody("$path.response", baseline.response, current.response, SchemaDirection.OUTPUT)
+    // Whether the answer may be absent is an output's fact: a reader that expects a body gets none.
+    if (baseline.responseOptional != current.responseOptional) {
+        if (current.responseOptional) {
+            breaking("$path.response", "response made optional: the route may answer 204 No Content")
+        } else {
+            additive("$path.response", "response made required: the route always answers its body")
+        }
+    }
     (baseline.errors - current.errors.toSet()).forEach { additive("$path.errors", "refusal code $it no longer listed") }
     (current.errors - baseline.errors.toSet()).forEach { additive("$path.errors", "refusal code $it added") }
 }

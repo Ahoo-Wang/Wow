@@ -251,6 +251,7 @@ interface ServiceRouteManifest {
     readonly parameters?: readonly RouteParameterManifest[];
     readonly request?: unknown;
     readonly response?: unknown;
+    readonly responseOptional?: boolean;
     // (undocumented)
     readonly route: RouteManifest;
 }

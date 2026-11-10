@@ -135,11 +135,12 @@ fun ServiceRouteManifest.copyWith(
     parameters: List<RouteParameterManifest> = this.parameters,
     request: Map<String, Any?>? = this.request,
     response: Map<String, Any?>? = this.response,
+    responseOptional: Boolean = this.responseOptional,
     errors: List<String> = this.errors,
     description: String? = this.description,
     deprecated: Boolean = this.deprecated,
 ): ServiceRouteManifest =
-    ServiceRouteManifest(name, route, parameters, request, response, errors, description, deprecated)
+    ServiceRouteManifest(name, route, parameters, request, response, responseOptional, errors, description, deprecated)
 
 @InternalWowApi
 fun RouteParameterManifest.copyWith(

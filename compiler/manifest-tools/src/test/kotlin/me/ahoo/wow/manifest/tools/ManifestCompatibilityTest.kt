@@ -1092,6 +1092,18 @@ class ManifestCompatibilityTest {
     }
 
     @Test
+    fun `a response made optional should break its readers, made required should not`() {
+        val optional = route { it.copyWith(responseOptional = true) }
+        routeChanges(optional).assert().containsExactly(
+            "BREAKING contexts[shop].routes[summary].response: response made optional: the route may answer 204 No Content",
+        )
+        ManifestCompatibility.compare(optional, routeBaseline).changes.map { it.toString() }.assert().containsExactly(
+            "ADDITIVE contexts[shop].routes[summary].response: response made required: the route always answers its body",
+        )
+        ManifestCompatibility.compare(optional, optional).changes.assert().isEmpty()
+    }
+
+    @Test
     fun `a service route's parameters, bodies and refusal codes should be classified`() {
         routeChanges(
             route {

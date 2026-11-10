@@ -38,7 +38,8 @@ class RouteManifestsTest {
         route.toString().assert().isEqualTo(
             "ServiceRouteManifest(name=summary, route=RouteManifest(method=GET, path=/shop/summaries/{day}), " +
                 "parameters=[RouteParameterManifest(name=day, location=PATH, schema={type=string}, required=true)], " +
-                "request=null, response={\$ref=#/\$defs/shop.Summary}, errors=[], description=null, deprecated=false)",
+                "request=null, response={\$ref=#/\$defs/shop.Summary}, responseOptional=false, errors=[], description=null, " +
+                "deprecated=false)",
         )
     }
 

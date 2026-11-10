@@ -62,6 +62,7 @@ internal data class ServiceRouteBinding(
     val parameterSchemas: Map<String, Map<String, Any?>>,
     val request: Map<String, Any?>?,
     val response: Map<String, Any?>?,
+    val responseOptional: Boolean,
     val errors: List<String>,
     val description: String?,
     val deprecated: Boolean,
@@ -73,7 +74,7 @@ internal data class ServiceRouteBinding(
  * variables (named as in the path), `@RouteQuery` parameters, at most one [RouteCall] and, on a method with a body,
  * one body; scalars only in the path and the query; a body and an answer of a class, or a `List`, a `Set` or a
  * `Collection` of one, or a Jackson `ObjectNode` for a JSON object of any shape; never a map, a scalar, a bare
- * `JsonNode` or a stream (`Flow`, a `Publisher`); `Unit` answers 204.
+ * `JsonNode` or a stream (`Flow`, a `Publisher`); `Unit` answers 204, and a nullable answer may.
  */
 internal object ServiceRouteResolver {
     val SERVICE_ROUTE: String = ServiceRoute::class.java.name
@@ -138,9 +139,10 @@ internal object ServiceRouteResolver {
         val arguments = function.parameters.map(reading::argument)
         reading.checkBound(arguments)
         val returnType = function.returnType?.resolve()
-        // A null answer is `204 No Content`: no body, so the answer's schema is its value's alone.
-        val response = returnType?.takeUnless { it.declaration.qualifiedName?.asString() == "kotlin.Unit" }
-            ?.let { reading.schemaType(it.makeNotNullable(), "answer") }
+        // A null answer is `204 No Content`: no body, so the answer's schema is its value's alone, and a nullable
+        // answer's route may answer no body instead.
+        val answer = returnType?.takeUnless { it.declaration.qualifiedName?.asString() == "kotlin.Unit" }
+        val response = answer?.let { reading.schemaType(it.makeNotNullable(), "answer") }
         return ServiceRouteBinding(
             handler = owner?.binaryName() ?: "",
             handlerType = owner?.qualifiedName?.asString() ?: "",
@@ -152,6 +154,7 @@ internal object ServiceRouteResolver {
             parameterSchemas = reading.schemas,
             request = reading.request,
             response = response,
+            responseOptional = answer?.isMarkedNullable == true,
             errors = route.strings(ERRORS),
             description = Descriptions.of(function, reading.problems),
             deprecated = function.annotations.any {
@@ -177,6 +180,7 @@ internal object ServiceRouteResolver {
         parameterSchemas = emptyMap(),
         request = null,
         response = null,
+        responseOptional = false,
         errors = emptyList(),
         description = null,
         deprecated = false,

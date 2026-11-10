@@ -432,6 +432,7 @@ public final class me/ahoo/wow/manifest/ServiceRouteManifest {
 	public final fun getParameters ()Ljava/util/List;
 	public final fun getRequest ()Ljava/util/Map;
 	public final fun getResponse ()Ljava/util/Map;
+	public final fun getResponseOptional ()Z
 	public final fun getRoute ()Lme/ahoo/wow/manifest/RouteManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

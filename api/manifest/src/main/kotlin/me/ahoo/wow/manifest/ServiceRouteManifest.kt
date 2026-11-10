@@ -23,8 +23,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * `204 No Content`: a reference into `$defs` (`{"$ref": "#/$defs/<key>"}`), or an array of one
  * (`{"type": "array", "items": {"$ref": ...}}`, `"uniqueItems": true` for a set), a nullable one, the body or an
  * item, written with a `null` alternative ([Manifest.nullableSchema]). A null answer is `204 No Content`, no body, so
- * an answer's schema is never nullable itself. [errors] are the codes it refuses with, entries of the context's error
- * table.
+ * an answer's schema is never nullable itself: [responseOptional] says the route may answer `204 No Content` instead
+ * of its [response] (its function returns a nullable value), where a route of no [response] always answers it (its
+ * function returns `Unit`). [errors] are the codes it refuses with, entries of the context's error table.
  *
  * Fields may be added: pass the constructor's arguments by name.
  */
@@ -34,6 +35,7 @@ class ServiceRouteManifest @InternalWowApi constructor(
     val parameters: List<RouteParameterManifest> = emptyList(),
     val request: Map<String, Any?>? = null,
     val response: Map<String, Any?>? = null,
+    val responseOptional: Boolean = false,
     val errors: List<String> = emptyList(),
     val description: String? = null,
     val deprecated: Boolean = false,
@@ -45,10 +47,11 @@ class ServiceRouteManifest @InternalWowApi constructor(
 
     override fun toString(): String =
         "ServiceRouteManifest(name=$name, route=$route, parameters=$parameters, request=$request, " +
-            "response=$response, errors=$errors, description=$description, deprecated=$deprecated)"
+            "response=$response, responseOptional=$responseOptional, errors=$errors, description=$description, " +
+            "deprecated=$deprecated)"
 
     private fun valueFields(): List<Any?> =
-        listOf(name, route, parameters, request, response, errors, description, deprecated)
+        listOf(name, route, parameters, request, response, responseOptional, errors, description, deprecated)
 }
 
 /**

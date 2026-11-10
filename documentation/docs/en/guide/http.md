@@ -18,6 +18,7 @@ A service serves an HTTP API derived from its Manifest: a route per command, the
 | `GET /<context>/<aggregate>/{id}/state`, `…/state/trace` | An aggregate's state and history ([Read State](./reading-state)); of an aggregate whose id is its owner's, also `GET /<context>/<aggregate>/state` |
 | `POST /<context>/<aggregate>/snapshot/query`, `…/events/query` | The query models ([Query Snapshots](./queries), [Query Event Streams](./event-queries)) |
 | `POST /wow/dataset/<context>/<dataset>/query` | A dataset of the service |
+| `<METHOD> /<context>/<path>` | A service route (`@ServiceRoute`): its function's answer as JSON; `204 No Content` for a function that returns `Unit`, and for one that returns a nullable value when it is `null`, which the Manifest marks `responseOptional` and the OpenAPI document lists beside `200` |
 | `GET /wow/manifest`, `GET /wow/openapi` | The Manifest and the OpenAPI 3.1 document of these routes |
 
 An aggregate whose id is its owner's, such as the eShop's basket, has one per owner: its routes without an id mean the caller's own aggregate, and no route generates its id ([One aggregate per owner](./ownership#one-aggregate-per-owner)). The routes are on the public port. The internal port serves the cluster and other services, never a client. An internal command (`@InternalCommand`, [Keep a command internal](./aggregates#keep-a-command-internal)) has its routes on the internal port alone: the public port answers them as unknown paths, and its OpenAPI document and generated clients leave the command out.
