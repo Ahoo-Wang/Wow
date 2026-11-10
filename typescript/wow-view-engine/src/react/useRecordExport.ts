@@ -20,7 +20,7 @@ import {
 import { sourceIssue } from '../runtime/failure/issues.js';
 import { reportViewFailure } from '../runtime/failure/failures.js';
 import { toIssue } from '../runtime/failure/issues.js';
-import { Generations } from '../runtime/generations.js';
+import { Generations, type Ticket } from '../runtime/generations.js';
 import type { RecordTableController } from './useRecordTable.js';
 
 /** The one operation an export window runs at a time: the fetch of every row. */
@@ -170,20 +170,17 @@ export function useRecordExport(
   // The fetch in flight, so `cancel` and leaving reach it.
   const live = useRef<AbortController | null>(null);
   // Which run is the one the window is about (`Generations.latest`): a run
-  // cancelled, left behind or followed by another settles with nothing said.
+  // cancelled, left behind — the component gone, or the view it was
+  // exporting — or followed by another settles with nothing said, its fetch
+  // and its delivery alike.
   const [runs] = useState(() => new Generations<typeof RUN>());
-  // Nothing lands after the component has gone, or after the view it was
-  // exporting has been left behind.
-  const alive = useRef(true);
   const delivery = useRef(deliver);
   useEffect(() => {
     delivery.current = deliver;
   }, [deliver]);
 
   useEffect(() => {
-    alive.current = true;
     return () => {
-      alive.current = false;
       busy.current = false;
       runs.supersede(RUN);
       live.current?.abort();
@@ -204,31 +201,46 @@ export function useRecordExport(
 
   const settle = useCallback((next: ExportState): void => {
     busy.current = next.running !== null;
-    if (alive.current) setState(next);
+    setState(next);
   }, []);
+
+  /**
+   * What `ticket`'s run ends with, said only while it is the run the window
+   * is about: one cancelled while its file was being made, then followed by
+   * another, must not end the one in flight — nor let a third in beside it.
+   */
+  const settleFor = useCallback(
+    (ticket: Ticket<typeof RUN>, next: ExportState): void => {
+      if (runs.latest(ticket)) settle(next);
+    },
+    [runs, settle],
+  );
 
   /** Serialises and saves, and turns whatever that throws into one Issue. */
   const hand = useCallback(
     async (
+      ticket: Ticket<typeof RUN>,
       rows: readonly RecordData[],
       outcome: RecordExportOutcome,
       fileName: string,
     ): Promise<void> => {
       try {
         await delivery.current(rows, outcome.scope, fileName);
-        settle({ ...IDLE, outcome });
+        settleFor(ticket, { ...IDLE, outcome });
       } catch (caught) {
         // The rows were in hand; the file could not be made or handed over.
-        // A fetch that failed was told by the runtime (D40).
+        // A fetch that failed was told by the runtime (D40). The host hears
+        // of it whether or not the window still asks.
         reportViewFailure(runtime, 'export', 'deliver', caught);
-        settle({ ...IDLE, error: toIssue(caught, 'export.failed') });
+        settleFor(ticket, { ...IDLE, error: toIssue(caught, 'export.failed') });
       }
     },
-    [settle, runtime],
+    [settleFor, runtime],
   );
 
   const fetchAll = useCallback(
-    (
+    async (
+      ticket: Ticket<typeof RUN>,
       runtime: RecordViewRuntime,
       total: number | null,
       fileName: string,
@@ -238,78 +250,80 @@ export function useRecordExport(
       // A run cancelled is over for the window: what it settles with later
       // — the read its client rejects on the abort, a page that arrived
       // anyway — is not said over the idle window or a run started since.
-      return runs.run(RUN, async ticket => {
-        const current = () => runs.latest(ticket);
-        settle({
-          ...IDLE,
-          running: 'all',
-          progress: {
-            scope: 'all',
-            fetched: 0,
-            ...(total === null ? {} : { total }),
+      const current = () => runs.latest(ticket);
+      settle({
+        ...IDLE,
+        running: 'all',
+        progress: {
+          scope: 'all',
+          fetched: 0,
+          ...(total === null ? {} : { total }),
+        },
+      });
+      try {
+        const result = await runtime.exportRows({
+          signal: controller.signal,
+          onProgress: (fetched, reported) => {
+            if (!current()) return;
+            setState(current => ({
+              ...current,
+              progress: {
+                scope: 'all',
+                fetched,
+                ...(reported === undefined ? {} : { total: reported }),
+              },
+            }));
           },
         });
-        try {
-          const result = await runtime.exportRows({
-            signal: controller.signal,
-            onProgress: (fetched, reported) => {
-              if (!alive.current || !current()) return;
-              setState(current => ({
-                ...current,
-                progress: {
-                  scope: 'all',
-                  fetched,
-                  ...(reported === undefined ? {} : { total: reported }),
-                },
-              }));
-            },
-          });
-          await hand(
-            result.rows,
-            {
-              scope: 'all',
-              rows: result.rows.length,
-              capped: result.capped,
-              ...(total === null ? {} : { total }),
-            },
-            fileName,
-          );
-        } catch (caught) {
-          if (!current()) return;
-          // A cancel is the user's own answer, not a finding: the window
-          // closes and nothing is said about it.
-          settle(
-            isExportCancelledError(caught)
-              ? IDLE
-              : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
-          );
-        } finally {
-          if (current()) live.current = null;
-        }
-      });
+        await hand(
+          ticket,
+          result.rows,
+          {
+            scope: 'all',
+            rows: result.rows.length,
+            capped: result.capped,
+            ...(total === null ? {} : { total }),
+          },
+          fileName,
+        );
+      } catch (caught) {
+        // A cancel is the user's own answer, not a finding: the window
+        // closes and nothing is said about it.
+        settleFor(
+          ticket,
+          isExportCancelledError(caught)
+            ? IDLE
+            : { ...IDLE, error: await sourceIssue(caught, 'export.failed') },
+        );
+      } finally {
+        if (current()) live.current = null;
+      }
     },
-    [hand, runs, settle],
+    [hand, runs, settle, settleFor],
   );
 
   const run = useCallback(
     (scope: RecordExportScope, fileName: string) => {
       if (!runtime || busy.current) return;
       busy.current = true;
-      if (scope === 'selected') {
+      // Every run takes its ticket, the picked rows' too: whatever it ends
+      // with is said only while it is the run the window is about.
+      void runs.run(RUN, ticket => {
+        if (scope === 'all')
+          return fetchAll(ticket, runtime, counted, fileName);
         const picked = table.selectedRows;
         // Nothing is fetched for this one — the rows are the result on
         // screen — so `running` is set only for as long as delivery takes.
         settle({ ...IDLE, running: scope });
-        void hand(
+        return hand(
+          ticket,
           picked.map(row => row.data),
           { scope, rows: picked.length, capped: false },
           fileName,
         );
-        return;
-      }
-      void fetchAll(runtime, counted, fileName);
+      });
     },
-    [counted, fetchAll, hand, runtime, settle, table.selectedRows],
+    [counted, fetchAll, hand, runs, runtime, settle, table.selectedRows],
   );
 
   const cancel = useCallback(() => {
