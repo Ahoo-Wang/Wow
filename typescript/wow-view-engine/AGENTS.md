@@ -742,7 +742,8 @@ src/
       kinds.ts                — The icon each kind and audience wears, shared by list and header; `SurfaceKind`, the one kind a surface has open, `kindWord`／`useKindWord`: a dashboard's chrome says 仪表盘 where another says 视图 (D26 Q34), and `kindIssue`／`useKindIssue`, the same for what the engine reports about the thing open, by the entry its code reads
       layout.ts               — `TEXT_UI`, `SPACE`: the one small type size and the spacing ruler; `FIXED_BOARD_WIDTH`, what a fixed-width dashboard is held to (D31)
       messages.ts             — Wording, by key
-      popups.tsx              — The popups this package renders, themed and on a layer of their own
+      popups.tsx              — The popups this package renders, each a copy of the registry's markup over `popupLayer.ts`; `useKeptFocus`, a popup that closes does not take the keyboard back
+      popupLayer.ts           — What every popup stands on: the surface's theme, type and host variables carried onto the portal (`themedClass`, `useSurfaceType`), the popup layer (`layered`, `POPUP_LAYER`), and the registry's classes copied for each popup and positioner
       roving.ts               — A group of peers as one Tab stop: who holds it, how it moves, where an arrow lands; the record header and the analysis result's rows share it
       summary.ts              — The applied-conditions bar in words: one `FilterSummaryItem` as a sentence
       toolbar.tsx             — Base UI's toolbar primitive: one tab stop with the arrow keys inside; `DetachedPopover` and `DetachedDialog`, a popover or a window whose button is in the bar and whose popup is drawn beside it
