@@ -12,15 +12,22 @@ import {
   ms,
   num,
   propsText,
+  quantile,
   readJson,
   readJsonIfThere,
   roundOrder,
   spread,
   withProps,
 } from './bench-common.mjs';
+import {
+  renderSink,
+  runSink,
+  sinkAnomalies,
+  SINK_PROGRAMS,
+} from './bench-sink.mjs';
 
 // The `measure` kind of bench.mjs's suites, run through bench.sh's `measure` command: its programs' settings, runs,
-// results, tables and anomalies. It imports bench-common.mjs only; bench.mjs imports it.
+// results, tables and anomalies. It imports bench-common.mjs and bench-sink.mjs, never bench.mjs, which imports it.
 
 // kind `measure`, measure `walk` (bench.sh measure --program=walk, AccessWalkBench): the access walk of the data set's
 // accounts of `streams` streams each under `rate` E1 deposits a second, open loop, over `warmUp` and `measure` seconds;
@@ -159,15 +166,6 @@ export function readMeasure(dir) {
     };
   }
   return { runs: manifest.runs, warmUpRuns: manifest.warmUpRuns, shapes };
-}
-
-/** The [q] quantile of [values] (nearest rank), null for none. */
-export function quantile(values, q) {
-  const finite = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (finite.length === 0) return null;
-  return finite[
-    Math.min(finite.length - 1, Math.max(0, Math.ceil(q * finite.length) - 1))
-  ];
 }
 
 /** [seconds] as a duration of seconds, minutes, hours or days. */
@@ -373,8 +371,15 @@ export function measureTables(suite) {
   return lines;
 }
 
+/** The `program` of a `measure` suite run through bench.sh's --program: its `measure` but `dataset-access`, the default. */
+export const programOf = definition =>
+  definition.measure && definition.measure !== 'dataset-access'
+    ? { program: definition.measure }
+    : {};
+
 /** The anomalies of a `measure` suite, as [anomalies] lists them. */
 export function measureAnomalies(suite) {
+  if (SINK_PROGRAMS.includes(suite.program)) return sinkAnomalies(suite);
   const rows = [];
   if (suite.kind === 'measure' && suite.program === 'walk') {
     // A run that failed, and deposits that failed: that run's numbers do not hold.
@@ -423,6 +428,8 @@ export function measureAnomalies(suite) {
 
 /** The Markdown summary of a `measure` suite, [definition] its SUITES entry, as [renderSuite] writes it. */
 export function renderMeasure(suite, definition) {
+  if (SINK_PROGRAMS.includes(suite.program))
+    return renderSink(suite, definition);
   if (suite.kind === 'measure' && suite.program === 'walk') {
     const lines = [
       `## ${labelOf(suite)}`,
@@ -470,7 +477,9 @@ export function runMeasure(
   suite,
   { benchPath, installs, out, data, cpuset, rounds, arms, save },
 ) {
-  if (definition.measure === 'walk') {
+  if (SINK_PROGRAMS.includes(definition.measure)) {
+    runSink(definition, suite, { benchPath, out, cpuset, arms, save });
+  } else if (definition.measure === 'walk') {
     for (const spec of definition.runs) {
       const runName = spec.arm.id;
       const run = { name: runName, arm: spec.arm.id, status: 'failed' };
