@@ -15,12 +15,7 @@ package me.ahoo.wow.query.resolve
 
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
-import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
-import me.ahoo.wow.api.query.AggregationGroup
-import me.ahoo.wow.api.query.AggregationGroupScope
-import me.ahoo.wow.api.query.AggregationMetric
-import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
 import me.ahoo.wow.api.query.ContainsAllFilter
@@ -66,9 +61,6 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.StartsWithFilter
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.api.query.inputExpression
-import me.ahoo.wow.query.aggregation.PreviousStep
-import me.ahoo.wow.query.aggregation.requireSupported
 import me.ahoo.wow.query.backend.cursor
 import me.ahoo.wow.query.backend.list
 import me.ahoo.wow.query.backend.paged
@@ -80,7 +72,6 @@ import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.filter.withPredicateField
 import me.ahoo.wow.query.schema.EventsQueryModelProfile
 import me.ahoo.wow.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryFieldCapabilities
 import me.ahoo.wow.query.schema.QueryFieldSchema
 import me.ahoo.wow.query.schema.QueryModelSchema
@@ -89,7 +80,6 @@ import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.absoluteLogicalField
 import me.ahoo.wow.query.schema.accepts
-import me.ahoo.wow.query.schema.firstLastOrderBy
 import me.ahoo.wow.query.schema.requireSorts
 import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.systemField
@@ -118,7 +108,7 @@ import java.util.IdentityHashMap
  * One resolver serves one admitted query; [now] is the moment every relative time of it resolves against.
  */
 internal class QueryResolver(
-    private val schema: QueryModelSchema,
+    internal val schema: QueryModelSchema,
     private val now: Instant,
     trusted: Collection<FilterExpression> = emptyList(),
 ) {
@@ -128,15 +118,15 @@ internal class QueryResolver(
         Collections.newSetFromMap(IdentityHashMap<FilterExpression, Boolean>()).apply { addAll(trusted) }
 
     /** An element scope: its canonical logical container, its physical container and the ancestors it requires. */
-    private class Scope(val logical: QueryField<*>?, val physical: QueryField<*>?, val ancestors: List<QueryField<*>>?)
+    internal class Scope(val logical: QueryField<*>?, val physical: QueryField<*>?, val ancestors: List<QueryField<*>>?)
 
     /** Where a filter node sits: its scope, whether admission appended it, and whether it is a metric filter. */
-    private class At(val scope: Scope, val trusted: Boolean = false, val metric: Boolean = false) {
+    internal class At(val scope: Scope, val trusted: Boolean = false, val metric: Boolean = false) {
         fun trusting(): At = if (trusted) this else At(scope, true, metric)
     }
 
     /** A field reference looked up once: its canonical name as written, and the model's record of it. */
-    private class Reference(
+    internal class Reference(
         val name: QueryField<*>,
         val logical: QueryField<*>,
         val definition: QueryFieldSchema,
@@ -197,33 +187,6 @@ internal class QueryResolver(
     /** A count, its filter resolved, counting at most [limit] matches (`null`: exactly). */
     fun count(query: CountQuery, limit: Int?): CountQuery = CountQuery(filter(query.filter), limit)
 
-    fun aggregate(query: AggregationQuery): AggregationQuery {
-        // What the storage cannot run at all is rejected first; the field records then assume it can.
-        requireSupported(query, schema.storage)
-        val filter = filter(query.filter, At(ROOT))
-        var scope = ROOT
-        val elements = query.elements.map { element ->
-            val reference = reference(element.path, scope, QueryCapability.ELEMENT_SCOPE)
-            val path = register(reference, scope)
-            scope = elementScope(reference, path)
-            AggregationElement(path, storedEvents(filter(element.filter, At(scope)), scope))
-        }
-        val inner = scope
-        val aggregation = query.copy(
-            filter = filter,
-            elements = elements,
-            // A ROOT group reads its field on the record the elements belong to (AggregationGroup.scope).
-            groupBy = query.groupBy.map { group(it, if (it.scope == AggregationGroupScope.ROOT) ROOT else inner) },
-            metrics = query.metrics.map { metric(it, inner) },
-        )
-        PreviousStep.of(aggregation).forEach { step ->
-            requireValid(step.shift(aggregation.filter, fields[step.field]?.temporal) != null) {
-                QueryViolation.PreviousUnshiftable(step.field)
-            }
-        }
-        return aggregation
-    }
-
     /** The canonical form of [field], which is relative to [scope]'s canonical container. */
     private fun canonical(field: QueryField<*>, scope: Scope): QueryField<*> =
         if (!schema.hasAliases) field else schema.definition.canonical(field, scope.logical)
@@ -232,7 +195,7 @@ internal class QueryResolver(
      * Looks [field] up once: canonical, known, granting the first of [capabilities] it has, and in its declared
      * element scope.
      */
-    private fun reference(field: QueryField<*>, scope: Scope, vararg capabilities: QueryCapability): Reference =
+    internal fun reference(field: QueryField<*>, scope: Scope, vararg capabilities: QueryCapability): Reference =
         reference(field, scope, capabilities.asList())
 
     private fun reference(field: QueryField<*>, scope: Scope, capabilities: List<QueryCapability>): Reference {
@@ -248,7 +211,7 @@ internal class QueryResolver(
     }
 
     /** A fresh instance of [reference]'s name, registered with its physical binding for [capability]. */
-    private fun register(
+    internal fun register(
         reference: Reference,
         scope: Scope,
         capability: QueryCapability = reference.capability,
@@ -263,7 +226,7 @@ internal class QueryResolver(
         return ResolvedField(reference.logical, reference.definition, scope.physical, capability, physical)
     }
 
-    private fun elementScope(container: Reference, path: QueryField<*>): Scope = Scope(
+    internal fun elementScope(container: Reference, path: QueryField<*>): Scope = Scope(
         container.logical,
         checkNotNull(fields[path]).physicalField,
         container.definition.elementAncestors?.plus(container.logical),
@@ -275,12 +238,12 @@ internal class QueryResolver(
     }
 
     /** A field whose values are aggregated; a protected field never is. */
-    private fun aggregated(field: QueryField<*>, scope: Scope, capabilities: List<QueryCapability>): Reference =
+    internal fun aggregated(field: QueryField<*>, scope: Scope, capabilities: List<QueryCapability>): Reference =
         reference(field, scope, capabilities).also {
             requireValid(!it.effective.protected) { QueryViolation.ProtectedAggregation(it.logical) }
         }
 
-    private fun aggregated(field: QueryField<*>, scope: Scope, capability: QueryCapability): Reference =
+    internal fun aggregated(field: QueryField<*>, scope: Scope, capability: QueryCapability): Reference =
         aggregated(field, scope, listOf(capability))
 
     /** A field whose instants are aggregated (date groups, date differences): it must store a date or an epoch. */
@@ -289,7 +252,7 @@ internal class QueryResolver(
     }
 
     @Suppress("CyclomaticComplexMethod")
-    private fun filter(expression: FilterExpression, parent: At): FilterExpression {
+    internal fun filter(expression: FilterExpression, parent: At): FilterExpression {
         val at = if (expression in trusted) parent.trusting() else parent
         return when (expression) {
             MatchAllFilter, MatchNoneFilter -> expression
@@ -375,7 +338,7 @@ internal class QueryResolver(
      * under (its aliases), and an event of a retired name never matches, since a record never shows
      * one. Any other scope keeps [predicate].
      */
-    private fun storedEvents(predicate: FilterExpression, scope: Scope): FilterExpression {
+    internal fun storedEvents(predicate: FilterExpression, scope: Scope): FilterExpression {
         val profile = schema.profile as? EventsQueryModelProfile ?: return predicate
         if (scope.logical != profile.eventsField) return predicate
         val named = storedNames(predicate, profile)
@@ -584,99 +547,11 @@ internal class QueryResolver(
     private fun QueryField<*>.independentOf(other: QueryField<*>): Boolean =
         this != other && !path.startsWith("${other.path}.") && !other.path.startsWith("$path.")
 
-    private fun group(group: AggregationGroup, scope: Scope): AggregationGroup {
-        group.inputExpression?.let { input ->
-            val resolved = expression(input, scope)
-            return when (group) {
-                is AggregationGroup.Terms -> group.copy(expression = resolved)
-                is AggregationGroup.Histogram -> group.copy(expression = resolved)
-                is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> error("No expression input.")
-            }
-        }
-        val reference = aggregated(checkNotNull(group.field), scope, group.spec.capability)
-        when (group) {
-            is AggregationGroup.Terms -> if (group.missingKey != null) {
-                requireValid(
-                    reference.effective.missingKey
-                ) { QueryViolation.MissingKeyRequiresString(reference.logical) }
-            }
-            is AggregationGroup.Histogram -> Unit
-            // The field's record lists the groups it admits; a date group also needs instants.
-            is AggregationGroup.DateHistogram, is AggregationGroup.DatePart -> requireValid(
-                group.spec in reference.effective.groups
-            ) { QueryViolation.TemporalAggregationUnsupported(reference.logical) }
-        }
-        val field = register(reference, scope)
-        return when (group) {
-            is AggregationGroup.Terms -> group.copy(field = field)
-            is AggregationGroup.Histogram -> group.copy(field = field)
-            is AggregationGroup.DateHistogram -> group.copy(field = field)
-            is AggregationGroup.DatePart -> group.copy(field = field)
-        }
-    }
-
-    /** A metric: its filter first, then its inputs. */
-    private fun metric(metric: AggregationMetric, scope: Scope): AggregationMetric {
-        val filter = if (metric.filter === MatchAllFilter) {
-            metric.filter
-        } else {
-            filter(metric.filter, At(scope, metric = true))
-        }
-        return when (metric) {
-            is AggregationMetric.Count -> metric.copy(filter = filter)
-            is AggregationMetric.Any -> {
-                val reference = aggregated(metric.field, scope, metric.spec.fieldCapabilities)
-                requireValid(metric.spec in reference.effective.metrics) { QueryViolation.AnyRequiresSingleValue }
-                metric.copy(field = register(reference, scope), filter = filter)
-            }
-            is AggregationMetric.Numeric -> metric.copy(
-                expression = expression(metric.expression, scope),
-                filter = filter
-            )
-            is AggregationMetric.Percentile ->
-                metric.copy(expression = expression(metric.expression, scope), filter = filter)
-            is AggregationMetric.DistinctCount -> metric.copy(
-                expression = when (val expression = metric.expression) {
-                    is AggregationExpression.Field -> AggregationExpression.Field(
-                        register(aggregated(expression.field, scope, metric.spec.fieldCapabilities), scope),
-                    )
-                    else -> expression(expression, scope)
-                },
-                filter = filter,
-            )
-            is AggregationMetric.First -> {
-                val (field, orderBy) = edge(metric, scope)
-                metric.copy(field = field, orderBy = orderBy, filter = filter)
-            }
-            is AggregationMetric.Last -> {
-                val (field, orderBy) = edge(metric, scope)
-                metric.copy(field = field, orderBy = orderBy, filter = filter)
-            }
-            is AggregationMetric.Derived -> metric
-        }
-    }
-
-    /** FIRST / LAST read one single value and order by one single sortable value, neither of them protected. */
-    private fun edge(metric: AggregationMetric.Edge, scope: Scope): Pair<QueryField<*>, QueryField<*>> {
-        val spec = metric.spec
-        val value = aggregated(metric.field, scope, spec.fieldCapabilities)
-        requireValid(spec in value.effective.metrics) { QueryViolation.FirstLastRequiresSingleValue(value.logical) }
-        val orderBy = aggregated(
-            schema.firstLastOrderBy(metric, scope.logical),
-            scope,
-            checkNotNull(spec.orderCapability)
-        )
-        requireValid(orderBy.effective.cardinality == QueryCardinality.SINGLE) {
-            QueryViolation.FirstLastRequiresSingleValue(orderBy.logical)
-        }
-        return register(value, scope) to register(orderBy, scope)
-    }
-
     /**
      * An aggregation expression: numeric fields and temporal date-difference operands, never protected unless
      * admission appended it ([trusted]); in a metric filter ([scalarOnly]) every field must be scalar.
      */
-    private fun expression(
+    internal fun expression(
         expression: AggregationExpression,
         scope: Scope,
         trusted: Boolean = false,
@@ -711,7 +586,7 @@ internal class QueryResolver(
         }
     }
 
-    private companion object {
+    internal companion object {
         val ROOT = Scope(null, null, emptyList())
         val normalizer = FilterNormalizer()
 
