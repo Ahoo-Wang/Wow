@@ -14,14 +14,11 @@
 package me.ahoo.wow.runtime.cluster
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -192,12 +189,24 @@ class PartitionOwnership internal constructor(
     private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconcileLock = Mutex()
 
-    /** The gates of the partitions held: only the ownership puts, removes and clears them; [renewals] reads them. */
-    private val gates = ConcurrentHashMap<Int, PartitionGate>()
+    /** The gates held: [runs] alone puts, removes and clears them; [renewals] and this ownership only read them. */
+    private val gates: Map<Int, PartitionGate>
+
+    /** Starts and stops the partitions this node holds, around their leases. */
+    private val runs: PartitionRuns
 
     /** How long a lease may go unrenewed before this node takes it as lost: the margin before the next round. */
     private val unrenewedLimit: Duration = options.leaseTtl - options.renewInterval
     private val wakeReconcile = Channel<Unit>(Channel.CONFLATED)
+
+    init {
+        val held = ConcurrentHashMap<Int, PartitionGate>()
+        gates = held
+        runs = PartitionRuns(
+            group, node, leases, options, timeSource, unrenewedLimit, held, runtimes, intake, timers, partitionChanged,
+        )
+    }
+
     private val wakeRefresh = Channel<Unit>(Channel.CONFLATED)
 
     /** The renewals and the fencing of the leases held: they read [gates] and flip a gate's own fields only. */
@@ -349,13 +358,13 @@ class PartitionOwnership internal constructor(
         val run = running
         try {
             run?.membershipJob?.cancelAndJoin()
-            quietly("leave $group") { membership.leave(group.name) }
+            quietly("leave $group", RECORD_EXPIRES) { membership.leave(group.name) }
             reconcileLock.withLock {
                 target = emptySet()
-                handOff(gates.keys.toList())
+                runs.handOff(gates.keys.toList())
             }
-            timers.forEach { quietly("stop the timers of $group") { it.stop() } }
-            started.asReversed().forEach { quietly("stop the subscriptions of $group") { it.stop() } }
+            timers.forEach { quietly("stop the timers of $group", START_UNDONE) { it.stop() } }
+            started.asReversed().forEach { quietly("stop the subscriptions of $group", START_UNDONE) { it.stop() } }
         } finally {
             running = null
             peerRoutes.forget()
@@ -371,13 +380,13 @@ class PartitionOwnership internal constructor(
         val run = running ?: return@withLock
         try {
             run.membershipJob.cancelAndJoin()
-            quietly("leave $group") { membership.leave(group.name) }
+            quietly("leave $group", RECORD_EXPIRES) { membership.leave(group.name) }
             reconcileLock.withLock {
                 target = emptySet()
-                handOff(gates.keys.toList())
+                runs.handOff(gates.keys.toList())
             }
         } finally {
-            withContext(NonCancellable) { stopReads() }
+            withContext(NonCancellable) { runs.stop() }
             running = null
             run.root.cancelAndJoin()
         }
@@ -413,11 +422,11 @@ class PartitionOwnership internal constructor(
                 // Out of the members first: the reconcile may wait on a store, an acquisition not cancellable, and
                 // until it ends the group would stay on the node's record, its share by HRW the others' to leave.
                 run.membershipJob.cancel()
-                quietly("leave $group") { membership.leave(group.name) }
+                quietly("leave $group", RECORD_EXPIRES) { membership.leave(group.name) }
                 run.membershipJob.join()
                 reconcileLock.withLock {
                     target = emptySet()
-                    handOff(gates.keys.toList())
+                    runs.handOff(gates.keys.toList())
                 }
                 true
             } == true
@@ -430,7 +439,7 @@ class PartitionOwnership internal constructor(
                     "$node did not hand off its partitions of $group within $bound after its fatal error; it renews " +
                         "none of their leases, which expire within ${options.leaseTtl} for the others to take."
                 }
-                withContext(NonCancellable) { withTimeoutOrNull(bound) { stopReads() } }
+                withContext(NonCancellable) { withTimeoutOrNull(bound) { runs.stop() } }
             }
         }
     }
@@ -444,15 +453,8 @@ class PartitionOwnership internal constructor(
         running = null
         run.root.cancelAndJoin()
         membership.abort(group.name)
-        gates.clear()
-        stopReads()
-    }
-
-    /** Stops the timers, the intake and the subscriptions, each failure logged: a stop leaves none of them running. */
-    private suspend fun stopReads() {
-        timers.forEach { quietly("stop the timers of $group") { it.stop() } }
-        quietly("stop the command intake of $group") { intake?.stop() }
-        runtimes.forEach { quietly("stop the subscriptions of $group") { it.stop() } }
+        runs.clear()
+        runs.stop()
     }
 
     /** Asks for the routes to be read again soon, such as after a forward failed. */
@@ -508,16 +510,17 @@ class PartitionOwnership internal constructor(
         }
         reconciling = timeSource.markNow()
         try {
-            dropLost()
+            renewals.loseOverdue()
+            runs.dropLost()
             // The members the membership read last: no read of its own.
             val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
             peerRoutes.membersSeen(members)
             val goal = Hrw.partitionsOf(node, members + node, partitions)
             target = goal
-            handOff(gates.keys.filter { it !in goal })
+            runs.handOff(gates.keys.filter { it !in goal })
             val missing = goal.filter { !gates.containsKey(it) }
             coroutineScope {
-                missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition, reads) } } }
+                missing.forEach { partition -> launch { acquisitions.withPermit { runs.acquire(partition, reads) } } }
             }
         } finally {
             reconciling = null
@@ -551,99 +554,16 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    /**
-     * Not cancellable: a lease acquired is either tracked by a gate or released. The partition's subscriptions read once
-     * [reads] completes, when given.
-     */
-    private suspend fun acquire(partition: Int, reads: Job?) = withContext(NonCancellable) {
-        val asked = timeSource.markNow()
-        leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
-        // Tracked from now on, so the renewals keep the lease while the partition starts; it takes no command yet.
-        val gate = PartitionGate(asked, unrenewedLimit)
-        gates[partition] = gate
-        try {
-            // Another node may have committed to the partition's aggregates since this one last cached them.
-            partitionChanged(partition)
-            runtimes.forEach { it.startPartition(partition, reads) }
-            intake?.startPartition(partition, reads)
-            timers.forEach { it.startPartition(partition) }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
-            logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
-            stopSubscriptions(partition)
-            quietly("release partition $partition") { leases.release(group.name, partition, node) }
-            gates.remove(partition, gate)
-            return@withContext
-        }
-        gate.started()
-        if (gate.lost) {
-            // Lost while it started: the next reconcile stops it, as any partition whose lease was lost.
-            logger.warn { "$node lost the lease of partition $partition of $group while starting it." }
-        } else {
-            logger.info { "$node acquired partition $partition of $group." }
-        }
-    }
-
-    /** Hands off [handed] concurrently, each in order: stop accepting, drain, save checkpoints, release. */
-    private suspend fun handOff(handed: List<Int>) = coroutineScope {
-        handed.map { partition ->
-            async {
-                val gate = gates[partition] ?: return@async
-                gate.accepting = false
-                stopTimers(partition)
-                // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
-                quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
-                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
-                    "$node handed off partition $partition of $group with commands still in flight."
-                }
-                stopSubscriptions(partition)
-                quietly("release partition $partition") { leases.release(group.name, partition, node) }
-                quietly("drop the cached states of partition $partition") { partitionChanged(partition) }
-                gates.remove(partition, gate)
-                logger.info { "$node handed off partition $partition of $group." }
-            }
-        }.awaitAll()
-    }
-
-    /** Stops the partitions whose lease expired before it was renewed; another node may own them now. */
-    private suspend fun dropLost() {
-        renewals.loseOverdue()
-        gates.filterValues { it.lost }.forEach { (partition, gate) ->
-            stopTimers(partition)
-            quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
-            stopSubscriptions(partition)
-            partitionChanged(partition)
-            gates.remove(partition, gate)
-        }
-    }
-
-    private suspend fun stopTimers(partition: Int) = timers.forEach { runner ->
-        quietly("stop the timers of partition $partition") { runner.stopPartition(partition) }
-    }
-
-    private suspend fun stopSubscriptions(partition: Int) = coroutineScope {
-        val action = "stop the subscriptions of partition $partition"
-        runtimes.forEach { launch { quietly(action) { it.stopPartition(partition) } } }
-    }
-
     private suspend fun every(interval: Duration, action: String, block: suspend () -> Unit) {
         while (true) {
             delay(interval)
-            quietly(action, block)
+            quietly(action, block = block)
         }
     }
 
-    @Suppress("TooGenericExceptionCaught") // A failed round is retried on the next one.
-    private suspend fun quietly(action: String, block: suspend () -> Unit) {
-        try {
-            block()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "$node failed to $action in $group; retrying on the next round." }
-        }
-    }
+    /** [block], [action] of this node in [group]; a failure is logged with what follows it, [then], and not thrown. */
+    private suspend fun quietly(action: String, then: String = NEXT_ROUND, block: suspend () -> Unit) =
+        runLogged(node, group, action, then, block)
 
     private class Running(val root: Job, scope: CoroutineScope) {
         val membershipJob = SupervisorJob(root)
@@ -657,6 +577,12 @@ class PartitionOwnership internal constructor(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        /** What follows a leave that failed. */
+        const val RECORD_EXPIRES = "its membership record expires on its own"
+
+        /** What follows a stop that failed while a failed start is undone. */
+        const val START_UNDONE = "the start is undone all the same"
     }
 }
 
