@@ -22,8 +22,13 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.QueryAdmission
+import me.ahoo.wow.query.backend.QueryBackendStorages
 import me.ahoo.wow.query.backend.list
+import me.ahoo.wow.query.dataset.QueryDataset
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QueryModelCompiler
+import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
@@ -68,4 +73,41 @@ class InMemoryTieBreakerTest {
         names(Sort.Direction.ASC).assert().containsExactly("b", "a", "c", "d")
         names(Sort.Direction.DESC).assert().containsExactly("c", "d", "b", "a")
     }
+
+    @Test
+    fun `a snapshot schema's key is the tenant and the identity it carries, the identity alone without a tenant`() {
+        val identity = QueryField("aggregateId")
+        boundSchemaFixture(objectFixture("aggregateId" to scalarFixture(), "tenantId" to scalarFixture())).uniqueKey()
+            .assert().containsExactly(QueryField("tenantId"), identity)
+        boundSchemaFixture(
+            objectFixture("aggregateId" to scalarFixture())
+        ).uniqueKey().assert().containsExactly(identity)
+    }
+
+    @Test
+    fun `a dataset without an identity has no unique key, and its unsorted list keeps stored order`(): Unit =
+        runBlocking {
+            val storage = InMemoryDatasetStorage()
+            val rows = listOf(
+                "c",
+                "a",
+                "b"
+            ).map { WowJson.mapper.createObjectNode().put("name", it).put("tenant", "t") }
+            val dataset = QueryDataset.of(AggregateType("memory", "anonymous")) {
+                tenant("tenant")
+                storage(storage.put("anonymous", rows))
+                field("name") { types(QueryValueType.STRING) }
+                field("tenant") { types(QueryValueType.STRING) }
+            }
+            val datasets = QueryDatasets(listOf(dataset))
+            val schema = QuerySchemaCatalog(
+                storages = QueryBackendStorages(datasetBindings = storage, datasets = datasets),
+                compiler = QueryModelCompiler.of(datasets = datasets),
+                datasets = datasets,
+            ).schema(dataset.name, QueryModel.DATASET)
+            schema.uniqueKey().assert().isEmpty()
+            val backend = checkNotNull(storage.binding(dataset)).backend
+            backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList()
+                .map { it.path("name").stringValue() }.assert().containsExactly("c", "a", "b")
+        }
 }
