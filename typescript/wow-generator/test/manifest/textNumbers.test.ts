@@ -168,6 +168,45 @@ describe('the exact numbers of a schema', () => {
     ).toEqual({ by: 'kind', cases: { a: { members: { amount: true } } } });
   });
 
+  it('refuses a recursive array or map beside discriminated objects once the type it reaches is read', () => {
+    const tagged = [
+      object({ kind: { const: 'leaf' }, amount: decimal }),
+      object({ kind: { const: 'plain' }, amount: double }),
+    ];
+    const refusal =
+      'The alternatives of Node are told apart by their `kind`, but alternative 1 has none and holds exact numbers no reader could choose by it. Give it a `kind` too, or take it out of the union.';
+    // Its items are Node, still being read when the union is.
+    expect(() =>
+      numbers({
+        Node: { anyOf: [{ type: 'array', items: ref('Node') }, ...tagged] },
+      }).marks(ref('Node'), 'Node'),
+    ).toThrow(new GeneratorError('specification', refusal));
+    expect(() =>
+      numbers({
+        Node: {
+          anyOf: [
+            { type: 'object', additionalProperties: ref('Node') },
+            ...tagged,
+          ],
+        },
+      }).marks(ref('Node'), 'Node'),
+    ).toThrow(new GeneratorError('specification', refusal));
+  });
+
+  it('generates a recursive union of plain numbers', () => {
+    const derived = numbers({
+      Node: {
+        anyOf: [
+          { type: 'array', items: ref('Node') },
+          object({ kind: { const: 'a' }, amount: double }),
+          object({ kind: { const: 'b' }, amount: { type: 'integer' } }),
+        ],
+      },
+    });
+    expect(derived.marks(ref('Node'), 'Node')).toBeUndefined();
+    expect(derived.declarations()).toEqual([]);
+  });
+
   it('keeps what an allOf says beside a recursive type it is still reading', () => {
     const derived = numbers({
       Node: object({

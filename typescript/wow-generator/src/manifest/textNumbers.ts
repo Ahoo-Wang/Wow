@@ -101,6 +101,17 @@ export class TextNumbers {
   private readonly reading = new Set<string>();
   private readonly lazy = new Map<string, TextNumbersConstant>();
   /**
+   * The alternatives set beside a union's cases, which may keep their own
+   * number only; whether they hold more is asked once every type they reach
+   * is read ({@link settle}).
+   */
+  private readonly setAside: {
+    readonly where: string;
+    readonly name: string;
+    readonly index: number;
+    readonly shape: Shape;
+  }[] = [];
+  /**
    * A recursive type with what an `allOf` says beside it, by an id of both:
    * its type's key, and its own shape. It recurs as its type does, so it is
    * declared as a constant of its own.
@@ -126,7 +137,26 @@ export class TextNumbers {
    * @throws GeneratorError of kind `specification` for a union no member tells apart
    */
   marks(schema: unknown, where: string): TextNumbersModel | undefined {
-    return this.toMarks(this.shape(schema, where));
+    const shape = this.shape(schema, where);
+    this.settle();
+    return this.toMarks(shape);
+  }
+
+  /**
+   * Refuses an alternative set beside a union's cases that holds exact numbers
+   * besides its own, which no mark could choose: asked once every type it
+   * reaches is read, since one still being read would answer that it holds none.
+   */
+  private settle(): void {
+    if (this.reading.size > 0) return;
+    for (const { where, name, index, shape } of this.setAside.splice(0)) {
+      if (this.exact(shape, new Set())) {
+        throw new GeneratorError(
+          'specification',
+          `The alternatives of ${where} are told apart by their \`${name}\`, but alternative ${index + 1} has none and holds exact numbers no reader could choose by it. Give it a \`${name}\` too, or take it out of the union.`,
+        );
+      }
+    }
   }
 
   /**
@@ -238,16 +268,15 @@ export class TextNumbers {
           if (shape !== undefined) cases[value] = shape;
           return;
         }
-        // Only its own number can go beside the cases (textNumberOr): marks
-        // inside it, of items or values, have no form to be chosen by.
-        if (
-          shape !== undefined &&
-          this.exact({ ...shape, number: undefined }, new Set())
-        ) {
-          throw new GeneratorError(
-            'specification',
-            `The alternatives of ${where} are told apart by their \`${name}\`, but alternative ${index + 1} has none and holds exact numbers no reader could choose by it. Give it a \`${name}\` too, or take it out of the union.`,
-          );
+        // Only its own number can go beside the cases (textNumberOr); what
+        // else it holds may reach a type still being read: asked later.
+        if (shape !== undefined) {
+          this.setAside.push({
+            where,
+            name,
+            index,
+            shape: { ...shape, number: undefined },
+          });
         }
         rest = this.merge(rest, shape, '');
       });
