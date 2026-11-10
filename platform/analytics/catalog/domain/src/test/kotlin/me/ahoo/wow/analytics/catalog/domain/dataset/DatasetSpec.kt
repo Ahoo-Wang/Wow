@@ -187,14 +187,14 @@ class DatasetSpec {
             expectState {
                 status.assert().isEqualTo(DatasetStatus.PUBLISHED)
                 current.assert().isEqualTo(1)
-                serving()!!.view.assert().isEqualTo("ds_shop_orders_v1")
+                serving()!!.view.assert().isEqualTo("ds_shop_orders_7458f44cdb_v1")
                 serving()!!.database.assert().isEqualTo("bi")
                 serving()!!.title.assert().isEqualTo("Orders")
                 serving()!!.columns.assert().isEqualTo(MemoryDatasetWarehouse.COLUMNS)
                 published()!!.definition.assert().isEqualTo(DEFINITION)
             }
         }
-        warehouse.created.keys.assert().containsExactly("bi.ds_shop_orders_v1")
+        warehouse.created.keys.assert().containsExactly("bi.ds_shop_orders_7458f44cdb_v1")
         // Nothing to publish: the definition compiles to what is published.
         whenCommand(PublishDataset) { expectUnchanged() }
         val fewer = DEFINITION.copy(columns = DEFINITION.columns.dropLast(1), eventTime = null)
@@ -210,14 +210,15 @@ class DatasetSpec {
                 versions.map { it.artifact.version }.assert().containsExactly(1, 2)
             }
         }
-        warehouse.created.keys.assert().containsExactly("bi.ds_shop_orders_v1", "bi.ds_shop_orders_v2")
+        warehouse.created.keys.assert()
+            .containsExactly("bi.ds_shop_orders_7458f44cdb_v1", "bi.ds_shop_orders_7458f44cdb_v2")
         // Back to version 1, its view created again if it went.
-        warehouse.created.remove("bi.ds_shop_orders_v1")
+        warehouse.created.remove("bi.ds_shop_orders_7458f44cdb_v1")
         whenCommand(RollbackDataset(1)) {
             expectEvents(DatasetRolledBack(1, from = 2))
             expectState { serving()!!.version.assert().isEqualTo(1) }
         }
-        warehouse.created.keys.assert().contains("bi.ds_shop_orders_v1")
+        warehouse.created.keys.assert().contains("bi.ds_shop_orders_7458f44cdb_v1")
         whenCommand(RollbackDataset(1)) { expectUnchanged() }
         whenCommand(RollbackDataset(3)) {
             expectRejected(SourceRejections.INVALID) { message.assert().contains("never published") }
@@ -266,10 +267,10 @@ class DatasetSpec {
         whenCommand(DropDatasetViews) { expectUnchanged() }
         givenCommands(RetireDataset)
         whenCommand(DropDatasetViews) {
-            expectEvents(DatasetViewsDropped(listOf("bi.ds_shop_orders_v1")))
+            expectEvents(DatasetViewsDropped(listOf("bi.ds_shop_orders_7458f44cdb_v1")))
             expectState { dropped.assert().isTrue() }
         }
-        warehouse.dropped.assert().containsExactly("bi.ds_shop_orders_v1")
+        warehouse.dropped.assert().containsExactly("bi.ds_shop_orders_7458f44cdb_v1")
         whenCommand(DropDatasetViews) { expectUnchanged() }
         // A dropped dataset published again gets its next version.
         whenCommand(PublishDataset) {
@@ -339,13 +340,14 @@ class DatasetSpec {
             }
             whenCommand(RecompileDataset) { expectUnchanged() }
             // The view no longer holds: refused.
-            warehouse.created.remove("bi.ds_shop_orders_v2")
+            warehouse.created.remove("bi.ds_shop_orders_7458f44cdb_v2")
             whenCommand(RecompileDataset) {
                 expectEvents(DatasetNeedsRevision(gone, serving = false))
                 expectState { serving().assert().isNull() }
             }
             // Back: the published version serves again.
-            warehouse.created["bi.ds_shop_orders_v2"] = checkNotNull(warehouse.created["bi.ds_shop_orders_v1"])
+            warehouse.created["bi.ds_shop_orders_7458f44cdb_v2"] =
+                checkNotNull(warehouse.created["bi.ds_shop_orders_7458f44cdb_v1"])
             catalog[REGIONS_ID] = SOURCES[REGIONS_ID]
             whenCommand(RecompileDataset) {
                 expectEvents(DatasetRevisionCleared(2))

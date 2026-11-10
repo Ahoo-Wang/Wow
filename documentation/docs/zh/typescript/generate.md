@@ -82,7 +82,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | `manifest.ts` | `<Context>Manifest`：上下文各命令的路由与它的服务路由，以及命令体指明了聚合的命令里承载 ID 的属性（`idProperty`），与 Manifest 列出的一致，不含 schema。命令客户端按它发送，因此不必获取 Manifest |
 | `client.ts` | `<Context>Client`：上下文的 `CommandClient`（`commands`），以及每个聚合的命令、快照、事件和状态客户端；有服务路由时还有它们（`routes`） |
 | `routes.ts` | `<Context>Routes`：上下文每个服务路由一个方法，基于 `@ahoo-wang/wow-client/routes` 的 `ServiceRoutes`；只在 Manifest 列出服务路由时写出 |
-| `types.ts` | Manifest 的 schema 中的命令、事件和状态 |
+| `types.ts` | Manifest 的 schema 中的命令、事件和状态，各以其类的简单名命名。两个类共用的名字，或生成的模块已经占用的名字（它们用到的 TypeScript 全局类型，如 `Promise`、`Record`；它们从 `@ahoo-wang/wow-client` 导入的名字，如 `CommandClient`；生成器自己声明的名字，如 `<Aggregate>Event`），会以类的包名限定：`shop.Record` 生成为 `ShopRecord` |
 | `<aggregate>/aggregate.ts` | 聚合的描述符、查询能指明的 `state.*` 字段，以及它的事件的联合类型 |
 | `<aggregate>/commandClient.ts` | `<Aggregate>CommandClient`：每条命令一个方法，每个方法有一个 `…Stream` 孪生方法，以及聚合列出的生命周期命令。内部命令（`"internal": true`，[只在内部受理的命令](../guide/aggregates#keep-a-command-internal)）没有方法，`manifest.ts` 里也没有它的条目，只有它用到的类型也不生成：公开端口不提供它 |
 | `<aggregate>/queryClient.ts` | `<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 和 `<Aggregate>StateClient` |
@@ -207,7 +207,20 @@ export type OrderAccess = NoAccess;
 export type OrderEvent = CommittedEvent<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | CommittedEvent<'eshop-ordering.order.OrderCancelled', OrderCancelled> | CommittedEvent<'eshop-ordering.order.OrderPaid', OrderPaid> | CommittedEvent<'eshop-ordering.order.OrderShipped', OrderShipped> | CommittedEvent<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | CommittedEvent<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | CommittedEvent<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;
 ```
 
-`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事。
+`@ahoo-wang/wow-client` 的 `parseJson` 和 `stringifyJson` 为你自己的请求做同样的事；手写的客户端接收同样的标记（`TextNumbers`）：`ServiceRoutes` 通过 `textNumbers: { 'context.route': { request, response } }`，数据集的行通过 `DatasetClient.dataset(context, dataset, numbers)`。标记有这些形式：
+
+| 形式 | 标记的是 | 示例 |
+| --- | --- | --- |
+| `true` | 这个值是精确数字 | `{ price: true }` |
+| 成员、`'*'` | 对象按名字的成员；`'*'` 是数组的每一项和映射的每个值 | `{ lines: { '*': { amount: true } } }` |
+| `() => marks` | 只在值到达那里时才读取的标记：递归类型的标记 | `const tree: TextNumbers = { amount: true, children: { '*': () => tree } }` |
+| `textNumberOr(marks)` | 精确数字，或以 `marks` 标记的对象或数组，取决于值是哪一种 | `decimal \| { amount: decimal }` 用 `textNumberOr({ amount: true })` |
+| `textNumbersBy(member, cases)` | 按对象成员 `member` 的字符串值选择该对象的标记 | `textNumbersBy('kind', { decimal: { amount: true } })` |
+
+有两类值读取时不带标记，其中的大数字仍会被取整：
+
+- 命令结果的 `results` 是服务自己的值，Manifest 没有给出它们的 schema：命令在其中返回的 `Long` 或 `BigDecimal` 会以 JavaScript `number` 到达。请把这样的值以字符串返回，或者从聚合的状态中读取。
+- 聚合查询的指标值：对精确字段求和或取最大值，结果超出 `number` 能表示的范围时会被取整。
 
 ## 让客户端保持同步 {#keep-the-clients-in-step}
 

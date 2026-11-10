@@ -83,6 +83,58 @@ describe('a period so far', () => {
     });
   });
 
+  // #5516: the same moment of the period before is the same wall-clock time
+  // there, at the offset that day has — not now's offset carried back over
+  // a clock change, which ended the stretch an hour early (or late).
+  it.each([
+    // Wed 03-11 10:00 PDT, the week after the clocks went forward: Monday
+    // 03-02 00:00 PST to Wednesday 03-04 10:00 PST.
+    [
+      'lastWeekToDate',
+      '2026-03-11T17:00:00.000Z',
+      '2026-03-02T08:00:00.000Z',
+      '2026-03-04T18:00:00.000Z',
+    ],
+    // 03-25 10:00 PDT: 02-01 00:00 PST to 02-25 10:00 PST.
+    [
+      'lastMonthToDate',
+      '2026-03-25T17:00:00.000Z',
+      '2026-02-01T08:00:00.000Z',
+      '2026-02-25T18:00:00.000Z',
+    ],
+    // 11-02 10:00 PST, the day after the clocks went back: 10-01 00:00 PDT
+    // to 10-02 10:00 PDT.
+    [
+      'lastMonthToDate',
+      '2026-11-02T18:00:00.000Z',
+      '2026-10-01T07:00:00.000Z',
+      '2026-10-02T17:00:00.000Z',
+    ],
+    // 04-15 10:00 PDT: 01-01 00:00 PST to 01-15 10:00 PST.
+    [
+      'lastQuarterToDate',
+      '2026-04-15T17:00:00.000Z',
+      '2026-01-01T08:00:00.000Z',
+      '2026-01-15T18:00:00.000Z',
+    ],
+    // 2026-03-08 10:00 PDT, the clocks' first day forward; a year before
+    // they went forward a day later: 2025-03-08 10:00 is still PST.
+    [
+      'lastYearToDate',
+      '2026-03-08T17:00:00.000Z',
+      '2025-01-01T08:00:00.000Z',
+      '2025-03-08T18:00:00.000Z',
+    ],
+  ] as const)(
+    'ends %s read at %s at the same wall-clock time across a clock change',
+    (preset, now, from, to) => {
+      expect(resolve(preset, new Date(now), 'America/Los_Angeles')).toEqual({
+        from,
+        to,
+      });
+    },
+  );
+
   it('reads the period in the engine’s zone', () => {
     // The same instant is still 09-21 in Los Angeles, and the month's first
     // moment there is 09-01 00:00 PDT.

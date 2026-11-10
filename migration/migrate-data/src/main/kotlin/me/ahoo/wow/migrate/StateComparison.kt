@@ -129,6 +129,8 @@ internal data class ComparisonReport(
  *   instance, and it records where it started, as the full comparison did. It compares in full instead, saying why,
  *   when the checkpoint holds no positions (an earlier version's), the fingerprint changed, more than [MAX_RECORDED]
  *   instances differed, or the 9.x store lacks the commit-time index ([CommitTimeIndexed]).
+ *   A comparison stopped half-way resumes only on the inputs it started with; one on another sample, or stopped by an
+ *   earlier version or on other inputs, starts again from the first instance, saying why ([droppedBecause]).
  *
  * The full import of the aggregate must be complete. Nothing is written but the checkpoint.
  */
@@ -157,8 +159,11 @@ internal class StateComparison(
         val log = logOf(aggregatePlan.target.context)
         val target = Target(aggregatePlan, models.of(aggregatePlan.target), Kernel(log, codec), log)
         val instances = blocking { snapshots.instances(aggregate) }
-        val saved = checkpoints.load().comparisonOf(aggregate)
-            ?.takeUnless { options.restart || it.sample != options.sample }
+        val saved = checkpoints.load().comparisonOf(aggregate)?.takeUnless { options.restart }?.let { saved ->
+            val dropped = droppedBecause(saved) ?: return@let saved
+            report("$aggregate is compared in full again from the first instance: $dropped.")
+            null
+        }
         if (saved?.completed == true) {
             againFrom(aggregate, saved)?.let { (since, recorded) ->
                 return again(target, instances, saved, since, recorded).also { report(it.render()) }
@@ -226,9 +231,7 @@ internal class StateComparison(
             since == null ->
                 "the last comparison ran with an earlier version, which recorded no position to compare again from"
 
-            since.fingerprint != options.fingerprint ->
-                "the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed " +
-                    "since the last comparison"
+            since.fingerprint != options.fingerprint -> "$INPUTS_CHANGED since the last comparison"
 
             recorded == null -> "more than $MAX_RECORDED instances differed, too many to record"
             unindexed(aggregate) ->
@@ -238,6 +241,23 @@ internal class StateComparison(
         }
         report("$aggregate is compared in full again: $inFull.")
         return null
+    }
+
+    /**
+     * Why the saved comparison [saved] does not stand for this one, which then starts again from the first instance;
+     * null when it does. Another sample drops it whether it completed or not. One stopped half-way stands only for the
+     * inputs it started with: an earlier version recorded none, and its fingerprint may differ. What a completed one
+     * stands for, [againFrom] says.
+     */
+    private fun droppedBecause(saved: CompareCheckpoint): String? {
+        val since = saved.since
+        return when {
+            saved.sample != options.sample -> "the sample changed from ${saved.sample}% to ${options.sample}%"
+            saved.completed -> null
+            since == null -> "it was stopped by an earlier version, which recorded no inputs"
+            since.fingerprint != options.fingerprint -> "$INPUTS_CHANGED since it stopped"
+            else -> null
+        }
     }
 
     /** Whether the 9.x store lacks the commit-time index [aggregate]'s comparison again reads what 9.x committed by. */
@@ -431,5 +451,9 @@ internal class StateComparison(
         private const val OWNER_ID = "\$ownerId"
         private const val SPACE_ID = "\$spaceId"
         const val ACCESS = "\$access"
+
+        /** What a comparison's fingerprint holds, the inputs whose change makes an earlier result not stand. */
+        private const val INPUTS_CHANGED =
+            "the map, a Manifest, the classpath (the V10 models), the sample, the time zone or the tool changed"
     }
 }

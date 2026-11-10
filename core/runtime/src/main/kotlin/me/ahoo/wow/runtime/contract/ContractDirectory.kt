@@ -58,8 +58,9 @@ import tools.jackson.databind.json.JsonMapper
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
  * - such a subscription reads events by type that the contract of that aggregate does not declare;
  * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
- *   state that is not nullable: its Manifest source does not say `nullableState`, which the compiler
- *   records for `StateEvent<S?>` and `StateEvent<*>`, and it is not among the [nullableStates] given.
+ *   state that is not nullable: its own Manifest source does not say `nullableState`, which the compiler records for
+ *   `StateEvent<S?>` and `StateEvent<*>`. Each subscription answers for itself: another context's subscription of
+ *   the same name says nothing of it.
  *
  * A command a saga refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected]) is resolved
  * ([commandTypeOf]) but not checked here: a lifecycle command is no context's, and whether a chain may
@@ -68,17 +69,7 @@ import tools.jackson.databind.json.JsonMapper
 class ContractDirectory(
     val local: Manifest,
     peers: List<ManifestFragment> = emptyList(),
-    /**
-     * The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state, besides
-     * those [local]'s Manifest marks so ([me.ahoo.wow.manifest.SubscriptionSource.nullableState]).
-     */
-    nullableStates: Set<String> = emptySet(),
 ) : SubscriptionDirectory {
-    /** Every subscription of [local] whose handler takes a nullable state: given, or as the Manifest says. */
-    val nullableStates: Set<String> = nullableStates + local.contexts.flatMap { context ->
-        context.subscriptions.filter { it.source.nullableState }.map { it.name }
-    }
-
     /** The peer contracts given, each without the contexts [local] serves, and without those left with none. */
     val peers: List<ManifestFragment> = PeerContracts.outside(local.contexts.map { it.name }, peers)
 
@@ -313,7 +304,7 @@ class ContractDirectory(
 
                 published == null -> "$where reads aggregate $source.$aggregate, which context $source does not publish"
 
-                !published.includeState && subscription.name !in nullableStates ->
+                !published.includeState && !subscription.source.nullableState ->
                     "$where reads $source.$aggregate, published without its state (${published.topic}), so its " +
                         "handler takes a nullable state: StateEvent<S?>"
 
@@ -360,13 +351,12 @@ class ContractDirectory(
             local: Manifest,
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             mapper: JsonMapper = JsonMapper.builder().build(),
-            nullableStates: Set<String> = emptySet(),
         ): ContractDirectory {
             val contracts = ClassPathContracts.load(classLoader, { contractLogger.warn { it } }) { bytes ->
                 mapper.readValue(bytes, Map::class.java)
             }
             requireHosted(local, contracts)
-            return ContractDirectory(local, contracts, nullableStates)
+            return ContractDirectory(local, contracts)
         }
 
         /**

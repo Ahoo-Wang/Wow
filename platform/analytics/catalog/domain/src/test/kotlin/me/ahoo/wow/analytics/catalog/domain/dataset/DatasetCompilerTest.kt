@@ -49,7 +49,7 @@ class DatasetCompilerTest {
     fun `a wide table should compile to one view of its version, reading merged sources through FINAL`() {
         val artifact = DatasetCompiler.compile(bound(DEFINITION), "shop", "orders", 3, title = "Orders")
         artifact.ddl.assert().isEqualTo(golden("orders"))
-        artifact.view.assert().isEqualTo("ds_shop_orders_v3")
+        artifact.view.assert().isEqualTo("ds_shop_orders_7458f44cdb_v3")
         artifact.database.assert().isEqualTo(DatasetCompiler.DEFAULT_DATABASE)
         artifact.version.assert().isEqualTo(3)
         artifact.title.assert().isEqualTo("Orders")
@@ -236,8 +236,24 @@ class DatasetCompilerTest {
     }
 
     @Test
+    fun `a view's name should be its readable id, the digest of the exact id and the version`() {
+        // The scheme, held to one value: the context and name readable, then the first 10 hex of SHA-256("shop.orders").
+        DatasetCompiler.viewOf("shop", "orders", 1).assert().isEqualTo("ds_shop_orders_7458f44cdb_v1")
+        DatasetCompiler.viewOf("shop", "orders", 2).assert().isEqualTo("ds_shop_orders_7458f44cdb_v2")
+        // Ids that read the same once made safe: by '-' or '_', by case, by where the context ends.
+        listOf(
+            listOf("shop" to "a-b", "shop" to "a_b", "shop" to "A_b"),
+            listOf("a_b" to "c", "a" to "b_c"),
+        ).forEach { same ->
+            val views = same.map { (context, name) -> DatasetCompiler.viewOf(context, name, 1) }
+            views.map { it.substringBeforeLast('_').substringBeforeLast('_') }.distinct().assert().hasSize(1)
+            views.distinct().assert().hasSize(same.size)
+        }
+    }
+
+    @Test
     fun `a view's name should be safe and its version positive`() {
-        DatasetCompiler.viewOf("shop-ops", "Orders", 12).assert().isEqualTo("ds_shop_ops_orders_v12")
+        DatasetCompiler.viewOf("shop-ops", "Orders", 12).assert().isEqualTo("ds_shop_ops_orders_da4e0c1d92_v12")
         assertThrownBy<IllegalArgumentException> { DatasetCompiler.compile(bound(DEFINITION), "shop", "orders", 0) }
         DatasetCompiler.quote("a`b\\c").assert().isEqualTo("`a\\`b\\\\c`")
         DatasetCompiler.literal("it's \\").assert().isEqualTo("'it\\'s \\\\'")

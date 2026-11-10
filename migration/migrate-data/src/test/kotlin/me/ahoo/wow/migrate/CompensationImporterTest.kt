@@ -179,8 +179,8 @@ class CompensationImporterTest {
                 "longer unresolved in 9.x",
         )
 
-        ledger.resolve(CART_SAGA, ref)
-        ledger.resolve(ORDER_CREATED, ref)
+        ledger.resolveAnywhere(CART_SAGA, ref)
+        ledger.resolveAnywhere(ORDER_CREATED, ref)
         ledger.park(ParkedAggregate.of(ORDER_CREATED, ref, 0, 2, "later", FAILED_AT))
         val result = comparison().compare()
         result.assert().isEqualTo(CompensationComparisonResult(3, 2, 1))
@@ -248,7 +248,7 @@ class CompensationImporterTest {
         val other = NineXExample.orderModel.type.ref(TENANT, "another")
         ledger.park(ParkedAggregate.of(CART_SAGA, other, 0, 1, "IllegalState: boom", FAILED_AT))
         // A resume that failed again re-parked the imported entry with its own reason.
-        ledger.repark(ParkedAggregate.of(ORDER_CREATED, ref, 0, 1, "Conflict: again", FAILED_AT))
+        ledger.repark(ledger.parked(ORDER_CREATED, ref)!!.copyWith(reason = "Conflict: again"))
 
         source.update(NineXCompensationExample.execution(2).copy(status = NineXExecutionFailed.SUCCEEDED))
         importer(ImportOptions(pageSize = 2, restart = true)).importAll().resolved.assert().isEqualTo(0)

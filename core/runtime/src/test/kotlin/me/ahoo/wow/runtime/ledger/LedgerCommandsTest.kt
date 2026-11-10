@@ -69,8 +69,8 @@ class LedgerCommandsTest {
     private val ledger: FailureLedger = ScanningLedger(InMemoryFailureLedger())
 
     private inner class ScanningLedger(private val inner: FailureLedger) : FailureLedger by inner {
-        override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? =
-            inner.resolve(subscription, ref).also { if (scanOnResolve.get()) publisher.scan() }
+        override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+            inner.resolve(subscription, ref, partition).also { if (scanOnResolve.get()) publisher.scan() }
     }
 
     private val failing = AtomicBoolean(true)

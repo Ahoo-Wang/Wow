@@ -421,7 +421,7 @@ class SubscriptionRuntime internal constructor(
      */
     suspend fun skip(subscription: String, ref: AggregateRef): Boolean {
         require(subscription in subscriptions) { "No subscription $subscription in group $group." }
-        val worker = workerOf(subscription, ref) ?: return ledger.resolve(subscription, ref) != null
+        val worker = workerOf(subscription, ref) ?: return ledger.resolveAnywhere(subscription, ref) != null
         return worker.skip(ref)
     }
 

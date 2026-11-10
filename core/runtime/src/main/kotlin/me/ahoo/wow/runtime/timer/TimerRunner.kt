@@ -23,7 +23,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
@@ -66,8 +65,9 @@ import kotlin.time.TimeSource
  * - sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
  * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
  *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
- *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
- *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [retry] or [skip];
+ *   [TimerOptions.retry]'s backoff, until its attempts are spent; its target is then recorded in the failure ledger
+ *   under [TimerOptions.PARKED_SUBSCRIPTION] and the timer PARKED, in that order, for an operator to [retry] or [skip].
+ *   A ledger that fails to record it leaves the timer PENDING, its last attempt sent again after the backoff;
  * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): backpressure, not a failure:
  *   the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
@@ -131,7 +131,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         )
-        ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
         return retried
     }
 
@@ -147,7 +147,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
         )
-        ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
         return skipped
     }
 
@@ -165,19 +165,33 @@ class TimerRunner(
     /**
      * Sends what is due by [now] (the clock's epoch milliseconds) in each partition, as fast as the partitions'
      * parallelism and rate allow; returns how long until the next loaded timer is due or may be sent, infinite when none
-     * is loaded. The rate is measured on the monotonic clock, so a clock set back or forth does not burst nor stall it.
+     * is loaded or every permit is taken (a send that ends wakes the loop). The rate is measured on the monotonic clock,
+     * so a clock set back or forth does not burst nor stall it.
+     *
+     * A timer leaves the wheel only to be sent at once: it takes a permit and its rate allowance together, so the rate
+     * paces the sends as they start. None waits for a permit holding an allowance, to start in a burst once a slow send
+     * ends.
      */
     internal fun dispatch(now: Long): Duration = parts.values.minOfOrNull { part ->
         synchronized(part) {
-            while (part.wheel.isNotEmpty() && part.wheel.first().dueAt <= now && part.mayFire()) {
-                val timer = part.wheel.pollFirst()!!
-                if (!part.sending.add(timer.id)) {
-                    continue
-                }
+            while (true) {
+                val timer = part.take(now) ?: break
+                // Never one being sent already: [load] and [offer] keep those out of the wheel.
+                part.sending += timer.id
                 part.fired()
-                part.scope.launch { part.permits.withPermit { fire(part, timer) } }
+                part.scope.launch {
+                    try {
+                        fire(part, timer)
+                    } finally {
+                        part.permits.release()
+                        loop.wakeUp()
+                    }
+                }
             }
             val first = part.wheel.firstOrNull() ?: return@synchronized Duration.INFINITE
+            if (part.permits.availablePermits == 0) {
+                return@synchronized Duration.INFINITE
+            }
             maxOf((first.dueAt - now).milliseconds, part.untilNextFire())
         }
     } ?: Duration.INFINITE
@@ -280,7 +294,8 @@ class TimerRunner(
             // Only this runner's own cancellation stops the attempt: a cancellation the sending threw itself, or an
             // Error such as a missing class or a stack overflow, is a failed attempt, retried and then parked.
             currentCoroutineContext().ensureActive()
-            failed(part, claimed, failure, now)
+            // Its backoff runs from the failure, not from the send's start: a slow failure is not sent again at once.
+            failed(part, claimed, failure, loop.clock.millis())
             return
         }
         part.busy.remove(claimed.id)
@@ -306,8 +321,8 @@ class TimerRunner(
     }
 
     /**
-     * One more failed attempt of [timer], as claimed: PENDING again, due after the backoff, or parked once its attempts
-     * are spent.
+     * One more failed attempt of [timer], as claimed, failed at [now]: PENDING again, due the backoff after [now], or
+     * parked once its attempts are spent.
      */
     private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
         val reason = "${failure.javaClass.name}: ${failure.message}"
@@ -348,27 +363,45 @@ class TimerRunner(
         logger.error(failure) {
             "Sending the timer ${timer.id} failed $attempts times; parking it under ${TimerOptions.PARKED_SUBSCRIPTION}."
         }
-        // Written at once, so the ledger records only a timer the store holds parked.
+        park(part, timer, attempts, reason, now)
+    }
+
+    /**
+     * Parks [timer], claimed, its [attempts] spent: its target is recorded in the failure ledger, then the timer is
+     * written PARKED. The ledger entry comes first, so a parked timer always has the entry an operator retries or skips
+     * it by. A parking cut short leaves at most an entry whose timers are not parked, which a retry or a skip resolves
+     * finding none; the timer, still claimed, is sent again once the claim lapses, and parked then.
+     */
+    private suspend fun park(part: Part, timer: Timer, attempts: Int, reason: String, now: Long) {
+        val entry = ParkedAggregate(
+            TimerOptions.PARKED_SUBSCRIPTION,
+            timer.target,
+            timer.partition,
+            1,
+            "${timer.id}: $reason",
+            now,
+        )
+        if (quietly("record the parked target of the timer ${timer.id}") { ledger.park(entry) } == null) {
+            // Never parked without its entry: its last attempt is sent again after the backoff, and parks then.
+            val backoff = options.retry.backoff(attempts)
+            logger.error { "The timer ${timer.id} is not parked without its ledger entry; sending it again in $backoff." }
+            settle(
+                part,
+                timer,
+                timer.copyWith(
+                    status = TimerStatus.PENDING,
+                    outcome = reason,
+                    dueAt = now + backoff.inWholeMilliseconds
+                ),
+            )
+            return
+        }
         val parked = TimerChange(
             timer,
-            timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason)
+            timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason),
         )
-        val written = quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) } == 1
+        quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) }
         part.sending.remove(timer.id)
-        if (written) {
-            quietly("park the target of the timer ${timer.id}") {
-                ledger.park(
-                    ParkedAggregate(
-                        TimerOptions.PARKED_SUBSCRIPTION,
-                        timer.target,
-                        timer.partition,
-                        1,
-                        "${timer.id}: $reason",
-                        now,
-                    ),
-                )
-            }
-        }
     }
 
     @Suppress("TooGenericExceptionCaught") // A failed write is retried by the next poll.
@@ -399,7 +432,17 @@ class TimerRunner(
         /** When the partition may send its next timer, by its rate. */
         private var next: TimeSource.Monotonic.ValueTimeMark = TimeSource.Monotonic.markNow()
 
-        fun mayFire(): Boolean = !next.hasNotPassedNow()
+        /**
+         * The first timer of the wheel, out of it with a permit taken, when it is due by [now] and the rate lets it go
+         * now; null otherwise. Called under the part's monitor.
+         */
+        fun take(now: Long): Timer? {
+            val first = wheel.firstOrNull() ?: return null
+            if (first.dueAt > now || next.hasNotPassedNow() || !permits.tryAcquire()) {
+                return null
+            }
+            return wheel.pollFirst()
+        }
 
         /** One timer sent: the next one may go [interval] after the later of now and the previous allowance. */
         fun fired() {

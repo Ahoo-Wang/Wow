@@ -9243,11 +9243,16 @@ type WritePayload = {
     action: 'create';
     input: Omit<ViewInstance, 'id' | 'revision'>;
     intent: 'first-save' | 'save-as';
+    panel?: {
+        id: string;
+        shows: string | null;
+    };
 } | {
     action: 'save';
     id: string;
     revision: string;
     config: ViewConfig;
+    addedPanel?: string;
 } | {
     action: 'rename';
     id: string;

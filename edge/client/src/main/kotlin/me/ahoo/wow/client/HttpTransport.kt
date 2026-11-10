@@ -59,6 +59,13 @@ internal class PeerRequest(
     val method: String = "POST",
 )
 
+/**
+ * The lookup of [context]'s [port] listed no node, though the resolver reaches the context: nothing was sent. Its
+ * message is the detail of the `wow.peer.unavailable` it ends as.
+ */
+internal class NoNodeListed(context: String, port: Port) :
+    IOException("The lookup of $context lists no node on its ${port.name.lowercase()} port now.")
+
 /** What a peer answered: a 2xx response's [Ok], or a [Problem]. */
 internal sealed interface Answer<out T> {
     class Ok<T>(val value: T) : Answer<T>
@@ -169,8 +176,10 @@ internal class HttpTransport(
      * ([EndpointResolver.resolveAll]) from the next one in turn, and fails over to the next target on a connection
      * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
      * most once, without spending a retry. When every target failed to connect, the resolver hears it
-     * ([EndpointResolver.unreachable]). What the last target answered is then retried while [kind] says so. A request no
-     * attempt could send is `wow.peer.unavailable`; one sent and not answered is what its [kind] says.
+     * ([EndpointResolver.unreachable]); so it does when the lookup lists no target ([NoNodeListed]). Either way the
+     * request was not sent, and is retried. What the last target answered is then retried while [kind] says so, and
+     * so is a request sent and not answered, as the problem its [kind] gives it (a command again with its request id;
+     * a saga's call never here). A request no attempt could send is `wow.peer.unavailable`.
      */
     private suspend fun <T> withRetries(
         request: PeerRequest,
@@ -182,19 +191,23 @@ internal class HttpTransport(
             val answer = try {
                 failover(request, attempt)
             } catch (failure: IOException) {
-                if (!failure.unsent()) return Answer.Problem(kind.unanswered(request, failure))
-                // A connection that was not made sent nothing: refused, or not answered in time.
-                val wait = retry.delayBefore(attempts, null)
-                    ?: return Answer.Problem(
-                        PeerProblem.of(
-                            FrameworkErrors.PEER_UNAVAILABLE,
-                            "No node of ${request.context} could be reached ($failure).",
-                            failure,
-                        ),
-                    )
-                delay(wait)
-                attempts++
-                continue
+                if (failure.unsent()) {
+                    // A connection that was not made sent nothing: refused, or not answered in time.
+                    val wait = retry.delayBefore(attempts, null)
+                        ?: return Answer.Problem(
+                            PeerProblem.of(
+                                FrameworkErrors.PEER_UNAVAILABLE,
+                                (failure as? NoNodeListed)?.message
+                                    ?: "No node of ${request.context} could be reached ($failure).",
+                                failure,
+                            ),
+                        )
+                    delay(wait)
+                    attempts++
+                    continue
+                }
+                // Sent and not answered: the problem its kind says, retried as an answered one is.
+                Answer.Problem(kind.unanswered(request, failure))
             }
             if (answer is Answer.Problem && kind.retries(answer.problem)) {
                 val wait = retry.delayBefore(attempts, answer.problem.retryAfter) ?: return answer
@@ -227,16 +240,23 @@ internal class HttpTransport(
         }
         refused?.let { return it }
         endpoints.unreachable(request.context, mode.port)
-        throw checkNotNull(unsent)
+        throw unsent ?: NoNodeListed(request.context, mode.port)
     }
 
-    /** The targets of [context], each a base URL without its trailing slash, from the next one in turn. */
+    /**
+     * The targets of [context], each a base URL without its trailing slash, from the next one in turn; none while the
+     * lookup lists no node of a context the resolver reaches, such as a service whose instances are all down for a
+     * moment. A context it does not reach has no URL at all: the code's mistake, not an outage.
+     */
     private suspend fun targetsOf(context: String): List<String> {
         val targets = endpoints.resolveAll(context, mode.port).map { it.toString().trimEnd('/') }
-        checkUse(targets.isNotEmpty()) {
-            "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
-                "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
-                "or give the client an EndpointResolver that finds it."
+        if (targets.isEmpty()) {
+            checkUse(endpoints.reaches(context, mode.port)) {
+                "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
+                    "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
+                    "or give the client an EndpointResolver that finds it."
+            }
+            return targets
         }
         if (targets.size == 1) return targets
         val first = Math.floorMod(turns.computeIfAbsent(context) { AtomicInteger() }.getAndIncrement(), targets.size)
@@ -281,9 +301,12 @@ internal class HttpTransport(
         const val ACCEPT: String = "Accept"
         private val SUCCESS = 200..299
 
-        /** Whether this failure is of a connection that was never made, so the request was not sent. */
+        /**
+         * Whether this failure left the request unsent: a connection that was never made, or a lookup that listed no
+         * node to connect to.
+         */
         internal fun IOException.unsent(): Boolean = when (this) {
-            is ConnectException, is HttpConnectTimeoutException -> true
+            is ConnectException, is HttpConnectTimeoutException, is NoNodeListed -> true
             else -> false
         }
 

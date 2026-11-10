@@ -69,7 +69,7 @@ Wow 表的保护级别在分析目录中只能收紧。当 Sink 的那一行降�
 
 ## 发布与版本 {#publish-and-version}
 
-`PublishDataset` 把定义编译成下一个版本，即数据集数据库（`wow_datasets`）中名为 `ds_<context>_<name>_v<N>` 的 ClickHouse 视图，这是分析目录运行的唯一 DDL。每个提供查询的节点都读取发布记录，每 5 秒读取变化的部分，每 5 分钟读取全部，之后就从那个版本回答 `POST /wow/dataset/<context>/<name>/query`，每个值按它的源所说的方式遮蔽。节点只有在读取了发布记录之后才就绪。
+`PublishDataset` 把定义编译成下一个版本，即数据集数据库（`wow_datasets`）中名为 `ds_<context>_<name>_<digest>_v<N>` 的 ClickHouse 视图，这是分析目录运行的唯一 DDL。context 和 name 转成小写，字母、数字和 `_` 以外的字符都写成 `_`；digest 是精确 id `<context>.<name>` 的 SHA-256 的前 10 个十六进制数字，让只在大小写、`-`、`_` 或 context 结束位置上不同的 id 各有自己的视图。某个版本的视图名应从它的发布记录读取，不要自己拼出来。每个提供查询的节点都读取发布记录，每 5 秒读取变化的部分，每 5 分钟读取全部，之后就从那个版本回答 `POST /wow/dataset/<context>/<name>/query`，每个值按它的源所说的方式遮蔽。节点只有在读取了发布记录之后才就绪。
 
 | 命令 | 作用 |
 | --- | --- |

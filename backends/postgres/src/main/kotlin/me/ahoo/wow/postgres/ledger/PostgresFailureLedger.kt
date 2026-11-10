@@ -47,10 +47,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
  * or replayed parks converge on the earliest without a transaction; a repark is one update of an
  * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
- * row, conditional on the retries, the request or the schedule read when it claims, takes or schedules. Format 3
- * creates the table with the source partition and position of the entry and the retry state among its columns;
- * nothing adds columns to an older table: one of another format, or without a format record, is refused
- * ([PostgresFormat]).
+ * row at the next revision, conditional on the revision read when it claims, takes or schedules. Format 3
+ * creates the table with the source partition and position of the entry, the retry state and the revision among its
+ * columns; a format 3 table created before the revision gets it in place, every entry at 0 ([PostgresFormat.addColumns]).
+ * A table of another format, or without a format record, is refused ([PostgresFormat]).
  * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21).
@@ -73,6 +73,15 @@ class PostgresFailureLedger(
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
                 PostgresSchema.execute(connection, tables.ddls)
             }
+            if (ddl.creates) {
+                // A table created before the revision gets it, every entry at 0.
+                PostgresFormat.addColumns(
+                    connection,
+                    tables.name,
+                    PostgresFailureLedgerTables.ADDED,
+                    tables.revisionAddition
+                )
+            }
         }
     }
 
@@ -94,13 +103,15 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun repark(entry: ParkedAggregate): Boolean = jdbc { connection ->
+    override suspend fun repark(entry: ParkedAggregate, from: Int): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.repark).use { repark ->
-            repark.setInt(1, entry.fromVersion)
-            repark.setString(2, entry.reason)
-            repark.setLong(3, entry.failedAt)
-            repark.setNullableLong(4, entry.fromPosition)
+            repark.setInt(1, entry.partition)
+            repark.setInt(2, entry.fromVersion)
+            repark.setString(3, entry.reason)
+            repark.setLong(4, entry.failedAt)
+            repark.setNullableLong(5, entry.fromPosition)
             repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
+            repark.setInt(REPARK_VALUES + KEY_COLUMNS + 1, from)
             repark.executeUpdate() > 0
         }
     }
@@ -188,12 +199,21 @@ class PostgresFailureLedger(
         }
     }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
+    override suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate? = jdbc { connection ->
         connection.prepareStatement(tables.resolve).use { delete ->
             delete.setKey(subscription, ref)
             delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
         }
     }
+
+    override suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate? =
+        jdbc { connection ->
+            connection.prepareStatement(tables.resolveIn).use { delete ->
+                delete.setKey(subscription, ref)
+                delete.setInt(KEY_COLUMNS + 1, partition)
+                delete.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+            }
+        }
 
     override suspend fun amend(
         subscription: String,
@@ -222,7 +242,7 @@ class PostgresFailureLedger(
             is ParkedAmendment.ClaimRetry -> {
                 setLong(1, amendment.at)
                 setKey(subscription, ref, first = 2)
-                setInt(KEY_COLUMNS + 2, amendment.retries)
+                setLong(KEY_COLUMNS + 2, amendment.revision)
             }
 
             is ParkedAmendment.MarkRecoverable -> {
@@ -243,13 +263,12 @@ class PostgresFailureLedger(
             is ParkedAmendment.Schedule -> {
                 setLong(1, amendment.at)
                 setKey(subscription, ref, first = 2)
-                setInt(KEY_COLUMNS + 2, amendment.retries)
-                setNullableLong(KEY_COLUMNS + 3, amendment.from)
+                setLong(KEY_COLUMNS + 2, amendment.revision)
             }
 
             is ParkedAmendment.TakeRequest -> {
                 setKey(subscription, ref)
-                setString(KEY_COLUMNS + 1, amendment.request.name)
+                setLong(KEY_COLUMNS + 1, amendment.revision)
             }
         }
     }
@@ -270,7 +289,7 @@ class PostgresFailureLedger(
         /** The service of a ledger built without one: a database of one service. */
         const val DEFAULT_SERVICE = ""
         const val KEY_COLUMNS = 6
-        const val REPARK_VALUES = 4
+        const val REPARK_VALUES = 5
         const val SPEC_COLUMNS = 3
 
         /** Binds [service]'s key of [subscription] and [ref] to the [KEY_COLUMNS] parameters from [first]. */
@@ -317,6 +336,7 @@ class PostgresFailureLedger(
             recoverable = Recoverable.valueOf(row.getString("recoverable")),
             request = row.getString("request")?.let { LedgerRequest.valueOf(it) },
             nextAttemptAt = row.nullableLong("next_attempt_at"),
+            revision = row.getLong("revision"),
         )
     }
 }

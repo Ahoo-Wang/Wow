@@ -70,8 +70,12 @@ initiate() {
   done
   echo "initiating $set"
   mongosh --quiet --port "$1" --eval "rs.initiate({_id: '$set', configsvr: $configsvr, members: [${members%,}]})" >/dev/null
-  until mongosh --quiet --port "$1" --eval 'db.hello().isWritablePrimary' 2>/dev/null | grep -q true; do sleep 1; done
-  echo "$set has a primary"
+  # The election may make any member the primary, not the one the set was initiated on: wait until one is.
+  local primary=""
+  until primary=$(mongosh --quiet --port "$1" --eval 'db.hello().primary ?? ""' 2>/dev/null) && [ -n "$primary" ]; do
+    sleep 1
+  done
+  echo "$set has a primary: $primary"
 }
 
 case $MODE in

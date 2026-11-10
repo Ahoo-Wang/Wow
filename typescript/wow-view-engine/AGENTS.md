@@ -309,6 +309,7 @@ src/
     queryWeight.ts            — `queryWeight`, `aggregationWeight`: a compiled query's filter nodes and longest value list, counted as a Wow service's query guard counts them (internal, not exported)
     exportRows.ts             — Fetching every row the conditions match, page by page, under `exportMax` and the source's paging window (`exportPlan`)
     commandChecks.ts          — `requireTitle`, `requireSavable`: what a command refuses of its own input before anything is sent (internal, not exported)
+    generations.ts            — `Generations`: the one rule for an asynchronous answer — applied only against the state it was issued for (`admit` for server knowledge, `latest` for local intent, `confirm` on a confirmed write), by issue order since the stores' revisions are opaque; bounded to the tickets in flight (internal, not exported)
     abort.ts                  — `abortWith`: the controller a source call takes, following the caller's signal (internal, not exported)
     kanban.ts                 — A kanban's execution (D83): every lane's first page and the lane aggregation in one slot (`executeKanban`), and one lane's next page put after it (`executeLanePage`, `loadLane`)
     labelIds.ts               — `labelIds`: the reference ids a result shows, by remote (D354) — a page's columns and card fields, an analysis's group keys; `idsOf`, `fieldHolders` for an export's columns and a record read whole; `filterIds` / `leavesOf`, the bare ids of reference conditions (a link's, a scope's, a board's default), asked with the page's (`askLabels`) or by a board (`wantAll`)
@@ -353,6 +354,7 @@ src/
     viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `AnalysisViewRuntime` (narrowed to by `isAnalysisRuntime`), `ManagedViewRuntime`, the state and result shapes, `SaveAsInput`; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
+    writeEffects.ts           — `applyWriteEffect`: what a confirmed write changes, on the first attempt and a retry alike — baselines, caches, a panel's view saved as its own pointed at it, a board 放进仪表盘 adopted or the panel carried onto its edited draft
     index.ts                  — Transient state: what is open, what is in flight, what came back; the runtime's public face, named export by export (D29)
     failure/                  — What goes wrong, read and told: a source's failure in its own words, the Issue of a failed query or command, the host's `onError` told once, the development console of `onIssue`, and what a config uses that its source no longer admits
       issues.ts               — `toIssue`: one Issue for whatever a command threw

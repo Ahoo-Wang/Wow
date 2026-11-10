@@ -101,7 +101,7 @@ import kotlin.coroutines.CoroutineContext
  *
  * [reservations] backs [DecideScope.reserve] and [DecideScope.release]; a pending reservation lives for
  * [KernelOptions.reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
- * surely not appended abandons only its own hold. The keys an attempt reserved pending, and those it
+ * surely not appended abandons only its own hold. The keys an attempt reserved, held already or not, and those it
  * released, go into the appended entry's transport, so the `reservation` subscription confirms and releases
  * them even when the after-append actions never run. A rejection that commits events gives its keys up as one
  * that writes nothing does: its entry carries none of them.

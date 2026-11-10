@@ -340,24 +340,23 @@ export class ViewEngine {
     // The failure is the host's to hear of through `onError`, which the
     // store's own door already told (`reportingStore`); `onIssue` is for
     // findings with nothing thrown behind them (D40).
-    const { stored, ...told } = await storedSummaries(
-      this.store,
-      definitionId,
-      id =>
-        this.resources.report(
-          issue('view.list.reserved-id', [], { id }),
-          definitionId,
-        ),
-      {
-        limit: this.limits.listedViews,
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-      },
-    );
-    const items = [...declared, ...stored];
-    this.summaries.noteAll(items);
     // Titles as they are, keys and all: whatever shows a list says them.
     // The store's failure, and where it cut the list (`cut`), as it said.
-    return { items, ...told };
+    return this.summaries.listing(definitionId, declared, () =>
+      storedSummaries(
+        this.store,
+        definitionId,
+        id =>
+          this.resources.report(
+            issue('view.list.reserved-id', [], { id }),
+            definitionId,
+          ),
+        {
+          limit: this.limits.listedViews,
+          ...(options.signal === undefined ? {} : { signal: options.signal }),
+        },
+      ),
+    );
   }
 
   /**
