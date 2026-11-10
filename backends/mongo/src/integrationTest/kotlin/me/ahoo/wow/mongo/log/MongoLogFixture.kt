@@ -49,7 +49,7 @@ object MongoLogFixture {
         aggregates.forEach { log.createCollection(it) }
     }
 
-    /** Creates [collection] the way a build without format records did: the collection alone. */
+    /** Creates [collection] without its format record: the collection alone, as Wow does not create it. */
     fun createUnrecorded(collection: String) {
         client.getDatabase(DATABASE).createCollection(collection)
     }

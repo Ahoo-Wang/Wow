@@ -46,8 +46,7 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
     }
 
     @Test
-    fun `a collection of an earlier layout or another format is refused`() {
-        // Format 1 had no record: its collection must be dropped (decision D59).
+    fun `a collection without a format record, or of another format, is refused`() {
         val unrecorded = AggregateType("reservation_unrecorded", "user")
         MongoLogFixture.createUnrecorded(MongoNames.of("wow_reservation", unrecorded.context, unrecorded.name))
         assertThrownBy<IllegalStateException> {

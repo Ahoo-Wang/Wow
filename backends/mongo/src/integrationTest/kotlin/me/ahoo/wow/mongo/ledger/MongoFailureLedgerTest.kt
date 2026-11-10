@@ -38,7 +38,7 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a ledger collection created by a build without format records is refused`() {
+    fun `a ledger collection without a format record is refused`() {
         // Finding A2-13: the old layout was accepted silently.
         MongoLogFixture.createUnrecorded("ledger_unrecorded")
         assertThrownBy<IllegalStateException> { ledger("ledger_unrecorded") }

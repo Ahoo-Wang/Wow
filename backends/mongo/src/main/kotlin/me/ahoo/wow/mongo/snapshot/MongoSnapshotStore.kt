@@ -52,6 +52,7 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -436,8 +437,7 @@ class MongoSnapshotStore(
             deleted = document.getBoolean(DELETED),
             firstEventTime = document.getLong(FIRST_EVENT_TIME),
             lastEventTime = document.getLong(LAST_EVENT_TIME),
-            // A snapshot of a version that recorded tags holds none: no attributes until it is written again.
-            access = MongoAccess.of(document.get(ACCESS, Document::class.java)).orEmpty(),
+            access = AccessValues.normalized(document.get(ACCESS, Document::class.java)),
             operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
             firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
             schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
