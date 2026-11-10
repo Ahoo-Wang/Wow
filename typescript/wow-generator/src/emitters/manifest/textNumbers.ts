@@ -17,11 +17,11 @@
  */
 
 import { basename, join } from 'node:path';
-import { relativeModuleSpecifier } from '../emit/imports';
-import type { ModuleBuilder, ModuleSet } from '../emit/moduleBuilder';
-import type { AggregateModel, ContextModel } from '../manifest/model';
-import type { TextNumbersModel } from '../manifest/textNumbers';
-import { quoteStringLiteral, resolvePropertyName } from '../naming/naming';
+import { relativeModuleSpecifier } from '../../emit/imports';
+import type { ModuleBuilder, ModuleSet } from '../../emit/moduleBuilder';
+import type { AggregateModel, ContextModel } from '../../manifest/model';
+import type { TextNumbersModel } from '../../manifest/textNumbers';
+import { quoteStringLiteral, resolvePropertyName } from '../../naming/naming';
 
 /** Where the marks of a module go: the module, the output directory, and the client's entry. */
 interface Target {
