@@ -453,12 +453,12 @@ internal class MongoNineXEventSource(private val database: MongoDatabase) : Nine
             }
 
             is Collection<*> -> NODES.arrayNode().also { node -> value.forEach { node.add(toNode(it)) } }
-            is String -> NODES.textNode(value)
+            is String -> NODES.stringNode(value)
             is Boolean -> NODES.booleanNode(value)
             is Number -> numberNode(value)
             is Date -> NODES.numberNode(value.time)
-            is ObjectId -> NODES.textNode(value.toHexString())
-            else -> NODES.textNode(value.toString())
+            is ObjectId -> NODES.stringNode(value.toHexString())
+            else -> NODES.stringNode(value.toString())
         }
 
         private fun numberNode(value: Number): JsonNode = when (value) {
