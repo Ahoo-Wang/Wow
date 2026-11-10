@@ -37,20 +37,29 @@ internal class BoundedContexts(
      * The `@BoundedContext`s of the module: name to description. In generate mode, a name that breaks the rule of a
      * context name ([ContextName]), the annotation's or the KSP option's, fails the compilation.
      */
-    val boundedContexts = sortedMapOf<String, String>()
+    private val boundedContexts = sortedMapOf<String, String>()
 
     /**
      * The declarations whose `@BoundedContext` has an argument KSP has not evaluated yet, by name: what the module
      * generates is named after its context, so nothing is generated in such a round, and one still unread when KSP
      * ends fails the compilation ([ModelSymbolProcessor.finish]).
      */
-    val unreadContexts = sortedSetOf<String>()
+    private val unreadContexts = sortedSetOf<String>()
 
     /**
      * The files of the `@BoundedContext`s read, by declaration: every output named after the context lists them among
      * its sources, so KSP processes them again whenever it regenerates such an output.
      */
-    val contextFiles = linkedMapOf<String, KSFile>()
+    private val contextFiles = linkedMapOf<String, KSFile>()
+
+    /** The module's `@BoundedContext`s read: name to description. */
+    val declared: Map<String, String> get() = boundedContexts
+
+    /** The declarations whose `@BoundedContext` has an argument KSP has not evaluated yet, by name. */
+    val unread: Set<String> get() = unreadContexts
+
+    /** The files of the `@BoundedContext`s read, in the order they were read, a file once per declaration. */
+    val files: Collection<KSFile> get() = contextFiles.values
 
     /** Whether the KSP option naming the context was checked against the rule of a context name, once per build. */
     private var optionChecked = false
@@ -59,10 +68,10 @@ internal class BoundedContexts(
     fun context(): String? = option ?: boundedContexts.keys.singleOrNull()
 
     /**
-     * Collects the module's `@BoundedContext`s, adding the files it reads to [sources]: the declarations returned are
-     * those with an argument KSP has not evaluated yet, deferred to the next round, if KSP runs one ([unreadContexts]).
+     * Collects the module's `@BoundedContext`s: the declarations returned are those with an argument KSP has not
+     * evaluated yet, deferred to the next round, if KSP runs one ([unreadContexts]).
      */
-    fun collect(resolver: Resolver, sources: MutableSet<KSFile>): List<KSClassDeclaration> {
+    fun collect(resolver: Resolver): List<KSClassDeclaration> {
         // Every file of the module, not the round's alone: an incremental round hands the processor only the files KSP
         // found dirty, and the context names what each round generates, whichever file declares it.
         val declarations = resolver.getAllFiles().flatMap { it.declarations }.flatMap { it.classes() }
@@ -78,7 +87,6 @@ internal class BoundedContexts(
             }
             unreadContexts -= name
             declaration.containingFile?.let {
-                sources += it
                 contextFiles[name] = it
             }
             read.filterNotNull().forEach { context ->

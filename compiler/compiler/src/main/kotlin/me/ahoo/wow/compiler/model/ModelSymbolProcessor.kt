@@ -187,7 +187,9 @@ internal class ModelSymbolProcessor(
         if (mode == Mode.OFF) {
             return emptyList()
         }
-        val unread = contexts.collect(resolver, sources)
+        val unread = contexts.collect(resolver)
+        // The contexts' files in the order read: sources keeps its order, so a new one lands where collecting put it.
+        sources += contexts.files
         if (unread.isNotEmpty()) {
             // Named after the module's context, nothing is generated while its name is unread: this round's symbols wait.
             return unread + ROUND_ANNOTATIONS.flatMap { resolver.getSymbolsWithAnnotation(it) }.distinct()
@@ -425,7 +427,7 @@ internal class ModelSymbolProcessor(
         codeGenerator.createNewFile(
             Dependencies(
                 aggregating = false,
-                sources = (listOfNotNull(processor.containingFile) + contexts.contextFiles.values).distinct().toTypedArray(),
+                sources = (listOfNotNull(processor.containingFile) + contexts.files).distinct().toTypedArray(),
             ),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
@@ -433,8 +435,8 @@ internal class ModelSymbolProcessor(
     }
 
     override fun finish() {
-        if (contexts.unreadContexts.isNotEmpty() || waiting.isNotEmpty()) {
-            contexts.unreadContexts.forEach {
+        if (contexts.unread.isNotEmpty() || waiting.isNotEmpty()) {
+            contexts.unread.forEach {
                 logger.error(
                     "@BoundedContext of $it: KSP evaluated no value for its name or description, so nothing of the " +
                         "module was generated; an argument must be a constant KSP can read, a literal or a const val",
@@ -467,7 +469,7 @@ internal class ModelSymbolProcessor(
         val context = contexts.context()
         if (context == null) {
             logger.warn(
-                "No Manifest fragment and no model provider: the module declares ${contexts.boundedContexts.size} " +
+                "No Manifest fragment and no model provider: the module declares ${contexts.declared.size} " +
                     "@BoundedContext; set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name " +
                     "its bounded context",
             )
@@ -482,7 +484,7 @@ internal class ModelSymbolProcessor(
             return
         }
         val module = manifest.module ?: context
-        val description = contexts.boundedContexts[context]?.ifBlank { null }
+        val description = contexts.declared[context]?.ifBlank { null }
         val fragment = ManifestFragmentBuilder.build(
             context,
             description,
@@ -528,7 +530,7 @@ internal class ModelSymbolProcessor(
         codeGenerator.createNewFile(
             Dependencies(
                 aggregating = false,
-                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contexts.contextFiles.values).distinct()
+                sources = (listOfNotNull(root.containingFile) + upgradeFiles + contexts.files).distinct()
                     .toTypedArray(),
             ),
             binding.packageName,
