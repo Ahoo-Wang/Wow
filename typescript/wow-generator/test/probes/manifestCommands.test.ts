@@ -19,9 +19,26 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateCompiling } from '../support/probes';
-import { lifecycle, manifest, schema } from '../support/manifestProbes';
+import { manifest, schema } from '../support/manifestProbes';
 
-describe('Manifest clients: commands', () => {
+/** The lifecycle commands `names` of probe.thing, as system commands with their routes. */
+function lifecycle(...names: string[]) {
+  return names.map(name => ({
+    name,
+    schema: schema(name),
+    system: true,
+    routes: [
+      name === 'wow.lifecycle.DeleteAggregate'
+        ? { method: 'DELETE', path: '/probe/thing/{id}' }
+        : {
+            method: 'POST',
+            path: `/probe/thing/{id}/${name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`,
+          },
+    ],
+  }));
+}
+
+describe('Manifest clients', () => {
   it("sends an owner-id aggregate's commands and reads its state by id and by no id, the caller's own", async () => {
     const both = (segment: string) => [
       { method: 'POST', path: `/probe/thing/{id}/${segment}` },

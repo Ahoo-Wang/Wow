@@ -22,7 +22,7 @@ import { readdirSync } from 'fs';
 import { generateCompiling } from '../support/probes';
 import { manifest, schema } from '../support/manifestProbes';
 
-describe('Manifest clients: aggregates', () => {
+describe('Manifest clients', () => {
   it('generates an aggregate with nothing but its state', async () => {
     const { read } = await generateCompiling(
       manifest({}, {}, { description: 'Probes' }),

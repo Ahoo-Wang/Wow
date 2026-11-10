@@ -28,7 +28,7 @@ import { manifest, schema } from '../support/manifestProbes';
 const directories: string[] = [];
 afterAll(() => removeDirectories(directories));
 
-describe('Manifest clients: types and names', () => {
+describe('Manifest clients', () => {
   it('types every kind of schema', async () => {
     const { read } = await generateCompiling(
       manifest(

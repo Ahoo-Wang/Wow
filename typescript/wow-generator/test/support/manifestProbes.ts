@@ -15,23 +15,6 @@
 
 export const schema = (key: string) => `#/$defs/${key}`;
 
-/** The lifecycle commands `names` of probe.thing, as system commands with their routes. */
-export function lifecycle(...names: string[]) {
-  return names.map(name => ({
-    name,
-    schema: schema(name),
-    system: true,
-    routes: [
-      name === 'wow.lifecycle.DeleteAggregate'
-        ? { method: 'DELETE', path: '/probe/thing/{id}' }
-        : {
-            method: 'POST',
-            path: `/probe/thing/{id}/${name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`,
-          },
-    ],
-  }));
-}
-
 /** A Manifest with one context and one aggregate, and what they are given. */
 export function manifest(
   aggregate: Record<string, unknown> = {},
