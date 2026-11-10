@@ -154,15 +154,6 @@ public final class me/ahoo/wow/query/aggregation/AggregationShapeKt {
 	public static final fun getDenseGroup (Lme/ahoo/wow/api/query/AggregationQuery;)Lme/ahoo/wow/api/query/AggregationGroup$DateHistogram;
 }
 
-public final class me/ahoo/wow/query/aggregation/DenseDateGrid {
-	public fun <init> (Lme/ahoo/wow/api/query/AggregationDateUnit;Ljava/time/ZoneId;)V
-	public final fun gapIndices (JJ)Ljava/util/stream/LongStream;
-	public final fun getAnchor ()Ljava/time/ZonedDateTime;
-	public final fun indexOf (J)J
-	public final fun keyOf (J)J
-	public final fun keysBetween (JJ)Ljava/util/List;
-}
-
 public final class me/ahoo/wow/query/backend/BackendPage {
 	public fun <init> (Ljava/util/List;Ljava/lang/Long;Ljava/util/List;)V
 	public synthetic fun <init> (Ljava/util/List;Ljava/lang/Long;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

@@ -24,19 +24,15 @@ import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.query.admission.AdmittedQuery
+import me.ahoo.wow.query.aggregation.DateBuckets
 import me.ahoo.wow.query.backend.GroupWindow
 import me.ahoo.wow.query.backend.orderOf
 import me.ahoo.wow.query.backend.valueKey
 import me.ahoo.wow.query.error.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
-import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
-import java.time.temporal.IsoFields
-import java.time.temporal.TemporalAdjusters
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.sqrt
@@ -53,6 +49,7 @@ internal class InMemoryAggregation(
 ) {
     private val query = admitted.query
     private val filters = InMemoryFilters(admitted, access)
+    private val buckets = HashMap<AggregationGroup.DateHistogram, DateBuckets>()
 
     fun run(records: List<ObjectNode>, window: GroupWindow): List<ObjectNode> {
         val scopes = records.map(::RecordScope).filter { filters.matches(query.filter, it) }.flatMap(::expand)
@@ -126,23 +123,9 @@ internal class InMemoryAggregation(
         }
     }
 
-    private fun bucket(epochMillis: Long, group: AggregationGroup.DateHistogram): Long {
-        val zone = ZoneId.of(group.timeZone)
-        val time = Instant.ofEpochMilli(epochMillis).atZone(zone)
-        val start: ZonedDateTime = when (group.unit) {
-            me.ahoo.wow.api.query.AggregationDateUnit.YEAR -> time.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.QUARTER -> time.with(IsoFields.DAY_OF_QUARTER, 1)
-                .truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.MONTH -> time.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.WEEK ->
-                time.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.DAY -> time.truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.HOUR -> time.truncatedTo(ChronoUnit.HOURS)
-            me.ahoo.wow.api.query.AggregationDateUnit.MINUTE -> time.truncatedTo(ChronoUnit.MINUTES)
-            me.ahoo.wow.api.query.AggregationDateUnit.SECOND -> time.truncatedTo(ChronoUnit.SECONDS)
-        }
-        return start.toInstant().toEpochMilli()
-    }
+    /** The bucket of [epochMillis] in [group], by the one rule every backend's buckets follow ([DateBuckets]). */
+    private fun bucket(epochMillis: Long, group: AggregationGroup.DateHistogram): Long =
+        buckets.getOrPut(group) { DateBuckets(group.unit, ZoneId.of(group.timeZone)) }.keyOf(epochMillis)
 
     private fun part(epochMillis: Long, part: AggregationDatePart, zone: ZoneId): Int {
         val time = Instant.ofEpochMilli(epochMillis).atZone(zone)

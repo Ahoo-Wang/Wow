@@ -144,17 +144,16 @@ class MongoAggregationCompilerTest {
     }
 
     @Test
-    fun `a dense date histogram densifies the bucket index`() {
-        val compiled = json(
+    fun `a dense date histogram is grouped as any other, the core filling its empty buckets`() {
+        fun hourly(dense: Boolean) = json(
             AggregationQuery(
                 groupBy = listOf(
-                    AggregationGroup.DateHistogram(CREATED, "hour", AggregationDateUnit.HOUR, dense = true)
+                    AggregationGroup.DateHistogram(CREATED, "hour", AggregationDateUnit.HOUR, dense = dense)
                 ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
-        compiled.assert().contains(""""${'$'}densify": {"field": "hour"""")
-        compiled.assert().contains(""""${'$'}dateFromParts"""")
+        hourly(dense = true).assert().isEqualTo(hourly(dense = false)).doesNotContain("${'$'}densify")
     }
 
     @Test

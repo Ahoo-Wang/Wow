@@ -18,8 +18,6 @@ import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BsonField
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.densify.DensifyOptions
-import com.mongodb.client.model.densify.DensifyRange
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -30,11 +28,8 @@ import me.ahoo.wow.mongo.query.MongoMatchCompiler
 import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
 import me.ahoo.wow.mongo.query.scoped
 import me.ahoo.wow.query.admission.AdmittedQuery
-import me.ahoo.wow.query.aggregation.DenseDateGrid
-import me.ahoo.wow.query.aggregation.denseGroup
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.time.ZoneId
 
 /** The physical path of [field], [checked][MongoSnapshotDocuments.checked] before it enters a pipeline. */
 internal fun AdmittedQuery<*>.path(field: QueryField<*>): String = MongoSnapshotDocuments.checked(physicalPath(field))
@@ -64,9 +59,6 @@ internal object MongoAggregationCompiler {
             }
         }
 
-        val dense = query.denseGroup
-            ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
-
         query.groupBy.forEachIndexed { index, group ->
             if (group.multiValued(admitted)) addAll((group as AggregationGroup.Terms).termsValues(admitted, index))
         }
@@ -74,7 +66,7 @@ internal object MongoAggregationCompiler {
         val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
             val id = Document()
             val filters = groups.mapIndexedNotNull { index, group ->
-                val (filter, expression) = group.compile(admitted, dense?.grid, index)
+                val (filter, expression) = group.compile(admitted, index)
                 id[group.alias] = expression
                 filter
             }
@@ -86,10 +78,7 @@ internal object MongoAggregationCompiler {
 
         edgeCandidates(query, admitted)?.let(::add)
         add(group(query, groupId, admitted, tieBreakers))
-        if (dense != null) {
-            addAll(denseStages(dense))
-        }
-        add(project(query, dense))
+        add(project(query))
         val windows = MongoWindows(query)
         addAll(windows.stages())
         query.metrics.forEach { metric ->
@@ -262,27 +251,6 @@ internal object MongoAggregationCompiler {
     } else {
         Document("\$and", listOf(this, contributes))
     }
-
-    /**
-     * The single dense date histogram of [AggregationQuery.groupBy] together with its grid: the pair exists exactly
-     * when groupBy is that one dense histogram.
-     */
-    internal class DenseHistogramFill(val group: AggregationGroup.DateHistogram, val grid: DenseDateGrid)
-
-    /**
-     * Stages that carry the grouped bucket index through numeric densification: the index moves out of `_id` onto
-     * the alias, then `$densify` fills every missing integer between the data min and max. The closing `$match`
-     * drops densify-synthetic documents whose index does not round-trip ([denseRoundTripMatch]).
-     */
-    private fun denseStages(dense: DenseHistogramFill): List<Bson> = listOf(
-        Aggregates.set(Field(dense.group.alias, "\$_id.${dense.group.alias}")),
-        Aggregates.densify(
-            dense.group.alias,
-            DensifyRange.fullRangeWithStep(1L),
-            DensifyOptions.densifyOptions(),
-        ),
-        Aggregates.match(denseRoundTripMatch(dense.group, dense.grid)),
-    )
 
     private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
         AggregationFunction.SUM -> Accumulators.sum(field, input)

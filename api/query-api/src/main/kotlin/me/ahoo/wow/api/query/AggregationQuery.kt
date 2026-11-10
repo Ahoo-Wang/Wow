@@ -279,6 +279,13 @@ sealed interface AggregationGroup {
         }
     }
 
+    /**
+     * Buckets the instant of [field] by [unit] in [timeZone]: a bucket's key is the epoch milliseconds of the instant
+     * at which the local [unit] period containing the record begins, in that period's own UTC offset (a week begins
+     * on Monday; a day, week, month, quarter or year at its first local midnight, or where a transition puts it).
+     * So a bucket never starts after its records, the hour a daylight-saving fall-back repeats is two buckets, and the
+     * hour a spring-forward skips is none.
+     */
     class DateHistogram @InternalWowApi constructor(
         override val field: QueryField<*>,
         override val alias: String,
@@ -1037,9 +1044,10 @@ sealed interface DerivedExpression {
 
     /**
      * [metric] of the group [shift] steps earlier along the `DATE_HISTOGRAM` group [along], every other group key
-     * equal: a step is one bucket of [along], or one [period] (such as `YEAR` for the same period last year). The
-     * earlier groups are read over the query's own range of [along]'s field, shifted. `null` when that group has no
-     * records.
+     * equal: a step is one bucket of [along], the bucket before in its sequence of buckets (across a daylight-saving
+     * transition too, never the bucket itself), or one [period] (such as `YEAR` for the same period last year: the
+     * bucket holding the same local time then). The earlier groups are read over the query's own range of [along]'s
+     * field, shifted alike. `null` when that group has no records.
      */
     class Previous @InternalWowApi constructor(
         override val metric: String,

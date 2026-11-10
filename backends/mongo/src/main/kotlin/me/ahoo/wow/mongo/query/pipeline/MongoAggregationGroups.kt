@@ -22,7 +22,6 @@ import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.admission.AdmittedQuery
-import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.error.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryViolation
@@ -31,7 +30,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.Date
 
 /**
  * The `$match` a record must pass to join a group of this kind (`null`: every record joins), and the group's key
@@ -40,11 +38,7 @@ import java.util.Date
  * first), a value that is not a number forms the `null` histogram bucket, and a record without an instant joins no
  * date group.
  */
-internal fun AggregationGroup.compile(
-    admitted: AdmittedQuery<*>,
-    denseGrid: DenseDateGrid?,
-    index: Int,
-): Pair<Bson?, Any> = when (this) {
+internal fun AggregationGroup.compile(admitted: AdmittedQuery<*>, index: Int): Pair<Bson?, Any> = when (this) {
     is AggregationGroup.Terms -> null to termsKey(admitted, index)
     is AggregationGroup.Histogram -> {
         val computed = expression?.let { numericParticipation(it, nullGuarded = true, admitted).first }
@@ -67,7 +61,7 @@ internal fun AggregationGroup.compile(
             ),
         )
     }
-    is AggregationGroup.DateHistogram -> dateHistogramKey(admitted, denseGrid)
+    is AggregationGroup.DateHistogram -> dateHistogramKey(admitted)
     is AggregationGroup.DatePart -> datePartKey(admitted)
 }
 
@@ -119,40 +113,19 @@ private fun AggregationGroup.Terms.termsKey(admitted: AdmittedQuery<*>, index: I
     return Document("\$ifNull", listOf(value, missingKey?.let { Document("\$literal", it) }))
 }
 
-private fun AggregationGroup.DateHistogram.dateHistogramKey(
-    admitted: AdmittedQuery<*>,
-    denseGrid: DenseDateGrid?,
-): Pair<Bson?, Any> {
+private fun AggregationGroup.DateHistogram.dateHistogramKey(admitted: AdmittedQuery<*>): Pair<Bson?, Any> {
     val input = dateInput(admitted)
     val zone = mongoTimeZone(timeZone)
-    val truncation = Document("date", input)
-        .append("unit", unit.name.lowercase())
-        .append("timezone", zone)
-        .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
-    val present = Filters.expr(Document("\$ne", listOf(input, null)))
-    if (denseGrid == null) {
-        val key = if (unit == AggregationDateUnit.HOUR) {
-            wallHourTruncation(input, zone)
-        } else {
-            Document("\$dateTrunc", truncation)
-        }
-        return present to Document("\$toLong", key)
-    }
-    // `$densify` has no timezone option, so dense histograms group by the integer bucket index from the
-    // [DenseDateGrid.anchor] and densify numerically; the index is inverted back into the display key by
-    // [denseKeyProjection].
-    return present to if (unit == AggregationDateUnit.HOUR) {
-        wallHourIndex(Date.from(denseGrid.anchor.toInstant()), wallHourTruncation(input, zone), zone)
+    val key = if (unit == AggregationDateUnit.HOUR) {
+        wallHourTruncation(input, zone)
     } else {
-        Document(
-            "\$dateDiff",
-            Document("startDate", Date.from(denseGrid.anchor.toInstant()))
-                .append("endDate", Document("\$dateTrunc", truncation))
-                .append("unit", unit.name.lowercase())
-                .append("timezone", zone)
-                .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") },
-        )
+        val truncation = Document("date", input)
+            .append("unit", unit.name.lowercase())
+            .append("timezone", zone)
+            .apply { if (unit == AggregationDateUnit.WEEK) append("startOfWeek", "Monday") }
+        Document("\$dateTrunc", truncation)
     }
+    return Filters.expr(Document("\$ne", listOf(input, null))) to Document("\$toLong", key)
 }
 
 /** The calendar part of the field's date in the group's time zone; records without a date form no group. */
@@ -187,61 +160,6 @@ private fun wallHourTruncation(input: Any, zone: String): Document = Document(
         .append("unit", "minute")
         .append("amount", Document("\$minute", Document("date", input).append("timezone", zone))),
 )
-
-/**
- * Wall-clock bucket index for dense HOUR histograms: calendar day difference times 24
- * plus the wall hour of [wallHour]. Elapsed `$dateDiff` (unit `hour`) arithmetic would
- * truncate sub-hour zone-offset shifts and drift the index onto local :30 keys — the
- * day difference is date-based and `$hour` reads the wall clock, so the composite is
- * unique per wall hour, mirroring [DenseDateGrid.indexOf].
- */
-internal fun wallHourIndex(anchor: Date, wallHour: Any, zone: String): Document = Document(
-    "\$add",
-    listOf(
-        Document(
-            "\$multiply",
-            listOf(
-                Document(
-                    "\$dateDiff",
-                    Document("startDate", anchor)
-                        .append("endDate", wallHour)
-                        .append("unit", "day")
-                        .append("timezone", zone),
-                ),
-                24,
-            ),
-        ),
-        Document("\$hour", Document("date", wallHour).append("timezone", zone)),
-    ),
-)
-
-/**
- * Inverts a dense HOUR bucket [index] back into its display key in WALL space: the index
- * splits into day/hour parts, `$dateAdd` (unit `day`) steps whole calendar days from the
- * anchor, and `$dateFromParts` rebuilds the local wall time. A wall hour skipped whole by
- * a DST gap resolves FORWARD onto the next real bucket and is dropped by the
- * [denseRoundTripMatch] stage — mirroring [DenseDateGrid]'s round-trip skip.
- */
-internal fun denseHourKey(group: AggregationGroup.DateHistogram, grid: DenseDateGrid, index: Any): Document {
-    val zone = mongoTimeZone(group.timeZone)
-    val dayIndex = Document("\$floor", Document("\$divide", listOf(index, 24)))
-    val hourOfDay = Document("\$subtract", listOf(index, Document("\$multiply", listOf(dayIndex, 24))))
-    val dayDate = Document(
-        "\$dateAdd",
-        Document("startDate", Date.from(grid.anchor.toInstant()))
-            .append("unit", "day")
-            .append("amount", dayIndex)
-            .append("timezone", zone),
-    )
-    return Document(
-        "\$dateFromParts",
-        Document("year", Document("\$year", Document("date", dayDate).append("timezone", zone)))
-            .append("month", Document("\$month", Document("date", dayDate).append("timezone", zone)))
-            .append("day", Document("\$dayOfMonth", Document("date", dayDate).append("timezone", zone)))
-            .append("hour", hourOfDay)
-            .append("timezone", zone),
-    )
-}
 
 /** The field of a temporal group as a BSON date, decoded from its declared temporal encoding. */
 private fun AggregationGroup.dateInput(admitted: AdmittedQuery<*>): Any = checkNotNull(field).dateInput(admitted)
