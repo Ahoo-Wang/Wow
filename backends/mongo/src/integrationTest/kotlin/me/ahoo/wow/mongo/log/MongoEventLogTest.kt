@@ -19,6 +19,7 @@ import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
 import com.mongodb.MongoSocketReadTimeoutException
 import com.mongodb.ReadConcern
+import com.mongodb.ReadPreference
 import com.mongodb.ServerAddress
 import com.mongodb.WriteConcern
 import com.mongodb.bulk.BulkWriteError
@@ -662,7 +663,10 @@ class MongoEventLogTest : EventLogSpec() {
         }
     }
 
-    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout or write concern. */
+    /**
+     * A database whose aggregate log collections are [Faulty], also once it is given a timeout, a write concern or a
+     * read preference (`MongoDatabases.of` gives all three).
+     */
     private class FaultyDatabase(
         private val real: MongoDatabase,
         private val insert: (Document, () -> Unit) -> Unit,
@@ -673,6 +677,9 @@ class MongoEventLogTest : EventLogSpec() {
 
         override fun withWriteConcern(writeConcern: WriteConcern): MongoDatabase =
             FaultyDatabase(real.withWriteConcern(writeConcern), insert, many)
+
+        override fun withReadPreference(readPreference: ReadPreference): MongoDatabase =
+            FaultyDatabase(real.withReadPreference(readPreference), insert, many)
 
         override fun getCollection(collectionName: String): MongoCollection<Document> {
             val collection = real.getCollection(collectionName)
