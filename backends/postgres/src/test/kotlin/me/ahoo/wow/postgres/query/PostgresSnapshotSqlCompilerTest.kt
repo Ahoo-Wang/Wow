@@ -287,9 +287,39 @@ class PostgresSnapshotSqlCompilerTest {
             "id"
         )
             .assert().startsWith("version <= ? AND ((version < ?) OR (version = ? AND ")
-        after(listOf(Sort(NAME, Sort.Direction.DESC)), "n", "t", "id").assert().startsWith("((")
+        // Descending on a field that may hold NULL, after a value: the rows that hold one, as one row comparison,
+        // which a NULL never satisfies; the NULLs are the window's second part.
+        after(listOf(Sort(NAME, Sort.Direction.DESC)), "n", "t", "id")
+            .assert().isEqualTo("($name, tenant_id, aggregate_id) < (?, ?, ?)")
+        // Mixed directions: the first key bounds the rows that hold a value; the expanded form orders the rest.
+        after(listOf(Sort(NAME, Sort.Direction.DESC), Sort(AMOUNT, Sort.Direction.ASC)), "n", BigDecimal.ONE, "t", "id")
+            .assert().startsWith("$name <= ? AND ((")
+        // After a NULL descending: only NULLs follow, no bound.
+        after(listOf(Sort(NAME, Sort.Direction.DESC)), null, "t", "id").assert().startsWith("((")
         // A NULL position ascending: what follows is a value or another NULL, no bound.
         after(listOf(Sort(NAME, Sort.Direction.ASC)), null, "t", "id").assert().startsWith("((")
+    }
+
+    @Test
+    fun `a descending window on a field that may hold NULL reads its NULLs in a second part, after a value only`() {
+        fun nulls(sort: List<Sort>, vararg values: Any?): SqlStatement? {
+            val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), schema)
+            val position = if (values.isEmpty()) null else CursorPosition(values.toList())
+            return compiler.keysetNulls(admitted, PageWindow.Keyset(position, 3), 2)
+        }
+        val name = PostgresSnapshotQueryExpressions.value(NAME, PostgresQueryType.TEXT)
+        val descending = listOf(Sort(NAME, Sort.Direction.DESC))
+        nulls(descending, "n", "t", "id").let { statement ->
+            checkNotNull(statement).sql.assert().contains("WHERE TRUE AND $name IS NULL ORDER BY")
+            statement.parameters.assert().containsExactly(SqlParameter.Int8(2))
+        }
+        nulls(listOf(Sort(NAME, Sort.Direction.DESC), Sort(AMOUNT, Sort.Direction.ASC)), "n", BigDecimal.ONE, "t", "id")
+            .assert().isNotNull()
+        // One part: the first page, a position among the NULLs, an ascending first key, a column that holds no NULL.
+        nulls(descending).assert().isNull()
+        nulls(descending, null, "t", "id").assert().isNull()
+        nulls(listOf(Sort(NAME, Sort.Direction.ASC)), "n", "t", "id").assert().isNull()
+        nulls(listOf(Sort(QueryField("version"), Sort.Direction.DESC)), BigDecimal.ONE, "t", "id").assert().isNull()
     }
 
     @Test
