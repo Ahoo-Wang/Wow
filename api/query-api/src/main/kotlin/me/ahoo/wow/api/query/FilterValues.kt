@@ -30,3 +30,30 @@ internal fun Any?.isFilterScalar(): Boolean = this == null || this is String || 
 /** Whether this is a runtime value: a non-null object that is neither a scalar nor a collection, map or array. */
 internal fun Any?.isRuntimeFilterValue(): Boolean =
     this != null && !isFilterScalar() && this !is Collection<*> && this !is Map<*, *> && !javaClass.isArray
+
+private const val EQUALITY_VALUE_MESSAGE = "EQ/NE value must be a JSON scalar, scalar array, or runtime value."
+
+internal fun Any?.requireFilterLiteral() {
+    require(isFilterScalar()) { "Filter value must be a JSON scalar." }
+}
+
+internal fun Any?.requireEqualityFilterValue() {
+    if (this is List<*>) {
+        forEach { require(it.isRuntimeFilterValue() || it.isFilterScalar()) { EQUALITY_VALUE_MESSAGE } }
+    } else {
+        require(isRuntimeFilterValue() || isFilterScalar()) { EQUALITY_VALUE_MESSAGE }
+    }
+}
+
+internal fun Any?.requireComparableFilterLiteral() {
+    if (!isRuntimeFilterValue()) requireFilterLiteral()
+    require(this != null) { "Comparison filter value cannot be null." }
+}
+
+internal fun List<Any?>.requireFilterLiterals(operator: FilterOperator) {
+    require(isNotEmpty()) { "$operator values cannot be empty." }
+    forEach {
+        if (!it.isRuntimeFilterValue()) it.requireFilterLiteral()
+        require(it != null) { "$operator values cannot contain null." }
+    }
+}
