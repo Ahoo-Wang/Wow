@@ -555,6 +555,12 @@
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "wait-for"
   }, {
+    "name" : "wow.elasticsearch.reindex-requests-per-second",
+    "type" : "java.lang.Integer",
+    "description" : "How many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : 1000
+  }, {
     "name" : "wow.executor.lane-capacity",
     "type" : "java.lang.Integer",
     "description" : "The commands one aggregate may have waiting in the executor.",

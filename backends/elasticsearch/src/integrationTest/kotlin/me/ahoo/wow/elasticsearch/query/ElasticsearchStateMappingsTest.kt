@@ -51,6 +51,7 @@ import me.ahoo.wow.query.schema.querySchema
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.io.StringReader
+import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /** How each logical value of a state schema maps, and how lists stream past one page. */
 class ElasticsearchStateMappingsTest {
@@ -143,6 +144,29 @@ class ElasticsearchStateMappingsTest {
             field("state.extra") { types(QueryValueType.BOOLEAN) }
         }
         validating.manageIndexes(type, QueryIndexPlan.of(schema(validating, wider), emptyList())).missing.assert().containsExactly("state.extra")
+    }
+
+    @Test
+    fun `the documents written before a field is mapped are indexed again by a throttled task`(): Unit = runBlocking {
+        ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names).prepare(type)
+        (1..3).forEach { store.save(snapshot("r$it", """{"name":"N$it"}""")) }
+        // At the store's rate, and with no limit at -1.
+        mapOf(50 to 50.0, -1 to -1.0).forEach { (rate, reported) ->
+            // A rewrite reads the index as last refreshed: one just ended would leave every document a version conflict.
+            ElasticsearchFixture.client.indices().refresh { it.index(index) }.get()
+            val mappings = ElasticsearchStateMappings(
+                ElasticsearchFixture.client,
+                ElasticsearchIndexMappingResolver(ElasticsearchFixture.client),
+                ElasticsearchPayload.Root(SnapshotFields.STATE),
+                rewriteRate = rate,
+            )
+            val task = mappings.rewrite(index, listOf("state.name"))
+            val done = ElasticsearchFixture.client.tasks().get { it.taskId(task).waitForCompletion(true) }.get()
+            done.completed().assert().isTrue()
+            val response = checkNotNull(done.response()).toJson().asJsonObject()
+            response.getJsonNumber("requests_per_second").doubleValue().assert().isEqualTo(reported)
+            response.getInt("updated").assert().isEqualTo(3)
+        }
     }
 
     @Test

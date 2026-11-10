@@ -154,6 +154,12 @@
     "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
     "defaultValue" : "wait-for"
   }, {
+    "name" : "wow.stores.<name>.reindex-requests-per-second",
+    "type" : "java.lang.Integer",
+    "description" : "On elasticsearch: how many documents a second the store indexes again when its queries map a field an index lacks, so that the documents written before it are found by it too; a search of the field misses them until the rewrite ends. 1000 by default (a million documents in about 17 minutes); -1 for no limit.",
+    "sourceType" : "me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider",
+    "defaultValue" : 1000
+  }, {
     "name" : "wow.stores.<name>.database",
     "type" : "java.lang.String",
     "description" : "On mongo: the database of the log and the stores on MongoDB: unset, the one spring.mongodb.uri names, else wow.",

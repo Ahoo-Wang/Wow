@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.store.facet
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 import java.util.ServiceLoader
 import java.util.concurrent.CompletableFuture
@@ -85,6 +86,25 @@ class ElasticsearchStoreProviderTest {
             .binding(
                 AggregateType("ctx", "order")
             )?.backend?.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))
+    }
+
+    @Test
+    fun `a mapping's rewrite runs at a thousand documents a second unless the store sets another rate`() {
+        val rate = ElasticsearchStoreProvider.REINDEX_REQUESTS_PER_SECOND
+        rate.key.assert().isEqualTo("reindex-requests-per-second")
+        ElasticsearchStoreProvider().options.assert().contains(rate)
+        (ElasticsearchStoreProvider().open(config()) as ElasticsearchStore).rewriteRate.assert().isEqualTo(1000)
+        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "50"))) as ElasticsearchStore)
+            .rewriteRate.assert().isEqualTo(50)
+        (ElasticsearchStoreProvider().open(config(mapOf(rate.key to "-1"))) as ElasticsearchStore)
+            .rewriteRate.assert().isEqualTo(-1)
+        listOf("0", "-2").forEach { refused ->
+            val failure = assertThrows<WowConfigurationException> {
+                ElasticsearchStoreProvider().open(config(mapOf(rate.key to refused)))
+            }
+            failure.key.assert().isEqualTo("wow.stores.search.reindex-requests-per-second")
+            failure.value.assert().isEqualTo(refused.toInt())
+        }
     }
 
     @Test

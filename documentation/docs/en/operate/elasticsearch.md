@@ -40,6 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait-for`, `immediate` or `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
+| `wow.stores.<name>.reindex-requests-per-second` | How fast an index's earlier documents are indexed again for a field mapped later ([below](#field-mapped-later)); `-1` for no limit | `1000` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The stores of an aggregate's snapshots | `wow.snapshot.stores`, else the log's store |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | The one of them its write side and state reads read; never Elasticsearch | The first of its own `snapshot.stores` when it lists them; otherwise `wow.snapshot.primary`, else the first of `wow.snapshot.stores` |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | The store its snapshot queries read | Its primary snapshot store |
@@ -52,6 +53,21 @@ Each index records its layout in its `_meta` and refuses a store that expects an
 An aggregate whose `query.snapshot.store` names the Elasticsearch store has its snapshot queries served from there, with the same [query language](../reference/query-language) and capability descriptor as any backend. With the default `refresh: wait-for`, a snapshot is searchable when its write returns. The queries of a store run under its query bulkhead: `wow.stores.<name>.query.max-concurrent`, by default a quarter of the write pool's connections per route, at least two, or the whole pool of a `query-client`. A query beyond it waits briefly, then is answered 429 `wow.query.busy`.
 
 A map in the state or in an event body (an object of any keys, such as a `Map<String, Item>` property) is mapped as one `flattened` field, so a value under one of its keys takes presence and exact-match filters only: no range, no relative time, no sort and no aggregation. The descriptor's `dynamic` patterns list exactly those operators.
+
+## A field mapped later {#field-mapped-later}
+
+The state's and the events' body fields are mapped when a query first loads the aggregate's schema (under `ddl: auto`), so a field added to a schema later is mapped on an index that already holds documents. Those documents are indexed again in the background, by an `_update_by_query` task that keeps each document as it is, so that they are found by the new field too. Until the task ends, a query that filters, sorts or groups on the new field misses the documents written before the field was mapped: its results are incomplete.
+
+The task runs at `reindex-requests-per-second` documents a second, 1,000 by default, in as many slices as the index has shards. At the default a million documents take about 17 minutes, and ten million about 3 hours. Lower it for a cluster under load; raise it, or set `-1` for no limit, when the field is needed sooner.
+
+The store logs the task's id as it starts, `Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`. It does not log the task's end, which only polling the task would tell. Follow the task, and change its rate while it runs, with Elasticsearch's own APIs:
+
+```bash
+curl "$ELASTICSEARCH_URL/_tasks/<node>:<id>"
+curl -X POST "$ELASTICSEARCH_URL/_update_by_query/<node>:<id>/_rethrottle?requests_per_second=5000"
+```
+
+`GET _tasks/<id>` answers `"completed": true` once every earlier document is indexed again.
 
 ## Event search
 

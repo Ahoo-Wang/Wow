@@ -43,9 +43,12 @@ internal class ElasticsearchEventQueries(
     private val client: ElasticsearchAsyncClient,
     private val names: ElasticsearchNames,
     private val indexDdl: Ddl = Ddl.AUTO,
+    /** How many documents a second a mapping's rewrite indexes again ([ElasticsearchStateMappings.rewrite]). */
+    rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
 ) : QueryBindings<AggregateType> {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchEventIndex.typeMapping() }
-    private val bodyMappings = ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.EventBodies)
+    private val bodyMappings =
+        ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.EventBodies, rewriteRate)
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
     override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(key, ::bind)

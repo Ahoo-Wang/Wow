@@ -40,6 +40,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`wait-for`、`immediate` 或 `none` | `wait-for` |
 | `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
+| `wow.stores.<name>.reindex-requests-per-second` | 为后来映射的字段重新索引已有文档的速度（[见下文](#field-mapped-later)）；`-1` 表示不限 | `1000` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | `wow.snapshot.stores`，否则为日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.primary` | 其中供写端和状态读取读的那个；从不是 Elasticsearch | 类型自己列出 `snapshot.stores` 时为其中第一个；否则为 `wow.snapshot.primary`，再否则为 `wow.snapshot.stores` 的第一个 |
 | `wow.aggregates.[<context>.<aggregate>].query.snapshot.store` | 它的快照查询所读取的存储 | 它的主快照存储 |
@@ -52,6 +53,21 @@ wow:
 `query.snapshot.store` 指向 Elasticsearch 存储的聚合，它的快照查询就从那里提供，使用与任何后端相同的[查询语言](../reference/query-language)和能力描述符。使用默认的 `refresh: wait-for` 时，快照在写入返回时就可以检索。存储的查询在它的查询舱壁下运行：`wow.stores.<name>.query.max-concurrent`，默认为写连接池每个路由连接数的四分之一，至少为 2；有 `query-client` 时则是它的整个连接池。超出的查询会短暂等待，然后以 429 `wow.query.busy` 回答。
 
 状态或事件 body 里的 map（键不固定的对象，如 `Map<String, Item>` 属性）映射为一个 `flattened` 字段，所以它某个键下的值只能做存在性与精确匹配的过滤：没有范围、相对时间、排序和聚合。描述符的 `dynamic` 模式列出的正是这些算子。
+
+## 后来映射的字段 {#field-mapped-later}
+
+状态和事件 body 的字段在查询第一次加载聚合的 schema 时建立映射（`ddl: auto` 下），所以 schema 后来新增的字段，是在已经有文档的索引上建立映射的。这些文档会在后台由一个 `_update_by_query` 任务重新索引，任务保持每个文档原样，好让新字段也能找到它们。任务结束之前，按新字段过滤、排序或分组的查询会漏掉映射之前写入的文档：结果是不完整的。
+
+任务以每秒 `reindex-requests-per-second` 个文档的速度运行，默认 1,000，切片数与索引的分片数相同。按默认值，一百万个文档约需 17 分钟，一千万个约需 3 小时。集群负载高时调低它；需要尽快用上新字段时调高，或设为 `-1` 不限速。
+
+存储在任务开始时记录它的 id：`Elasticsearch index [<index>] mapped [<fields>]: … task [<node>:<id>]`。它不记录任务何时结束，那只能轮询任务才知道。用 Elasticsearch 自己的接口跟踪任务，并在运行中调整速度：
+
+```bash
+curl "$ELASTICSEARCH_URL/_tasks/<node>:<id>"
+curl -X POST "$ELASTICSEARCH_URL/_update_by_query/<node>:<id>/_rethrottle?requests_per_second=5000"
+```
+
+每个已有文档都重新索引后，`GET _tasks/<id>` 回答 `"completed": true`。
 
 ## 事件检索 {#event-search}
 

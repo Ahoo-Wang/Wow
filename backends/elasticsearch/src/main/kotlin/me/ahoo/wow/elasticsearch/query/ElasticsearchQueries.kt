@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal class ElasticsearchQueries(private val store: ElasticsearchStore) : StoreQueries {
     override fun snapshots(options: StoreQueryOptions): SnapshotQueries =
-        ElasticsearchSnapshotQueries(store.queryClient, store.names, options.indexDdl)
+        ElasticsearchSnapshotQueries(store.queryClient, store.names, options.indexDdl, store.rewriteRate)
 
     /**
      * The `events` queries of the store: over the events indices its event search Sink writes, for the aggregate types
@@ -53,7 +53,7 @@ internal class ElasticsearchQueries(private val store: ElasticsearchStore) : Sto
      * logs are elsewhere.
      */
     override fun events(options: StoreQueryOptions): QueryBindings<AggregateType> =
-        ElasticsearchEventQueries(store.queryClient, store.names, options.indexDdl)
+        ElasticsearchEventQueries(store.queryClient, store.names, options.indexDdl, store.rewriteRate)
 }
 
 /**
@@ -81,10 +81,17 @@ internal class ElasticsearchSnapshotQueries(
     private val client: ElasticsearchAsyncClient,
     private val names: ElasticsearchNames,
     private val indexDdl: Ddl = Ddl.AUTO,
+    /** How many documents a second a mapping's rewrite indexes again ([ElasticsearchStateMappings.rewrite]). */
+    rewriteRate: Int = ElasticsearchStateMappings.DEFAULT_REWRITE_RATE,
 ) : SnapshotQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchSnapshotIndex.typeMapping() }
     private val stateMappings =
-        ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.Root(SnapshotFields.STATE))
+        ElasticsearchStateMappings(
+            client,
+            mappingResolver,
+            ElasticsearchPayload.Root(SnapshotFields.STATE),
+            rewriteRate
+        )
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
     override fun binding(key: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(key, ::bind)

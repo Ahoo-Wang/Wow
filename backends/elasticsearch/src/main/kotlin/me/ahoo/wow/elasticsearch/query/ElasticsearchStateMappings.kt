@@ -15,8 +15,10 @@ package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.Conflicts
+import co.elastic.clients.elasticsearch._types.SlicesCalculation
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryValueKind
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
@@ -49,15 +51,16 @@ import java.util.concurrent.ConcurrentHashMap
  * stays in `_source`, unindexed.
  *
  * [manage] adds the fields an index lacks and reports those it maps otherwise (a field's type cannot change); once it
- * added some to an index that holds documents, it reindexes them in place (`_update_by_query` without a script, which
- * keeps each `_source` as it is), so they are found by the new fields too. A field the index maps already is left as
- * it is.
+ * added some, it indexes the documents written before them again ([rewrite]), so they are found by the new fields too.
+ * A field the index maps already is left as it is.
  */
 internal class ElasticsearchStateMappings(
     private val client: ElasticsearchAsyncClient,
     private val mappingResolver: ElasticsearchIndexMappingResolver,
     /** Where the payload lies in each document. */
     private val payload: ElasticsearchPayload,
+    /** How many documents a second [rewrite] indexes again, `-1` for no limit. */
+    private val rewriteRate: Int = DEFAULT_REWRITE_RATE,
 ) {
     /** The logical schemas each index was found to map already, so a load maps nothing twice. */
     private val managed = ConcurrentHashMap<String, LogicalQuerySchema>()
@@ -82,14 +85,34 @@ internal class ElasticsearchStateMappings(
             PutMappingRequest.of { it.index(index).withJson(StringReader(WowJson.mapper.writeValueAsString(mapping))) },
         ).awaitElasticsearch()
         mappingResolver.evict(index)
-        // The documents written before the fields were mapped are indexed again, in the background.
-        client.updateByQuery {
-            it.index(
-                index
-            ).conflicts(Conflicts.Proceed).waitForCompletion(false)
-        }.awaitElasticsearch()
+        rewrite(index, plan.created)
         managed[index] = schema
         return QueryIndexReport(created = plan.created, invalid = plan.invalid)
+    }
+
+    /**
+     * Indexes again, in the background, the documents of [index] written before [fields] were mapped, so that they are
+     * found by them too: `_update_by_query` without a script, which keeps each `_source` as it is. It runs at
+     * [rewriteRate] documents a second, in as many slices as the index has shards, so that a large index is not
+     * rewritten at full speed beside its writes and queries (ES-5); a search of the new fields misses those documents
+     * until the task ends. Returns the task's id: `GET _tasks/<id>` follows it, `POST _update_by_query/<id>/_rethrottle`
+     * changes its rate. The client is told nothing of the task's end without polling it, so only its start is logged.
+     */
+    internal suspend fun rewrite(index: String, fields: List<String>): String {
+        val task = client.updateByQuery {
+            it.index(index)
+                .conflicts(Conflicts.Proceed)
+                .waitForCompletion(false)
+                .requestsPerSecond(rewriteRate.toFloat())
+                .slices { slices -> slices.computed(SlicesCalculation.Auto) }
+        }.awaitElasticsearch().task()
+        checkNotNull(task) { "Elasticsearch answered no task for the rewrite of [$index]." }
+        log.info {
+            "Elasticsearch index [$index] mapped $fields: its earlier documents are indexed again at " +
+                "${if (rewriteRate < 0) "no limit" else "$rewriteRate a second"}, task [$task]; a search of these " +
+                "fields misses them until the task ends."
+        }
+        return task
     }
 
     /** One walk of a payload's schema against an index's existing mapping. */
@@ -179,22 +202,28 @@ internal class ElasticsearchStateMappings(
             value.mappable(mergesVariants)?.takeIf { it.kind == QueryValueKind.OBJECT }?.properties
     }
 
-    private companion object {
-        val nodes: JsonNodeFactory = JsonNodeFactory.instance
-        val NUMBERS = setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL)
-        val FLATTENED: Property.Kind = Property.Kind.Flattened
+    internal companion object {
+        /** How many documents a second a rewrite indexes again by default (`reindex-requests-per-second`). */
+        const val DEFAULT_REWRITE_RATE = 1000
 
-        fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
+        private val log = KotlinLogging.logger {}
+        private val nodes: JsonNodeFactory = JsonNodeFactory.instance
+        private val NUMBERS = setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL)
+        private val FLATTENED: Property.Kind = Property.Kind.Flattened
 
-        fun keyword(): ObjectNode = typed(
+        private fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
+
+        private fun keyword(): ObjectNode = typed(
             "keyword"
         ).put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT).also {
             it.putObject("fields").set("text", typed("text"))
         }
 
-        fun date(): ObjectNode = typed("date").put("format", "strict_date_optional_time||epoch_millis")
+        private fun date(): ObjectNode = typed("date").put("format", "strict_date_optional_time||epoch_millis")
 
-        fun flattened(): ObjectNode = typed("flattened").put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT)
+        private fun flattened(): ObjectNode = typed(
+            "flattened"
+        ).put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT)
     }
 }
 
