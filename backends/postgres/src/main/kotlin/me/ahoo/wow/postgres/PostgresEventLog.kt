@@ -18,10 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
@@ -31,12 +28,10 @@ import me.ahoo.wow.spi.access.AccessValues
 import me.ahoo.wow.spi.access.AccessWalk
 import me.ahoo.wow.spi.access.AccessWalks
 import me.ahoo.wow.spi.access.AggregatePage
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
@@ -49,13 +44,8 @@ import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
 import me.ahoo.wow.spi.schema.EnsuredOnce
 import org.postgresql.util.PSQLException
-import tools.jackson.databind.json.JsonMapper
-import tools.jackson.databind.node.ArrayNode
 import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
 import java.sql.SQLException
-import java.sql.Types
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -117,6 +107,12 @@ class PostgresEventLog(
 ) : EventLog,
     AccessWalks {
     private val tables = PostgresEventLogTables(context)
+
+    /** A stream's columns, bound and read back. */
+    private val logRows = PostgresLogRows(context)
+
+    /** Where a stream is found by a key. */
+    private val lookups = PostgresLogLookups(logRows)
 
     /** Validates the partition count first: a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
@@ -269,7 +265,7 @@ class PostgresEventLog(
                 append.setInt(3, partition)
                 append.setInt(4, stream.version - 1)
                 append.setInt(5, partition)
-                bindStream(append, 6, stream, transport)
+                logRows.bindStream(append, 6, stream, transport)
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
@@ -282,42 +278,13 @@ class PostgresEventLog(
             if (failure.sqlState == UNDEFINED_TABLE) throw failure
             return when (failure.serverErrorMessage?.constraint) {
                 table.versionKey -> conflictOf(connection, table, stream)
-                table.requestKey -> findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
+                table.requestKey -> lookups.findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(failure)
 
                 else -> outcomeOf(failure)
             }
         }
-    }
-
-    /** Binds [stream] and [transport] to [statement] from parameter [first] on: one per [AggregateLogTable.COLUMNS]. */
-    private fun bindStream(statement: PreparedStatement, first: Int, stream: EventStreamRecord, transport: ByteArray?) {
-        var index = first
-        statement.setString(index++, stream.ref.tenantId)
-        statement.setString(index++, stream.ref.id)
-        statement.setInt(index++, stream.version)
-        statement.setString(index++, stream.commandId)
-        statement.setString(index++, stream.requestId)
-        statement.setString(index++, stream.commandType)
-        statement.setLong(index++, stream.commitTime)
-        statement.setString(index++, encodeEvents(stream.events))
-        statement.setNullableString(index++, stream.scope.ownerId)
-        statement.setNullableString(index++, stream.scope.spaceId)
-        statement.setNullableString(index++, stream.causation?.correlationId)
-        statement.setNullableString(index++, stream.causation?.causationId)
-        statement.setString(index++, json.writeValueAsString(stream.headers))
-        statement.setBytes(index++, transport)
-        val operator = stream.operator
-        statement.setNullableString(index++, operator?.id)
-        statement.setNullableString(index++, operator?.tenantId)
-        if (operator == null) {
-            statement.setNull(index++, Types.BOOLEAN)
-        } else {
-            statement.setBoolean(index++, operator.crossScope)
-        }
-        statement.setNullableString(index++, stream.access?.let(AccessValues::text))
-        stream.accessVersion?.let { statement.setInt(index, it) } ?: statement.setNull(index, Types.INTEGER)
     }
 
     /**
@@ -434,9 +401,14 @@ class PostgresEventLog(
                     if (across) {
                         val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
                         statement.setInt(first, parts[index])
-                        bindStream(statement, first + 1, stream, transport)
+                        logRows.bindStream(statement, first + 1, stream, transport)
                     } else {
-                        bindStream(statement, index * AggregateLogTable.STREAM_PARAMETERS + 1, stream, transport)
+                        logRows.bindStream(
+                            statement,
+                            index * AggregateLogTable.STREAM_PARAMETERS + 1,
+                            stream,
+                            transport
+                        )
                     }
                 }
                 statement.executeQuery().use { rows ->
@@ -543,7 +515,7 @@ class PostgresEventLog(
                             query.setInt(3, from)
                             query.setInt(4, toVersion)
                             query.setInt(5, VersionPages.SIZE)
-                            query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+                            query.executeQuery().use { rows -> rows.map { logRows.streamOf(table.aggregate, it) } }
                         }
                     }
                 }
@@ -702,7 +674,7 @@ class PostgresEventLog(
                             val keys = ArrayList<CommittedRequest>()
                             while (rows.next()) {
                                 if (rows.getInt("part") == 0) {
-                                    streams += streamOf(table.aggregate, rows)
+                                    streams += logRows.streamOf(table.aggregate, rows)
                                 } else {
                                     keys += CommittedRequest(
                                         rows.getInt("version"),
@@ -737,7 +709,7 @@ class PostgresEventLog(
                     val snapshot = shared(ref.type.name)
                     withTable(connection, ref.type) { table ->
                         connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
-                            streamOf(table.aggregate, it)
+                            logRows.streamOf(table.aggregate, it)
                         }
                     }
                 }
@@ -758,7 +730,7 @@ class PostgresEventLog(
                             query.setInt(4, toVersion)
                             query.setInt(5, VersionPages.SIZE)
                             query.executeQuery().use { rows ->
-                                rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+                                rows.map { logRows.entryOf(it.getInt("partition"), table.aggregate, it) }
                             }
                         }
                     }
@@ -785,7 +757,7 @@ class PostgresEventLog(
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                withTable(connection, type) { findByRequestIdIn(connection, it, tenantId, requestId) }
+                withTable(connection, type) { lookups.findByRequestIdIn(connection, it, tenantId, requestId) }
             }
         }
 
@@ -834,7 +806,7 @@ class PostgresEventLog(
                     head = rows.getLong("head")
                     val branch = rows.getInt("branch")
                     if (!rows.wasNull()) {
-                        entries += entryOf(partition, known[branch].aggregate, rows)
+                        entries += logRows.entryOf(partition, known[branch].aggregate, rows)
                     }
                 }
                 head to entries
@@ -881,24 +853,15 @@ class PostgresEventLog(
         }
     }
 
-    private fun findByRequestIdIn(
-        connection: Connection,
-        table: AggregateLogTable,
-        tenantId: String,
-        requestId: String,
-    ): EventStreamRecord? = connection.prepareStatement(table.byRequest).use { query ->
-        query.setString(1, tenantId)
-        query.setString(2, requestId)
-        query.executeQuery().use { rows -> if (rows.next()) streamOf(table.aggregate, rows) else null }
-    }
-
     /**
      * The outcome of [stream] refused for its version: [AppendOutcome.AlreadyCommitted] when its request is committed
      * (a retry of one request at one version collides on both keys, and the version key is checked
      * first), else the conflict, with the aggregate's current version.
      */
     private fun conflictOf(connection: Connection, table: AggregateLogTable, stream: EventStreamRecord): AppendOutcome =
-        duplicateOr(connection, table, stream) { AppendOutcome.Conflict(currentVersion(connection, table, stream.ref)) }
+        duplicateOr(connection, table, stream) {
+            AppendOutcome.Conflict(lookups.currentVersion(connection, table, stream.ref))
+        }
 
     /** [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict]. */
     private inline fun duplicateOr(
@@ -907,55 +870,9 @@ class PostgresEventLog(
         stream: EventStreamRecord,
         conflict: () -> AppendOutcome.Conflict,
     ): AppendOutcome =
-        findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
+        lookups.findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
             ?.let { AppendOutcome.AlreadyCommitted(it) }
             ?: conflict()
-
-    private fun currentVersion(connection: Connection, table: AggregateLogTable, ref: AggregateRef): Int =
-        connection.prepareStatement(table.currentVersion).use { query ->
-            query.setString(1, ref.id)
-            query.setString(2, ref.tenantId)
-            query.executeQuery().use { rows ->
-                rows.next()
-                rows.getInt(1)
-            }
-        }
-
-    private fun entryOf(partition: Int, aggregate: String, row: ResultSet) = LogEntry(
-        LogPosition(partition, row.getLong("sequence")),
-        streamOf(aggregate, row),
-        row.getBytes("transport"),
-    )
-
-    private fun streamOf(aggregate: String, row: ResultSet) = EventStreamRecord(
-        ref = AggregateType(context, aggregate).ref(row.getString("tenant_id"), row.getString("aggregate_id")),
-        version = row.getInt("version"),
-        commandId = row.getString("command_id"),
-        requestId = row.getString("request_id"),
-        commandType = row.getString("command_type"),
-        commitTime = row.getLong("commit_time"),
-        events = decodeEvents(row.getString("events")),
-        scope = Scope(row.getString("owner_id"), row.getString("space_id")),
-        causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
-        headers = decodeStrings(row.getString("headers")),
-        operator = row.getString("operator_id")?.let {
-            Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
-        },
-        access = AccessValues.parse(row.getString("access")),
-        accessVersion = row.getInt("access_version").takeUnless { row.wasNull() },
-    )
-
-    private fun PreparedStatement.setNullableString(index: Int, value: String?) {
-        if (value == null) setNull(index, Types.VARCHAR) else setString(index, value)
-    }
-
-    private fun <T> ResultSet.map(row: (ResultSet) -> T): List<T> {
-        val values = ArrayList<T>()
-        while (next()) {
-            values += row(this)
-        }
-        return values
-    }
 
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
@@ -979,41 +896,6 @@ class PostgresEventLog(
         fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {
             var next = last + 1
             return entries.takeWhile { it.position.sequence == next++ }
-        }
-
-        /** Wow's mapper: its trees keep every number exact, as `jsonb` stores them (`numeric`), so `2.50` stays. */
-        val json: JsonMapper = WowJson.mapper
-
-        /** Events as one JSON array; each payload is stored as JSON, so the log can be queried in place. */
-        fun encodeEvents(events: List<EventRecord>): String {
-            val array = json.createArrayNode()
-            events.forEach { event ->
-                array.addObject()
-                    .put("name", event.name)
-                    .put("revision", event.revision)
-                    .set("payload", json.readTree(event.payload))
-            }
-            return json.writeValueAsString(array)
-        }
-
-        /** A JSON object of strings, such as the headers. */
-        fun decodeStrings(text: String): Map<String, String> = buildMap {
-            for ((name, value) in json.readTree(text).properties()) {
-                put(name, value.asString())
-            }
-        }
-
-        fun decodeEvents(text: String): List<EventRecord> = buildList {
-            // ArrayNode has a map member of its own, so iterate rather than map.
-            for (event in json.readTree(text) as ArrayNode) {
-                add(
-                    EventRecord(
-                        name = event.get("name").asString(),
-                        revision = event.get("revision").asInt(),
-                        payload = json.writeValueAsString(event.get("payload")),
-                    ),
-                )
-            }
         }
     }
 }
