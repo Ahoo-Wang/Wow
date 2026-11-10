@@ -13,14 +13,12 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
@@ -434,8 +432,6 @@ internal class StateComparison(
 
     private fun node(value: Any?): JsonNode =
         value?.let { WowJson.mapper.valueToTree<JsonNode>(it) } ?: WowJson.mapper.nodeFactory.nullNode()
-
-    private suspend fun <T> blocking(read: () -> T): T = withContext(Dispatchers.IO) { read() }
 
     /** What one aggregate's states are rebuilt from and compared with: its plan, its V10 model and its log. */
     private class Target(val plan: AggregatePlan, val model: AggregateModel<Any>, val kernel: Kernel, val log: EventLog)

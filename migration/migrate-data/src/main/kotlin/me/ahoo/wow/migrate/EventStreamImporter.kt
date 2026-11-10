@@ -15,7 +15,6 @@ package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -25,7 +24,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -657,8 +655,6 @@ internal class EventStreamImporter(
             checkpoints.update { saved -> saved.with(aggregate, change(saved.of(aggregate)!!)) }
         }
     }
-
-    private suspend fun <T> blocking(read: () -> T): T = withContext(Dispatchers.IO) { read() }
 
     private inner class Stats(val aggregate: NineXAggregate, val startedAt: Long) {
         val instances = AtomicLong()

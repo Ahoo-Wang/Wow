@@ -13,14 +13,12 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.LogEntry
@@ -332,6 +330,4 @@ internal class EventStreamExporter(
             checkpoints.update { it.withExport(context, change(it.exportOf(context) ?: ExportCheckpoint())) }
         }
     }
-
-    private suspend fun <T> blocking(read: () -> T): T = withContext(Dispatchers.IO) { read() }
 }

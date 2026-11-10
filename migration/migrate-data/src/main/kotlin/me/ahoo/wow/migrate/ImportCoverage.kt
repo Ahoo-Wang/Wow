@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.migrate
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -21,7 +20,6 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.log.EventLog
 import java.time.Instant
 
@@ -164,6 +162,4 @@ internal class ImportCoverage(
             }.awaitAll().filterNotNull()
         }
     }
-
-    private suspend fun <T> blocking(read: () -> T): T = withContext(Dispatchers.IO) { read() }
 }
