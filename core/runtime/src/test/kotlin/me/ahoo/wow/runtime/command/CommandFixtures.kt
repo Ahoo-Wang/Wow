@@ -264,7 +264,7 @@ fun stockManifest(): Manifest = Manifest(
 )
 
 /** This aggregate with its [command]'s body naming its aggregate in [property], as the compiler writes `@AggregateId`. */
-private fun AggregateManifest.withIdProperty(command: String, property: String): AggregateManifest = copyWith(
+internal fun AggregateManifest.withIdProperty(command: String, property: String): AggregateManifest = copyWith(
     commands = commands.map { if (it.name == command) it.copyWith(idProperty = property) else it },
 )
 
