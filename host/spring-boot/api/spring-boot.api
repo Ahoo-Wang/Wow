@@ -58,8 +58,9 @@ public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
 	public fun <init> ()V
 }
 
-public final class me/ahoo/wow/spring/boot/HostBackends {
+public final class me/ahoo/wow/spring/boot/HostBackends : java/lang/AutoCloseable {
 	public static final field Companion Lme/ahoo/wow/spring/boot/HostBackends$Companion;
+	public fun close ()V
 	public final fun createSchemas ()V
 	public final fun getContexts ()Ljava/util/Map;
 	public final fun getFactory ()Lme/ahoo/wow/runtime/node/BackendFactory;

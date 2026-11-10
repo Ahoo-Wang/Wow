@@ -434,6 +434,9 @@ class HostStoresTest {
             assertThrows<IllegalStateException> { open(properties(block), beans, settings = mapOf("a" to settings)) }
                 .message!!
         open { stores["a"] = WowProperties.Store() }.assert().contains("wow.stores.a.type is not set")
+        open { stores["a"] = WowProperties.Store().apply { type = " " } }.assert().contains(
+            "wow.stores.a.type is not set"
+        )
         open { stores["a"] = WowProperties.Store().apply { type = "auto" } }.assert().contains("is auto")
         open {
             backend = "memory"

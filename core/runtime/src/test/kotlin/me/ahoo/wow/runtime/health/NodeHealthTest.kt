@@ -129,14 +129,12 @@ class NodeHealthTest {
         @Volatile
         var down = false
         var closes = 0
-        var failsToClose = false
         override val location: Any = Any()
 
         override suspend fun probe() = check(!down) { "$name is down." }
 
         override fun closeStore() {
             closes++
-            check(!failsToClose) { "$name fails to close." }
         }
 
         override fun openCheckpoints(): Opened<CheckpointStore> = error("unused")
@@ -282,7 +280,7 @@ class NodeHealthTest {
     fun `only a store the write path needs should make the node not ready, naming it, and any other only be shown`(): Unit =
         runBlocking {
             val logs = ProbedStore("main", "postgres")
-            val search = ProbedStore("search", "elasticsearch").apply { failsToClose = true }
+            val search = ProbedStore("search", "elasticsearch")
             val node = node(
                 backends = BackendFactory {
                     backends.backends(it).copyWith(stores = PlacedStores(setOf(logs), setOf(search)))
@@ -309,11 +307,8 @@ class NodeHealthTest {
                 .isEqualTo(HealthStatus.DOWN)
             health.liveness().status.assert().isEqualTo(HealthStatus.UP)
             node.stop()
-            // Once the logs are closed, each placed store is closed once, one failing to close the others all the same,
-            // and closing it again does nothing.
-            listOf(logs, search).forEach { it.closes.assert().isEqualTo(1) }
-            logs.close()
-            logs.closes.assert().isEqualTo(1)
+            // The node closes no store: whoever opened them closes them, once nothing reads them any more.
+            listOf(logs, search).forEach { it.closes.assert().isZero() }
         }
 
     @Test

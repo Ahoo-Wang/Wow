@@ -19,6 +19,7 @@ public final class me/ahoo/wow/tck/MutableClock : java/time/Clock {
 public abstract class me/ahoo/wow/tck/StoreTck {
 	public fun <init> ()V
 	public final fun a store that holds no log should refuse the log and the control plane, saying so ()V
+	public final fun closeStores ()V
 	protected abstract fun config ()Lme/ahoo/wow/spi/store/StoreConfig;
 	protected fun getFacets ()Ljava/util/List;
 	protected final fun openStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/store/Store;
