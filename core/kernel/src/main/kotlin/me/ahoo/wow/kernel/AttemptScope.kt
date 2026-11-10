@@ -255,14 +255,15 @@ internal class AttemptScopes(
     fun encoder(model: AggregateModel<*>): (AggregateRef, Any) -> Pair<String, String> =
         { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
 
-    /** An attempt of [command] on [loaded], at this kernel's time, with [wait] and [encode]. */
+    /** An attempt of [command] on [loaded], at [now] (this kernel's time unless given), with [wait] and [encode]. */
     fun open(
         command: Command<*>,
         loaded: CachedState,
         wait: WaitContext?,
         encode: (AggregateRef, Any) -> Pair<String, String>,
+        now: Long = clock(),
     ): AttemptScope =
-        AttemptScope(command, ids, clock(), loaded, reservations, options.reservationTtl, wait, observer, encode)
+        AttemptScope(command, ids, now, loaded, reservations, options.reservationTtl, wait, observer, encode)
 
     /**
      * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
