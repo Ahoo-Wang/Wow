@@ -184,11 +184,11 @@ class HttpQueryApi internal constructor(
             fun headers(): Map<String, String> = position?.let { mapOf(LAST_EVENT_ID to it) }.orEmpty()
 
             /**
-             * Emits the rows of one request's [events] to [collector], never past the limit: null once the stream is
-             * complete, else why it stopped. It stops reading at the row that reaches the limit, whatever the peer
-             * sends after it, and at an end or error event, so a connection lost after either is no loss. A connection
-             * lost before is the stream's to resume, as is one that ended without an end event; what [collector] throws
-             * is its own, and propagates as it is.
+             * Emits the rows of one request's [events] to [collector], never past the limit (a request is asked for
+             * only while rows are left of it): null once the stream is complete, else why it stopped. It stops reading
+             * at the row that reaches the limit, whatever the peer sends after it, and at an end or error event, so a
+             * connection lost after either is no loss. A connection lost before is the stream's to resume, as is one
+             * that ended without an end event; what [collector] throws is its own, and propagates as it is.
              */
             suspend fun read(events: Flow<String>, collector: FlowCollector<Positioned<R>>): Stop? {
                 var complete = false
@@ -197,8 +197,6 @@ class HttpQueryApi internal constructor(
                     .transformWhile { event ->
                         when (event.event) {
                             ROW -> {
-                                // Never past the limit, whatever the peer sends.
-                                if (full()) return@transformWhile false
                                 emit(event)
                                 !full()
                             }
