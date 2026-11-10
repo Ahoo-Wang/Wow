@@ -104,7 +104,7 @@ interface Read {
 
 /** The page's row a record opened with, kept while that record stays open. */
 interface Seed {
-  runtime: RecordViewRuntime;
+  runtime: RecordViewRuntime | null;
   key: RecordKey;
   row: RecordData;
 }
@@ -179,7 +179,7 @@ export function useRecordDetail(
 
   const open = useCallback(
     (row: RecordRow) => {
-      if (runtime) setSeed({ runtime, key: row.key, row: row.data });
+      setSeed({ runtime, key: row.key, row: row.data });
       if (!controlled) setOwn(row.key);
       onOpenChange?.(row.key);
     },
@@ -231,7 +231,7 @@ export function useRecordDetail(
 
 /** Whether what was read or seeded is this view's record of this key. */
 function sameRecord(
-  held: { runtime: RecordViewRuntime; key: RecordKey },
+  held: { runtime: RecordViewRuntime | null; key: RecordKey },
   runtime: RecordViewRuntime | null,
   key: RecordKey,
 ): boolean {

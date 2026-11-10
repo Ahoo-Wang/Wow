@@ -264,7 +264,6 @@ export function useRecordExport(
             }));
           },
         });
-        if (!current()) return;
         await hand(
           result.rows,
           {
