@@ -17,9 +17,11 @@ import io.mockk.every
 import io.mockk.mockk
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkQueue
+import java.io.File
 
 /** A work queue that runs each item in process, as the worker would. */
 internal fun inProcessQueue(project: Project): WorkQueue {
@@ -93,3 +95,16 @@ private inline fun <reified P : WorkParameters> WorkQueue.runs(
         action(parameters).execute()
     }
 }
+
+/** A project of [id] in [directory]: the domain role on its sources, and the service's (`WowPlugin.SERVICE_ID`). */
+internal fun wowProject(directory: File, kotlin: Boolean, id: String): Project = ProjectBuilder.builder()
+    .withProjectDir(directory)
+    .withName("shop")
+    .build()
+    .also { project ->
+        project.version = "1.2.3"
+        project.pluginManager.apply(id)
+        if (kotlin) {
+            project.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        }
+    }
