@@ -17,6 +17,13 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXCompensationExample.CART_SAGA
 import me.ahoo.wow.migrate.example.NineXCompensationExample.ORDER_CREATED
@@ -155,6 +162,39 @@ class CompensationImporterTest {
                 .anyMatch { it.contains("the 9.x processor example-service.PaymentSaga has no subscription mapping") }
                 .anyMatch { it.contains("this map does not import the 9.x aggregate example-service.payment") }
             ledger.list(CART_SAGA).assert().isEmpty()
+        }
+
+    @Test
+    fun `a subscription is resolved in its aggregate's context, whichever context declares its name first`(): Unit =
+        runTest {
+            importStreams()
+            val example = plan.manifest.contexts.first()
+            // Another context's subscription of the same name, of example's published order events.
+            val analytics = ContextManifest(
+                name = "analytics",
+                subscriptions = listOf(
+                    SubscriptionManifest(
+                        name = CART_SAGA,
+                        kind = SubscriptionKind.SAGA,
+                        source = SubscriptionSource(context = example.name, aggregates = listOf("order")),
+                        function = FunctionManifest(FunctionKind.SAGA, "analytics", "CartSaga", "onOrderCreated"),
+                    ),
+                ),
+            )
+            val execution = NineXCompensationExample.execution(1)
+            listOf(listOf(analytics, example), listOf(example, analytics)).forEach { first ->
+                val manifest = Manifest(contexts = first + plan.manifest.contexts.drop(1))
+                val parked = InMemoryFailureLedger()
+                val progress = CompensationImporter(
+                    InMemoryNineXCompensationSource(listOf(execution)),
+                    MigrationPlan(NineXCompensationExample.map, manifest),
+                    { log },
+                    { parked },
+                    InMemoryCheckpointRepository(checkpoints.load().copy(compensation = null)),
+                ).importAll()
+                progress.imported.assert().isEqualTo(1)
+                parked.parked(CART_SAGA, ref)!!.fromVersion.assert().isEqualTo(execution.version)
+            }
         }
 
     @Test

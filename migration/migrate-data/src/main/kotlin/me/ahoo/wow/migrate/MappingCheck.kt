@@ -306,7 +306,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
         compensation.mappings.groupBy { it.source() }.filterValues { it.size > 1 }.keys
             .forEach { problems += "the 9.x processor $it is mapped twice" }
         compensation.mappings.forEach { mapping ->
-            mapping.functions.keys.map(mapping::subscriptionOf).filter { compensation.manifestOf(it) == null }
+            mapping.functions.keys.map(mapping::subscriptionOf).filterNot(compensation::declares)
                 .forEach { problems += "${mapping.from}: the V10 subscription $it is not in the Manifest" }
         }
         if (inventory == null) {
@@ -335,7 +335,7 @@ internal class MappingCheck(private val plan: MigrationPlan) {
                     problems += "the 9.x processor function $function ($executions unresolved " +
                         "executions) has no subscription mapping: its failures would be lost"
 
-                compensation.manifestOf(subscription) == null ->
+                !compensation.declares(subscription) ->
                     problems += "the 9.x processor function $function " +
                         "($executions unresolved executions) maps to the V10 subscription $subscription, which is not in " +
                         "the Manifest"
