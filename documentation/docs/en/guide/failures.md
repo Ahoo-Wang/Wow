@@ -112,7 +112,7 @@ An unrecoverable failure is parked but not retried automatically: no retry would
 
 Operators see the parked aggregates of every service in the ops console, with the error and the version each stopped at, and retry or skip them there: [The Ops Service and Console](../operate/ops-console). A webhook can tell a team when an aggregate parks or spends its retries.
 
-Parked timers are listed there too, under the subscription `wow.timers.sends`, one entry per target aggregate. Nothing retries them automatically. Retrying the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`.
+Parked timers are listed there too, under the subscription `wow.timers.sends`, one entry per target aggregate. Nothing retries them automatically. Retrying the entry sends its timers again with fresh attempts; skipping it cancels them with the outcome `SKIPPED`. The entry is recorded before its timer is parked, so a parked timer always has one; when the ledger cannot be written, the timer is not parked but sent again after its backoff. A node that stops between the two leaves an entry whose timer is sent again and parked once more; an entry with no timer parked behind it is resolved by a retry or a skip, which find nothing to send.
 
 Before retrying, fix the cause: deploy the corrected handler, or bring the outside system back. A retried aggregate reads its stream again from the version it stopped at, so its handler sees every event it missed, in order; an operator's retry spends none of its automatic retries. Skipping marks the entry resolved: the events it held back are never handled, and the aggregate's next events are.
 

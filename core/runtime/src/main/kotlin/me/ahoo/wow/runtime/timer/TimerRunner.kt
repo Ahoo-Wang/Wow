@@ -66,8 +66,9 @@ import kotlin.time.TimeSource
  * - sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
  * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
  *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
- *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
- *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [retry] or [skip];
+ *   [TimerOptions.retry]'s backoff, until its attempts are spent; its target is then recorded in the failure ledger
+ *   under [TimerOptions.PARKED_SUBSCRIPTION] and the timer PARKED, in that order, for an operator to [retry] or [skip].
+ *   A ledger that fails to record it leaves the timer PENDING, its last attempt sent again after the backoff;
  * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): backpressure, not a failure:
  *   the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
  *   they were, up to [TimerOptions.maxBusyRetries] times in a row on this node; one refusal more counts as a failed
@@ -348,27 +349,45 @@ class TimerRunner(
         logger.error(failure) {
             "Sending the timer ${timer.id} failed $attempts times; parking it under ${TimerOptions.PARKED_SUBSCRIPTION}."
         }
-        // Written at once, so the ledger records only a timer the store holds parked.
+        park(part, timer, attempts, reason, now)
+    }
+
+    /**
+     * Parks [timer], claimed, its [attempts] spent: its target is recorded in the failure ledger, then the timer is
+     * written PARKED. The ledger entry comes first, so a parked timer always has the entry an operator retries or skips
+     * it by. A parking cut short leaves at most an entry whose timers are not parked, which a retry or a skip resolves
+     * finding none; the timer, still claimed, is sent again once the claim lapses, and parked then.
+     */
+    private suspend fun park(part: Part, timer: Timer, attempts: Int, reason: String, now: Long) {
+        val entry = ParkedAggregate(
+            TimerOptions.PARKED_SUBSCRIPTION,
+            timer.target,
+            timer.partition,
+            1,
+            "${timer.id}: $reason",
+            now,
+        )
+        if (quietly("record the parked target of the timer ${timer.id}") { ledger.park(entry) } == null) {
+            // Never parked without its entry: its last attempt is sent again after the backoff, and parks then.
+            val backoff = options.retry.backoff(attempts)
+            logger.error { "The timer ${timer.id} is not parked without its ledger entry; sending it again in $backoff." }
+            settle(
+                part,
+                timer,
+                timer.copyWith(
+                    status = TimerStatus.PENDING,
+                    outcome = reason,
+                    dueAt = now + backoff.inWholeMilliseconds
+                ),
+            )
+            return
+        }
         val parked = TimerChange(
             timer,
-            timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason)
+            timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason),
         )
-        val written = quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) } == 1
+        quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) }
         part.sending.remove(timer.id)
-        if (written) {
-            quietly("park the target of the timer ${timer.id}") {
-                ledger.park(
-                    ParkedAggregate(
-                        TimerOptions.PARKED_SUBSCRIPTION,
-                        timer.target,
-                        timer.partition,
-                        1,
-                        "${timer.id}: $reason",
-                        now,
-                    ),
-                )
-            }
-        }
     }
 
     @Suppress("TooGenericExceptionCaught") // A failed write is retried by the next poll.
