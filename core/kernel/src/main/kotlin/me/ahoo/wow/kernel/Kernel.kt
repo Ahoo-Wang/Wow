@@ -25,17 +25,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
-import me.ahoo.wow.api.decide.Misuse
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.spi.id.IdGenerators
-import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
@@ -112,8 +109,8 @@ import kotlin.coroutines.CoroutineContext
  * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule]) are the
  * system events `wow.ScheduleSet` and `wow.ScheduleCancelled` after its events in the stream it commits, the last
  * change of each key: they commit with its events, or not at all, and a decision that only schedules commits them
- * alone (on an aggregate that exists). The command a schedule sends is stored by its type name and JSON:
- * [commandTypes] names a command of an aggregate type other than the deciding one. Every aggregate also decides the
+ * alone (on an aggregate that exists). The command a schedule sends is stored by its type name and JSON
+ * ([AttemptScopes]). Every aggregate also decides the
  * system commands `wow.schedule.Set` and `wow.schedule.Cancel` a saga derives ([KernelLifecycle]); the kernel keeps
  * the rules of the schedules an aggregate holds beside its state ([CachedState.schedules]).
  *
@@ -122,8 +119,7 @@ import kotlin.coroutines.CoroutineContext
  * early. It waits at most [KernelOptions.maxEarlyWait], holding the aggregate's queue meanwhile: a command due later than that fails
  * at once with [ScheduleNotDueException], and its firing runner sends it again later.
  *
- * A decide function takes its ids from [ids] ([DecideScope.ids]): the node's generators, fixed ids in
- * the test DSL.
+ * A decide function takes its ids from [ids] ([AttemptScopes]).
  *
  * A decide function or after hook marked `@Blocking` runs on [blocking] ([Decisions]).
  *
@@ -131,16 +127,15 @@ import kotlin.coroutines.CoroutineContext
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
 @InternalWowApi
-@Suppress("LargeClass") // The write path: one command, or a batch of an aggregate's, on one state.
 class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
     private val clock: () -> Long = System::currentTimeMillis,
-    private val reservations: ReservationStore? = null,
+    reservations: ReservationStore? = null,
     private val states: StateCache = StateCache.None,
     snapshots: SnapshotStore? = null,
-    private val commandTypes: CommandTypes = CommandTypes.NONE,
-    private val ids: Ids = IdGenerators.DEFAULT,
+    commandTypes: CommandTypes = CommandTypes.NONE,
+    ids: Ids = IdGenerators.DEFAULT,
     private val observer: Observer = Observer.NONE,
     blocking: CoroutineContext = BlockingDispatcher.dispatcher,
     /** The kernel's tuning: attempts, purity check, reservations, early waits, recent requests, replays. */
@@ -167,6 +162,13 @@ class Kernel(
 
     /** A decision on a loaded state, turned into what it commits. */
     private val preparation = Preparation(codec, observer, options, Decisions(blocking))
+
+    /** How each attempt's scope is opened. */
+    private val scopes = AttemptScopes(ids, clock, reservations, options, observer, commandTypes, codec)
+
+    /** A batch of an aggregate's commands: the ones it takes, and their streams committed together. */
+    private val batching =
+        Batching(log, states, options.recentRequests, policies, codec, source, preparation, appends, scopes, observer)
 
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
@@ -235,11 +237,11 @@ class Kernel(
         val ref = queued.first().command.ref
         require(queued.all { it.command.ref == ref }) { "A batch holds the commands of one aggregate." }
         // Without recent requests every request id is looked up first: each command runs alone.
-        val members = if (recentRequests > 0) membersOf(model, queued, appending) else BatchMembers()
+        val members = if (recentRequests > 0) batching.membersOf(model, queued, appending) else BatchMembers()
         if (members.streams.isEmpty()) {
             return listOf(alone(model, queued.first(), appending)) + List(queued.size - 1) { BatchOutcome.Again }
         }
-        val outcomes = commitBatch(members) + List(queued.size - members.streams.size) { BatchOutcome.Again }
+        val outcomes = batching.commitBatch(members) + List(queued.size - members.streams.size) { BatchOutcome.Again }
         // The first stream did not commit and is decided again: alone, within execute's attempts, so the lane always
         // makes progress.
         // A command that failed deciding may have evolved the state part way: it is dropped, and reloaded.
@@ -267,165 +269,6 @@ class Kernel(
         BatchOutcome.Failed(failure)
     }
 
-    /**
-     * The batch [queued] starts: the stream of each command it takes, decided in order on the state the ones before
-     * it left. Empty when the first command cannot start one: its state, if loaded, is cached again unchanged.
-     */
-    private suspend fun <S : Any> membersOf(
-        model: AggregateModel<S>,
-        queued: List<QueuedCommand>,
-        appending: ((EventStreamRecord, CachedState) -> Unit)?,
-    ): BatchMembers {
-        val lease = currentCoroutineContext()[ExecutionLease]
-        val members = BatchMembers()
-        var state: CachedState? = null
-        var caching = false
-        for (entry in queued) {
-            val command = entry.command.narrowedTo(model)
-            val decider = model.decider(command.body.javaClass) ?: break
-            val commandType = model.commandType(command.body.javaClass)
-            val reach = CommandReach(model, policies.of(model.type), command)
-            val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
-                duplicate(it, command, commandType, reach, codec)
-            }
-            // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
-            if (!requests.pure || command.schedule != null) break
-            val current = state ?: source.load(model, requests).first.also {
-                state = it
-                caching = requests.caching
-            }
-            val member = decided(model, decider, entry, command, commandType, requests, current, members, reach) ?: break
-            members.streams += member
-            // Before the next command evolves the same (mutable) state further.
-            appending?.invoke(member.stream, member.evolved)
-            state = member.evolved
-        }
-        if (members.streams.isEmpty() && caching && !members.tainted) {
-            // Nothing evolved it: the state goes back as it was taken (C4: only under the lease), and the first command
-            // runs alone. A first command that failed deciding may have evolved it part way: it is dropped.
-            putBack(queued.first().command.ref, state)
-        }
-        return members
-    }
-
-    /** Caches [state] of [ref] again, unless it is the initial state of an aggregate not yet created. */
-    private fun putBack(ref: AggregateRef, state: CachedState?) {
-        state?.takeIf { it.version > 0 }?.let { states.put(ref, it) }
-    }
-
-    /**
-     * [command] decided on [current] as a member of [members]' batch; null when it cannot join it: a request the
-     * aggregate or the batch holds, one refused before deciding, or one that fails, appends nothing or is refused
-     * deciding (each decided again alone, at no cost: it is pure).
-     */
-    @Suppress("LongParameterList")
-    private suspend fun <S : Any> decided(
-        model: AggregateModel<S>,
-        decider: DecideFunction<S>,
-        entry: QueuedCommand,
-        command: Command<*>,
-        commandType: CommandType,
-        requests: RequestCheck,
-        current: CachedState,
-        members: BatchMembers,
-        reach: CommandReach,
-    ): BatchMember? {
-        val repeated = current.requests?.versionOf(command.requestId) != null ||
-            members.streams.any { it.stream.requestId == command.requestId }
-        if (repeated || admissible(decider, command, current, reach) != null) return null
-        val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
-        val wait = entry.wait.beyondCommitted()
-        val attempt =
-            AttemptScope(command, ids, clock(), current, reservations, options.reservationTtl, wait, observer, encode)
-        val prepared = try {
-            preparation.prepare(model, decider, attempt, current, command, commandType.name, reach)
-        } catch (cancelled: CancellationException) {
-            attempt.compensate(cancelled)
-            throw cancelled
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Decided again alone, where it fails as execute fails it.
-            failure: Exception,
-        ) {
-            attempt.compensate(failure)
-            members.tainted = true
-            return null
-        }
-        if (prepared !is Prepared.Append) {
-            attempt.compensate()
-            // Refused once its events evolved the state, which may have changed in place: the state is dropped.
-            if ((prepared as Prepared.Done).evolved) members.tainted = true
-            return null
-        }
-        return BatchMember(command, commandType, requests, attempt, prepared.stream, prepared.evolved)
-    }
-
-    /** Appends the batch's streams and settles each: the outcomes of [members], in order. */
-    private suspend fun commitBatch(members: BatchMembers): List<BatchOutcome> = withContext(NonCancellable) {
-        val batch = members.streams
-        val observations = batch.map { observer.appending(it.stream) }
-        val appended = try {
-            log.appendAll(
-                batch.mapIndexed { at, member ->
-                    val transport = member.attempt.transport(observations[at].trace, member.stream.rejection != null)
-                    member.stream to transport?.let(TransportCodec::encode)
-                }
-            )
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Compensates whatever failed; each command fails with it.
-            failure: Exception,
-        ) {
-            batch.forEach { it.attempt.compensate(failure) }
-            states.take(batch.first().stream.ref)
-            return@withContext batch.map { BatchOutcome.Failed(failure) }
-        }
-        var stopped = false
-        batch.mapIndexed { at, member ->
-            observations[at].outcome(appended[at].observedName)
-            if (stopped) {
-                member.attempt.compensate()
-                return@mapIndexed BatchOutcome.Again
-            }
-            val settled = appends.settled(member.stream, appended[at])
-            if (settled !is AppendOutcome.Committed) {
-                stopped = true
-            }
-            try {
-                appends.settleAppend(settled, member.stream, member.evolved, member.attempt, member.commandType, member.requests)
-                    ?.let { outcome ->
-                        observer.executing(member.command, member.commandType.name).outcome(outcome.observedName)
-                        BatchOutcome.Done(outcome)
-                    }
-                    ?: BatchOutcome.Again
-            } catch (
-                @Suppress("TooGenericExceptionCaught") // A refused stream fails its own command, as execute throws it.
-                failure: Exception,
-            ) {
-                BatchOutcome.Failed(failure)
-            }
-        }.also {
-            // A stream after the last committed one evolved the cached state: it is dropped, and reloaded.
-            if (stopped) states.take(batch.first().stream.ref)
-        }
-    }
-
-    /** The streams a batch takes, in order. */
-    private class BatchMembers {
-        val streams = ArrayList<BatchMember>()
-
-        /** Whether a command failed deciding after the state was taken: it may have evolved it part way. */
-        var tainted = false
-    }
-
-    /** One command of a batch, decided: its stream and the state after it. */
-    private class BatchMember(
-        val command: Command<*>,
-        val commandType: CommandType,
-        val requests: RequestCheck,
-        val attempt: AttemptScope,
-        val stream: EventStreamRecord,
-        val evolved: CachedState,
-    )
-
     private suspend fun <S : Any> executeAdmitted(
         model: AggregateModel<S>,
         admitted: Command<*>,
@@ -444,7 +287,7 @@ class Kernel(
         requests.beforeWaiting()?.let { return it }
         awaitDue(command)
         val waitBeyondCommitted = wait.beyondCommitted()
-        val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
+        val encode = scopes.encoder(model)
         var attempts = 0
         while (attempts < maxAttempts) {
             val (loaded, cached) = source.load(model, requests)
@@ -453,9 +296,7 @@ class Kernel(
             admissible(decider, command, loaded, reach)?.let {
                 return requests.standing(loaded, cached, it) ?: continue
             }
-            val attempt = AttemptScope(
-                command, ids, clock(), loaded, reservations, options.reservationTtl, waitBeyondCommitted, observer, encode,
-            )
+            val attempt = scopes.open(command, loaded, waitBeyondCommitted, encode)
             val prepared = try {
                 preparation.prepare(model, decider, attempt, loaded, command, commandType.name, reach)
             } catch (
@@ -513,30 +354,6 @@ class Kernel(
         if (early > 0) {
             delay(early)
         }
-    }
-
-    /**
-     * The type name and JSON of [body], a command [model]'s aggregate schedules for [target]: the
-     * model names its own commands, [commandTypes] those of other aggregate types. A body that holds its aggregate's
-     * id (`@AggregateId`) names [target]'s.
-     */
-    private fun scheduledCommand(model: AggregateModel<*>, target: AggregateRef, body: Any): Pair<String, String> {
-        val own = target.type == model.type
-        val type = if (own) {
-            model.commandType(body.javaClass).name
-        } else {
-            commandTypes.nameOf(target.type, body.javaClass) ?: throw Misuse.Argument(
-                "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
-                    "its peers names.",
-            )
-        }
-        val inBody = if (own) model.aggregateIdOf(body) else commandTypes.aggregateIdOf(target.type, body)
-        if (inBody != null && inBody != target.id) {
-            throw Misuse.Argument(
-                "${model.type} schedules ${body.javaClass.name} for $target, but its body names the aggregate $inBody.",
-            )
-        }
-        return type to codec.commandText(body)
     }
 
     /**
@@ -678,48 +495,6 @@ class Kernel(
         const val DEFAULT_RECENT_REQUESTS: Int = 32
 
         private val logger = KotlinLogging.logger {}
-    }
-}
-
-/** This wait context when its caller waits beyond COMMITTED: then it goes with the append. */
-private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
-
-/**
- * Names the commands a decide function schedules for an aggregate of another type than its own: the
- * full type name (`context.aggregate.Command`) of the [command] class sent to an aggregate of [target], or null when
- * none is known. The runtime names them from the context's models and the Manifests of the service and its peers.
- */
-@InternalWowApi
-fun interface CommandTypes {
-    fun nameOf(target: AggregateType, command: Class<*>): String?
-
-    /**
-     * The aggregate types that decide commands of the class [command]: those of the context's
-     * models and of every contract the service knows (its Manifest and the peer contracts on its class path), a
-     * mounted command left out. A saga's handler that leaves a command's ref out sends it to the one
-     * type this gives; none is a missing contract, several a class it must address in full. None by default.
-     */
-    fun aggregatesOf(command: Class<*>): List<AggregateType> = emptyList()
-
-    /**
-     * The id of the aggregate of [target] that [command] acts on, as its body holds it (`@AggregateId`): read by the
-     * context's model, or from the property of its JSON body a contract names. Null when its command type holds none
-     * there, or when it leaves it null (a creation). None by default.
-     */
-    fun aggregateIdOf(target: AggregateType, command: Any): String? = null
-
-    @InternalWowApi
-    companion object {
-        /** Names none: a decide function schedules commands of its own aggregate type only. */
-        @JvmField
-        val NONE: CommandTypes = CommandTypes { _, _ -> null }
-
-        /**
-         * Names a command by its class's `@Name`, else its simple name, in its target's type (`context.aggregate.Command`),
-         * the name a model gives a command unless it says otherwise: for a saga outside a node, in a domain module's test.
-         */
-        @JvmField
-        val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${typeNameOf(command)}" }
     }
 }
 
