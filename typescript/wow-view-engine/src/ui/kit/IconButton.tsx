@@ -13,6 +13,7 @@
 
 import { useId } from 'react';
 import type * as React from 'react';
+import { cn } from 'cn';
 import { Button } from '../components/button.js';
 import { Tooltip, TooltipTrigger } from '../components/tooltip.js';
 import { TooltipContent } from './popups.js';
@@ -90,6 +91,15 @@ interface IconButtonProps extends Omit<
   side?: IconTooltipProps['side'];
   /** While true, no tooltip opens — see `IconTooltipProps.silent`. */
   silent?: boolean;
+  /**
+   * Out of reach for now, and still where the keyboard is: a write this
+   * button's row started is running. `aria-disabled` and a swallowed press,
+   * where the native `disabled` hands the keyboard to `<body>` as soon as a
+   * frame is drawn while it holds — the press it just took began the write,
+   * so a store slower than a frame lost every reader their place (#5820).
+   * It reads as disabled from that attribute, as `ActionButtons`' do.
+   */
+  held?: boolean;
 }
 
 /**
@@ -103,15 +113,24 @@ export function IconButton({
   label,
   side,
   silent,
+  held,
   children,
   ...button
 }: IconButtonProps) {
+  const holds =
+    held === undefined
+      ? {}
+      : {
+          disabled: held,
+          focusableWhenDisabled: true,
+          className: cn('fve:aria-disabled:opacity-50', button.className),
+        };
   return (
     <IconTooltip
       label={label}
       side={side}
       {...(silent === undefined ? {} : { silent })}
-      render={<Button {...button} />}
+      render={<Button {...button} {...holds} />}
     >
       {children}
     </IconTooltip>

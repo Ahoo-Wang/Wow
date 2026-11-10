@@ -275,3 +275,39 @@ export function startAligned(element: HTMLElement): boolean {
   const { justifyContent } = getComputedStyle(element);
   return justifyContent === 'flex-start' || justifyContent === 'flow-start';
 }
+
+/**
+ * One of `store`'s writes held open until the play releases it: `method`
+ * waits on the gate before it runs, so a play looks at the screen while the
+ * write is in flight — across drawn frames, as a real store's answer comes —
+ * rather than hoping a timer lands inside it. The in-memory store answers
+ * within the frame it is asked in, which is the one order a reader never
+ * sees (#5820).
+ */
+export function holdWrite<S extends object, K extends keyof S>(
+  store: S,
+  method: K,
+): { release(): void } {
+  const original = store[method] as (...args: unknown[]) => unknown;
+  let open = () => {};
+  const gate = new Promise<void>(resolve => {
+    open = resolve;
+  });
+  Object.assign(store, {
+    [method]: async (...args: unknown[]) => {
+      await gate;
+      return original.apply(store, args);
+    },
+  });
+  return {
+    release() {
+      Object.assign(store, { [method]: original });
+      open();
+    },
+  };
+}
+
+/** One frame drawn: when a browser moves focus off a control it can no longer hold. */
+export function nextFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
