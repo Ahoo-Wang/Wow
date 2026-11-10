@@ -122,9 +122,9 @@ class Manifest @InternalWowApi constructor(
          * among its types, or, for a schema of no type such as a reference, a `null` alternative beside it.
          */
         fun nullableSchema(schema: Map<String, Any?>): Map<String, Any?> = when (val type = schema[TYPE]) {
-            is String -> schema + (TYPE to listOf(type, NULL))
             null -> mapOf(ANY_OF to listOf(mapOf(TYPE to NULL), schema))
-            else -> schema
+            is List<*> -> if (NULL in type) schema else schema + (TYPE to type + NULL)
+            else -> schema + (TYPE to listOf(type, NULL))
         }
 
         private const val REF = "\$ref"

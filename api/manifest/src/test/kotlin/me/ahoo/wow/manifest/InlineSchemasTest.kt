@@ -25,7 +25,9 @@ class InlineSchemasTest {
         nullableItem.assert().isEqualTo(mapOf("anyOf" to listOf(mapOf("type" to "null"), item)))
         Manifest.nullableSchema(Manifest.arraySchema(nullableItem)).assert()
             .isEqualTo(mapOf("type" to listOf("array", "null"), "items" to nullableItem))
-        // A schema of any value already accepts null.
+        // A union of types gains null, unless it holds it already.
+        Manifest.nullableSchema(mapOf("type" to listOf("string", "integer"))).assert()
+            .isEqualTo(mapOf("type" to listOf("string", "integer", "null")))
         Manifest.nullableSchema(mapOf("type" to listOf("object", "null"))).assert()
             .isEqualTo(mapOf("type" to listOf("object", "null")))
         Manifest.refsOf(Manifest.arraySchema(nullableItem)).assert().containsExactly("#/\$defs/sample.Item")
