@@ -91,7 +91,7 @@ class ShipmentNotifier(private val notifications: BuyerNotifications) {
 }
 ```
 
-同一个处理函数每次处理同一次提交时，`context.invocationKey` 都相同：处理整条流的处理函数是 `executionId`（`subscription:ref@version`），处理一种事件类型的处理函数是 `executionId:eventIndex`。把它作为幂等键传给外部系统，这样被要求两次的通知只会发送一次。`@Retry` 给反应器它自己的重试预算：见[失败与重试](./failures)。
+同一个处理函数每次处理同一次提交时，`context.invocationKey` 都相同：处理整条流的处理函数是 `executionId`（`subscription:ref@version`，其中 ref 写作 `context.aggregate/tenant/id`），处理一种事件类型的处理函数是 `executionId:eventIndex`。订阅名中的 `%` 或 `:`，以及租户或 ID 中的 `%` 或 `/`，会被百分号转义（`%25`、`%3A`、`%2F`），所以任意两次执行都不会共用一个键；不含这些字符的名字保持原样。把它作为幂等键传给外部系统，这样被要求两次的通知只会发送一次。`@Retry` 给反应器它自己的重试预算：见[失败与重试](./failures)。
 
 ## 从哪里开始 {#where-they-start}
 

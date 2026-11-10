@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.naming.Escapes.escaped
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
@@ -280,14 +281,11 @@ object Timers {
      */
     @JvmStatic
     fun idOf(ref: AggregateRef, key: String, version: Int): String =
-        "${escaped(ref.type.context, CONTEXT_RESERVED)}.${escaped(ref.type.name)}/${escaped(ref.tenantId)}/" +
-            "${escaped(ref.id)}#${escaped(key)}@$version"
+        "${escaped(ref.type.context, CONTEXT_RESERVED)}.${escaped(ref.type.name, RESERVED)}/" +
+            "${escaped(ref.tenantId, RESERVED)}/${escaped(ref.id, RESERVED)}#${escaped(key, RESERVED)}@$version"
 
-    private val RESERVED = Regex("[%/#@]")
-    private val CONTEXT_RESERVED = Regex("[%/#@.]")
-
-    private fun escaped(name: String, reserved: Regex = RESERVED): String =
-        if (!reserved.containsMatchIn(name)) name else reserved.replace(name) { "%%%02X".format(it.value[0].code) }
+    private const val RESERVED = "%/#@"
+    private const val CONTEXT_RESERVED = "%/#@."
 
     /** The owner of an aggregate's timers: the aggregate. */
     @JvmStatic

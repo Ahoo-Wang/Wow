@@ -66,7 +66,12 @@ object Partitioner {
         return partitions
     }
 
-    /** The text the partition is hashed from; part of the format, independent of [AggregateRef.toString]. */
+    /**
+     * The text the partition is hashed from; part of the format, and deliberately independent of
+     * [AggregateRef.toString], which escapes its separators (D408): this key keeps them raw, so an aggregate whose tenant
+     * or id holds a `/` or a `%` stays in the partition its stored streams are in. That two refs may share a key only
+     * puts them in one partition.
+     */
     fun key(ref: AggregateRef): String = "${ref.type.context}.${ref.type.name}/${ref.tenantId}/${ref.id}"
 
     /** 64-bit FNV-1a over the UTF-8 bytes of [text]. */

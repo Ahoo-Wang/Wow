@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.api.aggregate
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.naming.Escapes
+
 /**
  * The kind of an aggregate: the bounded context it belongs to and its name within it. It is a name, not a JVM class.
  */
@@ -60,10 +63,41 @@ data class AggregateRef(val type: AggregateType, val tenantId: String, val id: S
 
     override fun hashCode(): Int = hash
 
-    override fun toString(): String = "$type/$tenantId/$id"
+    /**
+     * `context.aggregate/tenant/id`, each name with its separators and `%` percent-escaped ([Escapes], decision
+     * D408): `%` and `/` in each, and `.` in the context. A ref whose names hold none of them reads as they are, and
+     * no two refs share a text, so the published texts built on it (an envelope's id, a topic message's key, an
+     * execution's invocation key) name one aggregate each.
+     */
+    override fun toString(): String =
+        "${Escapes.escaped(type.context, CONTEXT_RESERVED)}.${Escapes.escaped(type.name, RESERVED)}/" +
+            "${Escapes.escaped(tenantId, RESERVED)}/${Escapes.escaped(id, RESERVED)}"
 
     companion object {
         /** The id of a ref whose id admission has not chosen yet. */
         const val UNASSIGNED: String = "(none)"
+
+        private const val RESERVED = "%/"
+        private const val CONTEXT_RESERVED = "%/."
+        private const val PARTS = 3
+
+        /**
+         * The ref whose text ([toString]) is [text]; null when [text] is no such text: not three parts, a type
+         * without a `.`, a malformed escape, a blank name, or a text the ref would not write itself.
+         */
+        @InternalWowApi
+        @JvmStatic
+        fun parse(text: String): AggregateRef? {
+            val parts = text.split('/').takeIf { it.size == PARTS } ?: return null
+            val dot = parts[0].indexOf('.').takeIf { it > 0 } ?: return null
+            val context = Escapes.unescaped(parts[0].substring(0, dot)) ?: return null
+            val name = Escapes.unescaped(parts[0].substring(dot + 1)) ?: return null
+            val tenantId = Escapes.unescaped(parts[1]) ?: return null
+            val id = Escapes.unescaped(parts[2]) ?: return null
+            if (listOf(context, name, tenantId, id).any(String::isBlank)) {
+                return null
+            }
+            return AggregateType(context, name).ref(tenantId, id).takeIf { it.toString() == text }
+        }
     }
 }

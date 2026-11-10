@@ -233,6 +233,27 @@ class TopicSubscriptionsTest {
         }
 
     @Test
+    fun `an undecodable message keyed by a ref whose tenant holds a slash should park that aggregate`(): Unit =
+        runBlocking {
+            // D408: the key is the ref's own text, its '/' escaped, so it reads back as this aggregate and no other.
+            start("node-1")
+            val slashed = ORDER.ref("a/b", "o-1")
+            topics.send(ORDER_TOPIC, TopicMessage.of(slashed.toString(), BAD.toByteArray()))
+            eventually { ledger.parked(BOARD, slashed) != null }
+            ledger.parked(BOARD, ORDER.ref("a", "b/o-1")).assert().isNull()
+        }
+
+    @Test
+    fun `a message whose key is no ref's text should be passed over, as one without a key`(): Unit = runBlocking {
+        start("node-1")
+        val partition = partitionOf("o-1")
+        topics.send(ORDER_TOPIC, TopicMessage.of("sales.order/t/%zz", BAD.toByteArray(), partition = partition))
+        topics.publish(orderRecord("o-1", 1))
+        eventually { handled.size == 1 }
+        undecodable.assert().containsExactly(0L to false)
+    }
+
+    @Test
     fun `a message of an aggregate that holds no state event should park the aggregate there`(): Unit =
         runBlocking {
             // Review A3-14: failure is data; the operator sees it and decides.
