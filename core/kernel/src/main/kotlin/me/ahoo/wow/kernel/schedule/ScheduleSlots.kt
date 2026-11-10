@@ -192,18 +192,20 @@ object ScheduleSlots {
      * about forty times, whatever the outage.
      */
     private fun latestBy(parsed: Parsed, due: Long, now: Long): Long {
+        var latest = parsed.next(due)?.takeIf { it <= now } ?: return due
+        // next(low) is latest, due by now; next(high) is not.
         var low = due
         var high = now
-        if (!dueBy(parsed, low, now)) {
-            return due
-        }
         while (high - low > 1) {
             val middle = low + (high - low) / 2
-            if (dueBy(parsed, middle, now)) low = middle else high = middle
+            val next = parsed.next(middle)
+            if (next != null && next <= now) {
+                low = middle
+                latest = next
+            } else {
+                high = middle
+            }
         }
-        return checkNotNull(parsed.next(low))
+        return latest
     }
-
-    /** Whether the next time [parsed] names after [after] is due by [now]. */
-    private fun dueBy(parsed: Parsed, after: Long, now: Long): Boolean = parsed.next(after)?.let { it <= now } == true
 }

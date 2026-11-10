@@ -184,6 +184,17 @@ class ScheduleSlotsTest {
     }
 
     @Test
+    fun `a latest slot that is the last one counted is the slot moved to`() {
+        val everySecond = ScheduleRule.Cron("* * * * * *")
+        val from = at("2026-01-01T00:00:00Z")
+        // The time due last is exactly the last one counted one by one: none after it is due yet.
+        val last = from + ScheduleSlots.MAX_COUNTED * 1_000
+        val caught = ScheduleSlots.caughtUp(timer(everySecond, from), last + 500)
+        caught.slotDueAt.assert().isEqualTo(last)
+        caught.skipped.assert().isEqualTo(ScheduleSlots.MAX_COUNTED)
+    }
+
+    @Test
     fun `beyond the counted slots, the latest slot is still a time of the rule, across the rule's gaps`() {
         // Every second on weekdays, from a Monday to a Saturday noon: the latest is Friday's last second.
         val weekdays = ScheduleRule.Cron("* * * * * MON-FRI")
