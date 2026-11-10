@@ -221,6 +221,14 @@ class NineXCompensationImportTest {
         }
 
     @Test
+    fun `an execution reads by its id, and an id the 9x compensation service does not hold reads none`() {
+        val source = MongoNineXCompensationSource(NineXMongoStore.compensation())
+        val expected = NineXCompensationExample.execution(1)
+        source.execution(expected.id).assert().isEqualTo(expected)
+        source.execution("none").assert().isNull()
+    }
+
+    @Test
     fun `the unresolved 9x executions import into the failure ledger on PostgreSQL`(): Unit = runBlocking {
         val postgres = WowContainers.postgres
         val target = """{ "type": "postgres", "jdbcUrl": "${postgres.jdbcUrl}", "username": "${postgres.username}", """ +

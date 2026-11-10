@@ -34,6 +34,14 @@ class MongoNineXSnapshotSourceTest {
     }
 
     @Test
+    fun `a snapshot reads by its instance id, and an id the store does not hold reads none`() {
+        val expected = NineXExample.snapshot("order-snapshot.json")
+        source.snapshot(order, expected.aggregateId.id).assert().isEqualTo(expected)
+        source.snapshot(order, "none").assert().isNull()
+        source.snapshot(cart, expected.aggregateId.id).assert().isNull()
+    }
+
+    @Test
     fun `snapshots page in aggregate id order, within their context`() {
         val text = NineXExample.resource("order-snapshot.json")
         // Deleted, in this context and in another.
