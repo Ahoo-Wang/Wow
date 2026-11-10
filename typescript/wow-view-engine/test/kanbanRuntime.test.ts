@@ -221,28 +221,37 @@ describe('restyledOnly under a kanban', () => {
   const table = kanbanConfig({ layout: 'table' });
 
   it('calls a switch into or out of the kanban a question, and table to cards drawn', () => {
-    expect(restyledOnly(table, { ...table, layout: 'kanban' })).toBeNull();
-    expect(restyledOnly({ ...table, layout: 'kanban' }, table)).toBeNull();
-    expect(restyledOnly(table, { ...table, layout: 'card' })).toBe('drawn');
+    expect(
+      restyledOnly(dealsDefinition(), table, { ...table, layout: 'kanban' }),
+    ).toBeNull();
+    expect(
+      restyledOnly(dealsDefinition(), { ...table, layout: 'kanban' }, table),
+    ).toBeNull();
+    expect(
+      restyledOnly(dealsDefinition(), table, { ...table, layout: 'card' }),
+    ).toBe('drawn');
   });
 
   it("calls its lanes a question, but not a table's stored half", () => {
     const kanban = kanbanConfig();
     expect(
-      restyledOnly(kanban, {
+      restyledOnly(dealsDefinition(), kanban, {
         ...kanban,
         kanban: { lane: 'stage', hidden: ['WON'] },
       }),
     ).toBeNull();
     expect(
-      restyledOnly(table, { ...table, kanban: { lane: 'stage', hidden: [] } }),
+      restyledOnly(dealsDefinition(), table, {
+        ...table,
+        kanban: { lane: 'stage', hidden: [] },
+      }),
     ).toBe('drawn');
   });
 
   it('runs its summaries with its lanes', () => {
     const kanban = kanbanConfig();
     expect(
-      restyledOnly(kanban, {
+      restyledOnly(dealsDefinition(), kanban, {
         ...kanban,
         summaries: [{ field: 'amount', fn: AggregationFunction.SUM }],
       }),
