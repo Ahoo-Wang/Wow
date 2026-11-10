@@ -709,7 +709,9 @@ export function analyzeManifest(manifest: ManifestDocument): {
       ...context,
       textNumbers: numbers
         .declarations()
-        .filter(declared => declared.file === `${context.directory}/textNumbers.ts`),
+        .filter(
+          declared => declared.file === `${context.directory}/textNumbers.ts`,
+        ),
     }));
   return {
     model: {
