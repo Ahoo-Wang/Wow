@@ -34,7 +34,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.Hop
@@ -45,7 +44,6 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
 import me.ahoo.wow.kernel.UndeclaredEventException
-import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
@@ -787,19 +785,6 @@ class WaitCoordinator(
     }
 }
 
-/**
- * Writes the commands admitted on a node to a command topic instead of executing them there: the topic router's
- * or a peer context's. The target's intake executes them.
- */
-@InternalWowApi
-interface CommandRelay {
-    /** The command topic, as a failure names it. */
-    val topic: String
-
-    /** Writes [command] with [wait] and the trace it is sent in, and waits for the broker; throws when it did not ack. */
-    suspend fun send(command: Command<*>, wait: WaitContext?)
-}
-
 /** This router's relay of [model]'s commands. */
 private fun TopicRouter.relayOf(model: AggregateModel<*>): CommandRelay = object : CommandRelay {
     override val topic: String get() = this@relayOf.topic
@@ -809,41 +794,3 @@ private fun TopicRouter.relayOf(model: AggregateModel<*>): CommandRelay = object
 
 /** Whether this plan's only hop is ACCEPTED: the caller is answered at admission. */
 internal val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().stage == Stage.ACCEPTED
-
-/**
- * What executing a command reached at once: its [committed] result, at its COMMITTED hop, then the
- * later hops it [reached] without waiting for a subscription. The hops after them are signalled to the wait's origin.
- * [outcome] is the kernel's when this node executed the command; null when another node did and replied, or when the
- * executor did not take it.
- */
-@InternalWowApi
-data class Settlement(
-    val committed: CommandResult,
-    val reached: List<CommandResult> = emptyList(),
-    val outcome: CommandOutcome? = null,
-    /**
-     * What failed the handling of a [ResultCodes.FAILED] command here, or the store that refused it
-     * ([ResultCodes.STORAGE_UNAVAILABLE]): for this node's logs, ledger and failure classification only.
-     */
-    val cause: Throwable? = null,
-) {
-    /** What made [committed] FAILED, when this node knows it: the handling's [cause], or an unknown append's. */
-    val failure: Throwable? get() = cause ?: (outcome as? CommandOutcome.Unknown)?.cause
-
-    /** The rejection [committed] ends with, when it is REJECTED (a business outcome). */
-    val rejection: Rejection?
-        get() = committed.error?.takeIf { committed.status == CommandResult.Status.REJECTED }
-            ?.let { Rejection(it.code, it.message, it.extensions) }
-
-    /** Whether [committed] is FAILED: a technical failure, such as contention, an unknown outcome or a busy lane. */
-    val failed: Boolean get() = committed.status == CommandResult.Status.FAILED
-}
-
-/**
- * The backpressure [command] met when this settlement says the node refused it as busy ([ResultCodes.BUSY], here or
- * on its partition's owner): what the node's own sources throw instead of a technical failure.
- */
-internal fun Settlement.busyOf(command: Command<*>): CommandBusyException? =
-    committed.error?.takeIf { failed && it.code == ResultCodes.BUSY }?.let {
-        CommandBusyException(command.ref, command.id, it.message)
-    }
