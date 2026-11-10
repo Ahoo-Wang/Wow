@@ -24,8 +24,8 @@ class MongoAccessWalksTest {
     fun `a walk reads back as written, and one of its first fields alone reads as just begun`() {
         val heads = mapOf(1 to 4L, 0 to 9L)
         val walk = AccessWalk("region:string", heads, cursor = "0/1:at", walked = 12, completed = true)
-        MongoEventLog.walkOf(MongoEventLog.documentOf(walk)).assert().isEqualTo(walk)
+        MongoLogAccess.walkOf(MongoLogAccess.documentOf(walk)).assert().isEqualTo(walk)
         val first = Document(MongoEventLog.SCHEMA, "").append(MongoEventLog.HEADS, Document("0", 3))
-        MongoEventLog.walkOf(first).assert().isEqualTo(AccessWalk("", mapOf(0 to 3L)))
+        MongoLogAccess.walkOf(first).assert().isEqualTo(AccessWalk("", mapOf(0 to 3L)))
     }
 }

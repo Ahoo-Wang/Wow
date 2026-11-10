@@ -21,13 +21,11 @@ import com.mongodb.WriteConcern
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Aggregates
-import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
-import com.mongodb.client.model.UpdateManyModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -206,6 +204,9 @@ class MongoEventLog(
     /** Where an aggregate's streams are found. */
     private val lookups = MongoLogLookups(partitions, documents)
 
+    /** The access attributes of the streams, and the walks of the aggregate types. */
+    private val logAccess = MongoLogAccess(dispatcher, collections, lookups, walks, partitions)
+
     /** The appends, alone or in groups, and the placeholders of the sequences no stream took. */
     private val appender = MongoLogAppender(
         context,
@@ -319,111 +320,22 @@ class MongoEventLog(
             }
         }
 
-    /**
-     * One update of the range by the version key, on the streams not stamped as of a later version. A stream not
-     * stamped has no `access_version`, which `$lte` does not match, so the guard names its absence too; the count is of
-     * the streams it matched, as a stamp that writes the same attributes again still counts them.
-     */
     @InternalWowApi
-    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int {
-        if (from >= until) return 0
-        return dispatcher.mongo {
-            collections.of(ref.type).log.updateMany(
-                stampFilter(ref, asOf, from, until),
-                Updates.combine(Updates.set(ACCESS, Document(access)), Updates.set(ACCESS_VERSION, asOf)),
-            ).matchedCount.toInt()
-        }
-    }
+    override suspend fun stamp(ref: AggregateRef, access: Map<String, Any?>, asOf: Int, from: Int, until: Int): Int =
+        logAccess.stamp(ref, access, asOf, from, until)
 
-    /**
-     * One unordered `bulkWrite` of the stamps' guarded `updateMany`s per aggregate type, each as [stamp] writes one:
-     * each guard holds on the document it writes, so stamps that overlap leave the later version's attributes, in
-     * whatever order the server applies them.
-     */
     @InternalWowApi
-    override suspend fun stampAll(stamps: List<AccessStamp>): Int {
-        val ranges = stamps.filter { it.from < it.until }
-        if (ranges.isEmpty()) return 0
-        return dispatcher.mongo {
-            ranges.groupBy { it.ref.type }.entries.sumOf { (type, group) ->
-                val updates = group.map {
-                    UpdateManyModel<Document>(
-                        stampFilter(it.ref, it.asOf, it.from, it.until),
-                        Updates.combine(Updates.set(ACCESS, Document(it.access)), Updates.set(ACCESS_VERSION, it.asOf)),
-                    )
-                }
-                collections.of(type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).matchedCount
-            }
-        }
-    }
+    override suspend fun stampAll(stamps: List<AccessStamp>): Int = logAccess.stampAll(stamps)
 
-    /** The streams of [ref] from [from] until [until] not stamped as of a later version than [asOf]. */
-    private fun stampFilter(ref: AggregateRef, asOf: Int, from: Int, until: Int): Bson = Filters.and(
-        lookups.refFilter(ref),
-        Filters.gte(VERSION, from),
-        Filters.lt(VERSION, until),
-        Filters.or(Filters.exists(ACCESS_VERSION, false), Filters.lte(ACCESS_VERSION, asOf)),
-    )
+    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage =
+        logAccess.aggregates(type, after, limit)
 
-    /**
-     * Partition by partition, each by the version key (its aggregates' first streams); the cursor is the partition,
-     * then [AggregatePage.cursorOf] within it.
-     */
-    override suspend fun aggregates(type: AggregateType, after: String?, limit: Int): AggregatePage {
-        require(limit > 0) { "A page holds at least one aggregate." }
-        return dispatcher.mongo {
-            val log = collections.existing(type)?.log ?: return@mongo AggregatePage(emptyList(), null)
-            var partition = after?.substringBefore(CURSOR_PARTITION)?.toInt() ?: 0
-            var key = after?.substringAfter(CURSOR_PARTITION)?.let(AggregatePage::keyOf)
-            val refs = ArrayList<AggregateRef>(limit)
-            while (partition < partitions) {
-                val filters = mutableListOf(Filters.eq(PARTITION, partition), Filters.eq(VERSION, 1))
-                key?.let { (id, tenant) ->
-                    filters += Filters.or(
-                        Filters.gt(AGGREGATE_ID, id),
-                        Filters.and(Filters.eq(AGGREGATE_ID, id), Filters.gt(TENANT_ID, tenant)),
-                    )
-                }
-                log.find(Filters.and(filters))
-                    .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID))
-                    .projection(Projections.include(AGGREGATE_ID, TENANT_ID))
-                    .limit(limit - refs.size)
-                    .forEach { refs += type.ref(it.getString(TENANT_ID), it.getString(AGGREGATE_ID)) }
-                if (refs.size == limit) {
-                    break
-                }
-                partition++
-                key = null
-            }
-            val last = refs.takeIf { it.size == limit }?.last()
-            AggregatePage(refs, last?.let { "$partition$CURSOR_PARTITION${AggregatePage.cursorOf(it)}" })
-        }
-    }
+    override suspend fun holds(type: AggregateType): Boolean = logAccess.holds(type)
 
-    /** Whether [type]'s collection exists: this log made sure of it, or the registry lists it. */
-    override suspend fun holds(type: AggregateType): Boolean = dispatcher.mongo { collections.existing(type) != null }
+    override suspend fun walk(type: AggregateType): AccessWalk? = logAccess.walk(type)
 
-    /**
-     * The registry document of [type]'s collection, its `access_walk` ([walkOf]); majority read. None before the
-     * collection's first append: the read creates no collection.
-     */
-    override suspend fun walk(type: AggregateType): AccessWalk? = dispatcher.mongo {
-        walks.find(collections.registryOf(type)).first()
-            ?.get(ACCESS_WALK, Document::class.java)
-            ?.let(::walkOf)
-    }
-
-    /**
-     * One conditional update of the registry document, majority written: concurrent claims serialize on it. A type
-     * whose collection does not exist has no registry document, and the update matches none.
-     */
-    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean = dispatcher.mongo {
-        val recorded = if (expected == null) Filters.eq(ACCESS_WALK, null) else Filters.eq(WALK_SCHEMA, expected)
-        walks.updateOne(
-            Filters.and(collections.registryOf(type), recorded),
-            Updates.set(ACCESS_WALK, documentOf(walk)),
-        ).matchedCount == 1L
-    }
+    override suspend fun claim(type: AggregateType, walk: AccessWalk, expected: String?): Boolean =
+        logAccess.claim(type, walk, expected)
 
     override suspend fun advance(
         type: AggregateType,
@@ -431,16 +343,7 @@ class MongoEventLog(
         cursor: String?,
         walked: Long,
         completed: Boolean,
-    ): Boolean = dispatcher.mongo {
-        walks.updateOne(
-            Filters.and(collections.registryOf(type), Filters.eq(WALK_SCHEMA, schema)),
-            Updates.combine(
-                Updates.set("$ACCESS_WALK.$CURSOR", cursor),
-                Updates.set("$ACCESS_WALK.$WALKED", walked),
-                Updates.set("$ACCESS_WALK.$COMPLETED", completed),
-            ),
-        ).matchedCount == 1L
-    }
+    ): Boolean = logAccess.advance(type, schema, cursor, walked, completed)
 
     /**
      * One aggregation: the tail by the version key, then, through `$unionWith` on the same
@@ -805,25 +708,6 @@ class MongoEventLog(
         const val CURSOR = "cursor"
         const val WALKED = "walked"
         const val COMPLETED = "completed"
-        private const val WALK_SCHEMA = "$ACCESS_WALK.$SCHEMA"
-
-        /** Ends the partition of an [aggregates] cursor. */
-        private const val CURSOR_PARTITION = "/"
-
-        fun documentOf(walk: AccessWalk): Document = Document(SCHEMA, walk.schema)
-            .append(HEADS, Document(walk.heads.toSortedMap().mapKeys { (partition, _) -> partition.toString() }))
-            .append(CURSOR, walk.cursor)
-            .append(WALKED, walk.walked)
-            .append(COMPLETED, walk.completed)
-
-        fun walkOf(document: Document): AccessWalk = AccessWalk(
-            schema = document.getString(SCHEMA),
-            heads = document.get(HEADS, Document::class.java).entries
-                .associate { (partition, head) -> partition.toInt() to (head as Number).toLong() },
-            cursor = document.getString(CURSOR),
-            walked = (document[WALKED] as Number?)?.toLong() ?: 0,
-            completed = document.getBoolean(COMPLETED, false),
-        )
         const val TRANSPORT = "transport"
         const val CONTEXT = "context"
         const val EVENTS = "events"
