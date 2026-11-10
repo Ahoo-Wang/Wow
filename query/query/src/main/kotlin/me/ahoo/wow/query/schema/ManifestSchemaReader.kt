@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit
  * | `x-wow-money` `{currency \| currencyField, scale?}` | [NumericFormat.Money.of] |
  * | `x-wow-duration` `{unit}` | [TimeSpan] |
  * | `x-wow-reference` `{aggregateName, contextName?}` | [Reference] (the declaring context when omitted) |
+ * | `x-wow-text` `{}` | [QueryFieldDeclaration.text], on each string leaf (an array's items, a union's strings) |
  * | `x-wow-index` (state root) | informational: the storage's index DDL reads it, the query schema does not |
  */
 internal object ManifestQueryKeywords {
@@ -49,6 +50,7 @@ internal object ManifestQueryKeywords {
     const val MONEY: String = "x-wow-money"
     const val DURATION: String = "x-wow-duration"
     const val REFERENCE: String = "x-wow-reference"
+    const val TEXT: String = "x-wow-text"
     const val INDEX: String = "x-wow-index"
 }
 
@@ -258,6 +260,7 @@ internal class ManifestSchemaReader(
         }
         keywords.aliases()?.let { result = result.copy(aliases = DeclarationValue.Set(it)) }
         keywords.maskRule(strategies)?.let { result = result.withMaskRule(it, field) }
+        if (keywords.text()) result = result.withText(field)
         return result
     }
 
@@ -387,6 +390,9 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
             )
         }
     }
+
+    /** Whether the property is marked `x-wow-text`, an object with nothing in it. */
+    fun text(): Boolean = keyword(ManifestQueryKeywords.TEXT) != null
 
     fun aliases(): Set<QueryField<*>>? = schema[ManifestQueryKeywords.ALIAS]?.let { aliases ->
         declared(ManifestQueryKeywords.ALIAS) {
@@ -532,6 +538,37 @@ private fun QueryFieldDeclaration.withMaskRule(rule: MaskRule, field: String): Q
         )
     }
     throw QuerySchemaConflictException("Masked query schema field must have STRING value type: [$field].")
+}
+
+/**
+ * Marks the string values this declaration holds as text a reader searches by words: here when it is a string, else
+ * an array's items or a union's alternatives. A map's values are matched by key, and any other value holds no words:
+ * both fail the build. What a string may not be besides (an enumeration, a semantic type's, a sensitive one) is the
+ * schema's own check ([requireTextValues]), which a declaration in code meets too.
+ */
+private fun QueryFieldDeclaration.withText(field: String): QueryFieldDeclaration = when (inferredKind()) {
+    QueryValueKind.ARRAY -> copy(items = DeclarationValue.Set(items.valueOr(null)!!.withText(field)))
+    QueryValueKind.UNION -> copy(
+        alternatives = DeclarationValue.Set(
+            alternatives.valueOr(emptyList()).map { branch ->
+                if (branch.inferredKind() == QueryValueKind.NULL) branch else branch.withText(field)
+            },
+        ),
+    )
+    QueryValueKind.SCALAR -> if (valueTypes.valueOr(emptySet()) == setOf(QueryValueType.STRING)) {
+        copy(text = DeclarationValue.Set(true))
+    } else {
+        throw QuerySchemaConflictException(
+            "${ManifestQueryKeywords.TEXT} on [$field] requires a string field or an array of strings.",
+        )
+    }
+    else -> throw QuerySchemaConflictException(
+        if (mapValues() != null) {
+            "${ManifestQueryKeywords.TEXT} on [$field] requires a string field or an array of strings, not a map."
+        } else {
+            "${ManifestQueryKeywords.TEXT} on [$field] requires a string field or an array of strings."
+        },
+    )
 }
 
 /** Alternatives of one value must not mask the same path differently: a response value takes one rule. */

@@ -113,6 +113,8 @@ class QueryFieldDeclaration @InternalWowApi constructor(
     val aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset,
     /** Set when the field is kept only for existing callers. */
     val deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
+    /** Whether this string value is prose a reader searches by words (the Manifest's `x-wow-text`). */
+    val text: DeclarationValue<Boolean> = DeclarationValue.Unset,
 ) {
     /** This QueryFieldDeclaration with the given values replaced; for Wow's own query rewriting. */
     @InternalWowApi
@@ -134,6 +136,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         variant: DeclarationValue<String?> = this.variant,
         aliases: DeclarationValue<Set<QueryField<*>>> = this.aliases,
         deprecated: DeclarationValue<QueryDeprecation?> = this.deprecated,
+        text: DeclarationValue<Boolean> = this.text,
     ): QueryFieldDeclaration = QueryFieldDeclaration(
         title,
         description,
@@ -152,6 +155,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         variant,
         aliases,
         deprecated,
+        text,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -164,7 +168,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             "enumDescriptions=$enumDescriptions, valueTypes=$valueTypes, nullable=$nullable, required=$required, " +
             "kind=$kind, properties=$properties, items=$items, additionalProperties=$additionalProperties, " +
             "alternatives=$alternatives, semanticType=$semanticType, maskRule=$maskRule, variant=$variant, " +
-            "aliases=$aliases, deprecated=$deprecated)"
+            "aliases=$aliases, deprecated=$deprecated, text=$text)"
 
     private fun valueFields(): List<Any?> = listOf(
         title,
@@ -184,6 +188,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
         variant,
         aliases,
         deprecated,
+        text,
     )
 
     companion object {
@@ -208,6 +213,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             variant: DeclarationValue<String?> = DeclarationValue.Unset,
             aliases: DeclarationValue<Set<QueryField<*>>> = DeclarationValue.Unset,
             deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
+            text: DeclarationValue<Boolean> = DeclarationValue.Unset,
         ): QueryFieldDeclaration = QueryFieldDeclaration(
             title,
             description,
@@ -226,6 +232,7 @@ class QueryFieldDeclaration @InternalWowApi constructor(
             variant,
             aliases,
             deprecated,
+            text,
         )
     }
 }
@@ -293,6 +300,7 @@ internal fun QueryFieldDeclaration.merge(
     variant = variant.merge(higher.variant, field, "variant", rejectDifferent),
     aliases = aliases.merge(higher.aliases, field, "aliases", rejectDifferent),
     deprecated = deprecated.merge(higher.deprecated, field, "deprecated", rejectDifferent),
+    text = text.merge(higher.text, field, "text", rejectDifferent),
 )
 
 /**
