@@ -342,7 +342,8 @@ class KernelScheduleTest {
         Unit = runTest {
         val due = NOW + 300
         var skew = 0L
-        // The clock steps back 50 ms while the state loads, once the wait is over.
+        // The clock steps back 50 ms while the state loads, once the wait is over, then gains 1 ms less than the next
+        // wait: the attempt waits for its due time again, reading the clock after each wait.
         val stepping = object : EventLog by log {
             override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
                 if (testScheduler.currentTime >= 300) {
@@ -351,11 +352,11 @@ class KernelScheduleTest {
                 return log.read(ref, fromVersion, toVersion)
             }
         }
-        val kernel = following(stepping) { skew }
+        val kernel = following(stepping) { skew - if (testScheduler.currentTime > 300) 1 else 0 }
         send(Place(), kernel = kernel)
         val headers = ScheduleContext("$ref#remind@1", "remind", 1, due).headers()
         send(CancelOrder("due"), headers = headers, kernel = kernel)
-        currentTime.assert().isEqualTo(350L)
+        currentTime.assert().isEqualTo(351L)
         decidedAt.single().assert().isEqualTo(due)
     }
 
