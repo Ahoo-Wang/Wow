@@ -149,7 +149,7 @@ class Kernel(
      * The access policy of each aggregate type, which decides who changes it before and after deciding; none, every
      * aggregate is changed by the default rule ([me.ahoo.wow.api.access.ScopeAccess]).
      */
-    private val policies: WritePolicies = WritePolicies.NONE,
+    policies: WritePolicies = WritePolicies.NONE,
 ) {
     /** Where a state comes from on a cache miss, and how streams fold into it. */
     private val source = StateSourcing(log, codec, observer, snapshots, snapshotTailReaders)
@@ -166,9 +166,11 @@ class Kernel(
     /** How each attempt's scope is opened. */
     private val scopes = AttemptScopes(ids, clock, reservations, options, observer, commandTypes, codec)
 
+    /** Each command's reach and request check, set up alike alone and in a batch. */
+    private val checks = RequestChecks(log, states, options.recentRequests, policies, codec)
+
     /** A batch of an aggregate's commands: the ones it takes, and their streams committed together. */
-    private val batching =
-        Batching(log, states, options.recentRequests, policies, codec, source, preparation, appends, scopes, observer)
+    private val batching = Batching(log, states, checks, source, preparation, appends, scopes, observer)
 
     private val maxAttempts: Int get() = options.maxAttempts
     private val recentRequests: Int get() = options.recentRequests
@@ -280,10 +282,8 @@ class Kernel(
             ?: return rejected(FrameworkCodes.COMMAND_UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
         val lease = currentCoroutineContext()[ExecutionLease]
-        val reach = CommandReach(model, policies.of(model.type), command)
-        val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
-            duplicate(it, command, commandType, reach, codec)
-        }
+        val requests = checks.of(model, decider, command, commandType, lease)
+        val reach = requests.reach
         requests.beforeWaiting()?.let { return it }
         awaitDue(command)
         val waitBeyondCommitted = wait.beyondCommitted()

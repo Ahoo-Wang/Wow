@@ -58,9 +58,7 @@ sealed interface BatchOutcome {
 internal class Batching(
     private val log: EventLog,
     private val states: StateCache,
-    private val recentRequests: Int,
-    private val policies: WritePolicies,
-    private val codec: EventCodec,
+    private val checks: RequestChecks,
     private val source: StateSourcing,
     private val preparation: Preparation,
     private val appends: Appends,
@@ -84,10 +82,8 @@ internal class Batching(
             val command = entry.command.narrowedTo(model)
             val decider = model.decider(command.body.javaClass) ?: break
             val commandType = model.commandType(command.body.javaClass)
-            val reach = CommandReach(model, policies.of(model.type), command)
-            val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
-                duplicate(it, command, commandType, reach, codec)
-            }
+            val requests = checks.of(model, decider, command, commandType, lease)
+            val reach = requests.reach
             // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
             if (!requests.pure || command.schedule != null) break
             val current = state ?: source.load(model, requests).first.also {
@@ -130,7 +126,7 @@ internal class Batching(
         members: BatchMembers,
         reach: CommandReach,
     ): BatchMember? {
-        val repeated = current.requests?.versionOf(command.requestId) != null ||
+        val repeated = current.recentVersionOf(command.requestId) != null ||
             members.streams.any { it.stream.requestId == command.requestId }
         if (repeated || admissible(decider, command, current, reach) != null) return null
         val encode = scopes.encoder(model)

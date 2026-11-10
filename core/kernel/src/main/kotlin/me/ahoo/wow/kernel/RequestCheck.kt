@@ -43,8 +43,10 @@ internal class RequestCheck(
     decider: DecideFunction<*>,
     private val command: Command<*>,
     lease: ExecutionLease?,
-    /** The answer to the command when [EventStreamRecord] committed its request. */
-    private val duplicate: (EventStreamRecord) -> CommandOutcome,
+    /** Who the command may reach: a duplicate is answered within it ([me.ahoo.wow.kernel.duplicate]). */
+    val reach: CommandReach,
+    private val commandType: CommandType,
+    private val codec: EventCodec,
 ) {
     /** Whether the decide function and its after hooks do no I/O ([DecideFunction.Sync], [AfterFunction.Sync]). */
     val pure = decider is DecideFunction.Sync &&
@@ -81,7 +83,7 @@ internal class RequestCheck(
      */
     suspend fun beforeDeciding(loaded: CachedState): CommandOutcome? {
         val recent = loaded.requests
-        val collided = recent?.versionOf(command.requestId)?.let { version ->
+        val collided = loaded.recentVersionOf(command.requestId)?.let { version ->
             val existing = log.read(command.ref, version, version).firstOrNull()
             if (existing?.requestId == command.requestId) {
                 return answered(loaded, duplicate(existing))
@@ -97,6 +99,10 @@ internal class RequestCheck(
 
     /** The answer to the command when [existing] committed its request: a duplicate, or a refusal. */
     fun duplicateOf(existing: EventStreamRecord): CommandOutcome = duplicate(existing)
+
+    /** The answer to the command when [existing] committed its request, within its [reach]. */
+    private fun duplicate(existing: EventStreamRecord): CommandOutcome =
+        me.ahoo.wow.kernel.duplicate(existing, command, commandType, reach, codec)
 
     /**
      * [outcome], a refusal decided on [loaded] once its events evolved the state, which may have changed it in place:
@@ -167,4 +173,37 @@ internal class RequestCheck(
         }
         return outcome
     }
+}
+
+/**
+ * The setup each command of the [Kernel] takes before it is decided, alone ([Kernel.execute]) or as a member of a
+ * batch ([Batching]): who it may reach ([CommandReach]), and how its request is checked ([RequestCheck]).
+ */
+internal class RequestChecks(
+    private val log: EventLog,
+    private val states: StateCache,
+    /** The requests kept per cached aggregate; 0 keeps none, and every request id is looked up first. */
+    private val recentRequests: Int,
+    private val policies: WritePolicies,
+    private val codec: EventCodec,
+) {
+    /** The check of [command], of [commandType], which [decider] of [model] decides, run under [lease]. */
+    fun of(
+        model: AggregateModel<*>,
+        decider: DecideFunction<*>,
+        command: Command<*>,
+        commandType: CommandType,
+        lease: ExecutionLease?,
+    ): RequestCheck = RequestCheck(
+        log,
+        states,
+        recentRequests,
+        model,
+        decider,
+        command,
+        lease,
+        CommandReach(model, policies.of(model.type), command),
+        commandType,
+        codec,
+    )
 }

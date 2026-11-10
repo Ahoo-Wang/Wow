@@ -93,6 +93,9 @@ class CachedState(
      */
     internal var requests: RecentRequests? = null
 
+    /** The version that committed [requestId], when the recent requests hold it; null when they do not, or are none. */
+    internal fun recentVersionOf(requestId: String): Int? = requests?.versionOf(requestId)
+
     /**
      * The values of the aggregate's declared access attributes in [state] ([AggregateModel.accessOf]), once the kernel
      * read them ([declared]) or committed the state; null until then.
