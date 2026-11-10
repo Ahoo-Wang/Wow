@@ -26,20 +26,20 @@ class ElasticsearchProjectionCompilerTest {
         fields = mapOf(
             QueryField("state") to projectionFieldSchema(QueryField("document")),
             QueryField("state.name") to projectionFieldSchema(QueryField("document.name")),
+            QueryField("state.lines.sku") to projectionFieldSchema(QueryField("document.lines.sku")),
         ),
     )
 
     @Test
-    fun `should compile included logical subtrees to source filters`() {
+    fun `should fetch the subtrees of the includes, two segments deep at most, once each`() {
         val include = listOf(QueryField("state"), QueryField("state.name"))
         val projection = Projection(include = include)
 
-        ElasticsearchProjectionCompiler.compile(projection, schema).includes().assert().containsExactly(
-            "document",
-            "document.*",
-            "document.name",
-            "document.name.*",
-        )
+        // `document.name` is within `document`, so `document` alone is fetched; the record is projected after.
+        ElasticsearchProjectionCompiler.compile(projection, schema).includes().assert()
+            .containsExactly("document", "document.*")
+        ElasticsearchProjectionCompiler.compile(Projection(include = listOf(QueryField("state.lines.sku"))), schema)
+            .includes().assert().containsExactly("document.lines", "document.lines.*")
         projection.include.assert().isSameAs(include)
     }
 
@@ -54,6 +54,23 @@ class ElasticsearchProjectionCompilerTest {
             "document.name",
             "document.name.*",
         )
+    }
+
+    @Test
+    fun `should leave to the record projection what the source filter cannot drop exactly`() {
+        // An exclude deeper than two segments may cross an array: the record is fetched whole and projected after.
+        ElasticsearchProjectionCompiler.compile(
+            Projection(exclude = listOf(QueryField("state.lines.sku"), QueryField("state.name"))),
+            schema,
+        ).excludes().assert().containsExactly("document.name", "document.name.*")
+        // With an include, the include's subtree is fetched and every exclude applies to the record.
+        ElasticsearchProjectionCompiler.compile(
+            Projection(include = listOf(QueryField("state")), exclude = listOf(QueryField("state.name"))),
+            schema,
+        ).let { filter ->
+            filter.includes().assert().containsExactly("document", "document.*")
+            filter.excludes().assert().isEmpty()
+        }
     }
 
     private fun projectionFieldSchema(field: QueryField<*>) = nativeBindings(field)

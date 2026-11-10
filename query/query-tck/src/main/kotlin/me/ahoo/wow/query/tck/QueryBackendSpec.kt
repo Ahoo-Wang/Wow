@@ -565,6 +565,22 @@ abstract class QueryBackendSpec {
         Unit
     }
 
+    @Test
+    fun `projection keeps an element's position when it lacks the projected leaf`() = blocking {
+        val fixture = given(
+            listOf(snapshot("p1", """{"lines":[{"sku":"A","price":1},{"price":2},{"sku":"C","price":3}]}""")),
+        )
+        val projected = fixture.list(
+            ListQuery(
+                AggregateIdFilter("p1"),
+                projection = Projection(include = listOf(QueryField("state.lines.sku"))),
+                limit = 1,
+            ),
+        ).single()
+        projected.path("state").path("lines").toString().assert().isEqualTo("""[{"sku":"A"},{},{"sku":"C"}]""")
+        Unit
+    }
+
     // Pages and counts
 
     @Test
@@ -1051,6 +1067,41 @@ abstract class QueryBackendSpec {
         )
         rows.map { it.path("status").stringValue() to it.path("lines").longValue() }
             .assert().containsExactly("CANCELLED" to 1L, "NEW" to 1L, "PAID" to 3L)
+        Unit
+    }
+
+    @Test
+    fun `a histogram and an expression group put the records without a value in the null group`() = blocking {
+        val fixture = given(
+            listOf(
+                snapshot("h1", """{"amount":12,"quantity":2}"""),
+                snapshot("h2", """{"amount":null,"quantity":1}"""),
+                snapshot("h3", """{"quantity":1}"""),
+                // A division by zero has no value.
+                snapshot("h4", """{"amount":4,"quantity":0}"""),
+            ),
+        )
+        val amount = QueryField("state.amount")
+        val perUnit = AggregationExpression.Binary(
+            me.ahoo.wow.api.query.AggregationExpressionOperator.DIVIDE,
+            AggregationExpression.Field(amount),
+            AggregationExpression.Field(QueryField("state.quantity")),
+        )
+        fun groups(group: AggregationGroup): List<Pair<Double?, Long>> = blocking {
+            fixture.aggregate(
+                AggregationQuery(
+                    groupBy = listOf(group),
+                    metrics = listOf(AggregationMetric.Count("count")),
+                    sort = listOf(Sort(QueryField("key"), Sort.Direction.ASC)),
+                ),
+            ).map { row -> row.path("key").takeUnless { it.isNull }?.doubleValue() to row.path("count").longValue() }
+        }
+        groups(AggregationGroup.Histogram(amount, "key", 10.0)).assert()
+            .containsExactly(null to 2L, 0.0 to 1L, 10.0 to 1L)
+        groups(AggregationGroup.Histogram(alias = "key", interval = 5.0, expression = perUnit)).assert()
+            .containsExactly(null to 3L, 5.0 to 1L)
+        groups(AggregationGroup.Terms(alias = "key", expression = perUnit)).assert()
+            .containsExactly(null to 3L, 6.0 to 1L)
         Unit
     }
 
