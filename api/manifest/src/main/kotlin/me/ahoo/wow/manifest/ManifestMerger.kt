@@ -114,14 +114,16 @@ object ManifestMerger {
         listOf((listOf(owner) + added).joinToString(" and ") { it.first } to context) + others
     }
 
-    /** The codes a service route refuses with that its context, every fragment's errors merged, does not declare. */
+    /**
+     * The codes a service route refuses with that neither its context, every fragment's errors merged, nor the framework
+     * declares: a `wow.` code is the framework's, whose table is [FrameworkErrors] in every Manifest.
+     */
     private fun undeclaredRefusals(source: String, context: ContextManifest): List<String> {
         val codes = context.errors.map { it.code }.toSet()
         return context.routes.flatMap { route ->
-            // A framework code is in every Manifest's own table.
-            (route.errors - codes).filterNot { it.startsWith(FrameworkErrors.PREFIX) }.map {
-                "service route ${context.name}.${route.name} ($source) refuses with $it, which is not an error of " +
-                    "the context"
+            route.errors.filterNot { it in codes || it in FrameworkErrors.BY_CODE }.map {
+                val owner = if (it.startsWith(FrameworkErrors.PREFIX)) "the framework" else "the context"
+                "service route ${context.name}.${route.name} ($source) refuses with $it, which is not an error of $owner"
             }
         }
     }

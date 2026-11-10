@@ -21,6 +21,7 @@ import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.ServiceRouteManifest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * A service route's answers: its body (200), no body (204), or either, when its response is optional; and its
@@ -61,6 +62,8 @@ class ServiceRouteOpenApiTest {
                         route("ping", null),
                         route("open", item, errors = listOf("shop.closed")),
                         route("reserve", item, errors = listOf("shop.out-of-stock")),
+                        // A framework code among a route's own.
+                        route("lookup", item, errors = listOf("wow.aggregate.not-found", "shop.closed")),
                     ),
                 ),
             ),
@@ -69,8 +72,8 @@ class ServiceRouteOpenApiTest {
     )
 
     @Suppress("UNCHECKED_CAST")
-    private fun responses(name: String): Map<String, Map<String, Any?>> {
-        val paths = document["paths"] as Map<String, Map<String, Map<String, Any?>>>
+    private fun responses(name: String, of: Map<String, Any?> = document): Map<String, Map<String, Any?>> {
+        val paths = of["paths"] as Map<String, Map<String, Map<String, Any?>>>
         return paths.getValue("/shop/$name").getValue("get")["responses"] as Map<String, Map<String, Any?>>
     }
 
@@ -120,6 +123,39 @@ class ServiceRouteOpenApiTest {
         component(refusals("reserve").getValue("422")).let {
             it["x-wow-error-codes"].assert().isEqualTo(listOf("shop.out-of-stock"))
             it["description"].toString().assert().doesNotContain("command")
+        }
+    }
+
+    @Test
+    fun `a framework code a route lists should be listed at its status`() {
+        val lookup = refusals("lookup")
+        lookup.keys.assert().containsExactly("400", "401", "403", "404", "409")
+        component(lookup.getValue("404"))["x-wow-error-codes"].assert().isEqualTo(listOf("wow.aggregate.not-found"))
+        lookup.getValue("409").assert().isEqualTo("#/components/responses/shop.route.lookup.409")
+    }
+
+    /** A Manifest of the context `shop` with no codes of its own, whose one route lists [errors]. */
+    private fun bare(vararg errors: String) = Manifest(
+        service = ServiceInfo("shop"),
+        contexts = listOf(ContextManifest("shop", routes = listOf(route("hold", null, errors = errors.toList())))),
+    )
+
+    @Test
+    fun `a route of a context with no codes should list the framework's it lists, at the host's status`() {
+        val configured = ManifestOpenApi.write(
+            bare("wow.aggregate.not-found"),
+            OpenApiOptions(errorStatuses = mapOf("wow.aggregate.not-found" to 410)),
+        )
+        responses("hold", configured).keys.assert().containsExactly("204", "400", "401", "403", "410")
+    }
+
+    @Test
+    fun `a code neither table declares should fail the document, naming the route and the code`() {
+        listOf("shop.undeclared", "wow.undeclared").forEach { code ->
+            assertThrows<IllegalStateException> { ManifestOpenApi.write(bare(code)) }.message.assert()
+                .isEqualTo(
+                    "Service route shop.hold refuses with $code, which neither its context nor the framework declares."
+                )
         }
     }
 

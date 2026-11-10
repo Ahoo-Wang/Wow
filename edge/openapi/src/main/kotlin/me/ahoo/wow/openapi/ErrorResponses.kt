@@ -82,12 +82,22 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
      * route's words, and the statuses of the codes it refuses with, its [errors], each with the codes of that status
      * alone. A status the framework's codes alone answer is the shared `wow.route.<status>`; one that carries a code of
      * the route's is the route's own, `<context>.route.<name>.<status>`. A route refuses with its codes' statuses, so
-     * it lists no `422` of a domain rejection it does not list.
+     * it lists no `422` of a domain rejection it does not list. A code's status is the edge's: the host's override,
+     * else its table's.
+     *
+     * @throws IllegalStateException naming the route and the code, for a code neither the context's table nor the
+     * framework's declares: the guard of a Manifest that was never merged, since the merger refuses such a route.
      */
     fun ofRoute(context: String, name: String, errors: List<String>): Map<String, Any?> {
-        val table = byContext[context].orEmpty().associateBy { it.code }
+        // A route is one of its context's, which the Manifest lists.
+        val table = byContext.getValue(context).associateBy { it.code }
         val answers = ROUTE.map(framework::getValue).map { status(it) to Entry(it.code, routeWords(it)) }
-        val own = errors.mapNotNull { table[it] ?: framework[it] }.map { status(it) to Entry(it.code, it.description) }
+        val own = errors.map { code ->
+            val error = checkNotNull(table[code] ?: framework[code]) {
+                "Service route $context.$name refuses with $code, which neither its context nor the framework declares."
+            }
+            status(error) to Entry(error.code, error.description)
+        }
         val routeStatuses = own.map { it.first }.toSet()
         return (answers + own).groupBy({ it.first }, { it.second }).toSortedMap()
             .entries.associateTo(LinkedHashMap()) { (status, listed) ->
