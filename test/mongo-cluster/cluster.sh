@@ -35,6 +35,14 @@ url() {
   esac
 }
 
+# The ports of the members of [mode]'s replica sets.
+member_ports() {
+  case $1 in
+    rs) echo 27101 27102 27103 ;;
+    sharded) echo 27201 27211 27212 27213 27221 27222 27223 ;;
+  esac
+}
+
 up() {
   local mode=$1 ports=()
   url "$mode" >/dev/null
@@ -51,8 +59,12 @@ up() {
     if [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != true ] || [ $waited -ge 300 ]; then
       docker logs "$NAME" >&2
       docker inspect -f 'container {{.State.Status}}, exit code {{.State.ExitCode}}, OOM killed {{.State.OOMKilled}} {{.State.Error}}' "$NAME" >&2
-      # A container still running waits on a step: each member's last log lines say which.
+      # A container still running waits on a step: each member's last log lines say which, and its role in its set.
       docker exec "$NAME" sh -c 'for f in /data/cluster/*/log; do echo "== $f"; tail -n 15 "$f"; done' >&2 2>/dev/null || true
+      for port in $(member_ports "$mode"); do
+        echo "== localhost:$port $(docker exec "$NAME" mongosh --quiet --port "$port" --eval \
+          'const h = db.hello(); `${h.setName} primary ${h.isWritablePrimary}, sees primary ${h.primary}`' 2>&1)" >&2
+      done
       echo "the $mode cluster did not start" >&2
       exit 1
     fi
