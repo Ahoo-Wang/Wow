@@ -372,7 +372,7 @@ class MongoEventLog(
      * open blocks ([MongoSequencer.resolve]).
      */
     private fun resolve(partition: Int, sequence: Long) {
-        val counter = committedCounters.find(Filters.eq(ID, partition)).firstOrNull()
+        val counter = committedCounters.find(Filters.eq(ID, partition)).first()
         when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
             MongoSequencer.Resolution.Wait -> Unit
             is MongoSequencer.Resolution.Close -> appender.close(resolution.closing)
@@ -390,7 +390,7 @@ class MongoEventLog(
     override suspend fun lineage(partition: Int): PartitionLineage {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.mongo {
-            val counter = checkNotNull(committedCounters.find(Filters.eq(ID, partition)).firstOrNull()) {
+            val counter = checkNotNull(committedCounters.find(Filters.eq(ID, partition)).first()) {
                 "The log of $context has no counter of partition $partition."
             }
             PartitionLineage.of(counter.getInteger(PARENT), counter.getInteger(EPOCH) ?: 0)

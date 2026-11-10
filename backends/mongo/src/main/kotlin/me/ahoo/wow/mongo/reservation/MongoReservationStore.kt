@@ -239,7 +239,7 @@ class MongoReservationStore(
                 keyFilter(scope, key),
                 Filters.or(Filters.eq(EXPIRES_AT, null), Filters.gt(EXPIRES_AT, clock.millis())),
             ),
-        ).firstOrNull()?.let { reservationOf(scope, key, it) }
+        ).first()?.let { reservationOf(scope, key, it) }
     }
 
     /**

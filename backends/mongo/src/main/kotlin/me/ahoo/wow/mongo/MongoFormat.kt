@@ -74,6 +74,9 @@ internal object MongoFormat {
     private const val ID = "_id"
     private const val VERSION = "version"
 
+    /** A collection's name in a listing of a database's collections. */
+    private const val NAME = "name"
+
     /**
      * Records [structure], the collection about to be created in [database], at [version] when it has no version
      * yet; [validate] checks the version recorded. Fails when the collection already exists without a record.
@@ -84,7 +87,8 @@ internal object MongoFormat {
             // The record is written before the collection is created, so one without a record predates them; a
             // collection that appeared since the first read was created by a concurrent claim, whose record now exists.
             check(
-                structure !in database.listCollectionNames() || formats.find(Filters.eq(ID, structure)).first() != null,
+                database.listCollectionNames().filter(Filters.eq(NAME, structure)).first() == null ||
+                    formats.find(Filters.eq(ID, structure)).first() != null,
             ) {
                 "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
             }

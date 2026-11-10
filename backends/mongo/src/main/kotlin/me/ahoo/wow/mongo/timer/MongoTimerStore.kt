@@ -251,7 +251,7 @@ class MongoTimerStore(
     }
 
     override suspend fun find(owner: AggregateRef, key: String): Timer? = dispatcher.mongo {
-        collectionOf(owner.type).timers.find(keyFilter(owner, key)).firstOrNull()
+        collectionOf(owner.type).timers.find(keyFilter(owner, key)).first()
             ?.let { timerOf(it, owner.type.name) }
     }
 
