@@ -417,7 +417,8 @@ src/
     useAnalysisEditor.ts      — Analysis controller
     useReshape.ts             — The one way the question's shape changes (`reshape`), what an edit took out beyond what it was asked to with its undo (D71), and whether a metric may be removed
     analysisFields.ts         — `AnalysisFieldOption`: what the definition allows doing with each field of a scope (`fieldOptions`)
-    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the question before any have (`question`, its `columns`), the chart over them, the picker's fits, and the follow-ups on a pressed group — the group by dimension, and what each follow-up opens
+    useAnalysisResult.ts      — The analysis result as a host draws it: the rows that ran, the question before any have (`question`, its `columns`), the chart over them, the picker's fits; the follow-ups on a pressed group are `followUp.ts`'s
+    followUp.ts               — The follow-ups on a pressed group (`FollowUp`, `FollowUpGroup`, `FollowUpAction`, `SplitOption`): the group by dimension, and what each opens — its records, the group split by another field, the group alone (`followUpOf`)
     analysisEditing.ts        — The edits to the question as plain functions over the draft (`questionEditing`): dimensions, metrics and their order (`moveMetric`), conditions, copies, formulas, derived metrics, durations and their bands (`addDuration`, `groupByDuration`, `durationEnds`), having
     useAutoRefresh.ts         — `RefreshController`: refresh now, the cadence ladder cut to the limits, the countdown
     useRecordActions.ts       — `useRecordActions`: the declared actions of one record surface — what a record and the selection are offered, the clock their `changesAt` moves, the press that asks first or runs, the question or form pending (able, refused by reason, what is missing), only-the-able, and the runner
