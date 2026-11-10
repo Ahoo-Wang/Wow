@@ -36,8 +36,21 @@ export type WritePayload =
       input: Omit<ViewInstance, 'id' | 'revision'>;
       /** `first-save` binds the source runtime to the new instance; `save-as` leaves it alone. */
       intent: 'first-save' | 'save-as';
+      /**
+       * A board panel's view saved as a view of its own: the panel (`id`)
+       * then shows the new view, if it still shows what was saved — the
+       * view it owns (`shows: null`) or the saved view `shows`.
+       */
+      panel?: { id: string; shows: string | null };
     }
-  | { action: 'save'; id: string; revision: string; config: ViewConfig }
+  | {
+      action: 'save';
+      id: string;
+      revision: string;
+      config: ViewConfig;
+      /** A board saved with this one panel added (放进仪表盘); see `addToDashboard`. */
+      addedPanel?: string;
+    }
   | { action: 'rename'; id: string; revision: string; title: string }
   // 设为共享／设为个人 (D18 item 10): the audience it goes to, which a retry
   // and an overwrite ask for again whatever the view holds by then.

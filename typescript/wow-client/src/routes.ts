@@ -20,19 +20,15 @@
  * @packageDocumentation
  */
 
+import type { TextNumbers } from './exactJson.js';
 import {
   type Call,
   type RequestOptions,
   send,
-  json,
   WowHeaders,
   type WowClientOptions,
 } from './http.js';
-import {
-  checkManifest,
-  fetchManifest,
-  type RoutingManifest,
-} from './manifest.js';
+import { ManifestSource, type RoutingManifest } from './manifest.js';
 
 /** What a call of a service route sends, besides its route. */
 export interface ServiceRouteCall {
@@ -48,6 +44,15 @@ export interface ServiceRouteCall {
   readonly requestId?: string;
 }
 
+/**
+ * The exact numbers ({@link TextNumbers}) of a service route: of the body it
+ * takes and of the JSON it answers.
+ */
+export interface ServiceRouteNumbers {
+  readonly request?: TextNumbers;
+  readonly response?: TextNumbers;
+}
+
 /** Options of a {@link ServiceRoutes}. */
 export interface ServiceRoutesOptions {
   /**
@@ -55,6 +60,11 @@ export interface ServiceRoutesOptions {
    * it the client reads the service's (`GET /wow/manifest`) once.
    */
   readonly manifest?: RoutingManifest;
+  /**
+   * The exact numbers of the routes that have any, by `context.route`: a
+   * generated client passes those of its Manifest.
+   */
+  readonly textNumbers?: Readonly<Record<string, ServiceRouteNumbers>>;
 }
 
 const VARIABLE = /\{([A-Za-z][A-Za-z0-9]*)}/g;
@@ -66,7 +76,8 @@ const VARIABLE = /\{([A-Za-z][A-Za-z0-9]*)}/g;
  * that does not read with `wow.route.malformed`.
  */
 export class ServiceRoutes {
-  private manifest: Promise<RoutingManifest> | undefined;
+  private readonly manifest: ManifestSource;
+  private readonly numbers: Readonly<Record<string, ServiceRouteNumbers>>;
 
   /**
    * @param client - How the service is reached
@@ -76,10 +87,8 @@ export class ServiceRoutes {
     readonly client: WowClientOptions = {},
     options: ServiceRoutesOptions = {},
   ) {
-    this.manifest =
-      options.manifest === undefined
-        ? undefined
-        : Promise.resolve(checkManifest(options.manifest));
+    this.manifest = new ManifestSource(client, options.manifest);
+    this.numbers = options.textNumbers ?? {};
   }
 
   /**
@@ -98,7 +107,7 @@ export class ServiceRoutes {
     call: ServiceRouteCall = {},
     options: RequestOptions = {},
   ): Promise<T | undefined> {
-    const route = (await this.manifestOf()).contexts
+    const route = (await this.manifest.read(options.signal)).contexts
       .find(item => item.name === context)
       ?.routes?.find(item => item.name === name)?.route;
     if (route === undefined) {
@@ -123,7 +132,8 @@ export class ServiceRoutes {
           ]),
         )
       : undefined;
-    const response = await send(this.client, {
+    const numbers = this.numbers[`${context}.${name}`];
+    const answer = await send(this.client, {
       method: route.method as Call['method'],
       path,
       ...(query === undefined ? {} : { query }),
@@ -131,17 +141,9 @@ export class ServiceRoutes {
       ...(call.requestId === undefined
         ? {}
         : { headers: { [WowHeaders.REQUEST_ID]: call.requestId } }),
+      numbers: { body: numbers?.request, answer: numbers?.response },
       options,
     });
-    return response.status === 204 ? undefined : json<T>(response);
-  }
-
-  /** The Manifest given, or the service's, fetched once (again after a failure). */
-  private manifestOf(): Promise<RoutingManifest> {
-    this.manifest ??= fetchManifest(this.client).catch((error: unknown) => {
-      this.manifest = undefined;
-      throw error;
-    });
-    return this.manifest;
+    return answer.response.status === 204 ? undefined : answer.json<T>();
   }
 }

@@ -14,11 +14,13 @@
 package me.ahoo.wow.http.problem
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.problem.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import org.springframework.http.HttpStatus
+import kotlin.math.ceil
 
 /**
  * The HTTP status of each error code, from the Manifest's tables:
@@ -82,6 +84,22 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
         )
     }
 
+    /**
+     * The problem of [failure], answered as it is wherever it is thrown (an application route, a service route relaying
+     * another service's answer): its status, its code and its result, and what a retry may do with its `Retry-After`,
+     * in whole seconds rounded up, as the failure says, not as the catalog would for its code, which may not even know
+     * it. Its title is the code's in [context].
+     */
+    fun problemOf(failure: WowProblemException, context: String? = null): Problem {
+        val answered = failure.result?.let(::problemOf)
+            ?: Problem(failure.status, title(failure.code, context, failure.status), failure.message, failure.code)
+        return answered.copyWith(
+            status = failure.status,
+            retry = failure.retry,
+            retryAfter = failure.retryAfter?.let { ceil(it.inWholeMilliseconds / MILLIS_PER_SECOND).toLong() },
+        )
+    }
+
     /** A problem with [code] before the command has a ref. */
     fun problemOf(code: String, detail: String, context: String? = null): Problem {
         val status = status(code, context)
@@ -90,4 +108,8 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
 
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
+
+    private companion object {
+        const val MILLIS_PER_SECOND = 1000.0
+    }
 }

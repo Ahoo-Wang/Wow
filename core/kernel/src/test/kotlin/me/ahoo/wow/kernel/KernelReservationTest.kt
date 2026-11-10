@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.kernel
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
@@ -38,6 +42,9 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
+import java.io.IOException
+import kotlin.time.Duration.Companion.seconds
 
 /** Decisions D38, D50: a decide function reserves and releases unique keys, and the kernel settles them with the append. */
 class KernelReservationTest {
@@ -46,6 +53,9 @@ class KernelReservationTest {
     data class Rename(val name: String, val refuse: Boolean = false)
     data class Renamed(val name: String)
     data class ReleaseOnly(val name: String)
+
+    /** Reserves both names in one decision. */
+    data class RegisterBoth(val first: String, val second: String)
 
     /** Reserves [name], then refuses, recording the refusal: a rejection that commits events. */
     data class Claim(val name: String)
@@ -86,6 +96,13 @@ class KernelReservationTest {
                     state.name?.let { release(NAMES, it) }
                     Decision.events(Renamed(body.name))
                 }
+            }
+        }
+        decideSuspending<RegisterBoth>(Creation.ALLOWED) { _, body ->
+            if (reserve(NAMES, body.first) && reserve(NAMES, body.second)) {
+                Decision.events(Registered(body.first))
+            } else {
+                Decision.reject("name.taken", body.first)
             }
         }
         decideSuspending<ReleaseOnly>(Creation.ALLOWED) { _, body ->
@@ -184,13 +201,108 @@ class KernelReservationTest {
     }
 
     @Test
-    fun `the keys an attempt reserved pending travel with its entry`(): Unit = runTest {
-        register("u-1", "ahoo")
-        register("u-1", "ahoo")
-        val entries = log.tail(0).take(2).toList()
-        // The first attempt reserved the key pending; the second found it confirmed and had nothing to confirm.
-        entries[0].decodedTransport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
-        entries[1].transport.assert().isNull()
+    fun `every key an attempt reserved travels with its entry, one its aggregate already held confirmed too`(): Unit =
+        runTest {
+            register("u-1", "ahoo")
+            register("u-1", "ahoo")
+            val entries = log.tail(0).take(2).toList()
+            // The first attempt reserved the key pending; the second found it confirmed and confirms it again.
+            val carried = Transport(reservations = listOf(ReservationKey(NAMES, "ahoo")))
+            entries[0].decodedTransport.assert().isEqualTo(carried)
+            entries[1].decodedTransport.assert().isEqualTo(carried)
+            find("ahoo")?.version.assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `every key a decision reserves, held already or not, travels with its entry and is confirmed at it`(): Unit =
+        runTest {
+            register("u-1", "ahoo")
+            execute("u-1", RegisterBoth("ahoo", "bob")).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            log.tail(0).take(2).toList()[1].decodedTransport.assert().isEqualTo(
+                Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"), ReservationKey(NAMES, "bob"))),
+            )
+            find("ahoo")?.version.assert().isEqualTo(2)
+            find("bob")?.version.assert().isEqualTo(2)
+        }
+
+    /** The store, but the first release of [key] fails after the append, as a store briefly down. */
+    private class FailingFirstRelease(private val delegate: ReservationStore, private val key: String) :
+        ReservationStore by delegate {
+        var failed = false
+
+        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean {
+            if (key == this.key && !failed) {
+                failed = true
+                throw IOException("The reservation store is down for one release.")
+            }
+            return delegate.release(scope, key, owner, version)
+        }
+    }
+
+    @Test
+    fun `a key re-reserved while the release of it is not applied yet is confirmed at the new commit`() = runTest {
+        val releasing = FailingFirstRelease(reservations, "ahoo")
+        val kernel = Kernel(log, reservations = releasing)
+        listOf(Register("ahoo"), Rename("bob"), Rename("ahoo")).forEach { body ->
+            execute("u-1", body, on = kernel).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        }
+        releasing.failed.assert().isTrue()
+        find("ahoo")?.version.assert().isEqualTo(3)
+        // The reservation subscription replays the second entry's release: an older fact's, it keeps the key.
+        reservations.release(ReservationScope(model.type, "t", NAMES), "ahoo", model.type.ref("t", "u-1"), 2)
+            .assert().isFalse()
+        (register("u-2", "ahoo") as CommandOutcome.Rejected).rejection.code.assert().isEqualTo("name.taken")
+    }
+
+    @Test
+    fun `a key freed by an older release before the re-reserving commit confirmed it is reported lost`() = runTest {
+        val scope = ReservationScope(model.type, "t", NAMES)
+        val owner = model.type.ref("t", "u-1")
+        val thief = model.type.ref("t", "u-2")
+        // Between the third entry's re-reservation and its confirm, the subscription replays the second entry's
+        // release, and another aggregate takes the free key.
+        val racing = object : ReservationStore by FailingFirstRelease(reservations, "ahoo") {
+            override suspend fun confirm(
+                scope: ReservationScope,
+                key: String,
+                owner: AggregateRef,
+                version: Int,
+            ): ConfirmOutcome {
+                if (key == "ahoo" && version == 3) {
+                    reservations.release(scope, key, owner, 2).assert().isTrue()
+                    reservations.reserve(scope, key, thief, "thief", 30.seconds).assert().isNotNull()
+                }
+                return reservations.confirm(scope, key, owner, version)
+            }
+        }
+        val lost = mutableListOf<String>()
+        val observer = object : Observer {
+            override fun observed(event: ObservedEvent) {
+                if (event is ObservedEvent.ReservationLost) lost += event.context
+            }
+        }
+        val kernel = Kernel(log, reservations = racing, observer = observer)
+        val logged = kernelErrors {
+            listOf(Register("ahoo"), Rename("bob"), Rename("ahoo")).forEach { body ->
+                execute("u-1", body, on = kernel).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+            }
+        }
+        lost.assert().isEqualTo(listOf("test"))
+        logged.assert().anyMatch { it.contains("$owner committed with ahoo") && it.contains("the key is lost") }
+        reservations.find(scope, "ahoo")?.owner.assert().isEqualTo(thief)
+    }
+
+    /** The kernel's error lines logged while [block] runs. */
+    private suspend fun kernelErrors(block: suspend () -> Unit): List<String> {
+        val logger = LoggerFactory.getLogger(Kernel::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            block()
+        } finally {
+            logger.detachAppender(appender)
+        }
+        return appender.list.filter { it.level == Level.ERROR }.map { it.formattedMessage }
     }
 
     @Test

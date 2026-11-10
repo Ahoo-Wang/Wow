@@ -354,6 +354,7 @@ src/
     viewRuntimeTypes.ts       — The runtime contract: `ViewRuntime`, `RecordViewRuntime`, `AnalysisViewRuntime` (narrowed to by `isAnalysisRuntime`), `ManagedViewRuntime`, the state and result shapes, `SaveAsInput`; `hasResult`, the one reading of "a result ever arrived", and `hasAsked`, of "a question was sent"
     write.ts                  — Write bodies, retry and overwrite replay
     writeLedger.ts            — The write ledger: outcomes by requestId, retry, conflicts
+    writeEffects.ts           — `applyWriteEffect`: what a confirmed write changes, on the first attempt and a retry alike — baselines, caches, a panel's view saved as its own pointed at it, a board 放进仪表盘 adopted or the panel carried onto its edited draft
     index.ts                  — Transient state: what is open, what is in flight, what came back; the runtime's public face, named export by export (D29)
     failure/                  — What goes wrong, read and told: a source's failure in its own words, the Issue of a failed query or command, the host's `onError` told once, the development console of `onIssue`, and what a config uses that its source no longer admits
       issues.ts               — `toIssue`: one Issue for whatever a command threw

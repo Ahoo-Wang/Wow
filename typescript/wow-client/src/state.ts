@@ -13,7 +13,6 @@
 
 import {
   entityTag,
-  json,
   type RequestOptions,
   send,
   type WowClientOptions,
@@ -151,7 +150,7 @@ export class StateClient<
   ): Promise<StateReadResult<S, A>> {
     const at =
       options.at instanceof Date ? options.at.toISOString() : options.at;
-    const response = await send(this.client, {
+    const answer = await send(this.client, {
       method: 'GET',
       path: this.statePath(id),
       query: { version: options.version, at, minVersion: options.minVersion },
@@ -161,9 +160,11 @@ export class StateClient<
             ? undefined
             : `"${options.ifNoneMatch}"`,
       },
+      numbers: { answer: this.stateNumbers },
       options,
       notModified: true,
     });
+    const response = answer.response;
     if (response.status === 304) {
       const etag = entityTag(response) ?? options.ifNoneMatch ?? '';
       return {
@@ -174,7 +175,7 @@ export class StateClient<
     }
     return {
       notModified: false,
-      snapshot: await json<Snapshot<S, A>>(response, this.stateNumbers),
+      snapshot: await answer.json<Snapshot<S, A>>(),
       etag: entityTag(response),
     };
   }
@@ -215,15 +216,14 @@ export class StateClient<
     id: string | undefined,
     options: StateTraceOptions,
   ): Promise<StateTrace<S, E, A>> {
-    return json<StateTrace<S, E, A>>(
-      await send(this.client, {
-        method: 'GET',
-        path: `${this.statePath(id)}/trace`,
-        query: { from: options.from, to: options.to, limit: options.limit },
-        options,
-      }),
-      this.traceNumbers,
-    );
+    const answer = await send(this.client, {
+      method: 'GET',
+      path: `${this.statePath(id)}/trace`,
+      query: { from: options.from, to: options.to, limit: options.limit },
+      numbers: { answer: this.traceNumbers },
+      options,
+    });
+    return answer.json<StateTrace<S, E, A>>();
   }
 
   /** The exact numbers of a state read: its state's and its access attributes'. */

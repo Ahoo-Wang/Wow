@@ -338,7 +338,7 @@ function emitServiceRoutes(
 function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
   const variables = route.parameters.filter(p => p.location === 'path');
   const queries = route.parameters.filter(p => p.location === 'query');
-  const parameters = variables.map(p => `${p.name}: ${p.type}`);
+  const parameters = variables.map(p => `${p.identifier}: ${p.type}`);
   if (route.requestType !== undefined)
     parameters.push(`body: ${route.requestType}`);
   if (queries.length > 0) {
@@ -357,7 +357,7 @@ function routeMethod(context: ContextModel, route: ServiceRouteModel): string {
     ...(variables.length === 0
       ? []
       : [
-          `path: { ${variables.map(p => resolvePropertyName(p.name)).join(', ')} }`,
+          `path: { ${variables.map(p => (p.identifier === p.name ? p.name : `${resolvePropertyName(p.name)}: ${p.identifier}`)).join(', ')} }`,
         ]),
     ...(route.requestType === undefined ? [] : ['body']),
     ...(queries.length === 0 ? [] : ['query']),

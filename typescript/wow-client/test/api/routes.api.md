@@ -39,6 +39,9 @@ interface AggregateManifest {
 }
 
 // @public
+const BY: unique symbol;
+
+// @public
 interface CommandManifest {
     readonly aliases: readonly string[];
     readonly creation: 'none' | 'required' | 'allowed' | (string & {});
@@ -134,6 +137,9 @@ interface Manifest {
     // (undocumented)
     readonly service?: ServiceManifest;
 }
+
+// @public
+const OR: unique symbol;
 
 // @public
 interface PublishedManifest {
@@ -250,6 +256,14 @@ interface ServiceRouteManifest {
 }
 
 // @public
+export interface ServiceRouteNumbers {
+    // (undocumented)
+    readonly request?: TextNumbers;
+    // (undocumented)
+    readonly response?: TextNumbers;
+}
+
+// @public
 export class ServiceRoutes {
     constructor(client?: WowClientOptions, options?: ServiceRoutesOptions);
     call<T = unknown>(context: string, name: string, call?: ServiceRouteCall, options?: RequestOptions): Promise<T | undefined>;
@@ -260,6 +274,7 @@ export class ServiceRoutes {
 // @public
 export interface ServiceRoutesOptions {
     readonly manifest?: RoutingManifest;
+    readonly textNumbers?: Readonly<Record<string, ServiceRouteNumbers>>;
 }
 
 // @public
@@ -328,6 +343,26 @@ interface TargetScope {
     readonly spaceId?: string;
     // (undocumented)
     readonly tenantId?: string;
+}
+
+// @public
+type TextNumbers = true | (() => TextNumbers) | TextNumbersOr | TextNumbersByName | {
+    readonly [member: string]: TextNumbers;
+};
+
+// @public
+interface TextNumbersByName {
+    // (undocumented)
+    readonly [BY]: {
+        readonly discriminant: string;
+        readonly cases: Readonly<Record<string, TextNumbers>>;
+    };
+}
+
+// @public
+interface TextNumbersOr {
+    // (undocumented)
+    readonly [OR]: TextNumbers;
 }
 
 // @public

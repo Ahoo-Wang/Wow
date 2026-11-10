@@ -303,8 +303,8 @@ class LogEntry @InternalWowApi constructor(
  *
  * - [wait] is the wait context of a command whose caller waits beyond COMMITTED: the subscription named
  *   by its next hop signals the waiting node once it has handled the entry.
- * - [reservations] are the keys this attempt reserved pending: the `reservation` subscription confirms them
- *   from the log, so a key is confirmed even when the after-append fast path never ran.
+ * - [reservations] are the keys this attempt reserved, held already or not: the `reservation` subscription
+ *   confirms them from the log, so a key is confirmed even when the after-append fast path never ran.
  * - [trace] is tracing context such as the W3C `traceparent`.
  * - [releases] are the keys this attempt released: the kernel releases them once the append commits,
  *   and the `reservation` subscription releases them again from the log, after the keys of [reservations] are
