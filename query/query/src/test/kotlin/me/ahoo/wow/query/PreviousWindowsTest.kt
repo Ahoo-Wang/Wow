@@ -78,6 +78,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class PreviousWindowsTest {
@@ -173,6 +174,15 @@ class PreviousWindowsTest {
         step.shift(ContainsFilter(createdAt, "2026"), null).assert().isNull()
         step.shift(GreaterThanFilter(createdAt, 1.5), null).assert().isNull()
         QueryViolation.PreviousUnshiftable(createdAt).message.assert().contains("[createdAt]")
+        // A bound that moved back leaves what its encoding holds cannot be moved either: refused, not a failure.
+        assertThrows<QuerySchemaValidationException> {
+            QueryAdmission.Trusted.aggregate(yoy(GreaterThanOrEqualFilter(createdAt, Long.MIN_VALUE)), schema)
+        }.violation.assert().isEqualTo(QueryViolation.PreviousUnshiftable(createdAt))
+        step.shift(GreaterThanFilter(createdAt, Long.MIN_VALUE), Temporal.Epoch(TimeUnit.NANOSECONDS)).assert().isNull()
+        step.shift(
+            GreaterThanFilter(createdAt, Instant.MIN.epochSecond),
+            Temporal.Epoch(TimeUnit.SECONDS)
+        ).assert().isNull()
     }
 
     @Test

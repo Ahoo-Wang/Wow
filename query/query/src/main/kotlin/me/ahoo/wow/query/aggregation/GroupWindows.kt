@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.RunningFunction
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.query.backend.orderOf
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
@@ -134,11 +135,11 @@ internal class GroupWindows(private val query: AggregationQuery, private val win
         val orderBy = window.order.field.path
         val tieBreak = groupAliases.filter { it != orderBy && it !in window.within }
         val comparator = Comparator<Int> { left, right ->
-            compareWindowKeys(rows[left][orderBy], rows[right][orderBy])
+            orderOf(rows[left][orderBy], rows[right][orderBy])
                 .let { if (window.order.direction == Sort.Direction.ASC) it else -it }
         }.thenComparator { left, right ->
             tieBreak.firstNotNullOfOrNull { alias ->
-                compareWindowKeys(rows[left][alias], rows[right][alias]).takeIf { it != 0 }
+                orderOf(rows[left][alias], rows[right][alias]).takeIf { it != 0 }
             } ?: 0
         }
         partitions(rows, window.within).forEach { partition ->
@@ -211,37 +212,3 @@ private fun DerivedExpression.evaluate(row: ObjectNode, window: (DerivedExpressi
             }
         }
     }
-
-/**
- * Orders group keys and order metrics: `null` first, then numbers, strings and booleans by value; keys of different
- * kinds (a TERMS group's missing key among numbers) by kind, so a mixed group never fails the query.
- */
-internal fun compareWindowKeys(left: JsonNode?, right: JsonNode?): Int {
-    val leftKind = left.keyKind()
-    val rightKind = right.keyKind()
-    if (leftKind != rightKind) return leftKind.compareTo(rightKind)
-    return when (leftKind) {
-        KEY_NUMBER -> if (left!!.isIntegralNumber && right!!.isIntegralNumber) {
-            left.longValue().compareTo(right.longValue())
-        } else {
-            left.doubleValue().compareTo(right!!.doubleValue())
-        }
-        KEY_STRING -> left!!.stringValue().compareTo(right!!.stringValue())
-        KEY_BOOLEAN -> left!!.booleanValue().compareTo(right!!.booleanValue())
-        else -> 0
-    }
-}
-
-private const val KEY_NULL = 0
-private const val KEY_NUMBER = 1
-private const val KEY_STRING = 2
-private const val KEY_BOOLEAN = 3
-private const val KEY_OTHER = 4
-
-private fun JsonNode?.keyKind(): Int = when {
-    this == null || isNull -> KEY_NULL
-    isNumber -> KEY_NUMBER
-    isString -> KEY_STRING
-    isBoolean -> KEY_BOOLEAN
-    else -> KEY_OTHER
-}
