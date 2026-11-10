@@ -106,7 +106,7 @@ MongoDB 是 Wow 服务的默认存储（[选择存储](./choosing-storage)）。
 | `wow_log__<context>__<aggregate>` | `{partition: 1}` | 一个分区的条目是一段连续范围；版本键与请求键都以分区开头，因此仍然唯一，按聚合的读取和尾随都只访问一个分片 |
 | `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | 快照的 `_id` 就是它的键；新聚合分散到各分片，加载只访问一个，单租户的查询只访问该租户的数据块 |
 | `wow_timer__<context>__<aggregate>` | `{partition: 1}` | 定时器位于其属主的分区；键（分区，属主，key）以分区开头，所以保持唯一，按属主的读写只访问一个分片，节点的到期读取只访问其分区所在的分片。恢复时读取一个目标的停放定时器会访问所有分片 |
-| `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | 键的 `_id` 是 `{t: 租户, n: 命名空间, k: 键}`；键分散到各分片，预留、确认或查找一个键只访问一个分片。读取一个所有者的键（所有者索引）会访问所有分片 |
+| `wow_reservation__<context>__<aggregate>` | `{tenant_id: 1, key: "hashed"}` | 键的 `_id` 是 `{t: 租户, n: 命名空间, k: 键}`；键分散到各分片，预留、确认或查找一个键只访问一个分片 |
 
 - 新的日志或定时器集合在为空时按每个分区切块，并把各块轮流分到各分片；新的快照集合从一个数据块开始，由均衡器按数据量分散。
 - 计数器、各注册表、检查点、租约和台账都很小，不分片，留在数据库的主分片上。
