@@ -17,13 +17,19 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = join(import.meta.dirname, '..');
 
-/** Every source file, save the vendored primitives the tree summarises. */
+/**
+ * Every source file, save the folders the tree summarises in one line: the
+ * vendored primitives (`components`, `lib`), and `ui/messages/zh-CN/`, one file
+ * per `en` area, each with that area's name and the one shape a per-area
+ * `satisfies` keeps — a line each would say the same thing twenty-eight times.
+ */
 function sources(dir: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
-      if (entry === 'components' || entry === 'lib') continue;
+      if (entry === 'components' || entry === 'lib' || entry === 'zh-CN')
+        continue;
       found.push(...sources(path));
     } else if (/\.(tsx?|css)$/.test(entry)) found.push(path);
   }

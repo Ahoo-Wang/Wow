@@ -114,7 +114,7 @@ Package entries:
 
 ## Project Structure
 
-Every source file is listed; `test/agentsStructure.test.ts` fails when one is added without a line here (vendored `ui/components/` and `ui/lib/` are summarised).
+Every source file is listed; `test/agentsStructure.test.ts` fails when one is added without a line here (vendored `ui/components/` and `ui/lib/`, and `ui/messages/zh-CN/`, are summarised).
 
 ```
 src/
@@ -786,7 +786,8 @@ src/
       view.ts                 — a view itself: which kind it is, the list it sits in, and the commands
       wireKey.ts              — `wireKey(prefix, value)`: the key of a word for a wire value, built from the value so it follows Wow's spelling (D353)
       workbench.ts            — the frame around a view
-      zh-CN.ts                — `zhCN`, the same keys in 简体中文
+      zh-CN.ts                — `zhCN`, the same keys in 简体中文: the areas of `zh-CN/` put together, in `en`'s order
+      zh-CN/                  — one file per `en` area, the same name, each `satisfies` the keys of its English area (summarised: every file is that one shape)
     record/                   — What the record view is made of
       CardSummaries.tsx       — The summary lines under the cards, both scopes (D18 V)
       ColumnResizer.tsx       — The handle a column is dragged wider by, and its keyboard

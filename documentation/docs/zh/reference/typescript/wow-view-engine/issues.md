@@ -648,4 +648,4 @@ export type IssuePath = (string | number)[];
 ## 完整可运行版本
 
 - 清单与它的测试：[`test/surface/issues.txt`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/surface/issues.txt)、[`test/fixtures/issueCodes.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/fixtures/issueCodes.ts)。
-- 措辞目录：[`src/ui/messages/zh-CN.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/ui/messages/zh-CN.ts)；`Issue` 在 [`src/model/issue.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/issue.ts)。
+- 措辞目录：[`src/ui/messages/zh-CN/`](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/src/ui/messages/zh-CN)；`Issue` 在 [`src/model/issue.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/model/issue.ts)。
