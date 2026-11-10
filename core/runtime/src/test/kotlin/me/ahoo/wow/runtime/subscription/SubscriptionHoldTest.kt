@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
@@ -75,7 +76,9 @@ class SubscriptionHoldTest {
             val (a, p) = idIn(0) to idIn(0, skip = 1)
             val backlog = listOf(a, p, a, p).map { appender.append(it) }
             // p was parked from its first version, as migrate-data imports a 9.x compensation's execution.
-            ledger.park(ParkedAggregate.of(NAME, cart(p), 0, 1, "imported", failedAt = 0L)).assert().isTrue()
+            ledger.park(
+                ParkedAggregate.of(ID, cart(p), 0, 1, "imported", failedAt = 0L)
+            ).assert().isTrue()
             runtime.start()
             val reads = Job()
             try {
@@ -90,14 +93,14 @@ class SubscriptionHoldTest {
                 handled.size.assert().isZero()
                 seen.size.assert().isZero()
                 // The scans leave the held partition's parked entries alone, and its lag counts what waits.
-                ledger.parked(NAME, cart(p))!!.let {
+                ledger.parked(ID, cart(p))!!.let {
                     it.retries.assert().isZero()
                     it.nextAttemptAt.assert().isNull()
                 }
                 runtime.positions().map { it.watermark }.assert().containsExactly(0L, 0L)
 
                 reads.complete()
-                eventually { seen.size == 4 && handled.size == 4 && ledger.parked(NAME, cart(p)) == null }
+                eventually { seen.size == 4 && handled.size == 4 && ledger.parked(ID, cart(p)) == null }
                 // Every entry, each aggregate's in version order.
                 seen.sequences().sorted().assert().isEqualTo(backlog)
                 seen.versionsOf(a).assert().containsExactly(1, 2)
@@ -210,6 +213,7 @@ class SubscriptionHoldTest {
     }
 
     private companion object {
+        val ID = SubscriptionId("shop", NAME)
         const val NAME = "projector"
         const val SETTLE_MILLIS = 200L
     }

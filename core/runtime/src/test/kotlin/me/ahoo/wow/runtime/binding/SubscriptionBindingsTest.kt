@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -169,7 +170,9 @@ class SubscriptionBindingsTest {
         fill("dave", *items.toTypedArray()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { carts.isNotEmpty() }
         carts.single().assert().isEqualTo(items)
-        backends.opened.getValue(SHOP).ledger.isParked("Audit.onEvent", CART.ref(TENANT, "dave")).assert().isFalse()
+        backends.opened.getValue(
+            SHOP
+        ).ledger.isParked(SubscriptionId(SHOP, "Audit.onEvent"), CART.ref(TENANT, "dave")).assert().isFalse()
     }
 
     @Test
@@ -223,8 +226,11 @@ class SubscriptionBindingsTest {
             last.error!!.code.assert().isEqualTo(FORBIDDEN)
             last.hop.subscription.assert().isEqualTo(saga.name)
             val ledger = backends.opened.getValue(SHOP).ledger
-            eventually { ledger.isParked(saga.name, ORDER.ref(TENANT, "o-4")) }
-            ledger.parked(saga.name, ORDER.ref(TENANT, "o-4"))!!.reason.assert().contains(FORBIDDEN)
+            eventually { ledger.isParked(SubscriptionId(SHOP, saga.name), ORDER.ref(TENANT, "o-4")) }
+            ledger.parked(
+                SubscriptionId(SHOP, saga.name),
+                ORDER.ref(TENANT, "o-4")
+            )!!.reason.assert().contains(FORBIDDEN)
             // A rejection is not retried: the cart decided the request once.
             decided.assert().hasSize(1)
         }
@@ -236,7 +242,11 @@ class SubscriptionBindingsTest {
             it.hop.stage == Stage.HANDLED
         }
         last.status.assert().isEqualTo(CommandResult.Status.FAILED)
-        eventually { backends.opened.getValue(SHOP).ledger.isParked(projection.name, ORDER.ref(TENANT, "boom")) }
+        eventually {
+            backends.opened.getValue(
+                SHOP
+            ).ledger.isParked(SubscriptionId(SHOP, projection.name), ORDER.ref(TENANT, "boom"))
+        }
         last.error!!.code.assert().isNotEqualTo(ResultCodes.WAIT_TIMEOUT)
     }
 

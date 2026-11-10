@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 
 /**
@@ -29,7 +30,7 @@ import java.time.Clock
  * it is written over nor resolved.
  */
 internal class RetryWrites(
-    private val subscription: String,
+    private val subscription: SubscriptionId,
     private val partition: Int,
     private val source: EntrySource,
     private val ledger: FailureLedger,

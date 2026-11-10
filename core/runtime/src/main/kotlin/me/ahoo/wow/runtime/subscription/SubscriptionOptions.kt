@@ -361,9 +361,8 @@ class ParkedRetryOptions @InternalWowApi constructor(
     @InternalWowApi
     fun specOf(subscription: SubscriptionId): ParkedRetrySpec = specs[subscription] ?: spec
 
-    /** The retry spec [entry], parked by a subscription of [context], is retried by: its own, else its subscription's. */
-    fun specOf(entry: ParkedAggregate, context: String): ParkedRetrySpec =
-        entry.retrySpec ?: specOf(SubscriptionId(context, entry.subscription))
+    /** The retry spec [entry] is retried by: its own, else its subscription's. */
+    fun specOf(entry: ParkedAggregate): ParkedRetrySpec = entry.retrySpec ?: specOf(entry.subscription)
 
     /** This ParkedRetryOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi

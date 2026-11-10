@@ -170,7 +170,7 @@ class LedgerPublisher internal constructor(
 
     /** Hears when an entry parks or spends its retries, and publishes it as it now stands. */
     val notifier: ParkedNotifier = ParkedNotifier { notice: ParkedNotice ->
-        parked(ParkedView(notice.entry, notice.spec, notice.context, notice.group))
+        parked(ParkedView(notice.entry, notice.spec, notice.group))
     }
 
     /** Publishes [view]'s entry as parked. */
@@ -325,7 +325,7 @@ class LedgerPublisher internal constructor(
         val record = LedgerEntry(
             service = service,
             context = view.context,
-            subscription = entry.subscription,
+            subscription = entry.subscription.name,
             aggregate = LedgerAggregate.of(entry.ref),
             fromVersion = entry.fromVersion,
             fromPosition = entry.fromPosition,

@@ -243,13 +243,13 @@ class LogGroupsTest {
         val node = node("node-1").also { it.start() }
         val poison = INVOICE.ref(TENANT, POISON)
         node.send(poison, Issue(delayMillis = 60_000))
-        eventually { stores.invoices.ledger.isParked(PROJECTOR, poison) }
-        stores.default.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+        eventually { stores.invoices.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison) }
+        stores.default.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison).assert().isFalse()
         node.parked.get(PROJECTOR_ID, poison)?.entry?.ref.assert().isEqualTo(poison)
         node.parked.list(PROJECTOR_ID).entries.map { it.entry.ref }.assert().containsExactly(poison)
         val failedAt = node.parked.get(PROJECTOR_ID, poison)!!.entry.failedAt
         node.parked.skip(PROJECTOR_ID, poison, failedAt).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
-        stores.invoices.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+        stores.invoices.ledger.isParked(SubscriptionId(poison.type.context, PROJECTOR), poison).assert().isFalse()
     }
 
     @Test

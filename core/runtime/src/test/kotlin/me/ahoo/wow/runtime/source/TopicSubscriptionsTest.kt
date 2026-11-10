@@ -210,7 +210,7 @@ class TopicSubscriptionsTest {
         topics.publish(orderRecord("o-1", 1))
         eventually { handled.size == 1 }
         eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) == 2L }
-        ledger.parked(BOARD, order("o-1")).assert().isNull()
+        ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
         undecodable.assert().containsExactly(0L to false)
     }
 
@@ -233,7 +233,7 @@ class TopicSubscriptionsTest {
             delay(READ_RETRIES)
             handled.size.assert().isZero()
             (checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) ?: 0L).assert().isZero()
-            ledger.list(BOARD).assert().isEmpty()
+            ledger.list(BOARD_ID).assert().isEmpty()
             undecodable.assert().isEmpty()
             // Another partition reads on.
             val other = idsIn((partition + 1) % PARTITIONS, 1).single()
@@ -248,8 +248,8 @@ class TopicSubscriptionsTest {
             start("node-1")
             val slashed = ORDER.ref("a/b", "o-1")
             topics.send(ORDER_TOPIC, TopicMessage.of(slashed.toString(), BAD.toByteArray()))
-            eventually { ledger.parked(BOARD, slashed) != null }
-            ledger.parked(BOARD, ORDER.ref("a", "b/o-1")).assert().isNull()
+            eventually { ledger.parked(BOARD_ID, slashed) != null }
+            ledger.parked(BOARD_ID, ORDER.ref("a", "b/o-1")).assert().isNull()
         }
 
     @Test
@@ -271,8 +271,8 @@ class TopicSubscriptionsTest {
             eventually { handled.versionsOf("o-1") == listOf(1) }
             topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
             topics.publish(orderRecord("o-1", 2))
-            eventually { ledger.parked(BOARD, order("o-1")) != null }
-            val parked = ledger.parked(BOARD, order("o-1"))!!
+            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
+            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
             parked.reason.assert().contains("cannot be decoded")
             undecodable.assert().containsExactly(parked.fromPosition!! to true)
             parked.fromPosition.assert().isEqualTo(
@@ -284,7 +284,7 @@ class TopicSubscriptionsTest {
             // A retry meets it again; a skip resolves it.
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
-            ledger.parked(BOARD, order("o-1")).assert().isNull()
+            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
         }
 
     @Test
@@ -294,14 +294,14 @@ class TopicSubscriptionsTest {
             val subscriptions = start("node-1")
             failing = "o-1" to 2
             topics.publish(orderRecord("o-1", 1), orderRecord("o-1", 2))
-            eventually { ledger.parked(BOARD, order("o-1"))?.fromVersion == 2 }
+            eventually { ledger.parked(BOARD_ID, order("o-1"))?.fromVersion == 2 }
             topics.send(ORDER_TOPIC, TopicMessage.of(order("o-1").toString(), BAD.toByteArray()))
             topics.publish(orderRecord("o-1", 4))
             eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 4L }
             failing = null
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             handled.versionsOf("o-1").assert().containsExactly(1, 2)
-            val parked = ledger.parked(BOARD, order("o-1"))!!
+            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
             parked.reason.assert().contains("cannot be decoded")
             parked.fromPosition.assert().isEqualTo(
                 topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
@@ -323,8 +323,8 @@ class TopicSubscriptionsTest {
             failing = parkedId to 2
             topics.publish(orderRecord(parkedId, 1), orderRecord(parkedId, 2), orderRecord(otherId, 1))
             topics.publish(orderRecord(parkedId, 3))
-            eventually { ledger.parked(BOARD, order(parkedId)) != null }
-            val parked = ledger.parked(BOARD, order(parkedId))!!
+            eventually { ledger.parked(BOARD_ID, order(parkedId)) != null }
+            val parked = ledger.parked(BOARD_ID, order(parkedId))!!
             parked.fromVersion.assert().isEqualTo(2)
             parked.fromPosition.assert().isEqualTo(offsetOf(parkedId, 2))
             parked.unrecoverable.assert().isFalse()
@@ -334,7 +334,7 @@ class TopicSubscriptionsTest {
             failing = null
             subscriptions.retry(BOARD, order(parkedId)).assert().isTrue()
             handled.versionsOf(parkedId).assert().containsExactly(1, 2, 3)
-            ledger.parked(BOARD, order(parkedId)).assert().isNull()
+            ledger.parked(BOARD_ID, order(parkedId)).assert().isNull()
             topics.publish(orderRecord(parkedId, 4))
             eventually { handled.versionsOf(parkedId) == listOf(1, 2, 3, 4) }
         }
@@ -345,10 +345,10 @@ class TopicSubscriptionsTest {
             val subscriptions = start("node-1")
             failing = "o-1" to 2
             topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
-            eventually { ledger.parked(BOARD, order("o-1")) != null }
+            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
             failing = "o-1" to 3
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            val parked = ledger.parked(BOARD, order("o-1"))!!
+            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
             parked.fromVersion.assert().isEqualTo(3)
             parked.fromPosition.assert().isEqualTo(offsetOf("o-1", 3))
             failing = null
@@ -362,12 +362,12 @@ class TopicSubscriptionsTest {
             val subscriptions = start("node-1")
             failing = "o-1" to 2
             topics.publish(*(1..3).map { orderRecord("o-1", it) }.toTypedArray())
-            eventually { ledger.parked(BOARD, order("o-1")) != null }
-            val position = ledger.parked(BOARD, order("o-1"))!!.fromPosition!!
+            eventually { ledger.parked(BOARD_ID, order("o-1")) != null }
+            val position = ledger.parked(BOARD_ID, order("o-1"))!!.fromPosition!!
             topics.retain(ORDER_TOPIC, partitionOf("o-1"), position + 1)
             failing = null
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
-            val parked = ledger.parked(BOARD, order("o-1"))!!
+            val parked = ledger.parked(BOARD_ID, order("o-1"))!!
             parked.unrecoverable.assert().isTrue()
             parked.reason.assert().startsWith(ParkedAggregate.UNRECOVERABLE)
             parked.fromVersion.assert().isEqualTo(2)
@@ -375,7 +375,7 @@ class TopicSubscriptionsTest {
             // Marked once: a retry no longer tries.
             subscriptions.retry(BOARD, order("o-1")).assert().isFalse()
             subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
-            ledger.parked(BOARD, order("o-1")).assert().isNull()
+            ledger.parked(BOARD_ID, order("o-1")).assert().isNull()
             topics.publish(orderRecord("o-1", 4))
             eventually { handled.versionsOf("o-1") == listOf(1, 4) }
             assertThrows<IllegalArgumentException> { runBlocking { subscriptions.skip("Other.onOrder", order("o-1")) } }
@@ -397,7 +397,7 @@ class TopicSubscriptionsTest {
         topics.publish(*(1..4).map { orderRecord("o-1", it) }.toTypedArray())
         start(
             "node-1",
-            starts = mapOf(SubscriptionId(ORDER.context, BOARD) to SubscriptionStart.At(Instant.ofEpochMilli(2_500)))
+            starts = mapOf(BOARD_ID to SubscriptionStart.At(Instant.ofEpochMilli(2_500)))
         )
         topics.publish(orderRecord("o-1", 5))
         eventually { handled.size == 3 }
@@ -522,7 +522,7 @@ class TopicSubscriptionsTest {
             val listings = AtomicInteger()
             val counting = object : FailureLedger by ledger {
                 override suspend fun list(
-                    subscription: String,
+                    subscription: SubscriptionId,
                     after: AggregateRef?,
                     limit: Int,
                     tenantId: String?,
@@ -533,11 +533,13 @@ class TopicSubscriptionsTest {
             val growing = growing("node-1", topic, ledger = counting)
             failing = id to 1
             topics.publish(orderRecord(id, 1), topic = topic)
-            eventually { ledger.parked(BOARD, order(id)) != null }
-            val parked = ledger.parked(BOARD, order(id))!!
+            eventually { ledger.parked(BOARD_ID, order(id)) != null }
+            val parked = ledger.parked(BOARD_ID, order(id))!!
             topics.grow(topic, 2)
-            eventually { growing.ownership?.owned == setOf(0, 1) && ledger.parked(BOARD, order(id))?.partition == 1 }
-            val rehomed = ledger.parked(BOARD, order(id))!!
+            eventually {
+                growing.ownership?.owned == setOf(0, 1) && ledger.parked(BOARD_ID, order(id))?.partition == 1
+            }
+            val rehomed = ledger.parked(BOARD_ID, order(id))!!
             rehomed.unrecoverable.assert().isTrue()
             rehomed.reason.assert().contains(
                 "$topic gained partitions",
@@ -573,7 +575,7 @@ class TopicSubscriptionsTest {
             val nodes = listOf("node-1", "node-2").map { growing(it, topic, split, options = options) }
             val ids = (0 until 16).map { "s-$it" }
             topics.publish(*ids.map { orderRecord(it, 1) }.toTypedArray(), topic = topic)
-            eventually { ids.all { ledger.parked(BOARD, order(it)) != null } }
+            eventually { ids.all { ledger.parked(BOARD_ID, order(it)) != null } }
             topics.grow(topic, PARTITIONS)
             eventually {
                 val owned = nodes.map { it.ownership?.owned.orEmpty() }
@@ -582,8 +584,8 @@ class TopicSubscriptionsTest {
             val (old, new) = nodes.partition { 0 in it.ownership!!.owned }.let { it.first.single() to it.second.single() }
             val id = ids.first { topics.partitionOf(topic, order(it).toString()) in new.ownership!!.owned }
             val now = topics.partitionOf(topic, order(id).toString())
-            eventually { ledger.parked(BOARD, order(id))?.partition == now }
-            ledger.parked(BOARD, order(id))!!.unrecoverable.assert().isTrue()
+            eventually { ledger.parked(BOARD_ID, order(id))?.partition == now }
+            ledger.parked(BOARD_ID, order(id))!!.unrecoverable.assert().isTrue()
             broken.set(false)
             // Its later version waits on the new owner.
             topics.publish(orderRecord(id, 2), topic = topic)
@@ -591,14 +593,14 @@ class TopicSubscriptionsTest {
             handled.versionsOf(id).assert().isEmpty()
             // An operator's retry, left as a request by a node that does not run the partition, is taken by the new
             // owner and answered: the entry cannot be retried, and stays parked.
-            ledger.amend(BOARD, order(id), ParkedAmendment.Request(LedgerRequest.RETRY))
-            eventually { ledger.parked(BOARD, order(id))?.request == null }
-            ledger.parked(BOARD, order(id))!!.partition.assert().isEqualTo(now)
+            ledger.amend(BOARD_ID, order(id), ParkedAmendment.Request(LedgerRequest.RETRY))
+            eventually { ledger.parked(BOARD_ID, order(id))?.request == null }
+            ledger.parked(BOARD_ID, order(id))!!.partition.assert().isEqualTo(now)
             handled.versionsOf(id).assert().isEmpty()
             // The old owner runs no worker of it; the new owner's skip resolves it.
             old.ownership!!.owned.assert().doesNotContain(now)
             new.skip(BOARD, order(id)).assert().isTrue()
-            ledger.parked(BOARD, order(id)).assert().isNull()
+            ledger.parked(BOARD_ID, order(id)).assert().isNull()
             topics.publish(orderRecord(id, 3), topic = topic)
             eventually { handled.versionsOf(id) == listOf(3) }
         }
@@ -683,6 +685,7 @@ class TopicSubscriptionsTest {
     ).also { started += it }
 
     private companion object {
+        val BOARD_ID = SubscriptionId(ORDER.context, BOARD)
         const val SERVICE = "board-service"
         const val BOARD = "Board.onOrder"
         const val PARTITIONS = 4

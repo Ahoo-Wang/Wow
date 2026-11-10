@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 
@@ -56,21 +57,17 @@ internal class ParkedRetries(
     private val options: ParkedRetryOptions,
     private val clock: Clock,
     private val notifier: ParkedNotifier,
-    /** The context of a subscription of the runtime, by its name, whose retry spec its entries take; null when none. */
-    private val contextOf: (String) -> String?,
 ) {
-    private val running: MutableSet<Pair<String, AggregateRef>> = ConcurrentHashMap.newKeySet()
-
-    private fun specOf(entry: ParkedAggregate) =
-        contextOf(entry.subscription)?.let { options.specOf(entry, it) } ?: entry.retrySpec ?: options.spec
+    private val running: MutableSet<Pair<SubscriptionId, AggregateRef>> = ConcurrentHashMap.newKeySet()
 
     /**
      * Reads [subscriptions]' entries due in [partitions] and, in [scope], runs those due here: each one of a partition
-     * whose worker [workerOf] finds; schedules the others.
+     * whose worker [workerOf] finds by the subscription's name; schedules the others. An entry's retry spec is its
+     * subscription's ([ParkedRetryOptions.specOf]), and its notices are of its subscription's context.
      */
     suspend fun scan(
         scope: CoroutineScope,
-        subscriptions: Collection<String>,
+        subscriptions: Collection<SubscriptionId>,
         partitions: Set<Int>,
         workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
     ) {
@@ -97,9 +94,9 @@ internal class ParkedRetries(
         now: Long,
         workerOf: suspend (subscription: String, ref: AggregateRef) -> SubscriptionWorker?,
     ) {
-        val next = entry.nextRetryAt(specOf(entry))
+        val next = entry.nextRetryAt(options.specOf(entry))
         if (entry.request != null || next != null && now >= next) {
-            workerOf(entry.subscription, entry.ref)?.let { dispatch(scope, it, entry) }
+            workerOf(entry.subscription.name, entry.ref)?.let { dispatch(scope, it, entry) }
             return
         }
         if (entry.subscription to entry.ref in running) {
@@ -168,7 +165,7 @@ internal class ParkedRetries(
         ledger.amend(entry.subscription, entry.ref, ParkedAmendment.TakeRequest(entry.revision)) != null
 
     private suspend fun retry(worker: SubscriptionWorker, entry: ParkedAggregate) {
-        val spec = specOf(entry)
+        val spec = options.specOf(entry)
         val now = clock.millis()
         val claimed = ledger.amend(entry.subscription, entry.ref, ParkedAmendment.ClaimRetry(entry.revision, now))
             ?: return
@@ -183,10 +180,7 @@ internal class ParkedRetries(
             "Subscription ${entry.subscription} spent the ${spec.maxRetries} retries of ${entry.ref}: it waits for " +
                 "an operator."
         }
-        val context = contextOf(entry.subscription) ?: return
-        notifier.notifyQuietly(
-            ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, context, exhausted, spec, clock.millis())
-        )
+        notifier.notifyQuietly(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, group, exhausted, spec, clock.millis()))
     }
 }
 

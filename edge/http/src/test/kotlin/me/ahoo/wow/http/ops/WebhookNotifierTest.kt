@@ -22,6 +22,7 @@ import me.ahoo.wow.http.json
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
@@ -51,7 +52,7 @@ class WebhookNotifierTest {
 
     private val spec = ParkedRetrySpec(maxRetries = 10, initialBackoff = 3.minutes, claimTtl = 2.minutes)
     private val entry = ParkedAggregate(
-        "CartSaga.onOrderCreated",
+        SubscriptionId("shop", "CartSaga.onOrderCreated"),
         AggregateType("shop", "cart").ref("t", "c-1"),
         0,
         2,
@@ -59,7 +60,7 @@ class WebhookNotifierTest {
         FAILED_AT,
         fromPosition = 42,
     )
-    private val parked = ParkedNotice(ParkedNotice.Kind.PARKED, "shop-service.shop", "shop", entry, spec, FAILED_AT)
+    private val parked = ParkedNotice(ParkedNotice.Kind.PARKED, "shop-service.shop", entry, spec, FAILED_AT)
 
     @AfterEach
     fun stop() {

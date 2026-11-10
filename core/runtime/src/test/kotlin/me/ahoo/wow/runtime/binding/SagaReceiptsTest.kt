@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -205,7 +206,7 @@ class SagaReceiptsTest {
             compensated.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-1")))
             // The receipt names the version the rejected decision saw, the one before the compensation.
             rejected.version.assert().isEqualTo(compensated.version - 1)
-            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-1")).assert().isFalse()
+            ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-1")).assert().isFalse()
         }
 
     @Test
@@ -338,7 +339,7 @@ class SagaReceiptsTest {
             node.place("o-3", FORBIDDEN_ITEM).last().status.assert().isEqualTo(CommandResult.Status.REJECTED)
             // A technical failure retries the handling: the saga derives the same command, rejected again.
             rejections.map { it.commandId }.assert().containsExactly(rejectedId("o-3"), rejectedId("o-3"))
-            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-3")).assert().isFalse()
+            ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-3")).assert().isFalse()
             log.findByRequestId(CART, TENANT, compensationId("o-3")).assert().isNotNull()
 
             // A compensation that is rejected in turn is not handed to a handler again: the order parks.
@@ -346,7 +347,7 @@ class SagaReceiptsTest {
             val last = node.place("o-4", FORBIDDEN_ITEM).last()
             last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             last.error!!.code.assert().isEqualTo(FORBIDDEN)
-            eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-4")) }
+            eventually { ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-4")) }
             decided.assert().contains(compensationId("o-4", type = RemoveItems::class.java))
         }
 
@@ -371,11 +372,14 @@ class SagaReceiptsTest {
             node.fill()
             failures.set(100)
             node.place("o-5", FORBIDDEN_ITEM)
-            eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-5")) }
+            eventually { ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-5")) }
             // Each of the deriving handler's two attempts derived the command again and handed its rejection over.
             rejections.map { it.commandId }.assert().containsExactly(rejectedId("o-5"), rejectedId("o-5"))
             // Parked under the @OnEvent handler's subscription: the receipt handler has none of its own.
-            ledger.isParked("CartSaga.onRemoveRejected", ORDER.ref(TENANT, "o-5")).assert().isFalse()
+            ledger.isParked(
+                SubscriptionId(SHOP, "CartSaga.onRemoveRejected"),
+                ORDER.ref(TENANT, "o-5")
+            ).assert().isFalse()
         }
 
     @Test
@@ -386,7 +390,7 @@ class SagaReceiptsTest {
         last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         last.derived.assert().containsExactly(rejectedId("o-5"))
         anyRejections.single().commandId.assert().isEqualTo(rejectedId("o-5"))
-        ledger.isParked(SAGA, ORDER.ref(TENANT, "o-5")).assert().isFalse()
+        ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-5")).assert().isFalse()
         // A removal that is not rejected goes on past the saga's hop to the COMMITTED one.
         node.place("o-6", "apple").last().hop.stage.assert().isEqualTo(Stage.COMMITTED)
     }
@@ -406,7 +410,7 @@ class SagaReceiptsTest {
             removals.assert().hasSize(2)
             eventually { rejections.size == 1 }
             rejections.single().ref.assert().isEqualTo(cart)
-            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-8")).assert().isFalse()
+            ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-8")).assert().isFalse()
         }
 
     @Test
@@ -415,8 +419,8 @@ class SagaReceiptsTest {
         node.fill()
         node.place("o-9", "apple", FORBIDDEN_ITEM, "plum", FORBIDDEN_ITEM).last().status.assert()
             .isEqualTo(CommandResult.Status.REJECTED)
-        eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-9")) }
-        val parked = ledger.parked(SAGA, ORDER.ref(TENANT, "o-9"))!!
+        eventually { ledger.isParked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-9")) }
+        val parked = ledger.parked(SubscriptionId(SHOP, SAGA), ORDER.ref(TENANT, "o-9"))!!
         parked.reason.assert().contains("2 derived commands were rejected", FORBIDDEN)
         // The removal before them committed; the one between them changed nothing, plum not being in the cart.
         log.read(cart).toList().count { it.commandType == "shop.cart.RemoveItems" }.assert().isEqualTo(1)

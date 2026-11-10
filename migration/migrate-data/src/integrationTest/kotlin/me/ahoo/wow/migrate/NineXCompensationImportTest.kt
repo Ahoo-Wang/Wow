@@ -67,6 +67,10 @@ import kotlin.time.Duration.Companion.seconds
  * failed version; `compare` reports the resolved one.
  */
 class NineXCompensationImportTest {
+    private val cartSaga = SubscriptionId(NineXExample.CONTEXT, CART_SAGA)
+    private val orderCreated = SubscriptionId(NineXExample.CONTEXT, ORDER_CREATED)
+    private val orderState = SubscriptionId(NineXExample.CONTEXT, ORDER_STATE)
+
     @TempDir
     lateinit var directory: Path
 
@@ -129,7 +133,7 @@ class NineXCompensationImportTest {
                     "other services left",
             )
             val ledger = MongoFailureLedger(NineXMongoStore.client, TARGET, service = service)
-            ledger.list(CART_SAGA).assert().isEmpty()
+            ledger.list(cartSaga).assert().isEmpty()
 
             run("import", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
             printed.assert()
@@ -143,9 +147,9 @@ class NineXCompensationImportTest {
                         "reporting does not read the log of example; it is not imported",
                 )
                 .contains("UNRESOLVED 9.x execution 0VYC0mp1nA0007")
-            ledger.parked(ORDER_CREATED, ref).assert().isEqualTo(
+            ledger.parked(orderCreated, ref).assert().isEqualTo(
                 ParkedAggregate.of(
-                    ORDER_CREATED,
+                    orderCreated,
                     ref,
                     Partitioner.partitionOf(ref, PARTITIONS),
                     1,
@@ -157,12 +161,13 @@ class NineXCompensationImportTest {
                     recoverable = Recoverable.RECOVERABLE,
                 ),
             )
-            ledger.parked(CART_SAGA, ref)!!.reason.assert().isEqualTo(
+            ledger.parked(cartSaga, ref)!!.reason.assert().isEqualTo(
                 "IllegalState: the order $ORDER_ID failed in CartSaga [9.x execution 0VYC0mp1nA0001]",
             )
-            ledger.parked(ORDER_STATE, ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+            ledger.parked(orderState, ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
             // Only this service's ledger holds them.
-            MongoFailureLedger(NineXMongoStore.client, TARGET, service = "another-service").list(CART_SAGA).assert().isEmpty()
+            MongoFailureLedger(NineXMongoStore.client, TARGET, service = "another-service").list(cartSaga)
+                .assert().isEmpty()
 
             // A run again, from the first execution, finds every one parked and writes nothing.
             run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
@@ -189,22 +194,23 @@ class NineXCompensationImportTest {
             )
             val ops = ParkedOps.of(listOf(runtime))
             val page = ops.list()
-            page.entries.map { it.entry.subscription }.assert().containsExactly(CART_SAGA, ORDER_CREATED, ORDER_STATE)
+            page.entries.map { it.entry.subscription.name }.assert()
+                .containsExactly(CART_SAGA, ORDER_CREATED, ORDER_STATE)
             page.entries.map { it.status }.assert()
                 .containsExactly(ParkedView.Status.SCHEDULED, ParkedView.Status.SCHEDULED, ParkedView.Status.UNRECOVERABLE)
             // 9.x's next retry for the first; the second's by its applied spec, after its retry started.
             page.entries.map { it.nextRetryAt }.assert()
                 .containsExactly(FAILED_AT + 180_000, FAILED_AT + 180_000 + 120_000, null)
-            ops.markRecoverable(SubscriptionId(NineXExample.CONTEXT, ORDER_STATE), ref, Recoverable.RECOVERABLE)!!.status.assert()
+            ops.markRecoverable(orderState, ref, Recoverable.RECOVERABLE)!!.status.assert()
                 .isEqualTo(ParkedView.Status.SCHEDULED)
             runtime.start((0 until PARTITIONS).toSet())
             try {
-                ops.retry(SubscriptionId(NineXExample.CONTEXT, CART_SAGA), ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+                ops.retry(cartSaga, ref).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
             } finally {
                 runtime.stop()
             }
             handled.assert().containsExactly(CART_SAGA to 1, CART_SAGA to 2, CART_SAGA to 3, CART_SAGA to 4)
-            ops.list().entries.map { it.entry.subscription }.assert().containsExactly(ORDER_CREATED, ORDER_STATE)
+            ops.list().entries.map { it.entry.subscription.name }.assert().containsExactly(ORDER_CREATED, ORDER_STATE)
 
             // The resumed execution is resolved in V10 now: compare reports it.
             run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
@@ -228,7 +234,7 @@ class NineXCompensationImportTest {
             password = postgres.password
         }
         val ledger = PostgresFailureLedger(dataSource, service = service)
-        ledger.parked(ORDER_STATE, ref)!!.also {
+        ledger.parked(orderState, ref)!!.also {
             it.fromVersion.assert().isEqualTo(3)
             it.retries.assert().isEqualTo(1)
             it.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
@@ -248,8 +254,8 @@ class NineXCompensationImportTest {
         )
         run("import", "--config", config.toString(), "--restart").assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("RESOLVED $ORDER_CREATED $ref from v1")
-        ledger.parked(ORDER_CREATED, ref).assert().isNull()
-        ledger.parked(CART_SAGA, ref).assert().isNotNull()
+        ledger.parked(orderCreated, ref).assert().isNull()
+        ledger.parked(cartSaga, ref).assert().isNotNull()
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
     }
 

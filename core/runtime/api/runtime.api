@@ -867,12 +867,12 @@ public final class me/ahoo/wow/runtime/subscription/ParkedNotice {
 	public final fun getNextRetryAt ()Ljava/lang/Long;
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public fun hashCode ()I
-	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
+	public static final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/runtime/subscription/ParkedNotice$Companion {
-	public final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
+	public final fun of (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)Lme/ahoo/wow/runtime/subscription/ParkedNotice;
 }
 
 public final class me/ahoo/wow/runtime/subscription/ParkedNotice$Kind : java/lang/Enum {
@@ -901,7 +901,7 @@ public final class me/ahoo/wow/runtime/subscription/ParkedRetryOptions {
 	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public final fun getSpecs ()Ljava/util/Map;
 	public fun hashCode ()I
-	public final fun specOf (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun specOf (Lme/ahoo/wow/spi/ledger/ParkedAggregate;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
 	public fun toString ()Ljava/lang/String;
 }
 

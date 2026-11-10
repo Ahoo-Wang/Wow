@@ -86,7 +86,7 @@ class ParkedRetriesTest {
 
     private val all = setOf(0, 1)
 
-    private suspend fun parked(): ParkedAggregate? = ledger.parked(NAME, cart("x"))
+    private suspend fun parked(): ParkedAggregate? = ledger.parked(SubscriptionId("shop", NAME), cart("x"))
 
     /** x1 x2 y1: x parks at version 2 after its one in-process attempt. */
     private suspend fun parkX(runtime: SubscriptionRuntime, partitions: Set<Int> = all) {
@@ -164,7 +164,11 @@ class ParkedRetriesTest {
         parked()!!.nextAttemptAt.assert().isEqualTo(ParkedAggregate.NEVER)
 
         // A spec with more retries an operator applies takes it up again.
-        ledger.amend(NAME, cart("x"), ParkedAmendment.ApplyRetrySpec(spec.copyWith(maxRetries = 4)))
+        ledger.amend(
+            SubscriptionId("shop", NAME),
+            cart("x"),
+            ParkedAmendment.ApplyRetrySpec(spec.copyWith(maxRetries = 4))
+        )
         eventually { attempts.get() == 4 }
         runtime.stop()
         parked()!!.retries.assert().isEqualTo(3)
@@ -175,10 +179,14 @@ class ParkedRetriesTest {
         failures.set(1)
         val runtime = runtime()
         parkX(runtime)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.MarkRecoverable(Recoverable.UNRECOVERABLE))
+        ledger.amend(
+            SubscriptionId("shop", NAME),
+            cart("x"),
+            ParkedAmendment.MarkRecoverable(Recoverable.UNRECOVERABLE)
+        )
         clock.advance(10.seconds)
         attemptedAfterScans(1)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
+        ledger.amend(SubscriptionId("shop", NAME), cart("x"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
         eventually { parked() == null }
         attempts.get().assert().isEqualTo(2)
         runtime.stop()
@@ -192,7 +200,7 @@ class ParkedRetriesTest {
         val scheduled = parked()!!
         scheduled.nextAttemptAt.assert().isEqualTo(scheduled.failedAt + 1_000)
         // Not due yet: no scan reads it, so none rewrites it.
-        ledger.due(NAME, all, clock.millis()).assert().isEmpty()
+        ledger.due(SubscriptionId("shop", NAME), all, clock.millis()).assert().isEmpty()
         clock.advance(1.seconds)
         eventually { attempts.get() == 2 }
         runtime.stop()
@@ -212,11 +220,11 @@ class ParkedRetriesTest {
     fun `the owner runs an operator's requests once, without counting a retry`(): Unit = runBlocking {
         val runtime = runtime(spec.copyWith(maxRetries = 0))
         parkX(runtime)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
+        ledger.amend(SubscriptionId("shop", NAME), cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
         eventually { attempts.get() == 2 && parked()?.request == null }
         parked()!!.retries.assert().isEqualTo(0)
 
-        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
+        ledger.amend(SubscriptionId("shop", NAME), cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
         eventually { parked() == null }
         attempts.get().assert().isEqualTo(2)
         appender.append("x")
@@ -263,7 +271,7 @@ class ParkedRetriesTest {
         val armed = AtomicBoolean()
 
         override suspend fun due(
-            subscription: String,
+            subscription: SubscriptionId,
             partitions: Collection<Int>,
             now: Long,
             after: AggregateRef?,
@@ -284,7 +292,7 @@ class ParkedRetriesTest {
         parkX(runtime)
         attemptedAfterScans(1)
         changing.armed.set(true)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
+        ledger.amend(SubscriptionId("shop", NAME), cart("x"), ParkedAmendment.Request(LedgerRequest.RETRY))
         eventually { parked() == null }
         changing.armed.get().assert().isFalse()
         attempts.get().assert().isEqualTo(2)
@@ -298,7 +306,7 @@ class ParkedRetriesTest {
         parkX(runtime)
         attemptedAfterScans(1)
         changing.armed.set(true)
-        ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
+        ledger.amend(SubscriptionId("shop", NAME), cart("x"), ParkedAmendment.Request(LedgerRequest.SKIP))
         eventually { parked() == null }
         changing.armed.get().assert().isFalse()
         attempts.get().assert().isEqualTo(1)
@@ -355,7 +363,7 @@ class ParkedRetriesTest {
         val stale = AtomicReference<ParkedAggregate?>()
         val ledger = object : FailureLedger by stored {
             override suspend fun amend(
-                subscription: String,
+                subscription: SubscriptionId,
                 ref: AggregateRef,
                 amendment: ParkedAmendment,
             ): ParkedAggregate? {
@@ -390,7 +398,7 @@ class ParkedRetriesTest {
             change(ParkedOps.of(listOf(other)), SubscriptionId("shop", name), ref)
             release.complete(Unit)
             // The schedule lost to the change, after which the entry is due: the next scan runs it.
-            eventually { stored.parked(name, ref) == null }
+            eventually { stored.parked(SubscriptionId("shop", name), ref) == null }
             stale.get().assert().isNull()
             tried.get().assert().isEqualTo(2)
         } finally {

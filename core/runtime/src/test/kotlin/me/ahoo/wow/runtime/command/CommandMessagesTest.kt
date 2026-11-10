@@ -49,6 +49,7 @@ import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.EnvelopeKind
@@ -367,8 +368,12 @@ class CommandMessagesTest {
         retried.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
         retried.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
         retried.first().stream.version.assert().isEqualTo(1)
-        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0, 1)).assert().isEqualTo(2L)
-        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 0, 1, "r", 0)).assert().isEqualTo(0L)
+        entries.ordinalOf(
+            ParkedAggregate(SubscriptionId(ref.type.context, CommandIntake.NAME), ref, 0, 1, "r", 0, 1)
+        ).assert().isEqualTo(2L)
+        entries.ordinalOf(
+            ParkedAggregate(SubscriptionId(ref.type.context, CommandIntake.NAME), ref, 0, 1, "r", 0)
+        ).assert().isEqualTo(0L)
         entries.positionOf(ref, 1).assert().isNull()
         assertThrows<UnrecoverableException> { runBlocking { entries.retryEntries(parked(null, partition)) } }
         topics.retain(COMMANDS, partition, 2)
@@ -400,7 +405,7 @@ class CommandMessagesTest {
 
     /** [ref] parked at [fromPosition] of [partition]. */
     private fun parked(fromPosition: Long?, partition: Int) =
-        ParkedAggregate(CommandIntake.NAME, ref, partition, 1, "r", 0, fromPosition)
+        ParkedAggregate(SubscriptionId(ref.type.context, CommandIntake.NAME), ref, partition, 1, "r", 0, fromPosition)
 
     @Test
     fun `a receipt should reach the handler once per command id with the command's class`(): Unit = runBlocking {

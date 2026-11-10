@@ -208,7 +208,7 @@ class ScheduleJobsNodeTest {
         val once = mapOf("heartbeat" to JobOptions(retry = HandlerRetry(maxAttempts = 1)))
         node("node-1", backends, listOf(EVERY_SECOND_SYSTEM), once, listOf(failing)).also { it.start() }
         val instance = ScheduleJobModel.refOf(SHOP, "heartbeat")
-        eventually { backends.backends(SHOP).ledger.isParked("Jobs.onheartbeat", instance) }
+        eventually { backends.backends(SHOP).ledger.isParked(SubscriptionId(SHOP, "Jobs.onheartbeat"), instance) }
         attempts.get().assert().isEqualTo(1)
     }
 
@@ -290,7 +290,7 @@ class ScheduleJobsNodeTest {
         eventually { next.tickTimer(ref)?.status == TimerStatus.CANCELLED }
         stores.log.read(ref).toList().flatMap { it.events }.map { it.name }.assert()
             .contains(ScheduleJobs.JOB_DISABLED)
-        stores.ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, ref).assert().isNull()
+        stores.ledger.parked(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION), ref).assert().isNull()
     }
 
     @Test

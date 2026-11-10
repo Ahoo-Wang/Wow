@@ -51,6 +51,7 @@ import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -203,7 +204,9 @@ class ScheduledCommandsTest {
         node.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.REJECTED)
         node.streams("o-1").eventNames().assert()
             .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderPaid")
-        node.context(SHOP).backends.ledger.list(TimerOptions.PARKED_SUBSCRIPTION).assert().isEmpty()
+        node.context(
+            SHOP
+        ).backends.ledger.list(SubscriptionId(SHOP, TimerOptions.PARKED_SUBSCRIPTION)).assert().isEmpty()
     }
 
     @Test

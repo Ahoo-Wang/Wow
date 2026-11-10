@@ -30,7 +30,7 @@ class ParkedMetrics(private val meters: MeterRegistry) : ParkedNotifier {
         WowMetrics.PARKED_NOTICES.counter(
             meters,
             notice.group,
-            notice.entry.subscription,
+            notice.entry.subscription.name,
             notice.kind.tagValue
         ).increment()
     }

@@ -85,16 +85,19 @@ class SubscriptionRetryTest {
             appender.append("x")
             appender.append("y")
             runtime.start(setOf(0, 1))
-            eventually { ledger.isParked("slow", cart("x")) && ledger.isParked("failing", cart("x")) }
+            eventually {
+                ledger.isParked(SubscriptionId("shop", "slow"), cart("x")) &&
+                    ledger.isParked(SubscriptionId("shop", "failing"), cart("x"))
+            }
             runtime.stop()
 
             slowAttempts.get().assert().isEqualTo(2)
-            ledger.parked("slow", cart("x"))!!.reason.assert()
+            ledger.parked(SubscriptionId("shop", "slow"), cart("x"))!!.reason.assert()
                 .contains(HandlerTimeoutException::class.java.name)
                 .contains("within 50ms")
             failingAttempts.get().assert().isEqualTo(3)
-            ledger.isParked("slow", cart("y")).assert().isFalse()
-            ledger.isParked("failing", cart("y")).assert().isFalse()
+            ledger.isParked(SubscriptionId("shop", "slow"), cart("y")).assert().isFalse()
+            ledger.isParked(SubscriptionId("shop", "failing"), cart("y")).assert().isFalse()
         }
 
     @Test
@@ -117,7 +120,7 @@ class SubscriptionRetryTest {
         runtime.stop()
 
         attempts.get().assert().isEqualTo(BUSY_ROUNDS + 1)
-        ledger.isParked("busy", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "busy"), cart("x")).assert().isFalse()
     }
 
     @Test
@@ -142,14 +145,23 @@ class SubscriptionRetryTest {
         val runtime = runtime(listOf(timingOut, erring))
         listOf("x", "y", "x", "y").forEach { appender.append(it) }
         runtime.start(setOf(0, 1))
-        eventually { ledger.isParked("timing-out", cart("x")) && ledger.isParked("erring", cart("x")) }
+        eventually {
+            ledger.isParked(SubscriptionId("shop", "timing-out"), cart("x")) &&
+                ledger.isParked(SubscriptionId("shop", "erring"), cart("x"))
+        }
         eventually { reachedEnd("timing-out") && reachedEnd("erring") }
         runtime.stop()
 
         timeouts.get().assert().isEqualTo(3)
         errors.get().assert().isEqualTo(3)
-        ledger.parked("timing-out", cart("x"))!!.reason.assert().contains("TimeoutCancellationException")
-        ledger.parked("erring", cart("x"))!!.reason.assert().contains(NotImplementedError::class.java.name)
+        ledger.parked(
+            SubscriptionId("shop", "timing-out"),
+            cart("x")
+        )!!.reason.assert().contains("TimeoutCancellationException")
+        ledger.parked(
+            SubscriptionId("shop", "erring"),
+            cart("x")
+        )!!.reason.assert().contains(NotImplementedError::class.java.name)
         handled.versionsOf("y").assert().containsExactly(1, 2)
     }
 
@@ -189,7 +201,7 @@ class SubscriptionRetryTest {
 
             attempts.get().assert().isEqualTo(1)
             handled.versionsOf("x").assert().isEmpty()
-            ledger.isParked("fatal", cart("x")).assert().isFalse()
+            ledger.isParked(SubscriptionId("shop", "fatal"), cart("x")).assert().isFalse()
             fatals.first.assert().isEqualTo(
                 NodeFatal(
                     Component.SUBSCRIPTION,
@@ -229,11 +241,14 @@ class SubscriptionRetryTest {
         )
         listOf("x", "y").forEach { appender.append(it) }
         runtime.start(setOf(0, 1))
-        eventually { ledger.isParked("recursive", cart("x")) && reachedEnd("recursive") }
+        eventually { ledger.isParked(SubscriptionId("shop", "recursive"), cart("x")) && reachedEnd("recursive") }
         runtime.stop()
 
         attempts.get().assert().isEqualTo(3)
-        ledger.parked("recursive", cart("x"))!!.reason.assert().contains(StackOverflowError::class.java.name)
+        ledger.parked(
+            SubscriptionId("shop", "recursive"),
+            cart("x")
+        )!!.reason.assert().contains(StackOverflowError::class.java.name)
         handled.versionsOf("y").assert().containsExactly(1)
         fatals.isFatal.assert().isFalse()
     }
@@ -265,12 +280,12 @@ class SubscriptionRetryTest {
             )
             if (fatal) appender.append("x")
             runtime.start(setOf(0, 1))
-            eventually { ledger.isParked(name, cart("x")) }
+            eventually { ledger.isParked(SubscriptionId("shop", name), cart("x")) }
             reading.set(error)
             runCatching { runtime.retry(name, cart("x")) }.exceptionOrNull().assert().isInstanceOf(error.javaClass)
             runtime.stop()
             fatals.isFatal.assert().isEqualTo(fatal)
-            ledger.isParked(name, cart("x")).assert().isTrue()
+            ledger.isParked(SubscriptionId("shop", name), cart("x")).assert().isTrue()
         }
     }
 
@@ -292,7 +307,7 @@ class SubscriptionRetryTest {
         runtime.start(setOf(0, 1))
         eventually { handled.size == 1 }
         runtime.stop()
-        ledger.isParked("quick", cart("x")).assert().isFalse()
+        ledger.isParked(SubscriptionId("shop", "quick"), cart("x")).assert().isFalse()
     }
 
     @Test

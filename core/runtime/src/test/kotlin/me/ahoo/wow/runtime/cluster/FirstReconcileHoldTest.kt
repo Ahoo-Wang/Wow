@@ -34,6 +34,7 @@ import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -142,7 +143,7 @@ class FirstReconcileHoldTest {
     /** A ledger slow to read a partition's parked aggregates, as a store under load is: each partition starts slowly. */
     private class SlowLedger(private val delegate: FailureLedger) : FailureLedger by delegate {
         override suspend fun due(
-            subscription: String,
+            subscription: SubscriptionId,
             partitions: Collection<Int>,
             now: Long,
             after: AggregateRef?,
@@ -160,7 +161,7 @@ class FirstReconcileHoldTest {
         private val released: CompletableDeferred<Unit>,
     ) : FailureLedger by delegate {
         override suspend fun due(
-            subscription: String,
+            subscription: SubscriptionId,
             partitions: Collection<Int>,
             now: Long,
             after: AggregateRef?,

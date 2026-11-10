@@ -46,6 +46,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.ImportCutover
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
@@ -147,7 +148,7 @@ class SubscriptionRuntime internal constructor(
     )
 
     private val lifecycle = Mutex()
-    private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier) { directory[it]?.context }
+    private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier)
     private val subscriptions = LinkedHashMap<String, Subscription>()
 
     /** The registered subscriptions by name, read by waits from any thread. */
@@ -228,7 +229,7 @@ class SubscriptionRuntime internal constructor(
             // A paused partition's entries wait: their retries would fail the same way, and the ledger may be down. A
             // partition held back reads none yet ([startPartition]).
             val reading = run.partitions.filterValues { it.reading }.keys
-            retries.scan(run.scope, directory.keys.sorted(), reading) { subscription, ref ->
+            retries.scan(run.scope, directory.values.map { it.id }.sorted(), reading) { subscription, ref ->
                 run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
             }
         } catch (cancelled: CancellationException) {
@@ -420,8 +421,8 @@ class SubscriptionRuntime internal constructor(
      * @return true when the aggregate was parked; false when it was not, or a retry of it is running.
      */
     suspend fun skip(subscription: String, ref: AggregateRef): Boolean {
-        require(subscription in subscriptions) { "No subscription $subscription in group $group." }
-        val worker = workerOf(subscription, ref) ?: return ledger.resolveAnywhere(subscription, ref) != null
+        val id = requireNotNull(subscriptions[subscription]) { "No subscription $subscription in group $group." }.id
+        val worker = workerOf(subscription, ref) ?: return ledger.resolveAnywhere(id, ref) != null
         return worker.skip(ref)
     }
 
@@ -452,14 +453,12 @@ class SubscriptionRuntime internal constructor(
      * aggregate is not parked.
      */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean {
-        if (kindOf(stream.ref.type.context, subscription) == null) {
-            return false
-        }
+        val id = directory[subscription]?.takeIf { it.filter.context == stream.ref.type.context }?.id ?: return false
         val position = source.positionOf(stream.ref, stream.version) ?: return false
         val progress = running?.workers?.get(subscription to position.partition)?.watermark
             ?: checkpoints.load(group, subscription, position.partition)
             ?: 0L
-        return progress >= position.sequence && !ledger.isParked(subscription, stream.ref)
+        return progress >= position.sequence && !ledger.isParked(id, stream.ref)
     }
 
     /**
@@ -496,10 +495,9 @@ class SubscriptionRuntime internal constructor(
     internal suspend fun saved(): List<Checkpoint> = checkpoints.list(group)
 
     /**
-     * The checkpoints in [saved] of an application's subscription the group no longer has, each with the entries parked
-     * under the name, counted up to [maxParked]: what a subscription renamed, or removed, left behind, ordered by name.
-     * Wow's own subscriptions (`wow.…`) are left out: those it ends, such as a finished rebuild's, are its own to keep.
-     * The first start warns of them, and the operator reads them ([me.ahoo.wow.runtime.node.subscriptionsView]).
+     * The checkpoints in [saved] of a subscription the group no longer has (not Wow's own, `wow.…`, which it ends),
+     * with the entries parked under the name in the group's contexts, up to [maxParked]: what one renamed or removed
+     * left behind, by name. A start warns of them; operators read them ([me.ahoo.wow.runtime.node.subscriptionsView]).
      */
     internal suspend fun orphans(saved: List<Checkpoint>, maxParked: Int): List<OrphanCheckpoints> {
         require(maxParked >= 1) { "At least one parked entry is counted." }
@@ -507,7 +505,9 @@ class SubscriptionRuntime internal constructor(
             .groupBy { it.subscription }
             .toSortedMap()
             .map { (name, positions) ->
-                OrphanCheckpoints(group, name, positions.sortedBy { it.partition }, ledger.count(name, maxParked))
+                val parked = directory.values.mapTo(HashSet()) { it.context }
+                    .sumOf { ledger.count(SubscriptionId(it, name), maxParked) }.coerceAtMost(maxParked)
+                OrphanCheckpoints(group, name, positions.sortedBy { it.partition }, parked)
             }
     }
 

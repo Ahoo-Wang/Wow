@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.ledger
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -28,6 +29,10 @@ import kotlin.time.Duration.Companion.minutes
  * checkpoint passing over the parked aggregate's later entries. Nothing of those entries is copied: to retry, the
  * subscription reads the aggregate's streams from the log from [ParkedAggregate.fromVersion] on, so the ledger grows
  * with the number of parked aggregates, not with what was written while they were parked.
+ *
+ * The ledger keys an entry by its subscription's identity, its context and name ([SubscriptionId]), and its aggregate:
+ * names are unique within a context only, and the contexts of a service whose stores are one store share one ledger,
+ * so two subscriptions of one name in two contexts never see, count, amend or resolve each other's entries.
  *
  * The ledger lives in the failing service's own storage; wow-ops only aggregates it. Its writes are idempotent:
  * parking an aggregate that is already parked keeps the earliest from version, so a replayed or
@@ -89,10 +94,10 @@ interface FailureLedger {
     suspend fun repark(entry: ParkedAggregate, from: Int = entry.partition): Boolean
 
     /** The entry parking [ref] for [subscription], if any. */
-    suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate?
+    suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate?
 
     /** Whether [subscription] has parked [ref]: its entries are not handled until the entry is resolved. */
-    suspend fun isParked(subscription: String, ref: AggregateRef): Boolean = parked(subscription, ref) != null
+    suspend fun isParked(subscription: SubscriptionId, ref: AggregateRef): Boolean = parked(subscription, ref) != null
 
     /**
      * Up to [limit] aggregates [subscription] has parked, ordered by aggregate (context, aggregate name, tenant, id,
@@ -100,7 +105,7 @@ interface FailureLedger {
      * given. Pass the last entry's ref as [after] to read the next page.
      */
     suspend fun list(
-        subscription: String,
+        subscription: SubscriptionId,
         after: AggregateRef? = null,
         limit: Int = DEFAULT_PAGE,
         tenantId: String? = null,
@@ -114,7 +119,7 @@ interface FailureLedger {
      * (exclusive; null from the start): pass the last entry's ref as [after] to read the next page.
      */
     suspend fun due(
-        subscription: String,
+        subscription: SubscriptionId,
         partitions: Collection<Int>,
         now: Long,
         after: AggregateRef? = null,
@@ -122,7 +127,7 @@ interface FailureLedger {
     ): List<ParkedAggregate>
 
     /** How many aggregates [subscription] has parked, counted up to [max]: [max] when there are more. */
-    suspend fun count(subscription: String, max: Int): Int
+    suspend fun count(subscription: SubscriptionId, max: Int): Int
 
     /**
      * Resolves the entry parking [ref] for [subscription] by removing it, after the aggregate was retried
@@ -135,7 +140,7 @@ interface FailureLedger {
      *
      * @return the removed entry, or null when the aggregate was not parked.
      */
-    suspend fun resolveAnywhere(subscription: String, ref: AggregateRef): ParkedAggregate?
+    suspend fun resolveAnywhere(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate?
 
     /**
      * Resolves the entry parking [ref] for [subscription], as [resolveAnywhere] does, while the aggregate is parked in
@@ -145,7 +150,7 @@ interface FailureLedger {
      *
      * @return the removed entry, or null when the aggregate is not parked in [partition].
      */
-    suspend fun resolve(subscription: String, ref: AggregateRef, partition: Int): ParkedAggregate?
+    suspend fun resolve(subscription: SubscriptionId, ref: AggregateRef, partition: Int): ParkedAggregate?
 
     /**
      * Changes the retry state of the entry parking [ref] for [subscription] as [amendment] says, in one write, giving
@@ -157,7 +162,7 @@ interface FailureLedger {
      *
      * @return the amended entry; null when the aggregate is not parked or the amendment's condition does not hold.
      */
-    suspend fun amend(subscription: String, ref: AggregateRef, amendment: ParkedAmendment): ParkedAggregate?
+    suspend fun amend(subscription: SubscriptionId, ref: AggregateRef, amendment: ParkedAmendment): ParkedAggregate?
 
     companion object {
         /** The page size of [list] when none is given. */
@@ -196,7 +201,7 @@ interface FailureLedger {
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
 class ParkedAggregate @InternalWowApi constructor(
-    val subscription: String,
+    val subscription: SubscriptionId,
     val ref: AggregateRef,
     val partition: Int,
     val fromVersion: Int,
@@ -212,7 +217,6 @@ class ParkedAggregate @InternalWowApi constructor(
     val revision: Long = 0,
 ) {
     init {
-        require(subscription.isNotBlank()) { "A parked aggregate needs a subscription." }
         require(partition >= 0) { "A partition is never negative." }
         require(fromVersion >= 1) { "An event stream's version starts at 1." }
         require(fromPosition == null || fromPosition >= 0) { "A source position is never negative." }
@@ -251,7 +255,7 @@ class ParkedAggregate @InternalWowApi constructor(
     /** This ParkedAggregate with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
-        subscription: String = this.subscription,
+        subscription: SubscriptionId = this.subscription,
         ref: AggregateRef = this.ref,
         partition: Int = this.partition,
         fromVersion: Int = this.fromVersion,
@@ -328,7 +332,7 @@ class ParkedAggregate @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(
-            subscription: String,
+            subscription: SubscriptionId,
             ref: AggregateRef,
             partition: Int,
             fromVersion: Int,

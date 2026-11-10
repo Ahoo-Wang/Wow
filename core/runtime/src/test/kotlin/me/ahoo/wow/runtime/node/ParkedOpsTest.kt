@@ -69,7 +69,7 @@ class ParkedOpsTest {
         appender.append("x1")
         appender.append("x2")
         runtime.start(setOf(0, 1))
-        eventually { ledger.list(NAME).size == 2 }
+        eventually { ledger.list(ID).size == 2 }
 
         val view = ops.get(ID, cart("x1"))!!
         view.spec.assert().isEqualTo(spec)
@@ -79,7 +79,7 @@ class ParkedOpsTest {
         failing.set(false)
         ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
-        val x2 = ledger.parked(NAME, cart("x2"))!!.failedAt
+        val x2 = ledger.parked(ID, cart("x2"))!!.failedAt
         ops.skip(ID, cart("x2"), x2 + 1).assert().isEqualTo(ParkedOps.Outcome.STALE)
         ops.skip(ID, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         ops.skip(ID, cart("x2"), x2).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
@@ -93,8 +93,8 @@ class ParkedOpsTest {
     fun `an entry of a partition another node runs is left as a request for it`(): Unit = runBlocking {
         park("x1")
         ops.retry(ID, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
-        ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RETRY)
-        ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt).assert()
+        ledger.parked(ID, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.RETRY)
+        ops.skip(ID, cart("x1"), ledger.parked(ID, cart("x1"))!!.failedAt).assert()
             .isEqualTo(ParkedOps.Outcome.REQUESTED)
         ops.get(ID, cart("x1"))!!.entry.request.assert().isEqualTo(LedgerRequest.SKIP)
         ops.retry(ID, cart("absent")).assert().isEqualTo(ParkedOps.Outcome.NOT_PARKED)
@@ -116,7 +116,7 @@ class ParkedOpsTest {
         ops.applyRetrySpec(ID, cart("x1"), null)!!.spec.assert().isEqualTo(spec)
         ops.markRecoverable(ID, cart("absent"), Recoverable.RECOVERABLE).assert().isNull()
         ops.applyRetrySpec(ID, cart("absent"), none).assert().isNull()
-        ledger.park(ParkedAggregate(NAME, cart("gone"), 0, 1, "${ParkedAggregate.UNRECOVERABLE}: gone", 0))
+        ledger.park(ParkedAggregate(ID, cart("gone"), 0, 1, "${ParkedAggregate.UNRECOVERABLE}: gone", 0))
         ops.get(ID, cart("gone"))!!.status.assert().isEqualTo(ParkedView.Status.UNRECOVERABLE)
     }
 
@@ -127,7 +127,7 @@ class ParkedOpsTest {
         val listing = ParkedOps { listOf(ParkedOps.Scope.of(runtimes)) }
         listing.subscriptions.assert().containsExactly(ID, OTHER)
         listOf("c", "a", "b").forEach { park(it) }
-        listOf("z", "y").forEach { park(it, subscription = "$NAME.other") }
+        listOf("z", "y").forEach { park(it, subscription = OTHER) }
 
         val first = listing.list(limit = 2)
         first.entries.map { it.entry.ref.id }.assert().containsExactly("a", "b")
@@ -165,8 +165,8 @@ class ParkedOpsTest {
         )
         // Both ledgers hold an entry of the stock item, as when two contexts share one table.
         val item = stockType.ref("t", "i")
-        shop.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the shop's", 0))
-        stock.park(ParkedAggregate("wow.snapshot", item, 0, 1, "in the stock's", 0))
+        shop.park(ParkedAggregate(SubscriptionId("shop", "wow.snapshot"), item, 0, 1, "in the shop's", 0))
+        stock.park(ParkedAggregate(SubscriptionId("stock", "wow.snapshot"), item, 0, 1, "in the stock's", 0))
         val both = ParkedOps { listOf(ParkedOps.Scope.of(shopRuntime), ParkedOps.Scope.of(stockRuntime)) }
         val shopSnapshot = SubscriptionId("shop", "wow.snapshot")
         val stockSnapshot = SubscriptionId("stock", "wow.snapshot")
@@ -175,8 +175,8 @@ class ParkedOpsTest {
         both.get(stockSnapshot, item)!!.context.assert().isEqualTo("stock")
         both.list(stockSnapshot).entries.map { it.entry.reason }.assert().containsExactly("in the stock's")
         both.skip(stockSnapshot, item, 0).assert().isEqualTo(ParkedOps.Outcome.REQUESTED)
-        stock.parked("wow.snapshot", item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
-        shop.parked("wow.snapshot", item)!!.request.assert().isNull()
+        stock.parked(stockSnapshot, item)!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        shop.parked(shopSnapshot, item)!!.request.assert().isNull()
         both.get(SubscriptionId("other", "wow.snapshot"), item).assert().isNull()
         both.subscriptions.assert().containsExactly(shopSnapshot, stockSnapshot)
     }
@@ -192,8 +192,23 @@ class ParkedOpsTest {
             ledger,
             listOf(Subscription("wow.snapshot", SubscriptionFilter(group)) { }),
         )
-        repeat(3) { shop.park(ParkedAggregate("wow.snapshot", CART.ref("t", "c-$it"), 0, 1, "failed", 0)) }
-        stock.park(ParkedAggregate("wow.snapshot", AggregateType("stock", "item").ref("t", "i"), 0, 1, "failed", 0))
+        repeat(
+            3
+        ) {
+            shop.park(
+                ParkedAggregate(SubscriptionId("shop", "wow.snapshot"), CART.ref("t", "c-$it"), 0, 1, "failed", 0)
+            )
+        }
+        stock.park(
+            ParkedAggregate(
+                SubscriptionId("stock", "wow.snapshot"),
+                AggregateType("stock", "item").ref("t", "i"),
+                0,
+                1,
+                "failed",
+                0
+            )
+        )
         val both =
             ParkedOps { listOf(ParkedOps.Scope.of(runtime("shop", shop)), ParkedOps.Scope.of(runtime("stock", stock))) }
         val shopSnapshot = ParkedSubscription("shop", "wow.snapshot")
@@ -206,7 +221,7 @@ class ParkedOpsTest {
         assertThrownBy<IllegalArgumentException> { runBlocking { both.count(shopSnapshot, 0) } }
     }
 
-    private suspend fun park(id: String, subscription: String = NAME) {
+    private suspend fun park(id: String, subscription: SubscriptionId = ID) {
         ledger.park(ParkedAggregate(subscription, CART.ref("t", id), 0, 1, "$id failed", 1_700_000_000_000L))
     }
 

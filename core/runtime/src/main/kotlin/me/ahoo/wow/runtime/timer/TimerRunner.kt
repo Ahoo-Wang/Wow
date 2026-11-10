@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.health.NodeFatals
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.ObservedEvent.Fatal.Component
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
@@ -92,6 +93,9 @@ class TimerRunner(
 ) {
     private val options: TimerOptions get() = loop.options
     private val parts = ConcurrentHashMap<Int, Part>()
+
+    /** What the ledger parks this context's targets under: its [TimerOptions.PARKED_SUBSCRIPTION]. */
+    val parkedSubscription: SubscriptionId = SubscriptionId(context, TimerOptions.PARKED_SUBSCRIPTION)
     private val settling = ConcurrentLinkedQueue<Settling>()
 
     /** The partitions whose timers this runner sends now. */
@@ -131,7 +135,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         )
-        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(parkedSubscription, target)
         return retried
     }
 
@@ -147,7 +151,7 @@ class TimerRunner(
                 TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
         )
-        ledger.resolveAnywhere(TimerOptions.PARKED_SUBSCRIPTION, target)
+        ledger.resolveAnywhere(parkedSubscription, target)
         return skipped
     }
 
@@ -374,7 +378,7 @@ class TimerRunner(
      */
     private suspend fun park(part: Part, timer: Timer, attempts: Int, reason: String, now: Long) {
         val entry = ParkedAggregate(
-            TimerOptions.PARKED_SUBSCRIPTION,
+            parkedSubscription,
             timer.target,
             timer.partition,
             1,

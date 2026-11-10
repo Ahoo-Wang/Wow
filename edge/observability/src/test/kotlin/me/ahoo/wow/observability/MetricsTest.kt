@@ -28,6 +28,7 @@ import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.observation.ObservedEvent
 import me.ahoo.wow.spi.observation.ObservedOutcome
 import me.ahoo.wow.spi.observation.observe
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.junit.jupiter.api.Test
@@ -130,11 +131,11 @@ class MetricsTest {
     @Test
     fun `each parked notice should be counted by group, subscription and kind`(): Unit = runBlocking {
         val parked = ParkedMetrics(telemetry.meters)
-        val entry = ParkedAggregate("Board.onOrder", ORDER.ref("t", "o-1"), 0, 1, "boom", 0)
-        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 0))
-        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", "shop", entry, ParkedRetrySpec(), 0))
-        parked.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "g", "shop", entry, ParkedRetrySpec(), 0))
-        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "other", "shop", entry, ParkedRetrySpec(), 0))
+        val entry = ParkedAggregate(SubscriptionId("shop", "Board.onOrder"), ORDER.ref("t", "o-1"), 0, 1, "boom", 0)
+        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
+        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "g", entry, ParkedRetrySpec(), 0))
+        parked.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "g", entry, ParkedRetrySpec(), 0))
+        parked.notify(ParkedNotice(ParkedNotice.Kind.PARKED, "other", entry, ParkedRetrySpec(), 0))
         fun count(group: String, kind: String) = telemetry.meters.find(WowMetrics.PARKED_NOTICES.name)
             .tags(WowMetrics.PARKED_NOTICES.tagsOf(group, "Board.onOrder", kind)).counter()!!.count()
         count("g", "parked").assert().isEqualTo(2.0)

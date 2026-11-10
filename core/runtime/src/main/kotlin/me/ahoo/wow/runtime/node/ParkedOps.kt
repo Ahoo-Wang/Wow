@@ -36,8 +36,9 @@ import me.ahoo.wow.spi.subscription.SubscriptionId
  * (9.x `ApplyRetrySpec`). The host serves it over HTTP; any node of the service answers for every entry.
  *
  * A subscription is named by its context and name ([SubscriptionId]): two contexts of one service may each have a
- * subscription of one name, such as their `wow.snapshot`. An entry is the subscription's in the ledger of the context
- * (or the topic) it reads. [retry] and [skip] act at once
+ * subscription of one name, such as their `wow.snapshot`, and the ledger keys an entry by both, so each one's entries
+ * are its own even when the two contexts share a store, and so a ledger. An entry is the subscription's in the ledger
+ * of the context (or the topic) it reads. [retry] and [skip] act at once
  * when this node owns the entry's partition; otherwise they leave a request on the entry ([LedgerRequest]), which the
  * owner takes on its next scan of the parked entries, and answer [Outcome.REQUESTED]. Marking an entry
  * and applying a spec write the ledger directly: the owner reads them on its next scan.
@@ -63,7 +64,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         require(max >= 1) { "At least one parked entry is counted." }
         var count = 0
         for (scope in scopes().filter { it.group == subscription.group && subscription.name in it.names() }) {
-            count += scope.ledger.count(subscription.name, max - count)
+            val id = checkNotNull(scope.idOf(subscription.name)) { "${subscription.name} has no context." }
+            count += scope.ledger.count(id, max - count)
             if (count >= max) {
                 break
             }
@@ -111,7 +113,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         val holders = scopes().filter { it.holds(subscription) }
         val byRef = LinkedHashMap<AggregateRef, ParkedView>()
         holders.forEach { scope ->
-            scope.ledger.list(subscription.name, after, limit, tenantId)
+            scope.ledger.list(subscription, after, limit, tenantId)
                 .forEach { byRef.putIfAbsent(it.ref, scope.view(it)) }
         }
         return byRef.values.sortedWith(compareBy(REF_ORDER) { it.entry.ref }).take(limit)
@@ -137,7 +139,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         if (runtime.retry(subscription.name, ref)) {
             return Outcome.RESOLVED
         }
-        return if (scope.ledger.isParked(subscription.name, ref)) Outcome.PARKED else Outcome.NOT_PARKED
+        return if (scope.ledger.isParked(subscription, ref)) Outcome.PARKED else Outcome.NOT_PARKED
     }
 
     /**
@@ -183,11 +185,11 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     private suspend fun amend(subscription: SubscriptionId, ref: AggregateRef, amendment: ParkedAmendment): ParkedView? {
         val (scope, _) = locate(subscription, ref) ?: return null
-        return scope.ledger.amend(subscription.name, ref, amendment)?.let { scope.view(it) }
+        return scope.ledger.amend(subscription, ref, amendment)?.let { scope.view(it) }
     }
 
     private suspend fun request(scope: Scope, subscription: SubscriptionId, ref: AggregateRef, request: LedgerRequest) =
-        if (scope.ledger.amend(subscription.name, ref, ParkedAmendment.Request(request)) != null) {
+        if (scope.ledger.amend(subscription, ref, ParkedAmendment.Request(request)) != null) {
             Outcome.REQUESTED
         } else {
             Outcome.NOT_PARKED
@@ -201,7 +203,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         val holders = scopes().filter { it.holds(subscription) }
         val (covering, others) = holders.partition { it.covers(subscription.name, ref.type) }
         for (scope in covering + others) {
-            scope.ledger.parked(subscription.name, ref)?.let { return scope to it }
+            scope.ledger.parked(subscription, ref)?.let { return scope to it }
         }
         return null
     }
@@ -258,22 +260,17 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         val contextOf: (String) -> String?,
     ) {
         /** The subscriptions of the scope, by their contexts and names. */
-        fun ids(): List<SubscriptionId> = names().mapNotNull { name ->
-            contextOf(
-                name
-            )?.let { SubscriptionId(it, name) }
-        }
+        fun ids(): List<SubscriptionId> = names().mapNotNull(::idOf)
+
+        /** The scope's subscription of [name], by its context and name; null when the scope has none. */
+        fun idOf(name: String): SubscriptionId? = contextOf(name)?.let { SubscriptionId(it, name) }
 
         /** Whether the scope holds [subscription]'s entries: it runs a subscription of that name in that context. */
         fun holds(subscription: SubscriptionId): Boolean =
             subscription.name in names() && contextOf(subscription.name) == subscription.context
 
-        fun view(entry: ParkedAggregate): ParkedView {
-            val context = checkNotNull(contextOf(entry.subscription)) {
-                "The scope of group $group holds no subscription ${entry.subscription}."
-            }
-            return ParkedView(entry, options.specOf(entry, context), context, group)
-        }
+        /** [entry] as an operator sees it: its subscription's context and spec are the entry's own subscription's. */
+        fun view(entry: ParkedAggregate): ParkedView = ParkedView(entry, options.specOf(entry), group)
 
         companion object {
             fun of(runtime: SubscriptionRuntime): Scope = Scope(
@@ -407,13 +404,15 @@ data class ParkedKey(val subscription: SubscriptionId, val ref: AggregateRef)
 data class ParkedPage(val entries: List<ParkedView>, val next: ParkedKey?)
 
 /**
- * A parked [entry] as an operator sees it, with the [spec] it is retried by, the [context] its subscription belongs
- * to, whose command topic takes the entry's ledger commands, and the log or lease [group] it runs in.
+ * A parked [entry] as an operator sees it, with the [spec] it is retried by and the log or lease [group] it runs in.
  */
 @InternalWowApi
-data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val context: String, val group: String) {
+data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val group: String) {
     /** The subscription that parked the entry. */
-    val id: SubscriptionId get() = SubscriptionId(context, entry.subscription)
+    val id: SubscriptionId get() = entry.subscription
+
+    /** The context the entry's subscription belongs to, whose command topic takes the entry's ledger commands. */
+    val context: String get() = entry.subscription.context
 
     /** When the next automatic retry is due (epoch milliseconds), null when there is none. */
     val nextRetryAt: Long? get() = entry.nextRetryAt(spec)

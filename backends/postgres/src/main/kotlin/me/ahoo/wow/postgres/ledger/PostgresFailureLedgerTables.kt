@@ -24,6 +24,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
     val ddl = """
         CREATE TABLE IF NOT EXISTS $table (
             service text COLLATE "C" NOT NULL,
+            subscription_context text COLLATE "C" NOT NULL,
             subscription text COLLATE "C" NOT NULL,
             context text COLLATE "C" NOT NULL,
             aggregate_name text COLLATE "C" NOT NULL,
@@ -41,13 +42,14 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     /**
      * The table, then its indexes: on (service, subscription, partition, next attempt), which answers what is due in
-     * a node's partitions ([due]), and on (service, subscription, tenant, then the key), which answers a tenant's
-     * listing in its order ([listTenantFirst]). The primary key answers [count] and the other listings.
+     * a node's partitions ([dueFirst]), and on (service, subscription, tenant, then the key), which answers a tenant's
+     * listing in its order ([listTenantFirst]), a subscription being its context and name. The primary key answers
+     * [count] and the other listings.
      */
     val ddls = listOf(
         ddl,
-        "CREATE INDEX IF NOT EXISTS \"${name}_due\" ON $table (service, subscription, partition, next_attempt_at)",
-        "CREATE INDEX IF NOT EXISTS \"${name}_tenant\" ON $table (service, subscription, tenant_id, $ORDER)",
+        "CREATE INDEX IF NOT EXISTS \"${name}_due\" ON $table ($SUBSCRIPTION_COLUMNS, partition, next_attempt_at)",
+        "CREATE INDEX IF NOT EXISTS \"${name}_tenant\" ON $table ($SUBSCRIPTION_COLUMNS, tenant_id, $ORDER)",
     )
 
     /**
@@ -57,7 +59,7 @@ internal class PostgresFailureLedgerTables(val name: String) {
      */
     val park = """
         INSERT INTO $table AS parked ($KEY, partition, from_version, reason, failed_at, from_position, $RETRY_STATE)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET partition = excluded.partition, from_version = excluded.from_version, reason = excluded.reason,
             failed_at = excluded.failed_at, from_position = excluded.from_position, $UNSCHEDULED,
@@ -75,28 +77,28 @@ internal class PostgresFailureLedgerTables(val name: String) {
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
-    val listFirst = "SELECT * FROM $table WHERE service = ? AND subscription = ? ORDER BY $ORDER LIMIT ?"
+    val listFirst = "SELECT * FROM $table WHERE $OF_SUBSCRIPTION ORDER BY $ORDER LIMIT ?"
 
     val listAfter =
-        "SELECT * FROM $table WHERE service = ? AND subscription = ? AND ($ORDER) > (?, ?, ?, ?) ORDER BY $ORDER LIMIT ?"
+        "SELECT * FROM $table WHERE $OF_SUBSCRIPTION AND ($ORDER) > (?, ?, ?, ?) ORDER BY $ORDER LIMIT ?"
 
-    /** A tenant's first page: the service, the subscription, the tenant, the limit. */
+    /** A tenant's first page: the service, the subscription's context and name, the tenant, the limit. */
     val listTenantFirst =
-        "SELECT * FROM $table WHERE service = ? AND subscription = ? AND tenant_id = ? ORDER BY $ORDER LIMIT ?"
+        "SELECT * FROM $table WHERE $OF_SUBSCRIPTION AND tenant_id = ? ORDER BY $ORDER LIMIT ?"
 
     /** A tenant's next page: the key read last, the tenant, the limit. */
-    val listTenantAfter = "SELECT * FROM $table WHERE service = ? AND subscription = ? AND ($ORDER) > (?, ?, ?, ?) " +
+    val listTenantAfter = "SELECT * FROM $table WHERE $OF_SUBSCRIPTION AND ($ORDER) > (?, ?, ?, ?) " +
         "AND tenant_id = ? ORDER BY $ORDER LIMIT ?"
 
-    /** What is due: the service, the subscription, the partitions (an array), the time, the limit. */
-    val dueFirst = "SELECT * FROM $table WHERE service = ? AND subscription = ? AND $DUE ORDER BY $ORDER LIMIT ?"
+    /** What is due: the service, the subscription (context, name), the partitions (an array), the time, the limit. */
+    val dueFirst = "SELECT * FROM $table WHERE $OF_SUBSCRIPTION AND $DUE ORDER BY $ORDER LIMIT ?"
 
     /** What is due after a key: the key read last, the partitions, the time, the limit. */
-    val dueAfter = "SELECT * FROM $table WHERE service = ? AND subscription = ? AND ($ORDER) > (?, ?, ?, ?) " +
+    val dueAfter = "SELECT * FROM $table WHERE $OF_SUBSCRIPTION AND ($ORDER) > (?, ?, ?, ?) " +
         "AND $DUE ORDER BY $ORDER LIMIT ?"
 
-    /** Counts up to a bound: the service, the subscription, the bound. */
-    val count = "SELECT count(*) FROM (SELECT 1 FROM $table WHERE service = ? AND subscription = ? LIMIT ?) AS parked"
+    /** Counts up to a bound: the service, the subscription's context and name, the bound. */
+    val count = "SELECT count(*) FROM (SELECT 1 FROM $table WHERE $OF_SUBSCRIPTION LIMIT ?) AS parked"
 
     val resolve = "DELETE FROM $table WHERE $MATCH RETURNING *"
 
@@ -133,19 +135,15 @@ internal class PostgresFailureLedgerTables(val name: String) {
     /** Takes a request: the key, then the revision read. */
     val takeRequest = "UPDATE $table SET request = NULL, $NEXT_REVISION WHERE $MATCH AND revision = ? RETURNING *"
 
-    /**
-     * Adds the revision to a table created before it ([PostgresFormat.addColumns]): every entry is then at revision 0,
-     * as a new one is. An additive column with a default, so the format stays the same.
-     */
-    val revisionAddition = "ALTER TABLE $table ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0"
-
     companion object {
         /**
          * The layout version of the table: format 1 keyed entries by service; format 2 adds each entry's partition
          * and next attempt, and the due and tenant indexes; format 3 names an applied spec's claim TTL
-         * `retry_claim_ttl_millis` and an operator's request to retry `RETRY`.
+         * `retry_claim_ttl_millis` and an operator's request to retry `RETRY`, and gained the revision in place;
+         * format 4 keys an entry by its subscription's context too (`subscription_context`), in the key and both
+         * indexes, the revision among its columns from the start.
          */
-        const val FORMAT = 3
+        const val FORMAT = 4
 
         /**
          * The retry state: the automatic retries made and the start of the last one; the retry spec an
@@ -170,12 +168,14 @@ internal class PostgresFailureLedgerTables(val name: String) {
         private const val UNSCHEDULED = "next_attempt_at = NULL"
         private const val NEXT_REVISION = "revision = revision + 1"
 
-        /** The columns added since the table's format was introduced, each with a default. */
-        val ADDED: List<String> = listOf("revision")
         private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
         private const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
-        private const val KEY = "service, subscription, $ORDER"
-        private const val MATCH = "service = ? AND subscription = ? AND context = ? AND aggregate_name = ? AND " +
-            "tenant_id = ? AND aggregate_id = ?"
+        private const val SUBSCRIPTION_COLUMNS = "service, subscription_context, subscription"
+        private const val KEY = "$SUBSCRIPTION_COLUMNS, $ORDER"
+
+        /** The entries of a service's subscription: the service, the subscription's context, its name. */
+        private const val OF_SUBSCRIPTION = "service = ? AND subscription_context = ? AND subscription = ?"
+        private const val MATCH = "$OF_SUBSCRIPTION AND context = ? AND aggregate_name = ? AND tenant_id = ? AND " +
+            "aggregate_id = ?"
     }
 }

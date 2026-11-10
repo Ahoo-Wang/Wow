@@ -36,6 +36,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.PublishedState
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.tck.containers.WowContainers
@@ -185,15 +186,15 @@ class KafkaSourcedSubscriptionTest {
             val other = ORDER.ref("t", "o-other")
             failing[parked] = 2
             publish(topic, record(parked, 1), record(other, 1), record(parked, 2), record(parked, 3), record(other, 2))
-            eventually { ledger.parked(BOARD, parked) != null && versionsOf(other) == listOf(1, 2) }
-            val entry = ledger.parked(BOARD, parked)!!
+            eventually { ledger.parked(BOARD_ID, parked) != null && versionsOf(other) == listOf(1, 2) }
+            val entry = ledger.parked(BOARD_ID, parked)!!
             entry.fromVersion.assert().isEqualTo(2)
             entry.fromPosition.assert().isNotNull()
             versionsOf(parked).assert().containsExactly(1)
             failing.remove(parked)
             node.retry(BOARD, parked).assert().isTrue()
             versionsOf(parked).assert().containsExactly(1, 2, 3)
-            ledger.parked(BOARD, parked).assert().isNull()
+            ledger.parked(BOARD_ID, parked).assert().isNull()
             publish(topic, record(parked, 4))
             eventually { versionsOf(parked) == listOf(1, 2, 3, 4) }
         }
@@ -232,6 +233,7 @@ class KafkaSourcedSubscriptionTest {
         const val BOARD = "Board.onOrder"
         const val PARTITIONS = 3
         val ORDER = AggregateType("sales", "order")
+        val BOARD_ID = SubscriptionId(ORDER.context, BOARD)
         val CLUSTER = ClusterOptions(
             leaseTtl = 3.seconds,
             renewInterval = 500.milliseconds,

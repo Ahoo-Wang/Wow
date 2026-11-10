@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.BsonDocument
@@ -106,7 +107,7 @@ class MongoWriteConcernTest {
                 heartbeat(context, "node-1", "127.0.0.1:1", 1.minutes, setOf(context))
             }
             MongoFailureLedger(client, database).also { it.createSchema() }
-                .park(ParkedAggregate("s", ref, 0, 1, "failed", 1L))
+                .park(ParkedAggregate(SubscriptionId("shop", "s"), ref, 0, 1, "failed", 1L))
         }
         val targets = writes.map { it.getFirstKey() to it.getString(it.getFirstKey()).value }.toSet()
         // The log, its counters and registry, the snapshots, timers, reservations, checkpoints, leases and members,

@@ -38,11 +38,16 @@ import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.seconds
 
 class CompensationImporterTest {
+    private val cartSaga = SubscriptionId(NineXExample.CONTEXT, CART_SAGA)
+    private val orderCreated = SubscriptionId(NineXExample.CONTEXT, ORDER_CREATED)
+    private val orderState = SubscriptionId(NineXExample.CONTEXT, ORDER_STATE)
+
     private val order = NineXAggregate("example-service", "order")
     private val cart = NineXAggregate("example-service", "cart")
     private val log = InMemoryEventLog(4)
@@ -77,9 +82,9 @@ class CompensationImporterTest {
             importer().importAll().assert().isEqualTo(CompensationProgress(3, 0, 1, 0, true))
 
             // 1: no retry yet, the default spec; the 9.x error code and message are the reason, without the stack trace.
-            ledger.parked(CART_SAGA, ref).assert().isEqualTo(
+            ledger.parked(cartSaga, ref).assert().isEqualTo(
                 ParkedAggregate.of(
-                    CART_SAGA,
+                    cartSaga,
                     ref,
                     Partitioner.partitionOf(ref, log.partitions),
                     1,
@@ -89,9 +94,9 @@ class CompensationImporterTest {
                 ),
             )
             // 2: renamed function, one retry made, the applied spec and the recoverable mark.
-            ledger.parked(ORDER_CREATED, ref).assert().isEqualTo(
+            ledger.parked(orderCreated, ref).assert().isEqualTo(
                 ParkedAggregate.of(
-                    ORDER_CREATED,
+                    orderCreated,
                     ref,
                     Partitioner.partitionOf(ref, log.partitions),
                     1,
@@ -104,7 +109,7 @@ class CompensationImporterTest {
                 ),
             )
             // 4: a retry in flight (PREPARED) of an unrecoverable execution of a state event.
-            ledger.parked(ORDER_STATE, ref)!!.also {
+            ledger.parked(orderState, ref)!!.also {
                 it.fromVersion.assert().isEqualTo(3)
                 it.retries.assert().isEqualTo(1)
                 it.retryAt.assert().isEqualTo(FAILED_AT + 180_000)
@@ -112,7 +117,7 @@ class CompensationImporterTest {
                 it.reason.assert().doesNotContain("\tat ")
             }
             // 3 (succeeded) and 5 (deleted) are history; 7's order has no stream.
-            ledger.list(CART_SAGA).assert().hasSize(1)
+            ledger.list(cartSaga).assert().hasSize(1)
             reports.assert()
                 .contains(
                     "UNRESOLVED 9.x execution 0VYC0mp1nA0007 (example-service.CartSaga.onOrderCreated on " +
@@ -139,7 +144,7 @@ class CompensationImporterTest {
             listOf(first.copy(id = "a", version = 3), first.copy(id = "b"), first.copy(id = "c", version = 2)),
         )
         importer(from = later).importAll().assert().isEqualTo(CompensationProgress(2, 1, 0, 0, true))
-        ledger.parked(CART_SAGA, ref)!!.fromVersion.assert().isEqualTo(1)
+        ledger.parked(cartSaga, ref)!!.fromVersion.assert().isEqualTo(1)
     }
 
     @Test
@@ -164,7 +169,7 @@ class CompensationImporterTest {
                 )
                 .anyMatch { it.contains("the 9.x processor example-service.PaymentSaga has no subscription mapping") }
                 .anyMatch { it.contains("this map does not import the 9.x aggregate example-service.payment") }
-            ledger.list(CART_SAGA).assert().isEmpty()
+            ledger.list(cartSaga).assert().isEmpty()
         }
 
     @Test
@@ -196,14 +201,14 @@ class CompensationImporterTest {
                     InMemoryCheckpointRepository(checkpoints.load().copy(compensation = null)),
                 ).importAll()
                 progress.imported.assert().isEqualTo(1)
-                parked.parked(CART_SAGA, ref)!!.fromVersion.assert().isEqualTo(execution.version)
+                parked.parked(cartSaga, ref)!!.fromVersion.assert().isEqualTo(execution.version)
             }
         }
 
     @Test
     fun `a dry run resolves every execution and parks none, after a dry run of the streams`(): Unit = runTest {
         importer(ImportOptions(dryRun = true)).importAll().assert().isEqualTo(CompensationProgress(4, 0, 0, 0, true))
-        ledger.list(CART_SAGA).assert().isEmpty()
+        ledger.list(cartSaga).assert().isEmpty()
     }
 
     @Test
@@ -222,9 +227,9 @@ class CompensationImporterTest {
                 "longer unresolved in 9.x",
         )
 
-        ledger.resolveAnywhere(CART_SAGA, ref)
-        ledger.resolveAnywhere(ORDER_CREATED, ref)
-        ledger.park(ParkedAggregate.of(ORDER_CREATED, ref, 0, 2, "later", FAILED_AT))
+        ledger.resolveAnywhere(cartSaga, ref)
+        ledger.resolveAnywhere(orderCreated, ref)
+        ledger.park(ParkedAggregate.of(orderCreated, ref, 0, 2, "later", FAILED_AT))
         val result = comparison().compare()
         result.assert().isEqualTo(CompensationComparisonResult(3, 2, 1))
         result.passed.assert().isFalse()
@@ -243,13 +248,13 @@ class CompensationImporterTest {
         source.update(NineXCompensationExample.execution(2).copy(deleted = true))
         // A run on a complete checkpoint does not walk again, so it does not converge either.
         importer().importAll().resolved.assert().isEqualTo(0)
-        ledger.isParked(CART_SAGA, ref).assert().isTrue()
+        ledger.isParked(cartSaga, ref).assert().isTrue()
 
         importer(ImportOptions(pageSize = 2, restart = true)).importAll()
             .assert().isEqualTo(CompensationProgress(0, 1, 1, 0, true, resolved = 2))
-        ledger.parked(CART_SAGA, ref).assert().isNull()
-        ledger.parked(ORDER_CREATED, ref).assert().isNull()
-        ledger.parked(ORDER_STATE, ref).assert().isNotNull()
+        ledger.parked(cartSaga, ref).assert().isNull()
+        ledger.parked(orderCreated, ref).assert().isNull()
+        ledger.parked(orderState, ref).assert().isNotNull()
         reports.assert()
             .anyMatch { it.startsWith("RESOLVED $CART_SAGA $ref from v1: the 9.x execution 0VYC0mp1nA0001") }
             .anyMatch { it.endsWith("succeeded in 9.x") }
@@ -266,13 +271,13 @@ class CompensationImporterTest {
             listOf(first.copy(id = "a"), first.copy(id = "b", version = 3)),
         )
         importer(from = executions).importAll().assert().isEqualTo(CompensationProgress(1, 1, 0, 0, true))
-        CompensationPlan.originOf(ledger.parked(CART_SAGA, ref)!!.reason).assert().isEqualTo("a")
+        CompensationPlan.originOf(ledger.parked(cartSaga, ref)!!.reason).assert().isEqualTo("a")
 
         // a succeeds; b, a later failure of the same aggregate, still waits in 9.x.
         executions.update(first.copy(id = "a", status = NineXExecutionFailed.SUCCEEDED))
         importer(ImportOptions(pageSize = 2, restart = true), executions).importAll()
             .assert().isEqualTo(CompensationProgress(1, 0, 0, 0, true, resolved = 1))
-        ledger.parked(CART_SAGA, ref)!!.also {
+        ledger.parked(cartSaga, ref)!!.also {
             it.fromVersion.assert().isEqualTo(3)
             CompensationPlan.originOf(it.reason).assert().isEqualTo("b")
         }
@@ -280,7 +285,7 @@ class CompensationImporterTest {
         // Gone from 9.x altogether: resolved too.
         val empty = InMemoryNineXCompensationSource()
         importer(ImportOptions(restart = true), empty).importAll().resolved.assert().isEqualTo(1)
-        ledger.list(CART_SAGA).assert().isEmpty()
+        ledger.list(cartSaga).assert().isEmpty()
         reports.assert().anyMatch { it.endsWith("the 9.x execution b it was imported for is gone from 9.x") }
     }
 
@@ -302,7 +307,7 @@ class CompensationImporterTest {
         runTest {
             importStreams()
             importer().importAll()
-            val imported = ledger.parked(CART_SAGA, ref)!!
+            val imported = ledger.parked(cartSaga, ref)!!
             imported.retryable(imported.retrySpec!!).assert().isTrue()
             val current = retriedInNineX()
             source.update(current)
@@ -322,7 +327,7 @@ class CompensationImporterTest {
             restarted.render().assert().endsWith(
                 "; 1 imported entries restated to their executions' retry state in 9.x"
             )
-            val restated = ledger.parked(CART_SAGA, ref)!!
+            val restated = ledger.parked(cartSaga, ref)!!
             val expected = (plan.compensation.parkedOf(current) { restated.partition } as ParkedTarget.Parked).entry
             restated.assert().isEqualTo(expected.copyWith(revision = imported.revision + 1))
             restated.retryable(restated.retrySpec!!).assert().isFalse()
@@ -330,7 +335,7 @@ class CompensationImporterTest {
 
             // The same 9.x state again writes nothing.
             importer(ImportOptions(pageSize = 2, restart = true)).importAll().restated.assert().isEqualTo(0)
-            ledger.parked(CART_SAGA, ref).assert().isEqualTo(restated)
+            ledger.parked(cartSaga, ref).assert().isEqualTo(restated)
         }
 
     @Test
@@ -344,24 +349,24 @@ class CompensationImporterTest {
                 listOf(first, later, NineXCompensationExample.execution(2))
             )
             importer(from = executions).importAll()
-            ledger.repark(ledger.parked(ORDER_CREATED, ref)!!.copyWith(reason = "Conflict: again"))
-            val entries = ledger.list(CART_SAGA) + ledger.list(ORDER_CREATED)
+            ledger.repark(ledger.parked(orderCreated, ref)!!.copyWith(reason = "Conflict: again"))
+            val entries = ledger.list(cartSaga) + ledger.list(orderCreated)
             executions.update(retriedInNineX(later))
             executions.update(retriedInNineX(NineXCompensationExample.execution(2)))
             importer(ImportOptions(restart = true), executions).importAll().restated.assert().isEqualTo(0)
-            (ledger.list(CART_SAGA) + ledger.list(ORDER_CREATED)).assert().isEqualTo(entries)
+            (ledger.list(cartSaga) + ledger.list(orderCreated)).assert().isEqualTo(entries)
 
             // An operator marks the entry between the import's read and its restate: the restate writes nothing.
             executions.update(retriedInNineX(first))
             val marking = object : FailureLedger by ledger {
-                override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
+                override suspend fun parked(subscription: SubscriptionId, ref: AggregateRef): ParkedAggregate? =
                     ledger.parked(subscription, ref).also {
                         ledger.amend(subscription, ref, ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
                     }
             }
             CompensationImporter(executions, plan, { log }, { marking }, checkpoints, ImportOptions(restart = true))
                 .importAll().restated.assert().isEqualTo(0)
-            ledger.parked(CART_SAGA, ref)!!.also {
+            ledger.parked(cartSaga, ref)!!.also {
                 it.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
                 it.retries.assert().isEqualTo(first.retries)
             }
@@ -372,14 +377,14 @@ class CompensationImporterTest {
         importStreams()
         importer().importAll()
         val other = NineXExample.orderModel.type.ref(TENANT, "another")
-        ledger.park(ParkedAggregate.of(CART_SAGA, other, 0, 1, "IllegalState: boom", FAILED_AT))
+        ledger.park(ParkedAggregate.of(cartSaga, other, 0, 1, "IllegalState: boom", FAILED_AT))
         // A resume that failed again re-parked the imported entry with its own reason.
-        ledger.repark(ledger.parked(ORDER_CREATED, ref)!!.copyWith(reason = "Conflict: again"))
+        ledger.repark(ledger.parked(orderCreated, ref)!!.copyWith(reason = "Conflict: again"))
 
         source.update(NineXCompensationExample.execution(2).copy(status = NineXExecutionFailed.SUCCEEDED))
         importer(ImportOptions(pageSize = 2, restart = true)).importAll().resolved.assert().isEqualTo(0)
-        ledger.isParked(CART_SAGA, other).assert().isTrue()
-        ledger.parked(ORDER_CREATED, ref)!!.reason.assert().isEqualTo("Conflict: again")
+        ledger.isParked(cartSaga, other).assert().isTrue()
+        ledger.parked(orderCreated, ref)!!.reason.assert().isEqualTo("Conflict: again")
         comparison().compare().stale.assert().isEqualTo(0)
     }
 

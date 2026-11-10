@@ -55,7 +55,7 @@ class NodeMetricsTest {
         opened.copyWith(
             ledger = object : FailureLedger by ledger {
                 override suspend fun list(
-                    subscription: String,
+                    subscription: SubscriptionId,
                     after: AggregateRef?,
                     limit: Int,
                     tenantId: String?,
@@ -64,7 +64,7 @@ class NodeMetricsTest {
                     return ledger.list(subscription, after, limit, tenantId)
                 }
 
-                override suspend fun count(subscription: String, max: Int): Int {
+                override suspend fun count(subscription: SubscriptionId, max: Int): Int {
                     check(!broken) { "The ledger is unreachable." }
                     return ledger.count(subscription, max)
                 }

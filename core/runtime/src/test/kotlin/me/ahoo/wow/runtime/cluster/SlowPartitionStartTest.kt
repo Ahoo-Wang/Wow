@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.SubscriptionId
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
@@ -181,7 +182,7 @@ class SlowPartitionStartTest {
         private var failures: Int,
     ) : FailureLedger by delegate {
         override suspend fun due(
-            subscription: String,
+            subscription: SubscriptionId,
             partitions: Collection<Int>,
             now: Long,
             after: AggregateRef?,

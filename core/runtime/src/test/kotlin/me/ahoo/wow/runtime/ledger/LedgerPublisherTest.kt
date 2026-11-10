@@ -79,7 +79,7 @@ class LedgerPublisherTest {
     private suspend fun parkAll(vararg ids: String) {
         ids.forEach { appender.append(it) }
         runtime.start(setOf(0, 1))
-        eventually { ledger.list(NAME).size == ids.size }
+        eventually { ledger.list(SubscriptionId("shop", NAME)).size == ids.size }
     }
 
     @Test
@@ -138,7 +138,7 @@ class LedgerPublisherTest {
         ops.skip(
             ID,
             cart("x1"),
-            ledger.parked(NAME, cart("x1"))!!.failedAt
+            ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.failedAt
         ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         publisher.scan()
         val resolved = sent.single { it.type == "ops.parked.RecordResolved" }
@@ -164,7 +164,7 @@ class LedgerPublisherTest {
         ops.skip(
             ID,
             cart("x1"),
-            ledger.parked(NAME, cart("x1"))!!.failedAt
+            ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.failedAt
         ).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         publisher.acting(ID, cart("x1")) {
             publisher.acting(ID, cart("x1")) { publisher.scan() }
@@ -179,8 +179,8 @@ class LedgerPublisherTest {
     @Test
     fun `a notice and an action publish at once`(): Unit = runBlocking {
         parkAll("x1")
-        val entry = ledger.parked(NAME, cart("x1"))!!
-        publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", "shop", entry, spec, 0))
+        val entry = ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!
+        publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 0))
         ClusterCodec.mapper.treeToValue(
             sent.single().record,
             LedgerEntry::class.java
@@ -237,7 +237,7 @@ class LedgerPublisherTest {
             val (publisher, attempts) = failingOnce()
             parkAll("x1")
             publisher.scan()
-            ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt)
+            ops.skip(ID, cart("x1"), ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.failedAt)
             publisher.scan()
             resolutions().assert().isEmpty()
             publisher.scan()
@@ -255,7 +255,7 @@ class LedgerPublisherTest {
             val (publisher, attempts) = failingOnce()
             parkAll("x1")
             publisher.scan()
-            val failedAt = ledger.parked(NAME, cart("x1"))!!.failedAt
+            val failedAt = ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.failedAt
             ops.skip(ID, cart("x1"), failedAt)
             publisher.resolved(ID, cart("x1"), LedgerResolution.SKIPPED, failedAt)
             resolutions().assert().isEmpty()
@@ -279,11 +279,11 @@ class LedgerPublisherTest {
         val (publisher, attempts) = failingOnce()
         parkAll("x1")
         publisher.scan()
-        ops.skip(ID, cart("x1"), ledger.parked(NAME, cart("x1"))!!.failedAt)
+        ops.skip(ID, cart("x1"), ledger.parked(SubscriptionId("shop", NAME), cart("x1"))!!.failedAt)
         publisher.resolved(ID, cart("x1"), LedgerResolution.SKIPPED)
         // x1's next version fails too: the new parking is published, and supersedes the resolution of the last one.
         appender.append("x1")
-        eventually { ledger.isParked(NAME, cart("x1")) }
+        eventually { ledger.isParked(SubscriptionId("shop", NAME), cart("x1")) }
         sent.clear()
         repeat(2) { publisher.scan() }
         attempts.get().assert().isEqualTo(1L)

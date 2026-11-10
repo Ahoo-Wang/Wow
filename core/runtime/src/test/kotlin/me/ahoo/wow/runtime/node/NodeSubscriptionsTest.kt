@@ -75,7 +75,11 @@ class NodeSubscriptionsTest {
             stores.checkpoints.save(GROUP, "Old.onDeposit", 3, 2)
             stores.checkpoints.save(GROUP, "wow.snapshot.rebuild", 0, 7)
             val type = AggregateType(BANK, "account")
-            repeat(3) { stores.ledger.park(ParkedAggregate("Old.onDeposit", type.ref("t", "o-$it"), 0, 1, "x", 0)) }
+            repeat(3) {
+                stores.ledger.park(
+                    ParkedAggregate(SubscriptionId(BANK, "Old.onDeposit"), type.ref("t", "o-$it"), 0, 1, "x", 0)
+                )
+            }
             node.start()
             val ref = type.ref("t", "a-1")
             node.gateway.execute(
