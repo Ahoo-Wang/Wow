@@ -65,7 +65,7 @@ MongoDB is the default store of a Wow service ([Choose the Stores](./choosing-st
 
 - **A replica set of three data-bearing members**, in three failure domains, without an arbiter ([In production](#in-production)). Outside development, a log on a standalone `mongod` refuses to start: the log writes with majority, which a standalone server cannot keep.
 - **Write concern `majority`, throughout.** Wow writes every collection with majority, the log and the snapshots, timers, reservations, checkpoints, leases and ledger alike, whatever the client's default ([A replica set is required](#a-replica-set-is-required)): a failover loses no acknowledged write.
-- **Queries on a secondary if they compete with the appends**: `wow.mongo.query-read-preference: secondaryPreferred` ([Queries and read preferences](#queries-and-read-preferences)). Commands and state reads always read the primary.
+- **Queries on a secondary if they compete with the appends**: `wow.mongo.query-read-preference: secondaryPreferred` ([Queries and read preferences](#queries-and-read-preferences)). Commands, state reads and every other read of Wow's stores (the log, checkpoints, leases, timers, reservations, the ledger) always read the primary, whatever `readPreference` the connection string sets.
 - **A sharded cluster** once one replica set cannot carry the writes or the data: the log and the timers are sharded by partition, the snapshots and the reservations by tenant and a hashed key ([Sharded clusters](#sharded-clusters)).
 
 ## A replica set is required
