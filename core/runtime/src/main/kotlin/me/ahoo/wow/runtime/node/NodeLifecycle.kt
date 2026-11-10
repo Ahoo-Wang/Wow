@@ -40,6 +40,7 @@ import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -170,7 +171,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             // Whatever failed, what started is stopped; the failure is the start's.
             try {
-                shutdown()
+                shutdown(joined = true)
             } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
                 failure.addSuppressed(stopping)
             }
@@ -209,7 +210,7 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             logger.error(failure) { "Node $node of $service failed to activate from standby; stopping." }
             try {
-                shutdown()
+                shutdown(joined = true)
             } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
                 failure.addSuppressed(stopping)
             }
@@ -370,21 +371,77 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
         }
     }
 
-    /** Leaves the cluster and closes the node, in the order the class describes. Stopping twice does nothing. */
+    /**
+     * Leaves the cluster and closes the node, in the order the class describes. A node that never started joined
+     * nothing, so it skips the hand-off, but closes what it was built with from the next step on: its gateway refuses
+     * commands from then on. Stopping twice does nothing.
+     */
     suspend fun stop(): Unit = lock.withLock {
-        when (state) {
-            ServiceNode.State.NEW -> state = ServiceNode.State.STOPPED
-            ServiceNode.State.STOPPED -> Unit
-            else -> shutdown()
+        if (state != ServiceNode.State.STOPPED) {
+            shutdown(joined = state != ServiceNode.State.NEW)
         }
     }
 
-    private suspend fun shutdown() {
+    private suspend fun shutdown(joined: Boolean) {
         state = ServiceNode.State.STOPPING
         background.coroutineContext[Job]?.cancelAndJoin()
         val waitsEnd = TimeSource.Monotonic.markNow() + options.wait.maxTimeout
+        val steps = Steps()
+        if (joined) {
+            steps.run(ServiceNode.Step.HANDED_OFF) { handOff() }
+        }
+        close(steps, waitsEnd)
+        closeStores()
+        state = ServiceNode.State.STOPPED
+        logger.info { "Node $node of $service stopped." }
+        steps.failure?.let { throw it }
+    }
+
+    /**
+     * Steps 2 to 6 of a stop, which a node that never started runs too: waits for the waits until [waitsEnd], and
+     * closes the gateway, the executions, the executors and the logs.
+     */
+    private suspend fun close(steps: Steps, waitsEnd: TimeMark) {
+        steps.run(ServiceNode.Step.WAITS_ENDED) {
+            val ended = withTimeoutOrNull(-waitsEnd.elapsedNow()) {
+                while (waits.size > 0) {
+                    delay(WAIT_POLL)
+                }
+            }
+            if (ended == null && waits.size > 0) {
+                logger.warn { "Node $node of $service stops with ${waits.size} waits still registered." }
+            }
+        }
+        steps.run(ServiceNode.Step.GATEWAY_CLOSED) { gateway.close() }
+        steps.run(ServiceNode.Step.EXECUTIONS_ENDED) {
+            val limit = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
+            withTimeoutOrNull(limit) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
+                val executing = contexts.values.sumOf { it.coordinator.executing }
+                "Node $node of $service closes its executors with $executing commands still executing."
+            }
+        }
+        steps.run(ServiceNode.Step.EXECUTORS_CLOSED) {
+            // What still executes is cancelled first: the executors would otherwise wait for exactly those commands.
+            contexts.values.forEach { it.coordinator.close() }
+            coroutineScope {
+                contexts.values.forEach { launch { it.executor.close(options.cluster.drainTimeout) } }
+            }
+        }
+        steps.run(ServiceNode.Step.LOGS_CLOSED) {
+            timerLoop.close()
+            contexts.values.forEach { it.log.close() }
+        }
+    }
+
+    /**
+     * The steps of one stop, run in turn: each logged once done and told to the listener, done or not; the first that
+     * failed is kept for the stop to throw once every step ran.
+     */
+    private inner class Steps {
         var failure: Exception? = null
-        suspend fun step(step: ServiceNode.Step, block: suspend () -> Unit) {
+            private set
+
+        suspend fun run(step: ServiceNode.Step, block: suspend () -> Unit) {
             try {
                 block()
                 logger.info { "Node $node of $service: $step." }
@@ -396,40 +453,6 @@ internal class NodeLifecycle(private val assembly: NodeAssembly, private val lis
             }
             listener(step)
         }
-        step(ServiceNode.Step.HANDED_OFF) { handOff() }
-        step(ServiceNode.Step.WAITS_ENDED) {
-            val ended = withTimeoutOrNull(-waitsEnd.elapsedNow()) {
-                while (waits.size > 0) {
-                    delay(WAIT_POLL)
-                }
-            }
-            if (ended == null && waits.size > 0) {
-                logger.warn { "Node $node of $service stops with ${waits.size} waits still registered." }
-            }
-        }
-        step(ServiceNode.Step.GATEWAY_CLOSED) { gateway.close() }
-        step(ServiceNode.Step.EXECUTIONS_ENDED) {
-            val limit = maxOf(-waitsEnd.elapsedNow(), options.cluster.drainTimeout)
-            withTimeoutOrNull(limit) { contexts.values.forEach { it.coordinator.join() } } ?: logger.warn {
-                val executing = contexts.values.sumOf { it.coordinator.executing }
-                "Node $node of $service closes its executors with $executing commands still executing."
-            }
-        }
-        step(ServiceNode.Step.EXECUTORS_CLOSED) {
-            // What still executes is cancelled first: the executors would otherwise wait for exactly those commands.
-            contexts.values.forEach { it.coordinator.close() }
-            coroutineScope {
-                contexts.values.forEach { launch { it.executor.close(options.cluster.drainTimeout) } }
-            }
-        }
-        step(ServiceNode.Step.LOGS_CLOSED) {
-            timerLoop.close()
-            contexts.values.forEach { it.log.close() }
-        }
-        closeStores()
-        state = ServiceNode.State.STOPPED
-        logger.info { "Node $node of $service stopped." }
-        failure?.let { throw it }
     }
 
     /**
