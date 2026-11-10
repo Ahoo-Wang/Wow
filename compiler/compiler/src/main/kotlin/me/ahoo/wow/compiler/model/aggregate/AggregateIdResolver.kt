@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.compiler.model.aggregate
 
-import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.isPrivate
 import com.google.devtools.ksp.isProtected
@@ -21,6 +20,7 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.Origin
+import me.ahoo.wow.compiler.model.symbol.declarations
 import me.ahoo.wow.compiler.model.symbol.jsonIgnored
 import me.ahoo.wow.compiler.model.symbol.jsonIgnoredProperties
 import me.ahoo.wow.compiler.model.symbol.jsonNaming
@@ -127,10 +127,9 @@ internal object AggregateIdResolver {
             .mapNotNull { it.declaration as? KSClassDeclaration }
             .flatMap { it.getAllProperties() }
 
-    /** Whether this property, its getter, or a property it overrides is `@AggregateId`. */
-    @OptIn(KspExperimental::class)
+    /** Whether this property or a declaration it overrides ([declarations]), or its getter, is `@AggregateId`. */
     private fun KSPropertyDeclaration.annotated(): Boolean =
-        generateSequence(this) { it.findOverridee() as? KSPropertyDeclaration }.take(MAX_OVERRIDES).any { property ->
+        declarations().any { property ->
             property.hasAnnotation(AGGREGATE_ID) || property.getter?.hasAnnotation(AGGREGATE_ID) == true
         }
 
@@ -142,9 +141,6 @@ internal object AggregateIdResolver {
 
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.qualifiedName() == qualifiedName }
-
-    /** The overrides walked at most, a bound against a cycle the resolver should never give. */
-    private const val MAX_OVERRIDES = 16
 
     /** The name of the property 9.x took a command's aggregate id from when no property was marked. */
     private const val ID = "id"

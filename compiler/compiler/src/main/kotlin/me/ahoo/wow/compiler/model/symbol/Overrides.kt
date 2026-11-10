@@ -15,6 +15,19 @@ package me.ahoo.wow.compiler.model.symbol
 
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+
+/**
+ * This property and the declarations it overrides, nearest first: where its annotations are written, which every
+ * reader of a property's annotations asks. An annotation is not inherited by an override, so an override that leaves
+ * one out still means what its supertype's declaration says. And a property a class inherits with its type
+ * substituted (a supertype's `List<T>` as `List<String>`) is a member KSP gives as the class's own: it keeps its
+ * property- and getter-targeted annotations but none of its field-targeted ones (`@field:`) or its constructor
+ * parameter's, which the supertype's declaration it overrides has, in the module's sources or a library alike. The
+ * walk ends: each step is to a declaration of a strict supertype, and a class's supertypes form no cycle.
+ */
+internal fun KSPropertyDeclaration.declarations(): Sequence<KSPropertyDeclaration> =
+    generateSequence(this) { it.findOverridee() }
 
 /**
  * The function that carries [annotation]: this one, or the nearest one it overrides. An annotation is not inherited

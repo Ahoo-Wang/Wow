@@ -79,16 +79,16 @@ internal fun KSClassDeclaration.jsonIgnoredProperties(problems: MutableList<Stri
     argumentsOf(JsonIgnoreProperties::class, problems)?.strings(AnnotationArguments.VALUE).orEmpty().toSet()
 
 /**
- * Where a Jackson annotation of this property stands, nearest first: the property, its getter and its
- * primary-constructor parameter, then those of each declaration it overrides, as Jackson reads a member's annotations
- * with those of the members it overrides. A property a class inherits with its type substituted (a supertype's
- * `List<T>` as `List<String>`) is such a member: KSP gives it as the class's, with none of the annotations of the
- * supertype's declaration it stands for, in the module's sources or a library alike, and that declaration has them.
+ * Where a Jackson annotation of this property stands, nearest first: those of this property and of each declaration
+ * it overrides ([declarations]), as Jackson reads a member with the members it overrides.
  */
 private fun KSPropertyDeclaration.jacksonHolders(): List<KSAnnotated> =
-    generateSequence(this) { it.findOverridee() }.flatMap { declaration ->
-        val name = declaration.simpleName.asString()
-        val parameter = (declaration.parentDeclaration as? KSClassDeclaration)?.primaryConstructor?.parameters
-            ?.firstOrNull { it.name?.asString() == name }
-        listOfNotNull(declaration, declaration.getter, parameter)
-    }.toList()
+    declarations().flatMap { it.ownHolders() }.toList()
+
+/** Where a Jackson annotation of a declaration stands: the property, its getter and its constructor parameter. */
+private fun KSPropertyDeclaration.ownHolders(): List<KSAnnotated> {
+    val name = simpleName.asString()
+    val parameter = (parentDeclaration as? KSClassDeclaration)?.primaryConstructor?.parameters
+        ?.firstOrNull { it.name?.asString() == name }
+    return listOfNotNull(this, getter, parameter)
+}
