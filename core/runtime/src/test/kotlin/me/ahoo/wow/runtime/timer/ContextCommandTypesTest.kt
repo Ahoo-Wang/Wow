@@ -14,6 +14,13 @@
 package me.ahoo.wow.runtime.timer
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.command.ITEM
 import me.ahoo.wow.runtime.command.ORDER
 import me.ahoo.wow.runtime.command.PlaceOrder
@@ -43,4 +50,32 @@ class ContextCommandTypesTest {
         val stock = ContextCommandTypes(listOf(StockItems().model), ContractDirectory(stockManifest()))
         stock.aggregateIdOf(ITEM, Restock("i-9", 1)).assert().isEqualTo("i-9")
     }
+
+    @Test
+    fun `a peer's command class two of its aggregates decide is named on the one it is scheduled to`() {
+        val schema = Manifest.schemaRef(Refresh::class.java.name)
+        val peer = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "peer",
+                    aggregates = listOf("alpha", "beta").map { name ->
+                        AggregateManifest(
+                            name,
+                            state = StateManifest(Manifest.schemaRef("peer.$name.State")),
+                            commands = listOf(CommandManifest("Refresh", schema = schema)),
+                        )
+                    },
+                ),
+            ),
+        )
+        val types = ContextCommandTypes(
+            listOf(orderModel()),
+            ContractDirectory(salesManifest(), listOf(ManifestFragment("peer-api", peer)))
+        )
+        types.nameOf(AggregateType("peer", "alpha"), Refresh::class.java).assert().isEqualTo("peer.alpha.Refresh")
+        types.nameOf(AggregateType("peer", "beta"), Refresh::class.java).assert().isEqualTo("peer.beta.Refresh")
+        types.nameOf(ITEM, Refresh::class.java).assert().isNull()
+    }
+
+    class Refresh
 }

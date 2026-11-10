@@ -28,6 +28,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 @InternalWowApi
 class CommandIndex(manifests: List<Manifest>) {
     private val commandsBySchema = HashMap<String, String>()
+
+    /** The command of each schema on each aggregate type that decides one of it: a class two aggregates share. */
+    private val commandsByTarget = HashMap<String, MutableMap<String, String>>()
     private val schemasByCommand = HashMap<String, String>()
     private val aggregatesBySchema = HashMap<String, MutableSet<String>>()
     private val routesByCommand = HashMap<String, List<RouteManifest>>()
@@ -50,6 +53,7 @@ class CommandIndex(manifests: List<Manifest>) {
                         }
                         if (command.internal) internalCommands += type
                         commandsBySchema.putIfAbsent(command.schema, type)
+                        commandsByTarget.getOrPut(command.schema, ::HashMap).putIfAbsent(target, type)
                         aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) += target
                         schemasByCommand[type] = command.schema
                     }
@@ -79,10 +83,10 @@ class CommandIndex(manifests: List<Manifest>) {
 
     /**
      * The full type name of the command class [type] on the aggregate type [target] (`context.aggregate`), or null
-     * when that aggregate type decides none of its schema.
+     * when that aggregate type decides none of its schema: of a class several aggregates decide, the one of [target].
      */
     fun commandTypeOf(target: String, type: Class<*>): String? =
-        commandTypeOf(Manifest.schemaRef(type.name))?.takeIf { it.startsWith("$target.") }
+        commandsByTarget[Manifest.schemaRef(type.name)]?.get(target)
 
     /**
      * The full type name of the system command [name] (`wow.lifecycle.DeleteAggregate`, a [SystemCommands] name) on the

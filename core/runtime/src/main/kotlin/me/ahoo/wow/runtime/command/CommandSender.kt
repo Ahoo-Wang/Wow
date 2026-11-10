@@ -36,8 +36,9 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - **Type**: the command's full type name (`ctx.agg.Command`) is the one the [contracts] give its class
  *   ([ContractDirectory.commandTypeOf] of the schema `#/$defs/<binary name>`): the target's Manifest,
- *   or a peer's contract, which reaches the service in the jar of the context's api module. A class
- *   no Manifest declares, or one of another aggregate than the command's, fails the send.
+ *   or a peer's contract, which reaches the service in the jar of the context's api module; a class several
+ *   aggregates decide is named on the command's. A class no Manifest declares, or one of another aggregate than the
+ *   command's, fails the send.
  * - **Topic and partition**: `wow.<ctx>.commands` after the prefix ([SourceTopics.commandsOf]), in the partition the
  *   log's [Partitioner] gives the aggregate among the topic's partitions, which the target keeps equal to its log's,
  *   so the owner of the aggregate's log partition reads it; a creation that names no aggregate goes
@@ -107,14 +108,13 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     fun typeOf(command: Command<*>): String {
         val type = command.body.javaClass
         (Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: Ledger.nameOf(type))?.let { return it }
+        // A class several aggregates decide is named on the aggregate it is sent to.
+        contracts.commands.commandTypeOf(command.ref.type.toString(), type)?.let { return it }
         val named = checkNotNull(contracts.commandTypeOf(Manifest.schemaRef(type.name))) {
             "No Manifest of the service or its peers declares the command ${type.name} sent to ${command.ref}: depend " +
                 "on the api module of ${command.ref.type.context}, whose jar carries its contract."
         }
-        check(named.startsWith("${command.ref.type}.")) {
-            "${type.name} is the command $named, not one of ${command.ref.type}, the aggregate it is sent to."
-        }
-        return named
+        error("${type.name} is the command $named, not one of ${command.ref.type}, the aggregate it is sent to.")
     }
 
     private suspend fun partitionsOf(topic: String): Int = partitions[topic] ?: topics.source.partitions(topic).size
