@@ -14,14 +14,19 @@
 package me.ahoo.wow.runtime.subscription
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import java.time.Clock
 
 /**
- * What a [SubscriptionWorker]'s retry of a parked aggregate writes to the ledger when it ends without handling all of
- * it: where the aggregate is parked now, and why. Each write waits for the partition to run again ([PartitionPause])
- * and is retried until it is stored.
+ * What a [SubscriptionWorker]'s retry of a parked aggregate writes to the ledger when it ends: where the aggregate is
+ * parked now and why, when it did not handle all of it, else its resolution. A repark waits for the partition to run
+ * again ([PartitionPause]) and is retried until it is stored.
+ *
+ * Each is fenced by the partition the retry read the entry in ([FailureLedger.repark], [FailureLedger.resolve]): an
+ * entry re-homed meanwhile to the partition its aggregate's key maps to now is no longer this retry's, and nothing of
+ * it is written over nor resolved.
  */
 internal class RetryWrites(
     private val subscription: String,
@@ -33,10 +38,10 @@ internal class RetryWrites(
     private val clock: Clock,
 ) {
     /**
-     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked; returns
-     * the entry.
+     * Records in the ledger that a retry failed again at [sourced], from where the aggregate is now parked, while it
+     * is parked in partition [from], the one the retry read it in; returns the entry.
      */
-    suspend fun repark(sourced: SourcedEntry, failure: Throwable): ParkedAggregate {
+    suspend fun repark(sourced: SourcedEntry, failure: Throwable, from: Int): ParkedAggregate {
         val stream = sourced.stream
         logger.warn(failure) {
             "Subscription $subscription keeps ${stream.ref} parked, now from version ${stream.version}."
@@ -49,7 +54,7 @@ internal class RetryWrites(
             reasonOf(failure),
             clock.millis(),
             source.sourcePosition(sourced),
-        ).also { repark(it) }
+        ).also { repark(it, from) }
     }
 
     /**
@@ -61,12 +66,20 @@ internal class RetryWrites(
             "Subscription $subscription cannot retry ${parked.ref}: ${gone.message} It can only be skipped."
         }
         val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
-        repark(parked.copyWith(reason = reason, failedAt = clock.millis()))
+        repark(parked.copyWith(reason = reason, failedAt = clock.millis()), parked.partition)
     }
 
-    private suspend fun repark(entry: ParkedAggregate) {
+    /**
+     * Resolves [ref]'s entry after a retry handled every parked stream it read in [partition]; false when the entry
+     * was re-homed to another partition meanwhile, its entries there never handled by this retry. An entry resolved
+     * meanwhile, by a skip, is resolved: true.
+     */
+    suspend fun resolve(ref: AggregateRef, partition: Int): Boolean =
+        ledger.resolve(subscription, ref, partition) != null || ledger.parked(subscription, ref) == null
+
+    private suspend fun repark(entry: ParkedAggregate, from: Int) {
         pause.awaitRunning()
-        retryForever(readRetry, { "repark ${entry.ref} for $subscription" }) { ledger.repark(entry) }
+        retryForever(readRetry, { "repark ${entry.ref} for $subscription" }) { ledger.repark(entry, from) }
     }
 
     private companion object {

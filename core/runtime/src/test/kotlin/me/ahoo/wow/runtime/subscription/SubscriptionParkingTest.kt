@@ -288,6 +288,71 @@ class SubscriptionParkingTest {
         }
 
     @Test
+    fun `a retry that handled everything after its entry was re-homed resolves nothing`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = true)
+    }
+
+    @Test
+    fun `a retry that failed again after its entry was re-homed writes nothing over it`(): Unit = runBlocking {
+        rehomedDuringRetry(succeeds = false)
+    }
+
+    /**
+     * #5481: x's retry runs in the partition it parked in when the owner of the partition its key maps to now
+     * re-homes the entry; the retry then ends, having handled x's parked version or failed on it again.
+     */
+    private suspend fun rehomedDuringRetry(succeeds: Boolean) {
+        val retrying = CompletableDeferred<Unit>()
+        val end = CompletableDeferred<Unit>()
+        val broken = AtomicBoolean(true)
+        val held = Subscription("held", SubscriptionFilter("shop")) { entry ->
+            if (entry.version == 2 && broken.get()) {
+                error("x-2 is broken")
+            }
+            if (entry.version == 2) {
+                retrying.complete(Unit)
+                end.await()
+                check(succeeds) { "x-2 is broken again" }
+            }
+            handled.record(entry)
+        }
+        val runtime = SubscriptionRuntime(
+            "group",
+            log,
+            checkpoints,
+            ledger,
+            listOf(held),
+            testOptions(maxAttempts = 1),
+            clock
+        )
+        appender.append("x")
+        appender.append("x")
+        runtime.start(all)
+        eventually { ledger.isParked("held", cart("x")) }
+        val parked = ledger.parked("held", cart("x"))!!
+        broken.set(false)
+        withTimeout(10.seconds) {
+            val retried = async { runtime.retry("held", cart("x")) }
+            retrying.await()
+            val elsewhere = (parked.partition + 1) % all.size
+            val rehomed = parked.copyWith(
+                partition = elsewhere,
+                reason = "${ParkedAggregate.UNRECOVERABLE}: the topic gained partitions",
+                fromPosition = null,
+            )
+            ledger.repark(rehomed, from = parked.partition).assert().isTrue()
+            end.complete(Unit)
+            retried.await().assert().isFalse()
+            // The entry stays as the new owner left it; the old one still holds x back.
+            ledger.parked("held", cart("x"))!!.copyWith(revision = 0).assert().isEqualTo(rehomed.copyWith(revision = 0))
+        }
+        appender.append("x")
+        eventually { checkpointsReachEnd("held") }
+        handled.versionsOf("x").assert().isEqualTo(if (succeeds) listOf(1, 2) else listOf(1))
+        runtime.stop()
+    }
+
+    @Test
     fun `a skip whose ledger write fails leaves the aggregate parked, for a retry`(): Unit = runBlocking {
         val broken = AtomicBoolean(true)
         val flaky = object : FailureLedger by ledger {

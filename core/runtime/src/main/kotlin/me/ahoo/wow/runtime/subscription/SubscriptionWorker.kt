@@ -674,7 +674,7 @@ internal class SubscriptionWorker(
                 if (failure != null) {
                     // Still failing: the entries before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
-                    parked = writes.repark(entry, failure)
+                    parked = writes.repark(entry, failure, parked.partition)
                     if (last != null) {
                         // Copies of the entries handled here that the tail delivers later are skipped.
                         synchronized(this) { parking.retried(ref, last) }
@@ -685,7 +685,12 @@ internal class SubscriptionWorker(
                 }
                 last = ordinal
             }
-            ledger.resolve(subscription.name, ref)
+            // In the partition read: an entry re-homed meanwhile stays parked, its entries there unhandled here.
+            if (!writes.resolve(ref, parked.partition)) {
+                restoreParked(ref, item, parked)
+                item.result.complete(false)
+                return
+            }
             synchronized(this) {
                 parking.resolved(ref)
                 parking.retried(ref, last)
